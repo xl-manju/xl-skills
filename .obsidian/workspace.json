@@ -185,6 +185,7 @@
   },
   "active": "8c3639843545a4cc",
   "lastOpenFiles": [
+    "scripts/lint-script-naming.py.tmp.41118.817d2d79b302",
     "creator-kit/skills/run-elegant-review/references/variable-template-contract.md",
     "creator-kit/scripts/migrate/backfill-source-tier.py",
     "creator-kit/scripts/lint-path-canonical.py",
@@ -220,7 +221,6 @@
     "doc/ClaudeCodeスキルの設計書/10-subagents-hooks-integration.md",
     "doc/ClaudeCodeスキルの設計書/09-evaluation-orchestration.md",
     "creator-kit/skills/run-build-skill/templates/agent-team.md",
-    "creator-kit/skills/run-build-skill/templates/hook-integrated.md",
     "doc/【コード共有有】Agent Skill大全 数百本のSkillをり続けた実践知から導いたオーケストレーション設計の概念体系Byまさおさん/Brave Browser 2026-05-17 15.19.55.png",
     "analysis/ocr/1338_Pasted_image_20260517153455.pre.png",
     "analysis/ocr/1333_Pasted_image_20260517153449.pre.png",

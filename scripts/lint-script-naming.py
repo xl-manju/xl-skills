@@ -41,6 +41,25 @@ PENDING_RENAME_PATTERNS = [
     re.compile(r"^hook-[a-z0-9-]+\.py$"),
 ]
 
+# 暫定例外: 個別パス (初回投入時の既存スクリプト群、33章 Change Governance 管理下)
+# リネーム計画は .claude/changelog/governance-log.jsonl 参照
+PENDING_RENAME_PATHS = {
+    "scripts/detect-repeated-rubric-violations.py",
+    "scripts/inventory-skill-references.py",
+    "scripts/skill-fixture-runner.py",
+    "scripts/re-evaluate-on-rubric-bump.py",
+    "scripts/gate-phase0.py",
+    "creator-kit/scripts/check-rubric-sync.py",
+    "creator-kit/scripts/cross_platform_secret.py",
+    "creator-kit/scripts/re-evaluate-on-rubric-bump.py",
+    "creator-kit/scripts/migrate/audit.py",
+    "creator-kit/scripts/migrate/to-brief.py",
+    "creator-kit/scripts/migrate/backfill-source-tier.py",
+    "creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
+    "creator-kit/skills/run-skill-create/scripts/resolve-brief-to-category.py",
+    "creator-kit/skills/run-build-skill/scripts/set-frontmatter-field.py",
+}
+
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")
 
 SCAN_ROOTS = ["scripts", "creator-kit/scripts", "creator-kit/skills"]
@@ -63,6 +82,7 @@ def find_scripts(roots):
 
 def classify(path: pathlib.Path):
     name = path.name
+    posix = path.as_posix()
     if name in BANNED_NAMES:
         return ("VIOLATION", f"banned name: {name}")
     if path.parent.name == "adapters":
@@ -70,6 +90,8 @@ def classify(path: pathlib.Path):
     for pat, reason in EXCEPTION_PATTERNS:
         if pat.match(name):
             return ("EXCEPTION", reason)
+    if posix in PENDING_RENAME_PATHS:
+        return ("PENDING_RENAME", "legacy path scheduled for rename (33章 Change Governance)")
     for pat in PENDING_RENAME_PATTERNS:
         if pat.match(name):
             return ("PENDING_RENAME", "hook-* prefix scheduled for rename (33章 Change Governance)")
