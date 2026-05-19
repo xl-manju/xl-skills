@@ -2,6 +2,7 @@
 name: run-elegant-review
 description: 新規Skillを提案するとき、大規模アーキテクチャ変更を行うときに使う。
 disable-model-invocation: false
+user-invocable: true
 argument-hint: "[target-type] [target-path]"
 arguments: [target_type, target_path]
 allowed-tools:
@@ -13,7 +14,7 @@ allowed-tools:
   - Skill(assign-skill-design-evaluator *)
 kind: run
 effect: local-artifact  # findings.json/review-*.md をローカル生成。外部 API 呼び出しなし
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
 rubric_refs:
   - ref-skill-design-rubric
@@ -29,22 +30,51 @@ script_refs:
   - scripts/validate-paradigm-coverage.py
 merge_strategy: deep-merge
 conflict_policy: most-specific-wins
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/09-evaluation-orchestration.md
+source_refs:
+  - doc/ClaudeCodeスキルの設計書/09-evaluation-orchestration.md
+  - doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md
+  - doc/ClaudeCodeスキルの設計書/20-migration-path.md
+  - doc/ClaudeCodeスキルの設計書/21-source-traceability.md
+  - doc/ClaudeCodeスキルの設計書/22-cross-platform-runtime.md
+  - doc/ClaudeCodeスキルの設計書/30-paradigm-analogy-map.md
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # run-elegant-review
 
 ## Purpose & Output Contract
 
-新規Skill / rubric改訂 / アーキテクチャ提案を、**30種の思考法**で多角的に検証し、**4条件 (矛盾なし / 漏れなし / 整合性あり / 依存関係整合)** をすべてPASSさせるまで改善する。
+新規Skill / rubric改訂 / アーキテクチャ提案 / creator-kit構成要素を、**30種の思考法**で多角的に検証し、**4条件 (矛盾なし / 漏れなし / 整合性あり / 依存関係整合)** をすべてPASSさせるまで改善する。
+
+本Skillの改善は、対象固有の事実をそのまま埋め込むのではなく、必ず **具体値 → 変数 → テンプレート → 横展開条件** に戻して設計する。対象固有情報は証跡として残し、再利用可能なプロンプト・Skill・SubAgent・script・config では変数名と既定値で表現する。
 
 ### Output Contract
-- `findings.json`: paradigm別findings + 4-condition gates + total score (`templates/findings.json` 準拠)
+- `findings.json`: paradigm別findings + 4-condition gates + variable abstraction + total score (`templates/findings.json` 準拠)
 - `review-<target-type>.md`: 人間可読レポート (target_type に応じた template を採用)
 - 完了条件: 4条件すべて PASS かつ 30思考法すべてに構造化 findings が存在 (coverage script で検証)
 
 ### 引数
-- `target_type` ∈ {skill, rubric, proposal}
+- `target_type` ∈ {skill, rubric, proposal, kit-component, script, config, agent, custom}
 - `target_path`: 対象ファイル/ディレクトリの絶対パス
+
+### 変数化ポリシー
+
+| 具体情報 | テンプレート変数 | 例 |
+|---|---|---|
+| プロジェクトルート | `{{PROJECT_ROOT}}` | `/path/to/project` |
+| kitルート | `{{KIT_ROOT}}` | `{{PROJECT_ROOT}}/creator-kit` |
+| 対象種別 | `{{target_type}}` | `skill`, `script`, `config` |
+| 対象パス | `{{target_path}}` | 絶対パスまたは `{{PROJECT_ROOT}}` 基準相対パス |
+| レビュー作業領域 | `{{review_workspace}}` | OS別一時ディレクトリ配下 |
+| 所有者 | `{{owner}}` | チーム名または個人名 |
+| 実行OS | `{{os_kind}}` | `mac`, `linux`, `windows`, `unknown` |
+| 外部ツール名 | `{{external_executor}}` | `codex`, `claude-code`, `none` |
+
+禁止: 実プロジェクト名、個人名、固定絶対パス、固定API URL、固定ownerを、再利用されるプロンプト・Skill・SubAgent・script・configへ直接埋め込むこと。必要な場合は `source_trace` に証跡として残す。
 
 ---
 
@@ -117,6 +147,12 @@ conflict_policy: most-specific-wins
 
 詳細は `references/orchestration-flow.md`、各エージェント責務は `references/agent-roles.md` を参照。
 
+### 副作用境界
+
+- Phase1 と Phase2 は read-only。対象ファイルを編集せず、観察・findings 作成だけを行う。
+- Phase3 のみ write 可。編集は集約済み findings に紐づく最小パッチに限定する。
+- Phase2 単独監査として呼ばれた場合、`findings.json` などの成果物生成を求められても、ユーザー指定の出力先がない限り対象ディレクトリを書き換えない。
+
 ### Phase 1: 思考リセット俯瞰 (Agent 1: elegant-reset-observer)
 - 既存バイアスを破棄し、対象を素のまま観察
 - 目的・スコープ・前提・利害関係者を抽出
@@ -129,11 +165,12 @@ Phase1 の出力を入力として、3エージェントを**並列**起動:
 - Agent 3 `elegant-meta-divergent-analyst`: Cメタ抽象3 + D発想拡張6 = 9思考法
 - Agent 4 `elegant-system-strategic-analyst`: Eシステム3 + F戦略価値4 + G問題解決5 = 12思考法
 
-各エージェントは担当思考法 × C1〜C4 のマトリクスで `paradigm_findings` を生成 → `scripts/validate-paradigm-coverage.py` で全30件の構造と内容を検証 → `scripts/build-paradigm-scorecard.py` で集約。
+各エージェントは担当思考法 × C1〜C4 のマトリクスで `paradigm_findings` を生成し、具体値を `variable_abstraction` に戻す。集約後、`scripts/validate-paradigm-coverage.py` で全30件の構造と内容を検証 → `scripts/build-paradigm-scorecard.py` で集約。
 
 ### Phase 3: 改善実行 (Agent 5: elegant-improvement-executor)
 - findings を重大度順にソート
 - 4条件 FAIL 項目に対しパッチを適用
+- 具体情報の直書きを変数・テンプレート・既定値へ昇格し、`source_trace` に由来を残す
 - 再度 Phase2 へ (収束判定は `references/convergence-policy.json` 参照)
 - 収束条件 (全クリア) または安全弁発火 (max 3) まで継続
 
@@ -170,6 +207,7 @@ Phase1 の出力を入力として、3エージェントを**並列**起動:
 - `findings.json` (機械可読)
 - `review-<target-type>.md` (人間可読、template採用)
 - `paradigm-scorecard.csv` (paradigm × condition matrix)
+- `variable-abstraction` (具体値をテンプレート変数へ置換した対応表。`findings.json` と review に含める)
 
 ---
 
@@ -180,6 +218,7 @@ Phase1 の出力を入力として、3エージェントを**並列**起動:
 3. **Goodhart の罠** — score 最大化のために本質を歪めない。低score でも本質が正しいなら C1〜C4 のみで判定。
 4. **並列前提** — Phase2 の3エージェントは互いの中間結果を参照しない (独立性確保)。
 5. **rubric_refs の継承** — `ref-skill-design-rubric` と `elegant-4-conditions.json` は deep-merge / most-specific-wins。
+6. **具体値の直書き禁止** — 横展開を阻害する固有名詞・固定パス・固定URL・固定ownerは、テンプレート変数か config example に移す。例外は証跡・引用・source trace のみ。
 
 ---
 
@@ -190,6 +229,7 @@ Phase1 の出力を入力として、3エージェントを**並列**起動:
 - `references/elegant-4-conditions.json` — rubric rule 表現
 - `references/agent-roles.md` — エージェント1〜5の責務
 - `references/orchestration-flow.md` — Phase1→2→3 詳細フロー
+- `references/variable-template-contract.md` — 具体情報を変数化して横展開する契約
 - `templates/review-skill.md` / `review-rubric.md` / `review-proposal.md` — 出力雛形
 - `templates/findings.json` — JSON出力スキーマ
 - `scripts/build-paradigm-scorecard.py` — matrix 生成

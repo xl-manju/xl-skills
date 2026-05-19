@@ -6,7 +6,7 @@
   "threshold": 80,
   "max_skill_md_lines": 300,
   "trigger_count_min": 2,
-  "trigger_count_max": 2,
+  "trigger_count_max": 3,
   "description_no_action_detail": true,
   "severity_weights": {
     "high": -20,
@@ -37,8 +37,8 @@
       "id": "FM-003",
       "area": "frontmatter",
       "severity": "medium",
-      "check": "trigger phrase count in description == 2 (Japanese 〜とき/〜場合/〜際/〜時 or English when-clauses). 2個（hard rule）",
-      "rationale": "trigger 2個は誤発動と取りこぼしのスイートスポット (03章 hard rule ≤ 2 / lint R1 と整合)"
+      "check": "trigger phrase count in description is 2..3 (Japanese 〜とき/〜場合/〜際/〜時 or English when-clauses). 2〜3個（hard rule）",
+      "rationale": "08章の本文設計と lint R1 に合わせ、2〜3個を誤発動と取りこぼしのスイートスポットとする"
     },
     {
       "id": "FM-004",
@@ -79,7 +79,7 @@
       "id": "BD-004",
       "area": "body",
       "severity": "medium",
-      "check": "frontmatter.description の 'Use when ...' で示された 2個の発動条件すべてが、body の Steps / Procedure 節に対応する手順として現れている (LLM judge: 各 trigger phrase → body 内の対応箇所を 1:1 で抽出できるか)",
+      "check": "frontmatter.description の 'Use when ...' で示された 2〜3個の発動条件すべてが、body の Steps / Procedure 節に対応する手順として現れている (LLM judge: 各 trigger phrase → body 内の対応箇所を 1:1 で抽出できるか)",
       "rationale": "description は Claude が『いつ呼ぶか』を判断する契約 (08章)。body が trigger を満たさないと、Skill は呼ばれても約束を履行できず、Goodhart 罠 (描いただけで採点を通す) に陥る。BD-001..003 が『節の存在』を見るのに対し BD-004 は『description ↔ body の整合』を見るため直交する。"
     },
     {

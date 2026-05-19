@@ -7,6 +7,11 @@ allowed-tools: [Read, Write, Edit, Bash(python3 *)]
 kind: {{kind}}
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal") }}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly") }}
 role_suffix: {{role_suffix}}
 # === Hook 統合スキル ===
 # 本 skill は Hook と組で運用される。スキル本文は Hook の存在と結果解釈を明示する。

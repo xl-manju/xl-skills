@@ -2,6 +2,7 @@
 name: run-skill-rename
 description: Skill名を変更するとき、改名後の参照整合を確認するときに使う。
 disable-model-invocation: false
+user-invocable: true
 argument-hint: "[old-skill-name] [new-skill-name]"
 arguments: [old_name, new_name]
 allowed-tools:
@@ -11,8 +12,13 @@ allowed-tools:
   - Bash(python3 *)
   - Bash(git *)
 kind: run
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
+# doc/21 source-traceability
+source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
+source-tier: article-text
+last-audited: 2026-05-19
+audit-trigger: source-update
 effect: local-artifact
 ---
 

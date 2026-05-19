@@ -5,8 +5,13 @@ disable-model-invocation: true
 user-invocable: false
 kind: ref
 effect: none
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-17
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # ref-claude-code-skill-spec
@@ -14,11 +19,11 @@ since: 2026-05-17
 ## Purpose & Output Contract
 
 Claude Code Skills の仕様サマリ。
-公式仕様と xl-skills ローカル規約を区別し、frontmatter・ライフサイクル・Subagent/hook 連携の判断材料を圧縮する。
+公式仕様と {{PROJECT_ROOT}} ローカル規約を区別し、frontmatter・ライフサイクル・Subagent/hook 連携の判断材料を圧縮する。
 
 ## Key Rules
 
-1. **公式とローカル規約を区別**: 公式上は `description` 推奨中心。xl-skills 出荷基準では `name`, `description` を必須として lint する。
+1. **公式とローカル規約を区別**: 公式上は `description` 推奨中心。{{PROJECT_ROOT}} 出荷基準では `name`, `description` を必須として lint する。
 2. **`disable-model-invocation: true`** で自動発動を抑止（ref系）。
 3. **`user-invocable: false`** でユーザー直接呼出抑止（assign系）。
 4. **`allowed-tools`** は最小権限。`Bash(python3 *)` のように glob 制限可能。

@@ -2,11 +2,17 @@
 name: run-skill-rubric-governance
 description: rubric変更を提案するとき、rubric改正を施行するときに使う。
 disable-model-invocation: false
+user-invocable: true
 allowed-tools: [Read, Write, Edit, Bash(python3 *), Bash(git *)]
 kind: run
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-17
 effect: local-artifact
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # run-skill-rubric-governance
@@ -92,5 +98,5 @@ python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" \
 - `scripts/diff-rubric-impact.py` — 影響評価
 - `references/governance-board.md` — ボード構成
 - `references/version-rules.md` — semver規約
-- 27章: `xl-skills/doc/スキルの設計書/27-rubric-governance-runbook.md`
+- 27章: `{{PROJECT_ROOT}}/doc/スキルの設計書/27-rubric-governance-runbook.md`
 - `creator-kit/scripts/resolve-skill-dirs.sh` — SKILL_DIR 解決スクリプト

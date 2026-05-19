@@ -10,6 +10,8 @@ allowed-tools: [Read, Write]
 kind: delegate
 owner: {{owner}}
 since: {{date}}
+hierarchy_level: {{hierarchy_level | default("L2") }}  # delegate は通常 L2（外部実行委譲）
+rubric_refs: {{rubric_refs | default([]) }}            # 委譲先の受け入れ判定 rubric
 # permissions: 副作用ありスキルは settings.json の permissions.deny に明示禁止を書くこと（設計書04章）
 # PreToolUse hook: 文脈次第の危険検査を hook で追加（二段防御）。例: creator-kit/config/claude-settings-hooks.json.example 参照
 ---

@@ -6,8 +6,13 @@ allowed-tools:
   - Read
 kind: ref
 effect: none
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # ref-yaml-spec-fetcher

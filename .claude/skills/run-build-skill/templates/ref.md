@@ -6,6 +6,11 @@ user-invocable: false
 kind: {{kind}}
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability 必須フィールド (ref-* は必須)
+source: {{source_url_or_path}}
+source-tier: {{source_tier}}            # article-text|image-derived|code-unavailable|code-verified|internal|external-spec
+last-audited: {{last_audited_date}}     # YYYY-MM-DD
+audit-trigger: {{audit_trigger}}         # rubric-bump|source-update|quarterly
 ---
 
 # {{name}}

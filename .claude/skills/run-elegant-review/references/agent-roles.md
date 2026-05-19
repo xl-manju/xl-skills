@@ -3,7 +3,7 @@
 ## Agent 1: elegant-reset-observer (Phase1)
 - 役割: 思考リセットして対象を俯瞰観察
 - 入力: target_type, target_path
-- 出力: { purpose, scope, assumptions, stakeholders, raw_observations[] }
+- 出力: { purpose, scope, assumptions, stakeholders, raw_observations[], concrete_values_to_abstract[] }
 - 担当思考法: なし (観察のみ、評価しない)
 - 禁止: rubric参照、score算出、改善提案
 
@@ -16,7 +16,7 @@
 ## Agent 3: elegant-meta-divergent-analyst (Phase2 並列)
 - 役割: メタ抽象+発想拡張で別視点を生成
 - 入力: Agent1出力
-- 出力: findings[] (paradigm × C1〜C4、9 paradigms分)
+- 出力: findings[] (paradigm × C1〜C4、9 paradigms分) + reusable_abstraction + template_variables + negative_cases
 - 担当思考法 (9): メタ思考/抽象化思考/ダブル・ループ思考/ブレインストーミング/水平思考/逆説思考/類推思考/if思考/素人思考
 
 ## Agent 4: elegant-system-strategic-analyst (Phase2 並列)
@@ -31,6 +31,7 @@
 - 出力: patched target + updated findings.json + 4-condition gate結果
 - 完了条件: C1〜C4 すべて PASS、または loop=3 到達でエスカレーション
 - 並列対応: 独立パッチは並列適用可
+- 変数化責務: 固有名詞・固定パス・固定URL・固定ownerを、変数・テンプレート・config example へ昇格する
 
 ## 独立性原則
 - Phase2 の3エージェントは互いの中間出力を参照しない

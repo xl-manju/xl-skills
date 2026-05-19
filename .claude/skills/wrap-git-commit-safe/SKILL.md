@@ -2,6 +2,7 @@
 name: wrap-git-commit-safe
 description: git commit を安全側で実行したいとき、機密ファイルやhook無視を防ぎたいときに使う。
 disable-model-invocation: false
+user-invocable: true
 allowed-tools:
   - Read
   - Bash(git status *)
@@ -11,8 +12,13 @@ allowed-tools:
 kind: wrap
 effect: local-artifact  # wrap-* は base: run-build-skill の effect を継承
 base: run-build-skill
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
+# doc/21 source-traceability
+source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
+source-tier: article-text
+last-audited: 2026-05-19
+audit-trigger: source-update
 hierarchy_level: L1
 # wrap-* prefix の最小実例。base Skill (run-build-skill) の commit 前後を安全側で被せる。
 ---
@@ -37,11 +43,14 @@ base Skill (`run-build-skill`) の commit ステップを wrap し、機密フ�
 
 ## Steps
 
-### Step 1: 機密ファイル検出
+### Step 1: 機密ファイル検出 (決定論スキャン)
 
 ```bash
-git diff --cached --name-only | grep -E '\.(env|pem)$|credentials\.json' && exit 1 || true
+python3 creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py \
+  --repo-root "$(git rev-parse --show-toplevel)" \
+  --commit-args "$@"
 ```
+exit 2 で BLOCK。LLM の文字列マッチに依存しない決定論的検査。
 
 ### Step 2: hook bypass 検出
 

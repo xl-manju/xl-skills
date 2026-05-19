@@ -117,43 +117,5 @@
       "rationale": "27章: 採点結果の再現性を保証"
     }
   ],
-  "_sync_note": "upstream ref-skill-design-rubric/rubric.json 1.1.0 と同期 (governance PROP-2026-05-18-002)。差分は inherits_from で表現し、check 直書きは upstream に揃える。 | D-3: 12章画像知識由来評価軸 (PD-IMG-001, DESC-IMG-001, KIND-IMG-001, ROLE-IMG-001) を evaluation_axes に追加 (2026-05-19).",
-  "evaluation_axes": [
-    {
-      "id": "PD-IMG-001",
-      "area": "progressive-disclosure",
-      "severity": "medium",
-      "source": "12-image-extraction-map.md:675",
-      "label": "Progressive Disclosure 3失敗パターン",
-      "check": "SKILL.md が Progressive Disclosure の失敗パターン (i) 全部見せ (ii) 目次なし深潜り (iii) 分割なし肥大) のいずれにも該当しないこと",
-      "rationale": "12章675行: 3失敗パターンの回避がトークン効率と読み手の認知負荷削減の前提"
-    },
-    {
-      "id": "DESC-IMG-001",
-      "area": "frontmatter",
-      "severity": "medium",
-      "source": "12-image-extraction-map.md:515",
-      "label": "description Before/After 対比",
-      "check": "description が Before（動作詳細混在）パターンを持たず After（発動条件のみ）パターンに合致すること",
-      "rationale": "12章515行: description Before/After 対比図が示す『発動条件のみ』原則の機械検証"
-    },
-    {
-      "id": "KIND-IMG-001",
-      "area": "naming",
-      "severity": "medium",
-      "source": "12-image-extraction-map.md:877,979",
-      "label": "4軸決定マトリクス準拠",
-      "check": "frontmatter.kind が 4軸決定マトリクス (effect×invocation×scope×layer) に沿って選択されていること。kind と effect の組合せが matrix で禁止されている組合せでないこと",
-      "rationale": "12章877/979行: kind 選択の恣意化を防ぐ決定マトリクス参照の強制"
-    },
-    {
-      "id": "ROLE-IMG-001",
-      "area": "governance",
-      "severity": "high",
-      "source": "12-image-extraction-map.md:1333",
-      "label": "Generator/Evaluator 役割分離",
-      "check": "generator スキルが自己採点しないこと。assign-* スキルは pair: フィールドで generator を指定し、自身が生成した成果物を評価する構造でないこと",
-      "rationale": "12章1333行: Generator/Evaluator 役割図が示す Goodhart 防止の構造的分離"
-    }
-  ]
+  "_sync_note": "upstream ref-skill-design-rubric/rubric.json 1.1.0 と同期 (governance PROP-2026-05-18-002)。差分は inherits_from で表現し、check 直書きは upstream に揃える。"
 }

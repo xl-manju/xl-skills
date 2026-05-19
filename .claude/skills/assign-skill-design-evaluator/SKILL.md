@@ -9,7 +9,7 @@ pair: run-build-skill
 kind: assign
 effect: conversation-output
 role_suffix: evaluator
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-17
 rubric_refs:
   - ref-skill-design-rubric
@@ -20,6 +20,11 @@ script_refs:
   - scripts/render-findings-score.py
 merge_strategy: deep-merge
 conflict_policy: most-specific-wins
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # assign-skill-design-evaluator
@@ -38,13 +43,18 @@ forkコンテキストで動き、生成本体（run-build-skill）と context �
   "rubric_id": "skill-design",
   "rubric_version": "1.0.0",
   "rubric_hash": "<sha256:rubric.json>",
+  "composition_hash": "<sha256:merged-rubrics>",
+  "rubric_refs": ["<L0 rubric>", "<local override>"],
   "target": "<path>",
   "score": 87,
   "threshold": 80,
   "passed": true,
+  "machine_checks": [],
   "findings": [
     {"id":"FM-003","severity":"medium","message":"trigger count=4 > 3","loc":"frontmatter.description"}
-  ]
+  ],
+  "required_fixes": [],
+  "pending_human": []
 }
 ```
 
@@ -53,7 +63,7 @@ forkコンテキストで動き、生成本体（run-build-skill）と context �
 ## Key Rules
 
 1. **Goodhart対策**: 採点者は被採点物を改変しない（09章）。
-2. **rubric は 1ファイル正本**: `ref-skill-design-rubric/rubric.json` を upstream とし、本Skill側 `references/rubric.json` は deep-merge override（29章）。
+2. **rubric_refs 注入**: runner/orchestrator が L0..Ln の `rubric_refs` を渡し、未指定時は `ref-skill-design-rubric/rubric.json` + 本Skill側 `references/rubric.json` を deep-merge する（09/29章）。
 3. **TODO(human)残置**: BD-004 は人間判断待ち。検出時は finding severity=low で `pending_human` を立てる。
 4. **severity weights固定**: high -20 / medium -10 / low -3、初期 100。負値は 0 にクランプ。
 5. **rubric_hash必須**: 出力JSONに rubric.json の sha256 を載せる（再現性、27章）。
@@ -75,12 +85,13 @@ if [ -z "$SKILL_DIR" ]; then
     SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
   fi
 fi
+UPSTREAM="${SKILL_DESIGN_RUBRIC:-creator-kit/skills/ref-skill-design-rubric/rubric.json}"
 python3 "$SKILL_DIR/scripts/render-findings-score.py" \
-  --rubric "$SKILL_DIR/references/rubric.json" \
+  --rubric-refs "$UPSTREAM" "$SKILL_DIR/references/rubric.json" \
   --target "$TARGET" --emit-hash
 ```
 
-`references/rubric.json` は `ref-skill-design-rubric/rubric.json` を継承（merge_strategy: deep-merge）。
+`references/rubric.json` は `ref-skill-design-rubric/rubric.json` を継承（merge_strategy: deep-merge）。別domain rubricを足す場合も evaluator 本体は増やさず、呼び出し側が `--rubric-refs` に追加する。
 
 ### Step 2: 静的検査の実行
 

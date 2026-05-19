@@ -253,7 +253,9 @@ def main() -> int:
         "score": score,
         "threshold": threshold,
         "passed": score >= threshold and not any(f["severity"] == "high" for f in findings),
+        "machine_checks": [],
         "findings": findings,
+        "required_fixes": [f for f in findings if f.get("severity") == "high"],
         "pending_human": pending_human,
     }
     sys.stdout.write(json.dumps(out, ensure_ascii=False))

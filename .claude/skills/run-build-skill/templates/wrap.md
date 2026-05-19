@@ -8,6 +8,13 @@ kind: wrap
 base: {{base_skill}}
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal") }}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly") }}
+hierarchy_level: {{hierarchy_level | default("L1") }}   # wrap は通常 L1（外部 CLI 連携）
+rubric_refs: {{rubric_refs | default([]) }}            # ref-pr-conventions 等のラップ対象規約
 # permissions: 副作用ありスキルは settings.json の permissions.deny に明示禁止を書くこと（設計書04章）
 # PreToolUse hook: 文脈次第の危険検査を hook で追加（二段防御）。例: creator-kit/config/claude-settings-hooks.json.example 参照
 ---

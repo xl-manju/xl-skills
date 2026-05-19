@@ -50,6 +50,39 @@ PARADIGMS: dict[int, list[str]] = {
     30: ["kj法", "kj method"],
 }
 
+EXPECTED_META: dict[int, tuple[str, str, str]] = {
+    1: ("critical", "A-logical", "elegant-logical-structural-analyst"),
+    2: ("deductive", "A-logical", "elegant-logical-structural-analyst"),
+    3: ("inductive", "A-logical", "elegant-logical-structural-analyst"),
+    4: ("abductive", "A-logical", "elegant-logical-structural-analyst"),
+    5: ("vertical", "A-logical", "elegant-logical-structural-analyst"),
+    6: ("decomposition", "B-structural", "elegant-logical-structural-analyst"),
+    7: ("mece", "B-structural", "elegant-logical-structural-analyst"),
+    8: ("two-axis", "B-structural", "elegant-logical-structural-analyst"),
+    9: ("process-thinking", "B-structural", "elegant-logical-structural-analyst"),
+    10: ("meta-thinking", "C-meta", "elegant-meta-divergent-analyst"),
+    11: ("abstraction", "C-meta", "elegant-meta-divergent-analyst"),
+    12: ("double-loop", "C-meta", "elegant-meta-divergent-analyst"),
+    13: ("brainstorming", "D-divergent", "elegant-meta-divergent-analyst"),
+    14: ("lateral", "D-divergent", "elegant-meta-divergent-analyst"),
+    15: ("paradox", "D-divergent", "elegant-meta-divergent-analyst"),
+    16: ("analogy", "D-divergent", "elegant-meta-divergent-analyst"),
+    17: ("what-if", "D-divergent", "elegant-meta-divergent-analyst"),
+    18: ("beginner-mind", "D-divergent", "elegant-meta-divergent-analyst"),
+    19: ("systems-thinking", "E-system", "elegant-system-strategic-analyst"),
+    20: ("causal-analysis", "E-system", "elegant-system-strategic-analyst"),
+    21: ("causal-loop", "E-system", "elegant-system-strategic-analyst"),
+    22: ("trade-on", "F-strategic", "elegant-system-strategic-analyst"),
+    23: ("positive-sum", "F-strategic", "elegant-system-strategic-analyst"),
+    24: ("value-proposition", "F-strategic", "elegant-system-strategic-analyst"),
+    25: ("strategic", "F-strategic", "elegant-system-strategic-analyst"),
+    26: ("why-thinking", "G-problem", "elegant-system-strategic-analyst"),
+    27: ("improvement", "G-problem", "elegant-system-strategic-analyst"),
+    28: ("hypothesis", "G-problem", "elegant-system-strategic-analyst"),
+    29: ("issue-thinking", "G-problem", "elegant-system-strategic-analyst"),
+    30: ("kj-method", "G-problem", "elegant-system-strategic-analyst"),
+}
+
 
 def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
     raw = path.read_text(encoding="utf-8")
@@ -79,8 +112,17 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
 
     valid_conditions = {"C1", "C2", "C3", "C4"}
     valid_severities = {"critical", "high", "medium", "low"}
+    valid_scopes = {"target-specific", "reusable-pattern", "governance-rule", "lint-candidate", "template-candidate"}
+    valid_reuse_surfaces = {"template", "rubric", "lint", "hook", "reference", "manifest", "runbook", "none"}
     for pid in sorted(set(PARADIGMS) & set(by_id)):
         item = by_id[pid]
+        expected_name, expected_category, expected_agent = EXPECTED_META[pid]
+        if item.get("paradigm_name") != expected_name:
+            errors.append(f"paradigm {pid}: expected paradigm_name={expected_name}")
+        if item.get("category") != expected_category:
+            errors.append(f"paradigm {pid}: expected category={expected_category}")
+        if item.get("agent") != expected_agent:
+            errors.append(f"paradigm {pid}: expected agent={expected_agent}")
         observations = item.get("observations")
         issues = item.get("issues")
         if not isinstance(observations, list) or not any(str(x).strip() for x in observations):
@@ -100,6 +142,10 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
                 errors.append(f"paradigm {pid} issue {i}: missing description")
             if not str(issue.get("suggested_fix", "")).strip():
                 errors.append(f"paradigm {pid} issue {i}: missing suggested_fix")
+            if "finding_scope" in issue and issue.get("finding_scope") not in valid_scopes:
+                errors.append(f"paradigm {pid} issue {i}: invalid finding_scope")
+            if "reuse_surface" in issue and issue.get("reuse_surface") not in valid_reuse_surfaces:
+                errors.append(f"paradigm {pid} issue {i}: invalid reuse_surface")
 
     return not errors, errors
 

@@ -2,14 +2,20 @@
 name: delegate-codex-skill-review
 description: 自セッションで評価せず外部LLMに委譲したいとき、Sycophancyを避けたいときに使う。
 disable-model-invocation: false
+user-invocable: true
 allowed-tools:
   - Read
   - Bash(codex *)
 kind: delegate
 effect: external-mutation
 delegate_agent: codex-cli
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
+# doc/21 source-traceability
+source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
+source-tier: article-text
+last-audited: 2026-05-19
+audit-trigger: source-update
 hierarchy_level: L1
 # delegate-* prefix の最小実例。Skill レビューを外部 codex CLI に委譲する。
 ---
@@ -32,6 +38,13 @@ hierarchy_level: L1
 3. **結果は読み取り専用**: codex の返答を加工・反論せず、そのまま eval-log/ に保存。
 
 ## Steps
+
+### Step 0: codex 存在確認 (決定論)
+
+```bash
+bash creator-kit/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh
+```
+exit 2 が返ったら BLOCK。インストール手順を案内して停止。
 
 ### Step 1: target 検証
 

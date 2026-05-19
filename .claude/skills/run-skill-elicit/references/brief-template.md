@@ -27,11 +27,6 @@ created_by: run-skill-elicit
 - <制約 1>
 - <制約 2>
 
-## cross_platform
-
-cross_platform: false        # Mac/Windows両対応か (11章・14章。true の場合 OS プリアンブル挿入)
-os_preamble_required: false  # !`uname -s 2>/dev/null || ver` 行を本文先頭に挿入するか
-
 ## open_questions (TODO(human))
 
 - [ ] <設計判断が分かれる事項 1>

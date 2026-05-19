@@ -171,6 +171,64 @@ def main() -> int:
         for key in ("prefix", "role_suffix", "subagent", "hook"):
             if not variant.get(key):
                 errs.append(f"variant_support.{key} is empty")
+        # 強化 (M3): variant_support.prefix が現行 kind 列挙と整合するか検証
+        # （`atomic` などの旧仕様値が trace に紛れ込まないようガード）
+        valid_prefixes = {"ref", "run", "wrap", "assign", "delegate"}
+        prefix_val = str(variant.get("prefix", "")).strip().lower()
+        if prefix_val and prefix_val not in valid_prefixes:
+            errs.append(
+                f"variant_support.prefix={prefix_val!r} not in {sorted(valid_prefixes)} "
+                "(atomic は旧仕様。19章 factory 障害 #6 参照)"
+            )
+        # variant_support.prefix と生成スキル frontmatter の kind が一致するかクロスチェック
+        skill_path = data.get("skill_path") or data.get("target_skill_path")
+        if skill_path:
+            from pathlib import Path as _P
+            skill_md = _P(skill_path) / "SKILL.md"
+            if skill_md.exists():
+                text = skill_md.read_text(encoding="utf-8")
+                # frontmatter 内の kind 行を最小パースで抽出
+                for line in text.splitlines():
+                    s = line.strip()
+                    if s.startswith("kind:"):
+                        kind_val = s.split(":", 1)[1].strip().split("#", 1)[0].strip()
+                        if prefix_val and kind_val and prefix_val != kind_val:
+                            errs.append(
+                                f"variant_support.prefix={prefix_val!r} != frontmatter.kind={kind_val!r} in {skill_md}"
+                            )
+                        break
+
+    # 強化 (M3): context_map_decision.category が resource-map.yaml に列挙された
+    # category のいずれかに一致するか検証
+    context_decision = data.get("context_map_decision")
+    if isinstance(context_decision, dict):
+        cats = context_decision.get("category")
+        if cats:
+            # resource-map.yaml を探索（trace 隣接か run-build-skill 直下）
+            from pathlib import Path as _P
+            candidate_maps = [
+                _P("creator-kit/skills/run-build-skill/references/resource-map.yaml"),
+                _P(".claude/skills/run-build-skill/references/resource-map.yaml"),
+            ]
+            known_cats: set[str] = set()
+            for cm in candidate_maps:
+                if cm.exists():
+                    try:
+                        for ln in cm.read_text(encoding="utf-8").splitlines():
+                            stripped = ln.strip()
+                            if stripped.startswith("- category:"):
+                                known_cats.add(stripped.split(":", 1)[1].strip().strip('"'))
+                    except OSError:
+                        pass
+                    break
+            if known_cats:
+                cat_list = cats if isinstance(cats, list) else [cats]
+                for c in cat_list:
+                    if c not in known_cats:
+                        errs.append(
+                            f"context_map_decision.category={c!r} not in resource-map.yaml "
+                            f"({sorted(known_cats)})"
+                        )
 
     patterns = data.get("pattern_decisions")
     if not isinstance(patterns, list) or not patterns:

@@ -7,10 +7,15 @@
   "rubric_id": "skill-design",
   "rubric_version": "1.0.0",
   "rubric_hash": "sha256:<hex>",
+  "composition_hash": "sha256:<hex>",
+  "rubric_refs": ["<ordered rubric path>"],
   "target": "<absolute path>",
   "score": 87,
   "threshold": 80,
   "passed": true,
+  "machine_checks": [
+    {"check": "lint-skill-name", "passed": true}
+  ],
   "findings": [
     {
       "id": "FM-003",
@@ -20,6 +25,7 @@
       "loc": "frontmatter.description"
     }
   ],
+  "required_fixes": [],
   "pending_human": [
     {"id": "BD-004", "reason": "rubric has TODO(human) marker"}
   ]
@@ -32,6 +38,8 @@
 - STDERR にはログのみ。JSONは必ずSTDOUT。
 - score は 0..100 にクランプ。
 - BD-004 が TODO(human) のままなら `pending_human` に積む。スコア控除しない。
+- `required_fixes` は high finding または gate failure から派生する修正必須項目。空配列可。
+- `machine_checks` は実行済みP0検査の配列。未実行なら空配列にする。
 
 ## 利用側 (run-build-skill) の使い方
 

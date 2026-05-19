@@ -16,7 +16,7 @@ allowed-tools:
 pair: assign-skill-design-evaluator
 kind: run
 effect: local-artifact
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-17
 script_refs:
   - scripts/render-frontmatter.py
@@ -25,6 +25,11 @@ script_refs:
   - scripts/validate-build-trace.py
 # context-budget (CD-005): 章一括ロード禁止。必要な章のみ参照すること。
 # max-reference-chapters: 3  # 同時に読む設計書章の上限
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # run-build-skill

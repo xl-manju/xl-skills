@@ -7,6 +7,11 @@ allowed-tools: [Read, Write, Edit, Bash(python3 *), Bash(bash *), Task]
 kind: run
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal") }}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly") }}
 role_suffix: orchestrator
 pair: {{pair_evaluator}}
 rubric_refs:

@@ -1,6 +1,6 @@
 ---
 name: run-skill-elicit
-description: Skill要望をbrief.jsonに固めたいとき、対話ウィザードでrequirementsを収集したいときに使う。
+description: Skill要望をbrief.jsonに固めたいとき、対話形式でrequirementsを収集したいときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[topic?]"
@@ -10,9 +10,14 @@ allowed-tools:
   - Write
 kind: run
 effect: local-artifact
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
 # context-budget: このスキルはヒアリングのみ。設計書は06章と13章だけを参照する。
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # run-skill-elicit
@@ -21,7 +26,7 @@ since: 2026-05-18
 
 ユーザーの曖昧な要求を構造化し、`run-build-skill` へ渡す要件定義（brief）を作る。
 
-**入力**: topic (任意。省略時はウィザード形式で対話)
+**入力**: topic (任意。省略時は対話形式で確認)
 **出力**: `eval-log/skill-brief.json` (固定パス。プロジェクトルート基準。`creator-kit/skills/run-skill-create/references/skill-brief-schema.json` に準拠)
 
 含むフィールド:
@@ -54,7 +59,7 @@ os_preamble_required: true|false                           # OSプリアンブ�
 
 ## Key Rules
 
-1. **質問は最大5個まで**: ウィザードは5問以内で brief を完成させる。超過分は open_questions として残す。
+1. **質問は最大5個まで**: 対話は5問以内で brief を完成させる。超過分は open_questions として残す。
 2. **kind 確定チェック**: 辞書型(ref)か手順型(run/assign)かを最初に確認する。
 3. **trigger 2〜3個**: description の Use when 句候補を2〜3個に絞る。
 4. **open_questions**: 設計判断が分かれる細部は TODO(human) として明示して残す。
@@ -140,6 +145,16 @@ prefix=run の場合は原則 `role_suffix=null` とし、生成者・評価者�
 ### Step 4.6: Layering 入力確認
 
 05章の配置判断を brief に固定する。決定論的検査、外部システム、独立context要否、lifecycle強制要否、CLI/MCP候補を短く確認し、`placement_candidates` に Skill/Subagent/Agent Team/Hook/MCP/CLI/API/script の候補を残す。該当なしは空配列または false として明示する。
+
+**Agent Team / Subagent 連動 hint の決定論的設定**（19章 factory 障害 #6 対応）:
+
+| `placement_candidates` に含まれる値 | brief に追加するフィールド | build 側へ渡る効果 |
+|---|---|---|
+| `Subagent` | `needs_independent_context: true`, `with_subagent_hint: true` | run-build-skill に `--with-subagent` フラグを推奨 |
+| `Agent Team` | `needs_independent_context: true`, `with_subagent_hint: true`, `agent_team_required: true` | run-build-skill が 17 章 (Agent Teams) を必ず読む。`TaskCompleted` hook 配線も build skeleton に含める |
+| `Hook` | `with_hooks: true`, `needs_lifecycle_enforcement: true` | run-build-skill に `--with-hooks` フラグを推奨。10 章を category=subagent-hook-integration で必ず読む |
+
+これにより `scripts/resolve-brief-to-category.py` が決定論的に 17 章 / 10 章を読むべき category として返し、LLM 主観依存を排除する。
 
 ### Step 4.7: クロスプラットフォーム確認 (11章 / 14章)
 

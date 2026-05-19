@@ -14,12 +14,17 @@ allowed-tools:
 model: opus
 kind: run
 effect: local-artifact
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
 pair: assign-skill-design-evaluator
 rubric_refs:
   - ref-skill-design-rubric
 # context-budget: orchestrationのみ。各子スキルがそれぞれの設計書を参照する。本スキルは05/06/07/13/23/25章のみ参照。
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # run-skill-create
@@ -150,7 +155,7 @@ python3 creator-kit/scripts/build-manifest-registration-plan.py --apply
 
 ### Step 4a: P0 lint (自動)
 
-cwd は xl-skills プロジェクトルート。`--skills-dir` には creator-kit/skills/ または .claude/skills/ を明示する。
+cwd は {{PROJECT_ROOT}} プロジェクトルート。`--skills-dir` には creator-kit/skills/ または .claude/skills/ を明示する。
 SKILLS_DIR は Phase 0 中の正本である `creator-kit/skills` を既定とし、`.claude/skills` に配置した派生を検査する場合のみ上書きする。
 
 ```bash
@@ -167,12 +172,6 @@ python3 creator-kit/scripts/lint-manifest-contents.py
 ```
 **全てexit 0必須**。失敗時: findings をユーザー提示 → Step 2 へ戻る (最大3周)。Gate 2 は全 lint exit 0 の場合のみ通過可。
 
-**3周超過時のエスカレーション** (governance_decision = `loop_exceeded`):
-1. `eval-log/handoff-after_lint.json` の `state.required_fixes` を `TODO(human)` として提示する。
-2. `resume_command`（例: `Skill(run-skill-create, args=[<topic>, --mode=update, --resume-from=lint])`) を明示する。
-3. パラダイム逸脱の可能性を Step 5 elegant-review に上申して停止する（lint 物理ルールではなく設計前提が誤っている可能性が高いため）。
-4. handoff-schema.json の `governance_decision` 列挙に `loop_exceeded` が含まれることを前提とする。
-
 ### Gate 2: diff確認
 
 `git diff creator-kit/skills/<name>/` をユーザーに提示し承認を得る。派生配置を検査する場合のみ `.claude/skills/<name>/` も併記する。前提: Step 4a が全 pass していること。
@@ -188,20 +187,14 @@ Skill(assign-skill-design-evaluator, args=<skill_path>, context=fork)
 
 ### Step 5: パラダイム評価 (条件付き)
 
-**fast mode ガード**: `$FAST == "true"` かつ Step 開始時点で fast 条件 (`DIFF_LINES <= 30` かつ `KIND ∈ {ref, wrap}` かつ 1ファイル変更 かつ evaluator pair 不要) を満たす場合、本 Step は早期 return する（理由: 低リスク変更に対する fork 評価の coordination cost が価値を下回るため）。早期 return 時は `eval-log/skill-build-trace.json` の `elegant_review` フィールドに `{"status": "skipped", "reason": "fast_mode"}` を記録する。
-
-fast でない、または fast 条件不一致時のみ以下を実行する。判定は機械化:
+新規スキルまたは大規模更新 (>30行変更) の場合のみ実行する。判定は機械化:
 
 ```bash
-# fast mode を Step 5 でも明示的にチェック（Step 4a の判定が古い場合に備え二重ガード）
+# git diff --shortstat の "X insertions" + "Y deletions" を加算して 30 を超えるか判定
 DIFF_LINES=$(git diff --shortstat -- "creator-kit/skills/$SKILL_NAME/" \
   | python3 -c "import sys,re; s=sys.stdin.read(); ins=sum(int(m) for m in re.findall(r'(\d+) insertion',s)); dels=sum(int(m) for m in re.findall(r'(\d+) deletion',s)); print(ins+dels)")
 NEW_SKILL=$(test -n "$(git ls-files --others --exclude-standard creator-kit/skills/$SKILL_NAME/)" && echo "true" || echo "false")
-FAST_OK=$([[ "$FAST" == "true" && "$DIFF_LINES" -le 30 && "$KIND" =~ ^(ref|wrap)$ ]] && echo "true" || echo "false")
-
-if [[ "$FAST_OK" == "true" ]]; then
-  echo "elegant-review skipped: fast mode"
-elif [[ "$NEW_SKILL" == "true" ]] || [[ "$DIFF_LINES" -gt 30 ]]; then
+if [[ "$NEW_SKILL" == "true" ]] || [[ "$DIFF_LINES" -gt 30 ]]; then
   echo "elegant-review triggered: new=$NEW_SKILL diff_lines=$DIFF_LINES"
   # Skill 起動
 fi
@@ -219,7 +212,7 @@ PASS時は `findings.json` の `pattern_ref_candidates` / `new_patterns` / `mass
 
 ### Step 6: governance承認
 
-プロジェクトルートの `references/governance-params.json` (skill-local ではなく xl-skills 直下) の `solo_operator_mode` を読み取り:
+プロジェクトルートの `references/governance-params.json` (skill-local ではなく {{PROJECT_ROOT}} 直下) の `solo_operator_mode` を読み取り:
 - `solo_operator_mode: true` かつ 3条件 (安定版凍結済み / newly_failing=0 / LLM-reviewer pass) 満たすなら自動承認
 - それ以外は通常 governance フロー (`run-skill-rubric-governance`) を起動
 

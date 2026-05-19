@@ -20,10 +20,10 @@
         │          │          │
         └──────────┴──────────┘
                    ▼
-        scripts/build-paradigm-scorecard.py
+        scripts/validate-paradigm-coverage.py (==30)
                    │
                    ▼
-        scripts/validate-paradigm-coverage.py (==30)
+        scripts/build-paradigm-scorecard.py
                    │
                    ▼
 ┌─────────────────────────────────┐
@@ -47,7 +47,17 @@
 - 3ループでも 4条件未達なら `escalate-to-human` イベント発火
 
 ## ファイル受け渡し
-- Phase1出力: `/tmp/elegant-review/phase1.json`
-- Phase2出力: `/tmp/elegant-review/phase2-agent{2,3,4}.json`
-- 集約: `/tmp/elegant-review/findings.json`
+- Phase1出力: `{{review_workspace}}/phase1.json`
+- Phase2出力: `{{review_workspace}}/phase2-agent{2,3,4}.json`
+- 集約: `{{review_workspace}}/findings.json`
 - 最終: 対象ディレクトリ直下に `findings.json` + `review-<type>.md`
+
+## 作業領域
+
+`{{review_workspace}}` は OS 依存の一時領域に作る。固定の `/tmp` を前提にしない。
+
+| `{{os_kind}}` | 既定候補 |
+|---|---|
+| `mac` / `linux` | `${TMPDIR:-/tmp}/elegant-review` |
+| `windows` | `%TEMP%\\elegant-review` |
+| `unknown` | ユーザー確認後に決定 |

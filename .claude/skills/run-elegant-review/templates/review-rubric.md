@@ -31,4 +31,13 @@
 - diff:
 - 互換性影響:
 
-## 6. 完了判定
+## 6. 横展開候補
+- pattern: {{pattern_name}}
+- invariant: {{fixed_invariant}}
+- variables: {{template_variables}}
+- reuse_surface: {{reuse_surface}}
+- negative_case: {{negative_case}}
+- re_audit_trigger: {{re_audit_trigger}}
+- source_trace: {{source_trace}}
+
+## 7. 完了判定

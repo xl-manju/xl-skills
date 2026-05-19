@@ -9,9 +9,14 @@ allowed-tools:
   - Bash
 kind: ref
 effect: none
-owner: team-skills
+owner: {{owner}}
 since: 2026-05-18
 # context-budget: routing解決のみ。具体的なAPI実装はadapterスクリプトに完全委譲。
+# auto-backfilled by backfill-source-tier.py (doc/21)
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-19
+audit-trigger: quarterly
 ---
 
 # ref-output-routing
@@ -105,7 +110,7 @@ python3 scripts/adapters/dispatch.py \
    }
    ```
 3. `.claude/config/output-routing.json` の該当 task_kind に `"adapter": "linear"` を指定
-4. Keychainに API key を登録: `security add-generic-password -s xl-skills-linear -a api-key -w <KEY>`
+4. Keychainに API key を登録: `security add-generic-password -s {{SECRET_PREFIX}}-linear -a api-key -w <KEY>`
 
 **workflow Skill のコード変更はゼロ**。adapter script 追加、registry、routing のJSON更新のみで新出力先が量産可能。
 

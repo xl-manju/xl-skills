@@ -8,6 +8,8 @@ kind: {{kind}}
 owner: {{owner}}
 since: {{date}}
 role_suffix: {{role_suffix}}
+hierarchy_level: {{hierarchy_level}}        # L0=単独参照 / L1=連携 / L2=オーケストレーション
+rubric_refs: {{rubric_refs | default([])}}  # 評価で参照する rubric Skill 名（複数可）。pair=evaluator がある場合は必須
 # permissions: 副作用ありスキルは settings.json の permissions.deny に明示禁止を書くこと（設計書04章）
 # PreToolUse hook: 文脈次第の危険検査を hook で追加（二段防御）。例: creator-kit/config/claude-settings-hooks.json.example 参照
 ---

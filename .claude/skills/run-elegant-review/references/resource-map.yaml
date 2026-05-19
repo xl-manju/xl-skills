@@ -22,3 +22,6 @@ resources:
   - file: orchestration-flow.md
     topic: Phase1→2→3 の詳細フロー図と各フェーズの入出力仕様
     read_when: エージェント起動順序やデータフローを確認するとき
+  - file: variable-template-contract.md
+    topic: 具体情報をテンプレート変数へ戻し、横展開可能にする契約
+    read_when: 固有名詞・固定パス・実行環境差分を再利用成果物へ反映するとき

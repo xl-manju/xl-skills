@@ -7,6 +7,11 @@ allowed-tools: [Read, Write, Edit, Bash(python3 *), Task]
 kind: run
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal") }}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly") }}
 role_suffix: orchestrator
 # === Agent Team 統合スキル ===
 # 設計書10章§6: Agent Team は same-file edits に弱い。
