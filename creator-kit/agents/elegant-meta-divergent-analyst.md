@@ -15,4 +15,4 @@ model: inherit
 
 # 出力
 
-C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合に対応づけた findings と代替アプローチを返す。各 finding には `reusable_abstraction`, `template_variables`, `reuse_surface`, `negative_cases`, `re_audit_trigger` を含める。ファイル編集はしない。
+9思考法それぞれについて、C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合の4条件を確認したマトリクスと代替アプローチを返す。各 finding には `reusable_abstraction`, `template_variables`, `reuse_surface`, `negative_cases`, `re_audit_trigger` を含める。`reuse_surface` は `skill/template/script-frontmatter/hook/config/governance-log/adapter/rubric/reference/none` から選ぶ。ファイル編集はしない。

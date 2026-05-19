@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
-# dependencies = []
+# name: lint-skill-tree
+# purpose: Lint skill directory trees against structure and file naming rules.
+# inputs:
+#   - argv: skill directory or --skills-dir
+# outputs:
+#   - stdout: OK status
+#   - stderr: tree structure findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
 # ///
 """Lint Skill directory tree against articles 第8〜13条.
 

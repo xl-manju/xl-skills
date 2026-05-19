@@ -2,6 +2,10 @@
 # /// script
 # name: hook-check-file-ownership
 # purpose: TaskCreated hook: block Agent Team file ownership collisions.
+# inputs:
+#   - stdin: Claude Code TaskCreated hook JSON
+# outputs:
+#   - stdout: hookSpecificOutput JSON / exit 0=allow / 2=deny
 # contexts: [C]
 # network: false
 # write-scope: .claude/logs

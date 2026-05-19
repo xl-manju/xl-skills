@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: sink-sheets
+# purpose: Append payload data to Google Sheets under Sink Contract v1.0.
+# inputs:
+#   - argv: --payload, --params, optional --dry-run
+# outputs:
+#   - stdout: Sink Contract JSON result
+#   - stderr: sanitized adapter errors
+# contexts: [E]
+# network: true
+# write-scope: none
+# dependencies: []
+# ///
 """Google Sheets sink adapter. Sink Contract v1.0準拠。
 
 実装: Google Sheets API v4 (values:append) を直接呼ぶ。

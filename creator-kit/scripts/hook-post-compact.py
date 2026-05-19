@@ -2,6 +2,11 @@
 # /// script
 # name: hook-post-compact
 # purpose: PostCompact hook — rehydrate context from handoff snapshot.
+# inputs:
+#   - stdin: Claude Code PostCompact hook JSON
+# outputs:
+#   - stdout: rehydration prompt
+#   - exit: 0=OK
 # contexts: [C]
 # network: false
 # write-scope: none

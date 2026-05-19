@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: audit-secret-leak
+# purpose: Detect plaintext secret patterns in routing, adapter, and skill files.
+# inputs:
+#   - argv: no required arguments
+# outputs:
+#   - stdout: OK status
+#   - stderr: secret leak findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """output-routing.json / adapter-registry.json / adapter scriptsに平文secretが混入していないか検査。
 
 検出パターン:

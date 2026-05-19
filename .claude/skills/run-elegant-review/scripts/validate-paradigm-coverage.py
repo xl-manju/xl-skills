@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# /// script
+# name: validate-paradigm-coverage
+# purpose: Validate that elegant-review outputs cover all 30 paradigms with structured findings.
+# inputs:
+#   - argv: review.md or findings.json
+# outputs:
+#   - stdout: OK message
+#   - stderr: missing paradigm or schema errors
+#   - exit: 0=OK / 1=coverage failure / 2=usage error
+# contexts: [A, B, C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """Check whether a review output covers all 30 paradigms.
 
 Usage:
@@ -114,6 +128,27 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
     valid_severities = {"critical", "high", "medium", "low"}
     valid_scopes = {"target-specific", "reusable-pattern", "governance-rule", "lint-candidate", "template-candidate"}
     valid_reuse_surfaces = {"template", "rubric", "lint", "hook", "reference", "manifest", "runbook", "none"}
+    valid_source_tiers = {
+        "article-text",
+        "image-derived",
+        "code-unavailable",
+        "code-verified",
+        "internal",
+        "external-spec",
+    }
+    valid_migration_buckets = {
+        "always-on",
+        "ref",
+        "run",
+        "wrap",
+        "assign",
+        "delegate",
+        "hook",
+        "docs",
+        "mcp",
+        "none",
+    }
+    valid_runtime_variants = {"mac", "linux", "windows", "unknown", "any", "none"}
     for pid in sorted(set(PARADIGMS) & set(by_id)):
         item = by_id[pid]
         expected_name, expected_category, expected_agent = EXPECTED_META[pid]
@@ -142,10 +177,45 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
                 errors.append(f"paradigm {pid} issue {i}: missing description")
             if not str(issue.get("suggested_fix", "")).strip():
                 errors.append(f"paradigm {pid} issue {i}: missing suggested_fix")
+            if issue.get("source_tier") not in valid_source_tiers:
+                errors.append(f"paradigm {pid} issue {i}: invalid source_tier")
+            if not str(issue.get("trace_evidence", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing trace_evidence")
+            if issue.get("migration_bucket") not in valid_migration_buckets:
+                errors.append(f"paradigm {pid} issue {i}: invalid migration_bucket")
+            if issue.get("runtime_variant") not in valid_runtime_variants:
+                errors.append(f"paradigm {pid} issue {i}: invalid runtime_variant")
+            if not str(issue.get("dependency_assumption", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing dependency_assumption")
+            if not str(issue.get("negative_case", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing negative_case")
+            if not str(issue.get("re_audit_trigger", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing re_audit_trigger")
             if "finding_scope" in issue and issue.get("finding_scope") not in valid_scopes:
                 errors.append(f"paradigm {pid} issue {i}: invalid finding_scope")
             if "reuse_surface" in issue and issue.get("reuse_surface") not in valid_reuse_surfaces:
                 errors.append(f"paradigm {pid} issue {i}: invalid reuse_surface")
+
+    variable_abstraction = data.get("variable_abstraction")
+    if not isinstance(variable_abstraction, dict):
+        errors.append("missing variable_abstraction")
+    else:
+        variables = variable_abstraction.get("variables")
+        if not isinstance(variables, list) or not variables:
+            errors.append("variable_abstraction.variables must be non-empty")
+        else:
+            for idx, var in enumerate(variables):
+                if not isinstance(var, dict):
+                    errors.append(f"variable_abstraction.variables[{idx}] must be object")
+                    continue
+                for key in ("name", "meaning", "default", "required", "not_applicable_when"):
+                    if key not in var:
+                        errors.append(f"variable_abstraction.variables[{idx}] missing {key}")
+                if not str(var.get("name", "")).startswith("{{"):
+                    errors.append(f"variable_abstraction.variables[{idx}].name must be template variable")
+        source_trace = variable_abstraction.get("source_trace")
+        if not isinstance(source_trace, list):
+            errors.append("variable_abstraction.source_trace must be a list")
 
     return not errors, errors
 

@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = []
+# name: cross-platform-secret
+# purpose: Get, set, or probe secrets through the platform-specific fallback chain.
+# inputs:
+#   - argv: --get, --set, --value, --probe
+# outputs:
+#   - stdout: JSON status without secret leakage
+#   - stderr: sanitized errors
+# contexts: [E]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# requires-python: ">=3.9"
 # ///
 """クロスプラットフォーム secret 取得の薄ラッパー。
 
@@ -37,8 +47,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-MAC_HELPER = REPO_ROOT / "creator-kit" / "scripts" / "secrets" / "keychain_helper.py"
+MAC_SERVICE_PREFIX = "xl-skills"
 
 
 def detect_os() -> str:
@@ -123,22 +132,10 @@ def _windows_set(key: str, value: str) -> bool:
 
 
 def _mac_get(key: str) -> str | None:
-    if not MAC_HELPER.exists():
-        return None
-    try:
-        r = subprocess.run(
-            [sys.executable, str(MAC_HELPER), "--get", key],
-            capture_output=True, text=True, timeout=10
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    except (OSError, subprocess.TimeoutExpired):
-        pass
-    # security CLI 直接呼び出しのフォールバック
     try:
         r = subprocess.run(
             ["security", "find-generic-password", "-a", os.environ.get("USER", ""),
-             "-s", f"xl-skills-{key}", "-w"],
+             "-s", f"{MAC_SERVICE_PREFIX}-{key}", "-w"],
             capture_output=True, text=True, timeout=10
         )
         if r.returncode == 0:
@@ -176,8 +173,8 @@ def get_secret(key: str) -> dict:
     elif os_kind == "windows":
         v = _windows_get(key)
         if v is not None:
-            return {"status": "ok", "os": "windows", "backend": "dpapi", "value": v, "errors": []}
-        errors.append("windows dpapi lookup failed")
+            return {"status": "ok", "os": "windows", "backend": "base64-file", "value": v, "errors": []}
+        errors.append("windows base64-file lookup failed")
     else:
         errors.append("OS判定失敗。ユーザーへ確認してから XLSKILLS_SECRET_* を設定してください")
 
@@ -187,25 +184,35 @@ def get_secret(key: str) -> dict:
 def set_secret(key: str, value: str) -> dict:
     os_kind = detect_os()
     if os_kind == "mac":
-        # mac は既存 helper に委ねる（破壊操作を本ラッパーから直接 security CLI で行わない）
-        if MAC_HELPER.exists():
-            try:
-                r = subprocess.run(
-                    [sys.executable, str(MAC_HELPER), "--set", key, "--value", value],
-                    capture_output=True, text=True, timeout=10
-                )
-                if r.returncode == 0:
-                    return {"status": "ok", "os": "mac", "backend": "keychain"}
-            except (OSError, subprocess.TimeoutExpired) as e:
-                return {"status": "failure", "os": "mac", "backend": "keychain", "errors": [str(e)]}
-        return {"status": "failure", "os": "mac", "backend": "keychain",
-                "errors": ["mac helper unavailable. set XLSKILLS_SECRET_* env var instead"]}
+        try:
+            r = subprocess.run(
+                [
+                    "security",
+                    "add-generic-password",
+                    "-U",
+                    "-a",
+                    os.environ.get("USER", ""),
+                    "-s",
+                    f"{MAC_SERVICE_PREFIX}-{key}",
+                    "-w",
+                    value,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if r.returncode == 0:
+                return {"status": "ok", "os": "mac", "backend": "keychain"}
+            return {"status": "failure", "os": "mac", "backend": "keychain",
+                    "errors": ["security add-generic-password failed"]}
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return {"status": "failure", "os": "mac", "backend": "keychain", "errors": [str(e)]}
     if os_kind == "linux":
         ok = _linux_set(key, value)
         return {"status": "ok" if ok else "failure", "os": "linux", "backend": "xdg"}
     if os_kind == "windows":
         ok = _windows_set(key, value)
-        return {"status": "ok" if ok else "failure", "os": "windows", "backend": "dpapi"}
+        return {"status": "ok" if ok else "failure", "os": "windows", "backend": "base64-file"}
     return {"status": "failure", "os": os_kind, "backend": "none",
             "errors": ["OS判定失敗。XLSKILLS_SECRET_* 環境変数で渡してください"]}
 
@@ -214,7 +221,6 @@ def probe() -> dict:
     return {
         "os": detect_os(),
         "python": sys.version.split()[0],
-        "mac_helper_exists": MAC_HELPER.exists(),
         "xdg_config_home": os.environ.get("XDG_CONFIG_HOME"),
         "supported_backends": {
             "mac": "keychain (security CLI)",

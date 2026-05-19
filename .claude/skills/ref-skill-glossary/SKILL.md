@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 kind: ref
 effect: none
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
@@ -28,7 +28,7 @@ Skill設計に登場する用語の正本辞書。Read専用、評価・生成�
 ## Key Rules
 
 1. **正本は references/terms.md**: SKILL.md 本文は索引と発動条件に限る。
-2. **disable-model-invocation: true**: モデル自動発動は禁止、明示Read のみ。
+2. **disable-model-invocation: true**: モデル自動発動は禁止、必要時に明示Readする。
 3. **kind=reference**: 評価器でも生成器でもない、純粋資料層（27章）。
 
 ## Steps

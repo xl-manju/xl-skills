@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: render-settings-proposal
+# purpose: Generate a settings.json hook merge proposal from a skill brief.
+# inputs:
+#   - argv: --skill-name, --brief, --out
+# outputs:
+#   - file: settings proposal JSON
+#   - stderr: proposal path and manual merge notice
+# contexts: [A, B]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# ///
 """settings.json マージ案を proposal として生成 (人間承認後に手動マージ前提)."""
 from __future__ import annotations
 import argparse
@@ -20,7 +33,7 @@ def main() -> int:
         proposal["hooks"][ev] = [{
             "hooks": [{
                 "type": "command",
-                "command": f"python3 scripts/hook-{args.skill_name}-{ev.lower()}.py"
+                "command": f"python3 {{{{SCRIPT_ROOT}}}}/hook-{args.skill_name}-{ev.lower()}.py"
             }]
         }]
     # permissions.deny 推奨セット (空配列で skeleton)

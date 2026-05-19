@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 # /// script
+# name: validate-build-trace
+# purpose: Validate run-build-skill reproducibility trace including 26/27/28 meta gates.
+# inputs:
+#   - argv: eval-log/skill-build-trace.json
+# outputs:
+#   - stdout: ok message
+#   - stderr: validation errors
+#   - exit: 0=OK / 1=validation failure / 2=usage or JSON error
 # requires-python = ">=3.10"
-# dependencies = []
+# dependencies: []
+# contexts: [A, B, C, E]
+# network: false
+# write-scope: none
 # ///
 """Validate run-build-skill reproducibility trace.
 
@@ -43,10 +54,22 @@ REQUIRED_DOC_COVERAGE = {
     "14-dynamic-context-injection",
     "15-official-source-notes",
     "16-official-skills-reference",
+    "26-meta-skill-dogfooding",
+    "27-rubric-governance-runbook",
+    "28-script-execution-model",
+    "29-multi-project-rubric-composition",
+    "30-paradigm-analogy-map",
+    "31-output-routing-adapter-architecture",
+    "32-creator-kit-implementation-ledger",
+    "33-change-governance",
+    "34-plugin-governance-roadmap",
+    "35-meta-harness-feedback-loop",
 }
 
 REQUIRED_LAYERS = {"Skill", "Subagent", "Hook", "MCP", "CLI", "script"}
 REQUIRED_GATES = {"lint", "evaluator", "elegant_review", "governance"}
+REQUIRED_SCRIPT_CONTEXTS = {"A", "B", "C", "D", "E"}
+REQUIRED_GOVERNANCE_ROLES = {"proposer", "reviewer", "approver", "tooling"}
 
 
 def _as_set(value: object) -> set[str]:
@@ -79,6 +102,14 @@ def _status_ok(item: dict) -> bool:
 def _completion_status_ok(item: dict) -> bool:
     status = str(item.get("status", "")).upper()
     return status in {"PASS", "N/A"} and _status_ok(item)
+
+
+def _non_empty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _non_empty_list(value: object) -> bool:
+    return isinstance(value, list) and bool(value)
 
 
 def main() -> int:
@@ -256,6 +287,92 @@ def main() -> int:
             status = str(gates.get(gate, "")).upper()
             if status not in {"PASS", "N/A"}:
                 errs.append(f"invalid gate status: {gate}={gates.get(gate)}")
+
+    script_model = data.get("script_execution_model")
+    if not isinstance(script_model, dict):
+        errs.append("missing script_execution_model")
+    else:
+        contexts = _as_set(script_model.get("contexts"))
+        if missing_contexts := REQUIRED_SCRIPT_CONTEXTS - contexts:
+            errs.append(f"script_execution_model.contexts missing: {sorted(missing_contexts)}")
+        for key in ("responsibility_matrix", "priority_order", "permission_boundary"):
+            if not _non_empty_string(script_model.get(key)):
+                errs.append(f"script_execution_model.{key} is empty")
+        scripts = script_model.get("scripts")
+        if not isinstance(scripts, list) or not scripts:
+            errs.append("script_execution_model.scripts must list generated/used scripts")
+        else:
+            for idx, item in enumerate(scripts):
+                if not isinstance(item, dict):
+                    errs.append(f"script_execution_model.scripts[{idx}] must be object")
+                    continue
+                for key in ("path", "type", "allowed_contexts", "frontmatter_status"):
+                    if not item.get(key):
+                        errs.append(f"script_execution_model.scripts[{idx}].{key} is empty")
+                allowed = _as_set(item.get("allowed_contexts"))
+                unknown = allowed - REQUIRED_SCRIPT_CONTEXTS
+                if unknown:
+                    errs.append(f"script_execution_model.scripts[{idx}].allowed_contexts unknown: {sorted(unknown)}")
+
+    governance = data.get("governance_model")
+    if not isinstance(governance, dict):
+        errs.append("missing governance_model")
+    else:
+        for key in ("rubric_version", "rubric_hash", "proposal_required", "impact_assessment"):
+            if not str(governance.get(key, "")).strip():
+                errs.append(f"governance_model.{key} is empty")
+        roles = governance.get("roles")
+        if not isinstance(roles, dict):
+            errs.append("governance_model.roles is missing")
+        else:
+            missing_roles = REQUIRED_GOVERNANCE_ROLES - set(roles)
+            if missing_roles:
+                errs.append(f"governance_model.roles missing: {sorted(missing_roles)}")
+        if "newly_failing_count" in governance and not isinstance(governance.get("newly_failing_count"), int):
+            errs.append("governance_model.newly_failing_count must be integer when present")
+
+    dogfooding = data.get("dogfooding_model")
+    if not isinstance(dogfooding, dict):
+        errs.append("missing dogfooding_model")
+    else:
+        for key in ("artifact_type", "adapter", "forked_evaluator", "eval_log_path"):
+            if not _non_empty_string(dogfooding.get(key)):
+                errs.append(f"dogfooding_model.{key} is empty")
+        if not _non_empty_list(dogfooding.get("recursive_checks")):
+            errs.append("dogfooding_model.recursive_checks must list rubric checks")
+
+    optional_models = {
+        "rubric_composition_model": ("ordered_refs", "merge_strategy", "conflict_policy", "composition_hash_evidence"),
+        "paradigm_analogy_model": ("primary_analogy", "matched_skill_concept", "limits", "placement_decision"),
+        "output_routing_model": ("task_kind", "payload_schema_version", "route_ref", "adapter_registry_ref", "fallback", "secret_boundary"),
+    }
+    for model_name, keys in optional_models.items():
+        model = data.get(model_name)
+        if not isinstance(model, dict):
+            errs.append(f"missing {model_name}")
+            continue
+        status = str(model.get("status", "")).upper()
+        if status == "N/A":
+            if not str(model.get("reason", "")).strip():
+                errs.append(f"{model_name}.reason is required when N/A")
+            continue
+        if status != "PASS":
+            errs.append(f"{model_name}.status must be PASS or N/A")
+        for key in keys:
+            if not model.get(key):
+                errs.append(f"{model_name}.{key} is empty")
+
+    variable_contract = data.get("variable_contract")
+    if not isinstance(variable_contract, list) or not variable_contract:
+        errs.append("variable_contract must list template variables or N/A rationale item")
+    else:
+        for idx, item in enumerate(variable_contract):
+            if not isinstance(item, dict):
+                errs.append(f"variable_contract[{idx}] must be object")
+                continue
+            for key in ("name", "meaning", "default", "required", "not_applicable_when", "source_trace"):
+                if key not in item or item.get(key) in ("", None):
+                    errs.append(f"variable_contract[{idx}].{key} is empty")
 
     if errs:
         for err in errs:

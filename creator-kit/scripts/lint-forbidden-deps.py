@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: lint-forbidden-deps
+# purpose: Detect forbidden external dependency usage in creator-kit sources.
+# inputs:
+#   - argv: optional kit path
+# outputs:
+#   - stdout: OK status
+#   - stderr: forbidden dependency findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """manifest.json の forbidden_dependencies を kit内ソースから grep し、混入を検出する。
 
 CONVENTIONS.md §6「macOSデフォルトのみ・ライブラリ追加禁止」のフィードバックループ実装。

@@ -133,7 +133,13 @@ score >= 80 かつ high=0 で完了。
     {"doc": "13-checklists", "status": "PASS", "evidence": "P0/P1/P2 checklist items mapped to lint/evaluator/governance gates"},
     {"doc": "14-dynamic-context-injection", "status": "PASS|N/A", "evidence": "cross_platform/os_preamble_required + OS preamble or N/A reason", "reason": "<required when N/A>"},
     {"doc": "15-official-source-notes", "status": "PASS", "evidence": "ref-yaml-spec-fetcher/yaml-spec-cache.md checked + source date"},
-    {"doc": "16-official-skills-reference", "status": "PASS", "evidence": "frontmatter fields checked against official 15 fields + local metadata separation"}
+    {"doc": "16-official-skills-reference", "status": "PASS", "evidence": "frontmatter fields checked against official 15 fields + local metadata separation"},
+    {"doc": "26-meta-skill-dogfooding", "status": "PASS|N/A", "evidence": "dogfooding_model + forked evaluator + eval-log path", "reason": "<required when N/A>"},
+    {"doc": "27-rubric-governance-runbook", "status": "PASS|N/A", "evidence": "governance_model + rubric hash/version + impact/grace policy", "reason": "<required when N/A>"},
+    {"doc": "28-script-execution-model", "status": "PASS|N/A", "evidence": "script_execution_model + contexts A-E + permission boundary", "reason": "<required when N/A>"},
+    {"doc": "29-multi-project-rubric-composition", "status": "PASS|N/A", "evidence": "rubric_composition_model + ordered_refs + merge policy", "reason": "<required when N/A>"},
+    {"doc": "30-paradigm-analogy-map", "status": "PASS|N/A", "evidence": "paradigm_analogy_model + placement_decision", "reason": "<required when N/A>"},
+    {"doc": "31-output-routing-adapter-architecture", "status": "PASS|N/A", "evidence": "output_routing_model + route/registry/fallback/secret boundary", "reason": "<required when N/A>"}
   ],
   "layer_decisions": [
     {
@@ -168,6 +174,41 @@ score >= 80 かつ high=0 で完了。
       "negative_cases": ["<when not to use>"]
     }
   ],
+  "script_execution_model": {
+    "contexts": ["A", "B", "C", "D", "E"],
+    "responsibility_matrix": "doc/ClaudeCodeスキルの設計書/28-script-execution-model.md#3-実行責務マトリクス",
+    "priority_order": "E > C > D > B > A",
+    "permission_boundary": "Hook/CI はフルパス、Stop/SubagentStop は read-only、adapter 以外は network 禁止",
+    "scripts": [
+      {
+        "path": "scripts/<script-name>.py",
+        "type": "lint|validate|format|render|extract|diff|guard|build|adapter",
+        "allowed_contexts": ["C", "E"],
+        "frontmatter_status": "PASS|PENDING_RENAME|EXCEPTION|N/A"
+      }
+    ]
+  },
+  "governance_model": {
+    "rubric_version": "<version or N/A>",
+    "rubric_hash": "sha256:<hash or N/A>",
+    "proposal_required": "yes|no|N/A",
+    "impact_assessment": "impact-report.json|N/A reason",
+    "newly_failing_count": 0,
+    "grace_period": "min 1 release / 30 days when newly_failing_count > 0",
+    "roles": {
+      "proposer": "<owner or N/A>",
+      "reviewer": "<different owner or N/A>",
+      "approver": "<different owner or N/A>",
+      "tooling": "<owner or N/A>"
+    }
+  },
+  "dogfooding_model": {
+    "artifact_type": "skill|design-doc|script|config|agent",
+    "adapter": "doc-to-skill-adapter.py|N/A",
+    "forked_evaluator": "assign-skill-design-evaluator",
+    "eval_log_path": "eval-log/<plugin>/<date>-score.jsonl",
+    "recursive_checks": ["DRY", "Less is More", "Why-driven", "4conditions", "Gotchas", "Progressive Disclosure"]
+  },
   "source_traceability": {
     "image_map_checked": "N/A|PASS",
     "evidence": "12-image-extraction-map.md only when source article/image extraction is part of the task",
@@ -178,7 +219,43 @@ score >= 80 かつ high=0 で完了。
     "evaluator": "PASS|FAIL|N/A",
     "elegant_review": "PASS|FAIL|N/A",
     "governance": "PASS|FAIL|N/A"
-  }
+  },
+  "rubric_composition_model": {
+    "status": "PASS|N/A",
+    "ordered_refs": ["ref-skill-design-rubric", "{{DOMAIN_RUBRIC_REFS}}", "references/rubric.json"],
+    "merge_strategy": "deep-merge",
+    "conflict_policy": "most-specific-wins",
+    "composition_hash_evidence": "eval-log/...json",
+    "reason": "<required when N/A>"
+  },
+  "paradigm_analogy_model": {
+    "status": "PASS|N/A",
+    "primary_analogy": "ESLint plugin|pytest plugin|LSP|Terraform module|Unix command|Hexagonal Architecture",
+    "matched_skill_concept": "skill|evaluator|hook|subagent|adapter|rubric",
+    "limits": ["<where analogy breaks>"],
+    "placement_decision": "<final placement based on canonical docs>",
+    "reason": "<required when N/A>"
+  },
+  "output_routing_model": {
+    "status": "PASS|N/A",
+    "task_kind": "{{TASK_KIND}}",
+    "payload_schema_version": "1.0",
+    "route_ref": "creator-kit/config/output-routing.json.example",
+    "adapter_registry_ref": "creator-kit/config/adapter-registry.json",
+    "fallback": "local",
+    "secret_boundary": "keychain-ref-only",
+    "reason": "<required when N/A>"
+  },
+  "variable_contract": [
+    {
+      "name": "{{PROJECT_ROOT}}",
+      "meaning": "対象プロジェクトのルート",
+      "default": "実行時 cwd",
+      "required": true,
+      "not_applicable_when": "対象がプロジェクト外の単一ファイル",
+      "source_trace": "user request or cwd"
+    }
+  ]
 }
 ```
 
@@ -258,6 +335,48 @@ model: opus  # PF-F3-001: デフォルト opus
   ref-yaml-spec-fetcher を Read して最新仕様を参照
     ↓
   03-yaml-frontmatter-reference.md との差分を確認
+```
+
+### H.5 evaluator ペア生成
+
+generator として作った Skill に対し、`--with-evaluator` 指定時または
+`brief.generate_pair_evaluator=true` の場合だけ対称 evaluator を生成する。
+`jq` は使わず Python 標準ライブラリで brief を読む。
+
+```bash
+GEN_PAIR=$(python3 -c "import json; b=json.load(open('$BRIEF_PATH')); print('true' if b.get('generate_pair_evaluator') else 'false')")
+if [[ "$WITH_EVALUATOR" == "true" ]] || [[ "$GEN_PAIR" == "true" ]]; then
+  PAIR_NAME="assign-${SKILL_NAME#run-}-evaluator"
+  RUBRIC_CSV=$(python3 -c "import json; print(','.join(json.load(open('$BRIEF_PATH')).get('rubric_refs',[])))")
+  python3 "$SKILL_DIR/scripts/render-frontmatter.py" \
+    --name "$PAIR_NAME" --kind assign \
+    --template "$SKILL_DIR/templates/assign-evaluator.md" \
+    --brief "$BRIEF_PATH" \
+    --pair "$SKILL_NAME" \
+    --rubric-refs "$RUBRIC_CSV" \
+    --out "$OUT_BASE/$PAIR_NAME/SKILL.md"
+  python3 "$SKILL_DIR/scripts/set-frontmatter-field.py" \
+    --file "$OUT_BASE/$SKILL_NAME/SKILL.md" --key pair --value "$PAIR_NAME"
+fi
+```
+
+### H.6 Hook 配線生成
+
+Hook 統合スキルでは `brief.hook_events` から skeleton と settings proposal を生成する。
+settings.json は権限設定を含むため自動 merge しない。
+
+```bash
+HOOK_EVENTS=$(python3 -c "import json; print(' '.join(json.load(open('$BRIEF_PATH')).get('hook_events',[])))")
+if [[ "$WITH_HOOKS" == "true" ]] || [[ -n "$HOOK_EVENTS" ]]; then
+  for event in $HOOK_EVENTS; do
+    python3 "$SKILL_DIR/scripts/render-hook-skeleton.py" \
+      --skill-name "$SKILL_NAME" --event "$event" \
+      --out "scripts/hook-${SKILL_NAME}-$(echo "$event" | tr 'A-Z' 'a-z').py"
+  done
+  python3 "$SKILL_DIR/scripts/render-settings-proposal.py" \
+    --skill-name "$SKILL_NAME" --brief "$BRIEF_PATH" \
+    --out ".claude/settings.proposal.json"
+fi
 ```
 
 TODO(human): `scripts/build-yaml-spec-cache.py` の実装は、Claude Code 公式ドキュメントの

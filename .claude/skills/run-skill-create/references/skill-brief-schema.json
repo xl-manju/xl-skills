@@ -173,6 +173,43 @@
       },
       "description": "L2 案件固有Skillが参照する L0/L1 の rubric Skill 名。L2なら必須 (空配列禁止)。"
     },
+    "source_url_or_path": {
+      "type": "string",
+      "default": "internal",
+      "description": "doc/21 出典追跡: SKILL.md frontmatter の source に展開する正本パスまたは公式URL。未指定時は internal として扱い、具体パスは source_trace に残す。"
+    },
+    "source_tier": {
+      "type": "string",
+      "enum": [
+        "article-text",
+        "image-derived",
+        "code-unavailable",
+        "code-verified",
+        "internal",
+        "external-spec"
+      ],
+      "default": "internal",
+      "description": "doc/21 source-tier。作成時点で正しい tier を選び、backfill 依存を避ける。"
+    },
+    "last_audited_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "doc/21 最終監査日。YYYY-MM-DD。未指定時は render-frontmatter.py が実行日を補う。"
+    },
+    "audit_trigger": {
+      "type": "string",
+      "enum": [
+        "rubric-bump",
+        "source-update",
+        "quarterly",
+        "official-update",
+        "source-acquired",
+        "runtime-failure",
+        "template-change"
+      ],
+      "default": "quarterly",
+      "description": "doc/21 再監査トリガー。出典更新・公式更新・runtime failure などを量産時に再現できるよう固定する。"
+    },
     "pattern_refs": {
       "type": "array",
       "items": {
@@ -181,6 +218,7 @@
           "orchestrator",
           "hook-integrated",
           "agent-team",
+          "adapter-backed",
           "evaluator-pair",
           "delegate-external",
           "wrap-safe"
@@ -222,6 +260,52 @@
         ]
       },
       "description": "このbriefから横展開する場合の反映先候補。governance承認前は提案のみ。"
+    },
+    "output_language": {
+      "type": "string",
+      "enum": ["ja"],
+      "default": "ja",
+      "description": "生成成果物の説明文・手順・レビュー本文の言語。creator-kit標準は日本語。frontmatterキー、JSONキー、CLI引数などのパラメーター名は英語のままでよい。"
+    },
+    "parameter_language_exception": {
+      "type": "boolean",
+      "default": true,
+      "description": "パラメーター名・変数名・frontmatterキー・JSONキーのみ英語を許可する例外。falseにしない。"
+    },
+    "abstraction_variables": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "固有名詞・固定パス・固定URL・固定ownerなど、再利用成果物ではテンプレート変数へ戻す対象。"
+    },
+    "template_inputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "テンプレート展開時に入力として必要な変数。未設定時はrendererが日本語の未設定説明を入れる。"
+    },
+    "template_non_goals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "テンプレート化しないもの。証跡・引用・プロジェクト固有ログなど、横展開対象外を明示する。"
+    },
+    "mass_production_profile": {
+      "type": "string",
+      "enum": ["minimal", "standard", "strict"],
+      "default": "standard",
+      "description": "量産時の厳格度。minimal=軽量ref/wrap、standard=通常、strict=hook/evaluator/agent-teamを含む高リスク。"
+    },
+    "paradigm_profile": {
+      "type": "string",
+      "enum": [
+        "eslint-plugin型",
+        "pytest-fixture型",
+        "lsp-diagnostics型",
+        "terraform-module型",
+        "unix-pipeline型",
+        "hexagonal-port型",
+        "pre-commit-hook型",
+        "subprocess-worker型"
+      ],
+      "description": "設計書30に基づく主要類推。テンプレート選択・rubric選択・trace.paradigm_analogy_model に反映する。"
     },
     "hook_events": {
       "type": "array",

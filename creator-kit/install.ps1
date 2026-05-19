@@ -5,7 +5,7 @@
 #
 # 動作 (doc/22 cross-platform-runtime 準拠):
 #   1. OS判定 (Windows のみ許可、それ以外は停止しユーザーへ確認)
-#   2. python3 / git の存在確認 (no-deps 原則: PyYAML 等は要求しない)
+#   2. python / git の存在確認 (no-deps 原則: PyYAML 等の追加ライブラリは要求しない)
 #   3. manifest.json を python の json で読む
 #   4. symlink (要管理者権限) または copy で展開
 #   5. keychain_helper は不在のため cross_platform_secret.py (Windows file fallback) を case 別に配置

@@ -28,11 +28,11 @@ plugin 移行前に確認が必要な公式制約を明示する。全て PASS �
 |---|---|---|---|---|
 | a | Skill スコープ制限 | plugin スコープ宣言外の Skill・ファイルへのアクセス禁止 | 未確認 | 全 SKILL.md 外部参照棚卸し |
 | b | permissions 宣言 | plugin 内 permissions は plugin スコープ内でのみ宣言可能 | 設計中 | plugin 境界設計後に反映 |
-| c | CI 強制 | `classify_change` が stub のため governance 機械強制が機能していない | **FAIL** | `classify_change` 実装 (TODO(human)) |
+| c | CI 強制 | `classify_change` は実装済みだが、plugin境界の棚卸し結果とCI gateへの接続が未完 | **暫定FAIL** | `lint-external-refs.py` による棚卸し + CI強制 |
 | d | marketplace 非可逆 | marketplace 公開は実質不可逆。配布計画なし時点での公開禁止 | 未公開 | 現フェーズでは公開しない方針で OK |
 | e | plugin 外参照禁止 | plugin 内 Skill が plugin 外の scripts/adapters/.claude/config/ を参照することを禁ずる | **未棚卸し** | 外部参照棚卸し完了が Phase 0 の必要条件 |
 
-**制約 c・e が未解決のため、現時点で Phase 2 以降への移行は禁止**。
+**制約 c・e が未解決のため、現時点で Phase 2 以降への移行は禁止**。c は「分類器未実装」ではなく「plugin境界の証跡とCI強制が未完」という意味で暫定FAILとする。
 
 ---
 
@@ -44,13 +44,13 @@ plugin 移行前に確認が必要な公式制約を明示する。全て PASS �
 
 | タスク | 担当 | 完了条件 | 対応 constraint | TODO(human) 解除トリガー |
 |---|---|---|---|---|
-| `classify_change` 実装 | **TODO(human)** (Learn by Doing として人間判断待ち) | `guard-change-category.py` が P0/P1/P2/P3 を正しく分類できる | 制約 c | Phase 1 設計完了 + P1 変更の手動分類実績 3 件以上 + solo_operator レビュー承認 |
+| `classify_change` CI強制確認 | TODO(human) | `guard-change-category.py` が P0/P1/P2/P3 を分類し、plugin境界変更を保守的に P0 としてCIで止められる | 制約 c | Phase 1 設計完了 + P1 変更の手動分類実績 3 件以上 + solo_operator レビュー承認 |
 | OB-09 `target_path` 配列化 | TODO(human) | `target_path` が配列型を受け付けるようになる | changelog 整合性 | N/A（solo_operator 判断で即着手可） |
 | OB-10 `migrate dry-run` ログ取得 | TODO(human) | `migrate-from-project.sh --dry-run` のログが取得できる | 移行前後の状態把握 | N/A（migrate スクリプト実装後に着手） |
-| 全 SKILL.md 外部参照棚卸し | TODO(human) | 全 SKILL.md の外部参照先が `scripts/check-external-refs.py` で洗い出されている | 制約 e | N/A（solo_operator 判断で即着手可） |
+| 全 SKILL.md 外部参照棚卸し | TODO(human) | 全 SKILL.md の外部参照先が `scripts/lint-external-refs.py` または `creator-kit/scripts/lint-external-refs.py` で洗い出されている | 制約 e | N/A（solo_operator 判断で即着手可） |
 | メタガバナンス集約レイヤー設計 | TODO(human) | plugin 間の共通基準 (rubric/lint/config) の共有方式が決定している | 制約 b | N/A（solo_operator 判断で即着手可） |
 
-> **注意**: `classify_change` の TODO(human) は温存する。stub のまま plugin 移行に進めないという制約を本章に明記するのみとし、実装は人間判断待ちとする（元の Learn by Doing 要請）。
+> **注意**: `classify_change` 自体は実装済み。TODO(human) は plugin境界の運用証跡、外部参照棚卸し、CI強制確認に限定する。
 
 ### Phase 1 (1-2週: 設計 + 評価)
 
@@ -141,7 +141,7 @@ Phase 移行の前にこのチェックリストを確認する。
 
 ### Phase 0 → Phase 1 移行ゲート
 
-- [ ] `classify_change` が TODO(human) のままであることを確認（stub 温存）
+- [ ] `classify_change` が実装済みで、plugin境界変更を P0 として分類することを確認
 - [ ] OB-09 `target_path` 配列化の要否が判断されている
 - [ ] OB-10 dry-run ログが取得できる
 - [ ] 全 SKILL.md の外部参照棚卸しが開始されている
@@ -150,7 +150,7 @@ Phase 移行の前にこのチェックリストを確認する。
 
 - [ ] 全 SKILL.md 外部参照棚卸し完了（一覧化 + plugin 境界計画）
 - [ ] 公式制約 a/b/d/e が全て PASS
-- [ ] **制約 c (classify_change 実装) の状態確認**: 未実装の場合は手動 P0_breaking 運用で補完
+- [ ] **制約 c (classify_change CI強制) の状態確認**: CI未接続の場合は手動 P0_breaking 運用で補完
 - [ ] 試験移行対象 Skill が skill-creator 1件のみに絞られている
 - [ ] メタガバナンス集約レイヤー設計完了
 
@@ -163,7 +163,7 @@ Phase 移行の前にこのチェックリストを確認する。
 
 ### Phase 3 → Phase 4 移行ゲート
 
-- [ ] **classify_change 実装完了**（Phase 4 は実装完了を必須条件とする）
+- [ ] **classify_change CI強制完了**（Phase 4 はCI強制完了を必須条件とする）
 - [ ] marketplace.json レビュー完了
 - [ ] 手動 merge 運用確立
 - [ ] plugin 間依存 governance 機械強制

@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: set-frontmatter-field
+# purpose: Set or insert one SKILL.md frontmatter field without external YAML dependencies.
+# inputs:
+#   - argv: --file, --key, --value
+# outputs:
+#   - file: updated SKILL.md
+#   - stderr: validation errors
+# contexts: [A, B]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# ///
 """SKILL.md frontmatter の特定フィールドを上書き (stdlib only)."""
 from __future__ import annotations
 import argparse

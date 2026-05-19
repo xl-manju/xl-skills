@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
+                "file": "doc/ClaudeCodeスキルの設計書/19-troubleshooting.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "17-agent-teams-reference"
+              "title": "19-troubleshooting"
             }
           }
         ]
@@ -185,19 +185,23 @@
   },
   "active": "8c3639843545a4cc",
   "lastOpenFiles": [
-    "scripts/lint-script-naming.py.tmp.41118.817d2d79b302",
+    "scripts/__pycache__/lint-script-naming.cpython-311.pyc",
+    "scripts/__pycache__/lint-external-refs.cpython-311.pyc",
+    "creator-kit/scripts/__pycache__/lint-external-refs.cpython-311.pyc",
+    "creator-kit/scripts/lint-external-refs.py",
+    "scripts/lint-external-refs.py",
+    "creator-kit/scripts/__pycache__/extract-session-events.cpython-311.pyc",
+    "scripts/__pycache__/check-external-refs.cpython-311.pyc",
+    "creator-kit/scripts/__pycache__/check-external-refs.cpython-311.pyc",
+    "scripts/check-external-refs.py",
+    "creator-kit/scripts/check-external-refs.py",
+    "creator-kit/config/meta-harness-log-schema-v1.0.json",
+    "creator-kit/skills/run-build-skill/references/skill-factory-reproducibility.md",
+    "creator-kit/skills/ref-domain-rubric-template/SKILL.md",
+    "doc/ClaudeCodeスキルの設計書/18-complete-examples.md",
+    "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
     "creator-kit/skills/run-elegant-review/references/variable-template-contract.md",
-    "creator-kit/scripts/migrate/backfill-source-tier.py",
-    "creator-kit/scripts/lint-path-canonical.py",
-    "creator-kit/install.ps1",
     "creator-kit/skills/run-skill-rename/references/CHANGELOG.template.md",
-    "creator-kit/skills/run-skill-rename/references/CHANGELOG.template.md.tmp.87202.de49dc02a141",
-    "creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
-    "creator-kit/skills/wrap-git-commit-safe/scripts",
-    "creator-kit/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh",
-    "creator-kit/skills/delegate-codex-skill-review/scripts",
-    "creator-kit/scripts/migrate/to-brief.py",
-    "creator-kit/scripts/migrate/to-brief.py.tmp.87202.f3a4d2612f9c",
     "creator-kit/skills/run-migrate-audit/references/abstraction-checklist.md",
     "creator-kit/skills/run-migrate-audit/references/classification-rules.md",
     "creator-kit/skills/run-migrate-audit/SKILL.md",
@@ -217,10 +221,6 @@
     "doc/ClaudeCodeスキルの設計書/14-dynamic-context-injection.md",
     "doc/ClaudeCodeスキルの設計書/13-checklists.md",
     "doc/ClaudeCodeスキルの設計書/12-image-extraction-map.md",
-    "doc/ClaudeCodeスキルの設計書/11-templates.md",
-    "doc/ClaudeCodeスキルの設計書/10-subagents-hooks-integration.md",
-    "doc/ClaudeCodeスキルの設計書/09-evaluation-orchestration.md",
-    "creator-kit/skills/run-build-skill/templates/agent-team.md",
     "doc/【コード共有有】Agent Skill大全 数百本のSkillをり続けた実践知から導いたオーケストレーション設計の概念体系Byまさおさん/Brave Browser 2026-05-17 15.19.55.png",
     "analysis/ocr/1338_Pasted_image_20260517153455.pre.png",
     "analysis/ocr/1333_Pasted_image_20260517153449.pre.png",

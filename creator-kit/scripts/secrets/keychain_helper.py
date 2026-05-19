@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: keychain-helper
+# purpose: Read macOS Keychain secrets for sink adapters without printing secret values.
+# inputs:
+#   - import: get_secret(ref)
+# outputs:
+#   - return: secret string to caller only
+#   - exception: sanitized SecretError
+# contexts: [E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """macOS Keychainからsecretを取得する共通ヘルパー。
 
 CRITICAL: この関数は adapter内部のsubprocessから呼ぶこと。

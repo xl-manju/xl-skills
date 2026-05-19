@@ -17,6 +17,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -145,36 +146,23 @@ def check_rule(rule: dict, fm: dict, body: str, skill_dir: Path) -> dict | None:
     return None
 
 
-def deep_merge_rubric(base: dict, overlay: dict, policy: str = "most-specific-wins") -> dict:
-    """Merge two rubric dicts. rules merged by id; scalar conflicts by policy."""
-    out = {k: v for k, v in base.items() if k != "rules"}
-    # scalars
-    for k, v in overlay.items():
-        if k == "rules":
-            continue
-        if policy == "upstream-wins" and k in base:
-            continue
-        out[k] = v
-    # rules by id
-    by_id: dict[str, dict] = {r["id"]: dict(r) for r in base.get("rules", [])}
-    for r in overlay.get("rules", []):
-        rid = r.get("id")
-        if not rid:
-            continue
-        if rid in by_id:
-            if policy == "upstream-wins":
-                # only fill missing keys from overlay
-                for k, v in r.items():
-                    by_id[rid].setdefault(k, v)
-            else:  # most-specific-wins
-                merged = dict(by_id[rid])
-                for k, v in r.items():
-                    merged[k] = v
-                by_id[rid] = merged
-        else:
-            by_id[rid] = dict(r)
-    out["rules"] = list(by_id.values())
-    return out
+def compose_rubrics(refs: list[Path], strategy: str, policy: str) -> dict:
+    script = Path(__file__).resolve().parents[3] / "scripts" / "compose-rubrics.py"
+    cmd = [
+        sys.executable,
+        str(script),
+        "--rubric-refs",
+        *[str(p) for p in refs],
+        "--merge-strategy",
+        strategy,
+        "--conflict-policy",
+        policy,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stderr.strip() or result.stdout.strip(), file=sys.stderr)
+        raise SystemExit(2)
+    return json.loads(result.stdout)
 
 
 def main() -> int:
@@ -184,7 +172,9 @@ def main() -> int:
     ap.add_argument("--rubric-refs", nargs="+", default=None,
                     help="ordered list L0..Ln of rubric.json paths to deep-merge")
     ap.add_argument("--conflict-policy", default="most-specific-wins",
-                    choices=["most-specific-wins", "upstream-wins"])
+                    choices=["most-specific-wins", "error", "warn-and-merge"])
+    ap.add_argument("--merge-strategy", default="deep-merge",
+                    choices=["deep-merge", "strict", "override", "layered"])
     ap.add_argument("--target", required=True)
     ap.add_argument("--emit-hash", action="store_true")
     args = ap.parse_args()
@@ -198,17 +188,12 @@ def main() -> int:
         print("either --rubric or --rubric-refs required", file=sys.stderr)
         return 2
 
-    rubric: dict = {"rules": []}
-    composer = hashlib.sha256()
     for rp in refs:
         if not rp.exists():
             print(f"rubric not found: {rp}", file=sys.stderr)
             return 2
-        layer = load_rubric(rp)
-        rubric = deep_merge_rubric(rubric, layer, policy=args.conflict_policy)
-        composer.update(rp.read_bytes())
-        composer.update(b"\x1e")  # record separator
-    composition_hash = f"sha256:{composer.hexdigest()}"
+    rubric = compose_rubrics(refs, args.merge_strategy, args.conflict_policy)
+    composition_hash = rubric.get("_composition_hash", "")
     # primary rubric hash = first (upstream) layer or only layer
     rubric_path = refs[0]
     rhash = hashlib.sha256(rubric_path.read_bytes()).hexdigest()

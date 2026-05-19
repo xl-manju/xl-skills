@@ -1,6 +1,6 @@
 # 設計書索引（Progressive Disclosure）
 
-ベース: `/Users/dm/dev/dev/xlocal/xl-skills/doc/ClaudeCodeスキルの設計書/`
+ベース: `{{DOC_ROOT}}/ClaudeCodeスキルの設計書/`
 
 | 章 | ファイル | 用途 |
 |---|---|---|
@@ -37,6 +37,11 @@
 | 28 | 28-script-execution-model.md | script実行 |
 | 29 | 29-multi-project-rubric-composition.md | 多重継承 |
 | 30 | 30-paradigm-analogy-map.md | 類推地図 |
+| 31 | 31-output-routing-adapter-architecture.md | 出力先routing / adapter分離 |
+| 32 | 32-creator-kit-implementation-ledger.md | 実装台帳 / 正本と派生 / 残課題 |
+| 33 | 33-change-governance.md | 変更分類 / 承認 / cooldown / blast radius |
+| 34 | 34-plugin-governance-roadmap.md | plugin境界 / 移行ゲート / 外部参照棚卸し |
+| 35 | 35-meta-harness-feedback-loop.md | セッションログ由来の自己改善ループ |
 
 ## 読み順（用途別）
 
@@ -48,5 +53,11 @@
 - **rubric改正**: 27 → 29
 - **script書く**: 28 → 22
 - **テンプレート生成**: 11 → 24
+- **量産Skill基盤**: 29 → 30 → 31
+- **creator-kit配布・再現性**: 32 → 29 → 31
+- **governance変更**: 33 → 27 → 28
+- **plugin移行**: 34 → 33 → 23
+- **log由来改善 / Meta-Harness**: 35 → 33 → 27
+- **出力先追加**: 31 → 28 → 04
 - **ゲート確認**: 13 → 25
 - **元記事・画像証跡確認**: 12 → 21

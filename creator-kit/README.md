@@ -2,6 +2,20 @@
 
 Claude Code Skill を「**作る**」「**評価する**」「**承認する**」「**出力先にルーティングする**」ためのメタスキル群一式。**プロジェクトに依存しない portable kit** として設計されている。
 
+## 5分で最初のSkillを作る（最短経路）
+
+```bash
+# 1. kit を導入（symlink 推奨）
+bash creator-kit/install.sh
+
+# 2. Claude Code で次のスラッシュコマンドを実行
+/run-skill-create
+```
+
+`/run-skill-create` が要望ヒアリング → ブリーフ確定 → SKILL.md 生成 → rubric 採点 → eval-log 書込までの全フローを単一エントリーポイントで起動する。**個別の `/run-skill-elicit` や `/run-build-skill` を順番に呼ぶ必要はない**。
+
+bootstrap フェーズ（最初の 20 件）は governance ループが pending 扱いになり、minor/patch の自己承認が許容される。詳細は `config/governance-policy.json` の `bootstrap_phase` を参照。
+
 ## 何が入っているか
 
 `manifest.json` が正本。サマリ:
@@ -98,6 +112,46 @@ bash creator-kit/migrate-from-project.sh
 
 `.claude/skills/<meta-skill>/` の実体を `creator-kit/skills/` に移動し、元の位置にsymlinkを張り直す。プロジェクト固有skillはそのまま残る。
 
+## 新ドメインを追加する3ステップ（rubric 横展開）
+
+設計書29 (rubric multi-project composition) の 3層階層モデル (L0 共通 / L1 ドメイン / L2 プロジェクト) に従い、新しい業務ドメイン (例: `meeting-minutes`, `design-doc`) を creator-kit に取り込む手順。**L0 rubric (`ref-skill-design-rubric`) も既存スキルも変更しない**。
+
+### Step 1: L1 rubric を雛形から派生
+
+```bash
+DOMAIN="meeting-minutes"  # kebab-case
+cp -R creator-kit/skills/ref-domain-rubric-template \
+      creator-kit/skills/ref-domain-${DOMAIN}-rubric
+# rubric.json 内の {{domain_name}} を $DOMAIN に置換し、TODO(human) のルール本体を埋める
+```
+
+### Step 2: rubric-registry.json に登録
+
+`creator-kit/config/rubric-registry.json` の `rubrics[]` に新エントリを追加:
+
+```json
+{
+  "domain": "meeting-minutes",
+  "layer": "L1",
+  "rubric": "creator-kit/skills/ref-domain-meeting-minutes-rubric/rubric.json",
+  "description": "議事録ドメイン固有 rubric",
+  "upstream": ["creator-kit/skills/ref-skill-design-rubric/rubric.json"]
+}
+```
+
+### Step 3: 整合性検証して /run-skill-create で量産
+
+```bash
+python3 creator-kit/scripts/lint-rubric-refs-exist.py  # exit 0 必須
+# Claude Code で:
+#   /run-skill-create
+# brief の domain フィールドに "meeting-minutes" を入れると
+# run-build-skill が rubric-registry から L1 を解決し、
+# 生成された SKILL.md の rubric_refs に L0 + L1 が自動注入される
+```
+
+**evaluator (`assign-skill-design-evaluator`) を増やす必要はない**。同じ evaluator が rubric_refs を deep-merge して採点する (設計書29 §7.1)。
+
 ## kitの境界線 (再利用 vs プロジェクト固有)
 
 ### kit化する (再利用)
@@ -129,10 +183,16 @@ bash creator-kit/migrate-from-project.sh
 
 本kitの設計根拠は親リポジトリの `doc/ClaudeCodeスキルの設計書/` を参照:
 
-- 23-26章: meta-skill architecture (kit の中身の設計)
-- 28章: script execution model (scripts/ の責務)
+- 23-25章: meta-skill architecture (kit の中身の設計)
+- **26章: メタSkillドッグフーディング** — 設計書自身を `assign-skill-design-evaluator` で採点する自己進化ループ。起動装置は `creator-kit/scripts/doc-to-skill-adapter.py`
+- **27章: rubric governance Runbook** — 違反検出 → 招集 → 影響評価 → 猶予 → 発効の5ステップ。正本スクリプトは `creator-kit/scripts/lint-rubric-violation.py` / `compute-rubric-hash.py` / `rollback-to-stable.py` / `notify-if-governance-trigger.py`
+- **28章: script 実行モデル** — A-Eの5実行コンテキスト、PEP 723 風 frontmatter、命名規約。機械検証は `creator-kit/scripts/lint-script-frontmatter.py`
 - 29章: rubric multi-project composition (rubric_refs)
 - 31章: output routing & adapter architecture (Hexagonal Arch)
+
+## ブートストラップ（最後の砦）
+
+`run-build-skill` と `assign-skill-design-evaluator` が相互依存しているため、どちらかが壊れた状態から復旧したい場合は `creator-kit/_bootstrap/MANUAL.md` を参照。エディタとPython3 stdlibだけで最小Skillを手書きで再構築する手順を載せている。
 
 ## バージョニング
 

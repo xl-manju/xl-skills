@@ -2,9 +2,13 @@
 # /// script
 # name: hook-verify-evaluator-json
 # purpose: Check that assign-* subagents emit the evaluator JSON contract.
-# contexts: [C]
+# inputs:
+#   - stdin: Claude Code SubagentStop hook JSON
+# outputs:
+#   - stdout: violation list / exit 0=OK 2=violation
+# contexts: [D]
 # network: false
-# write-scope: output-dir
+# write-scope: none
 # dependencies: []
 # ///
 """SubagentStop hook: when subagent name matches assign-*, verify last STDOUT

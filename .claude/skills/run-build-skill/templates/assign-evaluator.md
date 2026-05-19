@@ -10,6 +10,11 @@ kind: {{kind}}
 role_suffix: evaluator
 owner: {{owner}}
 since: {{date}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal")}}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly")}}
 rubric_refs:
   - {{upstream-rubric}}
   - references/rubric.json
@@ -19,24 +24,27 @@ conflict_policy: most-specific-wins
 
 # {{name}}
 
-## Purpose & Output Contract
+## 目的と出力契約
 {{output_contract}}
 
-## Boundary
+## 境界
 {{boundary}}
 
-## Key Rules
+## 主要ルール
 1. Goodhart対策: 被採点物を改変しない。
 {{key_constraints}}
 
-## Steps
+## 手順
 ### Step 1
 rubric.json ロード → findings 収集 → score算出 → JSON出力。
 
-## Gotchas
-- TODO
+## 注意点
+{{generated_gotchas}}
 
-## Additional Resources
+## 変数化契約
+{{variable_contract}}
+
+## 追加リソース
 - `references/rubric.json`
 - `scripts/render-findings-score.py`
 {{additional_resources}}

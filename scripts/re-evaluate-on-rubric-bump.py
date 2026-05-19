@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: re-evaluate-on-rubric-bump
+# purpose: List skills that require re-evaluation after a rubric major bump.
+# inputs:
+#   - argv: no required arguments
+# outputs:
+#   - stdout: re-evaluation target list
+#   - stderr: best-effort parsing warnings
+# contexts: [E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """re-evaluate-on-rubric-bump.py — major bump 時の再評価対象リストアップ.
 
 現 rubric_version（upstream = ref-skill-design-rubric/rubric.json）と

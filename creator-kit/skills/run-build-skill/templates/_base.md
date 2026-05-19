@@ -22,31 +22,41 @@ hierarchy_level: {{hierarchy_level}}        # L0 | L1 | L2
 owner: {{owner}}
 since: {{date}}
 rubric_refs: {{rubric_refs | default([])}}
+# doc/21 source-traceability
+source: {{source_url_or_path}}
+source-tier: {{source_tier | default("internal")}}
+last-audited: {{last_audited_date}}
+audit-trigger: {{audit_trigger | default("quarterly")}}
 # permissions: 副作用ありスキルは settings.json の permissions.deny に明示禁止を書くこと（設計書04章）
 # PreToolUse hook: 文脈依存の危険検査を hook で追加（二段防御）。
 ---
 
 # {{skill_name}}
 
-## Purpose & Output Contract
+## 目的と出力契約
 {{output_contract}}
 
-## Boundary
+## 境界
 {{boundary}}
 
-## Key Rules
+## 主要ルール
 {{key_constraints}}
 
-## Steps
-### Step 1
-TODO
+## 手順
+{{generated_steps}}
 
-## Gotchas
-- TODO
+## 検証
+{{generated_checks}}
 
-## Additional Resources
+## 注意点
+{{generated_gotchas}}
+
+## 変数化契約
+{{variable_contract}}
+
+## 追加リソース
 - `references/`
 {{additional_resources}}
 
-## Security & Permissions
+## セキュリティと権限
 本Skillは副作用を伴う可能性がある。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。

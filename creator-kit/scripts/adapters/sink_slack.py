@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: sink-slack
+# purpose: Send payloads to Slack webhook under Sink Contract v1.0.
+# inputs:
+#   - argv: --payload, --params, optional --dry-run
+# outputs:
+#   - stdout: Sink Contract JSON result
+#   - stderr: sanitized adapter errors
+# contexts: [E]
+# network: true
+# write-scope: none
+# dependencies: []
+# ///
 """Slack webhook sink adapter. Sink Contract v1.0準拠。"""
 from __future__ import annotations
 import argparse

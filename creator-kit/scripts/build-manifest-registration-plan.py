@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: build-manifest-registration-plan
+# purpose: Propose manifest additions for unregistered creator-kit files.
+# inputs:
+#   - argv: optional --apply after user approval
+# outputs:
+#   - stdout: registration plan JSON or summary
+#   - file: creator-kit/manifest.json when --apply is used
+# contexts: [A, B]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# ///
 """Detect creator-kit files that are not registered in manifest.json.
 
 This script is intentionally conservative. It proposes manifest additions, but

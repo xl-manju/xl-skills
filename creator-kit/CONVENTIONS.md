@@ -44,6 +44,20 @@ KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ### Python (.py)
 ```python
 #!/usr/bin/env python3
+# /// script
+# name: <verb-target-scope>
+# version: 0.1.0
+# purpose: <one-line purpose>
+# inputs:
+#   - argv / --flag: 説明
+# outputs:
+#   - stdout / file / exit code
+# requires-python: ">=3.9"
+# dependencies: []
+# contexts: [<A|B|C|D|E から複数選択>]
+# network: false
+# write-scope: <none|output-dir|workspace>
+# ///
 """<one-line purpose>"""
 import sys
 
@@ -55,7 +69,11 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- shebang + main() + `sys.exit(code)` 必須
+- shebang + PEP 723 frontmatter + main() + `sys.exit(code)` **すべて必須**（28章§7 準拠）
+- `contexts:` フィールドは **全 Python script で必須**。値は28章2節の `A`(SKILL本文)/`B`(Subagent)/`C`(PreToolUse Hook)/`D`(SubagentStop/Stop Hook)/`E`(CI) から複数選択
+- `dependencies: []` で stdlib 限定を機械強制（`creator-kit/scripts/lint-script-frontmatter.py` が検証）
+- `network: false` を既定。31章 Sink Contract 準拠 adapter のみ `true` 可
+- `write-scope:` は `none` / `output-dir` / `workspace` のいずれか
 - exit code は `Sink Contract v1.0` に準拠 (0 success / 1 validation / 2 secret / 3 API / 4 fallback)
 
 ---
@@ -70,7 +88,7 @@ if __name__ == "__main__":
 | `resolve_route.py` | `import yaml` で adapter-registry/output-routing 読込 | 2026-05-18 | JSON 化、stdlib `json` のみで完結 |
 | `resolve_route.py` | `if __name__ == "__main__": main()` が `sys.exit()` を呼ばず exit code 伝達不能 | 2026-05-18 | `sys.exit(main())` 形式に修正 (§3 必須骨格遵守) |
 
-**現状**: §3 必須骨格・§5 禁則・§6 例外ポリシーすべて違反なし。
+**現状**: §3 必須骨格・§5 禁則・§6 例外ポリシーの未解決違反なし。ただし[§8.1](#81-命名形式の使い分けkebab-case--snake_case)のscript命名規約については PENDING_RENAME / VIOLATION が残存しており、33章 P1_structural ワークフローで段階的に解消中（最新状況は `python3 scripts/lint-script-naming.py --report` で確認）。
 
 ---
 
@@ -125,3 +143,107 @@ if __name__ == "__main__":
 - これにより Phase 0 移行時にもパス参照が破綻しない
 
 **過去の二重管理**: `run-skill-create/SKILL.md` で `scripts/build-manifest-registration-plan.py` と書きつつ実体は `creator-kit/scripts/` にあった等の不整合は、§8 ルールで一意に解消する。
+
+### 8.1 命名形式の使い分け（kebab-case / snake_case）
+
+scripts/ 配下のファイル名は配置階層によって命名形式を切り替える。28章§4 規約と例外節（§4.4 / §4.6）の正本対応関係：
+
+| 配置 | 命名形式 | 理由 | 例 |
+|---|---|---|---|
+| `creator-kit/scripts/*.py`（直下） | **kebab-case** `<動詞>-<対象>-<スコープ>.py` | 28章§4.1 既定規約。動詞 8 種（lint/validate/format/render/extract/diff/guard/build）のいずれかで始める | `lint-script-frontmatter.py`, `compute-rubric-hash.py`, `doc-to-skill-adapter.py` |
+| `creator-kit/scripts/adapters/*.py` | **snake_case** 許容 | 28章§4.6 Hexagonal Architecture の adapter dispatch entry point は機能名で命名 | `sink_local.py`, `dispatch.py`, `resolve_route.py` |
+| `creator-kit/scripts/secrets/*.py` | **snake_case** 許容 | 28章§4.4 secret helper の機能分類接頭辞慣習 | `keychain_helper.py`, `audit_secret_leak.py` |
+| `creator-kit/scripts/migrate/*.py` | **kebab-case** | 通常規約。`migrate/` は配置スコープのみで命名例外なし。単語名のみ（`audit.py`）は PENDING_RENAME 対象として動詞接頭辞付き名（例: `audit-skill-set.py`）へ移行予定 | `to-brief.py`, `backfill-source-tier.py`（PENDING: `audit.py`） |
+| `creator-kit/scripts/cross_platform_*.py`（暫定） | **PENDING_RENAME** | アンダースコア使用は28章例外節非該当。`scripts/secrets/` 配下への移動 or `cross-platform-secret.py` への改名を計画 | `cross_platform_secret.py` |
+
+`hook-*.py` 命名は28章規約では `guard-*.py` 等へ移行予定（PENDING_RENAME）。事前互換のため当面は `hook-*.py` を許容し、`lint-script-frontmatter.py` の `EXCEPTION` 扱いとする。33章 P1 Structural change を経て移行する。
+
+---
+
+## 9. 変数台帳（横展開時のパス・環境変数の正本）
+
+別プロジェクトに creator-kit を導入する際に上書き可能なパス変数・環境変数の単一参照源。
+SKILL.md / scripts / 設計書から参照する場合は **必ず本表の変数名を使い**、独自命名を禁止する。
+
+| 変数名 | デフォルト | 設定主体 | 用途 |
+|---|---|---|---|
+| `PROJECT_ROOT` | `$(pwd)` 起動ディレクトリ | shell / hook | プロジェクトルート。`eval-log/` `creator-kit/` 等の起点 |
+| `OUT_BASE` | `creator-kit/skills` (Phase 0) / `plugins/<name>/skills` (Phase 0 完了後) | `resolve-skill-dirs.sh` | 生成 Skill の出力ベース。`$OUT_BASE/<skill-name>/SKILL.md` |
+| `SKILL_DIR` | self-relative 解決 | `resolve-skill-dirs.sh` | 当該 Skill 自身のディレクトリ（SKILL.md と同階層） |
+| `CLAUDE_SKILL_DIR` | (未設定) | 利用者 | 強制的に SKILL_DIR を上書きしたい場合の手動入口 |
+| `CLAUDE_SKILL_OUT_BASE` | (未設定) | 利用者 | OUT_BASE を上書き（別プロジェクト導入時に必須） |
+| `EVAL_LOG_DIR` | `$PROJECT_ROOT/eval-log` | 利用者 / hook | eval-log の置き場を上書き |
+| `SKILL_DESIGN_RUBRIC` | `creator-kit/skills/ref-skill-design-rubric/rubric.json` | 利用者 | L0 共通 rubric の差し替え (設計書29) |
+| `DOMAIN_RUBRIC_REFS` | (未設定) | brief から確定 / `resolve-skill-dirs.sh` | L1 ドメイン rubric の append-only 注入リスト。空白区切り。値は `creator-kit/config/rubric-registry.json` の `rubrics[].rubric` から `brief.domain` で解決される。**evaluator 自身が書き換えてはならない (設計書29 §10 アンチパターン)** |
+| `RUBRIC_REGISTRY_PATH` | `creator-kit/config/rubric-registry.json` | 利用者 | L1 rubric レジストリの正本パス。別プロジェクトで rubric を完全独立管理したい場合のみ上書き |
+| `SKILL_NAME` | brief から確定 | `run-build-skill` Step 1 | 生成中のSkill名（kebab-case） |
+| `KIND` | brief から確定 | `run-build-skill` Step 1 | run/ref/assign/wrap/delegate |
+| `DOMAIN` | brief.domain から確定 | `run-build-skill` Step 1 | L1 rubric 解決キー。未指定時は L0+L2 構成 (L1 スキップ) |
+
+### 9.1 必須環境変数（別プロジェクト導入時）
+
+別プロジェクトに kit を持ち込む際、最低限以下を `.envrc` / hook / shell init に設定する:
+
+```bash
+export PROJECT_ROOT="$(pwd)"                       # 必須
+export CLAUDE_SKILL_OUT_BASE="$PROJECT_ROOT/.claude/skills"   # 任意（Phase 0完了後）
+export EVAL_LOG_DIR="$PROJECT_ROOT/eval-log"       # 任意（デフォルトで PROJECT_ROOT 配下）
+```
+
+### 9.2 変数化ポリシー（直書き禁止ルール）
+
+- SKILL.md / combinator patch / templates 配下では **絶対パス・プロジェクト固有名を直書き禁止**
+- ハードコードが必要なケース（design-docs-index.md 等の正本パス）は本表に変数を追加し、置換可能にする
+- 違反検出: `creator-kit/scripts/lint-path-canonical.py` で grep 検出（Phase 1 で正式運用）
+
+### 9.3 rubric_refs 注入経路（設計書29 §2 / §10 準拠）
+
+3層 (L0/L1/L2) の決定論的合成は次の経路でのみ行う。**evaluator 自身が rubric_refs を書き換える経路は禁止** (設計書29 §10 アンチパターン)。
+
+| 経路 | 役割 | 主体 |
+|---|---|---|
+| frontmatter `rubric_refs:` リスト | 静的宣言 (L0 + L2) | SKILL.md 作成者 |
+| CLI `--rubric-refs <path>...` | append-only 動的注入 (L1) | runner / orchestrator (run-build-skill / run-skill-create) |
+| `DOMAIN_RUBRIC_REFS` 環境変数 | rubric-registry.json から domain で解決された L1 一覧 | `resolve-skill-dirs.sh` |
+
+**優先順位**: frontmatter `rubric_refs` の後ろに `--rubric-refs` の値が append される。`merge_strategy: deep-merge` + `conflict_policy: most-specific-wins` により リスト末尾 (= 最 specific = L2) が優先される。**override は禁止 (append-only)**、これにより L0/L1 の存在が消えないことを保証する。
+
+---
+
+## 10. source-tier 決定表（doc/21 source-traceability の単一参照源）
+
+新規 Skill / 更新 Skill の frontmatter で `source-tier:` を選ぶときの正典。
+auto-backfill に頼らず**作成時点で正しい値を入れる**ことで、設計書21の
+「再監査ルール」を後付けで補正する強化ループ（backfill 依存）を断ち切る。
+
+| source-tier | 選択条件 | 典型ソース | 補足 |
+|---|---|---|---|
+| `article-text` | **元記事 Markdown** の本文を実ファイルで確認済み | `doc/【コード共有有】Agent Skill大全 …/【…】.md` | 設計書21 が article-text を「元記事 Markdown を確認済み」と定義する |
+| `image-derived` | 画像 OCR / 手描き図から翻文した内容を含む | `doc/【…】/Pasted image *.png` 由来の本文 | 設計書21 image-extraction-map の対応行を `source:` に書く |
+| `code-unavailable` | 記事説明由来でコード現物が未取得 | 記事中の `skills.zip` / Notion 同梱コードがリポジトリに存在しない時 | 取得後 `code-verified` に昇格する |
+| `code-verified` | 実コードを取得し動作を検証済み | リポジトリに同梱した参照実装 | 設計書21 再監査ルール 7 で昇格 |
+| `internal` | **本リポジトリ内製** の設計書・規約・lint・hook 由来 | `doc/ClaudeCodeスキルの設計書/20-…`, `21-…`, `22-…` 等 | doc/ 配下の内製ドキュメントはすべてこちらに分類する |
+| `external-spec` | 外部公式仕様書 (claude.com docs / GitHub docs 等) のローカル写しまたは参照 | `https://code.claude.com/docs/en/skills` 等 | URL を `source:` に書く |
+
+### 9.1 判定フロー（3問）
+
+1. **ソースは外部公式仕様 URL か？** → Yes: `external-spec`
+2. **ソースは内製の `doc/` 配下か？** → Yes: `internal`
+3. **元記事 Markdown かその派生か？**
+   - 元記事 .md 本文確認済み → `article-text`
+   - 画像由来の翻文 → `image-derived`
+   - 記事中で言及されるコード現物が手元にない → `code-unavailable`（取得後 `code-verified`）
+
+### 9.2 量産フロー上の単一参照源
+
+- スクリプト側マッピング: `creator-kit/scripts/migrate/to-brief.py` の `ORIGIN_TO_TIER`
+- 列挙値の機械検証: `creator-kit/scripts/validate-frontmatter.py` の `SOURCE_TIER_VALUES`
+- 本決定表 (§9) はこの 2 箇所と語彙的に同期している。**変更時は 3 箇所を必ず一緒に更新する**。
+
+### 9.3 後付け backfill の非推奨
+
+`creator-kit/scripts/migrate/backfill-source-tier.py` は移行期の救済策であり、
+新規 Skill 作成では使わない。`audit.py` → `to-brief.py` のフローで
+`origin` フィールドから自動派生されるため、ユーザーが手動で `source-tier:`
+を埋める場面は限定的になる（量産時 `--owner` と同様に `--source-tier`
+override が必要な場合のみ）。

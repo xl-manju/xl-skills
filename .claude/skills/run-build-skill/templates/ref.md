@@ -15,21 +15,24 @@ audit-trigger: {{audit_trigger}}         # rubric-bump|source-update|quarterly
 
 # {{name}}
 
-## Purpose & Output Contract
+## 目的と出力契約
 {{output_contract}}
 
-## Boundary
+## 境界
 {{boundary}}
 
-## Key Rules
+## 主要ルール
 {{key_constraints}}
 
-## Steps
+## 手順
 参照用。手順なし。
 
-## Gotchas
-- TODO
+## 注意点
+{{generated_gotchas}}
 
-## Additional Resources
+## 変数化契約
+{{variable_contract}}
+
+## 追加リソース
 - `references/`
 {{additional_resources}}

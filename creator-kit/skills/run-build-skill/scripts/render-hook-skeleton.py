@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: render-hook-skeleton
+# purpose: Generate a hook script skeleton for a selected hook event.
+# inputs:
+#   - argv: --skill-name, --event, --out
+# outputs:
+#   - file: generated hook script
+#   - stdout: generated path
+# contexts: [A, B]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# ///
 """Hook event 別の hook script skeleton を生成 (stdlib only, 設計書10章§設計判断5)."""
 from __future__ import annotations
 import argparse
@@ -13,6 +26,7 @@ TEMPLATE = '''#!/usr/bin/env python3
 # contexts: [C]
 # network: false
 # write-scope: none
+# dependencies: []
 # ///
 """{event} hook (TODO: 実装する).
 

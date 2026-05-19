@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: sink-notion
+# purpose: Send payloads to Notion under Sink Contract v1.0.
+# inputs:
+#   - argv: --payload, --params, optional --dry-run
+# outputs:
+#   - stdout: Sink Contract JSON result
+#   - stderr: sanitized adapter errors
+# contexts: [E]
+# network: true
+# write-scope: none
+# dependencies: []
+# ///
 """Notion sink adapter. Sink Contract v1.0準拠。
 
 実装方針:

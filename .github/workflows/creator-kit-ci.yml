@@ -19,7 +19,9 @@ jobs:
         run: |
           python3 -m py_compile \
             creator-kit/scripts/lint-forbidden-deps.py \
+            creator-kit/scripts/lint-skill-dep-step7.py \
             creator-kit/scripts/lint-manifest-contents.py \
+            creator-kit/scripts/cross_platform_secret.py \
             creator-kit/scripts/build-manifest-registration-plan.py \
             creator-kit/scripts/adapters/dispatch.py \
             creator-kit/scripts/adapters/resolve_route.py \
@@ -60,6 +62,9 @@ jobs:
       - name: Lint Skill descriptions
         run: python3 creator-kit/scripts/lint-skill-description.py \
                --skills-dir creator-kit/skills
+
+      - name: Lint doc/20 dependency contract
+        run: python3 creator-kit/scripts/lint-skill-dep-step7.py --skills-dir creator-kit/skills
 
       # G-D1: 既存skill群の回帰smoke test (現状 warn-only、ベースライン整備後に blocking 化)
       - name: Skill fixture runner (regression smoke)

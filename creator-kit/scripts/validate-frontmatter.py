@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
-# dependencies = []
+# name: validate-frontmatter
+# purpose: Validate SKILL.md frontmatter fields and combination rules.
+# inputs:
+#   - argv: SKILL.md path or --skills-dir
+# outputs:
+#   - stdout: OK status
+#   - stderr: frontmatter findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
 # ///
 """Validate Skill frontmatter: required fields and combination sanity.
 
@@ -10,6 +20,7 @@ Usage:
   validate-frontmatter.py --skills-dir creator-kit/skills
 """
 from __future__ import annotations
+import datetime
 import re
 import sys
 from pathlib import Path
@@ -18,12 +29,13 @@ REQUIRED = {"name", "description"}
 # doc/21 source-traceability 準拠の必須化（ref-* は source 必須 / 他 kind は WARN）
 SOURCE_REQUIRED_FOR_KIND = {"ref"}
 SOURCE_TIER_VALUES = {
-    "article-text",      # 元記事/設計書本文を確認済み
-    "image-derived",     # 画像由来の翻文を含む
+    # doc/21 source-traceability.md 定義に厳密準拠
+    "article-text",      # 元記事 Markdown 本文を確認済み（Agent Skill 大全等）
+    "image-derived",     # 画像 OCR / 手描き図由来の翻文を含む
     "code-unavailable",  # 実コード未取得（記事説明由来の推定）
     "code-verified",     # 実コードを取得し検証済み
-    "internal",          # 本リポジトリ内部発祥
-    "external-spec",     # 公式仕様書（claude.com docs等）
+    "internal",          # 本リポジトリ内部発祥（doc/ 配下の内製設計書を含む）
+    "external-spec",     # 外部公式仕様書（claude.com docs 等）
 }
 KIND_VALUES = {"run", "ref", "assign", "wrap", "delegate", "workflow", "reference",
                "evaluator", "generator"}
@@ -63,11 +75,19 @@ def parse_fm(text: str) -> dict:
         m = re.match(r"^([a-zA-Z_-]+):\s*(.*)$", line)
         if m:
             key = m.group(1)
-            val = m.group(2).strip()
+            val = m.group(2).split("#", 1)[0].strip()
             if val == "":
                 # may be start of list block
                 fm[key] = ""
                 current_list_key = key
+            elif val.startswith("[") and val.endswith("]"):
+                inner = val[1:-1].strip()
+                fm[key] = [
+                    item.strip().strip('"').strip("'")
+                    for item in inner.split(",")
+                    if item.strip()
+                ]
+                current_list_key = None
             else:
                 fm[key] = val
                 current_list_key = None
@@ -138,18 +158,27 @@ def _check_source_tier_demotion(
         正本ファイルの不在・URL未記載・最終監査の古さで降格すべきか
       - code-unavailable のままで rubric が更新されたか
 
-    TODO(human): 降格トリガー条件を実装する。
-        引数: tier(str), source(str), last_audited(str), skill_path(pathlib.Path)
-        返却: 降格理由を表す短い日本語文字列、不要なら None
-
-        判定の候補（最低 3 つは扱うことを推奨）:
-          1. source が空 / URL でも相対パスでもない場合 → どの高位 tier も維持不可
-          2. source がローカル相対パスで、リポジトリ内に該当ファイルが無い場合
-             → code-verified / article-text は code-unavailable へ降格
-          3. last-audited から N 日以上経過（推奨閾値: 180日）→ quarterly 再監査推奨
-          4. 任意: external-spec で URL ドメインが許可リスト外
     """
-    return None  # TODO(human)
+    if not tier:
+        return None
+    source = source.strip()
+    if tier == "external-spec":
+        if source and not re.match(r"^https?://", source):
+            return "external-spec は http(s) URL を source に持つ必要がある"
+    elif tier in {"article-text", "image-derived", "code-verified"}:
+        if not source:
+            return f"{tier} は確認済み正本パスを source に持つ必要がある"
+        if not re.match(r"^https?://", source):
+            repo = _repo_root(skill_path)
+            if not (repo / source).exists():
+                return f"source path not found: {source}"
+
+    if last_audited and ISO_DATE_RE.match(last_audited):
+        audited = datetime.date.fromisoformat(last_audited)
+        age_days = (datetime.date.today() - audited).days
+        if age_days > 180:
+            return f"last-audited is {age_days} days old"
+    return None
 
 
 def validate_file(p: Path) -> tuple[str, list[str]]:
@@ -235,6 +264,31 @@ def validate_file(p: Path) -> tuple[str, list[str]]:
     demote_reason = _check_source_tier_demotion(source_tier, source_val, last_audited, p)
     if demote_reason:
         errs.append(f"warn: source-tier '{source_tier}' may need demotion ({demote_reason})")
+
+    # cross_platform 契約検証 (doc/22-cross-platform-runtime)
+    # frontmatter に cross_platform: true があれば、本文に <important if="os=...">
+    # 分岐が最低 1 つは存在することを要求する。OS 分岐の機械検証は creator-kit
+    # 量産時に Windows 経路の欠落を防ぐ。
+    cross_platform = fm.get("cross_platform", "false").lower() == "true"
+    if cross_platform:
+        # text 全体（frontmatter 含む）に OS 分岐タグが含まれるかを確認
+        if not re.search(r"<important\s+if\s*=\s*[\"']?os=", text):
+            errs.append(
+                "cross_platform=true requires at least one "
+                "'<important if=\"os=...\">' branch in body (doc/22)"
+            )
+
+    # テンプレート変数の未展開検出（creator-kit 量産品質ゲート / doc/21 backfill依存ループ断ち切り）
+    # 実体 SKILL.md に {{...}} が残存していたら ERROR で弾く。
+    # templates/*.md は --skills-dir の */SKILL.md glob 対象外のため自動的に除外される。
+    _unresolved_re = re.compile(r"\{\{[^}]+\}\}")
+    for _k, _v in fm.items():
+        if isinstance(_v, str) and _unresolved_re.search(_v):
+            errs.append(f"unresolved template variable in '{_k}': {_v}")
+        elif isinstance(_v, list):
+            for _item in _v:
+                if isinstance(_item, str) and _unresolved_re.search(_item):
+                    errs.append(f"unresolved template variable in '{_k}' list: {_item}")
 
     # combo sanity
     dmi = fm.get("disable-model-invocation", "false").lower() == "true"

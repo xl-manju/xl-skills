@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: sink-http
+# purpose: Send payloads to an HTTP endpoint under Sink Contract v1.0.
+# inputs:
+#   - argv: --payload, --params, optional --dry-run
+# outputs:
+#   - stdout: Sink Contract JSON result
+#   - stderr: sanitized adapter errors
+# contexts: [E]
+# network: true
+# write-scope: none
+# dependencies: []
+# ///
 """Generic HTTP sink adapter. Sink Contract v1.0準拠。
 Keychainからsecretを取得しsubprocess内でHTTP呼出し。secretはClaudeに渡らない。
 """

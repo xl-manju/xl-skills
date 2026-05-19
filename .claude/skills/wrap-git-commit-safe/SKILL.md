@@ -12,11 +12,11 @@ allowed-tools:
 kind: wrap
 effect: local-artifact  # wrap-* は base: run-build-skill の effect を継承
 base: run-build-skill
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
-source-tier: article-text
+source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: source-update
 hierarchy_level: L1

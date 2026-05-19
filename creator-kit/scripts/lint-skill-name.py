@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
-# dependencies = []
+# name: lint-skill-name
+# purpose: Lint skill names against naming convention articles.
+# inputs:
+#   - argv: SKILL.md path or --skills-dir
+# outputs:
+#   - stdout: OK status
+#   - stderr: naming findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
 # ///
 """Lint Skill name against articles 第1〜5,7条.
 

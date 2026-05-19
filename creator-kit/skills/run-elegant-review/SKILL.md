@@ -14,7 +14,7 @@ allowed-tools:
   - Skill(assign-skill-design-evaluator *)
 kind: run
 effect: local-artifact  # findings.json/review-*.md をローカル生成。外部 API 呼び出しなし
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 rubric_refs:
   - ref-skill-design-rubric

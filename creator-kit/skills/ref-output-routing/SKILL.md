@@ -9,7 +9,7 @@ allowed-tools:
   - Bash
 kind: ref
 effect: none
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 # context-budget: routing解決のみ。具体的なAPI実装はadapterスクリプトに完全委譲。
 # auto-backfilled by backfill-source-tier.py (doc/21)
@@ -75,7 +75,7 @@ audit-trigger: quarterly
 ## Key Rules
 
 1. **API key は絶対にClaude context に乗らない**: adapter scriptが subprocess 内で Keychain から取得し、HTTP呼出しに直接使う。Claude は key を見ない。
-2. **output-routing.json にはIDのみ**: database_id, spreadsheet_id 等の非機密IDは記載可。トークン/secret は `keychain:service/account` 形式で参照のみ記載。`env:` / `file:` は使わない。
+2. **output-routing.json にはIDのみ**: database_id, spreadsheet_id 等の非機密IDは記載可。トークン/secret は `keychain:{{SECRET_NAMESPACE}}/<account>` 形式で参照のみ記載。`env:` / `file:` は使わない。
 3. **adapter追加はJSON登録のみ**: コード変更なしで `adapter-registry.json` に登録すれば `output-routing.json` で使える (Open/Closed)。
 4. **multi-sink対応**: `adapters: [notion, local]` で複数同時出力可能。
 5. **fallback必須**: 各routeに `fallback: local` 推奨。外部API障害時にローカル退避でwork継続。
@@ -91,7 +91,7 @@ python3 scripts/adapters/resolve_route.py --kind task-spec
 python3 scripts/adapters/dispatch.py \
   --kind task-spec \
   --payload payload.json \
-# 出力: {"status":"success","location":"https://notion.so/...","external_id":"..."}
+# 出力: {"status":"success","location":"{{OUTPUT_ROUTE}}","external_id":"..."}
 ```
 
 ## adapter 追加手順 (例: Linear連携)
@@ -116,7 +116,7 @@ python3 scripts/adapters/dispatch.py \
 
 ## Gotchas
 
-1. **API keyをroutingに直書きしない**: `params: { token: "sk-..." }` は禁止。必ず `params: { token_ref: "keychain:service/account" }` で参照のみ。
+1. **API keyをroutingに直書きしない**: `params: { token: "sk-..." }` は禁止。必ず `params: { token_ref: "keychain:{{SECRET_NAMESPACE}}/<account>" }` で参照のみ。
 2. **output-routing.jsonのコミット**: 非機密ID (database_id等) はコミット可だがレビュー必須。tokenが紛れていないか lint で検証。
 3. **fallback先のpath**: ローカルフォールバックの保存先は `eval-log/` 等のrepo内に固定。外部書き出しは禁止。
 4. **adapter内部のstdout汚染禁止**: adapter は最終JSON以外を stdout に出さない。debug は stderr へ。Claude が adapter出力を読むためstdoutにkey/secretが混入すると context漏洩。

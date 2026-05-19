@@ -9,15 +9,17 @@ pair: run-build-skill
 kind: assign
 effect: conversation-output
 role_suffix: evaluator
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-17
 rubric_refs:
-  - ref-skill-design-rubric
-  - references/rubric.json
+  - ref-skill-design-rubric              # L0: 共通 (固定)
+  # L1: ドメイン rubric は CLI --rubric-refs で append される (rubric-registry.json 経由)
+  - references/rubric.json               # L2: 本 evaluator 固有 override
 reference_refs:
   - references/evaluator-contract.md
 script_refs:
   - scripts/render-findings-score.py
+  - ../../scripts/compose-rubrics.py
 merge_strategy: deep-merge
 conflict_policy: most-specific-wins
 # auto-backfilled by backfill-source-tier.py (doc/21)
@@ -63,7 +65,7 @@ forkコンテキストで動き、生成本体（run-build-skill）と context �
 ## Key Rules
 
 1. **Goodhart対策**: 採点者は被採点物を改変しない（09章）。
-2. **rubric_refs 注入**: runner/orchestrator が L0..Ln の `rubric_refs` を渡し、未指定時は `ref-skill-design-rubric/rubric.json` + 本Skill側 `references/rubric.json` を deep-merge する（09/29章）。
+2. **rubric_refs 注入 (append-only)**: runner/orchestrator が L1 ドメイン rubric を CLI `--rubric-refs` で **append** する（順序: L0 → L1 → L2）。evaluator 自身は frontmatter `rubric_refs` を書き換えない（設計書29 §10 アンチパターン）。合成は `creator-kit/scripts/compose-rubrics.py` に委譲し、`deep-merge / strict / override / layered`、conflict policy、schema検証、循環検出、composition hash を同一実装で扱う。未指定時は L0 + L2 のみで合成する（L1 スキップ）。
 3. **TODO(human)残置**: BD-004 は人間判断待ち。検出時は finding severity=low で `pending_human` を立てる。
 4. **severity weights固定**: high -20 / medium -10 / low -3、初期 100。負値は 0 にクランプ。
 5. **rubric_hash必須**: 出力JSONに rubric.json の sha256 を載せる（再現性、27章）。
@@ -86,12 +88,15 @@ if [ -z "$SKILL_DIR" ]; then
   fi
 fi
 UPSTREAM="${SKILL_DESIGN_RUBRIC:-creator-kit/skills/ref-skill-design-rubric/rubric.json}"
+# L1: DOMAIN_RUBRIC_REFS は run-build-skill が brief.domain から rubric-registry.json 経由で解決し、空白区切りで渡す。
+# 未設定なら L0 + L2 のみで合成される (L1 スキップ)。
+L1_REFS="${DOMAIN_RUBRIC_REFS:-}"
 python3 "$SKILL_DIR/scripts/render-findings-score.py" \
-  --rubric-refs "$UPSTREAM" "$SKILL_DIR/references/rubric.json" \
+  --rubric-refs "$UPSTREAM" $L1_REFS "$SKILL_DIR/references/rubric.json" \
   --target "$TARGET" --emit-hash
 ```
 
-`references/rubric.json` は `ref-skill-design-rubric/rubric.json` を継承（merge_strategy: deep-merge）。別domain rubricを足す場合も evaluator 本体は増やさず、呼び出し側が `--rubric-refs` に追加する。
+合成順序は **L0 → L1 → L2** (リスト末尾が最 specific)。`merge_strategy: deep-merge` + `conflict_policy: most-specific-wins` により末尾が優先される。別ドメインを追加する場合も evaluator 本体は変えず、`creator-kit/config/rubric-registry.json` に L1 を登録するだけで済む（設計書29 §7.1）。
 
 ### Step 2: 静的検査の実行
 
@@ -111,6 +116,23 @@ python3 "$SKILL_DIR/scripts/render-findings-score.py" \
 
 `references/evaluator-contract.md` のスキーマ通りに STDOUT 1行で出す。
 threshold 未達なら `passed=false`。run-build-skill が `findings[*].message` を元に再生成する。
+
+### Step 5: eval-log への永続化（必須・F1 規約）
+
+評価完了後、STDOUTのJSONを `creator-kit/scripts/write-eval-log.py` 経由で
+`eval-log/skill-build-trace.jsonl` へ append する。自己進化ループ（設計書23章）の
+**入力ストック** を確保するための唯一の書き込み経路。
+
+```bash
+# STDOUT を直接パイプ
+python3 "$SKILL_DIR/scripts/render-findings-score.py" ... \
+  | tee /dev/tty \
+  | python3 creator-kit/scripts/write-eval-log.py
+```
+
+`write-eval-log.py` は schema 検証・`recorded_at`/`schema_version` 自動付与を行う。
+書き込み失敗（exit != 0）の場合は本Skill全体を非ゼロ exit で終え、上位 runbook に
+報告する。**直接 `echo >> jsonl` 追記は禁止**（スキーマ事故防止）。
 
 ## Gotchas
 

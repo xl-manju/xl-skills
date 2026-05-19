@@ -2,6 +2,11 @@
 # /// script
 # name: hook-handoff
 # purpose: PreCompact handoff snapshot to project-local .claude/handoff/
+# inputs:
+#   - stdin: Claude Code PreCompact hook JSON
+# outputs:
+#   - file: .claude/handoff/<timestamp>.md
+#   - exit: 0=OK
 # contexts: [C]
 # network: false
 # write-scope: output-dir

@@ -14,11 +14,14 @@ allowed-tools:
 model: opus
 kind: run
 effect: local-artifact
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 pair: assign-skill-design-evaluator
 rubric_refs:
   - ref-skill-design-rubric
+reference_refs:
+  - ref-task-context-map
+  - ref-skill-glossary
 # context-budget: orchestrationのみ。各子スキルがそれぞれの設計書を参照する。本スキルは05/06/07/13/23/25章のみ参照。
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
@@ -45,9 +48,11 @@ audit-trigger: quarterly
 - 対象スキル kind ∈ {ref, wrap}（評価ピラミッド P2 不要な低リスク種別）
 - evaluator pair が **不要** (ref/wrap skill)
 
-`--fast` 時のフロー: Step 1 brief → Step 2 build → Step 4a P0 lint → Step 6 governance (auto-approve)。Step 4b/5 (fork評価/elegant-review) を skip する。判定は機械的に行う:
+`--fast` 時のフロー: Step 1 brief → Step 2 build → Step 4a P0 lint → Step 6 governance (auto-approve)。Step 4b/5 (fork評価/elegant-review) を skip する。判定は機械的に行い、変更ファイル数・evaluator pair 不要条件も確認する:
 ```bash
-if [[ "$FAST" == "true" ]] && [[ "$DIFF_LINES" -le 30 ]] && [[ "$KIND" =~ ^(ref|wrap)$ ]]; then
+CHANGED_FILES=$(git diff --name-only -- "creator-kit/skills/$SKILL_NAME/" | wc -l | tr -d ' ')
+PAIR_REQUIRED=$(python3 -c "import json; b=json.load(open('eval-log/skill-brief.json')); print('true' if b.get('generate_pair_evaluator') or b.get('needs_independent_context') else 'false')")
+if [[ "$FAST" == "true" ]] && [[ "$CHANGED_FILES" == "1" ]] && [[ "$DIFF_LINES" -le 30 ]] && [[ "$KIND" =~ ^(ref|wrap)$ ]] && [[ "$PAIR_REQUIRED" == "false" ]]; then
   echo "fast mode: skip Step 4b/5"
 fi
 ```
@@ -59,7 +64,7 @@ fi
 - `eval-log/skill-build-trace.json` (01/01a/02/03/04/05/06/07/08/09/10/11/13/14/15/16 正本フローへの対応証跡)
 - 共通基盤の場合は `creator-kit/manifest.json` 登録差分
 - `eval-log/docs/<NN>-<timestamp>.json` (評価結果)
-- 完了レポート (どのゲートでユーザー承認を得たか)
+- 完了レポート (どのゲートでユーザー承認を得たか。本文はパラメーター名を除き日本語)
 
 **完了条件**: P0 lint pass + evaluator JSON pass（`--fast` で条件を満たす低リスク ref/wrap は `evaluator: N/A` 理由必須）+ (solo_operator_mode下) LLM-reviewer pass。
 
@@ -72,6 +77,7 @@ fi
 5. **handoff保存**: 各ゲート通過時点で `eval-log/handoff-<step>.json` を残し、PostCompact hook で復元可能にする。
 6. **creator-kit登録は確認後**: 共通基盤に該当する追加物は manifest 登録案を自動生成するが、ユーザー承認なしに `manifest.json` を更新しない。
 7. **resource-map先読み**: local reference を読む前に `references/resource-map.yaml` を読み、必要な補助ファイルだけを開く。
+8. **日本語成果物ゲート**: brief の `output_language=ja` と `parameter_language_exception=true` を既定とし、生成本文・レビュー・完了レポートの説明文を日本語にする。
 
 ## End-to-End Flow
 
@@ -167,10 +173,12 @@ python3 creator-kit/scripts/lint-skill-description.py --skills-dir "$SKILLS_DIR"
 python3 creator-kit/scripts/lint-skill-tree.py --skills-dir "$SKILLS_DIR"
 python3 creator-kit/scripts/validate-frontmatter.py --skills-dir "$SKILLS_DIR"
 python3 creator-kit/scripts/lint-dependency-direction.py --skills-dir "$SKILLS_DIR"
+python3 creator-kit/scripts/lint-skill-dep-step7.py --skills-dir "$SKILLS_DIR"
 python3 creator-kit/scripts/lint-forbidden-deps.py --skills-dir "$SKILLS_DIR"
 python3 creator-kit/scripts/lint-manifest-contents.py
 ```
 **全てexit 0必須**。失敗時: findings をユーザー提示 → Step 2 へ戻る (最大3周)。Gate 2 は全 lint exit 0 の場合のみ通過可。
+加えて、生成テンプレートに `TODO`、未展開 `{{...}}`、英語の仮文が残る場合は Step 2 へ戻す。パラメーター名、frontmatterキー、JSONキー、CLI引数は英語のままでよい。
 
 ### Gate 2: diff確認
 

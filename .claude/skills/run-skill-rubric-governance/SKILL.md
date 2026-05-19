@@ -5,7 +5,7 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Bash(python3 *), Bash(git *)]
 kind: run
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-17
 effect: local-artifact
 # auto-backfilled by backfill-source-tier.py (doc/21)
@@ -58,14 +58,26 @@ fi
 
 ### Step 2: 影響評価
 
+2つの違反集計スクリプトを使い分ける。
+
 ```bash
+# 2a. 時系列違反率（連続 N release × 閾値超）を検出 → governance トリガー判定 (27章§3.2)
+python3 creator-kit/scripts/lint-rubric-violation.py \
+  --log-dir eval-log \
+  --n 3 --threshold 0.20 \
+  --out eval-log/trigger.json
+
+# 2b. ルール別違反集計（単一 release / proposal 単位）
 python3 "$SKILL_DIR/scripts/lint-rubric-violation.py" \
   --logs "$SKILL_DIR/log" \
   --rule "$RULE_ID"
 
+# 2c. 差分影響評価
 python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" \
   --proposal proposal.json --logs "$SKILL_DIR/log"
 ```
+
+**bootstrap フェーズ**: eval-log の合計件数が `governance-params.json.bootstrap_mode.min_eval_log_records`（既定 20）未満の場合、2a は exit 3 を返し governance ループは pending 扱い。**最初の 20 件を蓄積するため、まず通常の Skill 生成・採点を回すこと**。bootstrap 中は `solo_operator_mode: true` への一時切替を governance log に記録すれば minor/patch の自己承認を許容する（major bump は禁止）。
 
 合否変動率が 30% 超なら major 強制昇格。
 
@@ -79,10 +91,25 @@ python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" \
 - `ref-skill-design-rubric/rubric.json` を編集
 - `rubric_version` を bump（semver）
 - `assign-skill-design-evaluator/references/rubric.json` を同期（deep-merge upstream更新）
+- **rubric_hash 再計算**: `python3 creator-kit/scripts/compute-rubric-hash.py --rubric creator-kit/skills/ref-skill-design-rubric/rubric.json` を実行し `rubric.normalized.json` と `rubric_hash` を更新（27章§8.2）
 - **版ずれ検証**: `python3 creator-kit/scripts/check-rubric-sync.py` を実行し
   exit 0（OK）であることを必ず確認。`RUBRIC_DRIFT:` で落ちた場合は commit 前に
   派生 rubric を再同期すること。
 - `git commit` し governance log を closed に
+
+### Step 5: 不安定時の自動 rollback
+
+`lint-rubric-violation.py` の `trigger.json` で 1 release 後に違反率が悪化した場合、
+PostToolUse Hook 経由で `rollback-to-stable.py` を起動して安定版凍結条件
+（`freeze.consecutive_runs` × `violation_rate_ceiling`）を満たす過去版へ巻き戻す（27章§9）。
+
+```bash
+python3 creator-kit/scripts/rollback-to-stable.py \
+  --rubric creator-kit/skills/ref-skill-design-rubric/rubric.json \
+  --versions-md eval-log/rubric-versions.md \
+  --params references/governance-params.json \
+  --dry-run
+```
 
 ## Gotchas
 
@@ -94,9 +121,16 @@ python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" \
 ## Additional Resources
 
 - `templates/proposal.json` — 改正提案テンプレ
-- `scripts/lint-rubric-violation.py` — 違反率集計
-- `scripts/diff-rubric-impact.py` — 影響評価
+- `creator-kit/scripts/lint-rubric-violation.py` — **時系列違反率検出（連続 N×閾値超 → trigger.json）正本（27章§3.2）**
+- `$SKILL_DIR/scripts/lint-rubric-violation.py` — ルール別違反集計（単一 release/proposal 単位）
+- `$SKILL_DIR/scripts/diff-rubric-impact.py` — 差分影響評価
+- `creator-kit/scripts/compute-rubric-hash.py` — rubric_hash 再計算（27章§8.2）
+- `creator-kit/scripts/notify-if-governance-trigger.py` — Stop Hook 用招集通知（27章§3.4）
+- `creator-kit/scripts/rollback-to-stable.py` — 安定版凍結条件を満たす版への自動 rollback（27章§9）
+- `creator-kit/scripts/doc-to-skill-adapter.py` — 設計書を Skill artifact 化して自己採点する起動装置（26章）
 - `references/governance-board.md` — ボード構成
 - `references/version-rules.md` — semver規約
-- 27章: `{{PROJECT_ROOT}}/doc/スキルの設計書/27-rubric-governance-runbook.md`
+- 27章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/27-rubric-governance-runbook.md`
+- 26章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/26-meta-skill-dogfooding.md`
+- 28章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/28-script-execution-model.md`
 - `creator-kit/scripts/resolve-skill-dirs.sh` — SKILL_DIR 解決スクリプト

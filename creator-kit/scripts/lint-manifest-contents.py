@@ -1,9 +1,23 @@
 #!/usr/bin/env python3
+# /// script
+# name: lint-manifest-contents
+# purpose: Verify creator-kit manifest entries point to existing files.
+# inputs:
+#   - argv: optional manifest path
+# outputs:
+#   - stdout: OK status
+#   - stderr: missing or invalid manifest entries
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """Verify creator-kit/manifest.json matches files present in the kit."""
 from __future__ import annotations
 
 import json
 import sys
+import pathlib
 from pathlib import Path
 
 
@@ -18,6 +32,7 @@ def expect(path: Path, findings: list[str]) -> None:
 
 
 def main() -> int:
+    bidirectional = "--bidirectional" in sys.argv
     manifest = json.loads(MANIFEST.read_text())
     findings: list[str] = []
 
@@ -45,6 +60,9 @@ def main() -> int:
     for config in manifest.get("config", []):
         expect(KIT_DIR / config["source"], findings)
 
+    if bidirectional:
+        check_bidirectional(manifest, findings)
+
     if SETTINGS_EXAMPLE.exists():
         settings = json.loads(SETTINGS_EXAMPLE.read_text(encoding="utf-8"))
         deny = settings.get("permissions", {}).get("deny", [])
@@ -69,6 +87,64 @@ def main() -> int:
     print("OK: manifest contents match creator-kit files")
     return 0
 
+
+
+
+def load_excluded_paths(manifest: dict) -> list[str]:
+    """manifest の excluded_paths を返す（未設定時は空リスト）。"""
+    return manifest.get("excluded_paths", [])
+
+
+def is_excluded(rel_path: str, excluded: list[str]) -> bool:
+    """rel_path が excluded_paths のいずれかの接頭辞に一致すれば True。"""
+    for ex in excluded:
+        if rel_path.startswith(ex.rstrip("/")):
+            return True
+    return False
+
+
+def check_bidirectional(manifest: dict, findings: list[str]) -> None:
+    """creator-kit/scripts/ と creator-kit/skills/ を走査し、manifest 未登録を検出する。"""
+    excluded = load_excluded_paths(manifest)
+
+    # -- scripts --
+    registered_scripts: set[str] = set()
+    for names in manifest.get("scripts", {}).values():
+        for name in names:
+            registered_scripts.add(name)
+    # lifecycle (sh/ps1 含む)
+    for entry in manifest.get("lifecycle", []):
+        if isinstance(entry, str):
+            registered_scripts.add(entry)
+    # bootstrap
+    for entry in manifest.get("bootstrap", []):
+        if isinstance(entry, dict):
+            src = entry.get("source", "")
+            if src:
+                registered_scripts.add(pathlib.Path(src).name)
+
+    scripts_dir = KIT_DIR / "scripts"
+    for p in scripts_dir.iterdir():
+        if p.is_dir():
+            continue  # サブディレクトリは個別走査しない（adapters/secrets/migrate は別グループ）
+        rel = str(p.relative_to(KIT_DIR))
+        if is_excluded(rel, excluded):
+            continue
+        if p.name not in registered_scripts:
+            findings.append(f"bidirectional: scripts/{p.name} は manifest 未登録")
+
+    # -- skills --
+    registered_skills = {s["name"] for s in manifest.get("skills", [])}
+    skills_dir = KIT_DIR / "skills"
+    if skills_dir.exists():
+        for skill_dir in skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            rel = str(skill_dir.relative_to(KIT_DIR)) + "/"
+            if is_excluded(rel, excluded):
+                continue
+            if skill_dir.name not in registered_skills:
+                findings.append(f"bidirectional: skills/{skill_dir.name} は manifest 未登録")
 
 
 # ---- C-5: yaml-spec-cache.md last_fetched 30日超過警告 ----

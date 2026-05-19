@@ -2,6 +2,11 @@
 # /// script
 # name: hook-guard-rubric
 # purpose: Block edits to canonical rubric files unless ALLOW_RUBRIC_EDIT=1
+# inputs:
+#   - stdin: Claude Code hook protocol JSON ({tool_name, tool_input, ...})
+# outputs:
+#   - stdout: hookSpecificOutput.permissionDecision JSON
+#   - exit: 0=allow / 2=deny
 # contexts: [C]
 # network: false
 # write-scope: output-dir
@@ -23,6 +28,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 
 
 GUARDED_SUFFIXES = (
@@ -31,11 +37,29 @@ GUARDED_SUFFIXES = (
 GUARDED_GLOB_HINTS = ("assign-", "/rubric.json")
 
 
+def registry_guarded_suffixes() -> set[str]:
+    suffixes = set(GUARDED_SUFFIXES)
+    for base in (Path.cwd(), Path(os.environ.get("PROJECT_ROOT", Path.cwd()))):
+        registry = base / "creator-kit" / "config" / "rubric-registry.json"
+        if not registry.exists():
+            continue
+        try:
+            data = json.loads(registry.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for item in data.get("rubrics", []):
+            rubric = item.get("rubric")
+            if rubric:
+                suffixes.add(str(rubric).replace("\\", "/"))
+        break
+    return suffixes
+
+
 def is_guarded(path: str) -> bool:
     if not path:
         return False
     p = path.replace("\\", "/")
-    if any(p.endswith(s) for s in GUARDED_SUFFIXES):
+    if any(p.endswith(s) for s in registry_guarded_suffixes()):
         return True
     # assign-*/rubric.json or assign-*/**/rubric.json
     if "/assign-" in p and p.endswith("/rubric.json"):

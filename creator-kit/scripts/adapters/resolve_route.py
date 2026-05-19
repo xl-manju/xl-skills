@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+# /// script
+# name: resolve-route
+# purpose: Resolve output-routing and adapter-registry config into adapter parameters.
+# inputs:
+#   - argv: task kind and optional config paths
+# outputs:
+#   - stdout: route JSON
+#   - stderr: validation errors
+# contexts: [A, B, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """output-routing.json + adapter-registry.json から task_kind に対するadapter解決。
 
 stdlib のみ (CONVENTIONS.md §1 L2)。stdoutに {adapter, params, fallback, multi} のJSON出力。
@@ -5,13 +19,36 @@ stdlib のみ (CONVENTIONS.md §1 L2)。stdoutに {adapter, params, fallback, mu
 from __future__ import annotations
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-ROUTING = REPO_ROOT / ".claude/config/output-routing.json"
-REGISTRY = REPO_ROOT / ".claude/config/adapter-registry.json"
+KIT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _project_root() -> Path:
+    return Path(os.environ.get("PROJECT_ROOT") or os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
+
+
+def _first_existing(candidates: list[Path]) -> Path:
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+PROJECT_ROOT = _project_root()
+ROUTING = _first_existing([
+    PROJECT_ROOT / ".claude/config/output-routing.json",
+    PROJECT_ROOT / ".claude/config/output-routing.json.example",
+    KIT_ROOT / "config/output-routing.json",
+    KIT_ROOT / "config/output-routing.json.example",
+])
+REGISTRY = _first_existing([
+    PROJECT_ROOT / ".claude/config/adapter-registry.json",
+    KIT_ROOT / "config/adapter-registry.json",
+])
 
 
 def main() -> int:
@@ -31,17 +68,19 @@ def main() -> int:
             sys.exit(1)
 
     routing = json.loads(routing_path.read_text())
-    registry = json.loads(Path(args.registry).read_text()) if Path(args.registry).exists() else {"adapters": []}
+    registry_path = Path(args.registry)
+    registry = json.loads(registry_path.read_text()) if registry_path.exists() else {"adapters": []}
 
     routes = routing.get("routes", {})
     defaults = routing.get("defaults", {"adapter": "local"})
 
     route = routes.get(args.kind)
     if route is None:
+        adapter = defaults.get("adapter", "local")
         resolved = {
             "kind": args.kind,
-            "adapter": defaults.get("adapter", "local"),
-            "params": {},
+            "adapter": adapter,
+            "params": defaults.get("params", {"path": "out/", "format": "json"} if adapter == "local" else {}),
             "fallback": defaults.get("fallback"),
             "multi": False,
             "_resolved_from": "defaults",
@@ -66,14 +105,35 @@ def main() -> int:
         }
 
     # adapter存在検証
-    registered_names = {a["name"] for a in registry.get("adapters", [])}
+    registry_by_name = {a["name"]: a for a in registry.get("adapters", [])}
+    registered_names = set(registry_by_name)
     targets = resolved.get("adapters", [resolved.get("adapter")]) if resolved.get("multi") else [resolved.get("adapter")]
     for t in targets:
         if t and t not in registered_names:
-            resolved.setdefault("warnings", []).append(f"adapter not registered: {t}")
+            print(json.dumps({"status": "failure", "errors": [f"adapter not registered: {t}"]}, ensure_ascii=False))
+            return 1
+        if t:
+            resolved.setdefault("registry", {})[t] = registry_by_name[t]
+            params = resolved.get("params", {}).get(t, {}) if resolved.get("multi") else resolved.get("params", {})
+            errors = validate_params(t, params, registry_by_name[t].get("params_schema", {}))
+            if errors:
+                print(json.dumps({"status": "failure", "errors": errors}, ensure_ascii=False))
+                return 1
 
     print(json.dumps(resolved, ensure_ascii=False))
     return 0
+
+
+def validate_params(adapter: str, params: dict, schema: dict) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(params, dict):
+        return [f"{adapter}: params must be object"]
+    for name, spec in schema.items():
+        if spec.get("required") and name not in params:
+            errors.append(f"{adapter}: missing required param: {name}")
+        if name in params and "enum" in spec and params[name] not in spec["enum"]:
+            errors.append(f"{adapter}: param {name} must be one of {spec['enum']}")
+    return errors
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ def get_secret(service: str, account: str) -> str:
     return result.stdout.strip()
 
 def main():
-    secret = get_secret("xl-skills-notion", "api-token")
+    secret = get_secret("{{SECRET_NAMESPACE}}-notion", "api-token")
     # HTTP call使用、secretは関数外へ漏らさない
     response = http_post(url, headers={"Authorization": f"Bearer {secret}"}, json=payload)
     # secret変数はスコープ外で破棄
@@ -73,18 +73,18 @@ except Exception as e:
 ```bash
 # Notion API token
 security add-generic-password \
-  -s xl-skills-notion \
+  -s {{SECRET_NAMESPACE}}-notion \
   -a api-token \
   -w <YOUR_NOTION_TOKEN>
 
 # Slack webhook URL
 security add-generic-password \
-  -s xl-skills-slack \
+  -s {{SECRET_NAMESPACE}}-slack \
   -a webhook-url \
   -w <YOUR_WEBHOOK_URL>
 
 # 一覧確認
-security dump-keychain | grep xl-skills
+security dump-keychain | grep "{{SECRET_NAMESPACE}}"
 ```
 
 ## output-routing.json内の参照記法
@@ -98,14 +98,14 @@ API key本体ではなく **参照のみ** を記載:
       "adapter": "notion",
       "params": {
         "database_id": "abc123",
-        "token_ref": "keychain:xl-skills-notion/api-token"
+        "token_ref": "keychain:{{SECRET_NAMESPACE}}-notion/api-token"
       }
     }
   }
 }
 ```
 
-adapter scriptが `keychain:service/account` 形式を解釈してKeychainから取得。
+adapter scriptが `keychain:{{SECRET_NAMESPACE}}/<account>` 形式を解釈してKeychainから取得。
 
 ## permissions設定
 

@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = []
+# name: lint-path-canonical
+# purpose: Validate canonical path and hardcoded value rules for skill artifacts.
+# inputs:
+#   - argv: --skills-dir or --skill-md
+# outputs:
+#   - stdout: OK status
+#   - stderr: path canonicalization findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.9"
 # ///
 """パス正本ルール (CONVENTIONS.md §8) の自動検証スクリプト。
 

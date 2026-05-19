@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
-# dependencies = []
+# name: validate-naming
+# purpose: Validate skill name kebab-case and allowed prefix before rendering.
+# inputs:
+#   - argv: skill-name
+# outputs:
+#   - stdout: ok
+#   - stderr: validation errors
+# contexts: [A, B, C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
 # ///
 """Quick naming validator (subset of lint-skill-name.py for pre-flight checks)."""
 from __future__ import annotations

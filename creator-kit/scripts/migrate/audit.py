@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = []
+# name: migrate-audit
+# purpose: Classify Markdown sections into migration categories for run-migrate-audit.
+# inputs:
+#   - argv: input markdown path and options
+# outputs:
+#   - stdout: audit JSON
+#   - stderr: validation errors
+# contexts: [A, B]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.9"
 # ///
 """run-migrate-audit の機械分類エントリ。
 
@@ -27,6 +37,25 @@ RULES = [
     ("docs",     [r"議事録", r"経緯", r"記録", r"changelog"]),
     ("always-on",[r"常に", r"必ず", r"全タスク", r"short rules"]),
 ]
+
+
+def detect_origin(input_path: Path) -> str:
+    """入力ファイルパスから origin を判定する（doc/21 source-tier 自動派生用）。
+
+    返値:
+      - "article"        : 元記事 Markdown (Agent Skill 大全 等) 由来
+      - "internal-doc"   : リポジトリ内製の設計書 (doc/ClaudeCode スキルの設計書/ 等) 由来
+      - "external-spec"  : 外部公式仕様 (claude.com docs 等) のローカル写し
+      - "unknown"        : 判定不能（保守的に internal 扱いされる）
+    """
+    s = str(input_path)
+    if "Agent Skill" in s or "skill大全" in s.lower():
+        return "article"
+    if "ClaudeCodeスキルの設計書" in s or "/doc/" in s.replace("\\", "/"):
+        return "internal-doc"
+    if "claude.com" in s or "external-spec" in s:
+        return "external-spec"
+    return "unknown"
 
 
 def classify_section(heading: str, body: str) -> tuple[str, str]:
@@ -108,6 +137,7 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({
         "input_file": str(src),
+        "origin": detect_origin(src),
         "sections": classified,
         "summary": summary,
     }, ensure_ascii=False, indent=2), encoding="utf-8")

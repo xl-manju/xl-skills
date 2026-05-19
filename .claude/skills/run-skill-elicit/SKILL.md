@@ -10,7 +10,7 @@ allowed-tools:
   - Write
 kind: run
 effect: local-artifact
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 # context-budget: このスキルはヒアリングのみ。設計書は06章と13章だけを参照する。
 # auto-backfilled by backfill-source-tier.py (doc/21)

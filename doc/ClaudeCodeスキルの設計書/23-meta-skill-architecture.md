@@ -370,6 +370,11 @@ rubric（評価基準）は read-only でも「永久不変」ではない。Goo
 | `run-skill-rubric-governance` | rubric改正 Runbook | proposal.json + governance-params.json | rubric.json PR + governance log | lint-rubric-violation.py, diff-rubric-impact.py | ユーザー |
 | `run-elegant-review` | 30パラダイム×4条件 レビュー | target path | findings.json + review-*.md | 3 analyst subagents, elegant-improvement-executor | ユーザー |
 | `ref-yaml-spec-fetcher` | 公式YAML仕様キャッシュ参照 | (Read-only) | yaml-spec-cache.md の内容 | (なし) | run-build-skill, validate-frontmatter.py |
+| `elegant-reset-observer` | 30パラダイム評価の思考リセット・俯瞰 | target path | 俯瞰レポート（全体像・第一印象） | (なし) | run-elegant-review |
+| `elegant-logical-structural-analyst` | 論理分析系+構造分解系9思考法による検証 | target + reset レポート | 論理・構造検証結果 | (なし) | run-elegant-review |
+| `elegant-meta-divergent-analyst` | メタ・抽象系+発想・拡張系9思考法による検証 | target + reset レポート | メタ・発想分析結果 + 代替案 | (なし) | run-elegant-review |
+| `elegant-system-strategic-analyst` | システム系+戦略系+問題解決系12思考法による検証 | target + reset レポート | システム・戦略・問題解決分析結果 | (なし) | run-elegant-review |
+| `elegant-improvement-executor` | 3アナリスト結果を統合し4条件PASSまで改善実行・検証 | 3アナリスト結果 | 改善後artifact + 4条件判定 | lint scripts, write-eval-log.py | run-elegant-review |
 
 ### 責務分割の原則
 

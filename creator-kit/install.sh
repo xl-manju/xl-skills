@@ -54,9 +54,10 @@ case "$OS_KIND_RAW" in
 esac
 
 # manifest.json 宣言サポートOSとの突き合わせ
-SUPPORTED_OS_JSON="$(python3 -c "
+SUPPORTED_OS_JSON="$(KIT_MANIFEST="$KIT_DIR/manifest.json" python3 -c "
 import json
-m=json.load(open('$KIT_DIR/manifest.json'))
+import os
+m=json.load(open(os.environ['KIT_MANIFEST']))
 print(','.join(m.get('requirements',{}).get('os',[])))
 ")"
 
@@ -97,6 +98,7 @@ mkdir -p \
   "$PROJECT_DIR/.claude/skills" \
   "$PROJECT_DIR/.claude/agents" \
   "$PROJECT_DIR/.claude/config" \
+  "$PROJECT_DIR/.claude/logs" \
   "$PROJECT_DIR/scripts/adapters" \
   "$PROJECT_DIR/scripts/secrets" \
   "$PROJECT_DIR/scripts"
@@ -169,6 +171,13 @@ for f in "$KIT_DIR/scripts/secrets/"*; do
   link_or_copy "$f" "$PROJECT_DIR/scripts/secrets/$(basename "$f")"
 done
 
+echo "==> Installing scripts/migrate"
+mkdir -p "$PROJECT_DIR/scripts/migrate"
+for f in "$KIT_DIR/scripts/migrate/"*.py; do
+  [[ -e "$f" ]] || continue
+  link_or_copy "$f" "$PROJECT_DIR/scripts/migrate/$(basename "$f")"
+done
+
 echo "==> Installing scripts/lint+hooks"
 for f in "$KIT_DIR/scripts/"*.py; do
   [[ -e "$f" ]] || continue
@@ -187,6 +196,43 @@ for c in m.get('config', []):
 done
 
 echo ""
+echo "==> Post-install checks"
+
+# output-routing.json の正本配備チェック (設計書31)
+ROUTING_EXAMPLE="$PROJECT_DIR/.claude/config/output-routing.json.example"
+ROUTING_REAL="$PROJECT_DIR/.claude/config/output-routing.json"
+if [[ -e "$ROUTING_EXAMPLE" && ! -e "$ROUTING_REAL" ]]; then
+  cat >&2 <<MSG
+WARN: output-routing.json が未配備です (設計書31 §5.1)。
+      adapter dispatch を実運用するには、以下を実施してください:
+        cp "$ROUTING_EXAMPLE" "$ROUTING_REAL"
+        # database_id / webhook URL / keychain:service/account を編集
+      未配備時、ref-output-routing は defaults.adapter (local) にフォールバックします。
+MSG
+fi
+
+# rubric-registry.json の L1 整合性チェック (設計書29)
+REGISTRY="$PROJECT_DIR/.claude/config/rubric-registry.json"
+if [[ -e "$REGISTRY" ]]; then
+  python3 - <<'PY' "$REGISTRY" "$PROJECT_DIR" || true
+import json, os, sys
+registry_path, project_root = sys.argv[1], sys.argv[2]
+with open(registry_path) as f:
+    reg = json.load(f)
+missing = []
+for r in reg.get("rubrics", []):
+    p = os.path.join(project_root, r["rubric"])
+    if not os.path.exists(p):
+        missing.append((r["domain"], r["rubric"]))
+if missing:
+    print("WARN: rubric-registry.json に未配置の L1 rubric があります:", file=sys.stderr)
+    for d, p in missing:
+        print(f"      domain={d}  path={p}", file=sys.stderr)
+PY
+fi
+
+echo ""
 echo "==> Done."
 echo "    Run: ls -la .claude/skills/  # to verify symlinks"
 echo "    Next: copy .claude/config/output-routing.json.example to output-routing.json and customize"
+echo "    Next: review .claude/config/rubric-registry.json for L1 domain rubrics (設計書29)"

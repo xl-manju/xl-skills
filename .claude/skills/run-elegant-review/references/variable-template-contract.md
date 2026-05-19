@@ -20,6 +20,17 @@
 | `{{owner}}` | 所有者 | 利用プロジェクトで指定 |
 | `{{os_kind}}` | 実行OS | `unknown` |
 | `{{external_executor}}` | 外部実行環境 | `none` |
+| `{{DOC_ROOT}}` | 参照設計書のルート | `{{PROJECT_ROOT}}/doc` |
+| `{{SOURCE_REGISTRY}}` | 出典 registry / source map | `{{DOC_ROOT}}/source-registry.json` |
+| `{{SOURCE_CANONICAL_PATH}}` | 正本ソースのパスまたはURL | `internal` |
+| `{{runtime_shell}}` | 実行 shell | `bash` または `powershell` |
+| `{{python_cmd}}` | Python 起動コマンド | `python3` または `python` |
+| `{{path_style}}` | パス表記 | `posix` または `windows` |
+| `{{secret_backend}}` | secret backend 名 | `keychain` / `xdg` / `base64-file` / `env` |
+| `{{install_mode}}` | kit 展開方式 | `symlink` または `copy` |
+
+各変数は `name`, `meaning`, `default`, `required`, `not_applicable_when` を持つ。
+`not_applicable_when` が空の変数は横展開時に過剰適用されやすいため、review 出力では必ず不適用条件を明示する。
 
 ## findings で使う分類
 

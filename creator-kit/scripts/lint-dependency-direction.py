@@ -2,6 +2,11 @@
 # /// script
 # name: lint-dependency-direction
 # purpose: Detect DAG cycles and direction violations in skill dependencies.
+# inputs:
+#   - argv: --skills-dir or skill paths
+# outputs:
+#   - stdout: OK or report path
+#   - stderr: dependency violations
 # contexts: [C]
 # network: false
 # write-scope: none

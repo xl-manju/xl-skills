@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: check-rubric-sync
+# purpose: Detect version or hash drift between canonical and evaluator rubrics.
+# inputs:
+#   - argv: no required arguments
+# outputs:
+#   - stdout: OK status
+#   - stderr: drift findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """check-rubric-sync.py — upstream rubric と evaluator 派生 rubric の版ずれ検出.
 
 ref-skill-design-rubric/rubric.json (upstream 正本) の SHA-256 と rubric_version

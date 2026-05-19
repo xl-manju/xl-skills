@@ -37,7 +37,7 @@
   },
   "change_log": {
     "store_path": ".claude/changelog/governance-log.jsonl",
-    "required_fields": ["timestamp", "category", "target_path", "approver", "rationale", "rollback_plan"],
+    "required_fields": ["timestamp", "category", "target_path", "approver", "rationale", "rollback_plan", "rubric_hash", "template_hash", "impact_report", "grace_period"],
     "retention": "indefinite"
   },
   "blast_radius_lint": {
@@ -55,14 +55,30 @@
     "blast_radius_lint をスキップして局所修正のみ commit (依存先破壊リスク)"
   ],
   "machine_enforcement": {
-    "pre_commit_hook": "scripts/hook-guard-rubric.py",
+    "pre_commit_hook": "scripts/guard-change-category.py",
     "ci_workflow": ".github/workflows/governance-check.yml",
     "linked_lints": [
       "scripts/lint-skill-name.py",
       "scripts/lint-forbidden-deps.py",
       "scripts/lint-manifest-contents.py",
       "scripts/lint-dependency-direction.py",
-      "scripts/lint-skill-description.py"
+      "scripts/lint-skill-description.py",
+      "scripts/lint-external-refs.py",
+      "creator-kit/scripts/lint-script-frontmatter.py",
+      "creator-kit/scripts/lint-rubric-violation.py"
     ]
+  },
+  "bootstrap_phase": {
+    "description": "creator-kit を新規プロジェクトに導入した直後の初期蓄積期間。eval-log が governance ループを回せる規模に達するまでの暫定運用ルール。",
+    "trigger": "eval-log/*.jsonl の合計レコード数 < governance-params.json.bootstrap_mode.min_eval_log_records (既定 20)",
+    "rules": {
+      "violation_rate_detection": "pending（lint-rubric-violation.py が exit 3 を返し breached を空配列で出力）",
+      "freeze_judgment": "pending（過去 N release のデータ不足のため判定不能）",
+      "self_approval": "minor/patch の自己承認を許容（solo_operator_mode.enabled=true 一時切替）。major bump は禁止",
+      "rubric_changes": "P3_cosmetic / P2_content のみ auto_apply。P1_structural / P0_breaking は proposal を起票したうえで bootstrap 完了まで保留",
+      "evidence_required": "governance log に bootstrap: true と現時点の eval-log 件数を必ず記録する"
+    },
+    "exit_condition": "min_eval_log_records 到達後、lint-rubric-violation.py が自動的に bootstrap:false で動作し通常 governance に移行する",
+    "first_lap_guide": "最初の1周は (1) /run-skill-create で 1 Skill を E2E 生成 → (2) assign-skill-design-evaluator で採点 → (3) write-eval-log.py で eval-log/*-score.jsonl に追記、を 20 回繰り返す。bootstrap 完了で初めて governance ループが起動する"
   }
 }

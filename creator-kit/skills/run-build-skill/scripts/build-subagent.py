@@ -2,6 +2,11 @@
 # /// script
 # name: build-subagent
 # purpose: Emit a Claude Code subagent markdown derived from a SKILL.md
+# inputs:
+#   - argv: --skill-name, --skill-md, --output-dir, --model
+# outputs:
+#   - file: <output-dir>/<skill-name>-subagent.md
+#   - stdout: generated path
 # contexts: [C]
 # network: false
 # write-scope: output-dir

@@ -1,7 +1,7 @@
 # Example: Elegant Review on Skill `run-build-skill`
 
 - target_type: skill
-- target_path: /Users/dm/dev/dev/xlocal/xl-skills/.claude/skills/run-build-skill/
+- target_path: {{PROJECT_ROOT}}/.claude/skills/run-build-skill/
 - reviewed_at: 2026-05-18T10:00:00Z
 - loop_count: 2
 

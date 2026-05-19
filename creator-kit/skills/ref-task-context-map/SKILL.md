@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 kind: ref
 effect: none
-owner: {{owner}}
+owner: team-platform
 since: 2026-05-18
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/

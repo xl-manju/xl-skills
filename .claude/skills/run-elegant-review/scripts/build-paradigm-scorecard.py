@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: build-paradigm-scorecard
+# purpose: Generate a paradigm x condition scorecard CSV from elegant-review findings.
+# inputs:
+#   - argv: findings.json and optional out.csv
+# outputs:
+#   - stdout: CSV when out path is omitted
+#   - file: CSV when out path is provided
+# contexts: [A, B, E]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# ///
 """Generate paradigm x condition x score matrix as CSV.
 
 Input : findings.json (path via argv[1])

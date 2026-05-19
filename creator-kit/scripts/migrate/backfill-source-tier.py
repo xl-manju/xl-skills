@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = []
+# name: backfill-source-tier
+# purpose: Backfill doc/21 source traceability fields into existing SKILL.md files.
+# inputs:
+#   - argv: --skills-dir and optional --dry-run
+# outputs:
+#   - stdout: changed or skipped files
+#   - file: updated SKILL.md files unless --dry-run
+# contexts: [A, B]
+# network: false
+# write-scope: output-dir
+# dependencies: []
+# requires-python: ">=3.9"
 # ///
 """既存 SKILL.md 群に doc/21 出典追跡フィールドを一括追記する。
 

@@ -21,26 +21,31 @@ rubric_refs: {{rubric_refs | default([]) }}            # ref-pr-conventions 等�
 
 # {{name}}
 
-## Purpose & Output Contract
+## 目的と出力契約
 {{output_contract}}
 
-## Boundary
+## 境界
 {{boundary}}
 
-## Key Rules
+## 主要ルール
 1. allowed-tools は glob 制限。
 {{key_constraints}}
 
-## Steps
-### Step 1
-TODO
+## 手順
+{{generated_steps}}
 
-## Gotchas
-- TODO
+## 検証
+{{generated_checks}}
 
-## Additional Resources
+## 注意点
+{{generated_gotchas}}
+
+## 変数化契約
+{{variable_contract}}
+
+## 追加リソース
 - TODO
 {{additional_resources}}
 
-## Security & Permissions
+## セキュリティと権限
 本Skillは外部ツールをラップし副作用を伴う。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。`allowed-tools` の glob 制限だけでは不十分である。例設定は `creator-kit/config/claude-settings-hooks.json.example` を参照。

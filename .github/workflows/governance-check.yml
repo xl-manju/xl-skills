@@ -28,6 +28,15 @@ jobs:
       - name: lint dependency direction
         run: python3 scripts/lint-dependency-direction.py
         continue-on-error: false
+      - name: check external refs inventory
+        run: python3 scripts/lint-external-refs.py --skills-dir creator-kit/skills
+        continue-on-error: false
+      - name: check script drift
+        run: bash scripts/check-scripts-drift.sh
+        continue-on-error: false
+      - name: check skill drift
+        run: bash scripts/sync-skills-to-claude.sh --check
+        continue-on-error: false
       - name: lint manifest contents
         run: python3 scripts/lint-manifest-contents.py
         continue-on-error: false

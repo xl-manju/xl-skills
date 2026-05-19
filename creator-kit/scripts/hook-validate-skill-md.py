@@ -2,6 +2,10 @@
 # /// script
 # name: hook-validate-skill-md
 # purpose: Validate SKILL.md frontmatter on FileChanged; warn-only.
+# inputs:
+#   - stdin: Claude Code FileChanged hook JSON
+# outputs:
+#   - stderr: warnings / exit 0
 # contexts: [C]
 # network: false
 # write-scope: output-dir

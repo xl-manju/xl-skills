@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: lint-skill-description
+# purpose: Enforce description trigger and wording rules for skills and agents.
+# inputs:
+#   - argv: optional --report, --skills-dir, or target path
+# outputs:
+#   - stdout: OK status or report
+#   - stderr: description findings
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """lint-skill-description.py
 
 SKILL.md / agents/*.md の description フィールドを 03章 §description設計規律 で機械強制する。
