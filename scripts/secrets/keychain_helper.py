@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/secrets/keychain_helper.py
+../../creator-kit/scripts/secrets/keychain_helper.py

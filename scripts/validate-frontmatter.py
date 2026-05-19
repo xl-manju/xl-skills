@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/validate-frontmatter.py
+../creator-kit/scripts/validate-frontmatter.py

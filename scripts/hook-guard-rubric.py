@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/hook-guard-rubric.py
+../creator-kit/scripts/hook-guard-rubric.py

@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/hook-validate-skill-md.py
+../creator-kit/scripts/hook-validate-skill-md.py

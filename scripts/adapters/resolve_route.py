@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/adapters/resolve_route.py
+../../creator-kit/scripts/adapters/resolve_route.py

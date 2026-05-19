@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/adapters/sink_local.py
+../../creator-kit/scripts/adapters/sink_local.py

@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/lint-manifest-contents.py
+../creator-kit/scripts/lint-manifest-contents.py

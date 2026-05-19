@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/build-manifest-registration-plan.py
+../creator-kit/scripts/build-manifest-registration-plan.py

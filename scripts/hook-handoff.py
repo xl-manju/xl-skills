@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/hook-handoff.py
+../creator-kit/scripts/hook-handoff.py

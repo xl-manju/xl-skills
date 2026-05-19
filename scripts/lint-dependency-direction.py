@@ -1,1 +1,1 @@
-/Users/dm/dev/dev/xlocal/xl-skills/creator-kit/scripts/lint-dependency-direction.py
+../creator-kit/scripts/lint-dependency-direction.py
