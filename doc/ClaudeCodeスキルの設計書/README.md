@@ -35,6 +35,7 @@
 | creator-kit 実装状態・残課題 | `32-creator-kit-implementation-ledger.md` | Phase A-J の履歴、レビュー結果、未移行項目、C1-C4 判定は `32` に集約する |
 | 変更ガバナンス | `33-change-governance.md` と `creator-kit/config/governance-policy.json` | P0-P3カテゴリ、cooldown、blast radius、承認フローは `33` を優先する |
 | plugin 移行ロードマップ | `34-plugin-governance-roadmap.md` | Phase 0-4 ゲート、公式制約照合、3アナリスト収束証拠は `34` を優先する |
+| settings.json マージ仕様 | `34a-settings-merge-spec.md` | `.claude/settings.json` の管理メタデータ、INV-1〜12、衝突検出、名前空間 preflight は `34a` を優先する |
 | Meta-Harness FBループ | `35-meta-harness-feedback-loop.md` + `.claude/config/meta-harness-observables.json` | log-driven ref-* 改善のパイプライン、observables 列挙、Goodhart 予防は `35` を優先する |
 | 元情報の存在・数・差分 | `21-source-traceability.md` | 画像数、実在パス、コード現物の有無は `21` を優先する |
 
@@ -68,9 +69,9 @@
 | Ubiquitous Language（共通言語） | チームで揃える業務用語 | Skill 名や domain segment の基準 |
 | Gotchas（落とし穴） | よく踏む失敗と回避策 | LLM が間違えやすい点を短く書く |
 
-## ファイル構成（全36本）
+## ファイル構成（全37本）
 
-Markdown は README を含めて 37 本。README を除く設計書は 36 本で、`00a` / `01a` は補助導線として採番している。`27〜30` は依存注入型クリーンアーキ実装の追加章、`31` は出力routing/adapterとKeychain保護の追加章、`32` は creator-kit 実装状態の台帳章、`33` は変更ガバナンス章、`34` は plugin 移行ロードマップ章。
+Markdown は README を含めて 38 本。README を除く設計書は 37 本で、`00a` / `01a` / `34a` は補助導線として採番している。`27〜30` は依存注入型クリーンアーキ実装の追加章、`31` は出力routing/adapterとKeychain保護の追加章、`32` は creator-kit 実装状態の台帳章、`33` は変更ガバナンス章、`34` は plugin 移行ロードマップ章、`34a` は settings.json マージ仕様章。
 
 行数規律の適用範囲: `08` / `13` / `24` の **300 行 hard cap は生成対象の `.claude/skills/<skill-name>/SKILL.md` 本文に適用する**。本ディレクトリの設計書 Markdown は正本性・追跡性・判断根拠を優先し、300 行以上でも許容する。
 
@@ -113,6 +114,7 @@ Markdown は README を含めて 37 本。README を除く設計書は 36 本で
 | [32-creator-kit-implementation-ledger.md](32-creator-kit-implementation-ledger.md) | creator-kit / E2E / routing / Keychain / 規約の実装履歴、レビュー結果、残課題台帳 |
 | [33-change-governance.md](33-change-governance.md) | 変更ガバナンス (P0-P3カテゴリ、cooldown、blast radius、承認フロー)。27章の rubric governance を全Skill/script/configに横展開 |
 | [34-plugin-governance-roadmap.md](34-plugin-governance-roadmap.md) | plugin 移行ガバナンスロードマップ (Phase 0-4、公式制約5点照合、3アナリスト収束証拠サマリ) |
+| [34a-settings-merge-spec.md](34a-settings-merge-spec.md) | settings.json マージ仕様 (INV-1〜12、管理メタデータ構文、衝突検出、名前空間 preflight、CLIへの引き継ぎ) |
 | [35-meta-harness-feedback-loop.md](35-meta-harness-feedback-loop.md) | Meta-Harness フィードバックループ (セッションログ→ref-* 改善のパイプライン Phase 0-4、observables 閉列挙、Goodhart 罠予防) |
 
 ## 命名規約・検証エンジン 横断索引

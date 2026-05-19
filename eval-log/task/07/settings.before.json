@@ -1,8 +1,4 @@
 {
-  "_build_claude_settings": {
-    "managed_hooks": [],
-    "managed_permissions": []
-  },
   "permissions": {
     "deny": [
       "Write(creator-kit/skills/ref-skill-design-rubric/**)",
