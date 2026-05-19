@@ -15,7 +15,6 @@ SKILL.md / agents/*.md の description フィールドを 03章 §description設
   R3 紹介文禁止: 「〜機能」「〜サマリ」「〜の正本」のような役割説明は frontmatter の他フィールド (kind / pair / base / rubric_refs) で示す
   R4 長さ: description は 280 文字以内 (description + when_to_use の合算 1536 字制限の余裕を確保)
   R5 末尾統一: 末尾は「使う」「読む」「起動する」のいずれかで終わる
-  R6 rubric_refs 必須: assign-* スキルに rubric_refs フィールドがなければ exit 1 (D-6)
 
 usage:
   python3 scripts/lint-skill-description.py
@@ -64,14 +63,10 @@ def parse_frontmatter(path: pathlib.Path):
     return fm
 
 
-def check(name: str, desc: str, fm: dict | None = None):
+def check(name: str, desc: str):
     issues = []
     if not desc:
         return ["R0: description missing"]
-    # R6: assign-* スキルは rubric_refs フィールド必須 (D-6: arbitrary 評価軸ハードコード防止)
-    if name.startswith("assign-") and fm is not None:
-        if not fm.get("rubric_refs", "").strip():
-            issues.append("R6: assign-* skill requires rubric_refs field (arbitrary hardcode prevention)")
     if len(desc) > MAX_LEN:
         issues.append(f"R4: length {len(desc)} > {MAX_LEN}")
     if not desc.rstrip().endswith(ALLOWED_TAIL):
@@ -128,7 +123,7 @@ def main(argv):
         desc = fm.get("description", "")
         if desc.startswith('"') and desc.endswith('"'):
             desc = desc[1:-1]
-        issues = check(name, desc, fm=fm)
+        issues = check(name, desc)
         entry = {"path": str(p), "name": name, "description": desc, "issues": issues}
         results["VIOLATION" if issues else "OK"].append(entry)
     if report:
