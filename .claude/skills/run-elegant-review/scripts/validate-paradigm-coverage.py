@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Check whether a review output covers all 30 paradigms.
+
+Usage:
+  validate-paradigm-coverage.py <review.md | findings.json>
+
+Exit codes:
+  0 -> all 30 covered with structured findings or markdown mentions
+  1 -> missing paradigms detected
+  2 -> usage error
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+# Each paradigm: id -> list of acceptance tokens (ja + en, lowercased substring match)
+PARADIGMS: dict[int, list[str]] = {
+    1: ["批判的思考", "critical"],
+    2: ["演繹思考", "演繹", "deductive"],
+    3: ["帰納的思考", "帰納", "inductive"],
+    4: ["アブダクション", "abductive", "abduction"],
+    5: ["垂直思考", "vertical"],
+    6: ["要素分解", "decomposition"],
+    7: ["mece"],
+    8: ["2軸思考", "二軸思考", "two-axis", "two axis"],
+    9: ["プロセス思考", "process thinking"],
+    10: ["メタ思考", "meta thinking"],
+    11: ["抽象化思考", "抽象化", "abstraction"],
+    12: ["ダブル・ループ", "ダブルループ", "double-loop", "double loop"],
+    13: ["ブレインストーミング", "ブレスト", "brainstorm"],
+    14: ["水平思考", "lateral"],
+    15: ["逆説思考", "paradox"],
+    16: ["類推思考", "類推", "analogy"],
+    17: ["if思考", "what-if", "what if"],
+    18: ["素人思考", "beginner"],
+    19: ["システム思考", "systems thinking", "system thinking"],
+    20: ["因果関係分析", "causal analysis"],
+    21: ["因果ループ", "causal loop"],
+    22: ["トレードオン", "trade-on", "trade on"],
+    23: ["プラスサム", "positive-sum", "positive sum"],
+    24: ["価値提案思考", "価値提案", "value proposition"],
+    25: ["戦略的思考", "strategic"],
+    26: ["why思考", "why thinking"],
+    27: ["改善思考", "improvement"],
+    28: ["仮説思考", "hypothesis"],
+    29: ["論点思考", "issue thinking"],
+    30: ["kj法", "kj method"],
+}
+
+
+def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
+    raw = path.read_text(encoding="utf-8")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False, ["invalid json"]
+    findings = data.get("paradigm_findings")
+    if not isinstance(findings, list):
+        return False, ["missing paradigm_findings"]
+
+    by_id: dict[int, dict] = {}
+    errors: list[str] = []
+    for idx, item in enumerate(findings):
+        if not isinstance(item, dict):
+            errors.append(f"paradigm_findings[{idx}] is not an object")
+            continue
+        pid = item.get("paradigm_id")
+        if not isinstance(pid, int):
+            errors.append(f"paradigm_findings[{idx}].paradigm_id is not int")
+            continue
+        by_id[pid] = item
+
+    missing = [pid for pid in PARADIGMS if pid not in by_id]
+    if missing:
+        errors.append(f"missing paradigm_findings ids: {missing}")
+
+    valid_conditions = {"C1", "C2", "C3", "C4"}
+    valid_severities = {"critical", "high", "medium", "low"}
+    for pid in sorted(set(PARADIGMS) & set(by_id)):
+        item = by_id[pid]
+        observations = item.get("observations")
+        issues = item.get("issues")
+        if not isinstance(observations, list) or not any(str(x).strip() for x in observations):
+            errors.append(f"paradigm {pid}: observations must contain non-empty text")
+        if not isinstance(issues, list):
+            errors.append(f"paradigm {pid}: issues must be a list")
+            continue
+        for i, issue in enumerate(issues):
+            if not isinstance(issue, dict):
+                errors.append(f"paradigm {pid} issue {i}: not an object")
+                continue
+            if issue.get("condition") not in valid_conditions:
+                errors.append(f"paradigm {pid} issue {i}: invalid condition")
+            if issue.get("severity") not in valid_severities:
+                errors.append(f"paradigm {pid} issue {i}: invalid severity")
+            if not str(issue.get("description", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing description")
+            if not str(issue.get("suggested_fix", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing suggested_fix")
+
+    return not errors, errors
+
+
+def extract_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8").lower()
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        print("usage: validate-paradigm-coverage.py <file>", file=sys.stderr)
+        return 2
+    path = Path(argv[1])
+    if path.suffix == ".json":
+        ok, errors = validate_structured_json(path)
+        if not ok:
+            for err in errors:
+                print(err, file=sys.stderr)
+            return 1
+        print("OK: all 30 paradigms covered with structured findings")
+        return 0
+
+    text = extract_text(path)
+    missing = []
+    for pid, tokens in PARADIGMS.items():
+        if not any(tok.lower() in text for tok in tokens):
+            missing.append(pid)
+    if missing:
+        print(f"MISSING paradigms ({len(missing)}/30): {missing}", file=sys.stderr)
+        return 1
+    print("OK: all 30 paradigms covered")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

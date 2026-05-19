@@ -1,0 +1,44 @@
+{
+  "$schema": "https://example.com/elegant-review/findings.schema.json",
+  "version": 1,
+  "target": {
+    "type": "skill | rubric | proposal",
+    "path": "<absolute path>",
+    "reviewed_at": "<ISO8601>"
+  },
+  "loop_count": 0,
+  "paradigm_findings": [
+    {
+      "paradigm_id": 1,
+      "paradigm_name": "deductive",
+      "category": "A-logical",
+      "agent": "elegant-logical-structural-analyst",
+      "observations": ["..."],
+      "issues": [
+        {
+          "severity": "critical | high | medium | low",
+          "condition": "C1 | C2 | C3 | C4",
+          "description": "...",
+          "suggested_fix": "..."
+        }
+      ],
+      "score": 0.0
+    }
+  ],
+  "four_condition_gates": {
+    "C1_consistency": { "result": "PASS | FAIL", "evidence": "..." },
+    "C2_completeness": { "result": "PASS | FAIL", "evidence": "..." },
+    "C3_coherence": { "result": "PASS | FAIL", "evidence": "..." },
+    "C4_dependency": { "result": "PASS | FAIL", "evidence": "..." }
+  },
+  "paradigm_coverage": {
+    "expected": 30,
+    "covered": 0,
+    "missing_paradigms": []
+  },
+  "total_score": 0.0,
+  "completion": {
+    "all_pass": false,
+    "next_action": "improve | escalate | done"
+  }
+}

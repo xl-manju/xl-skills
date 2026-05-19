@@ -1,0 +1,235 @@
+{
+  "main": {
+    "id": "447f9c1a796cc3cb",
+    "type": "split",
+    "children": [
+      {
+        "id": "6e9e71e9926f52d6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8c3639843545a4cc",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "17-agent-teams-reference"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "78307c6da004b206",
+    "type": "split",
+    "children": [
+      {
+        "id": "e62010a687cd7c82",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "043435d25f7fa62d",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "ファイルエクスプローラ"
+            }
+          },
+          {
+            "id": "581c103c3f444b5f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "検索"
+            }
+          },
+          {
+            "id": "bb437bc535684b2f",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "ブックマーク"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "8ad6b9f2bfcc069e",
+    "type": "split",
+    "children": [
+      {
+        "id": "831bb6e8b5ec93bf",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "adcbd73cd75796fb",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "17-agent-teams-referenceへのバックリンク"
+            }
+          },
+          {
+            "id": "dae874852cd822bd",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "17-agent-teams-referenceからのアウトゴーイングリンク"
+            }
+          },
+          {
+            "id": "d22439773fbd3ed4",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "タグ"
+            }
+          },
+          {
+            "id": "0d6a7d203ab79a0a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "すべてのプロパティ"
+            }
+          },
+          {
+            "id": "4953d1e86dcc81fa",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "doc/ClaudeCodeスキルの設計書/17-agent-teams-reference.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "17-agent-teams-referenceのアウトライン"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:クイックスイッチャーを開く": false,
+      "graph:グラフビューを開く": false,
+      "canvas:新規キャンバスを作成": false,
+      "daily-notes:今日のデイリーノートを開く": false,
+      "templates:テンプレートを挿入": false,
+      "command-palette:コマンドパレットを開く": false,
+      "bases:新規ベースを作成": false
+    }
+  },
+  "active": "8c3639843545a4cc",
+  "lastOpenFiles": [
+    "creator-kit/skills/run-elegant-review/references/variable-template-contract.md",
+    "creator-kit/scripts/migrate/backfill-source-tier.py",
+    "creator-kit/scripts/lint-path-canonical.py",
+    "creator-kit/install.ps1",
+    "creator-kit/skills/run-skill-rename/references/CHANGELOG.template.md",
+    "creator-kit/skills/run-skill-rename/references/CHANGELOG.template.md.tmp.87202.de49dc02a141",
+    "creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
+    "creator-kit/skills/wrap-git-commit-safe/scripts",
+    "creator-kit/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh",
+    "creator-kit/skills/delegate-codex-skill-review/scripts",
+    "creator-kit/scripts/migrate/to-brief.py",
+    "creator-kit/scripts/migrate/to-brief.py.tmp.87202.f3a4d2612f9c",
+    "creator-kit/skills/run-migrate-audit/references/abstraction-checklist.md",
+    "creator-kit/skills/run-migrate-audit/references/classification-rules.md",
+    "creator-kit/skills/run-migrate-audit/SKILL.md",
+    "creator-kit/skills/ref-cross-platform-runtime/references/forbidden-clis.md",
+    "creator-kit/skills/ref-cross-platform-runtime/references/os-matrix.md",
+    "creator-kit/skills/ref-cross-platform-runtime/SKILL.md",
+    "creator-kit/agents/run-build-skill-subagent.md",
+    "creator-kit/agents/elegant-improvement-executor.md",
+    "creator-kit/agents/elegant-system-strategic-analyst.md",
+    "creator-kit/agents/elegant-meta-divergent-analyst.md",
+    "creator-kit/agents/elegant-logical-structural-analyst.md",
+    "creator-kit/agents/elegant-reset-observer.md",
+    "creator-kit/skills/run-build-skill/templates/combinators/README.md",
+    "creator-kit/skills/run-build-skill/templates/_base.md",
+    "doc/ClaudeCodeスキルの設計書/16-official-skills-complete-reference.md",
+    "doc/ClaudeCodeスキルの設計書/15-official-source-notes.md",
+    "doc/ClaudeCodeスキルの設計書/14-dynamic-context-injection.md",
+    "doc/ClaudeCodeスキルの設計書/13-checklists.md",
+    "doc/ClaudeCodeスキルの設計書/12-image-extraction-map.md",
+    "doc/ClaudeCodeスキルの設計書/11-templates.md",
+    "doc/ClaudeCodeスキルの設計書/10-subagents-hooks-integration.md",
+    "doc/ClaudeCodeスキルの設計書/09-evaluation-orchestration.md",
+    "creator-kit/skills/run-build-skill/templates/agent-team.md",
+    "creator-kit/skills/run-build-skill/templates/hook-integrated.md",
+    "doc/【コード共有有】Agent Skill大全 数百本のSkillをり続けた実践知から導いたオーケストレーション設計の概念体系Byまさおさん/Brave Browser 2026-05-17 15.19.55.png",
+    "analysis/ocr/1338_Pasted_image_20260517153455.pre.png",
+    "analysis/ocr/1333_Pasted_image_20260517153449.pre.png",
+    "analysis/ocr/1332_Pasted_image_20260517153432.pre.png",
+    "analysis/ocr/1331_Pasted_image_20260517153442.pre.png",
+    "analysis/ocr/1246_Pasted_image_20260517153351.pre.png",
+    "analysis/ocr/1228_Pasted_image_20260517153330.pre.png",
+    "analysis/ocr/1185_Obsidian_2026-05-17_15.32.20.pre.png",
+    "analysis/ocr/1082_Pasted_image_20260517153212.pre.png",
+    "analysis/ocr/1075_Pasted_image_20260517153203.pre.png"
+  ]
+}
