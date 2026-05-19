@@ -1,0 +1,1 @@
+../creator-kit/scripts/hook-guard-rubric.py

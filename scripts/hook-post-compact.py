@@ -1,0 +1,1 @@
+../creator-kit/scripts/hook-post-compact.py

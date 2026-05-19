@@ -1,0 +1,1 @@
+../creator-kit/scripts/validate-frontmatter.py

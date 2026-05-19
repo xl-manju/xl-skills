@@ -1,0 +1,33 @@
+name: governance-check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  change-category-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: guard change category (P0/P1 proposal gate)
+        run: python3 scripts/guard-change-category.py --base origin/main
+      - name: lint script naming (28章 §4)
+        run: python3 scripts/lint-script-naming.py
+      - name: lint skill description (03章 R1-R5)
+        run: python3 scripts/lint-skill-description.py
+      - name: lint forbidden dependencies
+        run: python3 scripts/lint-forbidden-deps.py
+        continue-on-error: false
+      - name: lint dependency direction
+        run: python3 scripts/lint-dependency-direction.py
+        continue-on-error: false
+      - name: lint manifest contents
+        run: python3 scripts/lint-manifest-contents.py
+        continue-on-error: false

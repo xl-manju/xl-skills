@@ -1,0 +1,1 @@
+../creator-kit/scripts/hook-validate-skill-md.py

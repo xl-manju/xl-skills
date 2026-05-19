@@ -1,0 +1,138 @@
+# poll-llms-txt.yml — 週次 llms.txt ポーリング + 差分記録 (C-4)
+# https://code.claude.com/docs/llms.txt を週次取得し、
+# 前回との diff を eval-log/spec-drift.json に記録する。
+# 差分発生時に GitHub Issue を自動起票する。
+name: Poll llms.txt for spec drift
+
+on:
+  schedule:
+    # 毎週日曜 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Fetch llms.txt and record drift
+        id: drift
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          import urllib.request
+          import datetime
+          import sys
+          from pathlib import Path
+
+          URL = "https://code.claude.com/docs/llms.txt"
+          DRIFT_PATH = Path("eval-log/spec-drift.json")
+          FETCH_TIMEOUT = 30
+
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          # fetch
+          try:
+              req = urllib.request.Request(URL, headers={"User-Agent": "xl-skills-drift-poller/1.0"})
+              with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
+                  current_text = resp.read().decode("utf-8", errors="replace")
+          except Exception as e:
+              print(f"FETCH_FAILED: {e}", file=sys.stderr)
+              sys.exit(1)
+
+          DRIFT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+          # load history
+          history = []
+          if DRIFT_PATH.exists():
+              try:
+                  history = json.loads(DRIFT_PATH.read_text())
+              except (json.JSONDecodeError, ValueError):
+                  history = []
+
+          # compare with last entry
+          last_text = history[-1]["content"] if history else None
+          has_diff = (last_text != current_text)
+
+          # compute simple line diff summary
+          if has_diff and last_text is not None:
+              old_lines = set(last_text.splitlines())
+              new_lines = set(current_text.splitlines())
+              added = sorted(new_lines - old_lines)[:20]
+              removed = sorted(old_lines - new_lines)[:20]
+              diff_summary = {"added_lines": added, "removed_lines": removed}
+          elif has_diff:
+              diff_summary = {"note": "first_fetch"}
+          else:
+              diff_summary = {}
+
+          entry = {
+              "fetched_at": now,
+              "url": URL,
+              "has_diff": has_diff,
+              "diff_summary": diff_summary,
+              "content": current_text,
+          }
+          # keep last 52 entries (1 year weekly)
+          history.append(entry)
+          history = history[-52:]
+          DRIFT_PATH.write_text(json.dumps(history, indent=2, ensure_ascii=False) + "\n")
+
+          print(f"has_diff={has_diff}")
+          print(f"fetched_at={now}")
+          # expose for next step
+          with open("$GITHUB_OUTPUT" if False else "/dev/stdout", "w") as _:
+              pass
+          import os
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as gh_out:
+              gh_out.write(f"has_diff={'true' if has_diff else 'false'}\n")
+              gh_out.write(f"fetched_at={now}\n")
+          PYEOF
+
+      - name: Commit drift record
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add eval-log/spec-drift.json
+          git diff --staged --quiet || git commit -m "chore: update spec-drift.json (${{ steps.drift.outputs.fetched_at }})"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Create Issue on drift detected
+        if: steps.drift.outputs.has_diff == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[spec-drift] llms.txt 変更検知 (${{ steps.drift.outputs.fetched_at }})`,
+              body: [
+                "## llms.txt 仕様ドリフト検知",
+                "",
+                `- 取得日時: ${{ steps.drift.outputs.fetched_at }}`,
+                `- URL: https://code.claude.com/docs/llms.txt`,
+                "",
+                "詳細は `eval-log/spec-drift.json` の最新エントリを参照してください。",
+                "",
+                "### 対応手順",
+                "1. `eval-log/spec-drift.json` の `diff_summary` を確認",
+                "2. 影響する SKILL.md frontmatter フィールドを特定",
+                "3. `scripts/build-yaml-spec-cache.py` を手動実行して最新キャッシュを取得",
+                "4. 必要に応じて rubric.json / テンプレートを更新",
+              ].join("\n"),
+              labels: ["spec-drift", "automated"],
+            });

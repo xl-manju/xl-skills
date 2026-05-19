@@ -1,0 +1,1 @@
+../creator-kit/scripts/hook-verify-evaluator-json.py

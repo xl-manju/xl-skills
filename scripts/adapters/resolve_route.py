@@ -1,0 +1,1 @@
+../../creator-kit/scripts/adapters/resolve_route.py

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local artifacts
+.claude/logs/
+.claude/secrets/
+
+# Local config (機密含む可能性)
+*.local.json
+config/*.local.*
+references/governance-params.json

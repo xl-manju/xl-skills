@@ -1,0 +1,328 @@
+{
+  "generated_at": "2026-05-18",
+  "skills_dir": "creator-kit/skills",
+  "skill_count": 16,
+  "inventory": [
+    {
+      "name": "assign-skill-design-evaluator",
+      "kind": "assign",
+      "effect": "conversation-output",
+      "frontmatter_refs": [
+        "pair:run-build-skill"
+      ],
+      "hardcode_paths": [
+        "assign-skill-design-evaluator"
+      ],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "rubric.json",
+        "evaluator-contract.md"
+      ],
+      "actual_references_files": [
+        "evaluator-contract.md",
+        "rubric.json"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "delegate-codex-skill-review",
+      "kind": "delegate",
+      "effect": "external-mutation",
+      "frontmatter_refs": [],
+      "hardcode_paths": [
+        "ref-skill-design-rubric"
+      ],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [],
+      "actual_references_files": [],
+      "resource_map_exists": false
+    },
+    {
+      "name": "ref-claude-code-skill-spec",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "lifecycle.md",
+        "scripts",
+        "subagent-and-hook.md",
+        "frontmatter-fields.md"
+      ],
+      "actual_references_files": [
+        "frontmatter-fields.md",
+        "lifecycle.md",
+        "resource-map.yaml",
+        "subagent-and-hook.md"
+      ],
+      "resource_map_exists": true
+    },
+    {
+      "name": "ref-output-routing",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [
+        "scripts/adapters/dispatch.py",
+        "scripts/adapters/resolve_route.py"
+      ],
+      "refs_files_mentioned": [
+        "security-model.md",
+        "sink-contract.md"
+      ],
+      "actual_references_files": [
+        "security-model.md",
+        "sink-contract.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "ref-skill-design-rubric",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "rubric.json",
+        "rubric-rationale.md"
+      ],
+      "actual_references_files": [
+        "CHANGELOG.md",
+        "rubric-rationale.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "ref-skill-glossary",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "terms-",
+        "terms.md"
+      ],
+      "actual_references_files": [
+        "terms.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "ref-skill-naming-convention",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [
+        "scripts/lint-skill-name.py"
+      ],
+      "refs_files_mentioned": [
+        "articles-full.md",
+        "decision-table.md",
+        "prefix-axis-matrix.md",
+        "role-suffix-vocabulary.md"
+      ],
+      "actual_references_files": [
+        "articles-full.md",
+        "decision-table.md",
+        "prefix-axis-matrix.md",
+        "resource-map.yaml",
+        "role-suffix-vocabulary.md"
+      ],
+      "resource_map_exists": true
+    },
+    {
+      "name": "ref-task-context-map",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "task-context-map.yaml"
+      ],
+      "actual_references_files": [
+        "task-context-map.yaml"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "ref-yaml-spec-fetcher",
+      "kind": "ref",
+      "effect": "none",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "yaml-spec-cache.md",
+        "spec-diff-history.md"
+      ],
+      "actual_references_files": [],
+      "resource_map_exists": false
+    },
+    {
+      "name": "run-build-skill",
+      "kind": "run",
+      "effect": "local-artifact",
+      "frontmatter_refs": [
+        "pair:assign-skill-design-evaluator"
+      ],
+      "hardcode_paths": [],
+      "script_refs_in_body": [
+        "creator-kit/scripts/validate-frontmatter.py",
+        "creator-kit/scripts/lint-skill-name.py",
+        "creator-kit/scripts/lint-skill-tree.py",
+        "creator-kit/scripts/lint-skill-description.py",
+        "creator-kit/scripts/resolve-skill-dirs.sh"
+      ],
+      "refs_files_mentioned": [
+        "articles-full.md",
+        "rubric.json",
+        "design-docs-index.md",
+        "build-steps.md"
+      ],
+      "actual_references_files": [
+        "build-steps.md",
+        "design-docs-index.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "run-elegant-review",
+      "kind": "run",
+      "effect": "local-artifact  # findings.json/review-*.md をローカル生成。外部 API 呼び出しなし",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "convergence-policy.json",
+        "agent-roles.md",
+        "4-conditions.json",
+        "amplified-patterns.json",
+        "30-paradigms-full.md",
+        "orchestration-flow.md",
+        "elegant-4-conditions.json"
+      ],
+      "actual_references_files": [
+        "30-paradigms-full.md",
+        "4-conditions.json",
+        "agent-roles.md",
+        "amplified-patterns.json",
+        "convergence-policy.json",
+        "elegant-4-conditions.json",
+        "orchestration-flow.md",
+        "resource-map.yaml"
+      ],
+      "resource_map_exists": true
+    },
+    {
+      "name": "run-skill-create",
+      "kind": "run",
+      "effect": "local-artifact",
+      "frontmatter_refs": [
+        "pair:assign-skill-design-evaluator"
+      ],
+      "hardcode_paths": [],
+      "script_refs_in_body": [
+        "creator-kit/scripts/lint-forbidden-deps.py",
+        "scripts/lint-skill-name.py",
+        "scripts/lint-skill-tree.py",
+        "scripts/lint-skill-description.py",
+        "creator-kit/scripts/build-manifest-registration-plan.py",
+        "scripts/validate-frontmatter.py",
+        "creator-kit/scripts/lint-manifest-contents.py",
+        "creator-kit/scripts/lint-dependency-direction.py"
+      ],
+      "refs_files_mentioned": [
+        "skill-brief-schema.json",
+        "gate-templates.md",
+        "handoff-schema.json",
+        "governance-params.json",
+        "orchestration-flow.md"
+      ],
+      "actual_references_files": [
+        "gate-templates.md",
+        "handoff-schema.json",
+        "resource-map.yaml",
+        "skill-brief-schema.json"
+      ],
+      "resource_map_exists": true
+    },
+    {
+      "name": "run-skill-elicit",
+      "kind": "run",
+      "effect": "local-artifact",
+      "frontmatter_refs": [],
+      "hardcode_paths": [
+        "run-skill-create"
+      ],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [
+        "skill-brief-schema.json",
+        "brief-template.md"
+      ],
+      "actual_references_files": [
+        "brief-template.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "run-skill-rename",
+      "kind": "run",
+      "effect": "local-artifact",
+      "frontmatter_refs": [],
+      "hardcode_paths": [],
+      "script_refs_in_body": [
+        "creator-kit/scripts/lint-skill-tree.py",
+        "creator-kit/scripts/validate-frontmatter.py",
+        "creator-kit/scripts/lint-skill-name.py",
+        "creator-kit/scripts/resolve-skill-dirs.sh"
+      ],
+      "refs_files_mentioned": [
+        "CHANGELOG.md"
+      ],
+      "actual_references_files": [],
+      "resource_map_exists": false
+    },
+    {
+      "name": "run-skill-rubric-governance",
+      "kind": "run",
+      "effect": "local-artifact",
+      "frontmatter_refs": [],
+      "hardcode_paths": [
+        "run-skill-rubric-governance"
+      ],
+      "script_refs_in_body": [
+        "creator-kit/scripts/check-rubric-sync.py",
+        "creator-kit/scripts/resolve-skill-dirs.sh"
+      ],
+      "refs_files_mentioned": [
+        "rubric.json",
+        "governance-board.md",
+        "version-rules.md"
+      ],
+      "actual_references_files": [
+        "governance-board.md",
+        "version-rules.md"
+      ],
+      "resource_map_exists": false
+    },
+    {
+      "name": "wrap-git-commit-safe",
+      "kind": "wrap",
+      "effect": "local-artifact  # wrap-* は base: run-build-skill の effect を継承",
+      "frontmatter_refs": [
+        "base:run-build-skill"
+      ],
+      "hardcode_paths": [],
+      "script_refs_in_body": [],
+      "refs_files_mentioned": [],
+      "actual_references_files": [],
+      "resource_map_exists": false
+    }
+  ]
+}

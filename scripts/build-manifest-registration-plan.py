@@ -1,0 +1,1 @@
+../creator-kit/scripts/build-manifest-registration-plan.py

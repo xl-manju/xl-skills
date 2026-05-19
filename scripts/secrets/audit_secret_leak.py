@@ -1,0 +1,1 @@
+../../creator-kit/scripts/secrets/audit_secret_leak.py

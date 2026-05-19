@@ -1,0 +1,1 @@
+../../creator-kit/scripts/adapters/sink_slack.py

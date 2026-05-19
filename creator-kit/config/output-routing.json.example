@@ -1,0 +1,58 @@
+{
+  "_doc": "task_kind から出力先を解決するマッピング正本の雛形。output-routing.json にコピーして使う。トークンは絶対直書き禁止、keychain:service/account 参照のみ",
+  "schema_version": "1.0",
+  "defaults": {
+    "adapter": "local",
+    "fallback": "local"
+  },
+  "routes": {
+    "task-spec": {
+      "adapter": "notion",
+      "params": {
+        "database_id": "REPLACE_WITH_NOTION_DB_ID",
+        "on_conflict": "update",
+        "token_ref": "keychain:xl-skills-notion/api-token"
+      },
+      "fallback": "local"
+    },
+    "meeting-minutes": {
+      "adapter": "sheets",
+      "params": {
+        "spreadsheet_id": "REPLACE_WITH_SPREADSHEET_ID",
+        "sheet": "Minutes",
+        "on_conflict": "append",
+        "token_ref": "keychain:xl-skills-google/oauth-token"
+      },
+      "fallback": "local"
+    },
+    "metrics-export": {
+      "adapter": "http",
+      "params": {
+        "url": "https://api.example.com/metrics",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" },
+        "auth": { "scheme": "bearer", "token_ref": "keychain:xl-skills-metrics/api-token" }
+      }
+    },
+    "audit-log": {
+      "adapter": "local",
+      "params": { "path": "audit/", "format": "jsonl", "on_conflict": "append" }
+    },
+    "alerts": {
+      "adapter": "slack",
+      "params": { "channel": "#ops-alerts", "webhook_ref": "keychain:xl-skills-slack/webhook-url" }
+    },
+    "design-doc": {
+      "adapters": ["notion", "local"],
+      "params": {
+        "notion": {
+          "database_id": "REPLACE_WITH_DESIGN_DB_ID",
+          "on_conflict": "update",
+          "token_ref": "keychain:xl-skills-notion/api-token"
+        },
+        "local": { "path": "doc/", "format": "markdown" }
+      },
+      "fallback": "local"
+    }
+  }
+}

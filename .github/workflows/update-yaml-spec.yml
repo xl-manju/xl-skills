@@ -1,0 +1,78 @@
+# update-yaml-spec.yml — 週次 YAML 仕様自動取得 (PF-G1-001)
+# Claude Code 公式 frontmatter 仕様の変更を週次でキャッシュする。
+name: Update YAML Spec Cache
+
+on:
+  schedule:
+    # 毎週月曜 09:00 JST (= 00:00 UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  fetch-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Fetch Claude Code spec pages
+        id: fetch
+        run: |
+          python3 scripts/build-yaml-spec-cache.py
+          FETCH_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "fetch_date=${FETCH_DATE}" >> $GITHUB_OUTPUT
+
+      - name: Commit spec cache update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .claude/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md
+          git diff --staged --quiet || git commit -m "chore: update yaml-spec-cache (${{ steps.fetch.outputs.fetch_date }})"
+
+
+      - name: Update spec-diff-history
+        run: |
+          python3 - << 'INNEREOF'
+          import datetime, json, pathlib, subprocess, sys
+
+          HISTORY = pathlib.Path("eval-log/spec-diff-history.md")
+          CACHE = pathlib.Path(".claude/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md")
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          HISTORY.parent.mkdir(parents=True, exist_ok=True)
+
+          prev = HISTORY.read_text(encoding="utf-8") if HISTORY.exists() else ""
+          # 前回キャッシュの last_fetched を取得
+          prev_fetched = "none"
+          for line in prev.splitlines():
+              if line.startswith("last_fetched:"):
+                  prev_fetched = line.split(":", 1)[1].strip()
+                  break
+
+          cache_text = CACHE.read_text(encoding="utf-8") if CACHE.exists() else "(not found)"
+          cur_fetched = now
+          for line in cache_text.splitlines():
+              if line.startswith("last_fetched:"):
+                  cur_fetched = line.split(":", 1)[1].strip()
+                  break
+
+          entry = f"## {cur_fetched}\n- prev_fetched: {prev_fetched}\n- cache_lines: {len(cache_text.splitlines())}\n\n"
+          HISTORY.write_text(entry + prev, encoding="utf-8")
+          print(f"spec-diff-history updated: {HISTORY}")
+          INNEREOF
+
+      - name: Commit spec-diff-history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add eval-log/spec-diff-history.md
+          git diff --staged --quiet || git commit -m "chore: update spec-diff-history (${{ steps.fetch.outputs.fetch_date }})"
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

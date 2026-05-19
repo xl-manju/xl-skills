@@ -1,0 +1,1 @@
+../creator-kit/scripts/lint-skill-tree.py

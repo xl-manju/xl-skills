@@ -1,0 +1,1 @@
+../../creator-kit/scripts/secrets/keychain_helper.py
