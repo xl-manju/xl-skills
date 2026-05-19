@@ -4,7 +4,7 @@ description: 新規ドメイン用L1 rubricを作成したいとき、ドメイ�
 user-invocable: false
 disable-model-invocation: true
 kind: ref
-effect: read-only
+effect: none
 owner: team-platform
 since: 2026-05-19
 merge_strategy: deep-merge

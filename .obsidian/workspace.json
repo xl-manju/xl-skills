@@ -185,6 +185,7 @@
   },
   "active": "8c3639843545a4cc",
   "lastOpenFiles": [
+    "creator-kit/skills/ref-domain-task-spec-rubric/SKILL.md",
     "scripts/__pycache__/lint-script-naming.cpython-311.pyc",
     "scripts/__pycache__/lint-external-refs.cpython-311.pyc",
     "creator-kit/scripts/__pycache__/lint-external-refs.cpython-311.pyc",
@@ -195,7 +196,6 @@
     "creator-kit/scripts/__pycache__/check-external-refs.cpython-311.pyc",
     "scripts/check-external-refs.py",
     "creator-kit/scripts/check-external-refs.py",
-    "creator-kit/config/meta-harness-log-schema-v1.0.json",
     "creator-kit/skills/run-build-skill/references/skill-factory-reproducibility.md",
     "creator-kit/skills/ref-domain-rubric-template/SKILL.md",
     "doc/ClaudeCodeスキルの設計書/18-complete-examples.md",
