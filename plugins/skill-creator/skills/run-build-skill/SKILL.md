@@ -3,8 +3,8 @@ name: run-build-skill
 description: 新規Skillを作成するとき、既存Skillを更新するときに使う。
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-evaluator] [--with-hooks] [--model opus|sonnet]"
-arguments: [skill_name, kind, mode, with_subagent, with_evaluator, with_hooks, model]
+argument-hint: "[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-prompts] [--with-evaluator] [--with-hooks] [--model opus|sonnet]"
+arguments: [skill_name, kind, mode, with_subagent, with_prompts, with_evaluator, with_hooks, model]
 allowed-tools:
   - Read
   - Write
@@ -29,8 +29,7 @@ reference_refs:
   - ref-task-context-map
   - ref-output-routing
   - references/reproducibility-trace-schema.md
-# context-budget (CD-005): 章一括ロード禁止。必要な章のみ参照すること。
-# max-reference-chapters: 3  # 同時に読む設計書章の上限
+# context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
@@ -71,14 +70,16 @@ audit-trigger: quarterly
 9. **--mode update**: 既存Skillへの増分改修。既存SKILL.mdを読んでdiffを適用する。
 10. **モデル既定値**: build-subagent.py は --model opus で実行（PF-F3-001）。
 11. **横展開候補は登録案を作る**: 生成物が Skill Creator 基盤、hook、lint、adapter、rubric、reference に該当する場合は `run-skill-create` の plugin/marketplace 登録判定へ戻し、`.claude-plugin/plugin.json` / marketplace 更新をユーザー確認に委ねる。
-12. **正本トレース必須**: 生成・更新ごとに task→refs map の選択、Intent / Contract / Boundary / Execution / Feedback、01a Step 1〜9、02 Skill構造、03 frontmatter、04 invocation/permissions、05 execution layer、06 classification/naming、07 progressive disclosure、08本文設計、09評価編成、10Subagent/Hook連携、11テンプレ適用、13チェックリスト/lint、14 dynamic injection、15公式参照追跡、16公式Skills仕様、26メタSkillドッグフーディング、27rubricガバナンス、28script実行モデル の対応を `skill-build-trace.json` に残す。
+12. **正本トレース必須**: 生成・更新ごとに `skill-build-trace.json` に doc_coverage (01〜16 / 26〜28) と `pattern_decisions` を残す。詳細項目は `references/build-steps.md` 参照。
 13. **実行レイヤー判断を固定化**: Skill / Subagent / Hook / MCP / CLI / script の配置理由を trace に記録し、決定論で落とせる検査は script/hook へ分離する。
 14. **再現性ゲートは機械検証**: `scripts/validate-build-trace.py` で source_docs / build_flow_coverage / doc_coverage / layer_decisions / gates を検証し、空欄・未読・N/A理由なしを通さない。
 15. **量産情報を消費する**: `pattern_refs` / `variant_axes` / `reuse_targets` / `deterministic_checks` / `placement_candidates` / `hook_events` を trace と生成本文へ反映し、未消費のまま捨てない。
 16. **日本語成果物**: SKILL.md、SubAgent、review、完了レポートの説明文は日本語で作成する。frontmatterキー、JSONキー、CLI引数、テンプレート変数などのパラメーター名は英語のままでよい。
-17. **26/27/28章ゲートを省略しない**: メタSkill、rubric、script、hook、subagent を生成・更新する場合は、設計書26/27/28章を読み、`dogfooding_model` / `governance_model` / `script_execution_model` を trace に記録する。対象外でも `N/A` と理由を残す。
-18. **29〜35章を量産判断へ接続する**: skill creator / 量産 / 再現性 / rubric合成 / output routing / adapter / 類推理解 / plugin・marketplace配布 / change governance / plugin境界 / meta-harness を含む場合は、設計書29〜35章と `references/skill-factory-reproducibility.md` を読み、`rubric_composition_model` / `paradigm_analogy_model` / `output_routing_model` / `implementation_ledger_model` / `change_governance_model` / `plugin_boundary_model` / `meta_harness_model` / `variable_contract` を trace に残す。対象外でも `N/A` と理由を残す。
-19. **具体値は変数化する**: 再利用される Skill本文、SubAgent、テンプレート、config example には固定プロジェクト名、固定URL、固定owner、固定チャンネル名、固定secret service名を直書きしない。必要な具体値は `source_trace` に残し、成果物側は `{{PROJECT_ROOT}}` / `{{KIT_ROOT}}` / `{{DOMAIN}}` / `{{TASK_KIND}}` / `{{SECRET_NAMESPACE}}` などの変数で表現する。
+17. **26/27/28章ゲートを省略しない**: メタSkill/rubric/script/hook/subagent 生成時は 26/27/28 章を読み対応 model を trace に記録。対象外でも N/A と理由を残す。
+18. **29〜35章を量産判断へ接続する**: 該当時は `references/skill-factory-reproducibility.md` を読み、量産関連 model 群を trace に記録。対象外でも N/A と理由を残す。詳細項目は `references/build-steps.md` 参照。
+
+20. **SubAgent / Skill 本文も 300 行制約**: agent-template.md の 9 セクション準拠で SubAgent ファイルも 300 行以下に保ち、超過分は references/ へ分割。プロンプトの責務分離と Progressive Disclosure を生成プロンプトにも徹底する。
+19. **具体値は変数化する**: 再利用される本文・テンプレ・config に固定値を直書きしない。`{{PROJECT_ROOT}}` 等の変数で表現し、具体値は `source_trace` に残す。
 
 ## Steps
 
@@ -262,7 +263,11 @@ python3 "$SKILL_DIR/scripts/build-subagent.py" \
 python3 plugins/skill-governance-lint/scripts/lint-skill-description.py ".claude/agents/$SKILL_NAME-subagent.md"
 ```
 
-SKILL.md frontmatter と本文の目的・手順から `.claude/agents/<skill-name>-subagent.md` を派生し、派生物も lint 対象にする。詳細は `references/build-steps.md#h2-subagent-生成の詳細実装`。
+SKILL.md frontmatter と本文の目的・手順から `.claude/agents/<skill-name>-subagent.md` を派生し、派生物も lint 対象にする。生成される SubAgent は **`references/agent-template.md` の 9 セクション固定構造**（Frontmatter / Purpose / Inputs / Outputs / Steps / Constraints / **Prompt Templates** / **Self-Evaluation** / Handoff）に準拠すること。詳細は `references/build-steps.md#h2-subagent-生成の詳細実装`。
+
+### Step 7.5: prompt-creator ループ（`--with-prompts` 指定時 または brief.use_prompt_creator=true）
+
+Step 7 SubAgent の Prompt Templates / Self-Evaluation を `run-prompt-creator-7layer` で充填 → `lint-agent-prompt-section.py` で検証 → FAIL なら再起動 (max 3 回)。詳細は `references/build-steps.md#h25-prompt-creator-ループ詳細`。
 
 ### Step 8: evaluator ペア自動生成（`--with-evaluator` 指定時 または brief.generate_pair_evaluator=true）
 
@@ -279,19 +284,14 @@ Hook 統合スキルの場合、scripts/hook-<name>-<event>.py スケルトン�
 | Skill Creator 基盤 | `plugins/skill-creator/skills/<skill>/SKILL.md` | `plugins/skill-creator/skills/` |
 | 他 plugin 所属 | `plugins/<plugin-name>/skills/<skill>/SKILL.md` | `plugins/<plugin-name>/` |
 
-- **正本/派生**: `.claude/skills/<skill>/` は `plugins/*/skills/` への symlink 経由派生。直接書き込まない
-- **`name:` には plugin 名を含めない**: kebab-case の Skill 名のみ。所属 plugin は配置パスで表現（06章第17条）
-- 詳細: 34章 § plugin 物理レイアウトと symlink 戦略
+- **正本/派生**: `.claude/skills/<skill>/` は `plugins/*/skills/` への symlink 経由派生（直接書き込まない）。`name:` には plugin 名を含めない。詳細: 34章 § plugin 物理レイアウトと symlink 戦略
 
 ## Gotchas
 
-- **frontmatter順序事故**: `disable-model-invocation: true` と `user-invocable: true` の共存は手動呼び出し専用の珍しい構成。禁止ではないが、意図を本文に明記する。
-- **description長文化**: 動作詳細を書くと invocation時のtoken浪費（08章）。
-- **ref系のbody肥大**: ref-*はSKILL.md本文をサマリに留め、原文は `references/`。300行制約はSKILL.md本文のみに適用。
-- **scripts内のyaml import禁止**: stdlibだけで簡易パーサを書く（28章）。
-- **fork評価の自己採点禁止**: 同じcontextで採点するとGoodhart罠（09章）。
-- **update時の全書き換え禁止 (CD-002)**: --mode update ではEditで差分適用のみ。Writeで上書きしない。
-- **全章一括ロード禁止 (CD-005)**: token超過を防ぐため、各Stepで必要な章だけを Read する。
+- **frontmatter 順序事故**: `disable-model-invocation: true` と `user-invocable: true` の共存は手動呼び出し専用。意図を本文に明記。
+- **description 長文化 / ref-* body 肥大**: 動作詳細は本文化、原文は `references/`（08章）。300行制約は SKILL.md 本文のみ。
+- **scripts 内 yaml import 禁止 / fork 評価の自己採点禁止**: stdlib のみ（28章）、同context採点は Goodhart 罠（09章）。
+- **update 時の全書き換え禁止 (CD-002)** / **全章一括ロード禁止 (CD-005)**: Edit で差分のみ。必要な章だけ Read。
 
 ## Additional Resources
 

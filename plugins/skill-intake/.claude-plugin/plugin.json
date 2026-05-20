@@ -1,0 +1,18 @@
+{
+  "name": "skill-intake",
+  "version": "0.1.0",
+  "description": "skill-creator の前段ヒアリングを非技術者にも開く plugin。Markdown 正本+JSON 副本+Notion ページを生成し、macOS Keychain 経由の Notion PAT/Internal Integration で公開する。図解マスト要件と 5 軸ヒアリング (出力先/情報源/共有相手/真の課題/ナレッジ資産) を機械検証する。",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PLUGIN_ROOT/hooks/pre-publish-secret-scrub.sh" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "category": "真の課題",
+    "question": "完成して1週間使った朝、最初に開いたときに「一番見たいアウトプット」は何ですか？",
+    "technique": "Reverse Brief",
+    "rationale": "アウトプット形態が複数ある場合、優先順位を初期段階で確定させるのに有効"
+  },
+  {
+    "category": "ナレッジ資産",
+    "question": "あなたの『関心テーマ』は今、(a)言語化済 (b)部分的に言語化 (c)暗黙知のみ (d)可変で定期見直しが必要 のどれに近いですか？",
+    "technique": "Tacit Extraction",
+    "rationale": "ナレッジ資産の所在状態を1問で確定し extraction_pipeline 設計に直結させる"
+  },
+  {
+    "category": "責務境界",
+    "question": "このスキルは(1)既存スキルを呼ぶオーケストレータ (2)出力ファイル統合のハイブリッド (3)独立 のどれにしますか？",
+    "technique": "Option Pivot",
+    "rationale": "expert ユーザーの場合 interviewer 段階で責務境界を確定するほうが後続が一貫する"
+  }
+]

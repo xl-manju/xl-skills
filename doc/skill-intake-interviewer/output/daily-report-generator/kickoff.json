@@ -1,0 +1,14 @@
+{
+  "pattern": "A",
+  "depth": "standard",
+  "skill_name_hint": "daily-report-generator",
+  "pain_ranking": [
+    {"task": "日報のフォーマット作成・体裁整え", "frequency_per_week": null, "minutes_per_run": null},
+    {"task": "その日の作業内容を思い出して書き起こす", "frequency_per_week": null, "minutes_per_run": null},
+    {"task": "相手に伝わる表現・粒度に直す", "frequency_per_week": null, "minutes_per_run": null},
+    {"task": "企業ごとの保存先・命名のミス", "frequency_per_week": null, "minutes_per_run": null}
+  ],
+  "initial_utterance": "1日の作業日報を作成するスキル。05_Project/00_業務委託/00_作業日報/<企業>/YYYY-MM-DD_概要.md に出力。企業ディレクトリ随時追加。業務委託先に簡潔に伝える内容が重要。",
+  "next_agent": "interviewer",
+  "timestamp": "2026-04-30T00:00:00+09:00"
+}
