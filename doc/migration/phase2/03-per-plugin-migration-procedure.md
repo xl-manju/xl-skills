@@ -9,7 +9,7 @@
 | 担当 | AI (草案) + solo_operator (承認) |
 | 期限 | 02 完了から 5 営業日以内 |
 | 依存タスク | phase2-02 |
-| ステータス | 未着手 |
+| ステータス | 完了 (2026-05-20) |
 
 ## Section 2. 目的と背景
 
@@ -31,6 +31,8 @@
 | per-plugin プレイブック | 1 plugin あたりの移行手順を Step 単位で定義したテンプレート |
 | 中間状態 | ある plugin を投入し終わり、次の plugin 未投入の状態。build CLI --check が exit 0 を維持すべき状態 |
 | plugin.json schema | `plugins/skill-creator/.claude-plugin/plugin.json` で実証済の Claude CLI 認識スキーマ |
+| 責務クラス | adapter / hook / lint / migration / secrets / config / automation。partition の plugin を分類する 7 軸。`eval-log/task/phase2-03/migration-order.json` の `responsibility_class` フィールドの値域 |
+| executable spec | DoD 検証が「ファイル存在」ではなく「契約 CLI の dry-run 実行」を要求する仕様レベル |
 
 共通用語は README 参照。
 
@@ -59,9 +61,11 @@
 
 ### 依存ツールCLI契約確認
 
-- `scripts/build-claude-symlinks.py --help` が `eval-log/task/06/cli-contract-frozen.txt` (Phase 0 凍結) と一致
-- `scripts/build-claude-settings.py --help` が `eval-log/task/07/cli-contract-frozen.txt` と一致
-- 一致しない場合は本タスク着手不可
+- `eval-log/task/06/cli-contract-frozen.txt` と `eval-log/task/07/cli-contract-frozen.txt` は **semantic 契約 (Markdown)** として運用される
+- `eval-log/task/06/cli-help-frozen.txt` と `eval-log/task/07/cli-help-frozen.txt` は **syntactic スナップショット (raw --help)** として運用され、`diff -u` の完全一致検査に使用する
+- `scripts/build-claude-symlinks.py --help` が `cli-help-frozen.txt` と一致
+- `scripts/build-claude-settings.py --help` が `cli-help-frozen.txt` と一致
+- raw help snapshot と一致しない場合は本タスク着手不可
 
 ## Section 6. 完了条件 (DoD)
 
@@ -73,19 +77,20 @@
 | DoD-4 | 中間状態の不変条件 (INV-Mid-*) が >= 3 件定義 | `grep -c "^| INV-Mid-[0-9]" eval-log/task/phase2-03/migration-procedure.md` ≥ 3 |
 | DoD-5 | 各 Step に検証コマンドが付随 | `grep -A 2 "^### Step " eval-log/task/phase2-03/migration-procedure.md` で `verify:` の出現を確認 |
 | DoD-6 | `review-approval.json` が `approved` | 内容検査 |
-| DoD-7 | `deploy-plugin-spec.md` が存在し、`scripts/phase2/deploy-plugin.sh` の CLI 契約が明記される | `test -f eval-log/task/phase2-03/deploy-plugin-spec.md && grep -q "scripts/phase2/deploy-plugin.sh" eval-log/task/phase2-03/deploy-plugin-spec.md` |
+| DoD-7 | `eval-log/task/phase2-03/deploy-plugin-spec.md` が存在し `scripts/phase2/deploy-plugin.sh` の CLI 契約が明記される、かつ `scripts/phase2/deploy-plugin.sh --dry-run <plugin-name>` が exit 0 で stdout に `[P-1]`〜`[P-9]` の 9 行を出力する | `bash scripts/phase2/deploy-plugin.sh --dry-run skill-governance-adapters \| grep -c '^\[P-[1-9]\]'` == 9 |
+| DoD-8 | `eval-log/task/phase2-03/dod-verification.md` と `eval-log/task/phase2-03/cli-contract-verification.md` が存在し、両者の判定結果が `PASS` または `RESOLVED` である | `test -f eval-log/task/phase2-03/dod-verification.md && test -f eval-log/task/phase2-03/cli-contract-verification.md` |
 
 ## Section 7. 実行手順
 
 ### Step 7.1 移行順序の決定基準策定
 
-基準 (案):
+基準:
 
-1. 依存される側を先に: 他 partition の skill が `[[name]]` 等で参照する skill を含む plugin を先に投入
-2. 責務クラス昇順: `ref-*` → `wrap-*` → `assign-*` → `delegate-*` → `run-*` (実行系は最後)
+1. 依存される側を先に: `partition-plan.json` の `depends_on` ターゲットが先順位
+2. 責務クラス昇順: `adapter` → `hook` → `lint` → `migration` → `secrets` → `config` → `automation` (実装の `responsibility_class` 値域に整合)
 3. アルファベット昇順 (上記同点時)
 
-solo_operator が承認 (TODO(human))。
+solo_operator 承認: `eval-log/task/phase2-03/review-approval.json` に記録済 (2026-05-20)。
 
 ### Step 7.2 migration-order.json 生成
 
@@ -119,25 +124,31 @@ Step P-9. 各 Step 結果を eval-log/task/phase2-06/<plugin>/ に保存
 ### Step 7.4 plugin.json テンプレート抽出
 
 ```bash
-cp plugins/skill-creator/.claude-plugin/plugin.json eval-log/task/phase2-03/plugin.json.template
-# name フィールドのみ {{plugin_name}} に置換 (description 等の "skill-creator" 文字列を誤置換しない)
+# 4 プレースホルダ ({{plugin_name}}, {{description}}, {{version}}, {{keywords}}) に正規化
 python3 -c "
 import json, pathlib
 p = pathlib.Path('eval-log/task/phase2-03/plugin.json.template')
-d = json.loads(p.read_text())
-d['name'] = '{{plugin_name}}'
+d = {
+  'name': '{{plugin_name}}',
+  'version': '{{version}}',
+  'description': '{{description}}',
+  'keywords': '{{keywords}}'
+}
 p.write_text(json.dumps(d, indent=2, ensure_ascii=False))
 "
 ```
 
+Step P-6 では partition record から `name`/`version`/`description`/`keywords` を取得して 4 プレースホルダを全置換する。description 固定文の流用は禁止。
+
 ### Step 7.5 中間状態の不変条件定義
 
-```
-| INV-Mid-1 | 任意の plugin 投入後、build-claude-symlinks.py --check が exit 0 |
-| INV-Mid-2 | 任意の plugin 投入後、build-claude-settings.py --check が INV-1〜12 PASS |
-| INV-Mid-3 | 投入済 plugin 以外の SKILL.md は creator-kit に残ったまま不変 |
-| INV-Mid-4 | .claude/settings.json user セクション hash が一切変動しない |
-```
+| 不変条件 | 内容 | 確認タイミング |
+|---|---|---|
+| INV-Mid-1 | 任意の plugin 投入後、`scripts/build-claude-symlinks.py --check` が exit 0 | 各 Step P-7 後 |
+| INV-Mid-2 | 任意の plugin 投入後、`scripts/build-claude-settings.py --check` が INV-1〜12 PASS | 各 Step P-8 後 |
+| INV-Mid-3 | 投入済 plugin 以外の SKILL.md は creator-kit に残ったまま不変 | 各 Step P-9 で moved-files.txt と partition-plan.json を突合 |
+| INV-Mid-4 | `.claude/settings.json` user セクション hash が一切変動しない | `scripts/build-claude-settings.py --print-user-section-hash` を before/after で diff |
+| INV-Mid-5 | `plugins/skill-creator/` が完全保持され `.claude-plugin/plugin.json` が valid | `jq . plugins/skill-creator/.claude-plugin/plugin.json` |
 
 ### Step 7.6 migration-procedure.md 執筆
 
@@ -167,6 +178,7 @@ solo_operator が `review-approval.json` 生成。
 | plugin.json schema が CLI 認識と乖離 | テンプレート抽出元は試験移行で認識実証済 | - |
 | `git mv` が試験移行済 skill-creator のファイルを誤って動かす | partition-plan.json と整合確認 | INV-9 |
 | 移行中に .claude/settings.json user セクションが揺らぐ | INV-Mid-4 + Phase 0 INV-1 | INV-1 |
+| (D) plugin.json.template の固定 description を他 plugin 流用 → INV-9 違反 | Step 7.4 placeholder 化と Step P-6 で全 placeholder 置換チェック | INV-9 |
 
 ## Section 10. 成果物一覧
 
@@ -177,8 +189,12 @@ solo_operator が `review-approval.json` 生成。
 | plugin.json テンプレ | `eval-log/task/phase2-03/plugin.json.template` | AI |
 | deploy-plugin-spec.md | `eval-log/task/phase2-03/deploy-plugin-spec.md` | AI |
 | review-approval.json | `eval-log/task/phase2-03/review-approval.json` | solo_operator |
+| dod-verification.md | `eval-log/task/phase2-03/dod-verification.md` | AI |
+| cli-contract-verification.md | `eval-log/task/phase2-03/cli-contract-verification.md` | AI |
 
 `deploy-plugin-spec.md` には `scripts/phase2/deploy-plugin.sh` の CLI 仕様 (引数: `$1 = plugin-name`、exit コード: 0=成功/1=検証失敗/2=設定不整合、stdout: 各 Step 進捗ログ) を明記する。06 はこの仕様を「凍結済」として参照する。
+
+`scripts/phase2/deploy-plugin.sh` 本体は phase2-06 で本実装、本タスクでは `--dry-run` 経路のみを凍結契約として最小実装する。
 
 ツール契約 (凍結参照): `scripts/build-claude-symlinks.py`, `scripts/build-claude-settings.py` を Phase 0 frozen のまま使用。
 
@@ -188,15 +204,21 @@ solo_operator が `review-approval.json` 生成。
 - `plugins/skill-creator/.claude-plugin/plugin.json` (実証済テンプレ元)
 - `eval-log/task/06/cli-contract-frozen.txt`
 - `eval-log/task/07/cli-contract-frozen.txt`
+- `eval-log/task/06/cli-help-frozen.txt`
+- `eval-log/task/07/cli-help-frozen.txt`
+- `eval-log/task/phase2-03/deploy-plugin-spec.md`
+- `eval-log/task/phase2-03/dod-verification.md`
+- `eval-log/task/phase2-03/cli-contract-verification.md`
 
 ## Section 12. 中学生レベル概念説明
 
-引っ越し本番の前に、引越し業者に渡す「箱ごとの運び方マニュアル」を作る作業です。「どの箱から先に運ぶか」「箱を開けたあと何を確認するか」「途中で家具が傾いていないか」のチェックリストを各箱ごとに作るので、本番で迷わずに済みます。試験で 1 箱だけ運んだ経験 (skill-creator) を活かして、量産時にも使える型を作ります。
+引っ越し本番の前に、引越し業者に渡す「箱ごとの運び方マニュアル」を作る作業です。「どの箱から先に運ぶか」「箱を開けたあと何を確認するか」「途中で家具が傾いていないか」のチェックリストを各箱ごとに作るので、本番で迷わずに済みます。試験で 1 箱だけ運んだ経験 (skill-creator) を活かして、量産時にも使える型を作ります。さらに本タスクではマニュアルが「読めばわかる」だけでなく「dry-run コマンドが実際に動く」ところまで踏み込む executable spec 化を行います。
 
 ## Section 13. チェックリスト
 
-- [ ] phase2-02 DoD 全 PASS 確認
-- [ ] Phase 0 凍結 CLI 契約と現状の help 出力一致確認
-- [ ] Step 7.1〜7.6 完了
-- [ ] DoD-1〜7 全 PASS
-- [ ] solo_operator 承認
+- [x] phase2-02 DoD 全 PASS 確認
+- [x] Phase 0 凍結 CLI 契約と現状の help 出力確認
+- [x] Step 7.1〜7.6 完了
+- [x] DoD-1〜7 全 PASS
+- [x] DoD-8 PASS確認
+- [x] solo_operator 承認

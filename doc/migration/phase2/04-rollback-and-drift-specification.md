@@ -9,7 +9,7 @@
 | 担当 | AI (草案) + solo_operator (承認) |
 | 期限 | 02 完了から 5 営業日以内 |
 | 依存タスク | phase2-02 |
-| ステータス | 未着手 |
+| ステータス | 完了 (2026-05-20) |
 
 ## Section 2. 目的と背景
 
@@ -210,8 +210,8 @@ solo_operator が `review-approval.json` 生成。
 
 ## Section 13. チェックリスト
 
-- [ ] phase2-02 DoD 全 PASS
-- [ ] rollback.template.sh と drift-check.sh の `bash -n` PASS
-- [ ] spec md に番号付き失敗復旧フロー >= 5 項目
-- [ ] gen-rollback-spec.md と fixture/sandbox 復旧 gate を明記
-- [ ] review-approval.json 生成
+- [x] phase2-02 DoD 全 PASS
+- [x] rollback.template.sh と drift-check.sh の `bash -n` PASS
+- [x] spec md に番号付き失敗復旧フロー >= 5 項目
+- [x] gen-rollback-spec.md と fixture/sandbox 復旧 gate を明記
+- [x] review-approval.json 生成

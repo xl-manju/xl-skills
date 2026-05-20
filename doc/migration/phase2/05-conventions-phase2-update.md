@@ -9,7 +9,7 @@
 | 担当 | AI (執筆) + solo_operator (承認) |
 | 期限 | 02 完了から 3 営業日以内 |
 | 依存タスク | phase2-02 |
-| ステータス | 未着手 |
+| ステータス | 完了 (2026-05-20) |
 
 ## Section 2. 目的と背景
 
@@ -166,10 +166,10 @@ solo_operator が `review-approval.json` 生成。
 
 ## Section 13. チェックリスト
 
-- [ ] phase2-02 DoD 全 PASS
-- [ ] before snapshot 保存
-- [ ] CONVENTIONS.md 追記
-- [ ] 旧「層C」記述置換確認
-- [ ] diff 保存
-- [ ] DoD 全 PASS
-- [ ] solo_operator 承認
+- [x] phase2-02 DoD 全 PASS
+- [x] before snapshot 保存
+- [x] CONVENTIONS.md 追記
+- [x] 旧「層C」記述置換確認
+- [x] diff 保存
+- [x] DoD 全 PASS
+- [x] solo_operator 承認

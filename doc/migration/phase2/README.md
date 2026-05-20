@@ -64,7 +64,7 @@ Phase 0 (準備) と Phase 1 (設計+評価)、および Phase 2 試験移行 (s
 | ID | ファイル | 責務 | 種別 | 依存 | ステータス |
 |---|---|---|---|---|---|
 | 01 | `01-residual-asset-inventory.md` | creator-kit 残資産 (skills/agents/非plugin資産) の棚卸し | 仕様+実行 | phase0 Phase 0 closure | 完了 (2026-05-20) |
-| 02 | `02-plugin-partition-specification.md` | 残資産を複数 plugin に分割する境界仕様 (どの skill をどの plugin へ) | 仕様 | 01 | 未着手 |
+| 02 | `02-plugin-partition-specification.md` | 残資産を複数 plugin に分割する境界仕様 (どの skill をどの plugin へ) | 仕様 | 01 | 完了 (2026-05-20) |
 | 03 | `03-per-plugin-migration-procedure.md` | plugin 毎の物理移行手順仕様 (移行順序、依存解決、namespace 検査) | 仕様 | 02 | 未着手 |
 | 04 | `04-rollback-and-drift-specification.md` | rollback.sh 生成と drift 検証 (build CLI --check) の本番運用仕様 | 仕様 | 02 | 未着手 |
 | 05 | `05-conventions-phase2-update.md` | 三層モデル CONVENTIONS.md の Phase 2 本番化追記 (層C 退役、層B 縮退) | 仕様+実行 | 02 | 未着手 |
@@ -165,8 +165,25 @@ Phase 0 で凍結された CLI 契約は本 Phase で変更しない。タスク
 6. **検証ログは `eval-log/task/phase2-<task-id>/` に保存**。<task-id> は **2桁ゼロパディング必須** (例: `phase2-01`、`phase2-09`)。Phase 0 と log path を分離 (phase0 と衝突回避)
 7. **plugin の物理移行 (06) と creator-kit 削除 (07) は不可逆性が高い**。各ステップで `git status -s` を残し、ロールバック手段が `eval-log/task/phase2-06/rollback-<plugin>.sh` に揃っているまで着手しない
 
+## phase2-02 partition 一覧
+
+正本成果物: `eval-log/task/phase2-02/partition-plan.json`
+
+| partition | files | 責務 |
+|---|---:|---|
+| `skill-governance-adapters` | 7 | 外部 sink / route adapter scripts |
+| `skill-governance-automation` | 13 | build / compose / notify / rollback 等の orchestration scripts |
+| `skill-governance-config` | 12 | governance 設定・registry・hook example |
+| `skill-governance-hooks` | 6 | Claude hook entrypoint scripts |
+| `skill-governance-lint` | 15 | lint / validate / check 系 gate scripts |
+| `skill-governance-migration` | 3 | migration audit / brief conversion helper |
+| `skill-governance-secrets` | 3 | secret audit / keychain helper |
+
+phase2-02 partition では `eval-log/task/phase2-01/residual-inventory.json` の `verdict_tentative == "migrate-to-plugin"` 59件を `files[].rel` として exactly 1 partition に割り当てた。`target-plugin-map.json` と `confirmed-inventory.json` は下流 03/06 の入力として使用する。`partition-dependency-graph.json` の `inter_partition_refs` は post-migration runtime dependency ではなく、03/06 で rewrite または例外処理が必要な legacy path 候補として扱う。
+
 ## 改訂履歴
 
 | 日付 | 改訂者 | 内容 |
 |---|---|---|
+| 2026-05-20 | AI | phase2-02 完了。7 partition / 59 migrate files / target-plugin-map / dependency graph を登録 |
 | 2026-05-20 | initial | doc/migration/phase2/ 新設、タスク 01〜09 をインデックス化 |
