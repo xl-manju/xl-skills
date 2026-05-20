@@ -19,7 +19,7 @@ effect: local-artifact
 owner: team-platform
 since: 2026-05-17
 script_refs:
-  - scripts/apply-combinators.py
+  - scripts/render-combinators.py
   - scripts/render-frontmatter.py
   - scripts/validate-naming.py
   - scripts/build-subagent.py
@@ -139,7 +139,7 @@ fi
 | `wrap` | `templates/wrap.md` | `_base.md` + `with-wrap.patch` |
 | `delegate` | `templates/delegate.md` | `_base.md` + `with-delegate.patch` |
 
-`COMPOSER_MODE="atomic"` を選択した場合は `scripts/apply-combinators.py` で kind-specific combinator を必ず 1 つ適用し、flag combinator を 0〜N 個重ねる（順序固定: kind → flag）。詳細は `templates/combinators/README.md`。
+`COMPOSER_MODE="atomic"` を選択した場合は `scripts/render-combinators.py` で kind-specific combinator を必ず 1 つ適用し、flag combinator を 0〜N 個重ねる（順序固定: kind → flag）。詳細は `templates/combinators/README.md`。
 
 **create モード**:
 
@@ -155,7 +155,7 @@ OS判定プリアンブル（設計書22）:
 source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
 mkdir -p "$OUT_BASE/$SKILL_NAME"
 if [[ "${COMPOSER_MODE:-template}" == "atomic" ]]; then
-  python3 "$SKILL_DIR/scripts/apply-combinators.py" \
+  python3 "$SKILL_DIR/scripts/render-combinators.py" \
     --kind "$KIND" ${ROLE_SUFFIX:+--role-suffix "$ROLE_SUFFIX"} \
     ${WITH_EVALUATOR:+--with-evaluator} ${WITH_HOOKS:+--with-hooks} ${WITH_SUBAGENT:+--with-subagent} \
     --output "$OUT_BASE/$SKILL_NAME/SKILL.md"
@@ -175,7 +175,7 @@ fi
 . .\plugins\skill-governance-automation\scripts\resolve-skill-dirs.ps1
 New-Item -ItemType Directory -Force -Path "$env:OUT_BASE\$env:SKILL_NAME" | Out-Null
 if ($env:COMPOSER_MODE -eq "atomic") {
-  python "$env:SKILL_DIR\scripts\apply-combinators.py" --kind "$env:KIND" --output "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
+  python "$env:SKILL_DIR\scripts\render-combinators.py" --kind "$env:KIND" --output "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
 } else {
   python "$env:SKILL_DIR\scripts\render-frontmatter.py" `
     --name "$env:SKILL_NAME" --kind "$env:KIND" `

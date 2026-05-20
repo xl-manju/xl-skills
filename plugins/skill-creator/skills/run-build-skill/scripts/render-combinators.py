@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# name: apply-combinators
+# name: render-combinators
 # purpose: Compose an atomic SKILL.md template from _base.md and combinator patch selections.
 # inputs:
 #   - argv: --kind, optional flags, --templates-dir, --output
