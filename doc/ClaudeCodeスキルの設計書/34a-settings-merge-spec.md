@@ -6,7 +6,7 @@
 
 `plugins/<name>/.claude-plugin/plugin.json` と `plugins/<name>/{hooks,settings}/` から、開発用 `.claude/settings.json` の plugin 由来設定区間を決定的に再生成するための正本仕様を定義する。
 
-本章は 34章の plugin 物理レイアウトを補完する。CLI 引数の詳細は `doc/task/04-settings-merge-cli-specification.md`、実装は `doc/task/07-build-claude-settings-implementation.md` が従う。
+本章は 34章の plugin 物理レイアウトを補完する。CLI 引数の詳細は `doc/migration/phase0/04-settings-merge-cli-specification.md`、実装は `doc/migration/phase0/07-build-claude-settings-implementation.md` が従う。
 
 ## §2 三層モデル参照と正本境界
 
@@ -16,8 +16,8 @@
 |---|---|
 | plugin 移行 Phase gate | `34-plugin-governance-roadmap.md` |
 | settings merge 不変条件 | 本章 |
-| CLI 契約 | `doc/task/04-settings-merge-cli-specification.md` |
-| 実装検証 | `doc/task/07-build-claude-settings-implementation.md` |
+| CLI 契約 | `doc/migration/phase0/04-settings-merge-cli-specification.md` |
+| 実装検証 | `doc/migration/phase0/07-build-claude-settings-implementation.md` |
 
 ## §3 対象データと非対象データ
 
@@ -29,7 +29,7 @@ plugin 由来で `.claude/settings.json` にマージする対象は、現時点
 | permissions.deny | `settings/permissions.json` または plugin manifest の permissions 宣言 | `permissions.deny` | 完全一致は重複排除、同一対象の allow/ask/deny 競合は fail |
 | permissions.ask | `settings/permissions.json` または plugin manifest の permissions 宣言 | `permissions.ask` | 完全一致は重複排除、deny と衝突したら deny 優先ではなく fail |
 
-`skills/`、`agents/`、`commands/` の生成は `.claude/settings.json` ではなく `.claude/{skills,agents,commands}/` の symlink 派生で扱う。したがって、同名 skill 等の衝突は本章の settings merge だけでなく、`doc/task/03-symlink-build-specification.md` の namespace preflight で必ず検出する。
+`skills/`、`agents/`、`commands/` の生成は `.claude/settings.json` ではなく `.claude/{skills,agents,commands}/` の symlink 派生で扱う。したがって、同名 skill 等の衝突は本章の settings merge だけでなく、`doc/migration/phase0/03-symlink-build-specification.md` の namespace preflight で必ず検出する。
 
 ## §4 グローバル名前空間 preflight
 
