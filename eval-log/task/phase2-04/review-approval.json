@@ -1,6 +1,6 @@
 {
   "decision": "approved",
-  "approved_at": "2026-05-20T15:59:22+09:00",
+  "approved_at": "2026-05-20T17:03:09+09:00",
   "approver": "solo_operator (user-directed execution request, 2026-05-20)",
   "scope": "phase2-04 rollback and drift specification",
   "approved_artifacts": [
@@ -15,10 +15,11 @@
     "drift_check_bash_n": "PASS",
     "recovery_steps_count": "PASS (>= 5)",
     "pre_state_fixture_gate": "PASS",
-    "gen_rollback_cli_contract": "PASS"
+    "gen_rollback_cli_contract": "PASS",
+    "gen_rollback_implementation_contract": "PASS"
   },
   "known_notes": [
-    "scripts/phase2/gen-rollback.py の本実装は Phase2-06 の責務。本タスクは CLI 契約のみ凍結。",
-    "rollback.template.sh のプレースホルダ置換は Phase2-06 の gen-rollback.py が担当。"
+    "scripts/phase2/gen-rollback.py は phase2-04 凍結契約に合わせ、snapshot 必須ファイル欠落時に exit 1 で停止する。",
+    "rollback.template.sh のプレースホルダ置換は gen-rollback.py が担当する。"
   ]
 }

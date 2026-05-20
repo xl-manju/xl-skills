@@ -51,7 +51,7 @@ resources:
       - doc/ClaudeCodeスキルの設計書/30-paradigm-analogy-map.md
       - doc/ClaudeCodeスキルの設計書/31-output-routing-adapter-architecture.md
     local_reference:
-      - creator-kit/skills/run-build-skill/references/skill-factory-reproducibility.md
+      - plugins/skill-creator/skills/run-build-skill/references/skill-factory-reproducibility.md
     cover_concerns: ["29-multi-project-rubric-composition", "30-paradigm-analogy-map", "31-output-routing-adapter-architecture"]
   - category: meta-reproducibility-loop
     keywords: ["meta-skill", "dogfooding", "rubric", "governance", "script", "hook", "subagent", "reproducibility", "eval-log", "impact"]

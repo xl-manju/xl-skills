@@ -88,5 +88,5 @@ echo '{"tool":"Write","tool_input":{"file_path":"<禁止対象>"}}' \
 
 ## Additional Resources
 - 設計書 10章 §7 — Hook 競合解決の意思決定フロー
-- `creator-kit/config/claude-settings-hooks.json.example` — 公式 hook 配線例
+- `plugins/skill-governance-config/config/claude-settings-hooks.json.example` — 公式 hook 配線例
 {{additional_resources}}

@@ -99,9 +99,9 @@ CONVENTIONS.md 末尾に以下を追記:
 
 ### 層C 退役チェックリスト
 
-- [ ] `creator-kit/` が物理削除済 (`test ! -d creator-kit`)
-- [ ] `git log -- creator-kit/` が削除 commit を含む
-- [ ] CONVENTIONS.md の旧「層C」記述は本セクションへの参照に置換
+- [x] `creator-kit/` が物理削除済 (`test ! -d creator-kit`)
+- [x] `git log -- creator-kit/` が削除 commit を含む
+- [x] CONVENTIONS.md の旧「層C」記述は本セクションへの参照に置換
 ```
 
 ### Step 7.3 CONVENTIONS.md 編集

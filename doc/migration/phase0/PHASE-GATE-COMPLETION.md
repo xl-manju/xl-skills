@@ -7,7 +7,7 @@
 | 対象 Phase | 0 |
 | 作成日 | 2026-05-20 |
 | 承認者 | solo_operator |
-| 対象タスク | 01-08 |
+| 対象タスク | 01-09 |
 | closure | `eval-log/phase/0/closure.json` |
 
 ## 前提条件確認
@@ -30,6 +30,9 @@
 | 06 | symlink CLI 実装 | 8 | 8 | 0 | 0 | - |
 | 07 | settings CLI 実装 | 8 | 8 | 0 | 0 | - |
 | 08 | 試験移行 | 9 | 9 | 0 | 0 | - |
+| 09 | Phase gate 完了報告 (メタタスク) | 6 | 6 | 0 | 0 | 本報告書自体を生成するタスク。DoD は `eval-log/task/09/` の証跡で機械検証済 |
+
+集計結果: task PASS 9 / task FAIL 0 / DoD PASS 63 / DoD FAIL 0 / DoD 未実行 0。
 
 ## defer 案件一覧 (タスク 01 由来)
 

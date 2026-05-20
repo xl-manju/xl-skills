@@ -52,12 +52,12 @@ effect: local-artifact
 
 ```bash
 # SKILL_DIR / OUT_BASE を環境変数または fallback で確立する。
-# creator-kit 配置なら OUT_BASE=creator-kit/skills、それ以外は .claude/skills
-source creator-kit/scripts/resolve-skill-dirs.sh
+# creator-kit 配置なら OUT_BASE=plugins/skill-creator/skills、それ以外は .claude/skills
+source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
 # または手動 fallback:
 # OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-}"
 # if [ -z "$OUT_BASE" ]; then
-#   if [ -d "creator-kit/skills" ]; then OUT_BASE="creator-kit/skills"
+#   if [ -d "plugins/skill-creator/skills" ]; then OUT_BASE="plugins/skill-creator/skills"
 #   else OUT_BASE=".claude/skills"; fi
 # fi
 ```
@@ -72,7 +72,7 @@ ls "$OUT_BASE/$OLD_NAME/SKILL.md"
 ls "$OUT_BASE/$NEW_NAME" 2>/dev/null && echo "ERROR: new name already exists" && exit 1
 
 # 新名の命名検証
-python3 creator-kit/scripts/lint-skill-name.py --name "$NEW_NAME"
+python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --name "$NEW_NAME"
 ```
 
 ### Step 2: ディレクトリ改名
@@ -109,9 +109,9 @@ grep -r "$OLD_NAME" "$OUT_BASE/" --include="SKILL.md" -l
 ### Step 6: Lint 検証
 
 ```bash
-python3 creator-kit/scripts/lint-skill-name.py "$OUT_BASE/$NEW_NAME/SKILL.md"
-python3 creator-kit/scripts/lint-skill-tree.py "$OUT_BASE/$NEW_NAME"
-python3 creator-kit/scripts/validate-frontmatter.py "$OUT_BASE/$NEW_NAME/SKILL.md"
+python3 plugins/skill-governance-lint/scripts/lint-skill-name.py "$OUT_BASE/$NEW_NAME/SKILL.md"
+python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py "$OUT_BASE/$NEW_NAME"
+python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE/$NEW_NAME/SKILL.md"
 ```
 
 すべて exit 0 でなければ Step 3 へ戻る。
@@ -127,5 +127,5 @@ python3 creator-kit/scripts/validate-frontmatter.py "$OUT_BASE/$NEW_NAME/SKILL.m
 
 - `06-classification-and-naming.md` — 命名規約 第6条（改名手続き）
 - `13-checklists.md` — 命名規約条文チェックリスト
-- `creator-kit/scripts/lint-skill-name.py` — 命名検証
-- `creator-kit/scripts/resolve-skill-dirs.sh` — OUT_BASE 解決スクリプト
+- `plugins/skill-governance-lint/scripts/lint-skill-name.py` — 命名検証
+- `plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh` — OUT_BASE 解決スクリプト

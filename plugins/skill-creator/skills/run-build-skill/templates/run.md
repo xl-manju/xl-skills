@@ -16,7 +16,7 @@ source-tier: {{source_tier | default("internal")}}
 last-audited: {{last_audited_date}}
 audit-trigger: {{audit_trigger | default("quarterly")}}
 # permissions: 副作用ありスキルは settings.json の permissions.deny に明示禁止を書くこと（設計書04章）
-# PreToolUse hook: 文脈次第の危険検査を hook で追加（二段防御）。例: creator-kit/config/claude-settings-hooks.json.example 参照
+# PreToolUse hook: 文脈次第の危険検査を hook で追加（二段防御）。例: plugins/skill-governance-config/config/claude-settings-hooks.json.example 参照
 ---
 
 # {{name}}
@@ -47,4 +47,4 @@ audit-trigger: {{audit_trigger | default("quarterly")}}
 {{additional_resources}}
 
 ## セキュリティと権限
-本Skillは副作用を伴う可能性がある。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。両者は独立に動作するため、片方の漏れをもう片方で補える。例設定は `creator-kit/config/claude-settings-hooks.json.example` を参照。
+本Skillは副作用を伴う可能性がある。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。両者は独立に動作するため、片方の漏れをもう片方で補える。例設定は `plugins/skill-governance-config/config/claude-settings-hooks.json.example` を参照。

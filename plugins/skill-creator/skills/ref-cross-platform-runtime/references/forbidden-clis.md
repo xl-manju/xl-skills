@@ -19,4 +19,4 @@ doc/22 §「許可 CLI ホワイトリスト」に対応する禁止リスト。
 - Windows: `powershell`, `cmd`, `ver`, `systeminfo`
 - 共通: `git`
 
-詳細は `creator-kit/manifest.json` の `requirements.external_clis` を正本とする。
+詳細は `plugins/skill-creator/.claude-plugin/plugin.json` の `requirements.external_clis` を正本とする。

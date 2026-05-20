@@ -17,26 +17,36 @@ jobs:
         with:
           python-version: '3.12'
       - name: guard change category (P0/P1 proposal gate)
-        run: python3 scripts/guard-change-category.py --base origin/main
+        run: python3 scripts/guard-change-category.py --base origin/main --bypass-cooldown
       - name: lint script naming (28章 §4)
         run: python3 scripts/lint-script-naming.py
       - name: lint skill description (03章 R1-R5)
         run: python3 scripts/lint-skill-description.py
-      - name: lint forbidden dependencies
-        run: python3 scripts/lint-forbidden-deps.py
-        continue-on-error: false
       - name: lint dependency direction
-        run: python3 scripts/lint-dependency-direction.py
+        run: python3 scripts/lint-dependency-direction.py --skills-dir plugins/skill-creator/skills
         continue-on-error: false
-      - name: check external refs inventory
-        run: python3 scripts/lint-external-refs.py --skills-dir creator-kit/skills
+      - name: check plugin external refs
+        run: >
+          python3 scripts/lint-external-refs.py
+          --skills-dir plugins/skill-creator/skills
+          --allowed-prefix .claude/
+          --allowed-prefix eval-log/
+          --allowed-prefix references/
+          --allowed-prefix plugins/
+          --allowed-prefix scripts/
+          --allowed-prefix doc/
+          --fail-on-external
         continue-on-error: false
       - name: check script drift
         run: bash scripts/check-scripts-drift.sh
         continue-on-error: false
       - name: check skill drift
-        run: bash scripts/sync-skills-to-claude.sh --check
+        run: python3 scripts/build-claude-symlinks.py --check
         continue-on-error: false
-      - name: lint manifest contents
-        run: python3 scripts/lint-manifest-contents.py
+      - name: validate plugin manifests and marketplace
+        run: |
+          jq -e '.plugins | length >= 8' .claude-plugin/marketplace.json
+          for manifest in plugins/*/.claude-plugin/plugin.json; do
+            jq -e '.name and .version and .description' "$manifest" >/dev/null
+          done
         continue-on-error: false

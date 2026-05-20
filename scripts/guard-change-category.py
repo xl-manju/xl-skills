@@ -19,7 +19,9 @@ import re
 import subprocess
 import sys
 
-POLICY_PATH = pathlib.Path("creator-kit/config/governance-policy.json")
+POLICY_PATH_CANDIDATES = (
+    pathlib.Path("plugins/skill-governance-config/config/governance-policy.json"),
+)
 CHANGELOG_PATH = pathlib.Path(".claude/changelog/governance-log.jsonl")
 
 
@@ -50,9 +52,9 @@ def changed_file_statuses(base: str) -> dict[str, str]:
     return statuses
 
 
-_SKILL_DIR_RE = re.compile(r"^creator-kit/skills/([a-z0-9][a-z0-9-]*)/")
-_SKILL_MD_RE = re.compile(r"^creator-kit/skills/[a-z0-9][a-z0-9-]*/SKILL\.md$")
-_SINK_ADAPTER_RE = re.compile(r"^scripts/adapters/sink_[a-z0-9_]+\.py$")
+_SKILL_DIR_RE = re.compile(r"^plugins/[a-z0-9][a-z0-9-]*/skills/([a-z0-9][a-z0-9-]*)/")
+_SKILL_MD_RE = re.compile(r"^plugins/[a-z0-9][a-z0-9-]*/skills/[a-z0-9][a-z0-9-]*/SKILL\.md$")
+_SINK_ADAPTER_RE = re.compile(r"^(?:scripts|plugins/skill-governance-adapters/scripts)/adapters/sink_[a-z0-9_]+\.py$")
 _P1_DOC_PATHS = (
     "doc/ClaudeCodeスキルの設計書/06-classification-and-naming",
     "doc/ClaudeCodeスキルの設計書/27-rubric-governance-runbook",
@@ -98,7 +100,7 @@ def classify_change(path: str, status: str = "") -> str:
     if any(path.startswith(p) for p in _P1_DOC_PATHS):
         return "P1_structural"
     # manifest forbidden_dependencies
-    if path == "creator-kit/manifest.json":
+    if path.endswith("/.claude-plugin/plugin.json"):
         return "P1_structural"
     # rubric 本体
     if path.endswith("/rubric.json"):
@@ -118,10 +120,15 @@ def classify_change(path: str, status: str = "") -> str:
 
 
 def load_policy():
-    if not POLICY_PATH.exists():
-        print(f"ERROR: policy not found at {POLICY_PATH}", file=sys.stderr)
-        sys.exit(2)
-    return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+    for policy_path in POLICY_PATH_CANDIDATES:
+        if policy_path.exists():
+            return json.loads(policy_path.read_text(encoding="utf-8"))
+    print(
+        "ERROR: policy not found at any of: "
+        + ", ".join(str(p) for p in POLICY_PATH_CANDIDATES),
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 
 def needs_proposal(category: str, policy: dict) -> bool:

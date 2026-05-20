@@ -10,7 +10,7 @@ LLM 主観依存を排除し、再現性を担保するための写像スクリ�
 使い方:
     python3 resolve-brief-to-category.py \
         --brief eval-log/skill-brief.json \
-        --resource-map creator-kit/skills/run-build-skill/references/resource-map.yaml \
+        --resource-map plugins/skill-creator/skills/run-build-skill/references/resource-map.yaml \
         > eval-log/category-resolution.json
 """
 from __future__ import annotations

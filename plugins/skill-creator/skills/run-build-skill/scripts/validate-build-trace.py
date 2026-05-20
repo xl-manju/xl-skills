@@ -238,7 +238,7 @@ def main() -> int:
             # resource-map.yaml を探索（trace 隣接か run-build-skill 直下）
             from pathlib import Path as _P
             candidate_maps = [
-                _P("creator-kit/skills/run-build-skill/references/resource-map.yaml"),
+                _P("plugins/skill-creator/skills/run-build-skill/references/resource-map.yaml"),
                 _P(".claude/skills/run-build-skill/references/resource-map.yaml"),
             ]
             known_cats: set[str] = set()

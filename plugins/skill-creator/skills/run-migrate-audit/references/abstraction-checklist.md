@@ -21,5 +21,5 @@
 - source-tier の列挙値 (`article-text`, `code-verified` 等)
 
 ## 検証
-`creator-kit/scripts/lint-path-canonical.py` がハードコード検出を行う。
+`plugins/skill-governance-lint/scripts/lint-path-canonical.py` がハードコード検出を行う。
 変数化が必要な箇所が見つかれば exit 1。

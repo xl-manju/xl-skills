@@ -22,15 +22,15 @@ audit-trigger: quarterly
 設計書29 §3 の3層階層モデル (L0 共通 / L1 ドメイン / L2 プロジェクト) における **L1 (ドメイン特化)** rubric の抽象テンプレート。`{{domain_name}}` 変数を実ドメインに置換するだけで新ドメインの L1 rubric が派生できる。
 
 **入力**: domain_name (kebab-case、例: `task-spec`, `meeting-minutes`, `design-doc`)
-**出力**: `creator-kit/skills/ref-domain-<domain_name>-rubric/rubric.json` (L1 rubric 実体)
-**完了条件**: 派生 rubric が schema (version/layer/upstream/rules) を満たし、`creator-kit/config/rubric-registry.json` に登録されること。
+**出力**: `plugins/skill-creator/skills/ref-domain-<domain_name>-rubric/rubric.json` (L1 rubric 実体)
+**完了条件**: 派生 rubric が schema (version/layer/upstream/rules) を満たし、`plugins/skill-governance-config/config/rubric-registry.json` に登録されること。
 
 ## Key Rules
 
-1. **L0 を upstream に固定**: 派生 rubric は必ず `upstream: ["creator-kit/skills/ref-skill-design-rubric/rubric.json"]` を含む。
+1. **L0 を upstream に固定**: 派生 rubric は必ず `upstream: ["plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json"]` を含む。
 2. **layer は L1 固定**: L0 / L2 への混在禁止 (設計書29 §10 アンチパターン)。
 3. **rules は最低1件、ドメイン固有のものに限る**: L0 と重複する rule (FM-001 等) を再記述しない。重複は deep-merge で自動継承される。
-4. **registry 登録必須**: `creator-kit/config/rubric-registry.json` の `rubrics[]` に新エントリを追加する。
+4. **registry 登録必須**: `plugins/skill-governance-config/config/rubric-registry.json` の `rubrics[]` に新エントリを追加する。
 
 ## Steps
 
@@ -42,8 +42,8 @@ kebab-case で命名する。既存 rubric-registry.json の `rubrics[].domain` 
 
 ```bash
 DOMAIN="task-spec"  # 例
-cp -R creator-kit/skills/ref-domain-rubric-template \
-      creator-kit/skills/ref-domain-${DOMAIN}-rubric
+cp -R plugins/skill-creator/skills/ref-domain-rubric-template \
+      plugins/skill-creator/skills/ref-domain-${DOMAIN}-rubric
 ```
 
 ### Step 3: 変数置換
@@ -52,23 +52,23 @@ cp -R creator-kit/skills/ref-domain-rubric-template \
 
 ### Step 4: registry 登録
 
-`creator-kit/config/rubric-registry.json` の `rubrics[]` に以下エントリを追加:
+`plugins/skill-governance-config/config/rubric-registry.json` の `rubrics[]` に以下エントリを追加:
 
 ```json
 {
   "domain": "<domain_name>",
   "layer": "L1",
-  "rubric": "creator-kit/skills/ref-domain-<domain_name>-rubric/rubric.json",
+  "rubric": "plugins/skill-creator/skills/ref-domain-<domain_name>-rubric/rubric.json",
   "description": "<one-line description>",
-  "upstream": ["creator-kit/skills/ref-skill-design-rubric/rubric.json"]
+  "upstream": ["plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json"]
 }
 ```
 
 ### Step 5: 整合性検証
 
 ```bash
-python3 creator-kit/scripts/lint-rubric-refs-exist.py
-python3 creator-kit/scripts/compute-rubric-hash.py creator-kit/skills/ref-domain-${DOMAIN}-rubric/rubric.json
+python3 plugins/skill-governance-lint/scripts/lint-rubric-refs-exist.py
+python3 plugins/skill-governance-automation/scripts/compute-rubric-hash.py plugins/skill-creator/skills/ref-domain-${DOMAIN}-rubric/rubric.json
 ```
 
 ## Gotchas
@@ -81,4 +81,4 @@ python3 creator-kit/scripts/compute-rubric-hash.py creator-kit/skills/ref-domain
 
 - `rubric.json` — L1 抽象テンプレート (変数化済み)
 - 設計書29: `doc/ClaudeCodeスキルの設計書/29-multi-project-rubric-composition.md`
-- 具体例: `creator-kit/skills/ref-domain-task-spec-rubric/rubric.json`
+- 具体例: `plugins/skill-creator/skills/ref-domain-task-spec-rubric/rubric.json`

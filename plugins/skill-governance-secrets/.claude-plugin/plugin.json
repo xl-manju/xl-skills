@@ -2,5 +2,8 @@
   "name": "skill-governance-secrets",
   "version": "0.1.0",
   "description": "Skill governance secret helper scripts",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
   "keywords": ["skill-governance","secrets","keychain"]
 }

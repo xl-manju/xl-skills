@@ -37,13 +37,13 @@ SKILL.md 本文 300行制約により分離した詳細。
 ```bash
 SKILL_NAME=run-my-thing
 KIND=run
-OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-creator-kit/skills}"
+OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-plugins/skill-creator/skills}"
 ROOT="$OUT_BASE/$SKILL_NAME"
 mkdir -p $ROOT/{templates,references,scripts,examples}
-python3 creator-kit/skills/run-build-skill/scripts/render-frontmatter.py \
+python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py \
   --name $SKILL_NAME --kind $KIND \
   --brief eval-log/skill-brief.json \
-  --template creator-kit/skills/run-build-skill/templates/$KIND.md \
+  --template plugins/skill-creator/skills/run-build-skill/templates/$KIND.md \
   > $ROOT/SKILL.md
 ```
 
@@ -58,10 +58,10 @@ python3 creator-kit/skills/run-build-skill/scripts/render-frontmatter.py \
 ## Phase E: lint
 
 ```bash
-python3 creator-kit/scripts/lint-skill-name.py "$ROOT/SKILL.md"
-python3 creator-kit/scripts/lint-skill-tree.py "$ROOT"
-python3 creator-kit/scripts/validate-frontmatter.py "$ROOT/SKILL.md"
-python3 creator-kit/skills/run-build-skill/scripts/validate-build-trace.py eval-log/skill-build-trace.json
+python3 plugins/skill-governance-lint/scripts/lint-skill-name.py "$ROOT/SKILL.md"
+python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py "$ROOT"
+python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$ROOT/SKILL.md"
+python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py eval-log/skill-build-trace.json
 ```
 
 ## Phase F: 評価
@@ -95,7 +95,7 @@ score >= 80 かつ high=0 で完了。
     "doc/ClaudeCodeスキルの設計書/<actually-read>.md"
   ],
   "context_map_decision": {
-    "map": "creator-kit/skills/run-build-skill/references/resource-map.yaml",
+    "map": "plugins/skill-creator/skills/run-build-skill/references/resource-map.yaml",
     "task_category": "<selected category>",
     "selected_docs": ["doc/ClaudeCodeスキルの設計書/<selected>.md"],
     "reason": "<why these docs were sufficient>"
@@ -240,8 +240,8 @@ score >= 80 かつ high=0 で完了。
     "status": "PASS|N/A",
     "task_kind": "{{TASK_KIND}}",
     "payload_schema_version": "1.0",
-    "route_ref": "creator-kit/config/output-routing.json.example",
-    "adapter_registry_ref": "creator-kit/config/adapter-registry.json",
+    "route_ref": "plugins/skill-governance-config/config/output-routing.json.example",
+    "adapter_registry_ref": "plugins/skill-governance-config/config/adapter-registry.json",
     "fallback": "local",
     "secret_boundary": "keychain-ref-only",
     "reason": "<required when N/A>"
@@ -290,7 +290,7 @@ Skill(run-build-skill) skill_name=run-my-skill kind=run mode=create with_subagen
 Step7 (`--with-subagent` 指定時のみ実行):
 
 ```bash
-python3 creator-kit/skills/run-build-skill/scripts/build-subagent.py \
+python3 plugins/skill-creator/skills/run-build-skill/scripts/build-subagent.py \
   --skill-name "$SKILL_NAME" \
   --skill-md "$OUT_BASE/$SKILL_NAME/SKILL.md" \
   --output-dir ".claude/agents/" \

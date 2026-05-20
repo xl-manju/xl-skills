@@ -46,7 +46,7 @@ base Skill (`run-build-skill`) の commit ステップを wrap し、機密フ�
 ### Step 1: 機密ファイル検出 (決定論スキャン)
 
 ```bash
-python3 creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py \
+python3 plugins/skill-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py \
   --repo-root "$(git rev-parse --show-toplevel)" \
   --commit-args "$@"
 ```

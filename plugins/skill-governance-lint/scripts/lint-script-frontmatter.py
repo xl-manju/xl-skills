@@ -4,7 +4,7 @@
 # version: 0.1.0
 # purpose: 28章§7 規格に従い scripts/*.py の PEP 723 frontmatter 必須キーを検証する meta-lint
 # inputs:
-#   - argv: 検査対象ディレクトリ（既定 creator-kit/scripts）
+#   - argv: 検査対象ディレクトリ（既定 plugins）
 # outputs:
 #   - stdout: 違反一覧（path: missing_key1, missing_key2 ...）
 #   - exit: 0=OK / 1=違反あり / 2=usage error
@@ -21,9 +21,16 @@ from pathlib import Path
 
 REQUIRED_KEYS = ("name", "purpose", "inputs", "outputs", "contexts", "network", "write-scope", "dependencies")
 EXEMPT_NAMES = {"__init__.py"}
-# PENDING_FRONTMATTER: creator-kit/_drafts/pending-frontmatter.md の移行計画に沿って段階補完中。
+# PENDING_FRONTMATTER: doc/migration/phase3/pending-frontmatter.md の移行計画に沿って段階補完中。
 # このセットに含まれるファイルは frontmatter 不備でも警告にダウングレードする（EXCEPTION 扱い）。
-PENDING_FILES = set()
+PENDING_FILES = {
+    "render-findings-score.py",
+    "resolve-brief-to-category.py",
+    "diff-rubric-impact.py",
+    "lint-rubric-violation.py",
+    "pre-commit-secret-scan.py",
+    "guard-change-category.py",
+}
 
 
 def extract_frontmatter(text: str) -> dict | None:
@@ -56,7 +63,7 @@ def main() -> int:
     if len(sys.argv) > 1:
         target_dirs = [Path(p) for p in sys.argv[1:]]
     else:
-        target_dirs = [Path("creator-kit/scripts")]
+        target_dirs = [Path("plugins")]
 
     violations = []
     pending = []

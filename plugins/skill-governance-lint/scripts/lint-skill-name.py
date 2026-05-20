@@ -17,7 +17,7 @@
 
 Usage:
   lint-skill-name.py /path/to/SKILL.md
-  lint-skill-name.py --skills-dir creator-kit/skills
+  lint-skill-name.py --skills-dir plugins/skill-creator/skills
 
 Exit 0 = ok, 1 = violation, 2 = usage error.
 """

@@ -17,13 +17,13 @@
 
 検証:
   1. ディレクトリ名 == SKILL.md frontmatter の name
-  2. SKILL.md 内の python3 呼び出しパスが想定領域 (creator-kit/scripts/ または
+  2. SKILL.md 内の python3 呼び出しパスが想定領域 (plugins/*/scripts/ または
      skill 自身の scripts/) を指している
   3. ref-* スキルの frontmatter に source: フィールドが存在する (doc/21)
   4. 具体プロジェクト名・組織名のハードコード検出 (横展開阻害)
 
 usage:
-  python3 lint-path-canonical.py --skills-dir creator-kit/skills
+  python3 lint-path-canonical.py --skills-dir plugins/skill-creator/skills
   python3 lint-path-canonical.py --skill-md /path/to/SKILL.md
 """
 from __future__ import annotations
@@ -74,13 +74,13 @@ def check_skill_md(skill_md: Path) -> list[str]:
     # 2. python3 呼び出しパス検証
     for m in PY3_CALL.finditer(text):
         script_path = m.group(1)
-        if script_path.startswith(("creator-kit/scripts/", "./scripts/", "scripts/")) \
+        if script_path.startswith(("plugins/", "./scripts/", "scripts/")) \
            or "skills/" in script_path:
             continue
         # 許可外パス（.claude/skills/.../scripts/ など）はエラー
         if ".claude/skills/" in script_path:
             errs.append(f"non-canonical python3 path: {script_path} "
-                        f"(use creator-kit/scripts/... not .claude/skills/...)")
+                        f"(use plugins/<name>/scripts/... or scripts/... not .claude/skills/...)")
 
     # 3. ref-* は source 必須
     kind = parse_kind(text)

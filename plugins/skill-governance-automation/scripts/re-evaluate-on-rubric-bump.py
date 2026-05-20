@@ -38,7 +38,7 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UPSTREAM_RUBRIC = (
-    REPO_ROOT / "creator-kit" / "skills" / "ref-skill-design-rubric" / "rubric.json"
+    REPO_ROOT / "plugins" / "skill-creator" / "skills" / "ref-skill-design-rubric" / "rubric.json"
 )
 EVAL_LOG_DIR = REPO_ROOT / "eval-log"
 

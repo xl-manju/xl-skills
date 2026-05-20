@@ -42,7 +42,7 @@ hierarchy_level: L1
 ### Step 0: codex 存在確認 (決定論)
 
 ```bash
-bash creator-kit/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh
+bash plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh
 ```
 exit 2 が返ったら BLOCK。インストール手順を案内して停止。
 
@@ -53,7 +53,7 @@ exit 2 が返ったら BLOCK。インストール手順を案内して停止。
 ### Step 2: codex 起動
 
 ```bash
-codex review --input "$TARGET_PATH" --rubric creator-kit/skills/ref-skill-design-rubric/rubric.json \
+codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
   > eval-log/delegate-codex-$(date +%s).json
 ```
 

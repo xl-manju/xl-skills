@@ -17,7 +17,7 @@
 SKILL.md / agents/*.md の description フィールドを 03章 §description設計規律 で機械強制する。
 
 整合性メモ:
-  R1 のトリガー上限は creator-kit/scripts/validate-frontmatter.py の
+  R1 のトリガー上限は plugins/skill-governance-lint/scripts/validate-frontmatter.py の
   「trigger count == 2 (hard rule)」と同一基準。両者は同じ設計書03章を
   単一情報源 (SSOT) としており、本 R1 は「2 を超えたら違反」の上限のみ
   を担当する。下限 (== 2) は validate-frontmatter.py 側で強制する。
@@ -32,7 +32,7 @@ SKILL.md / agents/*.md の description フィールドを 03章 §description設
 usage:
   python3 scripts/lint-skill-description.py
   python3 scripts/lint-skill-description.py --report
-  python3 scripts/lint-skill-description.py --skills-dir creator-kit/skills
+  python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
   python3 scripts/lint-skill-description.py --skills-dir .claude/skills
 
 exit code: 0 OK / 1 違反検出 / 2 設定エラー
@@ -55,7 +55,7 @@ TRIGGER_RE = re.compile(r"(?:とき|場合|際|時に)")
 MAX_LEN = 280
 
 SKILL_GLOBS = [
-    "creator-kit/skills/*/SKILL.md",
+    "plugins/skill-creator/skills/*/SKILL.md",
     ".claude/skills/*/SKILL.md",
     ".claude/agents/*.md",
 ]

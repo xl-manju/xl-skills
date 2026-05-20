@@ -1,6 +1,7 @@
 ---
 name: run-migrate-audit
 description: 既存 CLAUDE.md/prompt 集を Skill 群へ移行したいとき、棚卸し分類を機械化したいときに使う。
+effect: local-artifact
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Bash(python3 *), Grep, Glob, Skill(assign-skill-design-evaluator *)]
@@ -67,7 +68,7 @@ Hook/CI/CLI 化候補を JSON で出力する。
 
 ### Step 1: 入力棚卸し
 ```bash
-python3 creator-kit/scripts/migrate/audit.py \
+python3 plugins/skill-governance-migration/scripts/migrate/audit.py \
   --input <CLAUDE.md path> \
   --output .claude/handoff/migrate-audit-$(date +%s).json
 ```
@@ -78,7 +79,7 @@ python3 creator-kit/scripts/migrate/audit.py \
 ### Step 3: SKILL.md スケルトン生成提案
 分類結果から `run-build-skill` 起動 brief を生成:
 ```bash
-python3 creator-kit/scripts/migrate/to-brief.py \
+python3 plugins/skill-governance-migration/scripts/migrate/to-brief.py \
   --audit-json .claude/handoff/migrate-audit-<session>.json
 ```
 
@@ -87,7 +88,7 @@ Gotchas 累積閾値超え → `frontmatter lint -> Hook -> CI -> CLI` の昇格
 
 ### Step 5: 移行後 lint
 ```bash
-python3 creator-kit/scripts/lint-dependency-direction.py --skills-dir .claude/skills/
+python3 plugins/skill-governance-lint/scripts/lint-dependency-direction.py --skills-dir .claude/skills/
 ```
 
 ### Step 6: 評価器による品質判定（doc/20 Step 6）
@@ -103,7 +104,7 @@ brief 群を rubric で採点する。スコアが閾値未満の brief は run-
 ### Step 7: 依存関係 lint（doc/20 Step 7 の 5 条件）
 brief から生成予定の Skill 群について、以下 5 条件を機械検証する。
 ```bash
-python3 creator-kit/scripts/lint-skill-dep-step7.py --skills-dir .claude/skills/
+python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir .claude/skills/
 ```
 検査:
 1. `wrap-*` に `base:` フィールドがある

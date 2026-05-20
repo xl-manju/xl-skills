@@ -10,4 +10,4 @@ doc/22 設計書からの転載＋運用追記。
 | WSL     | bash                 | `uname -s`              | `Linux`                       | あり         | Linux 経路で統一           |
 | 未判定  | -                    | 上記いずれも失敗        | -                             | -            | env XLSKILLS_SECRET_* のみ |
 
-判定エントリポイント: `creator-kit/scripts/cross_platform_secret.py --probe`
+判定エントリポイント: `plugins/skill-governance-automation/scripts/cross_platform_secret.py --probe`

@@ -5,7 +5,7 @@
   "layer": "L1",
   "_doc": "設計書29 §3 L1: タスク仕様書ドメイン (Phase 1-13, SRP, ユビキタス言語) 固有 rubric。L0 (ref-skill-design-rubric) を upstream に継承し、L0 にないドメイン特有ルールのみを追加する。L2 (各 evaluator references/rubric.json) からは upstream として参照される中間層。",
   "upstream": [
-    "creator-kit/skills/ref-skill-design-rubric/rubric.json"
+    "plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json"
   ],
   "merge_strategy": "deep-merge",
   "conflict_policy": "most-specific-wins",

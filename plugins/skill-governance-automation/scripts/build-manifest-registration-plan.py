@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 # /// script
 # name: build-manifest-registration-plan
-# purpose: Propose manifest additions for unregistered creator-kit files.
+# purpose: Propose manifest additions for unregistered plugin files.
 # inputs:
 #   - argv: optional --apply after user approval
 # outputs:
 #   - stdout: registration plan JSON or summary
-#   - file: creator-kit/manifest.json when --apply is used
+#   - file: manifest.json when legacy --apply is used
 # contexts: [A, B]
 # network: false
 # write-scope: output-dir
 # dependencies: []
 # ///
-"""Detect creator-kit files that are not registered in manifest.json.
+"""Detect unregistered files in a legacy manifest.json.
 
 This script is intentionally conservative. It proposes manifest additions, but
 does not edit files unless --apply is passed after a user approval gate.
+Phase 2 plugin packages use .claude-plugin/plugin.json; those manifests are
+validated as the current format and require no registration plan here.
 """
 from __future__ import annotations
 
@@ -27,6 +29,7 @@ from pathlib import Path
 
 KIT_DIR = Path(__file__).resolve().parents[1]
 MANIFEST = KIT_DIR / "manifest.json"
+PLUGIN_MANIFEST = KIT_DIR / ".claude-plugin" / "plugin.json"
 
 
 def load_manifest() -> dict:
@@ -145,6 +148,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true", help="apply proposed additions to manifest.json")
     args = ap.parse_args()
+
+    if not MANIFEST.exists() and PLUGIN_MANIFEST.exists():
+        plugin = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+        required = ("name", "version", "description")
+        missing = [key for key in required if not plugin.get(key)]
+        if missing:
+            print(json.dumps({"status": "invalid_plugin_manifest", "missing": missing}, indent=2))
+            return 1
+        print(json.dumps({"status": "ok", "format": "plugin", "proposals": {}}, ensure_ascii=False, indent=2))
+        return 0
 
     manifest = load_manifest()
     proposals = collect_proposals(manifest)

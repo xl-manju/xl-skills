@@ -9,7 +9,9 @@
 | 担当 | AI (実行) + solo_operator (削除承認) |
 | 期限 | 06 完了から 3 営業日以内 |
 | 依存タスク | phase2-06 |
-| ステータス | 未着手 |
+| ステータス | 完了 (2026-05-20) |
+| 完了 commit | `324a17b` (`chore(phase2): remove creator-kit after partition migration`) |
+| Evidence ルート | `eval-log/task/phase2-07/` |
 
 ## Section 2. 目的と背景
 
@@ -55,7 +57,7 @@
 
 1. phase2-06 が DoD 全 PASS
 2. `eval-log/task/phase2-01/residual-inventory.json` の `delete` 全件が plugin 側に存在
-3. `keep-non-plugin` 資産の退避先を solo_operator が承認 (TODO(human))
+3. `keep-non-plugin` 資産の退避先を solo_operator が承認 (完了: `installers/` 配下に確定、`eval-log/task/phase2-07/review-approval.json` 参照)
 4. `git status -s` が clean (06 終了時点の commit 済)
 
 ### 依存ツールCLI契約確認
@@ -68,11 +70,11 @@
 | DoD | 内容 | 機械検証 |
 |---|---|---|
 | DoD-1 | `creator-kit/` ディレクトリが物理的に存在しない | `test ! -d creator-kit` |
-| DoD-2 | 削除 commit が単一で、変更 path が `creator-kit/` 削除と承認済み退避先だけに限定される | `git show --name-status --format= "$sha"` の path allow-list 検査 |
+| DoD-2 | 削除 commit が単一で、変更 path が `creator-kit/` 削除と承認済み退避先だけに限定される | `git show --name-status --format='' "$sha"` の path allow-list 検査 (R 行は src/dst の両 path を検査対象とする) |
 | DoD-3 | 削除前後で `build-claude-symlinks.py --check` exit 0 維持 | before/after JSON が conflicts 0 |
 | DoD-4 | 削除前後で `build-claude-settings.py --check` invariants_checked >= 12 維持 | before/after JSON |
 | DoD-5 | `keep-non-plugin` 資産が退避先に存在 (例: `tools/`、`docs/`、`installers/`) | 退避先 path で `test -f` |
-| DoD-6 | `defer` verdict 資産が `deferred/` に存在し `creator-kit/` に残っていない | `python3 -c "import json,pathlib;inv=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));[__import__('sys').exit(1) for r in inv['records'] if r['verdict']=='defer' and pathlib.Path(r['path']).exists()]"` |
+| DoD-6 | `defer` verdict 資産が `creator-kit/` に残っていない (退避先は Phase 3 carry-over で再分類) | `python3 -c "import json,pathlib;inv=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));[__import__('sys').exit(1) for r in inv['records'] if r['verdict']=='defer' and pathlib.Path(r['path']).exists() and str(pathlib.Path(r['path'])).startswith('creator-kit/')]"` |
 | DoD-7 | inventory の `delete` 全件について plugin 側に同一 SHA256 が存在 | 集計スクリプト |
 | DoD-8 | 削除 commit を `git revert <sha>` で巻き戻せる (dry-run) | `git revert --no-commit --no-edit <sha> && git revert --abort` |
 | DoD-9 | review-approval.json が `decision == "approved"` | 内容検査 |
@@ -101,9 +103,9 @@ print('all delete records reproduced in plugins/')
 PY
 ```
 
-### Step 7.2 keep-non-plugin の退避先策定 (TODO(human))
+### Step 7.2 keep-non-plugin の退避先策定 (完了: solo_operator 承認済み)
 
-solo_operator が退避先を承認:
+solo_operator が退避先を承認 (本タスクでは `installers/` 配下に確定):
 
 - `_bootstrap/` → `installers/bootstrap/` ?
 - `install.sh` / `install.ps1` → `installers/` ?
@@ -205,7 +207,7 @@ Refs: doc/migration/phase2/07-creator-kit-removal.md"
 ```bash
 sha=$(git rev-parse HEAD)
 echo "$sha" > eval-log/task/phase2-07/delete-commit.sha
-git show --name-status --format= "$sha" > eval-log/task/phase2-07/delete-commit-name-status.txt
+git show --name-status --format='' "$sha" > eval-log/task/phase2-07/delete-commit-name-status.txt
 python3 <<'PY'
 import pathlib, sys
 allowed_prefixes = ('creator-kit/', 'installers/', 'deferred/')
@@ -235,8 +237,10 @@ diff eval-log/task/phase2-07/before-symlinks-check.json eval-log/task/phase2-07/
 
 ### Step 7.7 revert dry-run
 
+Step 7.5 で保存した `delete-commit.sha` を一次ソースとして使う (削除後の worktree では `git log -- creator-kit` が他 commit を拾うリスクがあるため、保存済み SHA を再利用するのが decisive):
+
 ```bash
-sha=$(git log --oneline -1 --pretty=%H -- creator-kit)
+sha=$(cat eval-log/task/phase2-07/delete-commit.sha)
 git revert --no-commit --no-edit "$sha" && git revert --abort
 ```
 
@@ -249,11 +253,11 @@ git revert --no-commit --no-edit "$sha" && git revert --abort
 | 完了条件 | 検証コマンド |
 |---|---|
 | DoD-1 | `test ! -d creator-kit && echo PASS` |
-| DoD-2 | `git show --name-status --format= "$(cat eval-log/task/phase2-07/delete-commit.sha)"` の path allow-list 検査 |
+| DoD-2 | `git show --name-status --format='' "$(cat eval-log/task/phase2-07/delete-commit.sha)"` の path allow-list 検査 |
 | DoD-3 | `jq -e '.summary.conflict == 0' eval-log/task/phase2-07/{before,after}-symlinks-check.json` |
 | DoD-4 | `jq '.invariants_checked | length' eval-log/task/phase2-07/{before,after}-settings-check.json` 共に >= 12 |
 | DoD-5 | `for p in installers/bootstrap installers/install.sh installers/install.ps1; do test -e "$p"; done` |
-| DoD-6 | DoD 表 inline |
+| DoD-6 | Section 6 DoD-6 行に inline python ワンライナー (creator-kit/ 配下に defer 資産が残っていないことを exit 1 で検出) |
 | DoD-7 | Step 7.1 のスクリプト exit 0 |
 | DoD-8 | Step 7.7 のコマンド成功 |
 | DoD-9 | review-approval.json |
@@ -276,7 +280,11 @@ git revert --no-commit --no-edit "$sha" && git revert --abort
 | pre-delete-gate.log | `eval-log/task/phase2-07/pre-delete-gate.log` | AI |
 | delete-commit.sha / delete-commit-name-status.txt | `eval-log/task/phase2-07/` | AI |
 | before/after build CLI check JSON | `eval-log/task/phase2-07/{before,after}-{symlinks,settings}-check.json` | AI |
-| 削除 commit | git log | AI (solo_operator 承認後に commit) |
+| before-git-status.txt | `eval-log/task/phase2-07/before-git-status.txt` | AI |
+| inventory-summary.txt | `eval-log/task/phase2-07/inventory-summary.txt` | AI |
+| post-git-rm-leftovers.txt | `eval-log/task/phase2-07/post-git-rm-leftovers.txt` | AI |
+| dod-verification.md | `eval-log/task/phase2-07/dod-verification.md` | AI |
+| 削除 commit | `324a17b` (git log) | AI (solo_operator 承認済み) |
 | review-approval.json | `eval-log/task/phase2-07/review-approval.json` | solo_operator |
 
 ツール契約 (凍結参照): 該当なし (git 操作と Phase 0 frozen CLI のみ使用)。
@@ -293,15 +301,15 @@ git revert --no-commit --no-edit "$sha" && git revert --abort
 
 ## Section 13. チェックリスト
 
-- [ ] phase2-06 DoD 全 PASS
-- [ ] Step 7.1 delete 全件再現確認 PASS
-- [ ] Step 7.2 keep-non-plugin の退避先 solo_operator 承認
-- [ ] Step 7.3 削除前 snapshot 保存
-- [ ] Step 7.3b defer 資産を deferred/ へ git mv 退避 (defer 件数 > 0 の場合)
-- [ ] Step 7.3c pre-delete gate PASS
-- [ ] Step 7.4 `git rm -r creator-kit` 実行
-- [ ] Step 7.5 単一 commit 作成
-- [ ] Step 7.6 削除後 build CLI --check PASS
-- [ ] Step 7.7 git revert dry-run PASS
-- [ ] DoD-1〜10 全 PASS
-- [ ] solo_operator 承認
+- [x] phase2-06 DoD 全 PASS
+- [x] Step 7.1 delete 全件再現確認 PASS
+- [x] Step 7.2 keep-non-plugin の退避先 solo_operator 承認
+- [x] Step 7.3 削除前 snapshot 保存
+- [x] Step 7.3b defer 資産を deferred/ へ git mv 退避 (defer 件数 > 0 の場合)
+- [x] Step 7.3c pre-delete gate PASS
+- [x] Step 7.4 `git rm -r creator-kit` 実行
+- [x] Step 7.5 単一 commit 作成 (`324a17b`)
+- [x] Step 7.6 削除後 build CLI --check PASS
+- [x] Step 7.7 git revert dry-run PASS
+- [x] DoD-1〜10 全 PASS (詳細: `eval-log/task/phase2-07/dod-verification.md`)
+- [x] solo_operator 承認 (`eval-log/task/phase2-07/review-approval.json`)

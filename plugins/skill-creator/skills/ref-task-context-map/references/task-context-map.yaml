@@ -44,5 +44,5 @@ entries:
     note: "rubric 改正手続き・ソロ運用モード"
 
   - keywords: ["Phase 0", "creator-kit", "plugin", "manifest"]
-    chapters: ["34", "creator-kit/manifest.json"]
+    chapters: ["34", "plugins/skill-creator/.claude-plugin/plugin.json"]
     note: "Phase 0 移行・プラグインレイアウト・manifest 登録"

@@ -2,11 +2,11 @@
 
 ## 目的
 
-`creator-kit/scripts/hook-guard-rubric.py` および `hook-verify-evaluator-json.py`
+`plugins/skill-governance-hooks/scripts/hook-guard-rubric.py` および `hook-verify-evaluator-json.py`
 を中心とする hook 群を、`.example` テンプレートから実発動可能な状態へ昇格させる
 ための手動セットアップ手順を記述する。
 
-対象 hook（`config/claude-settings-hooks.json.example` で定義済み）:
+対象 hook（`plugins/skill-governance-config/config/claude-settings-hooks.json.example` で定義済み）:
 
 - **PreToolUse** (`Write|Edit`): `hook-guard-rubric.py`
 - **FileChanged** (`SKILL.md`): `hook-validate-skill-md.py`
@@ -40,12 +40,12 @@ fi
 
 ### Step 2: テンプレートを deep-merge
 
-`creator-kit/config/claude-settings-hooks.json.example` の `hooks` キーを既存
+`plugins/skill-governance-config/config/claude-settings-hooks.json.example` の `hooks` キーを既存
 設定にマージする。Python 標準ライブラリ `json` だけを使い、既存キー
 （permissions / env など）は保持する。
 
 ```bash
-TEMPLATE=creator-kit/config/claude-settings-hooks.json.example
+TEMPLATE=plugins/skill-governance-config/config/claude-settings-hooks.json.example
 TARGET=.claude/settings.json
 
 # 既存が無ければ空オブジェクトから開始
@@ -101,11 +101,11 @@ PY
 
 テンプレート内 `command` は `python3 scripts/hook-guard-rubric.py` のように
 **カレントディレクトリからの相対パス**を前提とする。Claude Code 起動時の cwd が
-xl-skills ルートでない場合は、`creator-kit/scripts/` への絶対パスに書き換えること。
+xl-skills ルートでない場合は、`scripts/` への絶対パスに書き換えること。
 
 ```bash
 # 例: 絶対パスへの一括書き換え
-ABS=$(pwd)/creator-kit/scripts
+ABS=$(pwd)/scripts
 python3 - "$TARGET" "$ABS" <<'PY'
 import json
 import sys
@@ -146,7 +146,7 @@ python3 -m json.tool .claude/settings.json > /dev/null && echo "OK: valid JSON"
 
 ### C) 実発動確認
 
-`creator-kit/skills/ref-skill-design-rubric/rubric.json` を Edit してみて、
+`plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json` を Edit してみて、
 PreToolUse hook が走り `hook-guard-rubric.py` のメッセージが出ることを確認。
 
 ## ロールバック
@@ -185,6 +185,6 @@ PY
 
 ## 参考
 
-- `creator-kit/config/claude-settings-hooks.json.example` — 正本テンプレート
-- `creator-kit/scripts/hook-*.py` — hook 実体
+- `plugins/skill-governance-config/config/claude-settings-hooks.json.example` — 正本テンプレート
+- `plugins/skill-governance-hooks/scripts/hook-*.py` — hook 実体
 - `doc/ClaudeCodeスキルの設計書/27-rubric-governance-runbook.md` — rubric governance との関係

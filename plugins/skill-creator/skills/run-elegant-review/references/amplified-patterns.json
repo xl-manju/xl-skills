@@ -8,7 +8,7 @@
       "name": "禁止リストをデータで宣言→lintで機械強制",
       "origin": "Phase H (forbidden_deps)",
       "applies_to": ["dependency management", "naming rules", "tool restrictions"],
-      "transferred_to": ["creator-kit/manifest.json forbidden_dependencies", "lint-forbidden-deps.py"],
+      "transferred_to": ["plugins/skill-creator/.claude-plugin/plugin.json forbidden_dependencies", "lint-forbidden-deps.py"],
       "principle": "ルールをMarkdownに閉じず、データ宣言+lintで両輪化する"
     },
     {

@@ -27,7 +27,7 @@ audit-trigger: quarterly
 ユーザーの曖昧な要求を構造化し、`run-build-skill` へ渡す要件定義（brief）を作る。
 
 **入力**: topic (任意。省略時は対話形式で確認)
-**出力**: `eval-log/skill-brief.json` (固定パス。プロジェクトルート基準。`creator-kit/skills/run-skill-create/references/skill-brief-schema.json` に準拠)
+**出力**: `eval-log/skill-brief.json` (固定パス。プロジェクトルート基準。`plugins/skill-creator/skills/run-skill-create/references/skill-brief-schema.json` に準拠)
 
 含むフィールド:
 ```

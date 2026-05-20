@@ -1,0 +1,78 @@
+{
+  "name": "xl-skills",
+  "description": "Skill creation, evaluation, governance, routing, and migration plugins for Claude Code.",
+  "version": "1.0.1",
+  "metadata": {
+    "description": "Skill creation, evaluation, governance, routing, and migration plugins for Claude Code.",
+    "version": "1.0.1"
+  },
+  "owner": {
+    "name": "xl-skills maintainers"
+  },
+  "plugins": [
+    {
+      "name": "skill-creator",
+      "source": "./plugins/skill-creator",
+      "description": "Claude Code Skill を作る、評価する、承認する、出力先にルーティングするためのメタスキル群。",
+      "version": "1.0.1",
+      "category": "productivity",
+      "tags": ["skills", "generation", "evaluation", "governance"]
+    },
+    {
+      "name": "skill-governance-config",
+      "source": "./plugins/skill-governance-config",
+      "description": "Skill governance shared configuration payloads.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "config"]
+    },
+    {
+      "name": "skill-governance-lint",
+      "source": "./plugins/skill-governance-lint",
+      "description": "Skill governance lint and validation scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "lint", "validation"]
+    },
+    {
+      "name": "skill-governance-hooks",
+      "source": "./plugins/skill-governance-hooks",
+      "description": "Skill governance hook scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "hooks"]
+    },
+    {
+      "name": "skill-governance-automation",
+      "source": "./plugins/skill-governance-automation",
+      "description": "Skill governance automation scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "automation"]
+    },
+    {
+      "name": "skill-governance-adapters",
+      "source": "./plugins/skill-governance-adapters",
+      "description": "Skill governance output routing adapter scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "adapters", "routing"]
+    },
+    {
+      "name": "skill-governance-migration",
+      "source": "./plugins/skill-governance-migration",
+      "description": "Skill migration helper scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "migration"]
+    },
+    {
+      "name": "skill-governance-secrets",
+      "source": "./plugins/skill-governance-secrets",
+      "description": "Skill governance secret helper scripts.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "governance", "secrets"]
+    }
+  ]
+}

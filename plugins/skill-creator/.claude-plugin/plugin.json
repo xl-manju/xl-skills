@@ -1,5 +1,8 @@
 {
   "name": "skill-creator",
   "version": "1.0.1",
-  "description": "Claude Code Skill を作る/評価する/承認する/出力先にルーティングするためのメタスキル群"
+  "description": "Claude Code Skill を作る/評価する/承認する/出力先にルーティングするためのメタスキル群",
+  "author": {
+    "name": "xl-skills maintainers"
+  }
 }

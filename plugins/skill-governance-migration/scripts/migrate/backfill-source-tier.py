@@ -19,7 +19,7 @@
 存在する場合はスキップ（idempotent）。
 
 usage:
-  python3 backfill-source-tier.py --skills-dir creator-kit/skills [--dry-run]
+  python3 backfill-source-tier.py --skills-dir plugins/skill-creator/skills [--dry-run]
 """
 from __future__ import annotations
 

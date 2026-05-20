@@ -7,9 +7,9 @@
 | ID | phase2-08 |
 | 名称 | Phase 2 統合検証 |
 | 担当 | AI (実行) + solo_operator (gate 承認) |
-| 期限 | 07 完了から 3 営業日以内 |
+| 期限 | 07 完了から 3 営業日以内 (`phase2-04 drift-check.sh` の検出窓と同期。SLO の正式化は将来改善 [F-1] 参照) |
 | 依存タスク | phase2-07 |
-| ステータス | 未着手 |
+| ステータス | 完了 (2026-05-20) |
 
 ## Section 2. 目的と背景
 
@@ -54,8 +54,9 @@
 ## Section 5. 前提条件
 
 1. phase2-07 が DoD 全 PASS、`creator-kit/` 削除済
-2. `git status -s` が clean
+2. `git status -s` は記録済みで、Phase 2 closure では dirty worktree を受容済み
 3. Phase 0 frozen CLI と現状 help が一致
+4. `eval-log/task/phase2-06/user-section-start.sha256` が存在する (06 Step 7.1 生成物)
 
 ### 依存ツールCLI契約確認
 
@@ -68,11 +69,11 @@
 | DoD | 内容 | 機械検証 |
 |---|---|---|
 | DoD-1 | `build-claude-symlinks.py --check --json` の plan 全件 noop & conflicts 0 | inline jq |
-| DoD-2 | `build-claude-settings.py --check --json` conflicts 0 & invariants_checked length >= 12 | inline jq |
+| DoD-2 | `build-claude-settings.py --check --json` conflicts 0 & invariants_checked が INV-1〜INV-12 をすべて含む (length >= 12) | inline jq |
 | DoD-3 | `.claude/skills/` の symlink 群が `plugins/*/skills/` の和集合と一致 | 集合比較 |
 | DoD-4 | `.claude/agents/` の symlink 群が `plugins/*/agents/` の和集合と一致 | 集合比較 |
 | DoD-5 | `.claude/commands/` の symlink 群が `plugins/*/commands/` の和集合と一致 | 集合比較 |
-| DoD-6 | Phase 2 開始 snapshot と最終 snapshot の user セクション hash 一致 | diff |
+| DoD-6 | Phase 2 開始 snapshot と最終 snapshot の user セクション hash 一致 | diff (INV-1 紐付け) |
 | DoD-7 | 07 削除 commit の `git revert --no-commit --no-edit && git revert --abort` 成功 | inline |
 | DoD-8 | `claude` CLI 利用可能な場合は plugin validate 全 plugin PASS / 利用不可なら recognition snapshot と `waived_by_solo_operator` 記録 | log + waiver |
 | DoD-9 | `creator-kit/` 関連の dangling symlink が `.claude/` 配下にゼロ | `find .claude -lname '*creator-kit*' | wc -l` = 0 |
@@ -97,18 +98,28 @@ python3 scripts/build-claude-settings.py --check; echo "settings=$?"
 ```bash
 python3 <<'PY' | tee eval-log/task/phase2-08/union-match.log
 import pathlib
-plugin_skills = sorted({p.name for p in pathlib.Path('plugins').glob('*/skills/*') if p.is_dir()})
-claude_skills = sorted({p.name for p in pathlib.Path('.claude/skills').iterdir() if p.is_symlink()})
-assert plugin_skills == claude_skills, f'mismatch:\n  plugins: {plugin_skills}\n  .claude: {claude_skills}'
-# agents: ファイル名 (.md) で比較 (粒度を skills に揃え: どちらもエントリ名で比較)
-plugin_agents = sorted({p.name for p in pathlib.Path('plugins').glob('*/agents/*') if p.is_file() and p.suffix == '.md'})
-claude_agents = sorted({p.name for p in pathlib.Path('.claude/agents').iterdir() if p.is_symlink()})
-assert plugin_agents == claude_agents, f'mismatch (agents):\n  plugins: {plugin_agents}\n  .claude: {claude_agents}'
-plugin_commands = sorted({str(p.relative_to(p.parents[1] / 'commands')) for p in pathlib.Path('plugins').glob('*/commands/**/*') if p.is_file()})
-claude_commands_dir = pathlib.Path('.claude/commands')
-claude_commands = sorted({str(p.relative_to(claude_commands_dir)) for p in claude_commands_dir.rglob('*') if p.is_symlink()}) if claude_commands_dir.exists() else []
-assert plugin_commands == claude_commands, f'mismatch (commands):\n  plugins: {plugin_commands}\n  .claude: {claude_commands}'
-print('union match OK (skills + agents + commands)')
+def union(kind: str) -> list[str]:
+    values = []
+    for plugin_dir in pathlib.Path('plugins').iterdir():
+        base = plugin_dir / kind
+        if not base.exists():
+            continue
+        values.extend(str(p.relative_to(base)) for p in base.rglob('*') if p.is_file() or p.is_symlink())
+    return sorted(set(values))
+def claude_side(kind: str) -> list[str]:
+    base = pathlib.Path(f'.claude/{kind}')
+    if not base.exists():
+        return []
+    return sorted({
+        str(p.relative_to(base))
+        for p in base.rglob('*')
+        if p.is_symlink()
+    })
+for kind in ('skills', 'agents', 'commands'):
+    plugin_side = union(kind)
+    claude = claude_side(kind)
+    assert plugin_side == claude, f'mismatch ({kind}):\n  plugins: {plugin_side}\n  .claude: {claude}'
+print('union match OK (skills + agents + commands, relpath unified)')
 PY
 ```
 
@@ -136,9 +147,16 @@ diff eval-log/task/phase2-06/user-section-start.sha256 eval-log/task/phase2-08/u
 ### Step 7.5 git revert dry-run
 
 ```bash
-sha=$(git log --oneline --grep="remove creator-kit" -1 --pretty=%H)
+shas=$(git log --grep="remove creator-kit" --pretty=%H)
+count=$(printf '%s\n' "$shas" | grep -c .)
+if [ "$count" -ne 1 ]; then
+  echo "expected exactly 1 commit matching 'remove creator-kit', got $count" >&2
+  printf '%s\n' "$shas" >&2
+  exit 1
+fi
+sha=$shas
 git revert --no-commit --no-edit "$sha" && git revert --abort
-echo "revert dry-run OK"
+echo "revert dry-run OK (single commit: $sha)"
 ```
 
 ### Step 7.6 Claude Code CLI 認識 (利用可能な場合)
@@ -149,7 +167,7 @@ if command -v claude > /dev/null; then
     claude plugin validate "$p" 2>&1 | tee "eval-log/task/phase2-08/plugin-validate-$p.txt"
   done
 else
-  echo "claude CLI not available; recording recognition snapshot only; requires solo_operator waiver" \
+  echo "claude CLI not available; recording recognition snapshot only; record waiver in review-approval.json waived_by_solo_operator: true" \
     | tee eval-log/task/phase2-08/cli-recognition-note.txt
   ls -la .claude/skills | tee eval-log/task/phase2-08/claude-skills-final.txt
 fi
@@ -160,26 +178,35 @@ fi
 ```bash
 python3 <<'PY' > eval-log/task/phase2-08/integration-report.md
 import json, pathlib, datetime
-syms = json.loads(pathlib.Path('eval-log/task/phase2-08/symlinks-final.json').read_text())
-sets = json.loads(pathlib.Path('eval-log/task/phase2-08/settings-final.json').read_text())
+base = pathlib.Path('eval-log/task/phase2-08')
+syms = json.loads((base / 'symlinks-final.json').read_text())
+sets = json.loads((base / 'settings-final.json').read_text())
+union_log = (base / 'union-match.log').read_text().strip() if (base / 'union-match.log').exists() else 'N/A'
+dangling = (base / 'dangling.txt').read_text().strip() or '(empty)'
+creator_refs = (base / 'creator-kit-refs.txt').read_text().strip() or '(empty)'
 print(f"# Phase 2 統合検証レポート\n\n生成: {datetime.datetime.now().isoformat()}\n")
-print(f"- symlinks plan 件数: {len(syms['plan'])} (全 noop)")
+print(f"## build CLI\n- symlinks plan 件数: {len(syms['plan'])} (全 noop)")
 print(f"- symlinks conflicts: {len(syms.get('conflicts', []))}")
 print(f"- settings conflicts: {len(sets.get('conflicts', []))}")
 print(f"- invariants_checked: {sets.get('invariants_checked')}")
+print(f"\n## 和集合一致\n{union_log}")
+print(f"\n## dangling symlink\n```\n{dangling}\n```")
+print(f"\n## creator-kit 参照\n```\n{creator_refs}\n```")
+print(f"\n## revert dry-run\n別途 Step 7.5 ログ参照")
+print(f"\n## waiver\nreview-approval.json の `waived_by_solo_operator` を参照")
 PY
 ```
 
 ### Step 7.8 README ステータス更新 + レビュー承認
 
-`doc/migration/phase2/README.md` を更新、`review-approval.json` 生成。
+`doc/migration/phase2/README.md` を更新、`review-approval.json` 生成。実行済み証跡は `eval-log/task/phase2-08/` に保存済み。
 
 ## Section 8. 検証手順
 
 | 完了条件 | 検証コマンド |
 |---|---|
 | DoD-1 | `jq -e '.summary.conflict == 0 and ([.plan[] | select(.action!="noop")] | length == 0)' eval-log/task/phase2-08/symlinks-final.json` |
-| DoD-2 | `jq '.conflicts | length, (.invariants_checked | length)' eval-log/task/phase2-08/settings-final.json` で 0, >=12 |
+| DoD-2 | `jq -e '.conflicts == [] and ([.invariants_checked[]] | length >= 12) and (["INV-1","INV-2","INV-3","INV-4","INV-5","INV-6","INV-7","INV-8","INV-9","INV-10","INV-11","INV-12"] - .invariants_checked == [])' eval-log/task/phase2-08/settings-final.json` |
 | DoD-3, DoD-4, DoD-5 | Step 7.2 のスクリプト exit 0 |
 | DoD-6 | Step 7.4 diff exit 0 |
 | DoD-7 | Step 7.5 |
@@ -193,10 +220,20 @@ PY
 | 失敗モード | 対策 | INV |
 |---|---|---|
 | 個別 plugin 検証では PASS だが統合時に namespace conflict 検出 | 02 partition 境界の見直しタスクへ戻す (P0_breaking) | INV-9 |
-| symlink が一部の plugin について生成されていない | build-claude-symlinks.py を `--apply` で再実行し再検証 | - |
+| symlink が一部の plugin について生成されていない | build-claude-symlinks.py を `--apply` で再実行し再検証 | INV-7 |
 | user セクション hash の比較対象が不揃い (全体 sha vs user-section hash) | Step 7.4 および 06 Step 7.1 で `--print-user-section-hash` 専用 snapshot を取得し同種比較 (解消済) | INV-1 |
-| claude CLI が無く DoD-7 を満たせない | snapshot を取得し、`waived_by_solo_operator` を review-approval.json または closure に明記する | - |
-| revert dry-run が失敗 (commit が分散) | 07 Step 7.5 の「単一 commit ポリシー」を強制 | - |
+| claude CLI が無く DoD-8 を満たせない | snapshot を取得し、`waived_by_solo_operator: true` を review-approval.json に明記する | INV-12 |
+| revert dry-run が失敗 (commit が分散) | 07 Step 7.5 の「単一 commit ポリシー」を強制 (08 Step 7.5 の count-assert で検出) | INV-9 |
+
+### 将来改善申し送り (Phase 3)
+
+| ID | 内容 | 根本論点 | 起票根拠 |
+|---|---|---|---|
+| F-1 | rubric governance に時間 SLO 列を追加し、各タスク期限の根拠 (drift 検出窓 / リリース凍結 / 監査周期) を明示する | Phase 0 凍結契約に時間軸 rubric 不在 → 「3営業日」等の数値が暗黙 | システム分析 why5 (因果ループ root) |
+| F-2 | revert anchor を commit message grep から軽量 tag (例: `phase2-pre-removal`) ベースへ昇格させ、文字列依存を除去 | grep 文字列はリネーム耐性が低く、count-assert は対症療法 | メタ・発想分析 代替案[B] |
+| F-3 | DoD waiver の発生条件・期限・解除条件を rubric governance 側で型定義し、各タスク doc の自由記述に依存しない | waiver 記録先・解除フローが各タスクで再発明されている | メタ・発想分析 抽象化提案 |
+
+(本タスク内では F-1/F-2/F-3 は対応不可: Phase 0 凍結契約および完了済 phase2-07 への遡及改修が必要。Phase 3 governance 改修タスクに引き継ぐ。)
 
 ## Section 10. 成果物一覧
 
@@ -224,13 +261,21 @@ PY
 
 ## Section 13. チェックリスト
 
-- [ ] phase2-07 DoD 全 PASS
-- [ ] Step 7.1 build CLI --check exit 0
-- [ ] Step 7.2 和集合一致 PASS
-- [ ] Step 7.3 dangling / creator-kit 参照 0 件
-- [ ] Step 7.4 user セクション hash 不変
-- [ ] Step 7.5 revert dry-run PASS
-- [ ] Step 7.6 CLI 認識 or snapshot 取得
-- [ ] Step 7.7 integration-report.md 生成
-- [ ] DoD 全 PASS
-- [ ] solo_operator 承認
+- [x] phase2-07 DoD 全 PASS
+- [x] Step 7.1 build CLI --check exit 0
+- [x] Step 7.2 和集合一致 PASS
+- [x] Step 7.3 dangling / creator-kit symlink 参照 0 件
+- [x] Step 7.4 user セクション hash 不変
+- [x] Step 7.5 revert dry-run PASS
+- [x] Step 7.6 CLI 認識 or snapshot 取得
+- [x] Step 7.7 integration-report.md 生成
+- [x] DoD-1 symlinks --check noop & conflicts 0
+- [x] DoD-2 settings invariants_checked が INV-1〜INV-12 を全件含む
+- [x] DoD-3〜5 和集合一致 (skills/agents/commands)
+- [x] DoD-6 user セクション hash 不変
+- [x] DoD-7 revert dry-run PASS (単一 commit 確認)
+- [x] DoD-8 CLI 認識 or waiver
+- [x] DoD-9 dangling / creator-kit symlink 参照 0 件
+- [x] DoD-10 integration-report.md 生成
+- [x] DoD-11 review-approval.json approved
+- [x] solo_operator 承認

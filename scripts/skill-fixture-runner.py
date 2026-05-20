@@ -22,10 +22,10 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = ROOT / "creator-kit" / "skills"
+SKILLS_DIR = ROOT / "plugins" / "skill-creator" / "skills"
 FIXTURE_DIR = ROOT / "eval-log" / "fixtures"
 OUT_PATH = ROOT / "eval-log" / "fixture-results.json"
-LINT = ROOT / "creator-kit" / "scripts"
+LINT = ROOT / "plugins" / "skill-governance-lint" / "scripts"
 
 
 def run(cmd: list[str]) -> tuple[int, str]:

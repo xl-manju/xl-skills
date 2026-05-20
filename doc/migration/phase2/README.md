@@ -65,13 +65,13 @@ Phase 0 (準備) と Phase 1 (設計+評価)、および Phase 2 試験移行 (s
 |---|---|---|---|---|---|
 | 01 | `01-residual-asset-inventory.md` | creator-kit 残資産 (skills/agents/非plugin資産) の棚卸し | 仕様+実行 | phase0 Phase 0 closure | 完了 (2026-05-20) |
 | 02 | `02-plugin-partition-specification.md` | 残資産を複数 plugin に分割する境界仕様 (どの skill をどの plugin へ) | 仕様 | 01 | 完了 (2026-05-20) |
-| 03 | `03-per-plugin-migration-procedure.md` | plugin 毎の物理移行手順仕様 (移行順序、依存解決、namespace 検査) | 仕様 | 02 | 未着手 |
-| 04 | `04-rollback-and-drift-specification.md` | rollback.sh 生成と drift 検証 (build CLI --check) の本番運用仕様 | 仕様 | 02 | 未着手 |
-| 05 | `05-conventions-phase2-update.md` | 三層モデル CONVENTIONS.md の Phase 2 本番化追記 (層C 退役、層B 縮退) | 仕様+実行 | 02 | 未着手 |
-| 06 | `06-per-plugin-migration-execution.md` | 各 plugin を `plugins/<name>/` へ物理移行する実行タスク | 実行 | 03, 04, 05 | 未着手 |
-| 07 | `07-creator-kit-removal.md` | `creator-kit/` 配下の正本剥奪と物理削除 | 実行 | 06 | 未着手 |
-| 08 | `08-phase2-integration-verification.md` | 全 plugin 統合検証 (build CLI --check、INV-1〜12、namespace conflict 0) | 実行 | 07 | 未着手 |
-| 09 | `09-phase2-completion-report.md` | Phase 2 本番完了報告 + closure.json | 文書 | 08 | 未着手 |
+| 03 | `03-per-plugin-migration-procedure.md` | plugin 毎の物理移行手順仕様 (移行順序、依存解決、namespace 検査) | 仕様 | 02 | 完了 (2026-05-20) |
+| 04 | `04-rollback-and-drift-specification.md` | rollback.sh 生成と drift 検証 (build CLI --check) の本番運用仕様 | 仕様 | 02 | 完了 (2026-05-20) |
+| 05 | `05-conventions-phase2-update.md` | 三層モデル CONVENTIONS.md の Phase 2 本番化追記 (層C 退役、層B 縮退) | 仕様+実行 | 02 | 完了 (2026-05-20) |
+| 06 | `06-per-plugin-migration-execution.md` | 各 plugin を `plugins/<name>/` へ物理移行する実行タスク | 実行 | 03, 04, 05 | 完了 (2026-05-20) |
+| 07 | `07-creator-kit-removal.md` | `creator-kit/` 配下の正本剥奪と物理削除 | 実行 | 06 | 完了 (2026-05-20) |
+| 08 | `08-phase2-integration-verification.md` | 全 plugin 統合検証 (build CLI --check、INV-1〜12、namespace conflict 0) | 実行 | 07 | 完了 (2026-05-20) |
+| 09 | `09-phase2-completion-report.md` | Phase 2 本番完了報告 + closure.json | 文書 | 08 | 完了 (2026-05-20) |
 
 **作成順序**: 01 → 02 → 03/04/05 並列可 → 06 → 07 → 08 → 09
 
@@ -185,5 +185,9 @@ phase2-02 partition では `eval-log/task/phase2-01/residual-inventory.json` の
 
 | 日付 | 改訂者 | 内容 |
 |---|---|---|
+| 2026-05-20 | AI | Phase 2 closed。phase2-01〜08 の完了状態、closure JSON、完了報告書を反映 |
+| 2026-05-20 | AI | phase2-08 完了。全 plugin 統合検証、和集合一致、user section hash、revert dry-run、Claude CLI plugin validate を PASS として記録 |
+| 2026-05-20 | AI | phase2-05 完了。CONVENTIONS.md に Phase 2 本番 (発効待ち: 層C 退役) を追記し、README ステータスを更新 |
+| 2026-05-20 | AI | phase2-03 / 04 / 06 完了。7 partition を `plugins/<name>/` へ物理移行し、phase2-06 証跡と承認ログを更新 |
 | 2026-05-20 | AI | phase2-02 完了。7 partition / 59 migrate files / target-plugin-map / dependency graph を登録 |
 | 2026-05-20 | initial | doc/migration/phase2/ 新設、タスク 01〜09 をインデックス化 |

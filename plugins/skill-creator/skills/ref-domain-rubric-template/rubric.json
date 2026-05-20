@@ -3,9 +3,9 @@
   "rubric_id": "domain-{{domain_name}}",
   "rubric_version": "0.1.0",
   "layer": "L1",
-  "_doc": "設計書29 §3 3層階層モデルの L1 (Domain) 雛形。{{domain_name}} を実ドメイン名に置換し、creator-kit/config/rubric-registry.json の rubrics[].rubric が指すパスへ配置する。L0 を upstream に固定し、L2 (プロジェクト固有 evaluator references/rubric.json) からは upstream として参照される中間層となる。",
+  "_doc": "設計書29 §3 3層階層モデルの L1 (Domain) 雛形。{{domain_name}} を実ドメイン名に置換し、plugins/skill-governance-config/config/rubric-registry.json の rubrics[].rubric が指すパスへ配置する。L0 を upstream に固定し、L2 (プロジェクト固有 evaluator references/rubric.json) からは upstream として参照される中間層となる。",
   "upstream": [
-    "creator-kit/skills/ref-skill-design-rubric/rubric.json"
+    "plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json"
   ],
   "merge_strategy": "deep-merge",
   "conflict_policy": "most-specific-wins",

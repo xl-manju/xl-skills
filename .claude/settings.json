@@ -5,8 +5,6 @@
   },
   "permissions": {
     "deny": [
-      "Write(creator-kit/skills/ref-skill-design-rubric/**)",
-      "Edit(creator-kit/skills/ref-skill-design-rubric/**)",
       "Write(.claude/skills/ref-skill-design-rubric/**)",
       "Edit(.claude/skills/ref-skill-design-rubric/**)",
       "Bash(rm -rf*)",

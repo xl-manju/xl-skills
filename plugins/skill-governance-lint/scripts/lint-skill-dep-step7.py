@@ -18,7 +18,7 @@
 検査対象:
   (1) wrap-* に base: フィールドがある
   (2) assign-*-evaluator に pair: フィールドがある
-  (3) pair: の相手スキルが creator-kit/skills か .claude/skills に存在する
+  (3) pair: の相手スキルが plugins/skill-creator/skills か .claude/skills に存在する
   (4) dangerous run-* に disable-model-invocation: true がある
       ("dangerous" の判定は frontmatter に danger: true / effect: external-mutation
        のいずれかを持つこと)
@@ -29,7 +29,7 @@
 Python 3.9+ 標準ライブラリのみ。設計書22 no-deps 原則に準拠。
 
 Usage:
-  lint-skill-dep-step7.py --skills-dir creator-kit/skills [--allow-partial]
+  lint-skill-dep-step7.py --skills-dir plugins/skill-creator/skills [--allow-partial]
   lint-skill-dep-step7.py /path/to/SKILL.md ...
 """
 from __future__ import annotations
@@ -146,7 +146,7 @@ def check_skill(
     if pair and not skill_exists(pair, repo):
         errs.append(
             f"{name}: pair target '{pair}' not found under "
-            f"creator-kit/skills or .claude/skills (doc/20 Step 7-3)"
+            f"plugins/skill-creator/skills or .claude/skills (doc/20 Step 7-3)"
         )
 
     # (4) dangerous run-* に disable-model-invocation: true があるか

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -13,11 +14,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_PATH = REPO_ROOT / "eval-log/task/phase2-04/rollback.template.sh"
 DEFAULT_PARTITION = REPO_ROOT / "eval-log/task/phase2-02/partition-plan.json"
-DEFAULT_MIGRATION_ORDER = REPO_ROOT / "eval-log/task/phase2-02/migration-order.json"
-DEFAULT_SNAPSHOT_BASE = REPO_ROOT / "eval-log/task/phase2-06"
+DEFAULT_MIGRATION_ORDER = REPO_ROOT / "eval-log/task/phase2-03/migration-order.json"
+# snapshot 一次保存先は phase2-04 配下に統一 (phase2-06 との循環依存を解消)。
+DEFAULT_SNAPSHOT_BASE = REPO_ROOT / "eval-log/task/phase2-04/snapshots"
 
-RECOMMENDED_SNAPSHOT_FILES = ("git-status.before.txt", "claude-symlinks.before.txt")
-REQUIRED_SNAPSHOT_FILE = "settings.before.json"
+REQUIRED_SNAPSHOT_FILES = (
+    "settings.before.json",
+    "settings.before.sha256",
+    "git-status.before.txt",
+    "claude-symlinks.before.txt",
+)
 
 
 def log(msg: str) -> None:
@@ -56,13 +62,27 @@ def resolve_snapshot_id(snapshot_dir: Path) -> str:
 
 
 def check_snapshot(snapshot_dir: Path) -> None:
-    required = snapshot_dir / REQUIRED_SNAPSHOT_FILE
-    if not required.is_file():
-        log(f"[gen-rollback][ERROR] missing required snapshot: {required}")
+    missing = [snapshot_dir / name for name in REQUIRED_SNAPSHOT_FILES if not (snapshot_dir / name).is_file()]
+    if missing:
+        for path in missing:
+            log(f"[gen-rollback][ERROR] missing required snapshot: {path}")
         sys.exit(1)
-    for name in RECOMMENDED_SNAPSHOT_FILES:
-        if not (snapshot_dir / name).is_file():
-            log(f"[gen-rollback][WARN] recommended snapshot missing: {snapshot_dir / name}")
+    # sha256 改竄/破損検査: settings.before.sha256 の先頭フィールドが
+    # settings.before.json の sha256 と一致することを必須化。
+    settings_json = snapshot_dir / "settings.before.json"
+    sha_file = snapshot_dir / "settings.before.sha256"
+    try:
+        expected = sha_file.read_text().strip().split()[0]
+    except (OSError, IndexError):
+        log(f"[gen-rollback][ERROR] cannot read sha256 record: {sha_file}")
+        sys.exit(1)
+    actual = hashlib.sha256(settings_json.read_bytes()).hexdigest()
+    if expected.lower() != actual.lower():
+        log(
+            f"[gen-rollback][ERROR] snapshot sha256 mismatch: "
+            f"expected={expected} actual={actual} file={settings_json}"
+        )
+        sys.exit(1)
 
 
 def build_moved_paths_literal(part: dict) -> str:

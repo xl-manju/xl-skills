@@ -9,30 +9,33 @@
 - Step 1: `.claude/skills` および `.claude/agents` のうち `plugins/<PLUGIN>/` を指す symlink を削除 (build CLI が再生成する前提)
 - Step 2: `plugins/<PLUGIN>/` を `git restore --staged --worktree`。未追跡なら `rm -rf` でフォールバック
 - Step 3: creator-kit/ 内の移動元 `MOVED_PATHS[]` を 1 件ずつ `git restore`
-- Step 4: `eval-log/task/phase2-06/<PLUGIN>/settings.before.json` を `.claude/settings.json` に復元 (欠落時は exit 1)
-- Step 5: `scripts/build-claude-symlinks.py --check` と `scripts/build-claude-settings.py --check` で整合確認
+- Step 4: `eval-log/task/phase2-04/snapshots/<PLUGIN>/settings.before.json` を `.claude/settings.json` に復元 (一次パス。phase2-06 配下は後方互換のフォールバック。両者欠落時は exit 1)
+- Step 5: `scripts/build-claude-symlinks.py --check` と `scripts/build-claude-settings.py --check` で per-plugin の整合確認 (Phase 全体の drift 検査は `drift-check.sh` が担当する)
 
-placeholder はコメント内および環境変数/配列リテラル内に閉じ込められており、テンプレ単体で `bash -n` PASS する。
+placeholder はコメント内および環境変数/配列リテラル内に閉じ込められており、テンプレ単体で `bash -n` PASS する。`MOVED_PATHS_PLACEHOLDER` は gen-rollback.py が `MOVED_PATHS=(...)` 行ごと差し替える固定パターンであり、テンプレ実装と一致する。
 
 ## 2. snapshot から script への写像アルゴリズム
 
 ```
 input:
   - plugin name (partition-plan.json の plugin エントリ)
-  - moved files list (migration-order.json の当該 plugin 配下)
-  - pre-state snapshot dir: eval-log/task/phase2-06/<plugin>/
+  - moved files list (partition-plan.json の当該 plugin の files[].rel)
+  - pre-state snapshot dir (一次): eval-log/task/phase2-04/snapshots/<plugin>/
       * settings.before.json
-      * git-status.before.txt   (git status -s の保存)
-      * claude-symlinks.before.txt (find .claude -type l の保存)
+      * settings.before.sha256       (settings.before.json の sha256、改竄検査用)
+      * git-status.before.txt        (git status -s の保存)
+      * claude-symlinks.before.txt   (find .claude -type l の保存)
 output:
   - rollback-<plugin>.sh (chmod +x, bash -n PASS)
 algorithm:
   1. snapshot ヘッダ (plugin 名, snapshot_id=<git rev-parse HEAD>+UTC) をテンプレへ注入
-  2. moved files list を Bash 配列リテラルに整形し MOVED_PATHS に展開
+  2. moved files list を Bash 配列リテラルに整形し MOVED_PATHS_PLACEHOLDER パターンを置換
+     (テンプレ側の `MOVED_PATHS=("${MOVED_PATHS_PLACEHOLDER:-}")` 行を `MOVED_PATHS=(...)` に書き換える)
   3. settings.before.json への参照パスをハードコード (Step 4)
   4. .claude/ 派生 symlink 削除行 (Step 1) は plugin 名のみで一意決定
   5. build CLI --check 行 (Step 5) は固定
-  6. 生成後 `bash -n` を gate として実行。失敗時 exit 2
+  6. snapshot 4 ファイルの存在および settings.before.sha256 と settings.before.json の sha256 一致を gate として検査。不整合なら exit 1
+  7. 生成後 `bash -n` を gate として実行。失敗時 exit 2
 ```
 
 ## 3. 失敗時復旧フロー (番号付き、5 項目以上)
@@ -48,16 +51,19 @@ algorithm:
 
 ## 4. 検証ログ保存パス規約 (DoD-5)
 
-すべての pre-state snapshot および post-rollback 検証ログは以下に固定する:
+pre-state snapshot は phase2-04 配下を一次とし、phase2-06 の plugin 投入ログは同じ snapshot を参照する (循環依存解消):
 
-- `eval-log/task/phase2-06/<plugin>/settings.before.json`
-- `eval-log/task/phase2-06/<plugin>/git-status.before.txt`
-- `eval-log/task/phase2-06/<plugin>/claude-symlinks.before.txt`
-- `eval-log/task/phase2-06/<plugin>/drift-symlink.json` (drift-check.sh 出力)
-- `eval-log/task/phase2-06/<plugin>/drift-settings.json` (drift-check.sh 出力)
-- `eval-log/task/phase2-06/<plugin>/post-rollback/*.json` (ロールバック後再検証時)
+- 一次 snapshot:
+  - `eval-log/task/phase2-04/snapshots/<plugin>/settings.before.json`
+  - `eval-log/task/phase2-04/snapshots/<plugin>/settings.before.sha256`
+  - `eval-log/task/phase2-04/snapshots/<plugin>/git-status.before.txt`
+  - `eval-log/task/phase2-04/snapshots/<plugin>/claude-symlinks.before.txt`
+- phase2-06 投入ログ (drift / post-rollback):
+  - `eval-log/task/phase2-06/<plugin>/drift-symlink.json`
+  - `eval-log/task/phase2-06/<plugin>/drift-settings.json`
+  - `eval-log/task/phase2-06/<plugin>/post-rollback/*.json`
 
-他パスへの書き出しは禁止 (本仕様で凍結)。
+他パスへの書き出しは禁止 (本仕様で凍結)。phase2-04 fixture 検証時は `eval-log/task/phase2-04/snapshots/<sample-plugin>/` を fixture 元として明示する。
 
 ## 5. pre-state snapshot 取得手順と fixture/sandbox 検証方針 (DoD-7)
 
@@ -66,19 +72,19 @@ algorithm:
 plugin 投入直前 (Phase2-06 Step 直前) に以下を実行する:
 
 ```
-mkdir -p eval-log/task/phase2-06/<plugin>
-cp .claude/settings.json eval-log/task/phase2-06/<plugin>/settings.before.json
-git status -s > eval-log/task/phase2-06/<plugin>/git-status.before.txt
-find .claude -type l | sort > eval-log/task/phase2-06/<plugin>/claude-symlinks.before.txt
-sha256sum eval-log/task/phase2-06/<plugin>/settings.before.json \
-  > eval-log/task/phase2-06/<plugin>/settings.before.sha256
+SNAP="eval-log/task/phase2-04/snapshots/<plugin>"
+mkdir -p "$SNAP"
+cp .claude/settings.json "$SNAP/settings.before.json"
+git status -s > "$SNAP/git-status.before.txt"
+find .claude -type l | sort > "$SNAP/claude-symlinks.before.txt"
+sha256sum "$SNAP/settings.before.json" > "$SNAP/settings.before.sha256"
 ```
 
-これら 4 ファイルが揃っていない状態で plugin 投入を行うことを禁止する (gen-rollback.py は欠落時に exit 1)。
+これら 4 ファイル (settings.before.json / settings.before.sha256 / git-status.before.txt / claude-symlinks.before.txt) が揃っていない、または sha256 不一致の状態で plugin 投入を行うことを禁止する (gen-rollback.py は欠落・不一致時に exit 1)。
 
 ### 5.2 fixture / sandbox 検証方針
 
-本番リポジトリへ適用する前に、`tests/fixtures/phase2-rollback/<plugin>/` 配下に sandbox を構築し、以下を検証する:
+本番リポジトリへ適用する前に、`tests/fixtures/phase2-rollback/<plugin>/` 配下に sandbox を構築し、`eval-log/task/phase2-04/snapshots/<sample-plugin>/` を fixture 元として以下を検証する:
 
 - fixture の sandbox 上で `gen-rollback.py --plugin <name> --out /tmp/r.sh` を実行 → `bash -n /tmp/r.sh` PASS
 - sandbox 上で plugin 投入を模擬 → `rollback-<plugin>.sh` 実行 → 復旧 gate (下記) を満たすことを確認

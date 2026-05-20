@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: lint-manifest-contents
-# purpose: Verify creator-kit manifest entries point to existing files.
+# purpose: Verify plugin or legacy manifest entries point to existing files.
 # inputs:
 #   - argv: optional manifest path
 # outputs:
@@ -12,7 +12,7 @@
 # write-scope: none
 # dependencies: []
 # ///
-"""Verify creator-kit/manifest.json matches files present in the kit."""
+"""Verify plugin.json or legacy manifest.json matches files present in the package."""
 from __future__ import annotations
 
 import json
@@ -23,6 +23,7 @@ from pathlib import Path
 
 KIT_DIR = Path(__file__).resolve().parents[1]
 MANIFEST = KIT_DIR / "manifest.json"
+PLUGIN_MANIFEST = KIT_DIR / ".claude-plugin" / "plugin.json"
 SETTINGS_EXAMPLE = KIT_DIR / "config" / "claude-settings-hooks.json.example"
 
 
@@ -33,6 +34,19 @@ def expect(path: Path, findings: list[str]) -> None:
 
 def main() -> int:
     bidirectional = "--bidirectional" in sys.argv
+    if not MANIFEST.exists() and PLUGIN_MANIFEST.exists():
+        plugin = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+        findings: list[str] = []
+        for key in ("name", "version", "description"):
+            if not plugin.get(key):
+                findings.append(f"plugin.json missing required key: {key}")
+        if findings:
+            for finding in findings:
+                print(finding)
+            return 1
+        print("OK: plugin manifest contents valid")
+        return 0
+
     manifest = json.loads(MANIFEST.read_text())
     findings: list[str] = []
 
@@ -84,7 +98,7 @@ def main() -> int:
     check_yaml_spec_freshness(warnings)
     for w in warnings:
         print(w)
-    print("OK: manifest contents match creator-kit files")
+    print("OK: manifest contents match package files")
     return 0
 
 
@@ -104,7 +118,7 @@ def is_excluded(rel_path: str, excluded: list[str]) -> bool:
 
 
 def check_bidirectional(manifest: dict, findings: list[str]) -> None:
-    """creator-kit/scripts/ と creator-kit/skills/ を走査し、manifest 未登録を検出する。"""
+    """scripts/ と skills/ を走査し、manifest 未登録を検出する。"""
     excluded = load_excluded_paths(manifest)
 
     # -- scripts --

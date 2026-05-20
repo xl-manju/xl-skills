@@ -11,7 +11,7 @@
 
 Usage:
   python3 scripts/gate-phase0.py
-  python3 scripts/gate-phase0.py --skills-dir creator-kit/skills
+  python3 scripts/gate-phase0.py --skills-dir plugins/skill-creator/skills
 """
 from __future__ import annotations
 
@@ -61,22 +61,14 @@ def check_resource_map(skill_dir: Path) -> list[str]:
 
 
 def check_duplicate_scripts(repo_root: Path) -> list[str]:
-    """(c) root/scripts/ と creator-kit/scripts/ の同名スクリプトが内容同一か確認"""
+    """(c) Phase 2 後は root scripts/ の symlink が解決可能か確認"""
     errs = []
     root_scripts = repo_root / "scripts"
-    ck_scripts = repo_root / "creator-kit" / "scripts"
-    if not root_scripts.is_dir() or not ck_scripts.is_dir():
+    if not root_scripts.is_dir():
         return errs
-    for root_script in root_scripts.glob("*.py"):
-        ck_script = ck_scripts / root_script.name
-        if ck_script.exists():
-            root_content = root_script.read_text(encoding="utf-8")
-            ck_content = ck_script.read_text(encoding="utf-8")
-            if root_content != ck_content:
-                errs.append(
-                    f"(c) {root_script.name}: scripts/ と creator-kit/scripts/ で内容が異なる"
-                    " (SSOT 違反)"
-                )
+    for script in root_scripts.iterdir():
+        if script.is_symlink() and not script.exists():
+            errs.append(f"(c) {script.name}: broken symlink")
     return errs
 
 
@@ -108,7 +100,7 @@ def main() -> int:
 
     # リポジトリルートを推定
     repo_root = Path(".").resolve()
-    skills_base = skills_dir_override or (repo_root / "creator-kit" / "skills")
+    skills_base = skills_dir_override or (repo_root / "plugins" / "skill-creator" / "skills")
     if not skills_base.is_dir():
         print(f"ERROR: skills directory not found: {skills_base}", file=sys.stderr)
         return 2

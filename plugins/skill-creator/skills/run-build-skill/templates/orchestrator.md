@@ -68,9 +68,9 @@ rubric_refs:
 ```bash
 # {{phase2_generator}} を Task tool 経由で起動。
 # 完了時に P0 lint 全件を実行:
-python3 creator-kit/scripts/lint-skill-tree.py --skills-dir {{output_dir}}
-python3 creator-kit/scripts/validate-frontmatter.py {{output_dir}}/SKILL.md
-python3 creator-kit/scripts/lint-skill-description.py --skills-dir {{output_dir}}
+python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir {{output_dir}}
+python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py {{output_dir}}/SKILL.md
+python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir {{output_dir}}
 ```
 **Gate 2**: 全 lint exit 0 + git diff --shortstat が >0 行。
 

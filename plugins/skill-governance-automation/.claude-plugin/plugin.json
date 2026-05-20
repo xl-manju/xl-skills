@@ -2,5 +2,8 @@
   "name": "skill-governance-automation",
   "version": "0.1.0",
   "description": "Skill governance automation scripts",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
   "keywords": ["skill-governance","automation","orchestration","build","rollback"]
 }

@@ -22,6 +22,7 @@ rubric_refs:
 reference_refs:
   - ref-task-context-map
   - ref-skill-glossary
+  - ref-domain-task-spec-rubric
 # context-budget: orchestrationのみ。各子スキルがそれぞれの設計書を参照する。本スキルは05/06/07/13/23/25章のみ参照。
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
@@ -32,11 +33,11 @@ audit-trigger: quarterly
 
 # run-skill-create
 
-> ※ creator-kit Phase 0 移行中は `creator-kit/skills/` が正本、`.claude/skills/` への配置は派生。本SKILL.mdは両配置で動作するよう self-relative パスを使用。
+> ※ Phase 2 移行後は `plugins/skill-creator/skills/` が正本、`.claude/skills/` は symlink/deploy target。本SKILL.mdは両配置で動作するよう self-relative パスを使用。
 
 ## Purpose & Output Contract
 
-ユーザー要望→`skill-brief.md`→Skill生成→creator-kit登録判定→P0 lint→設計評価→パラダイム評価→governance承認 を**ゲートあり自動連鎖**で実行する端から端までのオーケストレーター。
+ユーザー要望→`skill-brief.md`→Skill生成→plugin/marketplace登録判定→P0 lint→設計評価→パラダイム評価→governance承認 を**ゲートあり自動連鎖**で実行する端から端までのオーケストレーター。
 
 ### 引数なしで呼ばれた場合
 `/run-skill-create` を引数なしで呼ぶと、Step 1 (run-skill-elicit) が起動し対話フローで topic を確定する。初回ユーザーはそのまま無引数で起動して問題ない。各 brief フィールドの意味は `references/skill-brief-schema.json` を参照（フィールドごとに description あり）。
@@ -50,7 +51,7 @@ audit-trigger: quarterly
 
 `--fast` 時のフロー: Step 1 brief → Step 2 build → Step 4a P0 lint → Step 6 governance (auto-approve)。Step 4b/5 (fork評価/elegant-review) を skip する。判定は機械的に行い、変更ファイル数・evaluator pair 不要条件も確認する:
 ```bash
-CHANGED_FILES=$(git diff --name-only -- "creator-kit/skills/$SKILL_NAME/" | wc -l | tr -d ' ')
+CHANGED_FILES=$(git diff --name-only -- "plugins/skill-creator/skills/$SKILL_NAME/" | wc -l | tr -d ' ')
 PAIR_REQUIRED=$(python3 -c "import json; b=json.load(open('eval-log/skill-brief.json')); print('true' if b.get('generate_pair_evaluator') or b.get('needs_independent_context') else 'false')")
 if [[ "$FAST" == "true" ]] && [[ "$CHANGED_FILES" == "1" ]] && [[ "$DIFF_LINES" -le 30 ]] && [[ "$KIND" =~ ^(ref|wrap)$ ]] && [[ "$PAIR_REQUIRED" == "false" ]]; then
   echo "fast mode: skip Step 4b/5"
@@ -60,9 +61,9 @@ fi
 
 **入力**: topic (任意), mode ∈ {create, update}
 **出力**:
-- `creator-kit/skills/<skill_name>/` 一式 (SKILL.md + references/ + scripts/)。`.claude/skills/` は派生/symlink/deploy target
+- `plugins/skill-creator/skills/<skill_name>/` 一式 (SKILL.md + references/ + scripts/)。`.claude/skills/` は派生/symlink/deploy target
 - `eval-log/skill-build-trace.json` (01/01a/02/03/04/05/06/07/08/09/10/11/13/14/15/16 正本フローへの対応証跡)
-- 共通基盤の場合は `creator-kit/manifest.json` 登録差分
+- 共通基盤の場合は `plugins/skill-creator/.claude-plugin/plugin.json` 登録差分
 - `eval-log/docs/<NN>-<timestamp>.json` (評価結果)
 - 完了レポート (どのゲートでユーザー承認を得たか。本文はパラメーター名を除き日本語)
 
@@ -75,7 +76,7 @@ fi
 3. **失敗時の停止**: P0 lint failまたは evaluator FAIL なら停止し、findings提示。
 4. **context:fork**: evaluator/governance reviewer は必ず context:fork で起動 (Sycophancy防止)。
 5. **handoff保存**: 各ゲート通過時点で `eval-log/handoff-<step>.json` を残し、PostCompact hook で復元可能にする。
-6. **creator-kit登録は確認後**: 共通基盤に該当する追加物は manifest 登録案を自動生成するが、ユーザー承認なしに `manifest.json` を更新しない。
+6. **plugin/marketplace登録は確認後**: 共通基盤に該当する追加物は plugin/marketplace 登録案を自動生成するが、ユーザー承認なしに `.claude-plugin/plugin.json` や marketplace metadata を更新しない。
 7. **resource-map先読み**: local reference を読む前に `references/resource-map.yaml` を読み、必要な補助ファイルだけを開く。
 8. **日本語成果物ゲート**: brief の `output_language=ja` と `parameter_language_exception=true` を既定とし、生成本文・レビュー・完了レポートの説明文を日本語にする。
 
@@ -86,9 +87,9 @@ fi
                                     │
                               [Gate 1: brief確認]
                                     ▼
-[Step 2] run-build-skill   ──→  creator-kit/skills/<name>/ + eval-log/skill-build-trace.json
+[Step 2] run-build-skill   ──→  plugins/skill-creator/skills/<name>/ + eval-log/skill-build-trace.json
                                     │
-                              [Step 3: creator-kit登録判定]
+                              [Step 3: plugin/marketplace登録判定]
                                     │
                               [Gate 2.5: 横展開対象確認]
                                     │
@@ -135,54 +136,54 @@ Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])
 mode=create なら新規、mode=update なら既存スキルの増分更新。
 出力された `eval-log/skill-build-trace.json` で、01章5要素、01a Step 1〜9、02/03/04/05/06/07/08/09/10/11/13/14/15/16 の doc_coverage と `pattern_decisions` が全て PASS/N/A/skip 理由付きになっていることを Gate 2 の前提にする。
 
-### Step 3: creator-kit登録判定
+### Step 3: plugin/marketplace登録判定
 
 生成・更新した成果物が次のいずれかに該当する場合、横展開対象候補として扱う:
 
 - Skill作成・更新・評価・governance に関係する `run-*` / `assign-*` / `ref-*`
-- `creator-kit` に入れるべき hook / lint / adapter / secret helper / config
+- plugin として配布すべき hook / lint / adapter / secret helper / config
 - 複数プロジェクトで共通利用する rubric / reference / template
 
-該当する場合は、成果物を `creator-kit/` 側へ置き、次を実行して manifest 登録案を作る:
+該当する場合は、成果物を適切な `plugins/<target-plugin>/` 配下へ置き、次を実行して `.claude-plugin/plugin.json` / marketplace 登録案を作る:
 
 ```bash
-python3 creator-kit/scripts/build-manifest-registration-plan.py
+python3 plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py
 ```
 
 ### Gate 2.5: 横展開対象確認
 
-`build-manifest-registration-plan.py` の出力をユーザーに提示し、`creator-kit` に登録してよいか確認する。承認された場合のみ:
+`build-manifest-registration-plan.py` の出力をユーザーに提示し、plugin/marketplace に登録してよいか確認する。承認された場合のみ:
 
 ```bash
-python3 creator-kit/scripts/build-manifest-registration-plan.py --apply
+python3 plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py --apply
 ```
 
 プロジェクト固有Skillの場合は manifest 登録しない。登録しない理由を完了レポートに残す。
 
 ### Step 4a: P0 lint (自動)
 
-cwd は {{PROJECT_ROOT}} プロジェクトルート。`--skills-dir` には creator-kit/skills/ または .claude/skills/ を明示する。
-SKILLS_DIR は Phase 0 中の正本である `creator-kit/skills` を既定とし、`.claude/skills` に配置した派生を検査する場合のみ上書きする。
+cwd は {{PROJECT_ROOT}} プロジェクトルート。`--skills-dir` には plugins/skill-creator/skills/ または .claude/skills/ を明示する。
+SKILLS_DIR は移行後の正本である `plugins/skill-creator/skills` を既定とし、`.claude/skills` に配置した派生を検査する場合のみ上書きする。
 
 ```bash
-SKILLS_DIR="${CLAUDE_SKILLS_DIR:-creator-kit/skills}"
+SKILLS_DIR="${CLAUDE_SKILLS_DIR:-plugins/skill-creator/skills}"
 
-# creator-kit lint: manifest/依存方向を含め、配布対象の実体と設定例を検査。
-python3 creator-kit/scripts/lint-skill-name.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-skill-description.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-skill-tree.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/validate-frontmatter.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-dependency-direction.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-skill-dep-step7.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-forbidden-deps.py --skills-dir "$SKILLS_DIR"
-python3 creator-kit/scripts/lint-manifest-contents.py
+# plugin lint: manifest/依存方向を含め、配布対象の実体と設定例を検査。
+python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-dependency-direction.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-forbidden-deps.py --skills-dir "$SKILLS_DIR"
+python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py
 ```
 **全てexit 0必須**。失敗時: findings をユーザー提示 → Step 2 へ戻る (最大3周)。Gate 2 は全 lint exit 0 の場合のみ通過可。
 加えて、生成テンプレートに `TODO`、未展開 `{{...}}`、英語の仮文が残る場合は Step 2 へ戻す。パラメーター名、frontmatterキー、JSONキー、CLI引数は英語のままでよい。
 
 ### Gate 2: diff確認
 
-`git diff creator-kit/skills/<name>/` をユーザーに提示し承認を得る。派生配置を検査する場合のみ `.claude/skills/<name>/` も併記する。前提: Step 4a が全 pass していること。
+`git diff plugins/skill-creator/skills/<name>/` をユーザーに提示し承認を得る。派生配置を検査する場合のみ `.claude/skills/<name>/` も併記する。前提: Step 4a が全 pass していること。
 あわせて `eval-log/skill-build-trace.json` を提示し、設計書準拠の判断が再現可能か確認する。
 
 ### Step 4b: 設計評価
@@ -199,9 +200,9 @@ Skill(assign-skill-design-evaluator, args=<skill_path>, context=fork)
 
 ```bash
 # git diff --shortstat の "X insertions" + "Y deletions" を加算して 30 を超えるか判定
-DIFF_LINES=$(git diff --shortstat -- "creator-kit/skills/$SKILL_NAME/" \
+DIFF_LINES=$(git diff --shortstat -- "plugins/skill-creator/skills/$SKILL_NAME/" \
   | python3 -c "import sys,re; s=sys.stdin.read(); ins=sum(int(m) for m in re.findall(r'(\d+) insertion',s)); dels=sum(int(m) for m in re.findall(r'(\d+) deletion',s)); print(ins+dels)")
-NEW_SKILL=$(test -n "$(git ls-files --others --exclude-standard creator-kit/skills/$SKILL_NAME/)" && echo "true" || echo "false")
+NEW_SKILL=$(test -n "$(git ls-files --others --exclude-standard plugins/skill-creator/skills/$SKILL_NAME/)" && echo "true" || echo "false")
 if [[ "$NEW_SKILL" == "true" ]] || [[ "$DIFF_LINES" -gt 30 ]]; then
   echo "elegant-review triggered: new=$NEW_SKILL diff_lines=$DIFF_LINES"
   # Skill 起動

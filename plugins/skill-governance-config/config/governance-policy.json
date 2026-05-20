@@ -64,8 +64,8 @@
       "scripts/lint-dependency-direction.py",
       "scripts/lint-skill-description.py",
       "scripts/lint-external-refs.py",
-      "creator-kit/scripts/lint-script-frontmatter.py",
-      "creator-kit/scripts/lint-rubric-violation.py"
+      "plugins/skill-governance-lint/scripts/lint-script-frontmatter.py",
+      "plugins/skill-governance-lint/scripts/lint-rubric-violation.py"
     ]
   },
   "bootstrap_phase": {

@@ -12,9 +12,9 @@
 |---|---|---|---|
 | `--plugin <name>` | yes | str | partition-plan.json の plugin 名 (例: `skill-governance-lint`) |
 | `--out <path>` | yes | path | 生成する `rollback-<plugin>.sh` の絶対パス |
-| `--snapshot-dir <path>` | no | path | pre-state snapshot dir。省略時は `eval-log/task/phase2-06/<plugin>/` |
+| `--snapshot-dir <path>` | no | path | pre-state snapshot dir。省略時は `eval-log/task/phase2-04/snapshots/<plugin>/` (一次保存先) |
 | `--partition <path>` | no | path | partition-plan.json パス。省略時は `eval-log/task/phase2-02/partition-plan.json` |
-| `--migration-order <path>` | no | path | migration-order.json パス。省略時は `eval-log/task/phase2-02/migration-order.json` |
+| `--migration-order <path>` | no | path | migration-order.json パス。省略時は `eval-log/task/phase2-03/migration-order.json` |
 | `--dry-run` | no | flag | 生成内容を stdout に出すのみ、ファイル書き出しなし |
 
 ## 3. exit codes
@@ -22,9 +22,9 @@
 | code | 意味 |
 |---|---|
 | 0 | 生成成功 (rollback スクリプトを `--out` に書き出し、`bash -n` PASS) |
-| 1 | snapshot 欠落 (settings.before.json / git-status.before.txt / claude-symlinks.before.txt のいずれか不在) |
+| 1 | snapshot 欠落または改竄 (settings.before.json / settings.before.sha256 / git-status.before.txt / claude-symlinks.before.txt のいずれか不在、または sha256 不一致) |
 | 2 | 構文エラー (生成スクリプトに対する `bash -n` が失敗) |
-| 3 | 引数不正 (plugin 名が partition-plan.json に未登録、out パスが書き込み不可 等) |
+| 3 | 引数不正 (plugin 名が partition-plan.json に未登録、out パスが書き込み不可、テンプレ欠落 等) |
 
 ## 4. stdout / stderr
 
@@ -34,9 +34,9 @@
 
 ## 5. 入力
 
-- pre-state snapshot dir (Section 5.1 の 4 ファイル)
-- `eval-log/task/phase2-02/partition-plan.json` (plugin と moved paths の対応)
-- `eval-log/task/phase2-02/migration-order.json` (投入順序、依存)
+- pre-state snapshot dir (Section 5.1 の 4 ファイル。一次保存先 `eval-log/task/phase2-04/snapshots/<plugin>/`)
+- `eval-log/task/phase2-02/partition-plan.json` (plugin と moved paths の対応。**MOVED_PATHS は本ファイルの `files[].rel` を一次入力とする**)
+- `eval-log/task/phase2-03/migration-order.json` (投入順序検証用。MOVED_PATHS 構築には用いず、`--migration-order` は順序整合のクロスチェック専用)
 - `eval-log/task/phase2-04/rollback.template.sh` (本タスクで凍結したテンプレ)
 
 ## 6. 出力
@@ -62,3 +62,15 @@ python3 scripts/phase2/gen-rollback.py \
 ```
 
 exit 0 を確認してから plugin の物理移行に進む。本契約からの逸脱は許容しない。
+
+## 9. メタ rollback (rollback.sh 自体の破損)
+
+`rollback-<plugin>.sh` 自体がディスク上で破損・改変された場合は、snapshot dir (`eval-log/task/phase2-04/snapshots/<plugin>/`) が無傷である限り、以下の再実行で **決定論的に同一バイト列のスクリプト** を再生成できる (Section 7 不変条件):
+
+```
+python3 scripts/phase2/gen-rollback.py \
+  --plugin <name> \
+  --out eval-log/task/phase2-06/<name>/rollback-<name>.sh
+```
+
+これにより rollback スクリプトを単独でバックアップする必要はなく、snapshot の保全のみが回帰の根拠となる。snapshot 自体が破損した場合 (sha256 不一致) は exit 1 で停止し、手動調査に移る。

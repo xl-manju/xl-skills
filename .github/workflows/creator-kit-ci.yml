@@ -1,4 +1,4 @@
-name: Creator Kit CI
+name: Plugin Governance CI
 
 on:
   pull_request:
@@ -15,56 +15,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compile Python scripts
+      - name: Compile migrated Python scripts
         run: |
-          python3 -m py_compile \
-            creator-kit/scripts/lint-forbidden-deps.py \
-            creator-kit/scripts/lint-skill-dep-step7.py \
-            creator-kit/scripts/lint-manifest-contents.py \
-            creator-kit/scripts/cross_platform_secret.py \
-            creator-kit/scripts/build-manifest-registration-plan.py \
-            creator-kit/scripts/adapters/dispatch.py \
-            creator-kit/scripts/adapters/resolve_route.py \
-            creator-kit/scripts/secrets/audit_secret_leak.py \
-            creator-kit/scripts/secrets/keychain_helper.py
+          find scripts plugins -type f -name '*.py' -print0 | xargs -0 python3 -m py_compile
 
       - name: Verify manifest inventory
         run: |
-          python3 creator-kit/scripts/lint-manifest-contents.py
-          python3 creator-kit/scripts/build-manifest-registration-plan.py
+          python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py
+          python3 plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py
 
-      # G-A3 gate: creator-kit/skills/ と .claude/skills/ の drift をゼロに保証する
-      - name: Verify creator-kit ↔ .claude/skills sync (Phase 0完了 gate)
+      # G-A3 gate: plugins/*/{skills,agents,commands}/ と .claude/ の drift をゼロに保証する
+      - name: Verify plugin symlink sync
         run: bash scripts/sync-skills-to-claude.sh --check
 
-      # G-A4 gate: creator-kit/scripts/ と root scripts/ の drift をゼロに保証する
-      - name: Verify creator-kit/scripts ↔ scripts drift (Hook path 整合 gate)
+      # G-A4 gate: Phase 2 後の script 参照整合を保証する
+      - name: Verify script references
         run: bash scripts/check-scripts-drift.sh
 
       - name: Verify forbidden dependencies
-        run: python3 creator-kit/scripts/lint-forbidden-deps.py
+        run: python3 plugins/skill-governance-lint/scripts/lint-forbidden-deps.py
 
       - name: Audit committed secrets
-        run: python3 creator-kit/scripts/secrets/audit_secret_leak.py
+        run: python3 plugins/skill-governance-secrets/scripts/secrets/audit_secret_leak.py
 
       # P0-2: 300行 cap + resource-map.yaml チェック (全 Skill 一括)
       - name: Lint Skill tree (300-line cap + resource-map check)
-        run: python3 creator-kit/scripts/lint-skill-tree.py --skills-dir creator-kit/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/skill-creator/skills
 
       # P0-3 / P1-1: frontmatter フィールド検証 (effect フィールド含む)
       - name: Validate frontmatter
         run: |
-          for skill_dir in creator-kit/skills/*/; do
-            python3 creator-kit/scripts/validate-frontmatter.py "${skill_dir}SKILL.md"
+          for skill_dir in plugins/skill-creator/skills/*/; do
+            python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "${skill_dir}SKILL.md"
           done
 
       # P0-3: description lint (統一版)
       - name: Lint Skill descriptions
-        run: python3 creator-kit/scripts/lint-skill-description.py \
-               --skills-dir creator-kit/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py \
+               --skills-dir plugins/skill-creator/skills
 
       - name: Lint doc/20 dependency contract
-        run: python3 creator-kit/scripts/lint-skill-dep-step7.py --skills-dir creator-kit/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir plugins/skill-creator/skills
 
       # G-D1: 既存skill群の回帰smoke test (現状 warn-only、ベースライン整備後に blocking 化)
       - name: Skill fixture runner (regression smoke)
@@ -80,7 +71,7 @@ jobs:
 
           ROOT = Path(".")
           FIXTURE_DIR = ROOT / "eval-log" / "fixtures"
-          SKILLS_DIR = ROOT / "creator-kit" / "skills"
+          SKILLS_DIR = ROOT / "plugins" / "skill-creator" / "skills"
           GOLDEN_SKILLS = ["run-skill-create", "assign-skill-design-evaluator"]
           errors = []
 
@@ -128,6 +119,6 @@ jobs:
       # P1-4: rubric bump 再評価 (notification 用途、exit 0 固定)
       - name: Re-evaluate on rubric bump (notification only)
         run: |
-          python3 creator-kit/scripts/re-evaluate-on-rubric-bump.py \
-            --skills-dir creator-kit/skills 2>&1 || true
+          python3 plugins/skill-governance-automation/scripts/re-evaluate-on-rubric-bump.py \
+            --skills-dir plugins/skill-creator/skills 2>&1 || true
           echo "re-evaluate-on-rubric-bump completed (non-blocking)"

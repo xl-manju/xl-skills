@@ -35,7 +35,7 @@ def load_ref(ref: str) -> tuple[str, Path, dict]:
     path = Path(ref)
     if ref.startswith("ref-"):
         candidates = [
-            Path("creator-kit/skills") / ref / "rubric.json",
+            Path("plugins/skill-creator/skills") / ref / "rubric.json",
             Path(".claude/skills") / ref / "rubric.json",
         ]
         path = next((p for p in candidates if p.exists()), candidates[0])

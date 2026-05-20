@@ -14,6 +14,9 @@ SNAPSHOT_ID="${SNAPSHOT_ID:-PLACEHOLDER_SNAPSHOT}"
 # MOVED_PATHS は gen-rollback.py が配列リテラルとして注入する
 # 生成時の形: MOVED_PATHS=("creator-kit/...." "creator-kit/...." ...)
 MOVED_PATHS=("${MOVED_PATHS_PLACEHOLDER:-}")
+# snapshot 一次保存先は phase2-04 (snapshots/<plugin>/)。
+# phase2-06 投入時の検証ログも同じ一次パスを参照する規約 (循環依存解消)。
+SNAPSHOT_DIR="eval-log/task/phase2-04/snapshots/${PLUGIN}"
 EVAL_DIR="eval-log/task/phase2-06/${PLUGIN}"
 
 echo "[rollback] plugin=${PLUGIN} snapshot=${SNAPSHOT_ID}"
@@ -37,15 +40,18 @@ for path in "${MOVED_PATHS[@]}"; do
   fi
 done
 
-# Step 4: settings.json を pre-state に戻す
-if [ -f "${EVAL_DIR}/settings.before.json" ]; then
+# Step 4: settings.json を pre-state に戻す (一次は SNAPSHOT_DIR、後方互換で EVAL_DIR もフォールバック)
+if [ -f "${SNAPSHOT_DIR}/settings.before.json" ]; then
+  cp "${SNAPSHOT_DIR}/settings.before.json" .claude/settings.json
+elif [ -f "${EVAL_DIR}/settings.before.json" ]; then
   cp "${EVAL_DIR}/settings.before.json" .claude/settings.json
 else
-  echo "[rollback][ERROR] missing snapshot: ${EVAL_DIR}/settings.before.json" >&2
+  echo "[rollback][ERROR] missing snapshot: ${SNAPSHOT_DIR}/settings.before.json" >&2
   exit 1
 fi
 
-# Step 5: build CLI --check で整合確認
+# Step 5: build CLI --check で per-plugin の整合確認
+#         (Phase 全体の drift 検査は drift-check.sh が担当。本 Step は単一 plugin 単位の局所検証)
 python3 scripts/build-claude-symlinks.py --check
 python3 scripts/build-claude-settings.py --check
 

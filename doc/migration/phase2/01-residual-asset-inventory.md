@@ -9,7 +9,9 @@
 | 担当 | AI (実行) + solo_operator (verdict 承認) |
 | 期限 | Phase 2 本番 開始から 3 営業日以内 |
 | 依存タスク | なし (Phase 2 本番 の最上流。Phase 0/1 closure と試験移行 PASS に依存) |
-| ステータス | 完了 (2026-05-20) |
+| ステータス | 完了 (DoD PASS + CI green, 2026-05-20) |
+
+> **「完了」の真理条件**: (a) Section 6 DoD-1〜10 がすべて機械検証 PASS、かつ (b) `governance-check` + `Creator Kit CI` のローカル相当チェックが PASS、かつ (c) `review-approval.json` の `decision == "approved"` の3条件 AND を満たす状態。phase2-01 自体は creator-kit 残資産棚卸しの責務のみ担い、`manifest.json` 整合性 / `governance-log.jsonl` への承認記録 / plugin 配下への試験移行品質 は **out-of-scope** で phase0 governance および phase2-02 の責務とする。
 
 ## Section 2. 目的と背景
 
@@ -34,6 +36,10 @@ Phase 2 本番 では `creator-kit/` の正本性を剥奪し、内容を:
 | verdict | 各資産に対する分類: `migrate-to-plugin` / `keep-non-plugin` / `delete` / `defer` の 4 値 MECE |
 | 重複資産 | `creator-kit/<path>` と `plugins/skill-creator/<path>` が SHA256 一致するファイル |
 | 非 plugin 資産 | `skills/`、`agents/`、`commands/`、`hooks/`、`.claude-plugin/` のいずれにも該当しないファイル |
+| `verdict_tentative` | 本タスク内で確定する暫定 verdict。本フェーズで決定可能な分類 (`delete` / `keep-non-plugin` / `defer`) と、宛先未確定の `migrate-to-plugin` を含む |
+| `verdict_confirmed` | phase2-02 (plugin 境界決定) を経て確定する最終 verdict。`migrate-to-plugin` レコードには `target_plugin != null` が必須化される |
+| `target_plugin` | `migrate-to-plugin` レコードの宛先 plugin 名 (文字列)。phase2-01 では `null` 許容、phase2-02 で確定 |
+| `pyc/cache 系資産` | `__pycache__/` 配下 / `*.pyc` 拡張子のファイル。Python bytecode キャッシュ。`verdict_tentative='delete'` 確定 (再生成可能のため安全削除可) |
 
 共通用語は `doc/migration/phase2/README.md` 参照。
 
@@ -52,6 +58,9 @@ Phase 2 本番 では `creator-kit/` の正本性を剥奪し、内容を:
 - 別 plugin への物理移動 (タスク 06 の責務)
 - `creator-kit/` の物理削除 (タスク 07 の責務)
 - skill 単位の責務再評価 (タスク 02 の責務)
+- `manifest.json` 整合性検査 (phase0 governance / phase2-02 の責務)
+- `plugins/skill-creator/` 配下への試験移行品質検査 (phase0-08 試験移行 review の責務)
+- `governance-log.jsonl` への P0_breaking 承認記録 (`.github/workflows/governance-check.yml` の責務)
 
 ## Section 5. 前提条件
 
@@ -72,12 +81,15 @@ Phase 2 本番 では `creator-kit/` の正本性を剥奪し、内容を:
 | DoD | 内容 | 機械検証 |
 |---|---|---|
 | DoD-1 | `eval-log/task/phase2-01/residual-inventory.json` が存在し、JSON として valid | `python3 -c "import json; json.load(open('eval-log/task/phase2-01/residual-inventory.json'))"` |
-| DoD-2 | inventory の全レコードに verdict が付与され、`migrate-to-plugin` / `keep-non-plugin` / `delete` / `defer` のいずれか | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));rs=d['records'];assert all(r.get('verdict') in {'migrate-to-plugin','keep-non-plugin','delete','defer'} for r in rs)"` |
-| DoD-3 | `plugins/skill-creator/` と SHA256 一致する重複資産は `verdict == "delete"` | inventory.json 内で `duplicate_of_plugin == true` のレコードが全て `delete` |
-| DoD-4 | `_bootstrap/`、`install.sh`、`install.ps1` は `verdict == "keep-non-plugin"` (理由: 配布用インストーラは plugin 配下に置かない) | inventory.json 該当レコードを確認 |
-| DoD-5 | `verdict == "defer"` のレコードには `defer_reason` フィールドが必須 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));assert all('defer_reason' in r for r in d['records'] if r['verdict']=='defer')"` |
+| DoD-2 | inventory の全レコードに `verdict_tentative` が付与され、`migrate-to-plugin` / `keep-non-plugin` / `delete` / `defer` のいずれか | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));rs=d['records'];assert all(r.get('verdict_tentative') in {'migrate-to-plugin','keep-non-plugin','delete','defer'} for r in rs)"` |
+| DoD-3 | `verdict_tentative == 'delete'` のレコードは (a) `duplicate_of_plugin == true` または (b) `rel` が `__pycache__/` 配下 / `*.pyc` 拡張子 のいずれかを満たす | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));bad=[r for r in d['records'] if r['verdict_tentative']=='delete' and not (r.get('duplicate_of_plugin') or '__pycache__' in r['rel'] or r['rel'].endswith('.pyc'))];assert not bad, bad"` |
+| DoD-4 | `_bootstrap/`、`install.sh`、`install.ps1` は `verdict_tentative == "keep-non-plugin"` (理由: 配布用インストーラは plugin 配下に置かない) | inventory.json 該当レコードを確認 |
+| DoD-5 | `verdict_tentative == "defer"` のレコードには `defer_reason` フィールドが必須 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));assert all('defer_reason' in r for r in d['records'] if r['verdict_tentative']=='defer')"` |
 | DoD-6 | README タスク一覧表のステータスが「完了 (YYYY-MM-DD)」に更新される | `grep -E "phase2-01.*完了" doc/migration/phase2/README.md` |
 | DoD-7 | `review-approval.json` が `eval-log/task/phase2-01/` に生成され、`decision == "approved"` | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/review-approval.json'));assert d['decision']=='approved'"` |
+| DoD-8 | `verdict_tentative == 'migrate-to-plugin'` の全レコードに `target_plugin` フィールドが存在 (値は `null` 許容、phase2-02 で確定) | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));assert all('target_plugin' in r for r in d['records'] if r['verdict_tentative']=='migrate-to-plugin')"` |
+| DoD-9 | `verdict_tentative == 'keep-non-plugin'` レコードの根拠 (`reason`) が明示されている | inventory.json 該当レコードを確認 |
+| DoD-10 | Section 4 の「含まない」リストに `manifest.json` 整合性 / `governance-log.jsonl` / plugin 試験移行品質 の 3 項目が明記されている | `grep -E "manifest\.json 整合性\|governance-log" doc/migration/phase2/01-residual-asset-inventory.md` |
 
 ## Section 7. 実行手順
 
@@ -127,17 +139,29 @@ python3 <<'PY'
 import json, pathlib
 p = pathlib.Path('eval-log/task/phase2-01/residual-inventory.json')
 d = json.loads(p.read_text())
-KEEP_PREFIXES = ('_bootstrap/', 'install.sh', 'install.ps1', 'CONVENTIONS.md', 'manifest.json')
+KEEP_PREFIXES = (
+    '_bootstrap/', 'install.sh', 'install.ps1', 'CONVENTIONS.md',
+    'manifest.json', 'uninstall.sh', 'migrate-from-project.sh',
+    'migrate-log/', 'config/', 'scripts/', 'README.md',
+)
 for r in d['records']:
     rel = r['rel']
+    # 第1分岐: plugin 側との完全重複は delete
     if r['duplicate_of_plugin']:
-        r['verdict'] = 'delete'
+        r['verdict_tentative'] = 'delete'
         r['reason'] = 'duplicate of plugins/skill-creator'
+    # 第2分岐: Python bytecode キャッシュは delete (再生成可能)
+    elif '__pycache__' in rel or rel.endswith('.pyc'):
+        r['verdict_tentative'] = 'delete'
+        r['reason'] = 'python bytecode cache (regenerable)'
+    # 第3分岐: 配布物 / installer / repo-level docs は keep-non-plugin
     elif any(rel.startswith(k) or rel == k for k in KEEP_PREFIXES):
-        r['verdict'] = 'keep-non-plugin'
-        r['reason'] = 'installer / manifest stays outside plugin tree'
+        r['verdict_tentative'] = 'keep-non-plugin'
+        r['reason'] = 'installer / manifest / repo-level asset stays outside plugin tree'
     else:
-        r['verdict'] = None  # TODO(human)
+        r['verdict_tentative'] = None  # TODO(human) for solo_operator
+    # 案A: target_plugin フィールドを必須化 (migrate-to-plugin で後段確定、それ以外は null 固定)
+    r.setdefault('target_plugin', None)
 p.write_text(json.dumps(d, indent=2, ensure_ascii=False))
 PY
 ```
@@ -176,12 +200,15 @@ solo_operator がレビューし `eval-log/task/phase2-01/review-approval.json` 
 | 完了条件 | 検証コマンド |
 |---|---|
 | DoD-1 | `python3 -c "import json; json.load(open('eval-log/task/phase2-01/residual-inventory.json'))" && echo PASS` |
-| DoD-2 | Step 7.3 末尾の verdict 集計が None 0 件 |
-| DoD-3 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));bad=[r for r in d['records'] if r['duplicate_of_plugin'] and r['verdict']!='delete'];assert not bad, bad"` |
-| DoD-4 | `grep -E '"rel":\s*"(_bootstrap|install)' eval-log/task/phase2-01/residual-inventory.json` の verdict が `keep-non-plugin` |
+| DoD-2 | Step 7.3 末尾の verdict_tentative 集計が None 0 件 |
+| DoD-3 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));bad=[r for r in d['records'] if r['verdict_tentative']=='delete' and not (r.get('duplicate_of_plugin') or '__pycache__' in r['rel'] or r['rel'].endswith('.pyc'))];assert not bad, bad"` |
+| DoD-4 | `grep -E '"rel":\s*"(_bootstrap\|install)' eval-log/task/phase2-01/residual-inventory.json` の `verdict_tentative` が `keep-non-plugin` |
 | DoD-5 | DoD 表の inline コマンド |
 | DoD-6 | `grep -E "phase2-01.*完了" doc/migration/phase2/README.md` |
 | DoD-7 | `jq '.decision' eval-log/task/phase2-01/review-approval.json` が `"approved"` |
+| DoD-8 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));assert all('target_plugin' in r for r in d['records'] if r['verdict_tentative']=='migrate-to-plugin')"` |
+| DoD-9 | `python3 -c "import json;d=json.load(open('eval-log/task/phase2-01/residual-inventory.json'));assert all(r.get('reason') for r in d['records'] if r['verdict_tentative']=='keep-non-plugin')"` |
+| DoD-10 | `grep -E "manifest\.json 整合性\|governance-log" doc/migration/phase2/01-residual-asset-inventory.md` |
 
 ## Section 9. リスクと対策
 
@@ -191,6 +218,8 @@ solo_operator がレビューし `eval-log/task/phase2-01/review-approval.json` 
 | verdict が偏り `migrate-to-plugin` が肥大化する | 02 で plugin 境界を精緻化することで吸収 | - |
 | 重複判定が SHA256 のみで意味的差を見逃す | 02 で frontmatter `name` も比較する gate を追加 | INV-9 |
 | `creator-kit/_drafts/` のような実験的資産を誤って migrate に分類 | TODO(human) で solo_operator 判断 | - |
+| `governance-log.jsonl` への承認記録漏れにより plugins/ 配下追加が CI で P0_breaking ブロックされる | phase2-01 完了時に `target_path` に `plugins/` を含む承認 entry を追加することを Section 7.7 の必須手順とする | - |
+| `has_recent_changelog` の `target_path.split("/")[0]` 単一要素 substring match 仕様により approval 範囲が不明瞭 | 33章 governance runbook で entry の `target_path` 表記規約 (文字列形式 + 明示的パス列挙) を別途整備 | - |
 
 ## Section 10. 成果物一覧
 

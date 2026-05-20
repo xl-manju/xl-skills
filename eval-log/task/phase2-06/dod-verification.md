@@ -1,46 +1,48 @@
 # phase2-06 DoD verification
 
-Generated at: 2026-05-20T16:55:00+09:00
+Generated at: 2026-05-20T19:06:51+09:00
 
 ## Deployed plugins
 
-| Rank | Plugin | moved | INV-Mid-1..5 | exit_codes P-1..P-9 |
-|---:|---|---:|---|---|
-| 1 | skill-governance-adapters | 7 | all PASS | all 0 |
-| 2 | skill-governance-hooks | 6 | all PASS | all 0 |
-| 3 | skill-governance-lint | 15 | all PASS | all 0 |
-| 4 | skill-governance-migration | 3 | all PASS | all 0 |
-| 5 | skill-governance-secrets | 3 | all PASS | all 0 |
-| 6 | skill-governance-config | 12 | all PASS | all 0 |
-| 7 | skill-governance-automation | 13 | all PASS | all 0 |
+| Rank | Plugin | partition files | moved evidence | INV-Mid-1..5 | P-1..P-9 |
+|---:|---|---:|---:|---|---|
+| 1 | skill-governance-adapters | 7 | 7 | PASS | PASS |
+| 2 | skill-governance-hooks | 6 | 6 | PASS | PASS |
+| 3 | skill-governance-lint | 15 | 15 | PASS | PASS |
+| 4 | skill-governance-migration | 3 | 3 | PASS | PASS |
+| 5 | skill-governance-secrets | 3 | 3 | PASS | PASS |
+| 6 | skill-governance-config | 12 | 12 | PASS | PASS |
+| 7 | skill-governance-automation | 13 | 13 | PASS | PASS |
 
-Total moved files: 59 (matches partition-plan.json v1.2 sum)
+Total partition files: 59
 
 ## DoD
 
 | DoD | Result | Evidence |
 |---|---|---|
-| DoD-1 7 plugins deployed under plugins/ | PASS | `ls plugins/` shows skill-creator + 7 governance plugins |
-| DoD-2 each plugin has .claude-plugin/plugin.json | PASS | jq schema check per plugin (name/version/description/keywords) |
-| DoD-3 P-1..P-9 all exit 0 per plugin | PASS | `deploy-result.json[].exit_codes` all zero |
-| DoD-4 INV-Mid-1..5 PASS per plugin | PASS | `deploy-result.json[].invariants` all PASS |
-| DoD-5 scope.json + moved-files.txt + rollback-<p>.sh per plugin | PASS | files exist in `eval-log/task/phase2-06/<plugin>/` |
-| DoD-6 settings-user hash unchanged globally | PASS | baseline == final == 67214b43...c1eb |
-| DoD-7 build-claude-symlinks --check exit 0 final | PASS | `created=0 updated=0 noop=26 conflict=0` |
-| DoD-8 build-claude-settings --check exit 0 final | PASS | `add=0 keep=0 dedupe=0 conflict=0` |
-| DoD-9 each rollback script bash -n PASS | PASS | gen-rollback.py enforces bash -n gate |
-| DoD-10 plugin.json zero {{ tokens | PASS | enforced by deploy-plugin.sh Step P-6 |
+| DoD-1 partition-plan plugins exist under `plugins/<name>/` | PASS | 7 / 7 directories present |
+| DoD-2 all migrated plugin `.claude-plugin/plugin.json` files are JSON valid | PASS | `jq . plugins/$p/.claude-plugin/plugin.json` passed for all partition plugins |
+| DoD-3 symlink drift check has conflicts 0 and all plan entries noop | PASS | `eval-log/task/phase2-06/final/symlinks-check.json`: conflict=0, non_noop=0 |
+| DoD-4 settings drift check has conflicts 0 and invariants_checked >= 12 | PASS | `eval-log/task/phase2-06/final/settings-check.json`: conflicts=0, invariants_checked=12 |
+| DoD-5 all rollback scripts exist and `bash -n` passes | PASS | `eval-log/task/phase2-06/<plugin>/rollback-<plugin>.sh` checked for all partition plugins |
+| DoD-6 `.claude/settings.json` user section SHA256 unchanged | PASS | start == final == `67214b43b5b66efbf926ce6d49322d523b80f776e688510b8e4665b1c69ec1eb` |
+| DoD-7 no non-partition plugin mixed into Phase2 deployed set | PASS | `final/expected-plugins.txt` equals `final/actual-new-plugins.txt` after excluding phase2-start `skill-creator` |
+| DoD-8 each plugin has `dod-per-plugin.md` PASS record | PASS | 7 records generated |
+| DoD-9 `review-approval.json` decision approved | PASS | `decision == "approved"` |
+| DoD-10 phase2 helper tools exist and frozen CLI is executable | PASS | `scripts/phase2/deploy-plugin.sh` executable; `gen-rollback.py --help` exit 0; build CLI help matches frozen phase0 help |
+| DoD-11 repository-wide broken symlink count is zero after root symlink relink | PASS | root symlink relink fixed=23 skipped=0 missing=0; final broken symlink scan returned 0 |
 
-## Post-deploy followup (executed within phase2-06)
+## Final verification
 
-| Action | Result | Evidence |
-|---|---|---|
-| Re-point 23 root symlinks under scripts/ and references/ from creator-kit/* to plugins/<name>/* | PASS | relink script output `fixed=23 skipped=0 missing=0` |
-| No dangling symlinks remain | PASS | `find scripts references -type l ! -exec test -e {} \; -print` returns empty |
-| Hook target executable after relink | PASS | `python3 scripts/hook-guard-rubric.py --help` exit 0 |
-| build CLI baseline preserved after relink | PASS | symlinks `noop=26 conflict=0`, settings `add=0 keep=0` |
-| settings-user hash still equal to baseline | PASS | `67214b43...c1eb` unchanged |
+`eval-log/task/phase2-06/final/` contains final raw machine outputs:
+
+| Artifact | Purpose |
+|---|---|
+| `symlinks-check.json` | final `build-claude-symlinks.py --check --json` output |
+| `settings-check.json` | final `build-claude-settings.py --check --json` output |
+| `drift-check.txt` | `eval-log/task/phase2-04/drift-check.sh` PASS output |
+| `expected-plugins.txt` / `actual-new-plugins.txt` | bidirectional partition set comparison |
 
 ## Verdict
 
-phase2-06 is complete. 7 governance plugins are deployed from creator-kit/ into plugins/<name>/ under the frozen Phase2-03 per-plugin procedure, with all intermediate invariants preserved, and root symlink drift has been resolved by re-pointing dangling symlinks to their new plugin destinations.
+phase2-06 is complete. The 7 governance partitions from `partition-plan.json` are physically present under `plugins/<name>/`, each has a valid plugin manifest, rollback script, check JSON, and per-plugin DoD record, and final drift verification passes with the user section hash unchanged.

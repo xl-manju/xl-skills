@@ -26,14 +26,62 @@
         },
         {
           "name": "lint-skill-name",
-          "passed": false,
-          "msg": "第4条違反: run-* / wrap-* / delegate-* must be user-invocable\n"
+          "passed": true,
+          "msg": ""
         }
       ],
-      "passed": false
+      "passed": true
     },
     {
       "skill": "ref-claude-code-skill-spec",
+      "checks": [
+        {
+          "name": "validate-frontmatter",
+          "passed": true,
+          "msg": ""
+        },
+        {
+          "name": "lint-skill-name",
+          "passed": true,
+          "msg": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "skill": "ref-cross-platform-runtime",
+      "checks": [
+        {
+          "name": "validate-frontmatter",
+          "passed": true,
+          "msg": ""
+        },
+        {
+          "name": "lint-skill-name",
+          "passed": true,
+          "msg": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "skill": "ref-domain-rubric-template",
+      "checks": [
+        {
+          "name": "validate-frontmatter",
+          "passed": true,
+          "msg": ""
+        },
+        {
+          "name": "lint-skill-name",
+          "passed": true,
+          "msg": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "skill": "ref-domain-task-spec-rubric",
       "checks": [
         {
           "name": "validate-frontmatter",
@@ -170,11 +218,27 @@
         },
         {
           "name": "lint-skill-name",
-          "passed": false,
-          "msg": "第4条違反: run-* / wrap-* / delegate-* must be user-invocable\n"
+          "passed": true,
+          "msg": ""
         }
       ],
-      "passed": false
+      "passed": true
+    },
+    {
+      "skill": "run-migrate-audit",
+      "checks": [
+        {
+          "name": "validate-frontmatter",
+          "passed": true,
+          "msg": ""
+        },
+        {
+          "name": "lint-skill-name",
+          "passed": true,
+          "msg": ""
+        }
+      ],
+      "passed": true
     },
     {
       "skill": "run-skill-create",
@@ -218,11 +282,11 @@
         },
         {
           "name": "lint-skill-name",
-          "passed": false,
-          "msg": "第4条違反: run-* / wrap-* / delegate-* must be user-invocable\n"
+          "passed": true,
+          "msg": ""
         }
       ],
-      "passed": false
+      "passed": true
     },
     {
       "skill": "run-skill-rubric-governance",
@@ -234,11 +298,11 @@
         },
         {
           "name": "lint-skill-name",
-          "passed": false,
-          "msg": "第4条違反: run-* / wrap-* / delegate-* must be user-invocable\n"
+          "passed": true,
+          "msg": ""
         }
       ],
-      "passed": false
+      "passed": true
     },
     {
       "skill": "wrap-git-commit-safe",
@@ -250,11 +314,11 @@
         },
         {
           "name": "lint-skill-name",
-          "passed": false,
-          "msg": "第4条違反: run-* / wrap-* / delegate-* must be user-invocable\n"
+          "passed": true,
+          "msg": ""
         }
       ],
-      "passed": false
+      "passed": true
     }
   ]
 }

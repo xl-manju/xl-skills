@@ -8,6 +8,8 @@ kind: run
 owner: team-platform
 since: 2026-05-17
 effect: local-artifact
+reference_refs:
+  - ref-domain-rubric-template
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
@@ -39,12 +41,12 @@ audit-trigger: quarterly
 
 ```bash
 # SKILL_DIR を確立する (governance log / scripts/ の親ディレクトリ)
-source creator-kit/scripts/resolve-skill-dirs.sh
+source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
 # SKILL_DIR が run-build-skill を指すため、本スキル用に上書き:
 SKILL_DIR="${CLAUDE_SKILL_DIR:-}"
 if [ -z "$SKILL_DIR" ]; then
-  if [ -f "creator-kit/skills/run-skill-rubric-governance/scripts/lint-rubric-violation.py" ]; then
-    SKILL_DIR="creator-kit/skills/run-skill-rubric-governance"
+  if [ -f "plugins/skill-creator/skills/run-skill-rubric-governance/scripts/lint-rubric-violation.py" ]; then
+    SKILL_DIR="plugins/skill-creator/skills/run-skill-rubric-governance"
   elif [ -f ".claude/skills/run-skill-rubric-governance/scripts/lint-rubric-violation.py" ]; then
     SKILL_DIR=".claude/skills/run-skill-rubric-governance"
   fi
@@ -62,7 +64,7 @@ fi
 
 ```bash
 # 2a. 時系列違反率（連続 N release × 閾値超）を検出 → governance トリガー判定 (27章§3.2)
-python3 creator-kit/scripts/lint-rubric-violation.py \
+python3 plugins/skill-governance-lint/scripts/lint-rubric-violation.py \
   --log-dir eval-log \
   --n 3 --threshold 0.20 \
   --out eval-log/trigger.json
@@ -91,8 +93,8 @@ python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" \
 - `ref-skill-design-rubric/rubric.json` を編集
 - `rubric_version` を bump（semver）
 - `assign-skill-design-evaluator/references/rubric.json` を同期（deep-merge upstream更新）
-- **rubric_hash 再計算**: `python3 creator-kit/scripts/compute-rubric-hash.py --rubric creator-kit/skills/ref-skill-design-rubric/rubric.json` を実行し `rubric.normalized.json` と `rubric_hash` を更新（27章§8.2）
-- **版ずれ検証**: `python3 creator-kit/scripts/check-rubric-sync.py` を実行し
+- **rubric_hash 再計算**: `python3 plugins/skill-governance-automation/scripts/compute-rubric-hash.py --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json` を実行し `rubric.normalized.json` と `rubric_hash` を更新（27章§8.2）
+- **版ずれ検証**: `python3 plugins/skill-governance-lint/scripts/check-rubric-sync.py` を実行し
   exit 0（OK）であることを必ず確認。`RUBRIC_DRIFT:` で落ちた場合は commit 前に
   派生 rubric を再同期すること。
 - `git commit` し governance log を closed に
@@ -104,8 +106,8 @@ PostToolUse Hook 経由で `rollback-to-stable.py` を起動して安定版凍�
 （`freeze.consecutive_runs` × `violation_rate_ceiling`）を満たす過去版へ巻き戻す（27章§9）。
 
 ```bash
-python3 creator-kit/scripts/rollback-to-stable.py \
-  --rubric creator-kit/skills/ref-skill-design-rubric/rubric.json \
+python3 plugins/skill-governance-automation/scripts/rollback-to-stable.py \
+  --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
   --versions-md eval-log/rubric-versions.md \
   --params references/governance-params.json \
   --dry-run
@@ -121,16 +123,16 @@ python3 creator-kit/scripts/rollback-to-stable.py \
 ## Additional Resources
 
 - `templates/proposal.json` — 改正提案テンプレ
-- `creator-kit/scripts/lint-rubric-violation.py` — **時系列違反率検出（連続 N×閾値超 → trigger.json）正本（27章§3.2）**
+- `plugins/skill-governance-lint/scripts/lint-rubric-violation.py` — **時系列違反率検出（連続 N×閾値超 → trigger.json）正本（27章§3.2）**
 - `$SKILL_DIR/scripts/lint-rubric-violation.py` — ルール別違反集計（単一 release/proposal 単位）
 - `$SKILL_DIR/scripts/diff-rubric-impact.py` — 差分影響評価
-- `creator-kit/scripts/compute-rubric-hash.py` — rubric_hash 再計算（27章§8.2）
-- `creator-kit/scripts/notify-if-governance-trigger.py` — Stop Hook 用招集通知（27章§3.4）
-- `creator-kit/scripts/rollback-to-stable.py` — 安定版凍結条件を満たす版への自動 rollback（27章§9）
-- `creator-kit/scripts/doc-to-skill-adapter.py` — 設計書を Skill artifact 化して自己採点する起動装置（26章）
+- `plugins/skill-governance-automation/scripts/compute-rubric-hash.py` — rubric_hash 再計算（27章§8.2）
+- `plugins/skill-governance-automation/scripts/notify-if-governance-trigger.py` — Stop Hook 用招集通知（27章§3.4）
+- `plugins/skill-governance-automation/scripts/rollback-to-stable.py` — 安定版凍結条件を満たす版への自動 rollback（27章§9）
+- `plugins/skill-governance-automation/scripts/doc-to-skill-adapter.py` — 設計書を Skill artifact 化して自己採点する起動装置（26章）
 - `references/governance-board.md` — ボード構成
 - `references/version-rules.md` — semver規約
 - 27章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/27-rubric-governance-runbook.md`
 - 26章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/26-meta-skill-dogfooding.md`
 - 28章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/28-script-execution-model.md`
-- `creator-kit/scripts/resolve-skill-dirs.sh` — SKILL_DIR 解決スクリプト
+- `plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh` — SKILL_DIR 解決スクリプト

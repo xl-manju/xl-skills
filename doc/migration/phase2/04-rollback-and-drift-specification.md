@@ -67,8 +67,8 @@
 | DoD-1 | `eval-log/task/phase2-04/rollback-generator-spec.md` が存在 | `test -f` |
 | DoD-2 | rollback.sh のスケルトンサンプルが生成され `bash -n` PASS | `bash -n eval-log/task/phase2-04/rollback.template.sh` |
 | DoD-3 | drift 検証コマンド列が明記され、シェル構文 PASS | `bash -n eval-log/task/phase2-04/drift-check.sh` |
-| DoD-4 | 失敗時復旧フロー (sequence diagram or 番号付きリスト) が記載 | `grep -c "^[0-9]\." eval-log/task/phase2-04/rollback-generator-spec.md` ≥ 5 |
-| DoD-5 | 検証ログ保存パス規約が `eval-log/task/phase2-06/<plugin>/` に固定 | spec 内に明記 |
+| DoD-4 | 失敗時復旧フロー (番号付きリスト) が Section 3 (`## 3. 失敗時復旧フロー`) 直下に >= 5 項目で記載 | `awk '/^## 3\. 失敗時復旧フロー/,/^## 4\./' eval-log/task/phase2-04/rollback-generator-spec.md \| grep -c "^[0-9]\."` ≥ 5 |
+| DoD-5 | 検証ログ保存パス規約が一次 `eval-log/task/phase2-04/snapshots/<plugin>/` + 投入ログ `eval-log/task/phase2-06/<plugin>/` に固定 | spec 内に明記 |
 | DoD-6 | `gen-rollback-spec.md` が存在し、`scripts/phase2/gen-rollback.py` の CLI 契約が明記される | `test -f eval-log/task/phase2-04/gen-rollback-spec.md && grep -q "scripts/phase2/gen-rollback.py" eval-log/task/phase2-04/gen-rollback-spec.md` |
 | DoD-7 | rollback fixture/sandbox 検証方針が記載され、pre-state 復旧検査を gate 化している | `grep -q "pre-state" eval-log/task/phase2-04/rollback-generator-spec.md && grep -q "fixture" eval-log/task/phase2-04/rollback-generator-spec.md` |
 | DoD-8 | review-approval.json が `approved` | 内容検査 |
@@ -97,10 +97,11 @@ for path in <moved-paths>; do
   git restore --staged --worktree "$path"
 done
 
-# 4. settings.json を pre-state に戻す
-cp eval-log/task/phase2-06/<plugin>/settings.before.json .claude/settings.json
+# 4. settings.json を pre-state に戻す (一次は phase2-04 配下、phase2-06 配下は後方互換のフォールバック)
+cp eval-log/task/phase2-04/snapshots/<plugin>/settings.before.json .claude/settings.json
 
-# 5. build-claude-* --check で整合確認
+# 5. build-claude-* --check で per-plugin の整合確認
+#    (Phase 全体の drift 検査は drift-check.sh が担当)
 python3 scripts/build-claude-symlinks.py --check
 python3 scripts/build-claude-settings.py --check
 ```
@@ -116,17 +117,21 @@ output:
   - rollback-<plugin>.sh
 algorithm:
   1. snapshot 取得時刻と plugin 名をヘッダに記載
-  2. moved files から `git restore` 行を生成
-  3. settings.before.json の差し戻し行を生成
+  2. moved files から `git restore` 行を生成し、テンプレ内 `MOVED_PATHS_PLACEHOLDER` パターン
+     (`MOVED_PATHS=("${MOVED_PATHS_PLACEHOLDER:-}")` 行) を `MOVED_PATHS=(...)` に置換
+  3. settings.before.json の差し戻し行を生成 (一次パス: eval-log/task/phase2-04/snapshots/<plugin>/)
   4. .claude/ 派生の plugin 由来 symlink 削除行を生成
   5. build CLI --check 実行行を末尾に付与
-  6. `bash -n` で構文検証
+  6. snapshot 4 ファイル (settings.before.json / settings.before.sha256 / git-status.before.txt /
+     claude-symlinks.before.txt) の存在と sha256 一致を gate として検査
+  7. `bash -n` で構文検証
 ```
 
 ### Step 7.3 drift 検証コマンド列定義
 
 ```bash
-# drift-check.sh (per-plugin 投入後、および Phase 全体の最終確認に使用)
+# drift-check.sh (Phase 全体の cross-plugin drift 検査専用。
+#  per-plugin の局所 --check は rollback.template.sh Step 5 が担当)
 set -euo pipefail
 out_dir="${1:?usage: drift-check.sh <eval-log-output-dir>}"
 mkdir -p "$out_dir"
@@ -149,7 +154,7 @@ echo "drift OK"
 
 ### Step 7.5 spec 文書化
 
-`eval-log/task/phase2-04/rollback-generator-spec.md` に上記を集約。fixture/sandbox ではサンプル plugin 投入前の pre-state snapshot を保存し、rollback 実行後に `git status -s`、`.claude/` symlink 集合、settings user section hash が pre-state と一致することを復旧 gate として記載する。
+`eval-log/task/phase2-04/rollback-generator-spec.md` に上記を集約。fixture/sandbox では `eval-log/task/phase2-04/snapshots/<sample-plugin>/` をサンプル plugin 投入前の pre-state snapshot 一次保存先として用い、rollback 実行後に `git status -s`、`.claude/` symlink 集合、settings user section hash が pre-state と一致することを復旧 gate として記載する。
 
 ### Step 7.6 テンプレートの構文検証
 
@@ -169,7 +174,7 @@ solo_operator が `review-approval.json` 生成。
 | DoD-1 | `test -f eval-log/task/phase2-04/rollback-generator-spec.md && echo PASS` |
 | DoD-2 | `bash -n eval-log/task/phase2-04/rollback.template.sh && echo PASS` |
 | DoD-3 | `bash -n eval-log/task/phase2-04/drift-check.sh && echo PASS` |
-| DoD-4 | `grep -c "^[0-9]\." eval-log/task/phase2-04/rollback-generator-spec.md` |
+| DoD-4 | `awk '/^## 3\. 失敗時復旧フロー/,/^## 4\./' eval-log/task/phase2-04/rollback-generator-spec.md \| grep -c "^[0-9]\."` (>= 5) |
 | DoD-5 | spec 内に該当パス記載 |
 | DoD-6 | `test -f eval-log/task/phase2-04/gen-rollback-spec.md && grep -q "scripts/phase2/gen-rollback.py" eval-log/task/phase2-04/gen-rollback-spec.md` |
 | DoD-7 | `grep -q "pre-state" eval-log/task/phase2-04/rollback-generator-spec.md && grep -q "fixture" eval-log/task/phase2-04/rollback-generator-spec.md` |
@@ -183,6 +188,9 @@ solo_operator が `review-approval.json` 生成。
 | drift 検証が `.claude/` 派生のみで partition-plan 側を見逃す | drift-check.sh で plugins/ 配下も同時に検査 | INV-9 |
 | `bash -n` PASS でも実行時にエラー | Step 7.6 と 06 の dry-run 二段構成で補強 | - |
 | 失敗復旧フローが運用者に伝わらない | spec に番号付き手順を必須化 (DoD-4) | - |
+| snapshot が改竄・破損し誤った pre-state に戻す | gen-rollback.py 起動時に `settings.before.sha256` を検査、不一致なら exit 1 | INV-1 |
+| 生成スクリプトが構文不正のまま実行される (exit code 2) | gen-rollback.py が生成直後に `bash -n` を gate 化し、失敗時は出力ファイルを削除し exit 2 | - |
+| 凍結後 rollback.template.sh が無断変更される | テンプレ凍結後の変更は P0_breaking ガバナンスを経由必須 | - |
 
 ## Section 10. 成果物一覧
 
@@ -194,7 +202,7 @@ solo_operator が `review-approval.json` 生成。
 | gen-rollback-spec.md | `eval-log/task/phase2-04/gen-rollback-spec.md` | AI |
 | review-approval.json | `eval-log/task/phase2-04/review-approval.json` | solo_operator |
 
-`gen-rollback-spec.md` には `scripts/phase2/gen-rollback.py` の CLI 仕様 (引数: `--plugin <name>` `--out <path>`、exit コード: 0=生成成功/1=snapshot 欠落/2=構文エラー、stdout: rollback スクリプトパス) を明記する。06 はこの仕様を「凍結済」として参照する。
+`gen-rollback-spec.md` には `scripts/phase2/gen-rollback.py` の CLI 仕様 (引数: `--plugin <name>` `--out <path>`、exit コード: 0=生成成功/1=snapshot 欠落または sha256 改竄/2=構文エラー/3=引数不正、stdout: rollback スクリプトパス) を明記する。06 はこの仕様を「凍結済」として参照する。凍結後の `rollback.template.sh` および本仕様の変更は **P0_breaking ガバナンス手続き経由でのみ許可** する。
 
 ツール契約 (凍結参照): Phase 0 `scripts/build-claude-*.py` の `--check --json` 出力スキーマに依存。スキーマ変更時は本仕様も再策定。
 

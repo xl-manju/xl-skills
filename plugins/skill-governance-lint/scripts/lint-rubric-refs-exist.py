@@ -4,7 +4,7 @@
 # version: 0.1.0
 # purpose: SKILL.md frontmatter の rubric_refs と rubric-registry.json の rubrics[].rubric が物理存在することを検証する
 # inputs:
-#   - argv[1..]: 検査対象 SKILL.md パス (省略時は creator-kit/skills/**/SKILL.md を走査)
+#   - argv[1..]: 検査対象 SKILL.md パス (省略時は plugins/skill-creator/skills/**/SKILL.md を走査)
 # outputs:
 #   - stdout: 検査結果サマリ
 #   - exit code: 0=PASS / 1=FAIL (未解決 rubric_refs を検出)

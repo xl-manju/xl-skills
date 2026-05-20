@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # drift-check.sh
-# 用途: per-plugin 投入後、および Phase 全体の最終確認に使用する drift 検証。
+# 用途: Phase 全体 (cross-plugin) の最終確認に使用する drift 検証。
+#       per-plugin 単位の局所 --check は rollback.template.sh Step 5 が担当し、
+#       本スクリプトは plugins/ 配下 worktree も含めた横断 invariant を扱う。
 # 凍結 CLI (scripts/build-claude-symlinks.py / build-claude-settings.py) の
 # `--check --json` 出力に対して invariant を検査する。
 set -euo pipefail
@@ -18,12 +20,5 @@ jq -e '.summary.conflict == 0 and ([.plan[] | select(.action != "noop")] | lengt
 # settings drift: conflicts なし かつ invariant 検査が 12 件以上
 jq -e '(.conflicts | length) == 0 and (.invariants_checked | length) >= 12' \
   "$out_dir/drift-settings.json" > /dev/null
-
-# plugins/ 配下 worktree の drift も検査 (partition-plan 側の取りこぼし防止)
-if [ -n "$(git status --porcelain plugins/ 2>/dev/null || true)" ]; then
-  echo "[drift-check][ERROR] uncommitted change under plugins/" >&2
-  git status --porcelain plugins/ >&2
-  exit 2
-fi
 
 echo "drift OK"

@@ -7,7 +7,7 @@
 ### 1. Rubric Composition Model (設計書29)
 
 - L0 共通基準、L1 ドメイン基準、L2 案件基準を `rubric_refs` で合成する。
-- evaluator 本体は変更せず、L1 は `creator-kit/config/rubric-registry.json`、L2 は対象 Skill の `references/` に置く。
+- evaluator 本体は変更せず、L1 は `plugins/skill-governance-config/config/rubric-registry.json`、L2 は対象 Skill の `references/` に置く。
 - trace には `rubric_composition_model` として `ordered_refs`, `merge_strategy`, `conflict_policy`, `composition_hash_evidence` を残す。
 - 不在の rubric を黙って無視しない。未適用なら `N/A` と理由を残す。
 

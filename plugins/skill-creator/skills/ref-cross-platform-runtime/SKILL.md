@@ -1,6 +1,7 @@
 ---
 name: ref-cross-platform-runtime
 description: 他Skillが host OS で分岐するとき、OS判定に失敗したときに読む。
+effect: none
 disable-model-invocation: false
 user-invocable: false
 kind: ref
@@ -71,4 +72,4 @@ esac
 - `references/os-matrix.md` — OS × shell × python × 判定コマンドの表
 - `references/forbidden-clis.md` — no-deps 原則で禁止される CLI 一覧
 - 設計書 22 章 — クロスプラットフォームランタイム正本
-- `creator-kit/scripts/cross_platform_secret.py` — secret OS 分岐実装例
+- `plugins/skill-governance-automation/scripts/cross_platform_secret.py` — secret OS 分岐実装例
