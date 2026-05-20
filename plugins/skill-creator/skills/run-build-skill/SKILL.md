@@ -295,11 +295,6 @@ Hook 統合スキルの場合、scripts/hook-<name>-<event>.py スケルトン�
 
 ## Additional Resources
 
-- `references/design-docs-index.md` — 設計書00〜35への索引
-- `references/resource-map.yaml` — task category → 読む設計書の決定論的map
-- `references/build-steps.md` — 詳細手順、再現性trace schema、02/03/04 coverage
-- `templates/` — kind別雛形
-- `examples/minimal-ref.md`, `examples/workflow-with-evaluator.md` — 完成例
-- `scripts/render-frontmatter.py`, `scripts/validate-naming.py`, `scripts/validate-build-trace.py`
-- 共通lint: `scripts/lint-skill-name.py` 他
-- manifest登録案: `scripts/build-manifest-registration-plan.py`
+- `references/{design-docs-index.md, resource-map.yaml, build-steps.md}` — 設計書索引 / task→設計書map / 詳細手順 (02/03/04 coverage と trace schema 含む)
+- `templates/`, `examples/{minimal-ref,workflow-with-evaluator}.md` — kind別雛形と完成例
+- `scripts/`: render-frontmatter / validate-naming / validate-build-trace / lint-skill-name / build-manifest-registration-plan
