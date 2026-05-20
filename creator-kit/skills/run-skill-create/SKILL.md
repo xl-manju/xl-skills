@@ -22,6 +22,7 @@ rubric_refs:
 reference_refs:
   - ref-task-context-map
   - ref-skill-glossary
+  - ref-domain-task-spec-rubric
 # context-budget: orchestrationのみ。各子スキルがそれぞれの設計書を参照する。本スキルは05/06/07/13/23/25章のみ参照。
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/

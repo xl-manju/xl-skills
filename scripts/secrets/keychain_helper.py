@@ -1,1 +1,1 @@
-../../creator-kit/scripts/secrets/keychain_helper.py
+../../plugins/skill-governance-secrets/scripts/secrets/keychain_helper.py

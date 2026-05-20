@@ -1,1 +1,1 @@
-../creator-kit/scripts/hook-validate-skill-md.py
+../plugins/skill-governance-hooks/scripts/hook-validate-skill-md.py

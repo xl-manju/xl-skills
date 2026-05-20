@@ -98,6 +98,11 @@
       "name": "ref-domain-rubric-template",
       "role": "ドメイン固有rubricテンプレート正本",
       "category": "reference"
+    },
+    {
+      "name": "ref-domain-task-spec-rubric",
+      "role": "タスク仕様書ドメイン用L1 rubric正本 (Phase 1-13/SRP/ユビキタス言語の評価基準)",
+      "category": "reference"
     }
   ],
   "scripts": {

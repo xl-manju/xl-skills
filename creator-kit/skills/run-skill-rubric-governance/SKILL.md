@@ -8,6 +8,8 @@ kind: run
 owner: team-platform
 since: 2026-05-17
 effect: local-artifact
+reference_refs:
+  - ref-domain-rubric-template
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal

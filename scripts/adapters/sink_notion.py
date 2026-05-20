@@ -1,1 +1,1 @@
-../../creator-kit/scripts/adapters/sink_notion.py
+../../plugins/skill-governance-adapters/scripts/adapters/sink_notion.py

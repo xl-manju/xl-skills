@@ -1,0 +1,6 @@
+{
+  "name": "skill-governance-secrets",
+  "version": "0.1.0",
+  "description": "Skill governance secret helper scripts",
+  "keywords": ["skill-governance","secrets","keychain"]
+}

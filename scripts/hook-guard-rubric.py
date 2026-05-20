@@ -1,1 +1,1 @@
-../creator-kit/scripts/hook-guard-rubric.py
+../plugins/skill-governance-hooks/scripts/hook-guard-rubric.py

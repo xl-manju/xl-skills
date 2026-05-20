@@ -1,0 +1,6 @@
+{
+  "name": "skill-governance-migration",
+  "version": "0.1.0",
+  "description": "Skill migration helper scripts",
+  "keywords": ["skill-governance","migration","audit"]
+}

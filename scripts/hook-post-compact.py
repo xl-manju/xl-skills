@@ -1,1 +1,1 @@
-../creator-kit/scripts/hook-post-compact.py
+../plugins/skill-governance-hooks/scripts/hook-post-compact.py

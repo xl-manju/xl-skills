@@ -1,1 +1,1 @@
-../../creator-kit/scripts/secrets/README.md
+../../plugins/skill-governance-secrets/scripts/secrets/README.md

@@ -1,1 +1,1 @@
-../../creator-kit/scripts/adapters/dispatch.py
+../../plugins/skill-governance-adapters/scripts/adapters/dispatch.py

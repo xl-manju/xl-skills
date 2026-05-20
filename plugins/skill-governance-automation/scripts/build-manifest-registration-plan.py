@@ -108,9 +108,9 @@ def collect_proposals(manifest: dict) -> dict[str, list]:
         name = path.name
         if name == "cross_platform_secret.py" and name not in reg.get("cross_platform", set()):
             proposals["cross_platform"].append(name)
-        elif name.startswith(("lint-", "validate-")) and name not in reg.get("lint", set()):
+        elif name.startswith(("lint-", "validate-")) and name not in (reg.get("lint", set()) | reg.get("governance", set())):
             proposals["lint"].append(name)
-        elif name.startswith("hook-") and name not in reg.get("hooks", set()):
+        elif name.startswith("hook-") and name not in (reg.get("hooks", set()) | reg.get("governance", set())):
             proposals["hooks"].append(name)
 
     for path in sorted((KIT_DIR / "config").iterdir() if (KIT_DIR / "config").exists() else []):

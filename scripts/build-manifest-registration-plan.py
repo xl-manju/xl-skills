@@ -1,1 +1,1 @@
-../creator-kit/scripts/build-manifest-registration-plan.py
+../plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py

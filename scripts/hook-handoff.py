@@ -1,1 +1,1 @@
-../creator-kit/scripts/hook-handoff.py
+../plugins/skill-governance-hooks/scripts/hook-handoff.py

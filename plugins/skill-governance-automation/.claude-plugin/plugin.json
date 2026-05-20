@@ -1,0 +1,6 @@
+{
+  "name": "skill-governance-automation",
+  "version": "0.1.0",
+  "description": "Skill governance automation scripts",
+  "keywords": ["skill-governance","automation","orchestration","build","rollback"]
+}

@@ -1,1 +1,1 @@
-../../creator-kit/scripts/adapters/resolve_route.py
+../../plugins/skill-governance-adapters/scripts/adapters/resolve_route.py
