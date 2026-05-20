@@ -1,0 +1,9 @@
+{
+  "name": "skill-governance-config",
+  "version": "0.1.0",
+  "description": "Skill governance shared configuration payloads",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "keywords": ["skill-governance","config","registry","hook-example"]
+}

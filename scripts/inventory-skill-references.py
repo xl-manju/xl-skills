@@ -8,7 +8,7 @@ eval-log/phase0-reference-inventory.json に書き出す。
 
 Usage:
   python3 scripts/inventory-skill-references.py
-  python3 scripts/inventory-skill-references.py --skills-dir creator-kit/skills
+  python3 scripts/inventory-skill-references.py --skills-dir plugins/skill-creator/skills
   python3 scripts/inventory-skill-references.py --output eval-log/phase0-reference-inventory.json
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ SKILL_REF_RE = re.compile(
     r'(?:Skill\(|pair:\s*|rubric_refs:\s*|reference_refs:\s*|script_refs:\s*)'
     r'([a-z][a-z0-9-]+)'
 )
-HARDCODE_RE = re.compile(r'(?:\.claude/skills/|creator-kit/skills/)([a-z][a-z0-9-]+)')
+HARDCODE_RE = re.compile(r'(?:\.claude/skills/|plugins/skill-creator/skills/)([a-z][a-z0-9-]+)')
 SCRIPT_REF_RE = re.compile(r'(?:python3|source)\s+([\w./\-]+\.(?:py|sh))')
 REFS_FILE_RE = re.compile(r'references/([\w\-\.]+)')
 
@@ -132,7 +132,7 @@ def main() -> int:
             i += 1
 
     repo_root = Path(".").resolve()
-    skills_base = skills_dir_override or (repo_root / "creator-kit" / "skills")
+    skills_base = skills_dir_override or (repo_root / "plugins" / "skill-creator" / "skills")
     if not skills_base.is_dir():
         print(f"ERROR: skills directory not found: {skills_base}", file=sys.stderr)
         return 2

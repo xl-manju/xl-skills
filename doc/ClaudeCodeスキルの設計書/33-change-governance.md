@@ -59,8 +59,8 @@
 | `lint-manifest-contents.py` | manifest整合性検査 | `scripts/lint-manifest-contents.py` |
 | `lint-dependency-direction.py` | 依存方向違反検出 | `scripts/lint-dependency-direction.py` |
 | `governance-policy.json` | ポリシー正本 | `creator-kit/config/governance-policy.json` |
-| pre-commit hook | カテゴリ判定+ガード | `scripts/guard-change-category.py` (TODO) |
-| CI workflow | 全lint一括実行 | `.github/workflows/governance-check.yml` (TODO) |
+| pre-commit hook | カテゴリ判定+ガード | `scripts/guard-change-category.py` |
+| CI workflow | 全lint一括実行 | `.github/workflows/governance-check.yml` |
 
 ## changelog
 
@@ -130,7 +130,7 @@ plugin 移行を進める場合、plugin 境界を越える変更は追加のガ
 **自己適用ルール（再強調）:**
 本章 33-change-governance.md を変更する場合、その変更自体が P1_structural に該当する（本章のワークフローに従う）。plugin 境界に関するルール変更は P0_breaking とみなす。これは 34章のゲート判定においても同様に適用する。
 
-`classify_change` stub（`scripts/guard-change-category.py` の TODO(human)）が未実装である限り、plugin 境界をまたぐ変更は全て **手動で P0_breaking として扱い**、changelog への記録を必須とする。
+`classify_change` は実装済みだが、plugin 境界の完全な外部参照棚卸しと CI 強制が完了するまでは Phase 0 gate 未完了として扱う。plugin 境界をまたぐ変更は保守的に **P0_breaking** として扱い、changelog への記録を必須とする。
 
 ## log-driven ref-* 改善（Meta-Harness 最小着手）
 

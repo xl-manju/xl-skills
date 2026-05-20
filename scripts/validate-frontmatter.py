@@ -1,1 +1,1 @@
-../creator-kit/scripts/validate-frontmatter.py
+../plugins/skill-governance-lint/scripts/validate-frontmatter.py

@@ -1,1 +1,1 @@
-../creator-kit/scripts/hook-verify-evaluator-json.py
+../plugins/skill-governance-hooks/scripts/hook-verify-evaluator-json.py

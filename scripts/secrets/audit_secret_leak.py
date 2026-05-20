@@ -1,1 +1,1 @@
-../../creator-kit/scripts/secrets/audit_secret_leak.py
+../../plugins/skill-governance-secrets/scripts/secrets/audit_secret_leak.py

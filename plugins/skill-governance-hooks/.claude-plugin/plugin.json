@@ -1,0 +1,9 @@
+{
+  "name": "skill-governance-hooks",
+  "version": "0.1.0",
+  "description": "Skill governance hook scripts",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "keywords": ["skill-governance","hook","claude-hook"]
+}

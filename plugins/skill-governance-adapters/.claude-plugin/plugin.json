@@ -1,0 +1,9 @@
+{
+  "name": "skill-governance-adapters",
+  "version": "0.1.0",
+  "description": "Skill governance adapter scripts",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "keywords": ["skill-governance","adapter","sink","route","dispatch"]
+}

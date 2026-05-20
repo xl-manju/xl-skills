@@ -1,1 +1,1 @@
-../creator-kit/scripts/lint-manifest-contents.py
+../plugins/skill-governance-lint/scripts/lint-manifest-contents.py

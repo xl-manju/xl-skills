@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# check-scripts-drift.sh — root scripts/ と creator-kit/scripts/ の drift 検出。
+# check-scripts-drift.sh — Phase 2 後の script 参照整合を検証する。
 #
-# 設計書09章 P0 deterministic / 10章 Hook command の依存パス不定問題を解消する。
-# creator-kit/scripts/ を正本とし、root scripts/ はその展開先 (install.sh で同期)。
-# diff があれば CI が block する。
+# creator-kit/ は Phase 2 で削除済み。旧 drift 比較ではなく、root scripts/ の
+# symlink が解決可能であることと plugin script path が存在することを gate にする。
 #
 # Usage:
 #   bash scripts/check-scripts-drift.sh
@@ -11,25 +10,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/creator-kit/scripts"
-DST="$ROOT/scripts"
-
-DRIFT=0
-for f in "$SRC"/*.py "$SRC"/*.sh; do
-  [[ -f "$f" ]] || continue
-  name=$(basename "$f")
-  if [[ -f "$DST/$name" ]]; then
-    if ! diff -q "$f" "$DST/$name" >/dev/null 2>&1; then
-      echo "DRIFT: $name (creator-kit/scripts/ vs scripts/)" >&2
-      DRIFT=1
-    fi
-  fi
-done
-
-if [[ $DRIFT -ne 0 ]]; then
-  echo "" >&2
-  echo "Resolution: creator-kit/scripts/ が正本。同期するには:" >&2
-  echo "  bash creator-kit/install.sh --mode copy --force" >&2
+BROKEN="$(find "$ROOT/scripts" -type l ! -exec test -e {} \; -print)"
+if [[ -n "$BROKEN" ]]; then
+  echo "$BROKEN" >&2
   exit 1
 fi
-exit 0
+
+for plugin in "$ROOT"/plugins/*; do
+  [[ -d "$plugin" ]] || continue
+  [[ -d "$plugin/scripts" ]] || continue
+  find "$plugin/scripts" -type f \( -name '*.py' -o -name '*.sh' \) -print >/dev/null
+done

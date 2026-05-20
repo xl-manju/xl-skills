@@ -2,10 +2,10 @@
 
 ## 責務
 
-このファイルは、Skill 群が **Mac / Windows のどちらで実行されても同じ結果**を返すための実行基盤を定義する。
+このファイルは、Skill 群が **macOS / Linux / Windows のどれで実行されても同じ契約**を返すための実行基盤を定義する。
 原則は次の 3 点。
 
-1. **追加ライブラリ導入なし**で動く (`pip install` / `npm i` / `brew install` などを Skill が要求しない)
+1. **追加ライブラリ導入なし**で動く (`pip install` / `npm i` / `brew install` などを Skill が要求しない)。ただし Windows では Python 実行系そのものが無い場合があるため、PowerShell 経路またはユーザー確認フォールバックを必須にする。
 2. **OS 差分は Skill 側で吸収**し、ユーザーには単一 interface を見せる
 3. OS 判定に失敗したら **Claude がユーザーに OS を尋ねる**フォールバックを必ず持つ
 

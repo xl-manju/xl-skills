@@ -1,0 +1,9 @@
+{
+  "name": "skill-governance-migration",
+  "version": "0.1.0",
+  "description": "Skill migration helper scripts",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "keywords": ["skill-governance","migration","audit"]
+}

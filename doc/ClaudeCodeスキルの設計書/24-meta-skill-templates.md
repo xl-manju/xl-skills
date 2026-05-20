@@ -22,7 +22,7 @@
 ```markdown
 ---
 name: run-build-skill
-description: Build a new Claude Code Skill from a user requirement. Use when the user asks to create, scaffold, or design a Skill (SKILL.md).
+description: 新規Skillを作成するとき、既存Skillを更新するときに使う。
 disable-model-invocation: false
 argument-hint: "[skill-name] [kind?]"
 arguments: [skill_name, kind]
@@ -95,7 +95,7 @@ run-build-skill/
 ```markdown
 ---
 name: assign-skill-design-evaluator
-description: Skill design evaluator. Use internally from run-build-skill, or when the user asks to score a generated SKILL.md against the rubric.
+description: 生成済みSKILL.mdを評価したいとき、rubric準拠を確認したいときに使う。
 user-invocable: false
 context: fork
 agent: general-purpose
@@ -184,7 +184,7 @@ conflict_policy: most-specific-wins
 ```markdown
 ---
 name: ref-skill-design-rubric
-description: Skill design rubric. Read when evaluating or designing a SKILL.md.
+description: Skill設計時に評価基準を確認したいとき、SKILL.md採点の正本rubricを参照したいときに使う。
 disable-model-invocation: true
 user-invocable: false
 kind: reference
@@ -291,6 +291,25 @@ rules:
     severity: high
     check: "directory name == frontmatter.name"
 ```
+
+## runの複合kind: agent-team / orchestrator / hook-integrated
+
+`run` kind は単体workflow以外に、複数の構成要素を内包する **複合kind** を持つ。
+これらは独立した kind 値ではなく `kind: run` のまま、適用する combinator の組合せで識別する。
+
+| 複合kind | 旧テンプレ | atomic combinator 組合せ | 用途 |
+|---|---|---|---|
+| `agent-team` | `templates/agent-team.md` | `with-run.patch` + `with-subagent.patch` | 複数 SubAgent を並列起動するチーム編成workflow（例: `run-elegant-review`） |
+| `orchestrator` | `templates/orchestrator.md` | `with-run.patch` + `with-subagent.patch`×N | フェーズゲート付きで複数 Skill を順次連鎖する E2E入口（例: `run-skill-create`） |
+| `hook-integrated` | `templates/hook-integrated.md` | `with-run.patch` + `with-hooks.patch` | PreToolUse / PostToolUse hook と連動する workflow |
+
+**判定基準**:
+- workflow が **単一のロジック** で完結するなら通常の `run`（`with-run.patch` のみ）
+- workflow が **SubAgent 委譲を含む** なら `agent-team`
+- workflow が **3段以上のフェーズゲート** を持ち、各フェーズで別 Skill を呼ぶなら `orchestrator`
+- workflow が **hook 配線必須** なら `hook-integrated`
+
+これらの複合kindは frontmatter 上は `kind: run` のままだが、本文構造（SubAgent invocation セクション、フェーズゲート表、hook 配線記述）が異なる。Atomic Composer モード（combinators/）では適用する patch の組合せで自動的に骨格が生成される。
 
 ## scripts/ クロスプラットフォーム制約
 

@@ -18,6 +18,7 @@
 | 外部 LLM 委譲 | `delegate-*` |
 | 決定論的検査 | Hook / CI / CLI |
 | 人間向け記録 | docs |
+| 外部プロトコル/接続面 | MCP / plugin / app connector |
 
 ## Step 2. `CLAUDE.md` を薄くする
 
@@ -63,5 +64,4 @@ Gotchas（落とし穴） -> frontmatter lint -> Hook -> CI -> CLI / lint plugin
 - `assign-*-evaluator` に `pair:` がある。
 - `pair:` の相手が存在する。
 - `ref-*` が到達不能設定になっていない。
-- dangerous `run-*` に `disable-model-invocation: true` がある。
-
+- dangerous `run-*` に `disable-model-invocation: true` がある。dangerous は `danger: true` または `effect: external-mutation` を持つものとする。

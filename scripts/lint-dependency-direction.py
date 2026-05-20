@@ -1,1 +1,1 @@
-../creator-kit/scripts/lint-dependency-direction.py
+../plugins/skill-governance-lint/scripts/lint-dependency-direction.py

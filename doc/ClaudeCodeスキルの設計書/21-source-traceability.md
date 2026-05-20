@@ -35,6 +35,10 @@ xl-skills/doc/【コード共有有】Agent Skill大全 数百本のSkillをり�
 | `image-derived` | 55 参照 / 53 ユニークを `12` に対応済み |
 | `code-unavailable` | 記事中の `skills.zip` / Notion 同梱コードは、このリポジトリ内に現物なし |
 | `code-verified` | 未取得のため該当なし |
+| `internal` | 本リポジトリ内製の設計書・規約・lint・hook 由来 |
+| `external-spec` | 外部公式仕様 URL 由来 |
+
+`source-tier` は互換性維持のため単一フィールドとして扱うが、意味的には「出典種別」と「検証状態」が混在する。量産フローでは必要に応じて `source_kind` / `verification_state` に分解してよい。ただし SKILL.md frontmatter と lint の正本語彙は上記 tier 集合に固定する。
 
 ## 画像数
 

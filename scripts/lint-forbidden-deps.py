@@ -1,1 +1,1 @@
-../creator-kit/scripts/lint-forbidden-deps.py
+../plugins/skill-governance-lint/scripts/lint-forbidden-deps.py

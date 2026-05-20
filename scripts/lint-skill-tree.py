@@ -1,1 +1,1 @@
-../creator-kit/scripts/lint-skill-tree.py
+../plugins/skill-governance-lint/scripts/lint-skill-tree.py

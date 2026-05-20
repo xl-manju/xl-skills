@@ -12,7 +12,7 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 
 | 領域 | 正本 |
 |---|---|
-| 観測対象 failure mode の閉じた列挙 | `.claude/config/meta-harness-observables.json` |
+| 観測対象 failure mode の閉じた列挙 | `creator-kit/config/meta-harness-observables.json`（配布正本） / `.claude/config/meta-harness-observables.json`（導入先コピー） |
 | ガバナンス境界（log由来改善のカテゴリ） | `33-change-governance.md` § log-driven ref-* 改善 |
 | 改善の周回ロジック（既存の elegant-review 周回） | `creator-kit/skills/run-elegant-review/references/{amplified-patterns,convergence-policy}.json` |
 | 本章で扱うこと | パイプライン全体（収集 → 分類 → 起票 → ガバナンス接続） |
@@ -56,16 +56,16 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 | Phase | スコープ | 入口ゲート | 出口ゲート |
 |---|---|---|---|
 | **Phase 0** | observables 列挙確定 + ガバナンス境界定義 | （前提なし） | `.claude/config/meta-harness-observables.json` 初版完成 + 33章 § log-driven 節 |
-| **Phase 1** | ログ収集機構（.claude/logs/ スキーマ + collect hook） | Phase 0 完了 | スキーマ v1.0 確定 + 収集スクリプト配置 + **実ログ蓄積 ≥ 1 セッション** |
+| **Phase 1** | ログ収集機構（.claude/logs/ スキーマ + collect hook） | Phase 0 完了 | creator-kit manifest 登録 + スキーマ v1.0 確定 + 収集スクリプト配置 + **実ログ蓄積 ≥ 1 セッション** |
 | **Phase 2** | classify + accumulate（observables との突合・カウント蓄積） | Phase 1 実装完了 + 実ログ蓄積 ≥ 1 セッション + 7日以上のログ蓄積 | failure_mode 別に閾値超え検出が機械実行できる |
 | **Phase 3** | propose（改善 PR 自動起票） | Phase 2 完了 + 誤検出率 < 20% の検証 | ref-* 改善 PR が drafts として自動生成される |
 | **Phase 4** | govern 接続（33章 P1_structural ワークフロー自動連結） | Phase 3 完了 + 3件以上の手動 PR 経験 | classify_change が log 起源 PR を P1 として自動分類 |
 
-**現在地**: Phase 1 実装完了・実ログ蓄積待機中（スキーマ v1.0 確定 + `extract-session-events.py` 配置 + hook example + .gitignore）。Phase 2 開始ゲート: 実ログ蓄積 ≥ 1 セッション（未達）。Phase 2 (classify + accumulate) は実ログ蓄積達成後に着手。
+**現在地**: Phase 1 実装完了・実ログ蓄積待機中（スキーマ v1.0 確定 + `creator-kit/scripts/extract-session-events.py` 配置 + hook example + manifest 登録 + .gitignore）。Phase 2 開始ゲート: 実ログ蓄積 ≥ 1 セッション（未達）。Phase 2 (classify + accumulate) は実ログ蓄積達成後に着手。
 
 ## ログスキーマ v1.0（Phase 1 確定）
 
-正本: `.claude/logs/schema-v1.0.json`。スキーマ変更は P0_breaking（33章 § log-driven ref-* 改善）。
+配布正本: `creator-kit/config/meta-harness-log-schema-v1.0.json`。導入先コピー: `.claude/logs/schema-v1.0.json`。スキーマ変更は P0_breaking（33章 § log-driven ref-* 改善）。
 
 ### 構成
 
@@ -81,8 +81,8 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 
 ### 収集機構（opt-in）
 
-- スクリプト: `scripts/extract-session-events.py`（28章 §4 動詞 `extract` 準拠）
-- hook 登録例: `.claude/settings.meta-harness-hooks.json.example`（UserPromptSubmit / PostToolUse / Stop の3点）
+- スクリプト: `creator-kit/scripts/extract-session-events.py`（install後は `scripts/extract-session-events.py`。28章 §4 動詞 `extract` 準拠）
+- hook 登録例: `creator-kit/config/meta-harness-hooks.json.example`（install後は `.claude/settings.meta-harness-hooks.json.example`。UserPromptSubmit / PostToolUse / Stop の3点）
 - 出力先: `.claude/logs/<YYYY-MM-DD>.jsonl`（`.claude/logs/.gitignore` で git 追跡除外）
 
 ### observables との対応
@@ -94,6 +94,7 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 - [x] スキーマ v1.0 確定（本節）
 - [x] 収集スクリプト動作確認（stdin JSON → jsonl 追記）
 - [x] hook 登録 example 配置（opt-in）
+- [x] creator-kit manifest 登録
 - [x] gitignore でログ実体を git から除外
 - [ ] 1セッション以上の実ログ蓄積（運用フェーズで達成）
 

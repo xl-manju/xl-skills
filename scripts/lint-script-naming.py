@@ -49,20 +49,27 @@ PENDING_RENAME_PATHS = {
     "scripts/skill-fixture-runner.py",
     "scripts/re-evaluate-on-rubric-bump.py",
     "scripts/gate-phase0.py",
-    "creator-kit/scripts/check-rubric-sync.py",
-    "creator-kit/scripts/cross_platform_secret.py",
-    "creator-kit/scripts/re-evaluate-on-rubric-bump.py",
-    "creator-kit/scripts/migrate/audit.py",
-    "creator-kit/scripts/migrate/to-brief.py",
-    "creator-kit/scripts/migrate/backfill-source-tier.py",
-    "creator-kit/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
-    "creator-kit/skills/run-skill-create/scripts/resolve-brief-to-category.py",
-    "creator-kit/skills/run-build-skill/scripts/set-frontmatter-field.py",
+    "plugins/skill-governance-lint/scripts/check-rubric-sync.py",
+    "plugins/skill-governance-automation/scripts/cross_platform_secret.py",
+    "plugins/skill-governance-automation/scripts/rollback-to-stable.py",
+    "plugins/skill-governance-automation/scripts/compute-rubric-hash.py",
+    "plugins/skill-governance-automation/scripts/doc-to-skill-adapter.py",
+    "plugins/skill-governance-automation/scripts/compose-rubrics.py",
+    "plugins/skill-governance-automation/scripts/notify-if-governance-trigger.py",
+    "plugins/skill-governance-automation/scripts/write-eval-log.py",
+    "plugins/skill-governance-automation/scripts/re-evaluate-on-rubric-bump.py",
+    "plugins/skill-governance-migration/scripts/migrate/audit.py",
+    "plugins/skill-governance-migration/scripts/migrate/to-brief.py",
+    "plugins/skill-governance-migration/scripts/migrate/backfill-source-tier.py",
+    "plugins/skill-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
+    "plugins/skill-creator/skills/run-skill-create/scripts/resolve-brief-to-category.py",
+    "plugins/skill-creator/skills/run-build-skill/scripts/set-frontmatter-field.py",
+    "scripts/phase2/gen-rollback.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")
 
-SCAN_ROOTS = ["scripts", "creator-kit/scripts", "creator-kit/skills"]
+SCAN_ROOTS = ["scripts", "plugins"]
 SKIP_PARTS = {"_lib", "__pycache__", "node_modules", ".git"}
 
 
