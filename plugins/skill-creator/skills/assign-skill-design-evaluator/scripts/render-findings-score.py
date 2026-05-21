@@ -130,10 +130,10 @@ def check_rule(rule: dict, fm: dict, body: str, skill_dir: Path) -> dict | None:
         if not any(name.startswith(p) for p in PREFIXES):
             return fail("name missing required prefix", "naming")
     elif rid == "NM-003":
-        # basic check: scripts must be .py, templates .md
+        # basic check: scripts must be Python stdlib entrypoints.
         for p in skill_dir.glob("scripts/*"):
-            if p.is_file() and p.suffix not in {".py", ".sh"}:
-                return fail(f"scripts/ has non-py/sh file: {p.name}", "naming")
+            if p.is_file() and p.suffix != ".py":
+                return fail(f"scripts/ has non-py file: {p.name}", "naming")
     elif rid == "PD-001":
         n = len(body.splitlines())
         if n > 100:
@@ -148,6 +148,8 @@ def check_rule(rule: dict, fm: dict, body: str, skill_dir: Path) -> dict | None:
 
 def compose_rubrics(refs: list[Path], strategy: str, policy: str) -> dict:
     script = Path(__file__).resolve().parents[3] / "scripts" / "compose-rubrics.py"
+    if not script.exists():
+        script = Path("plugins/skill-governance-automation/scripts/compose-rubrics.py")
     cmd = [
         sys.executable,
         str(script),

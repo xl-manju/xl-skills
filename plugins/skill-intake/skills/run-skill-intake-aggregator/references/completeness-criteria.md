@@ -6,7 +6,7 @@ type: reference
 
 # 完了判定基準
 
-ヒアリング結果が「`run-skill-create` に渡してよい」状態か機械的に判定する。`scripts/check_completeness.js` がこの基準で PASS/FAIL を出す。
+ヒアリング結果が「`run-skill-create` に渡してよい」状態か機械的に判定する。`scripts/check_completeness.py` がこの基準で PASS/FAIL を出す。
 
 ## 必須項目チェック表（24 項目・5 軸版）
 

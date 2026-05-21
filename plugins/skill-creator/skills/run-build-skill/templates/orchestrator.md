@@ -3,7 +3,7 @@ name: {{name}}
 description: {{trigger1}}とき、{{trigger2}}ときに使う。
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: [Read, Write, Edit, Bash(python3 *), Bash(bash *), Task]
+allowed-tools: [Read, Write, Edit, Bash(python3 *), Task]
 kind: run
 owner: {{owner}}
 since: {{date}}
@@ -104,8 +104,8 @@ input: { artifact_path: "{{artifact_path}}", rubric_refs: [...] }
 - 設計書 10章 §7 — Hook 競合解決
 
 ## Security & Permissions
-本 orchestrator は subagent 起動と外部 command 実行を伴う。設計書10章§7.4 二段防御:
-1. **一段目（静的）**: `settings.json` の `permissions.deny` に `Bash(rm -rf*)`, `Bash(git push --force*)`, rubric ファイル Write/Edit を列挙
+本 orchestrator は subagent 起動と Python entrypoint 実行を伴う。設計書10章§7.4 二段防御:
+1. **一段目（静的）**: `settings.json` の `permissions.deny` に破壊的 command と rubric ファイル Write/Edit を列挙
 2. **二段目（動的）**: `PreToolUse` hook で context-dependent な危険検査
 3. **TaskCreated hook**: file ownership 衝突を block
 4. **TaskCompleted hook**: evaluator JSON 契約違反を block

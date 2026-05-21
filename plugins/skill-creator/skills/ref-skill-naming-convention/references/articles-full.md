@@ -45,13 +45,13 @@ prefix を含む合計 60 文字以下。
 本文 100 行超のSkillは必須。
 
 ## 第10条（scripts/）
-`scripts/<verb>-<object>.py` 形式。`.py` または `.sh` のみ。stdlib only。
+`scripts/<verb>-<object>.py` 形式。`.py` のみ。stdlib only。
 
 ## 第11条（examples/）
 `examples/<scenario>.md`。完成例を1つ以上。
 
 ## 第12条（hooks/）
-任意。`hooks/<event>.sh`。
+任意。`hooks/<event>.py`。shell script を新規配布しない。
 
 ## 第13条（フラットツリー）
 `templates/sub/foo.md` のような2階層深いネストは原則禁止。深くする場合は別Skillに分割。

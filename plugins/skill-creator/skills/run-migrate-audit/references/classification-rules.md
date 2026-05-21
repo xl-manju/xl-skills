@@ -7,7 +7,7 @@ doc/20-migration-path.md §「Step 1 棚卸し」表の機械判定版。
 | always-on | 「常に」「必ず」「全タスクで」「short rules」 | CLAUDE.md に残す |
 | ref | 「リファレンス」「仕様」「用語集」「規約」 | `ref-*` |
 | run | 「手順」「ワークフロー」「Step 1..N」 | `run-*` |
-| wrap | 「コマンドラッパ」「実行前検査」「git/npm wrapper」 | `wrap-*` |
+| wrap | 「Python adapter」「実行前検査」「外部CLI任意ラッパ」 | `wrap-*` |
 | assign | 「評価する」「採点」「rubric」「fork で起動」 | `assign-*` |
 | delegate | 「外部 LLM に委譲」「Codex」「Gemini」 | `delegate-*` |
 | hook | 「禁則」「禁止」「block」「pre-commit」「決定論」 | settings.json hooks |

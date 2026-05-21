@@ -51,15 +51,10 @@ effect: local-artifact
 ### Step 0: 出力先解決
 
 ```bash
-# SKILL_DIR / OUT_BASE を環境変数または fallback で確立する。
-# creator-kit 配置なら OUT_BASE=plugins/skill-creator/skills、それ以外は .claude/skills
-source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
-# または手動 fallback:
-# OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-}"
-# if [ -z "$OUT_BASE" ]; then
-#   if [ -d "plugins/skill-creator/skills" ]; then OUT_BASE="plugins/skill-creator/skills"
-#   else OUT_BASE=".claude/skills"; fi
-# fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-name "$OLD_NAME" \
+  --skill-dir-name run-skill-rename \
+  > eval-log/skill-dirs.json
 ```
 
 ### Step 1: 事前検証
@@ -128,4 +123,4 @@ python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE
 - `06-classification-and-naming.md` — 命名規約 第6条（改名手続き）
 - `13-checklists.md` — 命名規約条文チェックリスト
 - `plugins/skill-governance-lint/scripts/lint-skill-name.py` — 命名検証
-- `plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh` — OUT_BASE 解決スクリプト
+- `plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py` — OUT_BASE 解決スクリプト

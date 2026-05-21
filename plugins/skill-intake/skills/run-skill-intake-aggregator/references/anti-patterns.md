@@ -125,4 +125,4 @@ const antiPatternRules = {
 
 ## 対処の自動化
 
-`scripts/quality_gate.js` がアンチパターン検出ルールを実行し、該当する場合は対応 SubAgent に自動再ヒアリング指示を送る。
+`scripts/quality_gate.py` がアンチパターン検出ルールを実行し、該当する場合は対応 SubAgent に自動再ヒアリング指示を送る。

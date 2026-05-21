@@ -6,7 +6,7 @@ type: reference
 
 # 質問銀行（40 問以上）
 
-`scripts/update_question_bank.js`（`skill-intake-self-updater` SubAgent）が反復毎に追記する自己進化辞書。深度（quick／standard／deep）× 5 軸（出力先／情報源／共有相手／真の課題／**ナレッジ資産**）の格子で参照する。ナレッジ資産軸は **MUST**: 思考プロセス・考え方・外部情報をナレッジ化してスキルに注入する流れの有無を必ず確認する。
+`scripts/update_question_bank.py`（`skill-intake-self-updater` SubAgent）が反復毎に追記する自己進化辞書。深度（quick／standard／deep）× 5 軸（出力先／情報源／共有相手／真の課題／**ナレッジ資産**）の格子で参照する。ナレッジ資産軸は **MUST**: 思考プロセス・考え方・外部情報をナレッジ化してスキルに注入する流れの有無を必ず確認する。
 
 ## 索引
 

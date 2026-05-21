@@ -41,9 +41,15 @@ kebab-case で命名する。既存 rubric-registry.json の `rubrics[].domain` 
 ### Step 2: 雛形コピー
 
 ```bash
-DOMAIN="task-spec"  # 例
-cp -R plugins/skill-creator/skills/ref-domain-rubric-template \
-      plugins/skill-creator/skills/ref-domain-${DOMAIN}-rubric
+python3 - <<'PY'
+from pathlib import Path
+import shutil
+
+domain = "task-spec"  # 例
+src = Path("plugins/skill-creator/skills/ref-domain-rubric-template")
+dst = Path(f"plugins/skill-creator/skills/ref-domain-{domain}-rubric")
+shutil.copytree(src, dst)
+PY
 ```
 
 ### Step 3: 変数置換

@@ -6,7 +6,7 @@ type: reference
 
 # 図解マスト 8 ルール
 
-`scripts/enforce_visualization_rules.js` がこの 8 ルールを全図に対して機械検証する。1 つでも違反すれば PASS 不可。
+`scripts/enforce_visualization_rules.py` がこの 8 ルールを全図に対して機械検証する。1 つでも違反すれば PASS 不可。
 
 ## 8 ルール一覧
 
@@ -80,7 +80,7 @@ if (hasEmoji) return { pass: false, reason: 'emoji_detected' };
 | `output/<hint>/diagrams/*.png` | OK |
 | 本文中に Mermaid 生構文残存 | NG |
 
-`scripts/render_to_svg.js` と `scripts/render_to_image.js` が最終レンダリングを実行。Notion 公開時は PNG 必須。
+`scripts/render_to_svg.py` と `scripts/render_to_image.py` が最終レンダリングを実行。Notion 公開時は PNG 必須。
 
 ## ルール 7: one_liner 1 行付記
 
@@ -100,14 +100,14 @@ if (hasEmoji) return { pass: false, reason: 'emoji_detected' };
 | class | comparison-table | technical_level != 上級 |
 | er | icon-grid | technical_level != 上級 |
 
-代替は `scripts/select_diagram_type.js` が自動実施。
+代替は `scripts/select_diagram_type.py` が自動実施。
 
 ## 検証フロー
 
 ```
 [visualizer 出力]
   ↓
-enforce_visualization_rules.js
+enforce_visualization_rules.py
   ├─ ルール 1〜8 を順次検証
   ├─ 全 PASS → 通過
   └─ 1 つでも NG → 修正指示返却

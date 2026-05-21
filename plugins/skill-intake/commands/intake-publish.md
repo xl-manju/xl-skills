@@ -1,5 +1,5 @@
 ---
-description: 既存 intake を Notion DB に再公開 (wrap-notion-intake-publish) — ヒアリングはやり直さず Notion API 呼び出しのみ
+description: 既存 intake を Notion DB に再公開 (run-notion-intake-publish) — ヒアリングはやり直さず Notion API 呼び出しのみ
 argument-hint: "<skill-name-hint>"
 ---
 
@@ -9,7 +9,7 @@ argument-hint: "<skill-name-hint>"
 
 ## 振る舞い
 
-1. `Skill(wrap-notion-intake-publish, args="$ARGUMENTS")` を呼ぶ。
+1. `Skill(run-notion-intake-publish, args="$ARGUMENTS")` を呼ぶ。
 2. Keychain → トークン取得 → DB スキーマ検証 → PNG 検証 → REST API ページ作成 → URL 保存。
 3. 既存ページがある場合は追記モード (PATCH children)。新規作成は `--mode=new` を明示。
 

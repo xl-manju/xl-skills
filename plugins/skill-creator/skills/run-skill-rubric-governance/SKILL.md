@@ -40,17 +40,9 @@ audit-trigger: quarterly
 ### Step 0: 出力先解決
 
 ```bash
-# SKILL_DIR を確立する (governance log / scripts/ の親ディレクトリ)
-source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
-# SKILL_DIR が run-build-skill を指すため、本スキル用に上書き:
-SKILL_DIR="${CLAUDE_SKILL_DIR:-}"
-if [ -z "$SKILL_DIR" ]; then
-  if [ -f "plugins/skill-creator/skills/run-skill-rubric-governance/scripts/lint-rubric-violation.py" ]; then
-    SKILL_DIR="plugins/skill-creator/skills/run-skill-rubric-governance"
-  elif [ -f ".claude/skills/run-skill-rubric-governance/scripts/lint-rubric-violation.py" ]; then
-    SKILL_DIR=".claude/skills/run-skill-rubric-governance"
-  fi
-fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-dir-name run-skill-rubric-governance \
+  > eval-log/skill-dirs.json
 ```
 
 ### Step 1: 提案
@@ -135,4 +127,4 @@ python3 plugins/skill-governance-automation/scripts/rollback-to-stable.py \
 - 27章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/27-rubric-governance-runbook.md`
 - 26章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/26-meta-skill-dogfooding.md`
 - 28章: `{{PROJECT_ROOT}}/doc/ClaudeCodeスキルの設計書/28-script-execution-model.md`
-- `plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh` — SKILL_DIR 解決スクリプト
+- `plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py` — SKILL_DIR 解決スクリプト

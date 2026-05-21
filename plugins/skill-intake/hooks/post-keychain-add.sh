@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SERVICE="${INTAKE_KEYCHAIN_SERVICE:-notion-api-key}"
-ACCOUNT="${INTAKE_KEYCHAIN_ACCOUNT:-skill-intake-interviewer}"
+ACCOUNT="${INTAKE_KEYCHAIN_ACCOUNT:-skill-intake}"
 
 echo "[skill-intake] Keychain 取得テスト: service=$SERVICE, account=$ACCOUNT"
 

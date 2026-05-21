@@ -29,10 +29,10 @@ type: reference
 ## 3. Internal Integration 取得手順 (チーム用)
 
 1. `https://www.notion.so/my-integrations` を開く (ワークスペース管理者でないと「インストール可能なワークスペースがありません」と表示される)
-2. `+ 新規統合` → 名前: `skill-intake-interviewer` / タイプ: `内部` / ワークスペース: 対象
+2. `+ 新規統合` → 名前: `skill-intake` / タイプ: `内部` / ワークスペース: 対象
 3. 機能 (Capabilities) で **`コンテンツの読み取り` / `コンテンツの更新` / `コンテンツの挿入`** にチェック (ユーザー情報やメールは不要なら外す)
 4. `送信` → 表示された `Internal Integration Secret (secret_xxxxxxxx...)` をコピー
-5. 対象 Notion DB (例: `36607a0cd18c80bf9effc74aa736645c`) を開き、右上 `⋯` → `接続` → 作った integration を追加
+5. 対象 Notion DB (環境変数 `INTAKE_NOTION_DATABASE_ID` で指定) を開き、右上 `⋯` → `接続` → 作った integration を追加
 
 ## 4. macOS Keychain への登録
 
@@ -53,7 +53,7 @@ type: reference
 ### 4.1 既存登録の確認 (任意)
 
 ```bash
-security find-generic-password -s notion-api-key -a skill-intake-interviewer 2>/dev/null \
+security find-generic-password -s notion-api-key -a skill-intake 2>/dev/null \
   && echo "既存あり (更新になります)" \
   || echo "未登録 (新規登録します)"
 ```
@@ -64,14 +64,14 @@ security find-generic-password -s notion-api-key -a skill-intake-interviewer 2>/
 # 既存があれば削除 (再登録時のみ)
 security delete-generic-password \
   -s notion-api-key \
-  -a skill-intake-interviewer 2>/dev/null
+  -a skill-intake 2>/dev/null
 
 # 登録 — 対話入力モード (パスワードがシェル履歴に残らない)
 # 重要: `-w` を **引数なしで末尾に** 置くこと。
 #       `-w` を省略すると空パスワードで黙って登録される (プロンプトは出ない)。
 security add-generic-password \
   -s notion-api-key \
-  -a skill-intake-interviewer \
+  -a skill-intake \
   -T '' \
   -U \
   -w
@@ -87,7 +87,7 @@ security add-generic-password \
 # シェル履歴に残るため、対話入力モードが使えない CI/CD などでのみ使う
 security add-generic-password \
   -s notion-api-key \
-  -a skill-intake-interviewer \
+  -a skill-intake \
   -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
   -T '' \
   -U
@@ -98,7 +98,7 @@ security add-generic-password \
 ```bash
 security add-generic-password \
   -s notion-api-key \
-  -a skill-intake-interviewer \
+  -a skill-intake \
   -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
   -T '' \
   -U
@@ -109,7 +109,7 @@ security add-generic-password \
 | オプション | 意味 |
 |---|---|
 | `-s` | service 名 (= `notion-api-key`) |
-| `-a` | account 名 (= `skill-intake-interviewer`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
+| `-a` | account 名 (= `skill-intake`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
 | `-w` | パスワード本体 (省略すると対話入力) |
 | `-T ''` | アクセス許可アプリ空 (毎回承認ダイアログ。最も厳格) |
 | `-T /usr/bin/security` | security コマンド自身に許可 (CLI 自動化時のみ) |
@@ -125,7 +125,7 @@ bash plugins/skill-intake/hooks/post-keychain-add.sh
 
 期待出力:
 ```
-[skill-intake] Keychain 取得テスト: service=notion-api-key, account=skill-intake-interviewer
+[skill-intake] Keychain 取得テスト: service=notion-api-key, account=skill-intake
 OK: トークン取得成功 (長さ=N, prefix=ntn_...)
     トークン本体は表示しません。
 ```
@@ -133,15 +133,15 @@ OK: トークン取得成功 (長さ=N, prefix=ntn_...)
 ### 5.2 段階 2 — Notion API 接続テスト (whoami + DB アクセス)
 
 ```bash
-TOKEN=$(security find-generic-password -s notion-api-key -a skill-intake-interviewer -w)
+TOKEN=$(security find-generic-password -s notion-api-key -a skill-intake -w)
 
 # whoami: PAT が API に届くか
 echo "whoami:"; curl -sS https://api.notion.com/v1/users/me \
   -H "Authorization: Bearer $TOKEN" \
   -H "Notion-Version: 2022-06-28" | python3 -m json.tool | head -20
 
-# DB access: 対象 DB に届くか
-echo "DB access:"; curl -sS https://api.notion.com/v1/databases/36607a0cd18c80bf9effc74aa736645c \
+# DB access: 対象 DB に届くか (事前に export INTAKE_NOTION_DATABASE_ID=<your-database-id>)
+echo "DB access:"; curl -sS "https://api.notion.com/v1/databases/${INTAKE_NOTION_DATABASE_ID:?INTAKE_NOTION_DATABASE_ID is required}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Notion-Version: 2022-06-28" | python3 -m json.tool | head -30
 
@@ -159,7 +159,7 @@ PAT 文字列を画面に出してでも確認したい場合のみ:
 ```bash
 security find-generic-password \
   -s notion-api-key \
-  -a skill-intake-interviewer -w
+  -a skill-intake -w
 ```
 
 ターミナル履歴に残るため、確認後は `clear` 等で画面をクリアすることを推奨。
@@ -183,13 +183,16 @@ security find-generic-password \
 
 ## 6. 環境変数で上書きしたい場合
 
+既定値 (`service=notion-api-key`, `account=skill-intake`) と異なる Keychain entry を使いたいとき (例: staging 環境専用 entry、bot アカウント運用) は環境変数で上書きする。以下は **既定とは別の値を指定する例** であり、初回セットアップでこの値をそのまま使う必要はない。
+
 ```bash
+# 例: staging 用 service + bot アカウント運用に切り替える
 export INTAKE_KEYCHAIN_SERVICE=notion-api-key-staging
-export INTAKE_KEYCHAIN_ACCOUNT=skill-intake-interviewer-bot
+export INTAKE_KEYCHAIN_ACCOUNT=skill-intake-bot
 export INTAKE_NOTION_DATABASE_ID=ffffffffffffffffffffffffffffffff
 ```
 
-`scripts/keychain_get_secret.js` はこれらを自動参照する。
+`scripts/keychain_get_secret.py` はこれらを自動参照する。未設定なら既定値 (`account=skill-intake`) にフォールバック。
 
 ## 7. ローテーション
 
@@ -212,4 +215,4 @@ export INTAKE_NOTION_DATABASE_ID=ffffffffffffffffffffffffffffffff
 
 ## 9. macOS 以外
 
-Linux: `pass`, Windows: `cmdkey` などに差し替える。`scripts/keychain_get_secret.js` を OS 判定で分岐させる修正が必要。今版では macOS のみ対応。
+Linux: `pass`, Windows: `cmdkey` などに差し替える。`scripts/keychain_get_secret.py` を OS 判定で分岐させる修正が必要。今版では macOS のみ対応。

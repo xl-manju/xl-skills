@@ -63,7 +63,7 @@ audit-trigger: quarterly
 2. **descriptionは発動条件のみ**: 動作詳細は本文化（08章）。
 3. **triggerは2〜3個**: description内のUse when句は2〜3個の動詞ベース条件（08章 hard rule）。
 4. **ディレクトリ名 == frontmatter.name**: 第8条。
-5. **クロスプラットフォーム**: Mac/Linux は zsh/bash + python3 stdlib、Windows は PowerShell 5.1+ + python3 stdlib（設計書22章）。OS分岐は本文 `<important if="os=...">` で表現する。
+5. **Python実行基盤**: Mac/Linux/Windows すべてで Python 標準ライブラリを正本にする。Bash/PowerShell 断片や Node 系 runtime を生成物の必須依存にしない（設計書22章）。
 6. **評価分離**: 生成本体は評価しない。`assign-skill-design-evaluator` をforkで呼ぶ（09章 Goodhart対策）。
 7. **kindに応じたテンプレ選択**: 11章テンプレを `templates/` から展開。
 8. **context予算制約 (CD-005)**: 全章一括ロード禁止。各Stepで必要な章のみ参照。
@@ -111,17 +111,8 @@ audit-trigger: quarterly
 - **量産基盤の文脈選択**: 要求に skill creator / 量産 / 再現性 / rubric合成 / output routing / adapter / 類推理解 / テンプレート変数が含まれる場合は、task category を `skill-factory-reproducibility` にし、設計書29/30/31章と `references/skill-factory-reproducibility.md` を読む。3章上限を超える基礎章は `references/build-steps.md` の既読要約で代替する。
 
 ```bash
-# brief.domain → L1 rubric 解決
-DOMAIN="$(python3 -c "import json,sys; d=json.load(open('eval-log/skill-brief.json')); print(d.get('domain',''))")"
-if [ -n "$DOMAIN" ]; then
-  REGISTRY="${RUBRIC_REGISTRY_PATH:-plugins/skill-governance-config/config/rubric-registry.json}"
-  DOMAIN_RUBRIC_REFS="$(python3 -c "
-import json, sys
-reg=json.load(open('$REGISTRY'))
-print(' '.join(r['rubric'] for r in reg.get('rubrics',[]) if r['domain']=='$DOMAIN'))
-")"
-  export DOMAIN_RUBRIC_REFS
-fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-dir-name run-build-skill
 ```
 
 ### Step 2: テンプレ展開（create）/ 既存読込（update）
@@ -144,62 +135,20 @@ fi
 
 **create モード**:
 
-OS判定プリアンブル（設計書22）:
-```
-!`uname -s 2>/dev/null || ver`
-```
-
-<important if="os=mac,os=linux">
 ```bash
-# パス解決ロジックを外部スクリプトに移譲 (300行 cap 対策)
-# SKILL_DIR / OUT_BASE を確立する
-source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
-mkdir -p "$OUT_BASE/$SKILL_NAME"
-if [[ "${COMPOSER_MODE:-template}" == "atomic" ]]; then
-  python3 "$SKILL_DIR/scripts/render-combinators.py" \
-    --kind "$KIND" ${ROLE_SUFFIX:+--role-suffix "$ROLE_SUFFIX"} \
-    ${WITH_EVALUATOR:+--with-evaluator} ${WITH_HOOKS:+--with-hooks} ${WITH_SUBAGENT:+--with-subagent} \
-    --output "$OUT_BASE/$SKILL_NAME/SKILL.md"
-else
-  python3 "$SKILL_DIR/scripts/render-frontmatter.py" \
-    --name "$SKILL_NAME" --kind "$KIND" \
-    --brief eval-log/skill-brief.json \
-    --template "$SKILL_DIR/templates/${KIND}.md" \
-    > "$OUT_BASE/$SKILL_NAME/SKILL.md"
-fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-name "$SKILL_NAME" \
+  --skill-dir-name run-build-skill \
+  > eval-log/skill-dirs.json
+python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py \
+  --name "$SKILL_NAME" --kind "$KIND" \
+  --brief eval-log/skill-brief.json \
+  --template plugins/skill-creator/skills/run-build-skill/templates/"$KIND".md \
+  --out plugins/skill-creator/skills/"$SKILL_NAME"/SKILL.md
 ```
-</important>
-
-<important if="os=windows">
-```powershell
-# Windows経路: PowerShell 5.1+ で resolve-skill-dirs.ps1 を dot-source
-. .\plugins\skill-governance-automation\scripts\resolve-skill-dirs.ps1
-New-Item -ItemType Directory -Force -Path "$env:OUT_BASE\$env:SKILL_NAME" | Out-Null
-if ($env:COMPOSER_MODE -eq "atomic") {
-  python "$env:SKILL_DIR\scripts\render-combinators.py" --kind "$env:KIND" --output "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
-} else {
-  python "$env:SKILL_DIR\scripts\render-frontmatter.py" `
-    --name "$env:SKILL_NAME" --kind "$env:KIND" `
-    --brief eval-log\skill-brief.json `
-    --template "$env:SKILL_DIR\templates\$($env:KIND).md" `
-    | Out-File -Encoding utf8 "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
-}
-```
-</important>
-
-<important if="os=unknown">
-OS判定に失敗した。`ref-cross-platform-runtime` のフォールバック動線に従い、
-ユーザーに OS (macOS / Windows / Linux) を確認してから対応分岐に進むこと。
-</important>
 
 **update モード (CD-002)**:
-```bash
-# 既存SKILL.mdを読み込み、findingsを差分適用する
-# 1. 既存ファイルをバックアップ
-cp "$OUT_BASE/$SKILL_NAME/SKILL.md" "$OUT_BASE/$SKILL_NAME/SKILL.md.bak"
-# 2. findingsに基づき Edit で差分適用（新規作成しない）
-# 3. validate-frontmatter.py で整合性確認
-```
+既存 `SKILL.md` を読み込み、Edit で差分のみ適用する。バックアップや path 解決が必要な場合も Python stdlib script で行い、shell script には委譲しない。
 
 ### Step 3: 補助ファイル生成
 
@@ -292,6 +241,7 @@ Hook 統合スキルの場合、scripts/hook-<name>-<event>.py スケルトン�
 - **description 長文化 / ref-* body 肥大**: 動作詳細は本文化、原文は `references/`（08章）。300行制約は SKILL.md 本文のみ。
 - **scripts 内 yaml import 禁止 / fork 評価の自己採点禁止**: stdlib のみ（28章）、同context採点は Goodhart 罠（09章）。
 - **update 時の全書き換え禁止 (CD-002)** / **全章一括ロード禁止 (CD-005)**: Edit で差分のみ。必要な章だけ Read。
+- **Node/Bash 実体禁止**: `.js` / `.sh` を新規生成しない。必要な決定論処理は `scripts/*.py` に置く。
 
 ## Additional Resources
 
