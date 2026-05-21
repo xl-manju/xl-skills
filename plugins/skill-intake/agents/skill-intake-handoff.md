@@ -16,7 +16,12 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 - `output/<hint>/summary.md`
 - `output/<hint>/visuals/*.svg`
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md` (Progressive Disclosure)
+- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl` (最終正本テンプレ・Jinja2)
+- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-schema.json` (context 変数スキーマ)
+- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-source-map.yaml` (変数 ↔ SubAgent/prompt マッピング正本)
+- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-prompts.yaml` (7層構造プロンプト雛形・SubAgent 非使用ルート用)
 - `plugins/skill-intake/scripts/apply_section_template.py`
+- `plugins/skill-intake/scripts/render-intake-final.py`
 
 ## Outputs
 
@@ -49,8 +54,9 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 6. `python3 plugins/skill-intake/scripts/detect_contradictions.py` で agent 間整合検証を実行する。
 7. `python3 plugins/skill-intake/scripts/extract_open_questions.py` で未解決質問を抽出する。
 8. `python3 plugins/skill-intake/scripts/cross_check.py` で最終整合検証を実行する。
-9. いずれかの検証が FAIL なら自己修正を試みる (最大 3 回)。3 回連続 FAIL なら summarizer に差し戻す。
-10. 全 PASS で完了し、次 agent にバトンを渡す。
+9. `python3 plugins/skill-intake/scripts/render-intake-final.py output/<hint>` で Phase 別 11 セクション完全版 (`intake-final.md`) を生成する。テンプレ正本は `references/intake-final-template.md.tmpl`、変数スキーマは `references/intake-final-schema.json`。レンダラーは内部で JSON Schema 検証と「options.groups[].options[] の adopted=1 件」追加検証を行う。
+10. いずれかの検証が FAIL なら自己修正を試みる (最大 3 回)。3 回連続 FAIL なら summarizer に差し戻す。
+11. 全 PASS で完了し、次 agent にバトンを渡す。
 
 ## Constraints
 
