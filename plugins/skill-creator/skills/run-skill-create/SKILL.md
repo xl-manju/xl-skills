@@ -1,6 +1,6 @@
 ---
 name: run-skill-create
-description: 新規Skillを端から端まで作りたいとき、複数Gateを通した品質保証付きフローを起動したいときに使う。
+description: 実行して新規Skillを端から端まで作りたいとき、複数Gateを通した品質保証付きフローを起動したいときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[topic?] [--mode create|update] [--fast]"
@@ -9,7 +9,9 @@ allowed-tools:
   - Read
   - Write
   - Edit
-  - Bash
+  - Bash(python3 *)
+  - Bash(git diff *)
+  - Bash(git status *)
   - Skill
 model: opus
 kind: run
@@ -51,11 +53,8 @@ audit-trigger: quarterly
 
 `--fast` 時のフロー: Step 1 brief → Step 2 build → Step 4a P0 lint → Step 6 governance (auto-approve)。Step 4b/5 (fork評価/elegant-review) を skip する。判定は機械的に行い、変更ファイル数・evaluator pair 不要条件も確認する:
 ```bash
-CHANGED_FILES=$(git diff --name-only -- "plugins/skill-creator/skills/$SKILL_NAME/" | wc -l | tr -d ' ')
-PAIR_REQUIRED=$(python3 -c "import json; b=json.load(open('eval-log/skill-brief.json')); print('true' if b.get('generate_pair_evaluator') or b.get('needs_independent_context') else 'false')")
-if [[ "$FAST" == "true" ]] && [[ "$CHANGED_FILES" == "1" ]] && [[ "$DIFF_LINES" -le 30 ]] && [[ "$KIND" =~ ^(ref|wrap)$ ]] && [[ "$PAIR_REQUIRED" == "false" ]]; then
-  echo "fast mode: skip Step 4b/5"
-fi
+python3 plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py \
+  --skill-name "$SKILL_NAME" --kind "$KIND" --brief eval-log/skill-brief.json --fast
 ```
 誤判定を防ぐため、条件不一致時は **fast を黙って解除して通常フロー** に戻る。
 
@@ -160,6 +159,35 @@ python3 plugins/skill-governance-automation/scripts/build-manifest-registration-
 
 プロジェクト固有Skillの場合は manifest 登録しない。登録しない理由を完了レポートに残す。
 
+### Step 3.5: bundle 登録判定 (依存解決のため必須)
+
+Claude Code 公式の plugin manifest には依存宣言フィールドが無いため、関連 plugin を一括 install させるには `.claude-plugin/bundles.json` の bundle に新 plugin を登録する必要がある。次のいずれかに該当する場合は登録必須:
+
+- 他 plugin の skill / agent / command / hook を実行時に呼ぶ
+- 利用者がこの plugin 単独で目的を達成できない (= 別 plugin と組み合わせて初めて意味を成す)
+- README の install 手順で「あわせて入れる」と案内したい plugin
+
+登録対象 bundle (複数選択可):
+
+- `xl-skills-full`: 全 plugin (新規はほぼ常にここへ追加)
+- `xl-skills-minimal`: skill-creator + prompt-creator のみ
+- `xl-skills-intake`: 非エンジニア intake 経路
+
+```bash
+python3 - <<'EOF'
+import json, pathlib
+p = pathlib.Path('.claude-plugin/bundles.json')
+d = json.loads(p.read_text())
+# 例: full bundle へ追加
+for b in d['bundles']:
+    if b['name'] == 'xl-skills-full' and '<new-plugin>' not in b['plugins']:
+        b['plugins'].append('<new-plugin>')
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + '\n')
+EOF
+```
+
+登録不要 (= スタンドアロンで使う) と判断した場合は、その理由を完了レポートに残す。**理由なき未登録は rubric 違反として `assign-skill-design-evaluator` で減点される。**
+
 ### Step 4a: P0 lint (自動)
 
 cwd は {{PROJECT_ROOT}} プロジェクトルート。`--skills-dir` には plugins/skill-creator/skills/ または .claude/skills/ を明示する。
@@ -199,14 +227,8 @@ Skill(assign-skill-design-evaluator, args=<skill_path>, context=fork)
 新規スキルまたは大規模更新 (>30行変更) の場合のみ実行する。判定は機械化:
 
 ```bash
-# git diff --shortstat の "X insertions" + "Y deletions" を加算して 30 を超えるか判定
-DIFF_LINES=$(git diff --shortstat -- "plugins/skill-creator/skills/$SKILL_NAME/" \
-  | python3 -c "import sys,re; s=sys.stdin.read(); ins=sum(int(m) for m in re.findall(r'(\d+) insertion',s)); dels=sum(int(m) for m in re.findall(r'(\d+) deletion',s)); print(ins+dels)")
-NEW_SKILL=$(test -n "$(git ls-files --others --exclude-standard plugins/skill-creator/skills/$SKILL_NAME/)" && echo "true" || echo "false")
-if [[ "$NEW_SKILL" == "true" ]] || [[ "$DIFF_LINES" -gt 30 ]]; then
-  echo "elegant-review triggered: new=$NEW_SKILL diff_lines=$DIFF_LINES"
-  # Skill 起動
-fi
+python3 plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py \
+  --skill-name "$SKILL_NAME" --kind "$KIND" --brief eval-log/skill-brief.json
 ```
 ```
 Skill(run-elegant-review, args=[skill, <skill_path>], context=fork)
@@ -252,6 +274,15 @@ PASS時は `findings.json` の `pattern_ref_candidates` / `new_patterns` / `mass
 5. **context予算**: 31章全部を読み込まない。本スキルは05/06/07/13/23/25章のみを参照し、子スキルが各章を担当。
 6. **handoff保存**: 各ゲート通過時に handoff JSON を必ず保存。PostCompact hook で復元できるようにする。
 7. **manifest二重管理禁止**: manifest登録は `build-manifest-registration-plan.py` の提案を経由し、手書き追加後も `lint-manifest-contents.py` を必ず通す。
+
+## 品質ゲート: Elegant Review Protocol 参照
+
+新規スキル作成時／既存スキル更新時／プロンプト改善時は、`plugins/skill-intake/skills/run-skill-intake-aggregator/references/elegant-review-protocol.md` を品質ゲートとして適用する。
+
+- 3フェーズ（リセット俯瞰 → 並列分析 → 改善実行）を経て **4条件 (C1-C4) すべて PASS** を確認する。
+- SubAgent マッピング推奨: `elegant-reset-observer` / `elegant-logical-structural-analyst` / `elegant-meta-divergent-analyst` / `elegant-system-strategic-analyst` / `elegant-improvement-executor`。
+- ユーザー要望が大規模設計 (新規スキル新設、複数ファイル横断、rubric/template 変更等) を伴う場合は本プロトコル **必須**。軽微な単一ファイル修正は `--fast` モードと整合させてよい。
+- 適用結果は Step 5 の `findings.json` に紐付け、評価証跡として `eval-log/` に残す。
 
 ## Additional Resources
 

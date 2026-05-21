@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# /// script
+# name: resolve-brief-to-category
+# purpose: Resolve skill-brief.json fields to resource-map categories deterministically.
+# inputs:
+#   - argv: --brief <skill-brief.json> --resource-map <resource-map.yaml>
+# outputs:
+#   - stdout: category-resolution JSON
+#   - stderr: validation errors
+# contexts: [A, B]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
+# ///
 """resolve-brief-to-category.py
 
 skill-brief.json の field 値から、参照すべき設計書 category を **決定論的** に解決する。
@@ -16,15 +30,10 @@ LLM 主観依存を排除し、再現性を担保するための写像スクリ�
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import sys
 from pathlib import Path
-
-try:
-    import yaml  # type: ignore
-except ImportError:
-    sys.stderr.write("PyYAML required. Install: pip install pyyaml\n")
-    sys.exit(2)
 
 
 # brief field -> 必ず引くべき category (固定写像)。
@@ -53,9 +62,66 @@ def load_brief(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _parse_scalar(value: str) -> object:
+    value = value.strip()
+    if not value:
+        return ""
+    if value.startswith("[") and value.endswith("]"):
+        return ast.literal_eval(value)
+    if value.isdigit():
+        return int(value)
+    if value in {"true", "false"}:
+        return value == "true"
+    return value.strip("\"'")
+
+
 def load_resource_map(path: Path) -> dict[str, dict]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return {entry["category"]: entry for entry in data.get("resources", [])}
+    """Load the limited resource-map.yaml shape using only stdlib.
+
+    Supported shape:
+      resources:
+        - category: name
+          key: scalar
+          list_key:
+            - item
+    """
+    resources: list[dict] = []
+    current: dict | None = None
+    current_list_key: str | None = None
+
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        stripped = line.strip()
+        if stripped == "resources:":
+            continue
+        if stripped.startswith("- "):
+            item = stripped[2:].strip()
+            if ":" in item:
+                if item.startswith("category:") or current is None:
+                    current = {}
+                    resources.append(current)
+                key, value = item.split(":", 1)
+                current[key.strip()] = _parse_scalar(value)
+                current_list_key = None
+            elif current is not None and current_list_key:
+                current.setdefault(current_list_key, []).append(_parse_scalar(item))
+            continue
+        if current is None or ":" not in stripped:
+            continue
+        key, value = stripped.split(":", 1)
+        key = key.strip()
+        if value.strip():
+            current[key] = _parse_scalar(value)
+            current_list_key = None
+        else:
+            current[key] = []
+            current_list_key = key
+
+    return {entry["category"]: entry for entry in resources if "category" in entry}
+
+
 
 
 def resolve(brief: dict, resource_map: dict[str, dict]) -> dict:

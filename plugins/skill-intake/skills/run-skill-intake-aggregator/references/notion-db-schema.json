@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill Intake Reports — Notion Database Schema (JP)",
+  "description": "run-skill-intake-aggregator が公開する Notion DB のプロパティ定義。プロパティは検索/絞り込みに必要な 7 列のみに限定し、その他の項目はページ本文 (children) の対応セクション内に rich_text/toggle で記述する。列名・選択肢は日本語。固有名詞 (Slack/Notion/GitHub 等) は英語のまま。verify_notion_schema.py が現状 DB と突き合わせ、過不足を eval-log/notion-conflicts.json に記録する。",
+  "database_id_default": "36607a0cd18c80bf9effc74aa736645c",
+  "database_id_env": "INTAKE_NOTION_DATABASE_ID",
+  "rename_map_from_english": {
+    "Name": "名前",
+    "Status": "ステータス",
+    "Pattern": "パターン",
+    "True Problem": "真の課題",
+    "Knowledge Asset Tags": "ナレッジ資産タグ",
+    "Created": "作成日時",
+    "Markdown Source URL": "Markdown正本URL"
+  },
+  "properties": {
+    "名前": {
+      "type": "title",
+      "required": true,
+      "description": "スキル名候補 (skill-name-hint)",
+      "source": "intake.json.skill_name_hint"
+    },
+    "ステータス": {
+      "type": "select",
+      "required": true,
+      "options": ["下書き", "レビュー中", "引き渡し済み", "構築済み", "アーカイブ"],
+      "default": "下書き",
+      "description": "ヒアリング/構築の進捗状態"
+    },
+    "パターン": {
+      "type": "select",
+      "required": true,
+      "options": ["量産型", "自動化", "ナレッジ", "レビュー", "その他"],
+      "description": "kickoff agent が判定したスキル類型"
+    },
+    "真の課題": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: 真の課題の短文サマリ (200 字以内)。詳細は本文 children へ。",
+      "source": "intake.json.five_axes.true_problem",
+      "max_length": 200
+    },
+    "ナレッジ資産タグ": {
+      "type": "multi_select",
+      "required": true,
+      "options": ["思考プロセス", "暗黙知", "判断基準", "テンプレ", "チェックリスト", "その他"],
+      "description": "ナレッジ資産の類型タグ (検索用)",
+      "source": "intake.json.knowledge_asset_tags[]"
+    },
+    "作成日時": {
+      "type": "created_time",
+      "required": true,
+      "description": "ページ作成時刻 (Notion 自動)"
+    },
+    "Markdown正本URL": {
+      "type": "url",
+      "required": true,
+      "description": "Markdown 正本へのリンク (リポジトリ raw URL or 共有 URL)",
+      "source": "output/<hint>/intake.md"
+    }
+  },
+  "body_sections": {
+    "description": "DB プロパティから外し、ページ本文 children の対応セクション内に rich_text/toggle で記述する項目。",
+    "moved_to_body": [
+      "出力先",
+      "情報源",
+      "共有相手",
+      "図解枚数",
+      "価値実現スコア",
+      "Creator 引き渡し",
+      "担当者",
+      "更新日時",
+      "ユーザープロファイル",
+      "未解決事項",
+      "外部連携",
+      "JSON 副本 URL"
+    ]
+  },
+  "conflict_resolution": {
+    "default_mode": "skip-warn",
+    "modes": {
+      "skip-warn": "型違い・同名プロパティは触らず eval-log/notion-conflicts.json に記録",
+      "overwrite": "スキーマ通りに PATCH 上書き (DB バックアップ必須)",
+      "fail-stop": "1 つでも不一致なら verify_notion_schema.py を exit 1 にしてスキル停止"
+    }
+  }
+}

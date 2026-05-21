@@ -18,13 +18,13 @@ hierarchy_level: L0
 # ref-cross-platform-runtime
 
 ## Purpose & Output Contract
-Mac / Linux / Windows / unknown を横串で扱うための共通契約を提供する。
+Python 標準ライブラリを実行基盤の正本とし、Mac / Linux / Windows / unknown を横串で扱うための共通契約を提供する。
 本 ref を import した skill は次の dict を呼び出し元へ返せる:
 
 ```json
 {
   "os": "mac|linux|windows|unknown",
-  "shell": "bash|powershell",
+  "python_cmd": "python3|python|unknown",
   "python_available": true,
   "fallback_used": false
 }
@@ -35,41 +35,42 @@ Mac / Linux / Windows / unknown を横串で扱うための共通契約を提供
 - **非責務**: 個別 secret 取得（→ `scripts/cross_platform_secret.py` に委譲）
 
 ## Key Rules
-1. 判定キー: `uname -s` または `ver`。両方失敗 → unknown
-2. unknown のとき自走しない。**必ず** ユーザーへ問い合わせる（後述プロンプト）
-3. ユーザー宣言値は **会話スコープのみ** に保持。長期記憶へ焼き込まない
-4. 追加導入を要求する CLI を呼ばない（jq, yq, rg, requests, PyYAML 禁止）
+1. 実行は Python 標準ライブラリを既定にする。生成・検証・adapter・hook は `.py` を正本とし、`.js` / `.sh` を新規生成しない。
+2. Node.js / npm / npx / yarn / pnpm を必須化しない。既存の Node 前提が見つかった場合は Python stdlib に置換する。
+3. Bash は Claude/Codex 側の tool 名として `python3 ...` を起動する場合だけ許容する。成果物として shell script を配布しない。
+4. OS 判定は Python の `platform` / `shutil.which` を優先する。判定不能または Python 不在なら自走せずユーザーへ問い合わせる。
+5. ユーザー宣言値は **会話スコープのみ** に保持。長期記憶へ焼き込まない。
+6. 追加導入を要求する CLI を呼ばない（jq, yq, rg, node, npm, requests, PyYAML 禁止）。
 
 ## Steps
 参照用。手順なし。本文を import する skill 側が以下を組み込むこと。
 
-### OS判定 (skill 本文に貼る雛形)
-```bash
-OS_KIND="$(uname -s 2>/dev/null || echo unknown)"
-case "$OS_KIND" in
-  Darwin) os=mac ;;
-  Linux)  os=linux ;;
-  MINGW*|MSYS*|CYGWIN*) os=windows ;;
-  *) os=unknown ;;
-esac
+### Runtime 判定 (skill 本文に貼る雛形)
+```python
+import platform
+import shutil
+
+system = platform.system().lower()
+os_kind = {"darwin": "mac", "linux": "linux", "windows": "windows"}.get(system, "unknown")
+python_cmd = shutil.which("python3") or shutil.which("python") or "unknown"
+python_available = python_cmd != "unknown"
 ```
 
 ### unknown フォールバックプロンプト
 ```text
-お使いの OS を判定できませんでした。次のいずれかでお答えください。
-  1. macOS
-  2. Linux
-  3. Windows
-回答に応じて、以降は os=mac / os=linux / os=windows で分岐します。
+Python 実行環境または OS を判定できませんでした。次を教えてください。
+  1. OS: macOS / Linux / Windows
+  2. Python 起動コマンド: python3 / python / 未インストール
+回答に応じて、以降は os=mac|linux|windows、python_cmd=python3|python で分岐します。
 ```
 
 ## Gotchas
-- `uname` が無い純 Windows コマンドプロンプトでは `ver` を使う
-- WSL は uname=Linux で返るので Linux 経路で扱う（user に確認しない）
-- PowerShell では `$IsWindows / $IsMacOS / $IsLinux` 自動変数を使う
+- macOS 向けでも `bash` 前提の `.sh` を配布しない。Python から `pathlib`, `shutil`, `subprocess` を使う。
+- WSL は `platform.system() == "Linux"` として扱う（ユーザーに確認しない）。
+- Windows では PowerShell 固有構文を本文に直書きせず、Python 実装に閉じる。
 
 ## Additional Resources
-- `references/os-matrix.md` — OS × shell × python × 判定コマンドの表
+- `references/os-matrix.md` — OS × Python × 判定マトリクス
 - `references/forbidden-clis.md` — no-deps 原則で禁止される CLI 一覧
 - 設計書 22 章 — クロスプラットフォームランタイム正本
 - `plugins/skill-governance-automation/scripts/cross_platform_secret.py` — secret OS 分岐実装例

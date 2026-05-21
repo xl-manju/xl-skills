@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""Create a Notion DB under a parent page, or sync an existing DB to the expected schema.
+
+Usage:
+  python3 create_notion_database.py --mode=create --parent-page <PAGE_ID> [--title "skillインタビュー"]
+  python3 create_notion_database.py --mode=sync --database-id <DB_ID> [--dry-run]
+
+Exit codes: 0=OK, 1=API error, 2=INPUT_ERROR, 44=KEYCHAIN_ERROR
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+from notion_http import NotionHttpError, notion_fetch
+
+SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent
+    / 'skills/run-skill-intake-aggregator/references/notion-db-schema.json'
+)
+
+
+def build_property_def(spec: dict[str, Any]) -> dict[str, Any]:
+    t = spec['type']
+    if t == 'title':
+        return {'title': {}}
+    if t == 'rich_text':
+        return {'rich_text': {}}
+    if t == 'number':
+        return {'number': {'format': 'number'}}
+    if t == 'checkbox':
+        return {'checkbox': {}}
+    if t == 'url':
+        return {'url': {}}
+    if t == 'people':
+        return {'people': {}}
+    if t == 'created_time':
+        return {'created_time': {}}
+    if t == 'last_edited_time':
+        return {'last_edited_time': {}}
+    if t == 'select':
+        return {'select': {'options': [{'name': n} for n in spec.get('options', [])]}}
+    if t == 'multi_select':
+        return {'multi_select': {'options': [{'name': n} for n in spec.get('options', [])]}}
+    raise ValueError(f'unsupported type: {t}')
+
+
+def build_properties(schema: dict[str, Any]) -> dict[str, Any]:
+    return {name: build_property_def(spec) for name, spec in schema['properties'].items()}
+
+
+def parse_args(argv: list[str]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a.startswith('--mode='):
+            out['mode'] = a[len('--mode='):]
+        elif a == '--mode':
+            i += 1
+            out['mode'] = argv[i]
+        elif a == '--parent-page':
+            i += 1
+            out['parentPage'] = argv[i]
+        elif a == '--database-id':
+            i += 1
+            out['databaseId'] = argv[i]
+        elif a == '--title':
+            i += 1
+            out['title'] = argv[i]
+        elif a == '--dry-run':
+            out['dryRun'] = True
+        i += 1
+    return out
+
+
+def create_db(parent_page: str | None, title: str | None, schema: dict[str, Any]) -> dict[str, Any]:
+    if not parent_page:
+        sys.stderr.write('--parent-page is required for --mode=create\n')
+        sys.exit(2)
+    body = {
+        'parent': {'type': 'page_id', 'page_id': parent_page},
+        'title': [{'type': 'text', 'text': {'content': title or 'skillインタビュー'}}],
+        'properties': build_properties(schema),
+    }
+    res = notion_fetch('/databases', method='POST', body=body)
+    print(f"created database id={res.get('id')}")
+    print(f"url={res.get('url')}")
+    return res
+
+
+def sync_db(database_id: str | None, schema: dict[str, Any], dry_run: bool) -> Any:
+    if not database_id:
+        sys.stderr.write('--database-id is required for --mode=sync\n')
+        sys.exit(2)
+    current = notion_fetch(f'/databases/{database_id}')
+    desired = build_properties(schema)
+    patch: dict[str, Any] = {}
+    expected_title_name = next(
+        (n for n, s in schema['properties'].items() if s['type'] == 'title'),
+        None,
+    )
+    current_title_name = next(
+        (n for n, p in current.get('properties', {}).items() if p.get('type') == 'title'),
+        None,
+    )
+    if expected_title_name and current_title_name and expected_title_name != current_title_name:
+        patch[current_title_name] = {'name': expected_title_name}
+        print(f'title rename: "{current_title_name}" -> "{expected_title_name}"')
+    for name, def_ in desired.items():
+        if name == expected_title_name and current_title_name:
+            continue
+        cur = current.get('properties', {}).get(name)
+        spec_type = schema['properties'][name]['type']
+        if not cur or cur.get('type') != spec_type:
+            patch[name] = def_
+        elif spec_type in ('select', 'multi_select'):
+            cur_opts = ','.join(sorted(o.get('name', '') for o in cur.get(cur['type'], {}).get('options', [])))
+            exp_opts = ','.join(sorted(schema['properties'][name].get('options', [])))
+            if cur_opts != exp_opts:
+                patch[name] = def_
+    if not patch:
+        print('no drift; nothing to sync')
+        return None
+    print(f"sync plan: {', '.join(patch.keys())}")
+    if dry_run:
+        print('dry-run: no PATCH issued')
+        return None
+    res = notion_fetch(f'/databases/{database_id}', method='PATCH', body={'properties': patch})
+    print(f'synced {len(patch)} properties')
+    return res
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    schema = json.loads(SCHEMA_PATH.read_text(encoding='utf-8'))
+    try:
+        if args.get('mode') == 'create':
+            create_db(args.get('parentPage'), args.get('title'), schema)
+        elif args.get('mode') == 'sync':
+            sync_db(args.get('databaseId'), schema, bool(args.get('dryRun')))
+        else:
+            sys.stderr.write('--mode=create|sync required\n')
+            return 2
+        return 0
+    except NotionHttpError as e:
+        sys.stderr.write(f'[create_notion_database] {e}\n')
+        return 44 if getattr(e, 'status', None) == 401 else 1
+    except Exception as e:
+        sys.stderr.write(f'[create_notion_database] {e}\n')
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

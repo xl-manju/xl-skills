@@ -27,7 +27,7 @@
 | `Notification` | 通知時 |
 
 設定: `~/.claude/settings.json` の `hooks` キー。
-Skill 内 `hooks/<event>.sh` を参照させる構成も可。
+Skill 内 `hooks/<event>.py` を参照させる構成も可。新規 hook は Python stdlib 実装を正本にする。
 
 ## 連携パターン
 

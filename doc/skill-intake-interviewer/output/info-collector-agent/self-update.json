@@ -1,0 +1,20 @@
+{
+  "candidates_detected": 3,
+  "candidates_applied": 3,
+  "skipped_duplicates": 0,
+  "value_realized_score_estimate": 88,
+  "scoring_rationale": "5軸全 verified、purpose 動詞+目的語に分解済、設計選択(O1/T3/S3)も確定。控除点: アウトプット形態の優先順位確定が purpose-excavator まで持ち越された(-7)、テーマ集合スキーマが skill-creator 委譲で残った(-5)。",
+  "added_questions": [
+    {"category": "真の課題", "technique": "Reverse Brief", "text": "完成して1週間使った朝、最初に開いたときに「一番見たいアウトプット」は何ですか？"},
+    {"category": "ナレッジ資産", "technique": "Tacit Extraction", "text": "あなたの『関心テーマ』は今、(a)言語化済 (b)部分的 (c)暗黙知のみ (d)可変 のどれに近いですか？"},
+    {"category": "責務境界", "technique": "Option Pivot", "text": "このスキルは(1)オーケストレータ (2)ハイブリッド (3)独立 のどれにしますか？"}
+  ],
+  "session_observations": [
+    "expert ユーザーには interviewer 段階で責務境界を確定するほうが効率的。option-presenter まで保留すると後続の語彙選択がブレる",
+    "ナレッジ資産軸を multiSelect で聞くと『全部選択』になりやすい → 直後に優先順位を1問追加すべき",
+    "Reverse Brief 質問が決定打になった。今後は5軸ヒアリングの早い段階で組み込む価値がある"
+  ],
+  "session_status": "completed",
+  "next_phases_skipped": ["notion-publisher (MCP切断)", "slack-notifier (MCP切断)"],
+  "timestamp": "2026-04-29T14:35:00+09:00"
+}

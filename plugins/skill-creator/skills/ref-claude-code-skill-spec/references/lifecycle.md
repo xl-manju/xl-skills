@@ -23,7 +23,7 @@
 | `PostToolUse` | Write 後に lint 自動実行 |
 | `Stop` | 会話終了時 |
 
-Skill は hook と協調可能。`hooks/<event>.sh` を Skill 内に置く。
+Skill は hook と協調可能。`hooks/<event>.py` を Skill 内に置く。
 
 ## Subagent / Agent Teams
 

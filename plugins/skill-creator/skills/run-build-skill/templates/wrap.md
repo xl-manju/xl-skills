@@ -3,7 +3,7 @@ name: {{name}}
 description: {{trigger1}}とき、{{trigger2}}ときに使う。
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: [Bash({{tool}} *)]
+allowed-tools: [Bash(python3 *)]
 kind: wrap
 base: {{base_skill}}
 owner: {{owner}}
@@ -28,7 +28,7 @@ rubric_refs: {{rubric_refs | default([]) }}            # ref-pr-conventions 等�
 {{boundary}}
 
 ## 主要ルール
-1. allowed-tools は glob 制限。
+1. 外部CLIを直接許可せず、Python stdlib adapter (`scripts/*.py`) 経由で入力検証・dry-run・ログ記録を行う。
 {{key_constraints}}
 
 ## 手順
@@ -48,4 +48,4 @@ rubric_refs: {{rubric_refs | default([]) }}            # ref-pr-conventions 等�
 {{additional_resources}}
 
 ## セキュリティと権限
-本Skillは外部ツールをラップし副作用を伴う。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。`allowed-tools` の glob 制限だけでは不十分である。例設定は `plugins/skill-governance-config/config/claude-settings-hooks.json.example` を参照。
+本Skillは外部ツールをラップし副作用を伴う。外部CLIを直接 `allowed-tools` に広げず、Python stdlib の薄い adapter (`scripts/*.py`) で入力検証・dry-run・ログ記録を行ってから必要最小の実行へ進む。設計書04章の二段防御原則に従い、(1) `settings.json` の `permissions.deny` に禁止コマンド・パスを静的に列挙し、(2) `PreToolUse` hook で文脈依存の危険検査（破壊的引数・対象パス・分岐条件）を動的に行うこと。

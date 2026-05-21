@@ -1,0 +1,55 @@
+# resource-map.yaml — Progressive Disclosure 読込ガイド
+# read_when: 各 reference をいつ読むかを Phase 単位で指定
+references:
+  seven-layer-format.md:
+    read_when: Phase 4-A 直前 (Layer 単位生成開始時)
+    purpose: 7 層 YAML 正本テンプレ
+  quality-criteria.md:
+    read_when: Phase 4-B (4 パスレビュー実行時)
+    purpose: 動的評価基準 + 4 パス判定
+  workflow-guide.md:
+    read_when: Phase 全体のフロー確認時
+    purpose: Phase 1-4 詳細手順
+  writing-style-principles.md:
+    read_when: Phase 4-A 生成中 / レビュー時
+    purpose: 目的+背景併記 / 要素原子性
+  prompt-sheet-template.md:
+    read_when: Phase 2 (シート生成)
+    purpose: シート項目定義
+
+schemas:
+  hearing-result.schema.json:
+    read_when: Phase 1 ヒアリング完了時 (validate_prompt.js)
+
+scripts:
+  # plugin-level scripts/ に配置 (skill-creator 第10条準拠: skill 内 scripts/ は .py/.sh のみ)
+  merge_layers.js:
+    path: plugins/prompt-creator/scripts/merge_layers.js
+    invoked_at: Phase 4-A 終了時
+  validate_prompt.js:
+    path: plugins/prompt-creator/scripts/validate_prompt.js
+    invoked_at: Phase 2 / Phase 4-B
+  verify_completeness.js:
+    path: plugins/prompt-creator/scripts/verify_completeness.js
+    invoked_at: Phase 4-C
+  convert_format.js:
+    path: plugins/prompt-creator/scripts/convert_format.js
+    invoked_at: Phase 4-D
+  generate_sheet.js:
+    path: plugins/prompt-creator/scripts/generate_sheet.js
+    invoked_at: Phase 2 (シート生成)
+  validate_sheet.js:
+    path: plugins/prompt-creator/scripts/validate_sheet.js
+    invoked_at: Phase 2 (シート充足度検証)
+  scaffold_prompt.js:
+    path: plugins/prompt-creator/scripts/scaffold_prompt.js
+    invoked_at: Phase 4-A (7 層骨格生成)
+  log_usage.js:
+    path: plugins/prompt-creator/scripts/log_usage.js
+    invoked_at: Phase 5 終了時 (LOGS.md 追記)
+
+logs:
+  LOGS.md:
+    path: plugins/prompt-creator/LOGS.md
+    written_by: log_usage.js
+    purpose: 利用統計 / 失敗パターン蓄積

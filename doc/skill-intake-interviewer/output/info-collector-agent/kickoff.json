@@ -1,0 +1,23 @@
+{
+  "pattern": "A",
+  "depth": "detailed",
+  "skill_name_hint": "info-collector-agent",
+  "pain_ranking": [
+    {
+      "task": "情報収集",
+      "frequency_per_week": null,
+      "minutes_per_run": null,
+      "domain_tags": ["コンテンツ作成", "クライアント対応", "ナレッジ管理", "業務自動化"],
+      "frequency_label": "毎日"
+    }
+  ],
+  "true_goal_hint": "作業自体を手放して代行してほしい（自律的な情報収集エージェント志向）",
+  "initial_utterance": "（曖昧・全領域しんどい・整理未済）",
+  "ambiguity_flags": [
+    "領域が4領域すべて選択された",
+    "頻度・所要時間が未数値化",
+    "skill_name_hint は仮置き"
+  ],
+  "next_agent": "assumption-challenger",
+  "timestamp": "2026-04-29T13:30:00+09:00"
+}

@@ -1,0 +1,25 @@
+{
+  "filled_ratio": 0.7,
+  "five_axes_complete": true,
+  "axes": {
+    "output_destination": "filled",
+    "information_source": "filled",
+    "sharing_audience": "filled",
+    "true_problem": "filled",
+    "knowledge_asset": "filled"
+  },
+  "unresolved": [
+    "アウトプット形態(X長文/スライド/提案資料/Obsidianノート)の優先順位",
+    "暗黙知抽出の具体プロセス（誰がいつどう抽出するか）",
+    "既存類似スキルとの責務境界（オーケストレータ vs 単機能）",
+    "1日の収集量・処理量・配信頻度",
+    "D3要素(思考スタイル注入)の取り込み方"
+  ],
+  "needs_excavation": [
+    "ナレッジ資産軸の(b)暗黙知抽出が抽象的",
+    "ナレッジ資産軸の(c)外部記事解析の粒度未定",
+    "オーケストレータ性が強いので、単機能との分離判定が必要"
+  ],
+  "next_agent": "purpose-excavator",
+  "timestamp": "2026-04-29T13:50:00+09:00"
+}

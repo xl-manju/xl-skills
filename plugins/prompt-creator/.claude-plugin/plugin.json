@@ -1,0 +1,8 @@
+{
+  "name": "prompt-creator",
+  "version": "1.0.0",
+  "description": "7 層プロンプトアーキテクチャ (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) で SubAgent 向けプロンプト YAML を生成する skill 群。skill-creator (run-build-skill) から Step 7.5 でループ呼び出しされ、生成された SubAgent .md の Prompt Templates / Self-Evaluation セクションを自動充填する。",
+  "author": {
+    "name": "xl-skills maintainers"
+  }
+}

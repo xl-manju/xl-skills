@@ -5,9 +5,9 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools:
   - Read
-  - Bash(codex *)
+  - Bash(python3 *)
 kind: delegate
-effect: external-mutation
+effect: none
 delegate_agent: codex-cli
 owner: team-platform
 since: 2026-05-18
@@ -24,38 +24,40 @@ hierarchy_level: L1
 
 ## Purpose & Output Contract
 
-評価対象 Skill (SKILL.md) を外部 `codex` CLI に渡し、Sycophancy を避けた第三者レビューを得る。
+評価対象 Skill (SKILL.md) を任意の外部 `codex` CLI に渡すための手順と入力を作り、Sycophancy を避けた第三者レビューの準備をする。
 
 **入力**: target_skill_path (SKILL.md への絶対パス)
-**出力**: `eval-log/delegate-codex-<timestamp>.json` (codex の review コメント)
+**出力**: `eval-log/delegate-codex-request.json` (ユーザーが任意で実行する codex review 入力)
 
-**完了条件**: codex CLI が exit 0 で返り、JSON が書き出されている。
+**完了条件**: codex CLI が標準フローの必須依存ではないことを保ったまま、任意実行用の入力とコマンド例が提示されている。
 
 ## Key Rules
 
-1. **委譲先固定**: `delegate_agent: codex-cli` を frontmatter で宣言。
-2. **入力のみ転送**: SKILL.md 本文と rubric を渡すが、自セッションで採点しない。
-3. **結果は読み取り専用**: codex の返答を加工・反論せず、そのまま eval-log/ に保存。
+1. **委譲先は任意**: `delegate_agent: codex-cli` は外部拡張の識別子であり、標準フローでは起動しない。
+2. **入力のみ準備**: SKILL.md 本文と rubric パスを記録するが、自セッションで採点しない。
+3. **結果はユーザー管理**: codex 実行はユーザーが明示的に行い、返答を eval-log/ に保存する。
+4. **任意拡張**: Node / npm / shell script / codex CLI を標準依存にしない。存在確認は Python 標準ライブラリで行う。
 
 ## Steps
 
 ### Step 0: codex 存在確認 (決定論)
 
 ```bash
-bash plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.sh
+python3 plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py
 ```
-exit 2 が返ったら BLOCK。インストール手順を案内して停止。
+exit 2 が返ったら BLOCK。標準フローではなく任意拡張であることを案内して停止。
 
 ### Step 1: target 検証
 
 `target_skill_path` が存在し SKILL.md であることを確認。
 
-### Step 2: codex 起動
+### Step 2: 任意実行コマンドの提示
 
 ```bash
 codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
-  > eval-log/delegate-codex-$(date +%s).json
+  > eval-log/delegate-codex-review.json
 ```
+このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
 
 ### Step 3: 結果提示
 
@@ -64,7 +66,7 @@ codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-sk
 ## Gotchas
 
 - **委譲結果を再評価しない**: 自セッションでスコア改竄をしない (09章 Sycophancy 防止)。
-- **codex 未インストール時**: BLOCK して installation 手順を案内。
+- **codex 未インストール時**: BLOCK するが、Node/npm を案内しない。公式に確認済みの配布元をユーザーが選ぶ。
 - **L1 階層**: codex CLI 抽象 (L1)。プロジェクト固有の review 観点は L2 で wrap する。
 
 ## Additional Resources

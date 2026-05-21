@@ -37,14 +37,11 @@ SKILL.md 本文 300行制約により分離した詳細。
 ```bash
 SKILL_NAME=run-my-thing
 KIND=run
-OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-plugins/skill-creator/skills}"
-ROOT="$OUT_BASE/$SKILL_NAME"
-mkdir -p $ROOT/{templates,references,scripts,examples}
 python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py \
   --name $SKILL_NAME --kind $KIND \
   --brief eval-log/skill-brief.json \
   --template plugins/skill-creator/skills/run-build-skill/templates/$KIND.md \
-  > $ROOT/SKILL.md
+  --out plugins/skill-creator/skills/$SKILL_NAME/SKILL.md
 ```
 
 ## Phase D: 本文執筆
@@ -306,6 +303,50 @@ tools: <allowed-tools から自動抽出>
 model: opus  # PF-F3-001: デフォルト opus
 ---
 ```
+
+### H.2.5 prompt-creator ループ詳細
+
+`--with-prompts` 指定時、`brief.responsibilities[]` の **R-id 単位** で `plugins/prompt-creator/skills/run-prompt-creator-7layer` を呼び、責務ごとに 7 層 YAML を生成 → 対応 SubAgent の Prompt Templates / Self-Evaluation へ注入する 5 段ループ。SubAgent 単位ループではない (SubAgent の分割/統合で sha256 が壊れるため)。
+
+```bash
+BRIEF="eval-log/skill-brief.json"
+PROMPTS_DIR="$OUT_BASE/$SKILL_NAME/prompts"
+mkdir -p "$PROMPTS_DIR"
+
+# brief.responsibilities[] を R-id 単位でループ (python で id, owner_agent 抽出)
+python3 -c "
+import json, sys
+b = json.load(open('$BRIEF'))
+for r in b.get('responsibilities', []):
+    if r.get('prompt_required', True):
+        print(r['id'], r.get('owner_agent') or '')
+" | while read RID OWNER; do
+  TARGET_AGENT="${OWNER:+$OUT_BASE/$SKILL_NAME/agents/${OWNER}.md}"
+  Skill(run-prompt-creator-7layer) \
+    --responsibility-id "$RID" \
+    --skill-brief "$BRIEF" \
+    --output "$PROMPTS_DIR/${RID}.yaml" \
+    ${TARGET_AGENT:+--target-agent "$TARGET_AGENT"} \
+    --inject-sections "Prompt Templates,Self-Evaluation" \
+    --format yaml
+done
+
+# trace 突合 (id 集合 ↔ ファイル名集合)、SubAgent anchor coverage
+python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py \
+  --agents-dir "$OUT_BASE/$SKILL_NAME/agents" \
+  --strict-coverage --brief "$BRIEF"
+python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
+```
+
+ループ要件:
+1. `run-build-skill` が SubAgent 骨格を生成 (Step 7)
+2. brief.responsibilities[] を R-id 単位で列挙 (`prompt_required: true` のみ対象、`prompt-creator-policy-by-kind` で resolve)
+3. `run-prompt-creator-7layer` が R-id ごとに 7 層 YAML を生成し `prompts/<R-id>.yaml` へ出力 + owner_agent があれば該当 SubAgent .md へ注入
+4. `lint-agent-prompt-section.py --strict-coverage --brief` で `responsibility.id 集合 == prompts/*.yaml ファイル名集合 == SubAgent.md anchor 集合` を検証
+5. `validate-build-trace.py` で `prompt_generation_model.per_responsibility[].layer_yaml_path` 正規表現 + sha256 再現性を検証
+6. FAIL なら prompt-creator を再起動 (max 3 回)
+
+`brief.use_prompt_creator: false` または brief.kind ∈ {ref, wrap, delegate} で `prompt_creator_policy: skip` の場合はループをスキップし、trace に `per_responsibility: []` + `policy_resolution.resolved_policy: "skip"` + 理由を記録する。Step 7 生成物の Prompt Templates / Self-Evaluation は agent-template.md の placeholder のまま残す。
 
 ### H.3 Hook 設定の実装詳細
 

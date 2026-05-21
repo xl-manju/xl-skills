@@ -1,13 +1,13 @@
-# OS × shell × python × 判定コマンド マトリクス
+# OS × Python × 判定マトリクス
 
 doc/22 設計書からの転載＋運用追記。
 
-| OS      | shell 既定           | 判定コマンド            | 期待 stdout 前方一致          | python3 同梱 | secret backend            |
-| ------- | -------------------- | ----------------------- | ----------------------------- | ------------ | ------------------------- |
-| macOS   | zsh / bash           | `uname -s`              | `Darwin`                      | あり (3.x)   | Keychain (`security` CLI) |
-| Linux   | bash                 | `uname -s`              | `Linux`                       | あり         | XDG_CONFIG_HOME/secrets.json |
-| Windows | PowerShell 5.1+      | `ver` または `$PSVersionTable.PSVersion` | `Microsoft Windows` を含む | なし (要 install) | base64 file fallback (not encrypted) |
-| WSL     | bash                 | `uname -s`              | `Linux`                       | あり         | Linux 経路で統一           |
-| 未判定  | -                    | 上記いずれも失敗        | -                             | -            | env XLSKILLS_SECRET_* のみ |
+| OS      | Python 判定                         | python_cmd 優先順 | Node 必須 | shell script 配布 | secret backend            |
+| ------- | ----------------------------------- | ----------------- | --------- | ----------------- | ------------------------- |
+| macOS   | `platform.system() == "Darwin"`     | `python3`, `python` | 禁止      | 禁止              | Keychain (`security` CLI) |
+| Linux   | `platform.system() == "Linux"`      | `python3`, `python` | 禁止      | 禁止              | XDG_CONFIG_HOME/secrets.json |
+| Windows | `platform.system() == "Windows"`    | `python`, `python3` | 禁止      | 禁止              | base64 file fallback (not encrypted) |
+| WSL     | `platform.system() == "Linux"`      | `python3`, `python` | 禁止      | 禁止              | Linux 経路で統一           |
+| 未判定  | `platform.system()` が空/未知       | `unknown`         | 禁止      | 禁止              | env XLSKILLS_SECRET_* のみ |
 
 判定エントリポイント: `plugins/skill-governance-automation/scripts/cross_platform_secret.py --probe`

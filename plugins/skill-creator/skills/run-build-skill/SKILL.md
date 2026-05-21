@@ -3,8 +3,8 @@ name: run-build-skill
 description: 新規Skillを作成するとき、既存Skillを更新するときに使う。
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-evaluator] [--with-hooks] [--model opus|sonnet]"
-arguments: [skill_name, kind, mode, with_subagent, with_evaluator, with_hooks, model]
+argument-hint: "[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-prompts] [--with-evaluator] [--with-hooks] [--model opus|sonnet]"
+arguments: [skill_name, kind, mode, with_subagent, with_prompts, with_evaluator, with_hooks, model]
 allowed-tools:
   - Read
   - Write
@@ -29,8 +29,7 @@ reference_refs:
   - ref-task-context-map
   - ref-output-routing
   - references/reproducibility-trace-schema.md
-# context-budget (CD-005): 章一括ロード禁止。必要な章のみ参照すること。
-# max-reference-chapters: 3  # 同時に読む設計書章の上限
+# context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
@@ -64,21 +63,23 @@ audit-trigger: quarterly
 2. **descriptionは発動条件のみ**: 動作詳細は本文化（08章）。
 3. **triggerは2〜3個**: description内のUse when句は2〜3個の動詞ベース条件（08章 hard rule）。
 4. **ディレクトリ名 == frontmatter.name**: 第8条。
-5. **クロスプラットフォーム**: Mac/Linux は zsh/bash + python3 stdlib、Windows は PowerShell 5.1+ + python3 stdlib（設計書22章）。OS分岐は本文 `<important if="os=...">` で表現する。
+5. **Python実行基盤**: Mac/Linux/Windows すべてで Python 標準ライブラリを正本にする。Bash/PowerShell 断片や Node 系 runtime を生成物の必須依存にしない（設計書22章）。
 6. **評価分離**: 生成本体は評価しない。`assign-skill-design-evaluator` をforkで呼ぶ（09章 Goodhart対策）。
 7. **kindに応じたテンプレ選択**: 11章テンプレを `templates/` から展開。
 8. **context予算制約 (CD-005)**: 全章一括ロード禁止。各Stepで必要な章のみ参照。
 9. **--mode update**: 既存Skillへの増分改修。既存SKILL.mdを読んでdiffを適用する。
 10. **モデル既定値**: build-subagent.py は --model opus で実行（PF-F3-001）。
 11. **横展開候補は登録案を作る**: 生成物が Skill Creator 基盤、hook、lint、adapter、rubric、reference に該当する場合は `run-skill-create` の plugin/marketplace 登録判定へ戻し、`.claude-plugin/plugin.json` / marketplace 更新をユーザー確認に委ねる。
-12. **正本トレース必須**: 生成・更新ごとに task→refs map の選択、Intent / Contract / Boundary / Execution / Feedback、01a Step 1〜9、02 Skill構造、03 frontmatter、04 invocation/permissions、05 execution layer、06 classification/naming、07 progressive disclosure、08本文設計、09評価編成、10Subagent/Hook連携、11テンプレ適用、13チェックリスト/lint、14 dynamic injection、15公式参照追跡、16公式Skills仕様、26メタSkillドッグフーディング、27rubricガバナンス、28script実行モデル の対応を `skill-build-trace.json` に残す。
+12. **正本トレース必須**: 生成・更新ごとに `skill-build-trace.json` に doc_coverage (01〜16 / 26〜28) と `pattern_decisions` を残す。詳細項目は `references/build-steps.md` 参照。
 13. **実行レイヤー判断を固定化**: Skill / Subagent / Hook / MCP / CLI / script の配置理由を trace に記録し、決定論で落とせる検査は script/hook へ分離する。
 14. **再現性ゲートは機械検証**: `scripts/validate-build-trace.py` で source_docs / build_flow_coverage / doc_coverage / layer_decisions / gates を検証し、空欄・未読・N/A理由なしを通さない。
 15. **量産情報を消費する**: `pattern_refs` / `variant_axes` / `reuse_targets` / `deterministic_checks` / `placement_candidates` / `hook_events` を trace と生成本文へ反映し、未消費のまま捨てない。
 16. **日本語成果物**: SKILL.md、SubAgent、review、完了レポートの説明文は日本語で作成する。frontmatterキー、JSONキー、CLI引数、テンプレート変数などのパラメーター名は英語のままでよい。
-17. **26/27/28章ゲートを省略しない**: メタSkill、rubric、script、hook、subagent を生成・更新する場合は、設計書26/27/28章を読み、`dogfooding_model` / `governance_model` / `script_execution_model` を trace に記録する。対象外でも `N/A` と理由を残す。
-18. **29〜35章を量産判断へ接続する**: skill creator / 量産 / 再現性 / rubric合成 / output routing / adapter / 類推理解 / plugin・marketplace配布 / change governance / plugin境界 / meta-harness を含む場合は、設計書29〜35章と `references/skill-factory-reproducibility.md` を読み、`rubric_composition_model` / `paradigm_analogy_model` / `output_routing_model` / `implementation_ledger_model` / `change_governance_model` / `plugin_boundary_model` / `meta_harness_model` / `variable_contract` を trace に残す。対象外でも `N/A` と理由を残す。
-19. **具体値は変数化する**: 再利用される Skill本文、SubAgent、テンプレート、config example には固定プロジェクト名、固定URL、固定owner、固定チャンネル名、固定secret service名を直書きしない。必要な具体値は `source_trace` に残し、成果物側は `{{PROJECT_ROOT}}` / `{{KIT_ROOT}}` / `{{DOMAIN}}` / `{{TASK_KIND}}` / `{{SECRET_NAMESPACE}}` などの変数で表現する。
+17. **26/27/28章ゲートを省略しない**: メタSkill/rubric/script/hook/subagent 生成時は 26/27/28 章を読み対応 model を trace に記録。対象外でも N/A と理由を残す。
+18. **29〜35章を量産判断へ接続する**: 該当時は `references/skill-factory-reproducibility.md` を読み、量産関連 model 群を trace に記録。対象外でも N/A と理由を残す。詳細項目は `references/build-steps.md` 参照。
+
+20. **SubAgent / Skill 本文も 300 行制約**: agent-template.md の 9 セクション準拠で SubAgent ファイルも 300 行以下に保ち、超過分は references/ へ分割。プロンプトの責務分離と Progressive Disclosure を生成プロンプトにも徹底する。
+19. **具体値は変数化する**: 再利用される本文・テンプレ・config に固定値を直書きしない。`{{PROJECT_ROOT}}` 等の変数で表現し、具体値は `source_trace` に残す。
 
 ## Steps
 
@@ -110,17 +111,8 @@ audit-trigger: quarterly
 - **量産基盤の文脈選択**: 要求に skill creator / 量産 / 再現性 / rubric合成 / output routing / adapter / 類推理解 / テンプレート変数が含まれる場合は、task category を `skill-factory-reproducibility` にし、設計書29/30/31章と `references/skill-factory-reproducibility.md` を読む。3章上限を超える基礎章は `references/build-steps.md` の既読要約で代替する。
 
 ```bash
-# brief.domain → L1 rubric 解決
-DOMAIN="$(python3 -c "import json,sys; d=json.load(open('eval-log/skill-brief.json')); print(d.get('domain',''))")"
-if [ -n "$DOMAIN" ]; then
-  REGISTRY="${RUBRIC_REGISTRY_PATH:-plugins/skill-governance-config/config/rubric-registry.json}"
-  DOMAIN_RUBRIC_REFS="$(python3 -c "
-import json, sys
-reg=json.load(open('$REGISTRY'))
-print(' '.join(r['rubric'] for r in reg.get('rubrics',[]) if r['domain']=='$DOMAIN'))
-")"
-  export DOMAIN_RUBRIC_REFS
-fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-dir-name run-build-skill
 ```
 
 ### Step 2: テンプレ展開（create）/ 既存読込（update）
@@ -143,62 +135,20 @@ fi
 
 **create モード**:
 
-OS判定プリアンブル（設計書22）:
-```
-!`uname -s 2>/dev/null || ver`
-```
-
-<important if="os=mac,os=linux">
 ```bash
-# パス解決ロジックを外部スクリプトに移譲 (300行 cap 対策)
-# SKILL_DIR / OUT_BASE を確立する
-source plugins/skill-governance-automation/scripts/resolve-skill-dirs.sh
-mkdir -p "$OUT_BASE/$SKILL_NAME"
-if [[ "${COMPOSER_MODE:-template}" == "atomic" ]]; then
-  python3 "$SKILL_DIR/scripts/render-combinators.py" \
-    --kind "$KIND" ${ROLE_SUFFIX:+--role-suffix "$ROLE_SUFFIX"} \
-    ${WITH_EVALUATOR:+--with-evaluator} ${WITH_HOOKS:+--with-hooks} ${WITH_SUBAGENT:+--with-subagent} \
-    --output "$OUT_BASE/$SKILL_NAME/SKILL.md"
-else
-  python3 "$SKILL_DIR/scripts/render-frontmatter.py" \
-    --name "$SKILL_NAME" --kind "$KIND" \
-    --brief eval-log/skill-brief.json \
-    --template "$SKILL_DIR/templates/${KIND}.md" \
-    > "$OUT_BASE/$SKILL_NAME/SKILL.md"
-fi
+python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
+  --skill-name "$SKILL_NAME" \
+  --skill-dir-name run-build-skill \
+  > eval-log/skill-dirs.json
+python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py \
+  --name "$SKILL_NAME" --kind "$KIND" \
+  --brief eval-log/skill-brief.json \
+  --template plugins/skill-creator/skills/run-build-skill/templates/"$KIND".md \
+  --out plugins/skill-creator/skills/"$SKILL_NAME"/SKILL.md
 ```
-</important>
-
-<important if="os=windows">
-```powershell
-# Windows経路: PowerShell 5.1+ で resolve-skill-dirs.ps1 を dot-source
-. .\plugins\skill-governance-automation\scripts\resolve-skill-dirs.ps1
-New-Item -ItemType Directory -Force -Path "$env:OUT_BASE\$env:SKILL_NAME" | Out-Null
-if ($env:COMPOSER_MODE -eq "atomic") {
-  python "$env:SKILL_DIR\scripts\render-combinators.py" --kind "$env:KIND" --output "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
-} else {
-  python "$env:SKILL_DIR\scripts\render-frontmatter.py" `
-    --name "$env:SKILL_NAME" --kind "$env:KIND" `
-    --brief eval-log\skill-brief.json `
-    --template "$env:SKILL_DIR\templates\$($env:KIND).md" `
-    | Out-File -Encoding utf8 "$env:OUT_BASE\$env:SKILL_NAME\SKILL.md"
-}
-```
-</important>
-
-<important if="os=unknown">
-OS判定に失敗した。`ref-cross-platform-runtime` のフォールバック動線に従い、
-ユーザーに OS (macOS / Windows / Linux) を確認してから対応分岐に進むこと。
-</important>
 
 **update モード (CD-002)**:
-```bash
-# 既存SKILL.mdを読み込み、findingsを差分適用する
-# 1. 既存ファイルをバックアップ
-cp "$OUT_BASE/$SKILL_NAME/SKILL.md" "$OUT_BASE/$SKILL_NAME/SKILL.md.bak"
-# 2. findingsに基づき Edit で差分適用（新規作成しない）
-# 3. validate-frontmatter.py で整合性確認
-```
+既存 `SKILL.md` を読み込み、Edit で差分のみ適用する。バックアップや path 解決が必要な場合も Python stdlib script で行い、shell script には委譲しない。
 
 ### Step 3: 補助ファイル生成
 
@@ -262,7 +212,11 @@ python3 "$SKILL_DIR/scripts/build-subagent.py" \
 python3 plugins/skill-governance-lint/scripts/lint-skill-description.py ".claude/agents/$SKILL_NAME-subagent.md"
 ```
 
-SKILL.md frontmatter と本文の目的・手順から `.claude/agents/<skill-name>-subagent.md` を派生し、派生物も lint 対象にする。詳細は `references/build-steps.md#h2-subagent-生成の詳細実装`。
+SKILL.md frontmatter と本文の目的・手順から `.claude/agents/<skill-name>-subagent.md` を派生し、派生物も lint 対象にする。生成される SubAgent は **`references/agent-template.md` の 9 セクション固定構造**（Frontmatter / Purpose / Inputs / Outputs / Steps / Constraints / **Prompt Templates** / **Self-Evaluation** / Handoff）に準拠すること。詳細は `references/build-steps.md#h2-subagent-生成の詳細実装`。
+
+### Step 7.5: prompt-creator ループ（`--with-prompts` 指定時 または brief.use_prompt_creator=true）
+
+`brief.responsibilities[]` の **R-id 単位** でループする（SubAgent 単位ではない）。各 R-id ごとに `run-prompt-creator-7layer` を呼び、7 層 YAML を `plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml` へ出力 → 該当 SubAgent の Prompt Templates / Self-Evaluation へ Edit 注入 → `lint-agent-prompt-section.py --strict-coverage --brief <brief>` で検証 → FAIL なら再起動 (max 3 回)。同 brief で再実行時の sha256 一致を `validate-build-trace.py` が `prompt_generation_model.per_responsibility[].layer_yaml_path` で機械検証する。詳細・配置規約は `references/prompt-placement-convention.md` と `references/build-steps.md#h25-prompt-creator-ループ詳細`。
 
 ### Step 8: evaluator ペア自動生成（`--with-evaluator` 指定時 または brief.generate_pair_evaluator=true）
 
@@ -279,19 +233,15 @@ Hook 統合スキルの場合、scripts/hook-<name>-<event>.py スケルトン�
 | Skill Creator 基盤 | `plugins/skill-creator/skills/<skill>/SKILL.md` | `plugins/skill-creator/skills/` |
 | 他 plugin 所属 | `plugins/<plugin-name>/skills/<skill>/SKILL.md` | `plugins/<plugin-name>/` |
 
-- **正本/派生**: `.claude/skills/<skill>/` は `plugins/*/skills/` への symlink 経由派生。直接書き込まない
-- **`name:` には plugin 名を含めない**: kebab-case の Skill 名のみ。所属 plugin は配置パスで表現（06章第17条）
-- 詳細: 34章 § plugin 物理レイアウトと symlink 戦略
+- **正本/派生**: `.claude/skills/<skill>/` は `plugins/*/skills/` への symlink 経由派生（直接書き込まない）。`name:` には plugin 名を含めない。詳細: 34章 § plugin 物理レイアウトと symlink 戦略
 
 ## Gotchas
 
-- **frontmatter順序事故**: `disable-model-invocation: true` と `user-invocable: true` の共存は手動呼び出し専用の珍しい構成。禁止ではないが、意図を本文に明記する。
-- **description長文化**: 動作詳細を書くと invocation時のtoken浪費（08章）。
-- **ref系のbody肥大**: ref-*はSKILL.md本文をサマリに留め、原文は `references/`。300行制約はSKILL.md本文のみに適用。
-- **scripts内のyaml import禁止**: stdlibだけで簡易パーサを書く（28章）。
-- **fork評価の自己採点禁止**: 同じcontextで採点するとGoodhart罠（09章）。
-- **update時の全書き換え禁止 (CD-002)**: --mode update ではEditで差分適用のみ。Writeで上書きしない。
-- **全章一括ロード禁止 (CD-005)**: token超過を防ぐため、各Stepで必要な章だけを Read する。
+- **frontmatter 順序事故**: `disable-model-invocation: true` と `user-invocable: true` の共存は手動呼び出し専用。意図を本文に明記。
+- **description 長文化 / ref-* body 肥大**: 動作詳細は本文化、原文は `references/`（08章）。300行制約は SKILL.md 本文のみ。
+- **scripts 内 yaml import 禁止 / fork 評価の自己採点禁止**: stdlib のみ（28章）、同context採点は Goodhart 罠（09章）。
+- **update 時の全書き換え禁止 (CD-002)** / **全章一括ロード禁止 (CD-005)**: Edit で差分のみ。必要な章だけ Read。
+- **Node/Bash 実体禁止**: `.js` / `.sh` を新規生成しない。必要な決定論処理は `scripts/*.py` に置く。
 
 ## Additional Resources
 

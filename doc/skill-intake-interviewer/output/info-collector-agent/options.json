@@ -1,0 +1,39 @@
+{
+  "categories": [
+    {
+      "category": "responsibility_boundary",
+      "presented": [
+        {"id": "O1", "label": "オーケストレータ（既存スキルを呼ぶ）", "pro": "重複実装なし・既存資産活用", "con": "既存スキルAPI契約に依存", "weight": "軽"},
+        {"id": "O2", "label": "ハイブリッド（出力ファイルベース統合）", "pro": "緊やか結合", "con": "ファイル形式調整が必要", "weight": "中"},
+        {"id": "O3", "label": "独立（自前で全取得）", "pro": "依存ゼロ", "con": "重複実装・保守コスト大", "weight": "重"}
+      ],
+      "user_picked": "O1"
+    },
+    {
+      "category": "theme_extraction",
+      "presented": [
+        {"id": "T1", "label": "静的シード（手動）", "pro": "シンプル", "con": "更新追随しない", "weight": "軽"},
+        {"id": "T2", "label": "動的抽出（Embeddings/LLM）", "pro": "暗黙知逆推定", "con": "計算コスト・精度ブレ", "weight": "重"},
+        {"id": "T3", "label": "ハイブリッド（シード+動的+週次チューニング）", "pro": "バランス・進化", "con": "実装やや複雑", "weight": "中"}
+      ],
+      "user_picked": "T3"
+    },
+    {
+      "category": "delivery_timing",
+      "presented": [
+        {"id": "S1", "label": "毎朝定刻 cron", "pro": "ルーチン化", "con": "緊急情報を逃す", "weight": "軽"},
+        {"id": "S2", "label": "オンデマンドのみ", "pro": "柔軟", "con": "習慣化しにくい", "weight": "軽"},
+        {"id": "S3", "label": "両対応（定刻＋オンデマンド）", "pro": "ベース＋必要時対応", "con": "起動経路2系統の整合", "weight": "中"}
+      ],
+      "user_picked": "S3"
+    }
+  ],
+  "connector_choice": {
+    "input_sources": ["arxiv-paper-reporter（既存）", "x-post-reporter（既存）", "ai-release-reporter（既存）", "Slack/Discord/会話URL貼り付け（要新規取り込みパス）"],
+    "knowledge_assets": ["Obsidian Vault（01_Notes/03_Sources）読込", "過去X投稿アーカイブ", "講座資料・クライアント会話ログ"],
+    "outputs": ["Obsidian Markdown（01_Notes/daily - YYYY-MM-DD.md または専用パス）", "Discord Webhook（思考メモサマリ＋ピン留めシグナル）"],
+    "scheduler": ["cron 定刻", "Claude Code スラッシュコマンド or Discord Bot コマンドでオンデマンド起動"]
+  },
+  "next_agent": "visualizer",
+  "timestamp": "2026-04-29T14:10:00+09:00"
+}
