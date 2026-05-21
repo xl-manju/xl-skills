@@ -1,6 +1,6 @@
 ---
 name: skill-intake-next-action-advisor
-description: skill-creator 引き渡しモード A/B/C/D/E を判定するエージェント。
+description: skill-creator への引き渡しモード A/B/C/D/E を判定したいとき、後続アクションを決めたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

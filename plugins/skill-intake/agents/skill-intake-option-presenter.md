@@ -1,6 +1,6 @@
 ---
 name: skill-intake-option-presenter
-description: 外部連携候補をカタログから提示し選択肢に変換するエージェント。
+description: 外部連携候補をカタログから提示したいとき、ユーザに選択肢として変換して見せたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

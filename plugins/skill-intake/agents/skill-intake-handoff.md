@@ -1,6 +1,6 @@
 ---
 name: skill-intake-handoff
-description: 全 JSON を統合し intake.md + intake.json を生成する集約エージェント。
+description: 全 JSON を統合し intake.md と intake.json を生成したいとき、集約成果物として出力したいときに使う。
 tools: Read, Write, Bash
 model: haiku
 ---
@@ -16,7 +16,7 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 - `output/<hint>/summary.md`
 - `output/<hint>/visuals/*.svg`
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md` (Progressive Disclosure)
-- `plugins/skill-intake/scripts/apply_section_template.js`
+- `plugins/skill-intake/scripts/apply_section_template.py`
 
 ## Outputs
 
@@ -42,13 +42,13 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 ## Steps
 
 1. 全 JSON を読み込み、`handoff-contract.md` のスキーマに従って `intake.json` を組み立てる。
-2. `sheet.md` + `summary.md` + `visuals/*.svg` を統合した `intake.md` を `apply_section_template.js` で生成する。
-3. `node scripts/convert_md_to_json.js` を実行し、intake.md からの derive 検証を行う。
-4. `node scripts/validate_intake.js` でスキーマ検証を実行する。
-5. `node scripts/check_completeness.js` で 5 軸完全性検証を実行する。
-6. `node scripts/detect_contradictions.js` で agent 間整合検証を実行する。
-7. `node scripts/extract_open_questions.js` で未解決質問を抽出する。
-8. `node scripts/cross_check.js` で最終整合検証を実行する。
+2. `sheet.md` + `summary.md` + `visuals/*.svg` を統合した `intake.md` を `apply_section_template.py` で生成する。
+3. `python3 plugins/skill-intake/scripts/convert_md_to_json.py` を実行し、intake.md からの derive 検証を行う。
+4. `python3 plugins/skill-intake/scripts/validate_intake.py` でスキーマ検証を実行する。
+5. `python3 plugins/skill-intake/scripts/check_completeness.py` で 5 軸完全性検証を実行する。
+6. `python3 plugins/skill-intake/scripts/detect_contradictions.py` で agent 間整合検証を実行する。
+7. `python3 plugins/skill-intake/scripts/extract_open_questions.py` で未解決質問を抽出する。
+8. `python3 plugins/skill-intake/scripts/cross_check.py` で最終整合検証を実行する。
 9. いずれかの検証が FAIL なら自己修正を試みる (最大 3 回)。3 回連続 FAIL なら summarizer に差し戻す。
 10. 全 PASS で完了し、次 agent にバトンを渡す。
 

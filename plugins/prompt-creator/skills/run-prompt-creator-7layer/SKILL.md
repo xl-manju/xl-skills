@@ -1,6 +1,6 @@
 ---
 name: run-prompt-creator-7layer
-description: SubAgent向けの7層構造プロンプトを生成・更新するとき、Prompt Templates と Self-Evaluation を自動充填するときに使う。
+description: SubAgent向け7層プロンプトを生成・更新するとき、Prompt Templates/Self-Evaluation を充填するときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[--target-agent <path>] [--skill-brief <path>] [--format yaml|md|json|xml] [--inject-sections <list>]"
@@ -17,12 +17,16 @@ allowed-tools:
 kind: run
 effect: local-artifact
 owner: team-platform
-since: 2026-05-21
+since: 2026-05-20
 script_refs:
   - ../../scripts/merge_layers.js
   - ../../scripts/validate_prompt.js
   - ../../scripts/convert_format.js
   - ../../scripts/verify_completeness.js
+  - ../../scripts/generate_sheet.js
+  - ../../scripts/validate_sheet.js
+  - ../../scripts/scaffold_prompt.js
+  - ../../scripts/log_usage.js
 reference_refs:
   - references/resource-map.yaml
   - references/seven-layer-format.md
@@ -31,9 +35,9 @@ reference_refs:
   - references/writing-style-principles.md
   - references/prompt-sheet-template.md
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
-source: doc/prompt-creator/
+source: doc/prompt-creator/  # 4 scripts (generate_sheet/validate_sheet/scaffold_prompt/log_usage) + LOGS.md を含めて再取り込み済み
 source-tier: internal
-last-audited: 2026-05-21
+last-audited: 2026-05-20
 audit-trigger: quarterly
 ---
 
@@ -156,6 +160,8 @@ python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py "${TA
 ```
 
 exit 0 でループ完了。FAIL は Phase 4-A 再起動 (最大 3 周)。
+
+実行後 `node scripts/log_usage.js --result <success|fail> --phase "Phase 5"` で `LOGS.md` に記録 (利用統計/失敗パターン蓄積)。
 
 ## Gotchas
 

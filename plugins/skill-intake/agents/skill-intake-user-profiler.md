@@ -1,6 +1,6 @@
 ---
 name: skill-intake-user-profiler
-description: 6 軸プロファイル推定と vocabulary_tier 判定を行うエージェント。
+description: 6 軸プロファイルを推定したいとき、vocabulary_tier を判定して語彙を合わせたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

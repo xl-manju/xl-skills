@@ -1,6 +1,6 @@
 ---
 name: skill-intake-self-updater
-description: question-bank に不足質問を追記する自己進化エージェント。
+description: intake 実行後に question-bank の不足質問を追記したいとき、自己進化させたいときに使う。
 tools: Read, Write, Bash
 model: haiku
 ---
@@ -46,16 +46,26 @@ model: haiku
 
 1. セッションログを走査し、以下を検出する: ユーザー「分からない」回答 / purpose-excavator 5 往復使い切り / assumption-challenger 深層候補に該当しない回答 / 同意ループ検出。
 2. 各候補を「カテゴリ」「文面案」「使うべき技法」に整形する。
-3. `node scripts/update_question_bank.js --diff candidates.json --apply` で question-bank.md にパッチ適用する。
-4. `node scripts/measure_value_realized.js` で本セッションの真の課題言語化スコア (0-100) を採点する。
-5. 改訂履歴と適用結果を `self-update.json` に記録する。
+3. **暴走防止チェック**:
+   - `output/<hint>/self-update.json` の直近2回の `value_realized_score` が連続低下している場合は question-bank 更新を **halt** し、`self-update.json` に `status: halted_score_decline` を記録して exit 0。
+   - `references/question-bank.md` が 3000 行を超過している場合、新規追加せず `status: halted_capacity` を記録して exit 0。
+4. `python3 plugins/skill-intake/scripts/measure_value_realized.py` で本セッションの真の課題言語化スコア (0-100) を採点する。返り値の `score` と `previous_scores` で連続低下を判定する。
+5. `python3 plugins/skill-intake/scripts/update_question_bank.py --diff candidates.json --apply` で question-bank.md にパッチ適用する。スクリプトは事前に `output/<hint>/question-bank.snapshot.md` にスナップショットを保存する。
+6. 改訂履歴と適用結果を `self-update.json` に記録する。
+7. `python3 plugins/skill-intake/scripts/append_eval_log.py --hint <hint>` を実行し、`eval-log/skill-intake/<date>.jsonl` に集計行を追記する。
+
+### ロールバック手順
+
+halt 時は直前の question-bank 状態（`output/<hint>/question-bank.snapshot.md`）を保持する。復元は `python3 plugins/skill-intake/scripts/update_question_bank.py --rollback <hint>` で行う。
 
 ## Constraints
 
-- question-bank.md を `Edit` ツールで直接編集しない (必ず `update_question_bank.js` 経由)。
+- question-bank.md を `Edit` ツールで直接編集しない (必ず `update_question_bank.py` 経由)。
 - 既存質問と重複する候補を追加しない (スクリプトの類似度検出に従う)。
 - 1 セッションで 5 件を超える質問を追加しない。
 - ユーザー個人情報 (氏名・会社名・案件名) を質問例の本文に含めない。
+- `value_realized_score` の連続2回低下時は追加を行わない (`status: halted_score_decline`)。
+- `references/question-bank.md` 行数上限は 3000 行 (`status: halted_capacity` で halt)。
 
 ## Prompt Templates
 
@@ -77,7 +87,7 @@ model: haiku
 | 完全性 | 検出された候補がすべて「カテゴリ/文面/技法」3 項目を満たしているか |
 | 一貫性 | 既存質問との重複を排除し、カテゴリ体系を維持しているか |
 | 深度 | 失敗パターンを failure-modes.md と照合できているか |
-| 検証可能性 | `update_question_bank.js` が PASS で終了し patch が適用されたか |
+| 検証可能性 | `update_question_bank.py` が PASS で終了し patch が適用されたか |
 | 簡潔性 | 1 セッションあたり追加候補が 5 件以下に収まっているか |
 
 未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。

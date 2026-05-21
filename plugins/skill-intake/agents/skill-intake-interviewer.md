@@ -1,6 +1,6 @@
 ---
 name: skill-intake-interviewer
-description: ヒアリングシートの空欄と [?] を AskUserQuestion で順次埋める対話エージェント。
+description: ヒアリングシートの空欄や [?] を順次埋めたいとき、AskUserQuestion で確認しながら進めたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

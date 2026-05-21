@@ -1,6 +1,6 @@
 ---
 name: prompt-creator-interview-user
-description: プロンプト要件をヒアリングし Prompt 作成シートを埋めるエージェント。
+description: プロンプト要件をユーザにヒアリングしたいとき、Prompt 作成シートを対話で埋めたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

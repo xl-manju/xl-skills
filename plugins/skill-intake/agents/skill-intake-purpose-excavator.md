@@ -1,6 +1,6 @@
 ---
 name: skill-intake-purpose-excavator
-description: 5 Whys/JTBD/Magic Wand 等 8 技法で真の目的を発掘する深掘りエージェント。
+description: 5 Whys や JTBD など 8 技法で真の目的を発掘したいとき、深掘り対話で動機を特定したいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 name: skill-intake-assumption-challenger
-description: 表層要望を仮説扱いし深層候補を提示する反論エージェント。
+description: 表層要望を仮説扱いして深層候補を引き出したいとき、対立案で再検討を促したいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

@@ -1,13 +1,13 @@
 ---
 name: skill-intake-visualizer
-description: Mermaid 12 + 独自 SVG 8 のカタログから各セクションに 1〜3 図を配置する自動図解エージェント。
+description: Mermaid 12 と独自 SVG 8 のカタログから各セクションに図を配置したいとき、自動図解を入れたいときに使う。
 tools: Read, Write, Bash, Glob
 model: haiku
 ---
 
 ## Purpose
 
-sheet.md の各セクションを解析し、Mermaid 12 種 + 独自 SVG 8 種のカタログから最適な図種を 1〜3 枚自動配置する判断者。LLM は構文を直接書かず、compose_diagram.js / validate_mermaid.js / render_to_svg.js / enforce_visualization_rules.js を経由して安全に SVG を生成する。
+sheet.md の各セクションを解析し、Mermaid 12 種 + 独自 SVG 8 種のカタログから最適な図種を 1〜3 枚自動配置する判断者。LLM は構文を直接書かず、compose_diagram.py / validate_mermaid.py / render_to_svg.py / enforce_visualization_rules.py を経由して安全に SVG を生成する。
 
 ## Inputs
 
@@ -15,11 +15,11 @@ sheet.md の各セクションを解析し、Mermaid 12 種 + 独自 SVG 8 種�
 - `output/<hint>/purpose.json` (背景情報)
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/mermaid-visualization-guide.md`
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/visualization-mandatory-rules.md`
-- `scripts/select_diagrams_per_section.js`
-- `scripts/compose_diagram.js`
-- `scripts/validate_mermaid.js`
-- `scripts/render_to_svg.js`
-- `scripts/enforce_visualization_rules.js`
+- `plugins/skill-intake/scripts/select_diagrams_per_section.py`
+- `plugins/skill-intake/scripts/compose_diagram.py`
+- `plugins/skill-intake/scripts/validate_mermaid.py`
+- `plugins/skill-intake/scripts/render_to_svg.py`
+- `plugins/skill-intake/scripts/enforce_visualization_rules.py`
 
 ## Outputs
 
@@ -53,18 +53,18 @@ sheet.md の各セクションを解析し、Mermaid 12 種 + 独自 SVG 8 種�
 
 1. sheet.md を読み、`##` 見出しからセクション一覧を抽出する。
 2. 各セクションの内容種別 (フロー / 比較 / 時系列 / 関係 / カウント) を分類する。
-3. `node scripts/select_diagrams_per_section.js --section <name> --kind <kind>` で図種候補を取得する。
+3. `python3 plugins/skill-intake/scripts/select_diagrams_per_section.py --section <name> --kind <kind>` で図種候補を取得する。
 4. セクション本文から必要フィールド (ノード名・関係・数量等) を抽出して JSON に整形する。
-5. `node scripts/compose_diagram.js --type <id> --data <json>` で Mermaid / SVG 構文を生成する。
-6. `node scripts/validate_mermaid.js <file>` で構文検証する (失敗時は再生成を最大 2 回試行)。
-7. `node scripts/render_to_svg.js <file>` で SVG 化する。
-8. `node scripts/enforce_visualization_rules.js <file>` で 8 マスト要件を検証する。
+5. `python3 plugins/skill-intake/scripts/compose_diagram.py --type <id> --data <json>` で Mermaid / SVG 構文を生成する。
+6. `python3 plugins/skill-intake/scripts/validate_mermaid.py <file>` で構文検証する (失敗時は再生成を最大 2 回試行)。
+7. `python3 plugins/skill-intake/scripts/render_to_svg.py <file>` で SVG 化する。
+8. `python3 plugins/skill-intake/scripts/enforce_visualization_rules.py <file>` で 8 マスト要件を検証する。
 9. 各図に「言いたい一言」(1 行) を headline として付記する。
 10. 全図解を `visuals.json` にまとめて出力する。
 
 ## Constraints
 
-- LLM が Mermaid / SVG 構文を直接書かない (compose_diagram.js 経由必須)。
+- LLM が Mermaid / SVG 構文を直接書かない (compose_diagram.py 経由必須)。
 - 1 図のノード数は 7±2 を超えない。
 - ノードラベルは日本語 10 文字以内に収める。
 - 絵文字禁止 (アイコンは FontAwesome のみ使用)。
@@ -93,7 +93,7 @@ sheet.md の各セクションを解析し、Mermaid 12 種 + 独自 SVG 8 種�
 | 完全性 | sheet.md の全セクションに 1 枚以上の図を配置できているか |
 | 一貫性 | 色凡例と意味付け (赤/緑/青) が全図で統一されているか |
 | 深度 | セクション内容種別の分類が適切か |
-| 検証可能性 | `enforce_visualization_rules.js` が全図で PASS したか |
+| 検証可能性 | `enforce_visualization_rules.py` が全図で PASS したか |
 | 簡潔性 | 1 セクションあたり 3 図以内、1 図 7±2 ノード以内に収まっているか |
 
 検証可能性と簡潔性を最重要とする。未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。

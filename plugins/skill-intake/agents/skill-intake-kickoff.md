@@ -1,6 +1,6 @@
 ---
 name: skill-intake-kickoff
-description: パターン選択・深度確認・痛点ランキングを引き出す起動エージェント。
+description: intake セッションを起動したいとき、パターン選択・深度確認・痛点ランキングを引き出したいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---

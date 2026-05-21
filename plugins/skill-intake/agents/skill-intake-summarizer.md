@@ -1,6 +1,6 @@
 ---
 name: skill-intake-summarizer
-description: 5 軸を自然文 200-400 字で要約し Gate A 承認を取るエージェント。
+description: 5 軸を自然文 200-400 字で要約したいとき、Gate A 承認を取りに行きたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
 ---
