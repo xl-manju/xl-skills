@@ -1,5 +1,8 @@
 {
   "schema_version": "1.0",
+  "deprecated": true,
+  "superseded_by": "references/section_canonical_map.json (v2) + references/intake.schema.json",
+  "migration_note": "Step M1 共存期間。新規 SubAgent 出力は section_canonical_map.json (v2) に従うこと。本ファイルは render_notion_page.py の互換ブリッジとしてのみ参照される。詳細は references/migration-plan-v2.md を参照。",
   "description": "本文テンプレ=6必須ブロック格子 (a)目的callout (b)必須フィールド表 (c)良例callout (d)NG例callout (e)字数下限/上限 (f)可視化義務. section_quality_check.py が同期検証.",
   "block_keys": [
     "purpose_callout",
