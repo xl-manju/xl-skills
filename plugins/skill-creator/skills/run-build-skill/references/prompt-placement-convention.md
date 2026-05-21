@@ -7,6 +7,34 @@ version: 1.0.0
 
 # Skill 配下 prompt 配置規約
 
+## 適用範囲
+
+本規約は brief.kind に応じて適用度合いを切り替える。Phase 3 で確定 (2026-05-21)。
+
+| brief.kind | 責務単位 7 層 prompt | brief.responsibilities[] |
+|---|---|---|
+| `run` | **必須** | 1 件以上 (空配列禁止) |
+| `assign` | **必須** | 1 件以上 (空配列禁止) |
+| `ref` | 既定 skip (`prompt_creator_policy: skip`) | 空配列許容 |
+| `wrap` | 既定 skip (`prompt_creator_policy: skip`) | 空配列許容 |
+| `delegate` | 既定 skip (`prompt_creator_policy: skip`) | 空配列許容 |
+
+`ref/wrap/delegate` で明示的に prompt 生成したい場合は brief に `prompt_creator_policy: required` を立てて override する。
+
+### 単一責務デフォルト補完
+
+`brief.responsibilities[]` が省略された場合、skill-creator は次の単一責務エントリで補完する:
+
+```yaml
+responsibilities:
+  - id: "R1"
+    name: "<skill 名>"
+    prompt_required: false
+```
+
+`kind ∈ {run, assign}` で `prompt_required: false` のままだと PG-001 で fail する。run/assign は必ず 1 件以上の `prompt_required: true` を持つこと。
+
+
 prompt-creator が brief.responsibilities[] ごとに生成する 7 層 YAML を、**各 skill のサブディレクトリ** に格納する規約。再現性 (同 brief → 同パス → 同 sha256) を機械検証できる形に固定する。
 
 ## 配置パス

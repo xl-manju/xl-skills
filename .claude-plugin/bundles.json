@@ -1,0 +1,40 @@
+{
+  "$schema": "./bundles-schema.json",
+  "description": "Named plugin bundles for /plugin install. Resolves the lack of native cross-plugin dependency declaration in Claude Code by letting the install-bundle slash command install a curated set in one shot.",
+  "bundles": [
+    {
+      "name": "xl-skills-full",
+      "description": "Recommended. All 10 plugins required for the full skill-creator → prompt-creator → governance → distribution pipeline.",
+      "plugins": [
+        "skill-creator",
+        "prompt-creator",
+        "skill-intake",
+        "skill-governance-config",
+        "skill-governance-lint",
+        "skill-governance-hooks",
+        "skill-governance-automation",
+        "skill-governance-adapters",
+        "skill-governance-migration",
+        "skill-governance-secrets"
+      ]
+    },
+    {
+      "name": "xl-skills-minimal",
+      "description": "Just enough to author skills: skill-creator + prompt-creator. No governance, no intake, no Notion publishing.",
+      "plugins": [
+        "skill-creator",
+        "prompt-creator"
+      ]
+    },
+    {
+      "name": "xl-skills-intake",
+      "description": "Non-engineer elicitation flow + Notion publishing. Includes skill-creator so generated briefs can flow through.",
+      "plugins": [
+        "skill-creator",
+        "prompt-creator",
+        "skill-intake",
+        "skill-governance-secrets"
+      ]
+    }
+  ]
+}
