@@ -10,7 +10,8 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "$CLAUDE_PLUGIN_ROOT/hooks/pre-publish-secret-scrub.sh" }
+          { "type": "command", "command": "$CLAUDE_PLUGIN_ROOT/hooks/pre-publish-secret-scrub.sh" },
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/pre-publish-schema-validate.py" }
         ]
       }
     ],
