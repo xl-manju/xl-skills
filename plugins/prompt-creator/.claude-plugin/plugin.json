@@ -2,20 +2,7 @@
   "name": "prompt-creator",
   "version": "1.0.0",
   "description": "7 層プロンプトアーキテクチャ (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) で SubAgent 向けプロンプト YAML を生成する skill 群。skill-creator (run-build-skill) から Step 7.5 でループ呼び出しされ、生成された SubAgent .md の Prompt Templates / Self-Evaluation セクションを自動充填する。",
-  "owner": "team-platform",
-  "since": "2026-05-20",
-  "skills": [
-    {
-      "path": "skills/run-prompt-creator-7layer",
-      "kind": "run",
-      "user-invocable": true
-    }
-  ],
-  "agents": [
-    "agents/prompt-creator-interview-user.md",
-    "agents/prompt-creator-generate-prompt.md",
-    "agents/prompt-creator-review-prompt.md"
-  ],
-  "source": "doc/prompt-creator/",
-  "migration": "doc/prompt-creator/ から 2026-05-20 に移植 (4 scripts: generate_sheet/validate_sheet/scaffold_prompt/log_usage および LOGS.md を含む)。旧 doc は deprecated として残存し README に移行先を明記。"
+  "author": {
+    "name": "xl-skills maintainers"
+  }
 }
