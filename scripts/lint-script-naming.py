@@ -95,6 +95,12 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-intake/scripts/validate_mermaid.py",
     "plugins/skill-intake/scripts/verify_notion_assets.py",
     "plugins/skill-intake/scripts/verify_notion_schema.py",
+    "plugins/skill-intake/scripts/ci_dogfooding_retest.py",
+    "plugins/skill-intake/scripts/render_v2_adapter.py",
+    "plugins/skill-intake/scripts/m3_deprecation_reverse_index.py",
+    "plugins/skill-intake/scripts/dry_render_notion.py",
+    "plugins/skill-intake/scripts/dogfooding_regression.py",
+    "plugins/skill-intake/scripts/validate_intake_schema.py",
     # prompt-creator scaffold (PR #4): non-standard verb until renamed
     "plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py",
     "plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py",
