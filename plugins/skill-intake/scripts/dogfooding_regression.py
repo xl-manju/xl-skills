@@ -8,7 +8,9 @@
 
 Usage:
   python3 dogfooding_regression.py <generated-intake.json>
-  python3 dogfooding_regression.py --baseline-only  # baseline スキーマ自検証のみ
+  python3 dogfooding_regression.py --baseline-only       # baseline スキーマ自検証のみ
+  python3 dogfooding_regression.py --schema-robustness   # N>=2 fixture を schema 検証 (LS-04)
+  python3 dogfooding_regression.py --multi-self          # 各 fixture vs 自身 で SEMANTIC_KEYS×5 回帰 (T19)
 """
 from __future__ import annotations
 
@@ -143,9 +145,50 @@ def _schema_robustness_check(config: dict) -> int:
     return 0
 
 
+def _multi_self_check(config: dict, threshold: float) -> int:
+    """T19 (LS-04/SS-08 完全閉路): baseline_intake_paths の各 fixture を自分自身と比較し、
+    SEMANTIC_KEYS×5 全てが threshold を満たすことを検証する。
+
+    semantic_similarity の実装ドリフト (true_purpose 1キーのみ→全5キー) を
+    自検証で押さえる。`_collect_semantic_texts` のバグや SequenceMatcher.ratio 退行を
+    検知できる唯一の決定論的回帰テスト。
+    """
+    paths = config.get("dogfooding", {}).get("baseline_intake_paths") or []
+    if not paths:
+        print("ERROR: baseline_intake_paths 未設定", file=sys.stderr)
+        return 2
+    failed = 0
+    for rel in paths:
+        p = (PROJECT_ROOT / rel).resolve()
+        if not p.exists():
+            print(f"MISS: {p}", file=sys.stderr)
+            failed += 1
+            continue
+        intake = json.loads(p.read_text(encoding="utf-8"))
+        ok, findings = _compare(intake, intake, threshold)
+        if not ok:
+            failed += 1
+            print(f"FAIL: {rel} self-compare", file=sys.stderr)
+            for f in findings:
+                print(f"  - {f}", file=sys.stderr)
+        else:
+            print(f"PASS: {rel} self-compare (5 SEMANTIC_KEYS >= {threshold})", file=sys.stderr)
+    if failed:
+        print(f"FAIL: multi-self {failed}/{len(paths)} fixtures regressed", file=sys.stderr)
+        return 1
+    print(f"PASS: multi-self all {len(paths)} fixtures self-consistent", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--schema-robustness" in argv:
         return _schema_robustness_check(_load_config())
+
+    if "--multi-self" in argv:
+        cfg = _load_config()
+        threshold = float(cfg.get("dogfooding", {}).get("similarity_min")
+                          or cfg.get("dogfooding", {}).get("embedding_cosine_min", DEFAULT_THRESHOLD))
+        return _multi_self_check(cfg, threshold)
 
     if "--baseline-only" in argv:
         config = _load_config()

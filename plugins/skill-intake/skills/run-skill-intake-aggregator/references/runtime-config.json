@@ -23,11 +23,21 @@
     "label_max_chars_ja": 10
   },
   "mermaid_assignments": {
-    "0_executive_summary": ["cvis-exec-summary-card"],
-    "1_assumption_challenger": ["mtmpl-mindmap-surface-vs-deep"],
-    "2_user_profile": ["cvis-persona-card"],
-    "3_purpose_excavator": ["mtmpl-mindmap-stated-to-excavated"],
-    "4_option_presenter": ["mtmpl-comparison-table"],
+    "0_executive_summary": [
+      "cvis-exec-summary-card"
+    ],
+    "1_assumption_challenger": [
+      "mtmpl-mindmap-surface-vs-deep"
+    ],
+    "2_user_profile": [
+      "cvis-persona-card"
+    ],
+    "3_purpose_excavator": [
+      "mtmpl-mindmap-stated-to-excavated"
+    ],
+    "4_option_presenter": [
+      "mtmpl-comparison-table"
+    ],
     "5_visualizer": [
       "mtmpl-flowchart-lr",
       "mtmpl-flowchart-tb",
@@ -35,17 +45,30 @@
       "mtmpl-before-after-lr",
       "mtmpl-boundary-tb"
     ],
-    "6_five_axes_summary": ["mtmpl-comparison-table-5axes"],
-    "7_design_decisions": ["mtmpl-comparison-table-adoptions"],
-    "8_open_questions": ["cvis-traffic-light"],
-    "9_handoff_contract": ["mtmpl-flowchart-next-action"],
-    "10_self_updater": ["cvis-score-gauge"],
-    "11_artifact_index": ["mtmpl-comparison-table-artifacts"]
+    "6_five_axes_summary": [
+      "mtmpl-comparison-table-5axes"
+    ],
+    "7_design_decisions": [
+      "mtmpl-comparison-table-adoptions"
+    ],
+    "8_open_questions": [
+      "cvis-traffic-light"
+    ],
+    "9_handoff_contract": [
+      "mtmpl-flowchart-next-action"
+    ],
+    "10_self_updater": [
+      "cvis-score-gauge"
+    ],
+    "11_artifact_index": [
+      "mtmpl-comparison-table-artifacts"
+    ]
   },
   "dogfooding": {
     "baseline_intake_paths": [
       "plugins/skill-intake/fixtures/info-collector-agent/intake.json",
-      "plugins/skill-intake/fixtures/example-data-quality-survey/intake.json"
+      "plugins/skill-intake/fixtures/example-data-quality-survey/intake.json",
+      "plugins/skill-intake/fixtures/example-team-onboarding/intake.json"
     ],
     "baseline_intake_paths_role": "T1 (LS-04 対応): N>1 fixture は schema robustness 検査用 (dogfooding_regression.py --schema-robustness)。semantic 比較は同一 fixture でしか意味を持たないため別軸。",
     "baseline_intake_path": "plugins/skill-intake/fixtures/info-collector-agent/intake.json",
@@ -56,8 +79,17 @@
     "similarity_implementation": "sequence_matcher_ratio",
     "similarity_naming_note": "T5 (F1 対応): 旧キー embedding_cosine_min は実装が SequenceMatcher.ratio() のため文字列類似度の閾値である。embedding 経由は将来 (T5 完全解消時) で導入予定。閾値値域は両実装で [0,1] と互換だが、語彙的差異への感度が異なる点を運用者は理解すること。",
     "embedding_cosine_min": 0.85,
-    "lexical_match_keys": ["section_key", "required_fields", "axes.axis_id", "figures.kind", "figures.index"],
-    "ignore_keys": ["generated_at", "value_realized_score"]
+    "lexical_match_keys": [
+      "section_key",
+      "required_fields",
+      "axes.axis_id",
+      "figures.kind",
+      "figures.index"
+    ],
+    "ignore_keys": [
+      "generated_at",
+      "value_realized_score"
+    ]
   },
   "validation": {
     "schema_path": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake.schema.json",
@@ -72,10 +104,17 @@
     "legacy_v1_path": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section-templates.json",
     "legacy_warning_required": true,
     "legacy_warning_message": "[DEPRECATED] section-templates.json は v1 派生。section_canonical_map.json (v2) を読んでください。M3 (2026-06-22 以降) で削除予定。",
-    "enforced_by": ["scripts/validate_intake_schema.py", "hooks/pre-publish-schema-validate.py"]
+    "enforced_by": [
+      "scripts/validate_intake_schema.py",
+      "hooks/pre-publish-schema-validate.py"
+    ]
   },
   "migration": {
-    "deprecated_section_keys": ["7_5_knowledge_asset", "0_cover_meta", "9_next_action"],
+    "deprecated_section_keys": [
+      "7_5_knowledge_asset",
+      "0_cover_meta",
+      "9_next_action"
+    ],
     "rename_map": {
       "0_cover_meta": "0_executive_summary (拡張: メタ→サマリ統合)",
       "1_purpose": "3_purpose_excavator (移設: §1→§3)",

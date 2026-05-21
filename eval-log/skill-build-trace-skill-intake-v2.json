@@ -63,7 +63,11 @@
     "CLI": "なし"
   },
   "pattern_decisions": {
-    "pattern_refs": ["hook-integrated", "schema-driven-contract", "dbt-style-separation"],
+    "pattern_refs": [
+      "hook-integrated",
+      "schema-driven-contract",
+      "dbt-style-separation"
+    ],
     "pattern_intent": "契約(JSON Schema) ↔ 描画(テンプレ関数) ↔ 値(intake.json) の3層分離で量産安定化",
     "deterministic_checks": [
       "intake.schema.json による必須/型/enum 検証",
@@ -105,27 +109,107 @@
     "initial_judgement": "NO-GO (system_strategic) / 改善必要 (reset_observer)"
   },
   "phase3_improvements_applied": [
-    {"id": "E1", "addresses": ["LS-01", "LS-03", "LS-10", "MD-01", "SS-03"], "action": "hook を .sh → Python stdlib 化、exit code 1/2/3 を環境不備/契約違反/BLOCK で分離、regex 強化 (--intake-file, absolute path, fixtures/ を網羅)"},
-    {"id": "E2", "addresses": ["LS-03", "MD-02", "MD-03", "MD-09", "SS-05"], "action": "runtime-config.json に render_path_resolution=v2-strict 宣言、v1 fallback 禁止、legacy warning 必須化"},
-    {"id": "E3", "addresses": ["LS-04", "SS-08"], "action": "dogfooding_regression.py の SEMANTIC_KEYS 全 5 キーを比較対象に展開、両空=1.0 の数学的整合修正"},
-    {"id": "E4", "addresses": ["LS-08"], "action": "DRY違反(dogfooding_threshold 二重定義)は runtime-config.json 側を正本とし、section_canonical_map.policies はポインタのみとする (TODO化)"}
+    {
+      "id": "E1",
+      "addresses": [
+        "LS-01",
+        "LS-03",
+        "LS-10",
+        "MD-01",
+        "SS-03"
+      ],
+      "action": "hook を .sh → Python stdlib 化、exit code 1/2/3 を環境不備/契約違反/BLOCK で分離、regex 強化 (--intake-file, absolute path, fixtures/ を網羅)"
+    },
+    {
+      "id": "E2",
+      "addresses": [
+        "LS-03",
+        "MD-02",
+        "MD-03",
+        "MD-09",
+        "SS-05"
+      ],
+      "action": "runtime-config.json に render_path_resolution=v2-strict 宣言、v1 fallback 禁止、legacy warning 必須化"
+    },
+    {
+      "id": "E3",
+      "addresses": [
+        "LS-04",
+        "SS-08"
+      ],
+      "action": "dogfooding_regression.py の SEMANTIC_KEYS 全 5 キーを比較対象に展開、両空=1.0 の数学的整合修正"
+    },
+    {
+      "id": "E4",
+      "addresses": [
+        "LS-08"
+      ],
+      "action": "DRY違反(dogfooding_threshold 二重定義)は runtime-config.json 側を正本とし、section_canonical_map.policies はポインタのみとする (TODO化)"
+    }
   ],
   "phase3_remaining_todo": [
-    {"id": "T1", "addresses": ["LS-04", "MD-04", "SS-04"], "action": "baseline corpus を N=5 に拡張 (golden corpus 化)"},
-    {"id": "T3", "addresses": ["MD-08"], "action": "M3 deprecation reverse-index script を追加し外部依存検出"},
-    {"id": "T5", "addresses": ["MD-05"], "action": "cosine fallback の degradation metric を eval-log に emit / 命名整合 (F1)"},
-    {"id": "T6", "addresses": ["LS-09"], "action": "executive_summary.handoff_mode と handoff_contract.recommended_next.mode の cross-field 一致を schema rule に追加"}
+    {
+      "id": "T1",
+      "addresses": [
+        "LS-04",
+        "MD-04",
+        "SS-04"
+      ],
+      "action": "baseline corpus を N=5 に拡張 (golden corpus 化)"
+    },
+    {
+      "id": "T3",
+      "addresses": [
+        "MD-08"
+      ],
+      "action": "M3 deprecation reverse-index script を追加し外部依存検出"
+    },
+    {
+      "id": "T5",
+      "addresses": [
+        "MD-05"
+      ],
+      "action": "cosine fallback の degradation metric を eval-log に emit / 命名整合 (F1)"
+    },
+    {
+      "id": "T6",
+      "addresses": [
+        "LS-09"
+      ],
+      "action": "executive_summary.handoff_mode と handoff_contract.recommended_next.mode の cross-field 一致を schema rule に追加"
+    }
   ],
   "gate4_followups_applied": [
-    {"id": "F2", "action": "section_canonical_map.policies.dogfooding_threshold を {$ref: runtime-config.json#/dogfooding} ポインタに変換、DRY 違反解消"},
-    {"id": "F3", "action": "eval-log/gate2-rubric.json で Gate2 合格基準を定量化 + scripts/ci_dogfooding_retest.py で auto-retest loop を実装 (SS-02 / SS-06 解消)"}
+    {
+      "id": "F2",
+      "action": "section_canonical_map.policies.dogfooding_threshold を {$ref: runtime-config.json#/dogfooding} ポインタに変換、DRY 違反解消"
+    },
+    {
+      "id": "F3",
+      "action": "eval-log/gate2-rubric.json で Gate2 合格基準を定量化 + scripts/ci_dogfooding_retest.py で auto-retest loop を実装 (SS-02 / SS-06 解消)"
+    }
   ],
   "quality_round2_applied": [
-    {"id": "T6", "action": "intake.schema.json に x-cross-field-rules を宣言し、validate_intake_schema.py の _check_cross_field_rules で handoff_mode_consistency を強制 (PASS/FAIL 両方 live verify 済)"},
-    {"id": "T5", "action": "runtime-config.dogfooding に similarity_min / similarity_implementation / similarity_naming_note を追加し命名整合を明示 (F1 解消)"},
-    {"id": "T3", "action": "scripts/m3_deprecation_reverse_index.py 新設 (deprecated 参照箇所を git grep で逆引き、--json 対応)"},
-    {"id": "T1", "action": "fixtures/example-data-quality-survey/intake.json 新設で baseline N=2 化 + dogfooding_regression.py に --schema-robustness mode 追加"},
-    {"id": "M2_partial", "action": "scripts/render_v2_adapter.py 新設 (canonical_map 経由で section_key iterate)。render_path_resolution=v2-strict 必須化、render_notion_page.py の段階移行 entry point として用意"}
+    {
+      "id": "T6",
+      "action": "intake.schema.json に x-cross-field-rules を宣言し、validate_intake_schema.py の _check_cross_field_rules で handoff_mode_consistency を強制 (PASS/FAIL 両方 live verify 済)"
+    },
+    {
+      "id": "T5",
+      "action": "runtime-config.dogfooding に similarity_min / similarity_implementation / similarity_naming_note を追加し命名整合を明示 (F1 解消)"
+    },
+    {
+      "id": "T3",
+      "action": "scripts/m3_deprecation_reverse_index.py 新設 (deprecated 参照箇所を git grep で逆引き、--json 対応)"
+    },
+    {
+      "id": "T1",
+      "action": "fixtures/example-data-quality-survey/intake.json 新設で baseline N=2 化 + dogfooding_regression.py に --schema-robustness mode 追加"
+    },
+    {
+      "id": "M2_partial",
+      "action": "scripts/render_v2_adapter.py 新設 (canonical_map 経由で section_key iterate)。render_path_resolution=v2-strict 必須化、render_notion_page.py の段階移行 entry point として用意"
+    }
   ],
   "quality_round2_live_verification": {
     "schema_validation_dual": "PASS for info-collector-agent + example-data-quality-survey",
@@ -136,10 +220,30 @@
     "m3_reverse_index": "FOUND deprecated symbols still referenced (期待通り: M1 共存期間中)"
   },
   "phase3_remaining_todo_v2": [
-    {"id": "T1b", "addresses": ["LS-04", "MD-04", "SS-04"], "action": "baseline corpus を N=5 へ拡張 (現在 N=2)"},
-    {"id": "T5b", "addresses": ["MD-05"], "action": "embedding ベース similarity (sentence-transformers 等) の正式導入、SequenceMatcher 完全置換"},
-    {"id": "M2_full", "action": "render_notion_page.py / apply_section_template.py / section_quality_check.py を section_canonical_map+intake.schema 直接読み込みに切替 (render_v2_adapter から段階移行)"},
-    {"id": "notion_publish_dogfooding", "action": "fixtures/info-collector-agent を実 Notion へ publish し round-1 で出力品質確認"}
+    {
+      "id": "T1b",
+      "addresses": [
+        "LS-04",
+        "MD-04",
+        "SS-04"
+      ],
+      "action": "baseline corpus を N=5 へ拡張 (現在 N=2)"
+    },
+    {
+      "id": "T5b",
+      "addresses": [
+        "MD-05"
+      ],
+      "action": "embedding ベース similarity (sentence-transformers 等) の正式導入、SequenceMatcher 完全置換"
+    },
+    {
+      "id": "M2_full",
+      "action": "render_notion_page.py / apply_section_template.py / section_quality_check.py を section_canonical_map+intake.schema 直接読み込みに切替 (render_v2_adapter から段階移行)"
+    },
+    {
+      "id": "notion_publish_dogfooding",
+      "action": "fixtures/info-collector-agent を実 Notion へ publish し round-1 で出力品質確認"
+    }
   ],
   "reproducibility_gates": {
     "schema_validation_live_pass": true,
@@ -173,5 +277,29 @@
     "Step 4b: assign-skill-design-evaluator (context:fork) で rubric 採点",
     "Step 6: run-skill-rubric-governance",
     "Notion 実 publish dogfooding round-1 (cos≥0.85 確認)"
-  ]
+  ],
+  "quality_round3_applied": {
+    "timestamp": "2026-05-22",
+    "goal": "実行面・回帰面の精度品質強化 (multi-self + dry-render)",
+    "changes": [
+      {
+        "id": "T19",
+        "desc": "dogfooding_regression.py に --multi-self 追加。各 fixture を自分自身と SEMANTIC_KEYS×5 で比較し、_collect_semantic_texts / SequenceMatcher 退行を検知"
+      },
+      {
+        "id": "T20",
+        "desc": "dry_render_notion.py 新設。render_v2_adapter.iter_sections を消費し、Notion-block 列を stdout/--out へドライ出力 (実 publish 無)"
+      }
+    ],
+    "live_verification": {
+      "multi_self": "PASS: 3 fixtures self-consistent (info-collector-agent / data-quality-survey / team-onboarding)",
+      "dry_render": "PASS: 3 fixtures × 53 blocks (canonical_map 宣言順走査が決定論)"
+    },
+    "remaining_todo": [
+      "T1b N=5",
+      "T5b embedding 化",
+      "M2_full render_notion_page.py 全面切替",
+      "notion_publish_dogfooding 実 publish round-1"
+    ]
+  }
 }
