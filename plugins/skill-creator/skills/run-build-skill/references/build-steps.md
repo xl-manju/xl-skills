@@ -307,6 +307,30 @@ model: opus  # PF-F3-001: デフォルト opus
 ---
 ```
 
+### H.2.5 prompt-creator ループ詳細
+
+`--with-prompts` 指定時、Step 7 で生成された各 SubAgent の Prompt Templates / Self-Evaluation を `plugins/prompt-creator/skills/run-prompt-creator-7layer` 経由で充填する 4 段ループ。
+
+```bash
+for agent_md in "$OUT_BASE/$SKILL_NAME"/agents/*.md; do
+  Skill(run-prompt-creator-7layer) \
+    --target-agent "$agent_md" \
+    --skill-brief "eval-log/skill-brief.json" \
+    --inject-sections "Prompt Templates,Self-Evaluation" \
+    --format yaml
+done
+python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py \
+  --agents-dir "$OUT_BASE/$SKILL_NAME/agents"
+```
+
+ループ要件:
+1. `run-build-skill` が SubAgent 骨格を生成 (Step 7)
+2. `run-prompt-creator-7layer` が 7 層 YAML を生成し対象セクションを充填 (Step 7.5)
+3. `lint-agent-prompt-section.py` で必須セクション検証
+4. FAIL なら prompt-creator を再起動 (max 3 回)
+
+`brief.use_prompt_creator: false` ならスキップし、Step 7 生成物の Prompt Templates / Self-Evaluation は agent-template.md の placeholder のまま残す。
+
 ### H.3 Hook 設定の実装詳細
 
 `.claude/settings.json` に定義された hook の役割と実装:

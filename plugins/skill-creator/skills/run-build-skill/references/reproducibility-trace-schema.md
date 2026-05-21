@@ -25,8 +25,65 @@ run-build-skill Step 3.5 はこの schema に従って各キーを埋めるこ�
 - `plugin_boundary_model`: 設計書34に基づく plugin境界、外部参照棚卸し、Phase gate、移行禁止条件の証跡
 - `meta_harness_model`: 設計書35に基づく observables、ログスキーマ、hook opt-in、再現性しきい値の証跡
 - `variable_contract`: 具体値からテンプレート変数への写像、既定値、必須性、不適用条件、source_trace
+- `prompt_generation_model`: brief.responsibilities[] と prompt-creator の Step 7.5 ループの突合トレース。後述スキーマ参照
+
+## `prompt_generation_model` スキーマ
+
+責務単位の再現性を保証するため、prompt-creator ループの実行結果を responsibility.id で結合可能な形で記録する。
+
+```jsonc
+{
+  "prompt_generation_model": {
+    "policy_resolution": {
+      "brief_policy": "auto | required | optional | skip",
+      "resolved_policy": "required | optional | skip",
+      "resolved_via": "brief.kind=run|assign → required (default) | brief.prompt_creator_policy override | N/A: <reason>"
+    },
+    "per_responsibility": [
+      {
+        "id": "R1",
+        "name": "<brief.responsibilities[].name>",
+        "owner_agent": "<agent-file-name or null>",
+        "layer_yaml_path": "plugins/<plugin>/skills/<skill>/prompts/R1.yaml",
+        "path_convention": "skill-local-v1",
+        "layers_generated": ["L1","L2","L3","L4","L5","L6","L7"],
+        "sha256": "<7層 YAML 全文 sha256>",
+        "lint_status": "PASS | FAIL",
+        "iteration_count": 1,
+        "escalation": "none | retry | reframe_brief | abort"
+      }
+    ],
+    "cross_ref": {
+      "skill_build_id": "<UUID or commit-sha>",
+      "prompt_creator_trace_path": "eval-log/prompt-creator-trace.json",
+      "join_key": "responsibility.id"
+    },
+    "anchor_coverage": {
+      "agent_files_checked": ["plugins/<plugin>/agents/<role>.md"],
+      "missing_anchors": [],
+      "extra_anchors": []
+    }
+  }
+}
+```
+
+### N/A 条件
+
+- brief.kind ∈ {ref, wrap, delegate} かつ `prompt_creator_policy` が `skip` または resolved=skip の場合は、`per_responsibility: []` + `policy_resolution.resolved_policy: "skip"` + 理由を `resolved_via` に明記すれば N/A 扱い。
+- prompt-creator を 1 度も呼ばなかった場合、`cross_ref.prompt_creator_trace_path: null` を許容。ただし resolved=required で per_responsibility が空なら validate-build-trace.py が exit 1。
 
 ## バリデーション
 
 `scripts/validate-build-trace.py` が上記キーの存在と PASS/FAIL/N/A 理由を検証する。
 N/A の場合は理由を必ず添えること（空欄禁止）。
+
+`prompt_generation_model` については追加で次を検証:
+
+1. `policy_resolution.resolved_policy == "required"` のとき `per_responsibility[].lint_status == "PASS"` がすべて満たされること。
+2. `per_responsibility[].id` が brief.responsibilities[].id と 1:1 対応すること (集合一致)。
+3. `anchor_coverage.missing_anchors` が空配列であること (SubAgent.md 側に必要 anchor が全て存在)。
+4. `sha256` は同一 brief で 2 回生成した場合に一致する (再現性ハッシュ)。差分が出た場合は `escalation` 非 none が必須。
+5. `layer_yaml_path` が次の正規表現に一致すること (`references/prompt-placement-convention.md` 準拠):
+   - `path_convention == "skill-local-v1"`: `^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$`
+   - `path_convention == "agents-legacy"` (deprecated, 後方互換): `^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$`
+6. `layer_yaml_path` のファイル名 (拡張子を除く) が `per_responsibility[].id` と一致すること (例: `R1.yaml` ↔ id=R1)。

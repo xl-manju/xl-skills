@@ -22,3 +22,26 @@ Thumbs.db
 *.local.json
 config/*.local.*
 references/governance-params.json
+
+# Secrets (絶対に commit しない)
+.env
+.env.*
+!.env.example
+
+# Session-local artifacts
+output/
+.claude/handoff/
+# .claude/{agents,skills,commands} は build-claude-symlinks.py が
+# plugins/ から生成する symlink を含むため tracked。ignore しない。
+
+# Eval-log: 一時生成物 (再現性 schema 正本は plugins/ 配下)
+eval-log/skill-brief.json
+eval-log/skill-brief*.json
+eval-log/skill-intake/
+eval-log/docs/
+eval-log/notion-conflicts.json
+
+# Plugin-local runtime
+plugins/skill-intake/output/
+plugins/skill-intake/.claude/
+plugins/prompt-creator/LOGS.md

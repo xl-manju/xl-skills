@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill Intake Reports — Notion Database Schema (JP)",
+  "description": "run-skill-intake-aggregator が公開する Notion DB のプロパティ定義。列名・選択肢は日本語。固有名詞 (Slack/Notion/GitHub 等) は英語のまま。verify_notion_schema.js が現状 DB と突き合わせ、過不足を eval-log/notion-conflicts.json に記録する。",
+  "database_id_default": "36607a0cd18c80bf9effc74aa736645c",
+  "database_id_env": "INTAKE_NOTION_DATABASE_ID",
+  "rename_map_from_english": {
+    "Name": "名前",
+    "Status": "ステータス",
+    "Pattern": "パターン",
+    "Output Destination": "出力先",
+    "Information Source": "情報源",
+    "Sharing Target": "共有相手",
+    "True Problem": "真の課題",
+    "Knowledge Assets": "ナレッジ資産",
+    "User Profile": "ユーザープロファイル",
+    "Open Questions": "未解決事項",
+    "External Integrations": "外部連携",
+    "Intake MD": "Markdown 正本",
+    "Intake JSON": "JSON 副本",
+    "Handoff to Creator": "Creator 引き渡し",
+    "Owner": "担当者",
+    "Visualization Count": "図解枚数",
+    "Value Realized Score": "価値実現スコア",
+    "Created": "作成日時",
+    "Updated": "更新日時"
+  },
+  "properties": {
+    "名前": {
+      "type": "title",
+      "required": true,
+      "description": "スキル名候補 (skill-name-hint)",
+      "source": "intake.json.skill_name_hint"
+    },
+    "ステータス": {
+      "type": "select",
+      "required": true,
+      "options": ["下書き", "レビュー中", "引き渡し済み", "構築済み", "アーカイブ"],
+      "default": "下書き",
+      "description": "ヒアリング/構築の進捗状態"
+    },
+    "パターン": {
+      "type": "select",
+      "required": true,
+      "options": ["量産型", "自動化", "ナレッジ", "レビュー", "その他"],
+      "description": "kickoff agent が判定したスキル類型"
+    },
+    "出力先": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: 出力先 (どこに出力されたら一番嬉しいか)",
+      "source": "intake.json.five_axes.output_destination"
+    },
+    "情報源": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: 情報源 (その情報を今どこから取っているか)",
+      "source": "intake.json.five_axes.info_source"
+    },
+    "共有相手": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: 共有相手 (誰に伝わったら成功か)",
+      "source": "intake.json.five_axes.share_target"
+    },
+    "真の課題": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: 真の課題 (それで何が浮くか・浮いた次に何をするか)",
+      "source": "intake.json.five_axes.true_problem"
+    },
+    "ナレッジ資産": {
+      "type": "rich_text",
+      "required": true,
+      "description": "5 軸: ナレッジ資産 (思考プロセス・暗黙知の有無、抽出方針)",
+      "source": "intake.json.five_axes.knowledge_assets"
+    },
+    "ユーザープロファイル": {
+      "type": "rich_text",
+      "required": false,
+      "description": "user-profiler が推定した熟練度・役割・制約",
+      "source": "intake.json.user_profile"
+    },
+    "未解決事項": {
+      "type": "rich_text",
+      "required": false,
+      "description": "未解決事項。extract_open_questions.js の出力を箇条書きで",
+      "source": "intake.json.open_questions[]"
+    },
+    "外部連携": {
+      "type": "multi_select",
+      "required": false,
+      "options": ["Slack", "Notion", "GitHub", "Google Drive", "Linear", "Gmail", "Calendar", "その他"],
+      "description": "option-presenter が確定した外部連携先",
+      "source": "intake.json.integrations[]"
+    },
+    "Markdown 正本": {
+      "type": "url",
+      "required": false,
+      "description": "Markdown 正本へのリンク (リポジトリ raw URL or 共有 URL)",
+      "source": "output/<hint>/intake.md"
+    },
+    "JSON 副本": {
+      "type": "url",
+      "required": false,
+      "description": "JSON 副本へのリンク (skill-creator 用)",
+      "source": "output/<hint>/intake.json"
+    },
+    "Creator 引き渡し": {
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "description": "next-action-advisor が skill-creator へ引き渡しを推奨した場合に true"
+    },
+    "担当者": {
+      "type": "people",
+      "required": false,
+      "description": "ヒアリング依頼者 (Notion ユーザー)"
+    },
+    "図解枚数": {
+      "type": "number",
+      "required": false,
+      "description": "図解枚数 (Mermaid + SVG 合計)。visualization-mandatory-rules の充足テレメトリ",
+      "source": "manifest.summary.total"
+    },
+    "価値実現スコア": {
+      "type": "number",
+      "required": false,
+      "description": "measure_value_realized.js の出力スコア (0.0-1.0)",
+      "source": "output/<hint>/value-score.json"
+    },
+    "作成日時": {
+      "type": "created_time",
+      "required": false,
+      "description": "ページ作成時刻 (Notion 自動)"
+    },
+    "更新日時": {
+      "type": "last_edited_time",
+      "required": false,
+      "description": "最終編集時刻 (Notion 自動)"
+    }
+  },
+  "conflict_resolution": {
+    "default_mode": "skip-warn",
+    "modes": {
+      "skip-warn": "型違い・同名プロパティは触らず eval-log/notion-conflicts.json に記録",
+      "overwrite": "スキーマ通りに PATCH 上書き (DB バックアップ必須)",
+      "fail-stop": "1 つでも不一致なら verify_notion_schema.js を exit 1 にしてスキル停止"
+    }
+  }
+}
