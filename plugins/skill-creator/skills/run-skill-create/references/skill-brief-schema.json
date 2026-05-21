@@ -355,6 +355,59 @@
       "maxItems": 10,
       "description": "TODO(human) として未確定事項をユーザーに返す (最大10件、緩め: 超過時は再ヒアリング推奨だが強制しない)。"
     },
+    "responsibilities": {
+      "type": "array",
+      "description": "1スキル内の責務を意味単位 (Entity 相当の不変核) に分解した配列。SubAgent / Prompt Templates / Self-Evaluation / rubric を id で結合する一次キー。各 responsibility ごとに prompt-creator が 7 層プロンプトを 1 ブロック生成する (Layer 5 Workflow に sub-block として配置)。kind=run/assign は 1 件以上必須、kind=ref/wrap/delegate は空配列許容。",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "prompt_required"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^R[0-9]+$",
+            "description": "responsibility ID。SKILL.md Steps と SubAgent.md anchor (`<!-- responsibility: <id> -->`) と build-trace.prompt_generation_model.per_responsibility[].id が同じ値で結合する。R1, R2, ... 連番推奨。"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "責務の短い名称 (日本語可)。例: 'requirement-elicitation', 'prompt-generation', 'lint-coverage-check'。"
+          },
+          "scope": {
+            "type": "string",
+            "description": "この責務がカバーする範囲を 1 文で。Boundary 要素のサブセット。"
+          },
+          "owner_agent": {
+            "type": ["string", "null"],
+            "description": "この責務を担う SubAgent 名 (例: prompt-creator-interview-user)。SubAgent が無い責務は null。null の場合は SKILL.md Steps が直接実行する。"
+          },
+          "prompt_required": {
+            "type": "boolean",
+            "description": "prompt-creator で 7 層プロンプトを生成するか。kind 別 default は references/prompt-creator-policy-by-kind に従う。"
+          },
+          "prompt_layers_required": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"]
+            },
+            "description": "prompt-creator に生成させる Layer 番号の subset。省略時は全 L1-L7。trivial 責務は L5/L6 のみ等で省略可。"
+          },
+          "vocabulary_tier": {
+            "type": "string",
+            "enum": ["beginner", "intermediate", "expert"],
+            "default": "intermediate",
+            "description": "Prompt Templates の語彙 tier。agent-template.md の差し替えに使う。"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "prompt_creator_policy": {
+      "type": "string",
+      "enum": ["required", "optional", "skip", "auto"],
+      "default": "auto",
+      "description": "run-build-skill Step 7.5 起動条件の上書き。auto (既定) は kind 別 default (run/assign=required, ref/wrap=optional, delegate=skip) を参照。required なら responsibilities[].prompt_required=true が 1 件以上必須。skip なら Step 7.5 を必ず scaffold。validate-build-trace.py が trace.prompt_generation_model.policy_resolution と突合する。"
+    },
     "additional_resources": {
       "type": "array",
       "items": {
@@ -438,6 +491,30 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": { "enum": ["run", "assign"] }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["responsibilities"],
+        "properties": {
+          "responsibilities": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "properties": {
+                "prompt_required": { "const": true }
+              },
+              "required": ["prompt_required"]
+            }
+          }
+        }
+      }
     }
   ],
   "x-validation-policy": {
@@ -450,7 +527,9 @@
       "open_questions_max": "10 (緩め、超過は警告のみ)",
       "L0_rubric_refs": "空配列許容 (L0 は被参照のみで上位を持たない、29章原則)",
       "delegate_agent_format": "自由文字列 (1文字以上)",
-      "evaluator_pair_required": "lint 警告に留め、スキーマでは強制しない"
+      "evaluator_pair_required": "lint 警告に留め、スキーマでは強制しない",
+      "responsibilities_required_when": "kind ∈ {run, assign} で minItems=1 を allOf で強制。さらに prompt_required=true を含む responsibility が 1 件以上必要 (contains 制約)。kind ∈ {ref, wrap, delegate} は空配列許容。",
+      "prompt_creator_policy_resolution": "auto (既定) → kind 別 default (run/assign=required, ref/wrap=optional, delegate=skip)。明示指定があれば優先。validate-build-trace.py が trace と突合し、required 指定で trace に prompt_generation_model.per_responsibility が空なら exit 1。"
     }
   }
 }

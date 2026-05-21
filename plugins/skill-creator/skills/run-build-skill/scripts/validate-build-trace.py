@@ -22,8 +22,24 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
+
+
+LAYER_YAML_PATH_PATTERNS = {
+    "skill-local-v1": re.compile(
+        r"^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-"
+        r"[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$"
+    ),
+    "agents-legacy": re.compile(
+        r"^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$"
+    ),
+}
+RESPONSIBILITY_ID_RE = re.compile(r"^R[0-9]+$")
+PROMPT_REQUIRED_KINDS = {"run", "assign"}
+PROMPT_OPTIONAL_KINDS = {"ref", "wrap"}
+PROMPT_SKIP_KINDS = {"delegate"}
 
 
 REQUIRED_BUILD_STEPS = {
@@ -110,6 +126,142 @@ def _non_empty_string(value: object) -> bool:
 
 def _non_empty_list(value: object) -> bool:
     return isinstance(value, list) and bool(value)
+
+
+def _resolve_brief_kind(data: dict) -> str | None:
+    variant = data.get("variant_support")
+    if isinstance(variant, dict):
+        prefix = str(variant.get("prefix", "")).strip().lower()
+        if prefix:
+            return prefix
+    return None
+
+
+def _validate_prompt_generation_model(data: dict) -> list[str]:
+    """Validate trace.prompt_generation_model against reproducibility-trace-schema.md.
+
+    Enforces rules 1-6 from the schema: policy resolution, regex path match,
+    id↔filename consistency, anchor_coverage emptiness, and required-policy
+    lint PASS gating. Kind-based optionality follows agent-template.md table.
+    """
+    errs: list[str] = []
+    model = data.get("prompt_generation_model")
+    kind = _resolve_brief_kind(data)
+
+    if not isinstance(model, dict):
+        if kind in PROMPT_REQUIRED_KINDS:
+            errs.append(
+                f"prompt_generation_model is required when brief.kind={kind!r} "
+                f"(run/assign). Schema: reproducibility-trace-schema.md"
+            )
+        return errs
+
+    policy = model.get("policy_resolution")
+    if not isinstance(policy, dict):
+        errs.append("prompt_generation_model.policy_resolution missing")
+        resolved = None
+    else:
+        resolved = str(policy.get("resolved_policy", "")).strip().lower()
+        if resolved not in {"required", "optional", "skip"}:
+            errs.append(
+                f"policy_resolution.resolved_policy invalid: {resolved!r} "
+                "(expected required/optional/skip)"
+            )
+        if not str(policy.get("resolved_via", "")).strip():
+            errs.append("policy_resolution.resolved_via must explain derivation")
+        if kind in PROMPT_REQUIRED_KINDS and resolved == "skip":
+            errs.append(
+                f"resolved_policy=skip contradicts brief.kind={kind!r} "
+                "(run/assign require prompt generation)"
+            )
+        if kind in PROMPT_SKIP_KINDS and resolved == "required":
+            errs.append(
+                f"resolved_policy=required contradicts brief.kind={kind!r} "
+                "(delegate skips prompt-creator)"
+            )
+
+    per_resp = model.get("per_responsibility")
+    if not isinstance(per_resp, list):
+        errs.append("prompt_generation_model.per_responsibility must be array")
+        per_resp = []
+
+    if resolved == "required" and not per_resp:
+        errs.append(
+            "per_responsibility must not be empty when resolved_policy=required"
+        )
+    if resolved == "skip" and per_resp:
+        errs.append(
+            "per_responsibility must be empty when resolved_policy=skip "
+            "(or escalate via policy_resolution.resolved_via)"
+        )
+
+    seen_ids: set[str] = set()
+    for idx, item in enumerate(per_resp):
+        if not isinstance(item, dict):
+            errs.append(f"per_responsibility[{idx}] must be object")
+            continue
+        rid = str(item.get("id", "")).strip()
+        if not RESPONSIBILITY_ID_RE.match(rid):
+            errs.append(
+                f"per_responsibility[{idx}].id={rid!r} must match ^R[0-9]+$"
+            )
+        if rid in seen_ids:
+            errs.append(f"per_responsibility[{idx}].id={rid!r} duplicated")
+        seen_ids.add(rid)
+
+        convention = str(item.get("path_convention", "")).strip()
+        pattern = LAYER_YAML_PATH_PATTERNS.get(convention)
+        layer_path = str(item.get("layer_yaml_path", "")).strip()
+        if pattern is None:
+            errs.append(
+                f"per_responsibility[{idx}].path_convention invalid: "
+                f"{convention!r} (expected skill-local-v1 or agents-legacy)"
+            )
+        elif not pattern.match(layer_path):
+            errs.append(
+                f"per_responsibility[{idx}].layer_yaml_path={layer_path!r} "
+                f"does not match {convention} regex"
+            )
+        elif convention == "skill-local-v1" and rid:
+            stem = Path(layer_path).stem
+            if stem != rid:
+                errs.append(
+                    f"per_responsibility[{idx}] filename {stem!r} != id {rid!r}"
+                )
+
+        if resolved == "required":
+            lint_status = str(item.get("lint_status", "")).upper()
+            if lint_status != "PASS":
+                escalation = str(item.get("escalation", "")).strip().lower()
+                if not escalation or escalation == "none":
+                    errs.append(
+                        f"per_responsibility[{idx}] lint_status={lint_status!r} "
+                        "requires escalation != none when policy=required"
+                    )
+
+    anchor = model.get("anchor_coverage")
+    if isinstance(anchor, dict):
+        missing = anchor.get("missing_anchors")
+        if isinstance(missing, list) and missing:
+            errs.append(
+                f"anchor_coverage.missing_anchors must be empty: {missing}"
+            )
+    elif resolved == "required":
+        errs.append("anchor_coverage required when resolved_policy=required")
+
+    cross_ref = model.get("cross_ref")
+    if isinstance(cross_ref, dict):
+        if cross_ref.get("join_key") != "responsibility.id":
+            errs.append(
+                "cross_ref.join_key must be 'responsibility.id' "
+                "(reproducibility-trace-schema.md)"
+            )
+        if resolved == "required" and not cross_ref.get("prompt_creator_trace_path"):
+            errs.append(
+                "cross_ref.prompt_creator_trace_path required when policy=required"
+            )
+
+    return errs
 
 
 def main() -> int:
@@ -361,6 +513,8 @@ def main() -> int:
         for key in keys:
             if not model.get(key):
                 errs.append(f"{model_name}.{key} is empty")
+
+    errs.extend(_validate_prompt_generation_model(data))
 
     variable_contract = data.get("variable_contract")
     if not isinstance(variable_contract, list) or not variable_contract:
