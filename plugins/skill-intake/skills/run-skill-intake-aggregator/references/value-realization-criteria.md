@@ -140,8 +140,20 @@ type: reference
 | 上流スキル | presentation-slide-generator |
 | 参照資産 | references/style-genome-base.md |
 | 追従方針 | hash-diff（毎回比較・差分時に警告） |
-| 検知 script | scripts/compare_upstream_hash.js |
+| 検知 script | scripts/compare_upstream_hash.py |
 
 ## 計測スクリプト
 
-`scripts/measure_value_realized.js` が intake.json を読み、KPI 数を数え、数値が含まれているか、Outcome 質問への回答有無を機械検証する。1 つでも欠ける場合は完了判定 FAIL。
+`scripts/measure_value_realized.py` が intake.json を読み、KPI 数を数え、数値が含まれているか、Outcome 質問への回答有無を機械検証する。1 つでも欠ける場合は完了判定 FAIL。
+
+## 連続低下の扱い
+
+`value_realized_score` が直前2回連続で低下した場合、`skill-intake-self-updater` は question-bank への追記を halt する（`status: halted_score_decline`）。これは自己進化ループが質を下げる方向へ暴走することを防ぐ安全装置である。
+
+### 連携している暴走防止条件 (skill-intake-self-updater)
+
+1. `value_realized_score` の直前2回連続低下 → `status: halted_score_decline`
+2. `references/question-bank.md` 行数上限 3000 行超過 → `status: halted_capacity`
+3. halt 時は `output/<hint>/question-bank.snapshot.md` を保持し、`python3 plugins/skill-intake/scripts/update_question_bank.py --rollback <hint>` で復元可能
+
+`measure_value_realized.py --history <self-update.json>` で `previous_scores` と `declining` フラグを返し、self-updater がこの判定に使う。

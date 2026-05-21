@@ -106,7 +106,7 @@ type: reference
 ```
 [interviewer 出力]
   ↓
-[quality_gate.js]
+[quality_gate.py]
   ├─ failure-modes パターンマッチ
   └─ 該当あり → 修正指示を返却
   ↓

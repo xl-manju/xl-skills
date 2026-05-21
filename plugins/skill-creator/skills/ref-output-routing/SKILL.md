@@ -1,12 +1,12 @@
 ---
 name: ref-output-routing
-description: 成果物の出力先を切り替えたいとき、新しい出力先アダプタを追加したいときに使う。
+description: 管理して成果物の出力先を切り替えたいとき、新しい出力先アダプタを追加したいときに使う。
 disable-model-invocation: false
 argument-hint: "<task_kind>"
 arguments: [task_kind]
 allowed-tools:
   - Read
-  - Bash
+  - Bash(python3 *)
 kind: ref
 effect: none
 owner: team-platform

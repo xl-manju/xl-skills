@@ -16,8 +16,8 @@ argument-hint: "[topic]"
 
 ## 事前条件
 
-- macOS Keychain に Notion トークンが `service=notion-api-key, account=skill-intake-interviewer` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake-aggregator/references/keychain-setup.md` を参照。
-- 対象 Notion DB `36607a0cd18c80bf9effc74aa736645c` に PAT / Integration が Connections 追加されていること。
+- macOS Keychain に Notion トークンが `service=notion-api-key, account=skill-intake` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake-aggregator/references/keychain-setup.md` を参照。
+- 対象 Notion DB (環境変数 `INTAKE_NOTION_DATABASE_ID` で指定) に PAT / Integration が Connections 追加されていること。
 
 ## 失敗時
 

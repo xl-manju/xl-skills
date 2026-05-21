@@ -19,6 +19,14 @@
       "tags": ["skills", "generation", "evaluation", "governance"]
     },
     {
+      "name": "skill-intake",
+      "source": "./plugins/skill-intake",
+      "description": "skill-creator の前段ヒアリングを非技術者にも開く plugin。Markdown/JSON/Notion ページを Keychain 経由で一括生成。図解マスト + 5 軸ヒアリング (出力先/情報源/共有相手/真の課題/ナレッジ資産) を機械検証。",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["skills", "intake", "elicitation", "notion", "non-tech"]
+    },
+    {
       "name": "skill-governance-config",
       "source": "./plugins/skill-governance-config",
       "description": "Skill governance shared configuration payloads.",
@@ -73,6 +81,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "tags": ["skills", "governance", "secrets"]
+    },
+    {
+      "name": "prompt-creator",
+      "source": "./plugins/prompt-creator",
+      "description": "7 層プロンプトアーキテクチャ (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) で SubAgent 向けプロンプト YAML を生成する skill 群。skill-creator (run-build-skill Step 7.5) からループ呼び出しされ、生成された SubAgent .md の Prompt Templates / Self-Evaluation セクションを自動充填する。",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["skills", "prompt", "generation", "7layer", "subagent"]
     }
   ]
 }

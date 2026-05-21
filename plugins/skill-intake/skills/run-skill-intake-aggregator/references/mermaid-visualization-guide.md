@@ -6,7 +6,7 @@ type: reference
 
 # 図解選択ガイド（20 種カタログ）
 
-`scripts/select_diagram_type.js` がこの表のスコア式に基づき各セクションへ最適な図を割り当てる。`skill-intake-visualizer` SubAgent が利用。
+`scripts/select_diagram_type.py` がこの表のスコア式に基づき各セクションへ最適な図を割り当てる。`skill-intake-visualizer` SubAgent が利用。
 
 ## カタログ全体
 
@@ -156,6 +156,6 @@ score(diagram_type, section) =
 
 ## レンダリング
 
-- Mermaid は `scripts/validate_mermaid.js` で構文検証 → `scripts/render_to_svg.js` で SVG 化
+- Mermaid は `scripts/validate_mermaid.py` で構文検証 → `scripts/render_to_svg.py` で SVG 化
 - 独自 SVG は `assets/cvis-*.svg`、Mermaid テンプレは `assets/mtmpl-*.mmd`、完成例は `assets/msample-*.mmd` (Skill 規約により assets/ は flat 配置)
-- Notion 公開時は `scripts/render_to_image.js` で **PNG 化必須**（SVG 直貼り不可）
+- Notion 公開時は `scripts/render_to_image.py` で **PNG 化必須**（SVG 直貼り不可）

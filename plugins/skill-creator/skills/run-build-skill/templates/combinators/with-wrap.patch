@@ -1,7 +1,7 @@
 --- a/_base.md
 +++ b/_base.md
 @@ -10,6 +10,7 @@ argument-hint: {{argument_hint | default("[args...]")}}
- allowed-tools: [Bash({{wrapped_cli}} *)]
+ allowed-tools: [Bash(python3 *)]
  kind: wrap
  effect: {{effect | default("external-side-effect")}}
 +role_suffix: cli-wrapper

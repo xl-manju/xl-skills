@@ -6,7 +6,7 @@ type: reference
 
 # 共通 5 次元ルブリック
 
-各 SubAgent は出力前に必ずこのルブリックで自己採点する。`scripts/quality_gate.js` も同基準で機械検証する。
+各 SubAgent は出力前に必ずこのルブリックで自己採点する。`scripts/quality_gate.py` も同基準で機械検証する。
 
 ## 5 次元
 
@@ -52,7 +52,7 @@ type: reference
 - 用語統一（例: 「フォーム」と「申込書」の混在）
 - 図解と本文の一致
 
-**閾値**: 2 以上 PASS。`scripts/cross_check.js` が SubAgent 間整合を検証。
+**閾値**: 2 以上 PASS。`scripts/cross_check.py` が SubAgent 間整合を検証。
 
 ## 3. 深度（Depth）
 

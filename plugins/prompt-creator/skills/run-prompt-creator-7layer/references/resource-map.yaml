@@ -35,3 +35,21 @@ scripts:
   convert_format.js:
     path: plugins/prompt-creator/scripts/convert_format.js
     invoked_at: Phase 4-D
+  generate_sheet.js:
+    path: plugins/prompt-creator/scripts/generate_sheet.js
+    invoked_at: Phase 2 (シート生成)
+  validate_sheet.js:
+    path: plugins/prompt-creator/scripts/validate_sheet.js
+    invoked_at: Phase 2 (シート充足度検証)
+  scaffold_prompt.js:
+    path: plugins/prompt-creator/scripts/scaffold_prompt.js
+    invoked_at: Phase 4-A (7 層骨格生成)
+  log_usage.js:
+    path: plugins/prompt-creator/scripts/log_usage.js
+    invoked_at: Phase 5 終了時 (LOGS.md 追記)
+
+logs:
+  LOGS.md:
+    path: plugins/prompt-creator/LOGS.md
+    written_by: log_usage.js
+    purpose: 利用統計 / 失敗パターン蓄積

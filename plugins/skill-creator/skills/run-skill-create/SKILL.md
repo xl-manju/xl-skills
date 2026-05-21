@@ -1,6 +1,6 @@
 ---
 name: run-skill-create
-description: 新規Skillを端から端まで作りたいとき、複数Gateを通した品質保証付きフローを起動したいときに使う。
+description: 実行して新規Skillを端から端まで作りたいとき、複数Gateを通した品質保証付きフローを起動したいときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[topic?] [--mode create|update] [--fast]"
@@ -9,7 +9,9 @@ allowed-tools:
   - Read
   - Write
   - Edit
-  - Bash
+  - Bash(python3 *)
+  - Bash(git diff *)
+  - Bash(git status *)
   - Skill
 model: opus
 kind: run
@@ -51,11 +53,8 @@ audit-trigger: quarterly
 
 `--fast` 時のフロー: Step 1 brief → Step 2 build → Step 4a P0 lint → Step 6 governance (auto-approve)。Step 4b/5 (fork評価/elegant-review) を skip する。判定は機械的に行い、変更ファイル数・evaluator pair 不要条件も確認する:
 ```bash
-CHANGED_FILES=$(git diff --name-only -- "plugins/skill-creator/skills/$SKILL_NAME/" | wc -l | tr -d ' ')
-PAIR_REQUIRED=$(python3 -c "import json; b=json.load(open('eval-log/skill-brief.json')); print('true' if b.get('generate_pair_evaluator') or b.get('needs_independent_context') else 'false')")
-if [[ "$FAST" == "true" ]] && [[ "$CHANGED_FILES" == "1" ]] && [[ "$DIFF_LINES" -le 30 ]] && [[ "$KIND" =~ ^(ref|wrap)$ ]] && [[ "$PAIR_REQUIRED" == "false" ]]; then
-  echo "fast mode: skip Step 4b/5"
-fi
+python3 plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py \
+  --skill-name "$SKILL_NAME" --kind "$KIND" --brief eval-log/skill-brief.json --fast
 ```
 誤判定を防ぐため、条件不一致時は **fast を黙って解除して通常フロー** に戻る。
 
@@ -199,14 +198,8 @@ Skill(assign-skill-design-evaluator, args=<skill_path>, context=fork)
 新規スキルまたは大規模更新 (>30行変更) の場合のみ実行する。判定は機械化:
 
 ```bash
-# git diff --shortstat の "X insertions" + "Y deletions" を加算して 30 を超えるか判定
-DIFF_LINES=$(git diff --shortstat -- "plugins/skill-creator/skills/$SKILL_NAME/" \
-  | python3 -c "import sys,re; s=sys.stdin.read(); ins=sum(int(m) for m in re.findall(r'(\d+) insertion',s)); dels=sum(int(m) for m in re.findall(r'(\d+) deletion',s)); print(ins+dels)")
-NEW_SKILL=$(test -n "$(git ls-files --others --exclude-standard plugins/skill-creator/skills/$SKILL_NAME/)" && echo "true" || echo "false")
-if [[ "$NEW_SKILL" == "true" ]] || [[ "$DIFF_LINES" -gt 30 ]]; then
-  echo "elegant-review triggered: new=$NEW_SKILL diff_lines=$DIFF_LINES"
-  # Skill 起動
-fi
+python3 plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py \
+  --skill-name "$SKILL_NAME" --kind "$KIND" --brief eval-log/skill-brief.json
 ```
 ```
 Skill(run-elegant-review, args=[skill, <skill_path>], context=fork)

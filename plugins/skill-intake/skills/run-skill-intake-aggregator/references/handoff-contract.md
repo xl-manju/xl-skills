@@ -246,7 +246,7 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 
 ## バリデーション
 
-- `scripts/validate_intake.js` が schema 準拠を検証
+- `scripts/validate_intake.py` が schema 準拠を検証
 - 必須欠落 → ヒアリング差し戻し
 - `five_axes.*.verified=false` が 1 つでも残れば `recommended_next.mode="full"` 強制
 - `knowledge_assets.verified` は **MUST**（false は不可、`needed=false` の verified=true は OK）

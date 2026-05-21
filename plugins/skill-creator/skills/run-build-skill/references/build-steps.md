@@ -37,14 +37,11 @@ SKILL.md 本文 300行制約により分離した詳細。
 ```bash
 SKILL_NAME=run-my-thing
 KIND=run
-OUT_BASE="${CLAUDE_SKILL_OUT_BASE:-plugins/skill-creator/skills}"
-ROOT="$OUT_BASE/$SKILL_NAME"
-mkdir -p $ROOT/{templates,references,scripts,examples}
 python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py \
   --name $SKILL_NAME --kind $KIND \
   --brief eval-log/skill-brief.json \
   --template plugins/skill-creator/skills/run-build-skill/templates/$KIND.md \
-  > $ROOT/SKILL.md
+  --out plugins/skill-creator/skills/$SKILL_NAME/SKILL.md
 ```
 
 ## Phase D: 本文執筆
