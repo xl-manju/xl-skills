@@ -42,7 +42,22 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 | Notion ブロック JSON (中間生成物) | `output/<skill-name-hint>/notion-blocks.json` | publisher 入力 |
 | self-update メタログ | `output/<skill-name-hint>/self-update.json` | skill-intake-self-updater (question-bank 更新証跡) |
 
-**完了条件**: 5 軸全充足 + 各セクションに必要十分図解 + `scripts/quality_gate.py` PASS + `scripts/verify_notion_assets.py` PASS + Notion 公開成功。
+**完了条件**: 5 軸全充足 + 各セクションに必要十分図解 + `scripts/quality_gate.py` PASS (内部で `section_quality_check.py` を必須呼出) + `scripts/verify_notion_assets.py` PASS + Notion 公開成功。
+
+### 本文テンプレ = 6必須ブロック格子
+
+intake.md / Notion ブロックの全 10 章 (0表紙メタ / 1目的 / 2ユーザー像 / 3 5軸回答 / 4外部連携 / 5想定フロー / 6価値KPI / 7類似スキル / 7.5ナレッジ資産 / 8未解決事項 / 9 Next Action / 10付録) は以下の 6 ブロックを必ず含む。定義は `references/section-templates.json`、生成は `scripts/apply_section_template.py --lattice`、検証は `scripts/section_quality_check.py` (quality_gate.py から必須呼出)。
+
+| ブロック | 内容 | 下限 |
+|--|--|--|
+| (a) 目的 callout | emoji + 何を決める章か | 200字 |
+| (b) 必須フィールド表 | キー / 型 / 制約 / 例 | 4キー以上 |
+| (c) 良例 callout | good_example | 200字 |
+| (d) NG例 callout | anti_pattern + 理由 | 100字 |
+| (e) 字数下限/上限 | toggle で section_quality_check.py の閾値と同期 | — |
+| (f) 可視化義務 | mermaid or PNG 1-3 点 (visualization-mandatory-rules.md 準拠) | 1点 |
+
+ng_example の単一プレースホルダー `TODO(human)` は `3 5軸回答` 章のみ意図的に残し、ユーザー自身に最重要章の NG 例を記入してもらう (section_quality_check.py は `3_five_axes` の TODO(human) のみ許容)。
 
 ## 既存スキルとの責務境界
 
@@ -102,7 +117,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 |--|--|--|
 | service | `notion-api-key` | `INTAKE_KEYCHAIN_SERVICE` |
 | account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
-| Notion DB ID | (必須・既定値なし) | `INTAKE_NOTION_DATABASE_ID` |
+| Notion DB ID | `references/notion-db-schema.json` の `database_id_default` (正本) | `INTAKE_NOTION_DATABASE_ID` (CI override 限定) |
 | Notion-Version | `2022-06-28` | `INTAKE_NOTION_VERSION` |
 
 初回セットアップは `references/keychain-setup.md`。
@@ -127,7 +142,7 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
   --intake output/<hint>/intake.json \
   --manifest output/<hint>/notion-manifest.json
 ```
-`intake_publish_pipeline.py` が内部で render → quality_gate (blocks 網羅性込) → publish を順に exec し、いずれかが exit !=0 ならその時点で停止する。SubAgent `skill-intake-notion-publisher` はこの pipeline の単一発火点を呼ぶ。
+`intake_publish_pipeline.py` が内部で render → quality_gate (blocks 網羅性込) → publish を順に exec し、いずれかが exit !=0 ならその時点で停止する。SubAgent `skill-intake-notion-publisher` および sibling skill `run-notion-intake-publish` はいずれもこの pipeline を **単一発火点** として呼び、独自に render/publish スクリプトを直叩きしない (二重発火点禁止)。
 
 ## Slash Commands
 

@@ -99,6 +99,8 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py",
     "plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py",
     "plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py",
+    # run-skill-update-notifier (PR #8): notifier verb pending allowed-list extension
+    "plugins/skill-creator/skills/run-skill-update-notifier/scripts/notifier-check.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

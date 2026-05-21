@@ -4,5 +4,23 @@
   "description": "Claude Code Skill を作る/評価する/承認する/出力先にルーティングするためのメタスキル群",
   "author": {
     "name": "xl-skills maintainers"
+  },
+  "hooks": {
+    "UserPromptExpansion": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-cache-refresh.py" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-notify-skill-end.py" }
+        ]
+      }
+    ]
   }
 }

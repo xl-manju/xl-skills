@@ -6,7 +6,7 @@ type: reference
 
 # Notion 連携手順
 
-ヒアリング完了後、`skill-intake-notion-publisher` SubAgent が Notion REST API を直接呼んでページを作成する。MCP は使わない（環境非依存性のため）。Slack 通知は SubAgent からは行わず、必要時のみ公開後 hook で opt-in 配信する (詳細は末尾「公開後通知」節参照)。
+ヒアリング完了後、`skill-intake-notion-publisher` SubAgent が Notion REST API を直接呼んでページを作成する。MCP 経路は使わず REST 一本に統一する（環境非依存性・監査容易性のため）。Slack 通知は SubAgent からは行わず、必要時のみ公開後 hook で opt-in 配信する (詳細は末尾「公開後通知」節参照)。
 
 ## 全体フロー
 
@@ -19,7 +19,7 @@ intake.md / intake.json 完成
   ├─ scripts/prepare_notion_assets.py         → PNG/SVG manifest 生成
   ├─ scripts/verify_notion_assets.py          → All-or-Nothing 検証
   ├─ scripts/render_notion_page.py            → Notion ブロック JSON 生成
-  ├─ fetch POST https://api.notion.com/v1/pages → ページ作成
+  ├─ scripts/publish_notion_page.py           → POST /v1/pages (notion_http 経由)
   └─ output/<hint>/notion-url.txt に URL 保存
 ```
 
@@ -30,42 +30,68 @@ intake.md / intake.json 完成
 | Keychain service | `notion-api-key` | `INTAKE_KEYCHAIN_SERVICE` |
 | Keychain account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
 | Notion DB ID | (必須・既定値なし) | `INTAKE_NOTION_DATABASE_ID` |
-| Notion-Version | `2022-06-28` | `INTAKE_NOTION_VERSION` |
+| Notion-Version | `scripts/notion_http.py` の `NOTION_VERSION` 定数を正本とする (現行 `2022-06-28`) | `INTAKE_NOTION_VERSION` |
 | 認証種別 | PAT (`ntn_`) または Internal Integration (`secret_`) | — |
 
-トークンは **必ず** `scripts/keychain_get_secret.py` 経由で都度取得。コード／コミット履歴／`.env`／環境変数に平文を残さない。初回セットアップは `keychain-setup.md`。
+トークン取得は **必ず** `scripts/keychain_get_secret.py` 経由（内部で `/usr/bin/security find-generic-password` を呼ぶ唯一の窓口）。`INTAKE_NOTION_TOKEN` 等の環境変数からの直読みは禁止。コード／コミット履歴／`.env`／環境変数に平文を残さない。初回セットアップは `keychain-setup.md`。
 
-## HTTP リクエスト例
+`Notion-Version` ヘッダは `scripts/notion_http.py` の `NOTION_VERSION` で 1 箇所だけ定義しており、他スクリプトおよびドキュメントは必ずそこを参照する（重複定義禁止）。
 
-```javascript
-const token = await getSecretFromKeychain();  // /usr/bin/security 経由
-const res = await fetch("https://api.notion.com/v1/pages", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${token}`,
-    "Notion-Version": process.env.INTAKE_NOTION_VERSION || "2022-06-28",
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    parent: { database_id: process.env.INTAKE_NOTION_DATABASE_ID },
-    properties: { Name: { title: [{ text: { content: skillNameHint } }] } },
-    children: blocks
-  })
-});
+## HTTP リクエスト例 (Python / REST)
+
+通常は `scripts/publish_notion_page.py` を経由するため直接 HTTP を書く必要はない。下記は内部実装の参考（`notion_http.notion_fetch` が Authorization / Notion-Version / Content-Type を一元管理する）。
+
+```python
+# scripts/ 配下からの呼び出し例
+from notion_http import notion_fetch, NotionHttpError
+# トークンは notion_fetch 内で keychain_get_secret.get_secret() が解決する
+res = notion_fetch(
+    "/pages",
+    method="POST",
+    body={
+        "parent": {"database_id": database_id},  # --database-id か INTAKE_NOTION_DATABASE_ID 経由
+        "properties": {
+            "名前": {"title": [{"type": "text", "text": {"content": skill_name_hint}}]}
+        },
+        "children": blocks,
+    },
+)
 ```
+
+トークンを明示的に扱いたい場合のみ:
+
+```python
+from keychain_get_secret import get_secret
+token = get_secret()  # service/account は INTAKE_KEYCHAIN_SERVICE / _ACCOUNT で上書き可
+```
+
+`urllib.request` / `requests` で直接 `https://api.notion.com/v1/...` を叩くコードを新規に書かないこと（`Notion-Version` の重複源を生むため）。必ず `notion_http.notion_fetch` を経由する。
 
 ## 公開先データベース
 
-DB スキーマは `notion-db-schema.json` の正本に従う。
+DB スキーマは `notion-db-schema.json` の正本に従う。検索/絞り込みに必要な 7 プロパティのみを DB 列とし、それ以外の項目はページ本文 (children) の「メタ情報」セクションに rich_text / toggle で記述する (19 列→7 列に削減)。
 
-| プロパティ | 型 | 内容 |
-|------------|----|------|
-| Name | title | skill_name_hint |
-| Status | select | Draft / Reviewed / Adopted |
-| Pattern | select | A / B / C / D / E |
-| User Level | select | 非技術 / 中級 / 上級 |
-| Created | date | generated_at |
-| JTBD | rich_text | purpose.jtbd 整形 |
+| # | プロパティ | 型 | 内容 |
+|---|------------|----|------|
+| 1 | 名前 | title | skill_name_hint |
+| 2 | ステータス | select | 下書き / レビュー中 / 引き渡し済み / 構築済み / アーカイブ |
+| 3 | パターン | select | 量産型 / 自動化 / ナレッジ / レビュー / その他 |
+| 4 | 真の課題 | rich_text | 5 軸 true_problem の短文サマリ (200 字以内、詳細は本文へ) |
+| 5 | ナレッジ資産タグ | multi_select | 思考プロセス / 暗黙知 / 判断基準 / テンプレ / チェックリスト / その他 |
+| 6 | 作成日時 | created_time | Notion 自動 |
+| 7 | Markdown正本URL | url | intake.md の共有 URL |
+
+### 本文 children に移した 12 項目
+
+`publish_notion_page.py:build_extra_body_blocks()` がページ先頭の「メタ情報 (DB プロパティ補完)」セクションに次の項目を rich_text / toggle で出力する。
+
+- 出力先 / 情報源 / 共有相手 (5 軸の残り)
+- 図解枚数 / 価値実現スコア / Creator 引き渡し
+- 担当者 / 更新日時
+- ユーザープロファイル (toggle)
+- 未解決事項 (toggle)
+- 外部連携 (toggle)
+- JSON 副本 URL
 
 DB が存在しない場合は `scripts/create_notion_database.py --mode=create` で作成。既存 DB との差分は `scripts/verify_notion_schema.py --on-conflict skip-warn|overwrite|fail-stop` で扱う（既定: `skip-warn`、破壊回避）。
 
@@ -93,15 +119,15 @@ Notion は SVG ネイティブ表示が不安定なため **PNG を必須**と�
 2. PNG を一旦どこかにアップロード（Notion file_upload API またはユーザー指定 CDN）
 3. `image` ブロックとして添付。`caption` には one_liner（60 字以内）
 
-```javascript
-blocks.push({
-  type: "image",
-  image: {
-    type: "external",
-    external: { url: pngUrl },
-    caption: [{ type: "text", text: { content: oneLiner } }]
-  }
-});
+```python
+blocks.append({
+    "type": "image",
+    "image": {
+        "type": "external",
+        "external": {"url": png_url},
+        "caption": [{"type": "text", "text": {"content": one_liner}}],
+    },
+})
 ```
 
 ## All-or-Nothing 公開ルール
