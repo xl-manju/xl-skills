@@ -31,9 +31,8 @@ references/governance-params.json
 # Session-local artifacts
 output/
 .claude/handoff/
-.claude/agents/
-.claude/skills/
-.claude/commands/
+# .claude/{agents,skills,commands} は build-claude-symlinks.py が
+# plugins/ から生成する symlink を含むため tracked。ignore しない。
 
 # Eval-log: 一時生成物 (再現性 schema 正本は plugins/ 配下)
 eval-log/skill-brief.json
