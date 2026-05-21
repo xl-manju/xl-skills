@@ -22,6 +22,34 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = PROJECT_ROOT / "plugins" / "skill-intake" / "skills" / "run-skill-intake-aggregator" / "references" / "intake.schema.json"
 
 
+def _resolve_dotted(obj, dotted: str):
+    """sections.0_executive_summary.handoff_mode のようなドット式で nested 値を取得。"""
+    cur = obj
+    for part in dotted.split("."):
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(part)
+        if cur is None:
+            return None
+    return cur
+
+
+def _check_cross_field_rules(schema: dict, instance: dict) -> list[str]:
+    """T6: x-cross-field-rules で宣言した equals ルールを強制。"""
+    errors: list[str] = []
+    for rule in schema.get("x-cross-field-rules", []):
+        left = _resolve_dotted(instance, rule["left"])
+        right = _resolve_dotted(instance, rule["right"])
+        if rule.get("operator") == "equals":
+            if left is None and right is None:
+                continue  # 両方欠落は cross-field エラーではない (schema 側 required で別途検出)
+            if left != right:
+                errors.append(
+                    f"[{rule['id']}] {rule['left']}={left!r} != {rule['right']}={right!r}"
+                )
+    return errors
+
+
 def _read_target_path(argv: list[str]) -> Path:
     if len(argv) >= 2:
         return Path(argv[1]).resolve()
@@ -67,9 +95,15 @@ def main(argv: list[str]) -> int:
     validator = validator_cls(schema)
     errors = sorted(validator.iter_errors(instance), key=lambda e: list(e.absolute_path))
 
-    if not errors:
-        print(f"PASS: {target} conforms to intake.schema.json", file=sys.stderr)
+    cross_errors = _check_cross_field_rules(schema, instance)
+    if not errors and not cross_errors:
+        print(f"PASS: {target} conforms to intake.schema.json (incl. cross-field rules)", file=sys.stderr)
         return 0
+    if cross_errors and not errors:
+        print(f"FAIL: {target} has {len(cross_errors)} cross-field violations", file=sys.stderr)
+        for ce in cross_errors:
+            print(f"  - {ce}", file=sys.stderr)
+        return 1
 
     print(f"FAIL: {target} has {len(errors)} schema violations", file=sys.stderr)
     for err in errors[:20]:

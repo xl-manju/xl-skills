@@ -120,6 +120,27 @@
     {"id": "F2", "action": "section_canonical_map.policies.dogfooding_threshold を {$ref: runtime-config.json#/dogfooding} ポインタに変換、DRY 違反解消"},
     {"id": "F3", "action": "eval-log/gate2-rubric.json で Gate2 合格基準を定量化 + scripts/ci_dogfooding_retest.py で auto-retest loop を実装 (SS-02 / SS-06 解消)"}
   ],
+  "quality_round2_applied": [
+    {"id": "T6", "action": "intake.schema.json に x-cross-field-rules を宣言し、validate_intake_schema.py の _check_cross_field_rules で handoff_mode_consistency を強制 (PASS/FAIL 両方 live verify 済)"},
+    {"id": "T5", "action": "runtime-config.dogfooding に similarity_min / similarity_implementation / similarity_naming_note を追加し命名整合を明示 (F1 解消)"},
+    {"id": "T3", "action": "scripts/m3_deprecation_reverse_index.py 新設 (deprecated 参照箇所を git grep で逆引き、--json 対応)"},
+    {"id": "T1", "action": "fixtures/example-data-quality-survey/intake.json 新設で baseline N=2 化 + dogfooding_regression.py に --schema-robustness mode 追加"},
+    {"id": "M2_partial", "action": "scripts/render_v2_adapter.py 新設 (canonical_map 経由で section_key iterate)。render_path_resolution=v2-strict 必須化、render_notion_page.py の段階移行 entry point として用意"}
+  ],
+  "quality_round2_live_verification": {
+    "schema_validation_dual": "PASS for info-collector-agent + example-data-quality-survey",
+    "cross_field_rule_pass": "info-collector-agent fixture",
+    "cross_field_rule_fail_detect": "intentional mismatch detected (exit=1)",
+    "schema_robustness_mode": "PASS 2/2 fixtures",
+    "v2_adapter_iter": "PASS 12 sections iterated in canonical order",
+    "m3_reverse_index": "FOUND deprecated symbols still referenced (期待通り: M1 共存期間中)"
+  },
+  "phase3_remaining_todo_v2": [
+    {"id": "T1b", "addresses": ["LS-04", "MD-04", "SS-04"], "action": "baseline corpus を N=5 へ拡張 (現在 N=2)"},
+    {"id": "T5b", "addresses": ["MD-05"], "action": "embedding ベース similarity (sentence-transformers 等) の正式導入、SequenceMatcher 完全置換"},
+    {"id": "M2_full", "action": "render_notion_page.py / apply_section_template.py / section_quality_check.py を section_canonical_map+intake.schema 直接読み込みに切替 (render_v2_adapter から段階移行)"},
+    {"id": "notion_publish_dogfooding", "action": "fixtures/info-collector-agent を実 Notion へ publish し round-1 で出力品質確認"}
+  ],
   "reproducibility_gates": {
     "schema_validation_live_pass": true,
     "schema_validation_evidence": "validate_intake_schema.py → PASS (0 errors)",

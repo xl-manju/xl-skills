@@ -43,9 +43,18 @@
     "11_artifact_index": ["mtmpl-comparison-table-artifacts"]
   },
   "dogfooding": {
+    "baseline_intake_paths": [
+      "plugins/skill-intake/fixtures/info-collector-agent/intake.json",
+      "plugins/skill-intake/fixtures/example-data-quality-survey/intake.json"
+    ],
+    "baseline_intake_paths_role": "T1 (LS-04 対応): N>1 fixture は schema robustness 検査用 (dogfooding_regression.py --schema-robustness)。semantic 比較は同一 fixture でしか意味を持たないため別軸。",
     "baseline_intake_path": "plugins/skill-intake/fixtures/info-collector-agent/intake.json",
+    "baseline_intake_path_role": "info-collector-agent skill の semantic 回帰用 baseline (dogfooding_regression.py <generated.json>)",
     "baseline_notion_payload_path": "plugins/skill-intake/fixtures/info-collector-agent/notion-payload.md",
     "threshold_mode": "semantic_equivalence",
+    "similarity_min": 0.85,
+    "similarity_implementation": "sequence_matcher_ratio",
+    "similarity_naming_note": "T5 (F1 対応): 旧キー embedding_cosine_min は実装が SequenceMatcher.ratio() のため文字列類似度の閾値である。embedding 経由は将来 (T5 完全解消時) で導入予定。閾値値域は両実装で [0,1] と互換だが、語彙的差異への感度が異なる点を運用者は理解すること。",
     "embedding_cosine_min": 0.85,
     "lexical_match_keys": ["section_key", "required_fields", "axes.axis_id", "figures.kind", "figures.index"],
     "ignore_keys": ["generated_at", "value_realized_score"]

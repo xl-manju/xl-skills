@@ -399,5 +399,14 @@
         }
       }
     }
-  }
+  },
+  "x-cross-field-rules": [
+    {
+      "id": "handoff_mode_consistency",
+      "comment": "T6 (LS-09 対応): JSON Schema は 2 フィールドの value 等価を宣言できないため、validate_intake_schema.py 内の cross-field check で強制する。",
+      "left": "sections.0_executive_summary.handoff_mode",
+      "operator": "equals",
+      "right": "sections.9_handoff_contract.recommended_next.mode"
+    }
+  ]
 }

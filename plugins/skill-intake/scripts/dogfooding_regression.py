@@ -110,7 +110,43 @@ def _compare(baseline: dict, generated: dict, threshold: float) -> tuple[bool, l
     return (not findings), findings
 
 
+def _schema_robustness_check(config: dict) -> int:
+    """T1 (LS-04 対応): baseline_intake_paths の全 fixture が schema PASS するかを検証。
+
+    semantic 比較は同一 fixture vs baseline でしか意味を持たないため、
+    N>1 baseline は「schema が異なる正当な入力で破綻しないか」の robustness 検査に用いる。
+    """
+    paths = config.get("dogfooding", {}).get("baseline_intake_paths") or [
+        config.get("dogfooding", {}).get("baseline_intake_path")
+    ]
+    if not paths:
+        print("ERROR: baseline_intake_paths が未設定", file=sys.stderr)
+        return 2
+    failed = 0
+    import subprocess
+    validator = PROJECT_ROOT / "plugins" / "skill-intake" / "scripts" / "validate_intake_schema.py"
+    for rel in paths:
+        if rel is None:
+            continue
+        p = (PROJECT_ROOT / rel).resolve()
+        if not p.exists():
+            print(f"MISS: {p}", file=sys.stderr)
+            failed += 1
+            continue
+        rc = subprocess.call([sys.executable, str(validator), str(p)])
+        if rc != 0:
+            failed += 1
+    if failed:
+        print(f"FAIL: schema robustness {failed} fixtures failed", file=sys.stderr)
+        return 1
+    print(f"PASS: schema robustness all {len(paths)} fixtures conform", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str]) -> int:
+    if "--schema-robustness" in argv:
+        return _schema_robustness_check(_load_config())
+
     if "--baseline-only" in argv:
         config = _load_config()
         baseline_path = _resolve_baseline_path(config)
