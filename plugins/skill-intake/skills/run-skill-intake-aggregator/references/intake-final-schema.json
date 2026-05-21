@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "intake-final-schema.json",
   "title": "intake-final-template.md.tmpl variable schema",
-  "description": "Jinja2 テンプレ intake-final-template.md.tmpl に渡す context オブジェクトの正本スキーマ。各フィールドの由来 JSON は x-source で示す。レンダラー render_intake_final.py が読み込んで検証する。",
+  "description": "Jinja2 テンプレ intake-final-template.md.tmpl に渡す context オブジェクトの正本スキーマ。各フィールドの由来 JSON は x-source で示す。レンダラー render-intake-final.py が読み込んで検証する。",
   "type": "object",
   "required": [
     "meta",

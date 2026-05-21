@@ -2,7 +2,7 @@
 """Render intake-final.md from per-phase JSON outputs.
 
 Usage:
-    python3 render_intake_final.py <output_dir>
+    python3 render-intake-final.py <output_dir>
 
 output_dir 直下に context.json があればそれを正本として使う。
 無ければ kickoff.json / assumption.json / profile.json / purpose.json /
@@ -102,7 +102,7 @@ def render(output_dir: Path) -> Path:
 
 def main() -> int:
     if len(sys.argv) != 2:
-        print("usage: render_intake_final.py <output_dir>", file=sys.stderr)
+        print("usage: render-intake-final.py <output_dir>", file=sys.stderr)
         return 2
     output_dir = Path(sys.argv[1]).resolve()
     if not output_dir.is_dir():

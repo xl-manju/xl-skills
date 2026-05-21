@@ -35,7 +35,7 @@ mappings:
     responsibility_id: R-INTAKE-FINAL-META-01
   - path: "meta.generated_at"
     source_route: manual
-    notes: "render_intake_final.py が ISO 8601 で自動付与可"
+    notes: "render-intake-final.py が ISO 8601 で自動付与可"
   - path: "meta.pattern_code"
     source_route: subagent
     subagent: skill-intake-kickoff
@@ -119,7 +119,7 @@ mappings:
     output_field: ""
     prompt_id: prompts.options
     responsibility_id: R-INTAKE-FINAL-OPTIONS
-    notes: "groups[].options[].adopted は各グループ厳密に1件true（render_intake_final.py が検証）"
+    notes: "groups[].options[].adopted は各グループ厳密に1件true（render-intake-final.py が検証）"
 
   # ===== figures =====
   - path: "figures"
@@ -146,7 +146,7 @@ mappings:
     source_route: prompt
     prompt_id: prompts.design_decisions
     responsibility_id: R-INTAKE-FINAL-DESIGN
-    notes: "options.json の adopted 群から派生可能。render_intake_final.py で computed 化候補"
+    notes: "options.json の adopted 群から派生可能。render-intake-final.py で computed 化候補"
 
   # ===== open_questions =====
   - path: "open_questions"
@@ -178,4 +178,4 @@ mappings:
   # ===== artifacts =====
   - path: "artifacts"
     source_route: manual
-    notes: "render_intake_final.py が output_dir の実ファイルを列挙して自動充填する候補"
+    notes: "render-intake-final.py が output_dir の実ファイルを列挙して自動充填する候補"

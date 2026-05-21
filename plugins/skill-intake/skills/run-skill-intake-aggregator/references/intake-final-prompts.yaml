@@ -210,7 +210,7 @@ prompts:
       output_keys: ["design_decisions.rows", "design_decisions.output_priority"]
       output_shape_ref: "intake-final-schema.json#/properties/design_decisions"
       derivable: true
-      notes: "render_intake_final.py が computed-field として自動派生可能（要拡張）"
+      notes: "render-intake-final.py が computed-field として自動派生可能（要拡張）"
     layer7_interaction:
       first_question: "（派生フィールド: 通常はユーザー対話不要）"
 
