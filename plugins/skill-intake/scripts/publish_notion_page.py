@@ -27,40 +27,94 @@ def axis_text(v):
     return ''
 
 
+MAX_TRUE_PROBLEM_LEN = 200
+
+
+def truncate(s, n):
+    s = str(s or '')
+    return s if len(s) <= n else s[: max(0, n - 1)] + '…'
+
+
 def build_properties(intake, args):
+    """7 プロパティのみ書き込む。残り 12 項目は本文 children 側 (build_extra_body_blocks) で扱う。"""
     axes = intake.get('five_axes') or intake.get('5_axes') or {}
-    output_target_text = axis_text(axes.get('output_target')) or axis_text(axes.get('output_destination'))
+    true_problem_short = truncate(axis_text(axes.get('true_problem')), MAX_TRUE_PROBLEM_LEN)
+    tags = intake.get('knowledge_asset_tags')
+    if not isinstance(tags, list):
+        tags = []
     props = {
         '名前': {'title': rt(intake.get('skill_name_hint') or intake.get('skill_name') or 'untitled')},
         'ステータス': {'select': {'name': intake.get('status') or '下書き'}},
         'パターン': {'select': {'name': intake.get('pattern') or 'その他'}},
-        '出力先': {'rich_text': rt(output_target_text)},
-        '情報源': {'rich_text': rt(axis_text(axes.get('info_source')))},
-        '共有相手': {'rich_text': rt(axis_text(axes.get('share_target')))},
-        '真の課題': {'rich_text': rt(axis_text(axes.get('true_problem')))},
-        'ナレッジ資産': {'rich_text': rt(axis_text(axes.get('knowledge_assets')))},
+        '真の課題': {'rich_text': rt(true_problem_short)},
+        'ナレッジ資産タグ': {'multi_select': [{'name': str(n)} for n in tags]},
     }
+    if getattr(args, 'md_url', None):
+        props['Markdown正本URL'] = {'url': args.md_url}
+    # 作成日時 は created_time (Notion 自動)。書き込み不要。
+    return props
+
+
+def _rt_block(kind, text):
+    return {'object': 'block', 'type': kind, kind: {'rich_text': rt(text)}}
+
+
+def _heading2(text):
+    return {'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': rt(text)}}
+
+
+def _toggle(label, child_texts):
+    children = [_rt_block('paragraph', t) for t in child_texts if str(t or '').strip()]
+    return {
+        'object': 'block',
+        'type': 'toggle',
+        'toggle': {'rich_text': rt(label), 'children': children},
+    }
+
+
+def build_extra_body_blocks(intake, args):
+    """DB から落とした 12 項目を本文 children として返す (publish 時に先頭付加)。"""
+    axes = intake.get('five_axes') or intake.get('5_axes') or {}
+    out = [_heading2('メタ情報 (DB プロパティ補完)')]
+
+    def add_kv(label, value):
+        s = value if isinstance(value, str) else (json.dumps(value, ensure_ascii=False) if value is not None else '')
+        if s.strip():
+            out.append(_rt_block('paragraph', f'{label}: {s}'))
+
+    add_kv('出力先', axis_text(axes.get('output_target')) or axis_text(axes.get('output_destination')))
+    add_kv('情報源', axis_text(axes.get('info_source')))
+    add_kv('共有相手', axis_text(axes.get('share_target')))
+
+    if isinstance(intake.get('viz_count'), (int, float)) and not isinstance(intake.get('viz_count'), bool):
+        add_kv('図解枚数', str(intake['viz_count']))
+    if isinstance(intake.get('value_score'), (int, float)) and not isinstance(intake.get('value_score'), bool):
+        add_kv('価値実現スコア', str(intake['value_score']))
+    if isinstance(intake.get('handoff_to_creator'), bool):
+        add_kv('Creator 引き渡し', 'yes' if intake['handoff_to_creator'] else 'no')
+    owner = intake.get('owner')
+    if owner:
+        add_kv('担当者', owner if isinstance(owner, str) else json.dumps(owner, ensure_ascii=False))
+    updated = intake.get('updated_at') or intake.get('updated')
+    if updated:
+        add_kv('更新日時', str(updated))
+
     up = intake.get('user_profile')
     if up:
         text = up if isinstance(up, str) else json.dumps(up, ensure_ascii=False)
-        props['ユーザープロファイル'] = {'rich_text': rt(text)}
+        out.append(_toggle('ユーザープロファイル', [text]))
     oq = intake.get('open_questions')
     if isinstance(oq, list) and len(oq) > 0:
-        props['未解決事項'] = {'rich_text': rt('- ' + '\n- '.join(str(q) for q in oq))}
+        out.append(_toggle('未解決事項', [f'- {q}' for q in oq]))
     integs = intake.get('integrations')
     if isinstance(integs, list) and len(integs) > 0:
-        props['外部連携'] = {'multi_select': [{'name': str(n)} for n in integs]}
-    if getattr(args, 'md_url', None):
-        props['Markdown 正本'] = {'url': args.md_url}
+        out.append(_toggle('外部連携', [', '.join(str(n) for n in integs)]))
     if getattr(args, 'json_url', None):
-        props['JSON 副本'] = {'url': args.json_url}
-    if isinstance(intake.get('handoff_to_creator'), bool):
-        props['Creator 引き渡し'] = {'checkbox': intake['handoff_to_creator']}
-    if isinstance(intake.get('viz_count'), (int, float)) and not isinstance(intake.get('viz_count'), bool):
-        props['図解枚数'] = {'number': intake['viz_count']}
-    if isinstance(intake.get('value_score'), (int, float)) and not isinstance(intake.get('value_score'), bool):
-        props['価値実現スコア'] = {'number': intake['value_score']}
-    return props
+        add_kv('JSON 副本 URL', args.json_url)
+
+    if len(out) <= 1:
+        return []
+    return out
 
 
 def main():
@@ -98,17 +152,33 @@ def main():
                 schema_default = json.load(f).get('database_id_default')
         except Exception:
             schema_default = None
-    database_id = args.database_id or os.environ.get('INTAKE_NOTION_DATABASE_ID') or schema_default
+    # 3段 fallback: --database-id > env > schema.database_id_default
+    if args.database_id:
+        database_id, db_id_source = args.database_id, 'arg'
+    elif os.environ.get('INTAKE_NOTION_DATABASE_ID'):
+        database_id, db_id_source = os.environ['INTAKE_NOTION_DATABASE_ID'], 'env'
+    elif schema_default:
+        database_id, db_id_source = schema_default, 'schema_default'
+    else:
+        database_id, db_id_source = None, None
     if not database_id:
-        print('INTAKE_NOTION_DATABASE_ID is required (env, --database-id, or schema database_id_default)', file=sys.stderr)
+        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, or schema database_id_default)', file=sys.stderr)
         return 2
+    try:
+        eval_log_dir = Path('eval-log')
+        eval_log_dir.mkdir(parents=True, exist_ok=True)
+        with open(eval_log_dir / 'db-id-resolution.json', 'w', encoding='utf-8') as f:
+            json.dump({'tool': 'publish_notion_page', 'source': db_id_source, 'database_id': database_id}, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
     with open(args.intake, 'r', encoding='utf-8') as f:
         intake = json.load(f)
+    extra_blocks = build_extra_body_blocks(intake, args)
     body = {
         'parent': {'database_id': database_id},
         'properties': build_properties(intake, args),
-        'children': block_children,
+        'children': extra_blocks + block_children,
     }
     if args.dry_run:
         out = {

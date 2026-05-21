@@ -6,6 +6,32 @@ skill-creator の前段ヒアリングを **非技術者にも開く** Claude Co
 
 ---
 
+## Non-Secrets（漏洩可情報）
+
+以下は **スキル内・コード・README に直書きしてよい** 情報です。毎回ユーザーに問い合わせるのを回避するため、`schema.json` や設定ファイルに同梱されています。万一漏洩しても単体では不正利用できません。
+
+| 項目 | 値（例） | 格納場所 | 漏洩可否 |
+|---|---|---|---|
+| Notion Database ID | `36607a0cd18c80bf9effc74aa736645c` | `schema.json` の `database_id_default` | OK |
+| Keychain service 名 | `INTAKE_NOTION_TOKEN`（旧名: `notion-api-key`） | コード/設定に直書き | OK |
+| Keychain account 名 | `skill-intake` | コード/設定に直書き | OK |
+| Notion-Version ヘッダ | `2022-06-28` | コード/設定に直書き | OK |
+
+**これらはスキル内に直書きしてよい。毎回の問い合わせを回避するため。**
+
+### 機密情報（Keychain のみ）との対比
+
+以下は **絶対にコード/コミット/環境変数/ログに残さない**。Keychain（ローカル）のみで保管:
+
+| 項目 | 格納場所 | 漏洩可否 |
+|---|---|---|
+| Notion API トークン本体（`secret_xxx...`） | macOS Keychain | **NG** |
+| Slack Incoming Webhook URL | macOS Keychain | **NG** |
+
+Non-Secrets は「どの DB か」「どの Keychain エントリか」を指す **ポインタ** であり、機密実体は常に Keychain 側にあります。
+
+---
+
 ## 📋 目次
 
 1. [前提条件チェック](#1-前提条件チェック)
@@ -187,24 +213,20 @@ cd ../commands && \
 
 ## 5. Claude Code 設定の適用
 
-### 5-1. 環境変数を設定
+### 5-1. 環境変数（任意・上書き用）
 
-シェルプロファイル（`~/.zshrc` または `~/.bashrc`）に以下を追記:
+**通常運用では設定不要です。** `schema.json` の `database_id_default` がそのまま使われます。
+
+`INTAKE_NOTION_DATABASE_ID` などの環境変数による override は **CI/staging 限定の用途** です（本番 DB と切り分けたい場合）。通常の開発・ローカル運用では schema.json の既定値で動作します。
+
+CI/staging で上書きしたい場合のみ、シェルプロファイル（`~/.zshrc` 等）または CI 環境で:
 
 ```bash
-# skill-intake plugin
-export INTAKE_NOTION_DATABASE_ID="<2-3 でメモした 32文字の Database ID>"
-# 任意: Integration の名前・Notion API バージョンを変える場合
+# 任意（CI/staging 限定）: 本番と異なる DB / Keychain / Notion-Version を使う場合
+# export INTAKE_NOTION_DATABASE_ID="<別環境の 32文字 Database ID>"
 # export INTAKE_KEYCHAIN_SERVICE="notion-api-key"
 # export INTAKE_KEYCHAIN_ACCOUNT="skill-intake"
 # export INTAKE_NOTION_VERSION="2022-06-28"
-```
-
-反映:
-```bash
-source ~/.zshrc
-echo "$INTAKE_NOTION_DATABASE_ID"
-# → 32文字の DB ID が表示されれば成功
 ```
 
 ### 5-2. permissions.deny を有効化（二段防御）
@@ -305,6 +327,8 @@ Claude Code セッション内で:
 /intake-publish <hint>
 ```
 
+`run-notion-intake-publish` skill (sibling) が起動し、aggregator phase 11 と同じ `scripts/intake_publish_pipeline.py` を **単一発火点** として呼ぶ。sibling 側は薄い wrapper でロジックを持たず、render / quality_gate / publish の重複実装は無い。
+
 ### 進行状況の確認
 
 ```
@@ -320,7 +344,7 @@ Claude Code セッション内で:
 | `/intake` が表示されない | plugin 未認識 | ステップ4の方式A/B/Cを再実施 |
 | `exit 44` Keychain | トークン未登録 | ステップ3を再実施 |
 | 403 Forbidden (Notion API) | DB に Integration が Connect されていない | ステップ2-2 Connections 追加 |
-| `INTAKE_NOTION_DATABASE_ID is required` | 環境変数未設定 | ステップ5-1 で export して `source` |
+| `INTAKE_NOTION_DATABASE_ID is required` | schema.json 不在かつ env 未設定 | 通常は schema.json の `database_id_default` が使われる。CI/staging では env を明示 export |
 | Slack 通知が来ない | Webhook 未登録 or URL誤り | ステップ3-2 で再登録。silent skip 仕様のため公開は止まらない |
 | `security` コマンドが Bash で拒否 | 二段防御が効いている | これは正常。`scripts/keychain_get_secret.py` 経由でアクセス |
 | `halted_score_decline` | 値実現スコア2回連続低下 | `output/<hint>/question-bank.snapshot.md` から `--rollback` |
@@ -357,7 +381,7 @@ plugins/skill-intake/
     │   ├── SKILL.md
     │   ├── references/             # 18 本の参照ドキュメント
     │   └── assets/                 # Mermaid 12 + SVG 8 + samples 8
-    └── run-notion-intake-publish/    # Notion 再公開専用 sibling skill
+    └── run-notion-intake-publish/    # Notion 再公開専用 sibling skill (intake_publish_pipeline.py の薄い wrapper)
         └── SKILL.md
 ```
 
@@ -375,7 +399,7 @@ plugins/skill-intake/
 
 | 変数 | 既定値 | 必須 | 用途 |
 |---|---|---|---|
-| `INTAKE_NOTION_DATABASE_ID` | (なし) | ✅ 必須 | Notion DB ID (32文字)。**シェルプロファイル直書きを避けたい場合は `direnv` 等で per-project 管理推奨** |
+| `INTAKE_NOTION_DATABASE_ID` | `schema.json` の `database_id_default` | 任意（CI/staging のみ） | Notion DB ID (32文字)。通常運用では schema.json 既定値が使われる。CI/staging で別 DB を指す場合のみ設定 |
 | `INTAKE_KEYCHAIN_SERVICE` | `notion-api-key` | 任意 | Keychain service 名 |
 | `INTAKE_KEYCHAIN_ACCOUNT` | `skill-intake` | 任意 | Keychain account 名 |
 | `INTAKE_NOTION_VERSION` | `2022-06-28` | 任意 | Notion-Version ヘッダ |

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""intake.json + manifest.json から Notion ブロック配列を生成する。"""
+"""intake.json + manifest.json から Notion ブロック配列を生成する。
+
+本ファイルは section-templates.json の 6 必須ブロック格子
+((a)目的callout / (b)必須フィールド表 / (c)良例callout / (d)NG例callout /
+ (e)字数下限/上限 + section_quality_check 同期 toggle / (f)図解)
+に従って 12 章をテンプレート駆動で出力する。
+section_quality_check.py と block_keys を共有しているため、本文構造の同期検証が可能。
+"""
 
 import json
 import os
@@ -10,6 +17,33 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 with open(SCRIPT_DIR / 'notion_limits.json', 'r', encoding='utf-8') as f:
     _LIMITS = json.load(f)
 MAX_RT = _LIMITS['MAX_RT']
+
+# section-templates.json の所在 (skills/run-skill-intake-aggregator/references)
+SECTION_TEMPLATES_PATH = (
+    SCRIPT_DIR.parent
+    / 'skills'
+    / 'run-skill-intake-aggregator'
+    / 'references'
+    / 'section-templates.json'
+)
+
+# intake.json の素のキー → section-templates.json の section_key への対応表。
+# 値は intake.json から「主たる回答 dict / list / scalar」を取り出すためのドット区切りパス。
+# 複数候補がある場合は最初に hit したものを採用する。
+SECTION_DATA_PATHS = {
+    '0_cover_meta': ['__meta__'],  # skill_name_hint / owner / status / interview_date 等を合成
+    '1_purpose': ['purpose_and_background', 'purpose'],
+    '2_user_profile': ['user_profile'],
+    '3_five_axes': ['five_axes', '5_axes'],
+    '4_external_integration': ['external_integrations', 'integrations'],
+    '5_expected_flow': ['expected_flow', 'flow'],
+    '6_value_kpi': ['value_kpi', 'kpi', 'value_realization'],
+    '7_similar_skills': ['similar_skills'],
+    '7_5_knowledge_asset': ['knowledge_asset', 'five_axes.knowledge_assets'],
+    '8_open_questions': ['open_questions'],
+    '9_next_action': ['next_action', 'recommended_next', 'next_actions'],
+    '10_appendix_vocabulary': ['vocabulary', 'appendix.vocabulary'],
+}
 
 
 def rt(text):
@@ -49,69 +83,197 @@ def divider():
 
 def callout(text, emoji=None):
     block = {'rich_text': rt(text)}
-    # JS 実装は icon: undefined のとき key 自体は出力するが JSON.stringify で undefined は脱落する。
     if emoji:
         block['icon'] = {'type': 'emoji', 'emoji': emoji}
     return {'object': 'block', 'type': 'callout', 'callout': block}
 
 
-def push_if_text(blocks, text, factory):
-    if text is None:
-        return
-    s = text if isinstance(text, str) else json.dumps(text, ensure_ascii=False)
-    if not s.strip():
-        return
-    blocks.append(factory(s))
+def toggle(summary, children=None):
+    """summary 行を持ち、children を内包する Notion toggle ブロックを返す。"""
+    payload = {'rich_text': rt(summary)}
+    if children:
+        payload['children'] = list(children)
+    return {'object': 'block', 'type': 'toggle', 'toggle': payload}
 
 
-def render_key_value_list(blocks, obj):
-    if not isinstance(obj, dict):
-        return
-    for k, v in obj.items():
-        val = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
-        blocks.append(bullet(f'{k}: {val}'))
-
-
-def render_array(blocks, arr, formatter=None):
-    if not isinstance(arr, list):
-        return
-    for item in arr:
-        if formatter:
-            text = formatter(item)
-        elif isinstance(item, str):
-            text = item
+def _lookup_path(obj, dotted):
+    """ドット区切りパス (a.b.c) で dict を辿る。途中で欠落したら None。"""
+    if dotted == '__meta__':
+        return obj  # 0_cover_meta は intake 全体を渡す
+    cur = obj
+    for part in dotted.split('.'):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
         else:
-            text = json.dumps(item, ensure_ascii=False)
-        if text and text.strip():
-            blocks.append(bullet(text))
-
-
-def load_mermaid_source(item):
-    src = item.get('mermaid_source')
-    if src:
-        return src
-    p = item.get('path')
-    if p and p.lower().endswith('.mmd'):
-        try:
-            with open(p, 'r', encoding='utf-8') as f:
-                return f.read()
-        except Exception:
             return None
+    return cur
+
+
+def get_section_data(intake, section_key):
+    paths = SECTION_DATA_PATHS.get(section_key, [])
+    for p in paths:
+        v = _lookup_path(intake, p)
+        if v is not None:
+            return v
     return None
 
 
-def render_diagram(blocks, item):
+def _extract_field_value(section_data, field_key):
+    """required_fields[].key (例: 'purpose.stated', 'five_axes.output_to.answer') を
+    section_data または intake 部分木から抽出する。
+    トップレベル名 (purpose / five_axes / user_profile / 等) を任意に剥がしてフォールバックする。
+    """
+    if section_data is None:
+        return None
+    candidates = [field_key]
+    # 先頭セグメントを 1 つ剥がしたパスも候補に追加 (section_data が既にその木である場合)
+    if '.' in field_key:
+        candidates.append(field_key.split('.', 1)[1])
+    # 末尾セグメントだけも候補に追加 (answer 直下を読みたい等)
+    candidates.append(field_key.rsplit('.', 1)[-1])
+    for c in candidates:
+        v = _lookup_path(section_data, c) if isinstance(section_data, dict) else None
+        if v is not None:
+            return v
+    return None
+
+
+def _format_answer(v):
+    if v is None:
+        return ''
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, dict):
+        # {answer: ..., depth: ..., verified: ...} 形式は answer を優先表示
+        if 'answer' in v and isinstance(v['answer'], (str, int, float)):
+            return str(v['answer']).strip()
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, list):
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+    return str(v)
+
+
+def _diagrams_for_viz_type(assets, viz_type):
+    """manifest.items から viz_type に合致 (または部分一致) する図解を最大 3 件返す。
+    厳密一致がなければ heuristic: 'mermaid_' で始まる viz_type は mermaid_source あり、
+    'svg_' は path .svg、'table' は code(plaintext) を許容。
+    """
+    if not isinstance(assets, dict):
+        return []
+    items = assets.get('items')
+    if not isinstance(items, list):
+        return []
+    exact = [it for it in items if it.get('viz_type') == viz_type]
+    if exact:
+        return exact[:3]
+    # heuristic フォールバック
+    if not viz_type:
+        return []
+    if viz_type.startswith('mermaid_'):
+        fallback = [it for it in items if it.get('mermaid_source') or (it.get('path') or '').endswith('.mmd')]
+    elif viz_type.startswith('svg_'):
+        fallback = [it for it in items if (it.get('path') or '').lower().endswith('.svg') or it.get('public_url')]
+    else:
+        fallback = []
+    return fallback[:3]
+
+
+def render_diagram_into(blocks, item):
     caption = item.get('caption')
     if caption:
         blocks.append(paragraph(caption))
-    mermaid = load_mermaid_source(item)
-    if mermaid:
-        blocks.append(code(mermaid, 'mermaid'))
+    src = item.get('mermaid_source')
+    if not src:
+        p = item.get('path')
+        if p and p.lower().endswith('.mmd'):
+            try:
+                with open(p, 'r', encoding='utf-8') as f:
+                    src = f.read()
+            except Exception:
+                src = None
+    if src:
+        blocks.append(code(src, 'mermaid'))
         return
     if item.get('public_url'):
         blocks.append(image(item['public_url']))
         return
     blocks.append(paragraph(f"[asset pending] {item.get('path') or '(no path)'}"))
+
+
+def render_section_lattice(section_key, spec, intake_section_data, assets, unanswered_counter):
+    """6 必須ブロック格子で 1 セクションを描画する。
+
+    返り値: list[dict] (Notion blocks)
+    unanswered_counter: dict 形式の参照渡しカウンタ {section_key: int}
+    """
+    blocks = []
+    title = spec.get('title') or section_key
+
+    # 見出し
+    blocks.append(heading(2, title))
+
+    # (a) 目的 callout
+    purpose_text = spec.get('purpose_text') or ''
+    if purpose_text:
+        blocks.append(callout(purpose_text, '🎯'))
+
+    # (b) 必須フィールド
+    blocks.append(heading(3, '必須フィールド'))
+    required_fields = spec.get('required_fields') or []
+    unanswered_local = 0
+    for field in required_fields:
+        fkey = field.get('key', '')
+        ftype = field.get('type', '')
+        constraint = field.get('constraint', '')
+        example = field.get('example', '')
+        answer_raw = _extract_field_value(intake_section_data, fkey)
+        answer_str = _format_answer(answer_raw)
+        if not answer_str:
+            answer_str = '（未回答 — interviewer に追加質問依頼）'
+            unanswered_local += 1
+        example_str = example if isinstance(example, str) else json.dumps(example, ensure_ascii=False)
+        line = f'{fkey}: {ftype}({constraint}) → {answer_str} / 例: {example_str}'
+        blocks.append(bullet(line))
+    if unanswered_local:
+        unanswered_counter[section_key] = unanswered_local
+
+    # (c) 良例 callout
+    good_example = spec.get('good_example')
+    if good_example:
+        blocks.append(callout(good_example, '✅'))
+
+    # (d) NG 例 callout
+    ng_example = spec.get('ng_example')
+    if ng_example:
+        blocks.append(callout(ng_example, '⚠️'))
+
+    # (e) 字数下限/上限 + section_quality_check 同期 toggle
+    min_chars = spec.get('min_chars')
+    max_chars = spec.get('max_chars')
+    toggle_children = [
+        bullet(f'min_chars: {min_chars}（section_quality_check.py が下限未達で FAIL）'),
+        bullet(f'max_chars: {max_chars}（超過時は冗長判定）'),
+        bullet(f'block_keys 同期対象: purpose_callout / required_fields / good_example / ng_example / char_bounds / visualization'),
+        bullet(f'section_key: {section_key}'),
+    ]
+    blocks.append(toggle('字数下限/上限 + 品質ゲート同期', toggle_children))
+
+    # (f) 図解
+    blocks.append(heading(3, '図解'))
+    viz_type = spec.get('viz_type') or ''
+    diagrams = _diagrams_for_viz_type(assets, viz_type)
+    if diagrams:
+        for d in diagrams:
+            render_diagram_into(blocks, d)
+    else:
+        blocks.append(paragraph(f'[viz pending] viz_type={viz_type}（manifest 未提供）'))
+
+    # セクション区切り
+    blocks.append(divider())
+    return blocks
 
 
 def axis_answer(v):
@@ -141,148 +303,42 @@ def validate_required_sections(intake, assets):
     return {'ok': len(reasons) == 0, 'reasons': reasons}
 
 
+def load_section_templates():
+    with open(SECTION_TEMPLATES_PATH, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
 def render(intake, assets):
     blocks = []
+
+    # 冒頭: skill タイトル + 概要 callout (維持)
     title = intake.get('skill_name_hint') or intake.get('skill_name') or 'Skill Intake'
     blocks.append(heading(1, title))
     desc = intake.get('description') or intake.get('purpose')
     if desc:
         blocks.append(callout(desc, '📝'))
 
-    blocks.append(heading(2, '5 軸'))
-    axes = intake.get('five_axes') or intake.get('5_axes') or {}
-    axis_labels = {
-        'output_target': '出力先',
-        'info_source': '情報源',
-        'share_target': '共有相手',
-        'true_problem': '真の課題',
-        'knowledge_assets': 'ナレッジ資産',
-    }
-    for k, label in axis_labels.items():
-        blocks.append(heading(3, label))
-        v = axes.get(k)
-        if v is None:
-            text = '(未充足)'
-        elif isinstance(v, str):
-            text = v
-        elif isinstance(v, dict):
-            text = v.get('answer') or json.dumps(v, ensure_ascii=False)
-        else:
-            text = json.dumps(v, ensure_ascii=False)
-        blocks.append(paragraph(text))
+    # section-templates.json の格子で全 12 章を出力
+    templates = load_section_templates()
+    sections = templates.get('sections') or {}
+    unanswered = {}
 
-    if intake.get('user_profile'):
-        blocks.append(heading(2, 'User Profile'))
-        up = intake['user_profile']
-        if isinstance(up, str):
-            blocks.append(paragraph(up))
-        else:
-            render_key_value_list(blocks, up)
+    # section-templates.json のキー順を維持しつつ、念のため自然順にソート
+    def _sort_key(k):
+        head = k.split('_', 1)[0]
+        try:
+            return float(head)
+        except ValueError:
+            return 99.0
 
-    p = intake.get('pattern') or intake.get('pattern_classification')
-    if p:
-        blocks.append(heading(2, 'パターン分類'))
-        if isinstance(p, str):
-            blocks.append(paragraph(p))
-        else:
-            render_key_value_list(blocks, p)
+    for section_key in sorted(sections.keys(), key=_sort_key):
+        spec = sections[section_key]
+        intake_section_data = get_section_data(intake, section_key)
+        blocks.extend(
+            render_section_lattice(section_key, spec, intake_section_data, assets, unanswered)
+        )
 
-    integ = intake.get('integrations') or intake.get('external_integrations')
-    if integ:
-        blocks.append(heading(2, '外部連携'))
-        if isinstance(integ, list):
-            def fmt(i):
-                if isinstance(i, str):
-                    return i
-                name = i.get('name') or i.get('service') or ''
-                purpose = i.get('purpose')
-                return f"{name}{' — ' + purpose if purpose else ''}"
-            render_array(blocks, integ, fmt)
-        else:
-            render_key_value_list(blocks, integ)
-
-    vkpi = intake.get('value_kpi') or intake.get('outcome') or intake.get('value_realization')
-    if vkpi:
-        blocks.append(heading(2, '価値・KPI'))
-        if isinstance(vkpi, str):
-            blocks.append(paragraph(vkpi))
-        elif isinstance(vkpi, list):
-            render_array(blocks, vkpi)
-        else:
-            render_key_value_list(blocks, vkpi)
-
-    if intake.get('anti_patterns') is not None:
-        ap = intake['anti_patterns']
-        # JS は truthy 判定: 空配列も truthy なので heading は出るが、empty array なら何も追加されない
-        if ap or ap == []:
-            blocks.append(heading(2, 'アンチパターン'))
-            if isinstance(ap, list):
-                render_array(blocks, ap)
-            else:
-                push_if_text(blocks, ap, paragraph)
-
-    c = intake.get('completion_criteria') or intake.get('completeness')
-    if c:
-        blocks.append(heading(2, '完了条件'))
-        if isinstance(c, list):
-            render_array(blocks, c)
-        elif isinstance(c, str):
-            blocks.append(paragraph(c))
-        else:
-            render_key_value_list(blocks, c)
-
-    oq = intake.get('open_questions')
-    if isinstance(oq, list) and len(oq) > 0:
-        blocks.append(heading(2, 'Open Questions'))
-        def qfmt(q):
-            if isinstance(q, str):
-                return q
-            if isinstance(q, dict):
-                return q.get('text') or q.get('question') or json.dumps(q, ensure_ascii=False)
-            return json.dumps(q, ensure_ascii=False)
-        render_array(blocks, oq, qfmt)
-
-    if isinstance(assets, dict) and isinstance(assets.get('items'), list):
-        diagram_items = assets['items']
-    elif isinstance(intake.get('visualizations'), list):
-        diagram_items = intake['visualizations']
-    else:
-        diagram_items = []
-    if diagram_items:
-        blocks.append(heading(2, '図解'))
-        for a in diagram_items:
-            render_diagram(blocks, a)
-
-    next_action = intake.get('recommended_next') or intake.get('next_action') or intake.get('next_actions')
-    if next_action:
-        blocks.append(divider())
-        blocks.append(heading(2, 'Next Action (skill-creator 引き渡し)'))
-        if isinstance(next_action, str):
-            blocks.append(paragraph(next_action))
-        elif isinstance(next_action, list):
-            render_array(blocks, next_action)
-        else:
-            render_key_value_list(blocks, next_action)
-
-    h = intake.get('handoff_candidates') or intake.get('handoff')
-    if h:
-        blocks.append(heading(2, 'Handoff 候補'))
-        if isinstance(h, list):
-            render_array(blocks, h)
-        elif isinstance(h, str):
-            blocks.append(paragraph(h))
-        else:
-            render_key_value_list(blocks, h)
-
-    b = intake.get('skill_construction_brief') or intake.get('skill_creator_brief')
-    if b:
-        blocks.append(heading(2, 'スキル構築 brief サマリ'))
-        if isinstance(b, str):
-            blocks.append(paragraph(b))
-        else:
-            render_key_value_list(blocks, b)
-
-    return {'children': blocks}
+    return {'children': blocks, 'unanswered_by_section': unanswered}
 
 
 def main(argv):
@@ -302,12 +358,28 @@ def main(argv):
     except Exception as e:
         sys.stderr.write(f'input error: {e}\n')
         return 2
+    # validation は実行するが、失敗しても render は必ず通す（デフォルト100%出力ポリシー）。
+    # 失敗理由は冒頭 callout として Notion ページに可視化し、interviewer の追加質問の根拠にする。
+    # 厳密な fail/pass 判定は後段の quality_gate.py に委譲する。
     v = validate_required_sections(intake, assets)
-    if not v['ok']:
-        for r in v['reasons']:
-            sys.stderr.write(f'required-section: {r}\n')
-        return 2
     out = render(intake, assets)
+    if not v['ok']:
+        warn_lines = ['⚠️ 必須項目未充足（要追加ヒアリング）'] + [f'- {r}' for r in v['reasons']]
+        warn_block = callout('\n'.join(warn_lines), '⚠️')
+        # 先頭の heading_1 直後に警告を差し込む
+        children = out['children']
+        if children and children[0].get('type') == 'heading_1':
+            out['children'] = [children[0], warn_block] + children[1:]
+        else:
+            out['children'] = [warn_block] + children
+        for r in v['reasons']:
+            sys.stderr.write(f'required-section (warn, render continues): {r}\n')
+    # publish_notion_page.py は children のみを参照するので、unanswered_by_section は
+    # stderr に診断出力し JSON の children は最小互換を維持する。
+    diag = out.pop('unanswered_by_section', {})
+    if diag:
+        total = sum(diag.values())
+        sys.stderr.write(f'[render_notion_page] unanswered fields total={total} sections={json.dumps(diag, ensure_ascii=False)}\n')
     text = json.dumps(out, ensure_ascii=False, indent=2)
     if out_file:
         with open(out_file, 'w', encoding='utf-8') as f:

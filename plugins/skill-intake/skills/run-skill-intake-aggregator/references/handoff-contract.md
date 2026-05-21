@@ -254,3 +254,133 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 ## `run-skill-elicit` との互換
 
 `run-skill-elicit` が生成する brief.json も、本スキーマの `five_axes` 部分を空オブジェクトとして許容することで吸収できる。`run-skill-create` 側は両者を区別せず読み込めるよう、本スキーマを上位互換として運用する。
+
+## 12 Agent × 出力 × Script 依存 DAG
+
+実線矢印 = ファイル依存（前工程の出力を入力とする）。点線矢印 = script 呼出（agent → scripts/*.py）。subgraph はフェーズ区分。
+
+```mermaid
+flowchart TD
+    subgraph P0[Phase 0 起動]
+        A_kickoff(["kickoff"])
+        F_kickoff["kickoff.json"]
+        A_kickoff --> F_kickoff
+    end
+
+    subgraph P1[Phase 1 仮説と表層充足]
+        A_assumption(["assumption-challenger"])
+        F_assumption["assumption.json"]
+        A_profiler(["user-profiler"])
+        F_profile["profile.json"]
+        A_interviewer(["interviewer"])
+        F_sheet["sheet.md"]
+        A_assumption --> F_assumption
+        A_profiler --> F_profile
+        A_interviewer --> F_sheet
+    end
+
+    subgraph P2[Phase 2 深層と選択肢]
+        A_purpose(["purpose-excavator"])
+        F_purpose["purpose.json"]
+        A_option(["option-presenter"])
+        F_options["connector_choice.json / options.json"]
+        A_purpose --> F_purpose
+        A_option --> F_options
+    end
+
+    subgraph P3[Phase 3 図解と要約]
+        A_visualizer(["visualizer"])
+        F_visuals["visuals.json + visuals/*.svg"]
+        A_summarizer(["summarizer"])
+        F_summary["summary.md / summary.json"]
+        A_visualizer --> F_visuals
+        A_summarizer --> F_summary
+    end
+
+    subgraph P4[Phase 4 判定と統合]
+        A_next(["next-action-advisor"])
+        F_next["next-action.json"]
+        A_handoff(["handoff"])
+        F_intake["intake.md / intake.json"]
+        A_next --> F_next
+        A_handoff --> F_intake
+    end
+
+    subgraph P5[Phase 5 公開]
+        A_notion(["notion-publisher"])
+        F_notion["notion-blocks.json / notion-manifest.json / notion-url.txt"]
+        A_notion --> F_notion
+    end
+
+    subgraph P6[Phase 6 自己進化]
+        A_self(["self-updater"])
+        F_self["self-update.json / question-bank.md 追記"]
+        A_self --> F_self
+    end
+
+    %% ファイル依存（実線）
+    F_kickoff --> A_assumption
+    F_kickoff --> A_profiler
+    F_assumption --> A_profiler
+    F_profile --> A_interviewer
+    F_sheet --> A_purpose
+    F_purpose --> A_option
+    F_sheet --> A_visualizer
+    F_purpose --> A_visualizer
+    F_kickoff --> A_summarizer
+    F_assumption --> A_summarizer
+    F_profile --> A_summarizer
+    F_sheet --> A_summarizer
+    F_purpose --> A_summarizer
+    F_options --> A_summarizer
+    F_visuals --> A_summarizer
+    F_summary --> A_next
+    F_purpose --> A_next
+    F_options --> A_next
+    F_kickoff --> A_next
+    F_kickoff --> A_handoff
+    F_assumption --> A_handoff
+    F_profile --> A_handoff
+    F_sheet --> A_handoff
+    F_purpose --> A_handoff
+    F_options --> A_handoff
+    F_visuals --> A_handoff
+    F_summary --> A_handoff
+    F_next --> A_handoff
+    F_intake --> A_notion
+    F_visuals --> A_notion
+    F_summary --> A_notion
+    F_next --> A_notion
+    F_intake --> A_self
+    F_summary --> A_self
+    F_next --> A_self
+
+    %% Script 呼出（点線）
+    A_handoff -.-> S1[/"apply_section_template.py"/]
+    A_handoff -.-> S2[/"convert_md_to_json.py"/]
+    A_handoff -.-> S3[/"validate_intake.py"/]
+    A_handoff -.-> S4[/"check_completeness.py"/]
+    A_handoff -.-> S5[/"detect_contradictions.py"/]
+    A_handoff -.-> S6[/"extract_open_questions.py"/]
+    A_handoff -.-> S7[/"cross_check.py"/]
+    A_visualizer -.-> S8[/"select_diagrams_per_section.py"/]
+    A_visualizer -.-> S9[/"compose_diagram.py"/]
+    A_visualizer -.-> S10[/"validate_mermaid.py"/]
+    A_visualizer -.-> S11[/"render_to_svg.py"/]
+    A_visualizer -.-> S12[/"enforce_visualization_rules.py"/]
+    A_notion -.-> S13[/"keychain_get_secret.py"/]
+    A_notion -.-> S14[/"verify_notion_schema.py"/]
+    A_notion -.-> S15[/"render_to_image.py"/]
+    A_notion -.-> S16[/"prepare_notion_assets.py"/]
+    A_notion -.-> S17[/"verify_notion_assets.py"/]
+    A_notion -.-> S18[/"intake_publish_pipeline.py"/]
+    A_self -.-> S19[/"measure_value_realized.py"/]
+    A_self -.-> S20[/"update_question_bank.py"/]
+    A_self -.-> S21[/"append_eval_log.py"/]
+```
+
+凡例:
+- 楕円 `()` = agent ノード（12 個）。
+- 矩形 `[]` = 中間/最終ファイル。
+- 平行四辺形 `[/.../]` = scripts/*.py 呼出。
+- 実線 = ファイル依存、点線 = script 呼出。

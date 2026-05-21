@@ -22,54 +22,42 @@ since: 2026-05-20
 
 # run-notion-intake-publish
 
-## Purpose & Output Contract
+## 責務 (薄い wrapper)
 
-`run-skill-intake-aggregator` で生成済みの `output/<hint>/` 一式 (`intake.md`, `intake.json`, `visuals/`, `notion-manifest.json`) を Notion DB に **再公開** する sibling skill (kind=run)。
+`run-skill-intake-aggregator` で生成済みの `output/<hint>/` 一式を Notion DB に **再公開** するためだけの薄いエイリアス skill。実体は `plugins/skill-intake/scripts/intake_publish_pipeline.py` (単一発火点) を 1 回呼ぶだけ。
 
-ヒアリングをやり直さずに Notion 公開だけ再実行したい場合 (Notion DB プロパティ追加後、トークン更新後、Notion 側でページを誤削除した後など) に使う。非冪等な REST API 呼び出しを内包するため kind=run として独立。
+**ロジックを書かない**: render / quality_gate / publish の重複実装は禁止。aggregator phase11 と同じ pipeline を共有する。
 
-**入力**: `<skill-name-hint>` (`output/<hint>/` 配下が完成している前提)
+**入力**: `<skill-name-hint>` (`output/<hint>/intake.json` および `output/<hint>/notion-manifest.json` が完成している前提)
 
-**出力**:
-- `output/<hint>/notion-url.txt` (上書き)
-- `output/<hint>/notion-log.json` (上書き、`status: success|partial|failed`)
-
-## Key Rules
-
-1. **再公開専用**: ヒアリング・図解生成・JSON 整形は一切やらない。あくまで Notion REST API 呼び出しの run skill。
-2. **All-or-Nothing**: PNG 1 枚でも欠ければ停止。`verify_notion_assets.py` 必須通過。
-3. **Secret-Out-of-Repo**: トークンは Keychain からのみ取得。`plugins/skill-intake/scripts/keychain_get_secret.py` 経由 (環境変数渡し禁止、`notion_http.py` が内部で都度取得)。
-4. **既存ページ非破壊**: `notion-log.json.page_id` が既存なら追記モード (PATCH children)、新規作成は明示 `--mode=new` のみ。
+**出力**: pipeline 内部で書き出される `notion-blocks.json` / `notion-publish-result.json` / `notion-url.txt` / `notion-log.json`
 
 ## Steps
 
 ```bash
 HINT="$1"
-test -d "output/$HINT" || { echo "intake artifacts not found"; exit 2; }
+test -f "output/$HINT/intake.json" || { echo "intake.json not found"; exit 2; }
 
 python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
-python3 plugins/skill-intake/scripts/verify_notion_schema.py \
-  --database-id "${INTAKE_NOTION_DATABASE_ID:?INTAKE_NOTION_DATABASE_ID is required}" \
-  --on-conflict skip-warn
+python3 plugins/skill-intake/scripts/verify_notion_schema.py --on-conflict skip-warn
 python3 plugins/skill-intake/scripts/verify_notion_assets.py "output/$HINT/notion-manifest.json"
-python3 plugins/skill-intake/scripts/render_notion_page.py "output/$HINT/intake.json" > "output/$HINT/notion-blocks.json"
-python3 plugins/skill-intake/scripts/publish_notion_page.py \
+python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
   --intake "output/$HINT/intake.json" \
-  --blocks "output/$HINT/notion-blocks.json" \
-  > "output/$HINT/notion-publish-result.json"
+  --manifest "output/$HINT/notion-manifest.json"
 ```
 
-`publish_notion_page.py` は `notion_http.py` 経由で都度 Keychain から取得し、シェル変数や環境変数にトークンが乗らない (`process.env.INTAKE_NOTION_TOKEN` への代入は禁止)。
+`intake_publish_pipeline.py` が render → quality_gate → publish を順に exec し、いずれかが exit !=0 ならその時点で停止する。トークンは `notion_http.py` が内部で都度 Keychain から取得 (環境変数渡し禁止)。
 
-## Gotchas
+## Key Rules
 
-1. **`run-skill-intake-aggregator` のフェーズ 11 (Notion publish) と同じスクリプトを呼ぶ**: 再実装はしない。共有 `plugins/skill-intake/scripts/` を参照。
-2. **DB スキーマ変更後は必ず `verify_notion_schema.py` を通す**: 既存ページが新プロパティに対応していないと public_url 取得後にカラム空のまま見える場合がある。
-3. **PAT vs Integration の切替時はメモを残す**: `notion-log.json.auth_method` が前回と異なれば warning。
+1. **単一発火点**: publish パイプは `intake_publish_pipeline.py` のみ。本 skill では `render_notion_page.py` / `publish_notion_page.py` を直接呼ばない。
+2. **再公開専用**: ヒアリング・図解生成・JSON 整形はやらない。
+3. **All-or-Nothing**: `verify_notion_assets.py` 必須通過。PNG 1 枚でも欠ければ停止。
+4. **Secret-Out-of-Repo**: トークンは Keychain からのみ取得。
 
 ## Additional Resources
 
-- `../run-skill-intake-aggregator/SKILL.md` — sibling (aggregator) skill
+- `../run-skill-intake-aggregator/SKILL.md` — sibling (aggregator) skill。phase 11 で同じ pipeline を呼ぶ
+- `../../scripts/intake_publish_pipeline.py` — 唯一の publish エントリ
 - `../run-skill-intake-aggregator/references/notion-integration.md` — Notion 連携正本
-- `../run-skill-intake-aggregator/references/notion-db-schema.json` — DB スキーマ正本
 - `../run-skill-intake-aggregator/references/keychain-setup.md` — Keychain セットアップ

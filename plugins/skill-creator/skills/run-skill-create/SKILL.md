@@ -275,6 +275,15 @@ PASS時は `findings.json` の `pattern_ref_candidates` / `new_patterns` / `mass
 6. **handoff保存**: 各ゲート通過時に handoff JSON を必ず保存。PostCompact hook で復元できるようにする。
 7. **manifest二重管理禁止**: manifest登録は `build-manifest-registration-plan.py` の提案を経由し、手書き追加後も `lint-manifest-contents.py` を必ず通す。
 
+## 品質ゲート: Elegant Review Protocol 参照
+
+新規スキル作成時／既存スキル更新時／プロンプト改善時は、`plugins/skill-intake/skills/run-skill-intake-aggregator/references/elegant-review-protocol.md` を品質ゲートとして適用する。
+
+- 3フェーズ（リセット俯瞰 → 並列分析 → 改善実行）を経て **4条件 (C1-C4) すべて PASS** を確認する。
+- SubAgent マッピング推奨: `elegant-reset-observer` / `elegant-logical-structural-analyst` / `elegant-meta-divergent-analyst` / `elegant-system-strategic-analyst` / `elegant-improvement-executor`。
+- ユーザー要望が大規模設計 (新規スキル新設、複数ファイル横断、rubric/template 変更等) を伴う場合は本プロトコル **必須**。軽微な単一ファイル修正は `--fast` モードと整合させてよい。
+- 適用結果は Step 5 の `findings.json` に紐付け、評価証跡として `eval-log/` に残す。
+
 ## Additional Resources
 
 - `references/gate-templates.md` — 各ゲートの確認質問テンプレート (Step8検証1-3手動チェックリスト含む)

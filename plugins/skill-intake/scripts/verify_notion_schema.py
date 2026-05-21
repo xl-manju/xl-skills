@@ -59,10 +59,25 @@ def main():
 
     with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
         schema = json.load(f)
-    database_id = args.database_id or os.environ.get('INTAKE_NOTION_DATABASE_ID') or schema.get('database_id_default')
+    # 3段 fallback: --database-id > env > schema.database_id_default
+    if args.database_id:
+        database_id, db_id_source = args.database_id, 'arg'
+    elif os.environ.get('INTAKE_NOTION_DATABASE_ID'):
+        database_id, db_id_source = os.environ['INTAKE_NOTION_DATABASE_ID'], 'env'
+    elif schema.get('database_id_default'):
+        database_id, db_id_source = schema['database_id_default'], 'schema_default'
+    else:
+        database_id, db_id_source = None, None
     if not database_id:
-        print('database id is required (--database-id or INTAKE_NOTION_DATABASE_ID)', file=sys.stderr)
+        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, or schema database_id_default)', file=sys.stderr)
         return 2
+    try:
+        eval_log_dir = Path('eval-log')
+        eval_log_dir.mkdir(parents=True, exist_ok=True)
+        with open(eval_log_dir / 'db-id-resolution.json', 'w', encoding='utf-8') as f:
+            json.dump({'tool': 'verify_notion_schema', 'source': db_id_source, 'database_id': database_id}, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
     if args.mode not in ('skip-warn', 'overwrite', 'fail-stop'):
         print(f'invalid --on-conflict: {args.mode}', file=sys.stderr)
         return 2
