@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NOTIFIER = HERE / "notifier_check.py"
+NOTIFIER = HERE / "notifier-check.py"
 
 
 def main() -> int:

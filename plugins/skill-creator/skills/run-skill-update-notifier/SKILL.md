@@ -47,7 +47,7 @@ settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge 
 
 ## Responsibilities (brief 由来)
 
-- **R1 changelog-cache-check**: 各 plugin の `CHANGELOG.md` を読み、cache と差分検出 (`scripts/notifier_check.py`)
+- **R1 changelog-cache-check**: 各 plugin の `CHANGELOG.md` を読み、cache と差分検出 (`scripts/notifier-check.py`)
 - **R2 notification-formatting**: 差分時の 1 行通知整形 (出力規約は `references/output-format.md`)
 - **R3 graceful-degradation-guard**: 例外を握りつぶし no-op に倒す保護層
 
@@ -56,14 +56,14 @@ settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge 
 ### Step 1: cache 鮮度確認
 
 ```bash
-python3 scripts/notifier_check.py --mode cache-status
+python3 scripts/notifier-check.py --mode cache-status
 ```
 - 出力: `fresh` / `stale` / `absent`。`fresh` なら Step 2 を skip。
 
 ### Step 2: plugin scan と cache 更新
 
 ```bash
-python3 scripts/notifier_check.py --mode refresh --plugins-root plugins/
+python3 scripts/notifier-check.py --mode refresh --plugins-root plugins/
 ```
 - 各 `plugins/*/CHANGELOG.md` から最新 version を抽出 (semver 一致なくとも文字列保持)。
 - `~/.cache/xl-skills/version-snapshot.json` に書き出す (atomic rename)。
@@ -72,7 +72,7 @@ python3 scripts/notifier_check.py --mode refresh --plugins-root plugins/
 ### Step 3: 通知文字列生成
 
 ```bash
-python3 scripts/notifier_check.py --mode notify --plugin "$PLUGIN_NAME"
+python3 scripts/notifier-check.py --mode notify --plugin "$PLUGIN_NAME"
 ```
 - installed (= plugin.json) vs latest (= cache) を比較。
 - 一致 / cache 未提供 / installed 未取得 → 空文字列。
@@ -98,7 +98,7 @@ python3 scripts/notifier_check.py --mode notify --plugin "$PLUGIN_NAME"
 
 ## Additional Resources
 
-- `scripts/notifier_check.py` — cache 比較ロジック (CLI 単体実行可)
+- `scripts/notifier-check.py` — cache 比較ロジック (CLI 単体実行可)
 - `references/output-format.md` — 通知文字列規約
 - `references/hook-wiring.md` — settings.json hook 配線案
 - 設計書 10 章 §7 — Hook 競合解決

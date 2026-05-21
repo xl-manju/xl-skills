@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PostToolUse hook (matcher=Skill): Skill 実行末尾に 1 行通知。常に exit 0。
 
-stdin の payload から plugin 名を推定し、notifier_check.py --mode notify を呼ぶ。
+stdin の payload から plugin 名を推定し、notifier-check.py --mode notify を呼ぶ。
 plugin 名が特定できない場合は no-op (graceful degradation)。
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NOTIFIER = HERE / "notifier_check.py"
+NOTIFIER = HERE / "notifier-check.py"
 
 
 def _extract_plugin_name(payload: dict) -> str | None:

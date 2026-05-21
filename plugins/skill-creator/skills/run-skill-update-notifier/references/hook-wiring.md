@@ -45,7 +45,7 @@
 
 | script | 役割 | exit |
 |---|---|---|
-| `hook-cache-refresh.py` | `notifier_check.py --mode cache-status` を呼び stale 時のみ `--mode refresh` 起動 | 0 固定 |
-| `hook-notify-skill-end.py` | stdin の hook payload から plugin 名を抽出し `notifier_check.py --mode notify --plugin <name>` を呼ぶ | 0 固定 |
+| `hook-cache-refresh.py` | `notifier-check.py --mode cache-status` を呼び stale 時のみ `--mode refresh` 起動 | 0 固定 |
+| `hook-notify-skill-end.py` | stdin の hook payload から plugin 名を抽出し `notifier-check.py --mode notify --plugin <name>` を呼ぶ | 0 固定 |
 
 両 hook とも exit 0 固定により Skill 実行を妨げない (graceful degradation の保証点)。
