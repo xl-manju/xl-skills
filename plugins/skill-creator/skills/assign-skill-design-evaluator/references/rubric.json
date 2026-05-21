@@ -1,7 +1,11 @@
 {
   "version": 1,
   "rubric_id": "skill-design",
-  "rubric_version": "1.1.0",
+  "rubric_version": "1.2.0",
+  "schemaVersion": 2,
+  "changelog": [
+    {"version": "1.2.0", "date": "2026-05-21", "change": "Phase 3 patch P1: 責務単位 prompt 整合 (PG-001/PG-002), bundle 登録 (BND-001 aka BD-001 in design doc), validate-plugin/build-trace gate (REG-001 aka RG-001 in design doc) を追加。既存 BD-001/RG-001 と ID 衝突回避のため BND-001/REG-001 にリネーム。weight は新規 item にのみ付与し既存 severity_weights は不変。"}
+  ],
   "layer": "L0",
   "threshold": 80,
   "max_skill_md_lines": 300,
@@ -115,6 +119,40 @@
       "severity": "low",
       "check": "output JSON includes rubric_hash (sha256 of this file)",
       "rationale": "27章: 採点結果の再現性を保証"
+    },
+    {
+      "id": "PG-001",
+      "area": "prompt-generation",
+      "severity": "high",
+      "weight": 10,
+      "check": "kind in (run, assign) AND brief.responsibilities[] non-empty => plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml exists for every R-id",
+      "rationale": "Phase 3: 責務単位プロンプトと SubAgent.md の 1:1 整合を物理ファイルレベルで担保"
+    },
+    {
+      "id": "PG-002",
+      "area": "prompt-generation",
+      "severity": "medium",
+      "weight": 5,
+      "check": "対応 SubAgent.md に '<!-- responsibility: R[0-9]+ -->' anchor が responsibilities 集合と一致して付与されている",
+      "rationale": "Phase 3: anchor 集合一致で prompt-creator ループとの結合キーを保証"
+    },
+    {
+      "id": "BND-001",
+      "area": "bundle",
+      "severity": "high",
+      "weight": 8,
+      "_design_doc_id": "BD-001",
+      "check": "plugins/<name>/ が新規追加された場合、.claude-plugin/bundles.json の少なくとも 1 bundle に登録されている",
+      "rationale": "Phase 3: 単独 plugin の install パスが bundle なしで欠落するのを防ぐ。設計文書では BD-001 と表記するが既存 body rubric BD-001 と衝突するため BND-001 に変更"
+    },
+    {
+      "id": "REG-001",
+      "area": "governance",
+      "severity": "high",
+      "weight": 7,
+      "_design_doc_id": "RG-001",
+      "check": "scripts/validate-plugin-completeness.py と scripts/validate-build-trace.py が exit 0 で通る",
+      "rationale": "Phase 3: 配布完全性と再現性トレースの 2 gate を必須化。設計文書では RG-001 表記、既存 governance RG-001 と衝突回避で REG-001"
     }
   ],
   "_sync_note": "upstream ref-skill-design-rubric/rubric.json 1.1.0 と同期 (governance PROP-2026-05-18-002)。差分は inherits_from で表現し、check 直書きは upstream に揃える。"

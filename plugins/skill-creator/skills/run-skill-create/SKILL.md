@@ -159,6 +159,35 @@ python3 plugins/skill-governance-automation/scripts/build-manifest-registration-
 
 プロジェクト固有Skillの場合は manifest 登録しない。登録しない理由を完了レポートに残す。
 
+### Step 3.5: bundle 登録判定 (依存解決のため必須)
+
+Claude Code 公式の plugin manifest には依存宣言フィールドが無いため、関連 plugin を一括 install させるには `.claude-plugin/bundles.json` の bundle に新 plugin を登録する必要がある。次のいずれかに該当する場合は登録必須:
+
+- 他 plugin の skill / agent / command / hook を実行時に呼ぶ
+- 利用者がこの plugin 単独で目的を達成できない (= 別 plugin と組み合わせて初めて意味を成す)
+- README の install 手順で「あわせて入れる」と案内したい plugin
+
+登録対象 bundle (複数選択可):
+
+- `xl-skills-full`: 全 plugin (新規はほぼ常にここへ追加)
+- `xl-skills-minimal`: skill-creator + prompt-creator のみ
+- `xl-skills-intake`: 非エンジニア intake 経路
+
+```bash
+python3 - <<'EOF'
+import json, pathlib
+p = pathlib.Path('.claude-plugin/bundles.json')
+d = json.loads(p.read_text())
+# 例: full bundle へ追加
+for b in d['bundles']:
+    if b['name'] == 'xl-skills-full' and '<new-plugin>' not in b['plugins']:
+        b['plugins'].append('<new-plugin>')
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + '\n')
+EOF
+```
+
+登録不要 (= スタンドアロンで使う) と判断した場合は、その理由を完了レポートに残す。**理由なき未登録は rubric 違反として `assign-skill-design-evaluator` で減点される。**
+
 ### Step 4a: P0 lint (自動)
 
 cwd は {{PROJECT_ROOT}} プロジェクトルート。`--skills-dir` には plugins/skill-creator/skills/ または .claude/skills/ を明示する。

@@ -87,3 +87,27 @@ N/A の場合は理由を必ず添えること（空欄禁止）。
    - `path_convention == "skill-local-v1"`: `^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$`
    - `path_convention == "agents-legacy"` (deprecated, 後方互換): `^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$`
 6. `layer_yaml_path` のファイル名 (拡張子を除く) が `per_responsibility[].id` と一致すること (例: `R1.yaml` ↔ id=R1)。
+
+## path_convention deprecation policy
+
+Phase 3 で確定 (2026-05-21)。
+
+### 期限
+
+- `path_convention: "agents-legacy"` (`plugins/<plugin>/agents/prompts/<role>.yaml`) は **2026-08-31 まで** 受理する。
+- 2026-09-01 以降、`validate-build-trace.py` は `agents-legacy` を検出した時点で exit 1 (deprecated path)。
+- 新規 skill は最初から `skill-local-v1` で生成すること。
+
+### 仮説 KPI
+
+本規約は次の採用率仮説で正当化する:
+
+- **仮説**: skill-creator 経由で生成された skill のうち `path_convention: "skill-local-v1"` 採用率が、2026-08-31 時点で **70% 以上** に到達する。
+- **未達時のアクション**: 70% 未満であれば、規約自体を撤回もしくは再設計する (場所変更、命名見直し、policy 緩和等を含む)。撤回判断は skill-governance 側 governance proposal で行う。
+
+### 計測ソース
+
+- ソース: `eval-log/skill-build-trace.json#prompt_generation_model.per_responsibility[].path_convention`
+- 集計単位: skill 単位 (同一 skill_build_id は 1 件としてカウント)。
+- 計測スクリプト: `scripts/measure-path-convention-adoption.py` (未実装、KPI 計測ジョブとして 2026-Q3 中に追加予定)。
+

@@ -216,7 +216,7 @@ SKILL.md frontmatter と本文の目的・手順から `.claude/agents/<skill-na
 
 ### Step 7.5: prompt-creator ループ（`--with-prompts` 指定時 または brief.use_prompt_creator=true）
 
-Step 7 SubAgent の Prompt Templates / Self-Evaluation を `run-prompt-creator-7layer` で充填 → `lint-agent-prompt-section.py` で検証 → FAIL なら再起動 (max 3 回)。詳細は `references/build-steps.md#h25-prompt-creator-ループ詳細`。
+`brief.responsibilities[]` の **R-id 単位** でループする（SubAgent 単位ではない）。各 R-id ごとに `run-prompt-creator-7layer` を呼び、7 層 YAML を `plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml` へ出力 → 該当 SubAgent の Prompt Templates / Self-Evaluation へ Edit 注入 → `lint-agent-prompt-section.py --strict-coverage --brief <brief>` で検証 → FAIL なら再起動 (max 3 回)。同 brief で再実行時の sha256 一致を `validate-build-trace.py` が `prompt_generation_model.per_responsibility[].layer_yaml_path` で機械検証する。詳細・配置規約は `references/prompt-placement-convention.md` と `references/build-steps.md#h25-prompt-creator-ループ詳細`。
 
 ### Step 8: evaluator ペア自動生成（`--with-evaluator` 指定時 または brief.generate_pair_evaluator=true）
 

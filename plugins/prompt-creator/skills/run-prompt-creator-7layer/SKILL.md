@@ -3,8 +3,8 @@ name: run-prompt-creator-7layer
 description: SubAgent向け7層プロンプトを生成・更新するとき、Prompt Templates/Self-Evaluation を充填するときに使う。
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[--target-agent <path>] [--skill-brief <path>] [--format yaml|md|json|xml] [--inject-sections <list>]"
-arguments: [target_agent, skill_brief, format, inject_sections]
+argument-hint: "[--responsibility-id <R-id>] [--output <path>] [--target-agent <path>] [--skill-brief <path>] [--format yaml|md|json|xml] [--inject-sections <list>]"
+arguments: [responsibility_id, output, target_agent, skill_brief, format, inject_sections]
 allowed-tools:
   - Read
   - Write
@@ -49,12 +49,13 @@ audit-trigger: quarterly
 
 skill-brief またはユーザー要求から **7 層プロンプト** (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) を生成し、SubAgent .md の Prompt Templates / Self-Evaluation を自動充填。
 
-**入力**: `--target-agent` / `--skill-brief` / `--format` (yaml 既定) / `--inject-sections` (既定: "Prompt Templates,Self-Evaluation")
+**入力**: `--responsibility-id <R-id>` (skill-local-v1 既定で必須、`brief.responsibilities[].id` と 1:1) / `--output <path>` (省略時は規約パス自動解決) / `--target-agent` (任意、owner_agent がある場合のみ注入) / `--skill-brief` / `--format` (yaml 既定) / `--inject-sections` (既定: "Prompt Templates,Self-Evaluation")
 
-**出力**:
-- `plugins/<plugin>/agents/prompts/<role>.yaml`
-- 対象 SubAgent .md への自動注入 (Edit)
-- `eval-log/prompt-creator-trace.json`
+**出力 (path_convention で切替)**:
+- `skill-local-v1` (既定): `plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml` — `references/prompt-placement-convention.md` (skill-creator 側) 準拠、`validate-build-trace.py` が正規表現と sha256 で機械検証
+- `agents-legacy` (`--responsibility-id` 省略時のみ): `plugins/<plugin>/agents/prompts/<role>.yaml` — 後方互換、brief.responsibilities[] が空の ref/wrap/delegate 用
+- 対象 SubAgent .md への自動注入 (Edit、owner_agent がある場合のみ)
+- `eval-log/prompt-creator-trace.json` (必須フィールド: `path_convention`, `responsibility_id`, `layer_yaml_path`, `sha256`)
 
 **完了条件**: `verify_completeness.js` PASS + `validate_prompt.js` PASS + `lint-agent-prompt-section.py` PASS。
 
