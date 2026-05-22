@@ -79,7 +79,7 @@ python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/extract-ca
 ### Step 2: fidelity check を実行 (Notion 公開直前のフック)
 
 ```bash
-python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/check-notion-fidelity.py \
+python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py \
   <intake-final-context.json>
 # exit 0 = pass / 1 = warn / 2 = fail
 ```
@@ -89,7 +89,7 @@ python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/check-noti
 ### Step 3: 粒度スコア単体取得 (CI のメトリクス用、optional)
 
 ```bash
-python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/measure-granularity.py <intake-final-context.json>
+python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/extract-granularity-score.py <intake-final-context.json>
 # stdout に overall_score (0-100) を 1 行で出力
 ```
 
@@ -107,7 +107,7 @@ python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/measure-gr
 ## Gotchas
 
 1. **canonical の更新タイミング**: `section_canonical_map.json` (v2) が変わったら本スキルの `extract-canonical-snapshot.py` を再走させる。手で snapshot を書かない。
-2. **char_bounds の計測対象**: Notion ブロック化前の context.json 上での該当 section の本文相当文字列 (json.dumps の長さではない — `scripts/check-notion-fidelity.py` 内の `section_text_length()` を使用)。
+2. **char_bounds の計測対象**: Notion ブロック化前の context.json 上での該当 section の本文相当文字列 (json.dumps の長さではない — `scripts/validate-notion-fidelity.py` 内の `section_text_length()` を使用)。
 3. **viz_slots は mandatory=true のみ評価**: `mandatory=false` は missing でも減点しない (warn 列にのみ記録)。
 4. **fail でも report.md は出力する**: 呼び出し元が原因を読めるよう、exit=2 でも JSON/MD は必ず書き出す (fail-fast ≠ silent-fail)。
 

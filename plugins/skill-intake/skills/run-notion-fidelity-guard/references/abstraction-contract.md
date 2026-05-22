@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `canonical_page_id` | string (Notion page id) | `35195d6503b781788e31f59b4e05e705` | snapshot 抽出元の Notion page id。`extract-canonical-snapshot.py` の `--canonical-page-id` で上書き可能。 |
 | `canonical_snapshot_path` | path | `references/canonical-page-snapshot.json` | snapshot の保存先。skill ディレクトリ相対で記述する。 |
-| `fidelity_threshold_pass` | float (0-1) | `0.85` | pass 判定の下限。`check-notion-fidelity.py --pass-threshold` で上書き可能。 |
+| `fidelity_threshold_pass` | float (0-1) | `0.85` | pass 判定の下限。`validate-notion-fidelity.py --pass-threshold` で上書き可能。 |
 | `fidelity_threshold_warn` | float (0-1) | `0.70` | warn 判定の下限。fail との境界。`--warn-threshold` で上書き可能。 |
 
 ## 差し替え時の整合性ルール

@@ -2,11 +2,11 @@
 """Print overall granularity score (0-100) for intake-final-context.json.
 
 CLI 用の軽量メトリクス取得スクリプト。verdict 判定や Markdown 生成は行わず、
-check-notion-fidelity.py の evaluate() を再利用して overall_score のみを stdout
+validate-notion-fidelity.py の evaluate() を再利用して overall_score のみを stdout
 に 1 行で出す。CI のメトリクス収集向け。
 
 Usage:
-    python3 measure-granularity.py <intake-final-context.json> \
+    python3 extract-granularity-score.py <intake-final-context.json> \
         [--snapshot <canonical-page-snapshot.json>]
 Exit: 0 (always; verdict 判定をしない)。
 """
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CHECK_PATH = SCRIPT_DIR / "check-notion-fidelity.py"
+CHECK_PATH = SCRIPT_DIR / "validate-notion-fidelity.py"
 DEFAULT_SNAPSHOT = SCRIPT_DIR.parent / "references/canonical-page-snapshot.json"
 
 

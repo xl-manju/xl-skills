@@ -40,4 +40,4 @@ overall_score = mean(section_score for section in canonical.sections)
 
 - `executive_summary`, `assumption.deep_problem`, `purpose.true_purpose` のように **本文相当の string / array of strings** を結合し、空白除去後の文字数を採用する。
 - JSON のキー名や記号は計測対象外。
-- 計測ロジックは `scripts/check-notion-fidelity.py` 内 `section_text_length()` を正本とする。
+- 計測ロジックは `scripts/validate-notion-fidelity.py` 内 `section_text_length()` を正本とする。

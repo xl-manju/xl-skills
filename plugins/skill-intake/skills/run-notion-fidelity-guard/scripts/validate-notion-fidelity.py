@@ -2,7 +2,7 @@
 """Check Notion fidelity between intake-final-context.json and canonical snapshot.
 
 Usage:
-    python3 check-notion-fidelity.py <intake-final-context.json> \
+    python3 validate-notion-fidelity.py <intake-final-context.json> \
         [--snapshot <canonical-page-snapshot.json>] \
         [--pass-threshold 0.85] [--warn-threshold 0.70] \
         [--out-dir <dir>]
@@ -253,13 +253,13 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     if not (0.0 <= args.warn_threshold < args.pass_threshold <= 1.0):
-        print("[check-notion-fidelity] threshold order invalid", file=sys.stderr)
+        print("[validate-notion-fidelity] threshold order invalid", file=sys.stderr)
         return 64
     if not args.context.is_file():
-        print(f"[check-notion-fidelity] context not found: {args.context}", file=sys.stderr)
+        print(f"[validate-notion-fidelity] context not found: {args.context}", file=sys.stderr)
         return 64
     if not args.snapshot.is_file():
-        print(f"[check-notion-fidelity] snapshot not found: {args.snapshot}", file=sys.stderr)
+        print(f"[validate-notion-fidelity] snapshot not found: {args.snapshot}", file=sys.stderr)
         return 64
 
     context = json.loads(args.context.read_text(encoding="utf-8"))

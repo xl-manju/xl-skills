@@ -32,9 +32,9 @@ resources:
 scripts:
   - path: scripts/extract-canonical-snapshot.py
     invoked_by: R1 (canonical-snapshot-extraction)
-  - path: scripts/check-notion-fidelity.py
+  - path: scripts/validate-notion-fidelity.py
     invoked_by: R2 (fidelity-check)
-  - path: scripts/measure-granularity.py
+  - path: scripts/extract-granularity-score.py
     invoked_by: R3 (delta-report, optional metrics)
 
 prompts:
