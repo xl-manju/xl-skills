@@ -267,7 +267,7 @@ flowchart TB
 - **analysis**: LLM要約 + Embeddings によるテーマクラスタリング + 静的シードとの統合
 - **storage**: Obsidian + JSON テーマ集合ファイル
 - **retrieval**: テーマキーワード検索 + RAG
-- **update**: <built-in method update of dict object at 0x10c7fa8c0>
+- **update**: <built-in method update of dict object at 0x10e3235c0>
 
 ---
 

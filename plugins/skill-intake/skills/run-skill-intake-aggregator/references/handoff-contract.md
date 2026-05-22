@@ -356,7 +356,7 @@ flowchart TD
     F_next --> A_self
 
     %% Script 呼出（点線）
-    A_handoff -.-> S1[/"apply_section_template.py"/]
+    A_handoff -.-> S1[/"render-intake-final.py"/]
     A_handoff -.-> S2[/"convert_md_to_json.py"/]
     A_handoff -.-> S3[/"validate_intake.py"/]
     A_handoff -.-> S4[/"check_completeness.py"/]

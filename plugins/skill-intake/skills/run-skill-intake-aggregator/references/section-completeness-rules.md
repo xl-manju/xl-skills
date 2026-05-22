@@ -6,7 +6,7 @@ type: reference
 
 # セクション必要十分ルール
 
-ヒアリングシート `intake.md` の各セクションは以下の必要十分基準を満たす。`scripts/section_quality_check.py` がこの基準で検証する。
+ヒアリングシート `intake.md` の各セクションは以下の必要十分基準を満たす。`scripts/check_completeness.py` + `scripts/render-intake-final.py` (JSON Schema 検証) がこの基準で検証する。
 
 ## 必要十分の構成要素
 
@@ -167,4 +167,4 @@ function checkSection(section) {
 
 ## 一括テンプレ展開
 
-`scripts/apply_section_template.py` が初期テンプレを各セクションに展開し、SubAgent はそれを埋めるだけで必要十分を満たす。
+`scripts/render-intake-final.py` が `intake-final-template.md.tmpl` を context で展開し、SubAgent が各 phase JSON を埋めるだけで必要十分を満たす。
