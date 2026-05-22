@@ -132,6 +132,7 @@ def project_db_properties(ctx):
         '引き渡しモード': _select(p.get('引き渡しモード')),
         '真の課題': _rich(p.get('真の課題', '')),
         'ナレッジ資産タグ': _multi(p.get('ナレッジ資産タグ')),
+        '実行環境': _select(p.get('実行環境')),
         'Markdown正本URL': _url(p.get('Markdown正本URL')),
     }
 
