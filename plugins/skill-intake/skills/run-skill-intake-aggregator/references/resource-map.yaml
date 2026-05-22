@@ -112,6 +112,11 @@ references:
     read_when: "technical_level=非技術 のユーザー向け強制変換を実施するとき、または図解検証のルール 5 適用時"
     purpose: "90 語以上の一律言い換え辞書で本文・図解の専門用語を排除"
 
+  execution-surface-rubric:
+    path: references/execution-surface-rubric.md
+    read_when: "execution_surface.primary (Claude Code / Cowork / 両方) を確定するとき、または notion_db_properties.実行環境 を投影する直前"
+    purpose: "判定木と観測フィーチャ表で実行サーフェスを一意に決定。intake-final-schema.json と notion-db-schema.json の値ドメイン正本"
+
 # 読み込み戦略
 load_strategy:
   default: "lazy"               # 必要時のみ読む (Progressive Disclosure)
