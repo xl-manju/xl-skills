@@ -1,6 +1,6 @@
 ---
 name: run-notion-fidelity-guard
-description: intake-final-context.json から Notion ページを描画する直前に、info-collector-agent ページと同等の粒度を持つかを section_canonical_map を一次基準として機械検証する。
+description: Notion ページを描画する直前に粒度を検証したいとき、info-collector-agent ページと同等の section 充足度を section_canonical_map 基準で機械検証したいときに使う。
 allowed-tools:
   - Read
   - Bash
