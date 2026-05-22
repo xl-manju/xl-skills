@@ -32,7 +32,7 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 
 **入力**: ユーザーの「スキルを作りたい」要望 (topic 引数任意)
 
-**成果物 (3 系統)**:
+**成果物 (5 種類)**:
 
 | 成果物 | パス | 利用者 |
 |--|--|--|
@@ -64,7 +64,7 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 
 1. **Problem First**: 表層要望を仮説扱いし、本質的問題を最優先で発掘。
 2. **Structure-Reduces-Drift**: 「言語化されているのは1割」を前提に、問い構造で誤り訂正する。
-3. **Script First**: 決定論処理はすべて `scripts/*.py` (Python 3 標準ライブラリのみ; macOS 標準 `/usr/bin/python3`)。LLM 判断は補助。
+3. **Script First**: 決定論処理はすべて `scripts/*.py` (Python 3 + `jsonschema` / `jinja2` を許容 — pip-installable, JSON Schema 検証と Jinja2 テンプレ駆動に必須; macOS 標準 `/usr/bin/python3`)。LLM 判断は補助。
 4. **Visualization Mandatory**: 全セクションに 1〜3 図 (Mermaid 12+SVG 8 カタログから選択)。非エンジニア対応マスト 8 ルール強制。
 5. **Self-Evolving**: question-bank がヒアリング毎に成長する自己進化ループ。
 6. **Secret-Out-of-Repo**: API シークレットはコード/`.env`/環境変数に置かず macOS Keychain から都度取得。`scripts/keychain_get_secret.py` 経由のみ。
@@ -162,7 +162,7 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
 
 ## Additional Resources
 
-### references/ (本スキル直下、20 個)
+### references/ (本スキル直下、31 個)
 
 | 用途 | ファイル |
 |--|--|
@@ -192,9 +192,9 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
 
 `skill-intake-kickoff` / `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-interviewer` / `skill-intake-purpose-excavator` / `skill-intake-option-presenter` / `skill-intake-visualizer` / `skill-intake-summarizer` / `skill-intake-next-action-advisor` / `skill-intake-handoff` / `skill-intake-notion-publisher` / `skill-intake-self-updater`
 
-### Scripts (plugin 直下 `scripts/`, 27 本)
+### Scripts (plugin 直下 `scripts/`, 34 本)
 
-`keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 旧 20 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
+`keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 既存 27 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
 
 ### Assets (本スキル直下 `assets/`)
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0.0",
-  "description": "ユーザー正本(info-collector-agent ヒアリング正本完全版 §0〜§11)を機械可読な単一 source of truth として宣言する正本マップ。section-templates.json / SubAgent 出力 / render_notion_page.py / viz_slots 割当 / intake.schema.json definitions は全てここから派生する。",
+  "description": "ユーザー正本(info-collector-agent ヒアリング正本完全版 §0〜§11)を機械可読な単一 source of truth として宣言する正本マップ。SubAgent 出力 / render_notion_page.py / viz_slots 割当 / intake.schema.json definitions は全てここから派生する (旧 section-templates.json (v1) は 2026-05-22 廃止済み)。",
   "user_canonical_source": "info-collector-agent ヒアリング正本（完全版）/ §0〜§11",
   "policies": {
     "role_emoji": "no_emoji_no_icon_japanese_label_only",

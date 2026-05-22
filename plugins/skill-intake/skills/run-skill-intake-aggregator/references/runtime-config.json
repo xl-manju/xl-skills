@@ -97,7 +97,7 @@
     "validator_cli": "python3 -c \"import json,jsonschema,sys; jsonschema.validate(json.load(open(sys.argv[1])), json.load(open(sys.argv[2])))\""
   },
   "render_path_resolution": {
-    "policy": "v2-only",
+    "policy": "v2-strict",
     "description": "v1 (section-templates.json + 6ブロック格子) は 2026-05-22 削除済み。正本は intake-final-template.md.tmpl + intake-final-schema.json + section_canonical_map.json。",
     "primary_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl",
     "schema_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-schema.json",

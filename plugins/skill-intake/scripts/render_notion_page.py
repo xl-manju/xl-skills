@@ -11,7 +11,8 @@
   - テンプレ: skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl
   - DB スキーマ: skills/run-skill-intake-aggregator/references/notion-db-schema.json (v2)
 
-v1 ブリッジ (section-templates.json / render_v2_adapter.py / SECTION_DATA_PATHS) は廃止済み。
+v1 ブリッジ (section-templates.json / SECTION_DATA_PATHS) は廃止済み。
+render_v2_adapter.py は v2 経路の section_canonical_map iterator として継続使用 (dry_render_notion.py から import)。
 """
 
 import json
@@ -19,10 +20,25 @@ import os
 import sys
 from pathlib import Path
 
+import jsonschema
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 with open(SCRIPT_DIR / 'notion_limits.json', 'r', encoding='utf-8') as f:
     _LIMITS = json.load(f)
 MAX_RT = _LIMITS['MAX_RT']
+
+SCHEMA_PATH = (
+    SCRIPT_DIR.parent
+    / 'skills'
+    / 'run-skill-intake-aggregator'
+    / 'references'
+    / 'intake-final-schema.json'
+)
+
+
+def _load_schema():
+    with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 # ===== Notion block primitives =====
@@ -302,6 +318,9 @@ def _render_artifacts(ctx, blocks):
 # ===== Top-level =====
 
 def render(ctx):
+    # render-intake-final.py と同じく intake-final-schema.json で context を厳密検証する。
+    # 検証失敗は jsonschema.ValidationError として上位に伝播。
+    jsonschema.validate(ctx, _load_schema())
     blocks = []
     _render_meta(ctx, blocks)
     _render_executive(ctx, blocks)

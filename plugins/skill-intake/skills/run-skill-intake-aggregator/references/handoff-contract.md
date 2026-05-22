@@ -251,6 +251,27 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 - `five_axes.*.verified=false` が 1 つでも残れば `recommended_next.mode="full"` 強制
 - `knowledge_assets.verified` は **MUST**（false は不可、`needed=false` の verified=true は OK）
 
+## skill-creator 入力契約マッピング
+
+`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として Step 1 を簡略化または飛ばす。本スキルが生成する §0〜§11 と skill-creator 9 ステップ (Step 1〜9; Step 3.5 / Step 7.5 含み合計 11 ステップだが正規 9 セクション) の対応は以下のとおり。
+
+| skill-intake §x (canonical_map) | intake.json フィールド | skill-creator Step / 入力 | 役割 |
+|---|---|---|---|
+| §0 executive_summary | `meta` + `purpose.excavated` + `recommended_next.mode` | Step 1 要求ヒアリング (skip_to_phase 判定の根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
+| §1 assumption_challenger | `purpose.stated` / `purpose.excavated` | Step 1 要求ヒアリング (kind 確定の前提) | 表層 vs 深層の分離をそのまま brief に渡す |
+| §2 user_profile | `user_profile.technical_level` / `role` / `context` / `share_target` | Step 1 要求ヒアリング (語彙難易度・テンプレ選択へ反映) | vocabulary_tier を Step 2 のテンプレ展開に伝搬 |
+| §3 purpose_excavator | `purpose.excavated` / `purpose.jtbd` / `purpose.magic_wand_vision` | Step 1 要求ヒアリング (true_purpose 正本) | Step 5 フォーク評価のスコア対象 |
+| §4 option_presenter | `five_axes.*` の adopted 選択肢 + connectors | Step 2 テンプレ展開 / Step 3 補助ファイル生成 (config / references の初期値) | kind / 配置 / 連携先の事前確定 |
+| §5 visualizer (図解 5 枚) | `visualizations[]` (svg_path / type / one_liner) | Step 3 補助ファイル生成 (`templates/`, `assets/` への配置候補) | 図解資産を skill 本体へ移植可能化 |
+| §6 five_axes_summary | `five_axes` (5 軸全部 + knowledge_assets MUST) | Step 1 要求ヒアリング / Step 6 ゲート判定 | 5 軸全充足が rubric score >= 80 の前提 |
+| §7 design_decisions | (intake.json には未明示, §4 adopted を集約) | Step 2 テンプレ展開 (kind / pair / hooks の宣言値) | frontmatter の `pair` / `kind` / `script_refs` の初期値 |
+| §8 open_questions | `open_questions[]` (blocking / deferred_to) | Step 1 要求ヒアリング (deferred_to=skill-creator を Step 1 で再尋問) | blocking=true の存在で Step 6 ゲートを停止 |
+| §9 handoff_contract | `recommended_next` (mode / skip_to_phase / rationale) | Step 1 → Step 2 のジャンプ条件 (mode=fast-track なら Step 1 を簡略化) | skill-creator の起点 phase を機械決定 |
+| §10 self_updater | `self-update.json` (question-bank 追記候補, value_realized_score) | (skill-creator スコープ外。skill-intake 自己進化のみ) | 次回 intake の質問銀行に反映 |
+| §11 artifact_index | `output/<hint>/` 配下ファイル一覧 | Step 3.5 再現性トレース (skill-build-trace.json の source_docs に登録) | 生成物の所在を build-trace に固定 |
+
+skill-creator Step 1 が読むのは主に §1/§2/§3/§6/§8/§9。Step 2 が読むのは §4/§7。Step 3 が読むのは §5/§11。それ以外 (§0/§10) は人間レビュー専用。
+
 ## `run-skill-elicit` との互換
 
 `run-skill-elicit` が生成する brief.json も、本スキーマの `five_axes` 部分を空オブジェクトとして許容することで吸収できる。`run-skill-create` 側は両者を区別せず読み込めるよう、本スキーマを上位互換として運用する。

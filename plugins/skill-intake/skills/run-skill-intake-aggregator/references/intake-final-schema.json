@@ -349,7 +349,7 @@
     "notion_db_properties": {
       "type": "object",
       "x-source": "派生（intake-final-context 各部から projector が生成）",
-      "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る13プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。",
+      "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る16プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。",
       "required": ["名前", "ステータス", "パターン", "ワークフロー", "深度", "熟練度", "テーマ抽出", "責務境界", "配信タイミング", "出力先", "共有相手", "引き渡しモード", "真の課題", "作成日"],
       "properties": {
         "名前": {"type": "string", "x-derive": "meta.skill_name_hint"},

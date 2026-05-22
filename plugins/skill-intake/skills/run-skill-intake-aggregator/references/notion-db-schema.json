@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Skill Intake Reports — Notion Database Schema (JP, v2)",
-  "description": "run-skill-intake-aggregator が公開する Notion DB のプロパティ定義（v2: 実 Notion ページ 35195d6503b781788e31f59b4e05e705 の構造を正本とする13プロパティ）。値の正本は intake-final-schema.json#/properties/notion_db_properties。verify_notion_schema.py が現状 DB と突き合わせ、過不足を eval-log/notion-conflicts.json に記録する。",
+  "description": "run-skill-intake-aggregator が公開する Notion DB のプロパティ定義（v2: 実 Notion ページ 35195d6503b781788e31f59b4e05e705 の構造を正本とする16プロパティ）。値の正本は intake-final-schema.json#/properties/notion_db_properties。verify_notion_schema.py が現状 DB と突き合わせ、過不足を eval-log/notion-conflicts.json に記録する。",
   "schema_version": "2.0.0",
   "supersedes": "1.0",
   "canonical_source_for_values": "intake-final-schema.json#/properties/notion_db_properties",
