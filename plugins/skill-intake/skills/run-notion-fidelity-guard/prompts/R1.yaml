@@ -1,0 +1,42 @@
+# run-notion-fidelity-guard R1
+# responsibility: canonical-snapshot-extraction
+# prompt_layers_required: [L2, L4, L6]
+
+# Layer 2: ドメイン定義層
+ドメイン定義:
+  用語集:
+    "canonical-page-snapshot":
+      定義: |
+        info-collector-agent Notion ページ (page_id=35195d6503b781788e31f59b4e05e705)
+        の構造を section / required_fields / char_bounds / viz_slots に分解した JSON。
+        本スキルにおける fidelity 比較の正本。
+    "section_canonical_map":
+      定義: |
+        run-skill-intake-aggregator/references/section_canonical_map.json (v2)。
+        snapshot の派生元 (single source of truth)。
+  ビジネスルール:
+    - "snapshot は section_canonical_map.json から決定論的に派生する (手書き禁止)"
+    - "snapshot 更新は audit_trigger=template-change の発火時のみ"
+    - "12 section (§0〜§11) 全件を欠落なく含める"
+
+# Layer 4: 共通ポリシー層
+共通ポリシー:
+  品質基準:
+    - "派生元 (section_canonical_map.json) のハッシュを snapshot.derived_from に記録"
+    - "snapshot.generated_at は ISO 8601 + JST"
+    - "schema_version は派生元と同一に固定"
+  セキュリティ:
+    - "Notion API トークンは本責務では扱わない (snapshot は静的派生)"
+
+# Layer 6: オーケストレーション層
+オーケストレーション:
+  実行計画:
+    - step: 1
+      行動: "section_canonical_map.json を読み込み、12 section を列挙"
+    - step: 2
+      行動: "各 section から required_fields / char_bounds / viz_slots / absence_behavior を抽出"
+    - step: 3
+      行動: "canonical-page-snapshot.json を atomic write で保存"
+  評価:
+    - "snapshot.sections.length == 12"
+    - "snapshot.derived_from.sha256 が派生元と一致"
