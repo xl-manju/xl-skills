@@ -253,24 +253,50 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 
 ## skill-creator 入力契約マッピング
 
-`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として Step 1 を簡略化または飛ばす。本スキルが生成する §0〜§11 と skill-creator 9 ステップ (Step 1〜9; Step 3.5 / Step 7.5 含み合計 11 ステップだが正規 9 セクション) の対応は以下のとおり。
+`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として **ビルドフロー** を駆動し、最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
 
-| skill-intake §x (canonical_map) | intake.json フィールド | skill-creator Step / 入力 | 役割 |
+### 軸 A: SubAgent 9 セクション正本 (agent-template.md) ← intake.json 派生元
+
+`plugins/skill-creator/skills/run-build-skill/references/agent-template.md` で定義される SubAgent ファイルの 9 セクション固定構造に、intake.json の各フィールドがどう投入されるか。
+
+| # | SubAgent セクション | intake.json 主派生元 | 役割 (Layer 対応) |
 |---|---|---|---|
-| §0 executive_summary | `meta` + `purpose.excavated` + `recommended_next.mode` | Step 1 要求ヒアリング (skip_to_phase 判定の根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
-| §1 assumption_challenger | `purpose.stated` / `purpose.excavated` | Step 1 要求ヒアリング (kind 確定の前提) | 表層 vs 深層の分離をそのまま brief に渡す |
-| §2 user_profile | `user_profile.technical_level` / `role` / `context` / `share_target` | Step 1 要求ヒアリング (語彙難易度・テンプレ選択へ反映) | vocabulary_tier を Step 2 のテンプレ展開に伝搬 |
-| §3 purpose_excavator | `purpose.excavated` / `purpose.jtbd` / `purpose.magic_wand_vision` | Step 1 要求ヒアリング (true_purpose 正本) | Step 5 フォーク評価のスコア対象 |
-| §4 option_presenter | `five_axes.*` の adopted 選択肢 + connectors | Step 2 テンプレ展開 / Step 3 補助ファイル生成 (config / references の初期値) | kind / 配置 / 連携先の事前確定 |
-| §5 visualizer (図解 5 枚) | `visualizations[]` (svg_path / type / one_liner) | Step 3 補助ファイル生成 (`templates/`, `assets/` への配置候補) | 図解資産を skill 本体へ移植可能化 |
-| §6 five_axes_summary | `five_axes` (5 軸全部 + knowledge_assets MUST) | Step 1 要求ヒアリング / Step 6 ゲート判定 | 5 軸全充足が rubric score >= 80 の前提 |
-| §7 design_decisions | (intake.json には未明示, §4 adopted を集約) | Step 2 テンプレ展開 (kind / pair / hooks の宣言値) | frontmatter の `pair` / `kind` / `script_refs` の初期値 |
-| §8 open_questions | `open_questions[]` (blocking / deferred_to) | Step 1 要求ヒアリング (deferred_to=skill-creator を Step 1 で再尋問) | blocking=true の存在で Step 6 ゲートを停止 |
-| §9 handoff_contract | `recommended_next` (mode / skip_to_phase / rationale) | Step 1 → Step 2 のジャンプ条件 (mode=fast-track なら Step 1 を簡略化) | skill-creator の起点 phase を機械決定 |
-| §10 self_updater | `self-update.json` (question-bank 追記候補, value_realized_score) | (skill-creator スコープ外。skill-intake 自己進化のみ) | 次回 intake の質問銀行に反映 |
-| §11 artifact_index | `output/<hint>/` 配下ファイル一覧 | Step 3.5 再現性トレース (skill-build-trace.json の source_docs に登録) | 生成物の所在を build-trace に固定 |
+| 1 | Frontmatter (name/description/tools/model) | `meta.skill_name_hint` + `recommended_next.mode` + `five_axes` から `pair`/`kind` 推定 | エージェント識別と最小権限宣言 |
+| 2 | Purpose | `purpose.excavated` + `purpose.jtbd` | Layer 1 不変定義 (役割の正本) |
+| 3 | Inputs | `five_axes.*.adopted` の参照 reference + `connectors` | Layer 2 ドメイン定義 (前提・参照リソース) |
+| 4 | Outputs | `recommended_next.skip_to_phase` + `meta.output_dir` 規約 | Layer 6 出力契約 (成果物パス + JSON 雛形) |
+| 5 | Steps | `purpose.magic_wand_vision` の段階分解 + `five_axes.workflow.adopted` | Layer 5/6 実行仕様 (思考プロセス番号付き) |
+| 6 | Constraints | `user_profile.constraints` + `open_questions[].blocking=true` | Layer 4 ガードレール (禁止事項) |
+| 7 | Prompt Templates | `user_profile.technical_level` で vocabulary_tier 決定 + `responsibilities[]` anchor | Layer 7 実発話例 (responsibility ごとに Round 配置) |
+| 8 | Self-Evaluation | `five_axes` の verified 状態 + `value_realized_score` | quality-rubric.md 5 次元採点の重点定義 |
+| 9 | Handoff | `recommended_next.mode` + 次 agent の接続情報 | 次 agent と引き継ぎデータ |
 
-skill-creator Step 1 が読むのは主に §1/§2/§3/§6/§8/§9。Step 2 が読むのは §4/§7。Step 3 が読むのは §5/§11。それ以外 (§0/§10) は人間レビュー専用。
+**lint Tier 2 必須**: intake.json の `responsibilities[]` (将来追加予定) → SubAgent.md の `<!-- responsibility: <R-id> -->` anchor 集合一致。kind ∈ {run, assign} のとき必須。
+
+### 軸 B: ビルドフロー Step 1〜9 ← intake §0〜§11 投入箇所
+
+`build-steps.md` のビルド手順 (Step 1〜9; Step 3.5/7.5 を含み実質 11 段だが正規 9 ステップ表記) に、skill-intake が生成する §0〜§11 をどこで読むか。
+
+| skill-intake §x (canonical_map) | intake.json フィールド | skill-creator Step | 役割 |
+|---|---|---|---|
+| §0 executive_summary | `meta` + `purpose.excavated` + `recommended_next.mode` | Step 1 (skip_to_phase 判定根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
+| §1 assumption_challenger | `purpose.stated` / `purpose.excavated` | Step 1 (kind 確定の前提) | 表層 vs 深層の分離を brief に渡す |
+| §2 user_profile | `user_profile.*` | Step 1 (語彙難易度) / Step 2 (テンプレ選択) | vocabulary_tier を SubAgent §7 へ伝搬 |
+| §3 purpose_excavator | `purpose.excavated` / `purpose.jtbd` / `purpose.magic_wand_vision` | Step 1 (true_purpose 正本) / Step 5 (フォーク評価) | SubAgent §2 Purpose の正本 |
+| §4 option_presenter | `five_axes.*.adopted` + `connectors` | Step 2 (テンプレ展開) / Step 3 (補助ファイル生成) | SubAgent §3 Inputs の初期値 |
+| §5 visualizer (図解 5 枚) | `visualizations[]` | Step 3 (`templates/`/`assets/` 配置候補) | 図解資産を skill 本体へ移植 |
+| §6 five_axes_summary | `five_axes` (5 軸 + knowledge_assets MUST) | Step 1 / Step 6 ゲート判定 | rubric score >= 80 の前提 |
+| §7 design_decisions | §4 adopted の集約 (intake.json 未明示) | Step 2 (kind / pair / hooks の宣言値) | SubAgent §1 Frontmatter の `pair`/`kind`/`script_refs` |
+| §8 open_questions | `open_questions[]` (blocking / deferred_to) | Step 1 (deferred_to=skill-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
+| §9 handoff_contract | `recommended_next` (mode / skip_to_phase / rationale) | Step 1 → Step 2 ジャンプ条件 | mode=fast-track で Step 1 簡略化 |
+| §10 self_updater | `self-update.json` | (skill-creator スコープ外) | skill-intake 自己進化専用 |
+| §11 artifact_index | `output/<hint>/` ファイル一覧 | Step 3.5 再現性トレース | skill-build-trace.json の source_docs に登録 |
+
+Step 1 が読むのは §1/§2/§3/§6/§8/§9。Step 2 は §4/§7。Step 3 は §5/§11。§0/§10 は人間レビュー専用。
+
+### 軸 A と軸 B の関係
+
+軸 B (ビルドフロー) は **手順**、軸 A (SubAgent 9 セクション) は **成果物の構造正本**。intake.json は両軸を同時に駆動するため、本契約では「intake.json → 軸 A 派生 → 軸 B の各 Step が軸 A を充填」という 2 段の責務分離を保証する。`agent-template.md` 改版時は軸 A 表を、`build-steps.md` 改版時は軸 B 表を独立に更新すること。
 
 ## `run-skill-elicit` との互換
 
