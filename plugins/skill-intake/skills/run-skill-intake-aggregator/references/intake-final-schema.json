@@ -17,7 +17,8 @@
     "open_questions",
     "handoff",
     "self_update",
-    "artifacts"
+    "artifacts",
+    "notion_db_properties"
   ],
   "properties": {
     "meta": {
@@ -342,6 +343,37 @@
             }
           }
         }
+      }
+    },
+
+    "notion_db_properties": {
+      "type": "object",
+      "x-source": "派生（intake-final-context 各部から projector が生成）",
+      "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る17プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。実行環境 (Claude Code / Cowork / 両方) を 17 番目のプロパティとして追加 (2026-05-22)。",
+      "required": ["名前", "ステータス", "パターン", "ワークフロー", "深度", "熟練度", "テーマ抽出", "責務境界", "配信タイミング", "出力先", "共有相手", "引き渡しモード", "真の課題", "実行環境", "作成日"],
+      "properties": {
+        "名前": {"type": "string", "x-derive": "meta.skill_name_hint"},
+        "ステータス": {"type": "string", "enum": ["下書き", "レビュー中", "Gate A承認済み", "引き渡し済み", "構築済み", "アーカイブ"], "x-derive": "meta.status"},
+        "パターン": {"type": "string", "enum": ["A", "B", "C", "D", "E"], "x-derive": "meta.pattern_code"},
+        "ワークフロー": {"type": "string", "x-derive": "meta.workflow_pattern_label", "description": "例: 'B 自動収集配信'"},
+        "深度": {"type": "string", "enum": ["light", "standard", "detailed"], "x-derive": "meta.depth"},
+        "熟練度": {"type": "string", "enum": ["初級", "中級", "上級"], "x-derive": "profile.vocabulary_tier 経由 (novice→初級 / intermediate→中級 / expert→上級)"},
+        "テーマ抽出": {"type": "string", "x-derive": "options.groups[title='テーマ抽出'].options[adopted=true].id+label"},
+        "責務境界": {"type": "string", "x-derive": "options.groups[title='責務境界'].options[adopted=true].id+label"},
+        "配信タイミング": {"type": "string", "x-derive": "options.groups[title='配信タイミング'].options[adopted=true].id+label"},
+        "出力先": {"type": "array", "items": {"type": "string"}, "x-derive": "five_axes.rows[name='出力先'].content から配列化"},
+        "共有相手": {"type": "array", "items": {"type": "string"}, "x-derive": "five_axes.rows[name='共有相手'].content から配列化"},
+        "引き渡しモード": {"type": "string", "enum": ["fast-track", "standard", "human-review", "draft-only"], "x-derive": "handoff.recommended_mode"},
+        "真の課題": {"type": "string", "maxLength": 200, "x-derive": "five_axes.rows[name='真の課題'].content"},
+        "ナレッジ資産タグ": {"type": "array", "items": {"type": "string"}, "x-derive": "five_axes.rows[name='ナレッジ資産'].content からタグ抽出"},
+        "実行環境": {
+          "type": "string",
+          "enum": ["Claude Code", "Cowork", "両方"],
+          "x-derive": "execution_surface.primary（判定ルール: references/execution-surface-rubric.md）",
+          "description": "スキルをどこで実行するかの正本。判定木: ローカルファイル R/W or Bash/Python subprocess or git ops が必要 → 'Claude Code'。MCP-only かつ対話/Artifacts 中心 → 'Cowork'。両条件を満たし MCP-only スキル → '両方'。"
+        },
+        "作成日": {"type": "string", "format": "date-time", "x-derive": "meta.generated_at"},
+        "Markdown正本URL": {"type": "string", "format": "uri", "x-derive": "artifacts.base_path + 'intake-final.md'"}
       }
     },
 

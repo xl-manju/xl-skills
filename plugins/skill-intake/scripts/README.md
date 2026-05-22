@@ -34,8 +34,8 @@
 | `detect_contradictions.py` | SubAgent 出力間の矛盾検出。 |
 | `extract_open_questions.py` | 未解決質問の抽出。 |
 | `quality_gate.py` | 5 次元ルブリック自己採点 PASS/FAIL 判定。 |
-| `section_quality_check.py` | セクション単位の必要十分性検証。 |
 | `measure_value_realized.py` | 真の課題言語化スコア (0-100) 採点。 |
+| `render-intake-final.py` | intake-final-context.json から §0〜§11 完全版 Markdown を生成 (Jinja2 + JSON Schema 検証)。 |
 
 ### 図解系 (8 本)
 
@@ -54,8 +54,8 @@
 
 | スクリプト | サマリ |
 |---|---|
-| `apply_section_template.py` | セクションテンプレ展開 (`{{purpose}}` 等の placeholder 埋め)。 |
 | `convert_md_to_json.py` | intake.md から intake.json への derive 検証。 |
+| `render_notion_page.py` | intake-final-context.json から Notion properties + children を投影 (v2)。 |
 
 ### self-update 系 (1 本)
 

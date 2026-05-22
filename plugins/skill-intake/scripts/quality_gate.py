@@ -7,7 +7,6 @@ import sys
 from validate_intake import validate
 from check_completeness import check
 from detect_contradictions import detect
-from section_quality_check import check_all as section_check_all, load_templates as section_load_templates
 
 
 def check_blocks(blocks):
@@ -41,16 +40,12 @@ def gate(intake):
     v = validate(intake)
     c = check(intake)
     d = detect(intake)
-    sections = intake.get('sections') if isinstance(intake, dict) else None
-    templates = section_load_templates()
-    s = section_check_all(sections or {}, templates) if sections else {'ok': True, 'results': [], 'failed_count': 0}
     checks = {
         'validate_intake': {'ok': v['ok'], 'errors': v['errors']},
         'check_completeness': {'ok': c['ok'], 'placeholders': c['placeholders'], 'filled_axes': c['filled_axes']},
         'detect_contradictions': {'ok': d['ok'], 'count': d['count']},
-        'section_quality_check': {'ok': s['ok'], 'failed_count': s['failed_count'], 'results': s.get('results', [])},
     }
-    ok = v['ok'] and c['ok'] and d['ok'] and s['ok']
+    ok = v['ok'] and c['ok'] and d['ok']
     return {'status': 'PASS' if ok else 'FAIL', 'checks': checks}
 
 

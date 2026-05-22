@@ -98,15 +98,13 @@
   },
   "render_path_resolution": {
     "policy": "v2-strict",
-    "description": "M1 共存期間中の render 経路を一意に固定する。section_canonical_map.json (v2) のみを正本として読み、section-templates.json (v1) は legacy entrypoint warning を stderr に emit して reject する。",
-    "primary_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json",
-    "fallback_to_v1": false,
-    "legacy_v1_path": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section-templates.json",
-    "legacy_warning_required": true,
-    "legacy_warning_message": "[DEPRECATED] section-templates.json は v1 派生。section_canonical_map.json (v2) を読んでください。M3 (2026-06-22 以降) で削除予定。",
+    "description": "v1 (section-templates.json + 6ブロック格子) は 2026-05-22 削除済み。正本は intake-final-template.md.tmpl + intake-final-schema.json + section_canonical_map.json。",
+    "primary_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl",
+    "schema_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-schema.json",
+    "canonical_map_source": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json",
     "enforced_by": [
-      "scripts/validate_intake_schema.py",
-      "hooks/pre-publish-schema-validate.py"
+      "scripts/render-intake-final.py",
+      "scripts/render_notion_page.py"
     ]
   },
   "migration": {

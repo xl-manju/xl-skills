@@ -32,7 +32,7 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 
 **入力**: ユーザーの「スキルを作りたい」要望 (topic 引数任意)
 
-**成果物 (3 系統)**:
+**成果物 (5 種類)**:
 
 | 成果物 | パス | 利用者 |
 |--|--|--|
@@ -42,22 +42,13 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 | Notion ブロック JSON (中間生成物) | `output/<skill-name-hint>/notion-blocks.json` | publisher 入力 |
 | self-update メタログ | `output/<skill-name-hint>/self-update.json` | skill-intake-self-updater (question-bank 更新証跡) |
 
-**完了条件**: 5 軸全充足 + 各セクションに必要十分図解 + `scripts/quality_gate.py` PASS (内部で `section_quality_check.py` を必須呼出) + `scripts/verify_notion_assets.py` PASS + Notion 公開成功。
+**完了条件**: 5 軸全充足 + 各セクションに必要十分図解 + `scripts/quality_gate.py` PASS + `scripts/render-intake-final.py` PASS (JSON Schema + adopted 一意性検証) + `scripts/verify_notion_assets.py` PASS + Notion 公開成功。
 
-### 本文テンプレ = 6必須ブロック格子
+### 本文テンプレ = intake-final-template.md.tmpl §0〜§11
 
-intake.md / Notion ブロックの全 10 章 (0表紙メタ / 1目的 / 2ユーザー像 / 3 5軸回答 / 4外部連携 / 5想定フロー / 6価値KPI / 7類似スキル / 7.5ナレッジ資産 / 8未解決事項 / 9 Next Action / 10付録) は以下の 6 ブロックを必ず含む。定義は `references/section-templates.json`、生成は `scripts/apply_section_template.py --lattice`、検証は `scripts/section_quality_check.py` (quality_gate.py から必須呼出)。
+正本: `references/intake-final-template.md.tmpl` + `references/intake-final-schema.json` + `references/section_canonical_map.json` (v2)。生成は `scripts/render-intake-final.py`、Notion 投影は `scripts/render_notion_page.py` (v2: intake-final-context.json を入力)。
 
-| ブロック | 内容 | 下限 |
-|--|--|--|
-| (a) 目的 callout | emoji + 何を決める章か | 200字 |
-| (b) 必須フィールド表 | キー / 型 / 制約 / 例 | 4キー以上 |
-| (c) 良例 callout | good_example | 200字 |
-| (d) NG例 callout | anti_pattern + 理由 | 100字 |
-| (e) 字数下限/上限 | toggle で section_quality_check.py の閾値と同期 | — |
-| (f) 可視化義務 | mermaid or PNG 1-3 点 (visualization-mandatory-rules.md 準拠) | 1点 |
-
-ng_example の単一プレースホルダー `TODO(human)` は `3 5軸回答` 章のみ意図的に残し、ユーザー自身に最重要章の NG 例を記入してもらう (section_quality_check.py は `3_five_axes` の TODO(human) のみ許容)。
+旧 v1 (`section-templates.json` + 6ブロック格子 + `apply_section_template.py` + `section_quality_check.py`) は本リリースで廃止・削除済み。
 
 ## 既存スキルとの責務境界
 
@@ -73,7 +64,7 @@ ng_example の単一プレースホルダー `TODO(human)` は `3 5軸回答` �
 
 1. **Problem First**: 表層要望を仮説扱いし、本質的問題を最優先で発掘。
 2. **Structure-Reduces-Drift**: 「言語化されているのは1割」を前提に、問い構造で誤り訂正する。
-3. **Script First**: 決定論処理はすべて `scripts/*.py` (Python 3 標準ライブラリのみ; macOS 標準 `/usr/bin/python3`)。LLM 判断は補助。
+3. **Script First**: 決定論処理はすべて `scripts/*.py` (Python 3 + `jsonschema` / `jinja2` を許容 — pip-installable, JSON Schema 検証と Jinja2 テンプレ駆動に必須; macOS 標準 `/usr/bin/python3`)。LLM 判断は補助。
 4. **Visualization Mandatory**: 全セクションに 1〜3 図 (Mermaid 12+SVG 8 カタログから選択)。非エンジニア対応マスト 8 ルール強制。
 5. **Self-Evolving**: question-bank がヒアリング毎に成長する自己進化ループ。
 6. **Secret-Out-of-Repo**: API シークレットはコード/`.env`/環境変数に置かず macOS Keychain から都度取得。`scripts/keychain_get_secret.py` 経由のみ。
@@ -171,7 +162,7 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
 
 ## Additional Resources
 
-### references/ (本スキル直下、20 個)
+### references/ (本スキル直下、31 個)
 
 | 用途 | ファイル |
 |--|--|
@@ -201,9 +192,9 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
 
 `skill-intake-kickoff` / `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-interviewer` / `skill-intake-purpose-excavator` / `skill-intake-option-presenter` / `skill-intake-visualizer` / `skill-intake-summarizer` / `skill-intake-next-action-advisor` / `skill-intake-handoff` / `skill-intake-notion-publisher` / `skill-intake-self-updater`
 
-### Scripts (plugin 直下 `scripts/`, 27 本)
+### Scripts (plugin 直下 `scripts/`, 34 本)
 
-`keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 旧 20 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
+`keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 既存 27 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
 
 ### Assets (本スキル直下 `assets/`)
 

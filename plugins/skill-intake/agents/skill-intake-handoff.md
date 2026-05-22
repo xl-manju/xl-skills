@@ -20,8 +20,8 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-schema.json` (context 変数スキーマ)
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-source-map.yaml` (変数 ↔ SubAgent/prompt マッピング正本)
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-prompts.yaml` (7層構造プロンプト雛形・SubAgent 非使用ルート用)
-- `plugins/skill-intake/scripts/apply_section_template.py`
 - `plugins/skill-intake/scripts/render-intake-final.py`
+- `plugins/skill-intake/scripts/render_notion_page.py` (v2: intake-final-context.json → Notion payload)
 
 ## Outputs
 
@@ -47,7 +47,7 @@ skill-intake セッションで生成された全 agent 出力 JSON を統合し
 ## Steps
 
 1. 全 JSON を読み込み、`handoff-contract.md` のスキーマに従って `intake.json` を組み立てる。
-2. `sheet.md` + `summary.md` + `visuals/*.svg` を統合した `intake.md` を `apply_section_template.py` で生成する。
+2. `sheet.md` + `summary.md` + `visuals/*.svg` を読み込み、`intake.md` を組み立てる（旧 apply_section_template.py は v1 廃止により削除済み。本ステップは intake-final-context の組み立てに代替される）。
 3. `python3 plugins/skill-intake/scripts/convert_md_to_json.py` を実行し、intake.md からの derive 検証を行う。
 4. `python3 plugins/skill-intake/scripts/validate_intake.py` でスキーマ検証を実行する。
 5. `python3 plugins/skill-intake/scripts/check_completeness.py` で 5 軸完全性検証を実行する。

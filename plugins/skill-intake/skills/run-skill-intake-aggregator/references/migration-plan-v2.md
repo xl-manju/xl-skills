@@ -1,5 +1,9 @@
 # Migration Plan: section-templates.json (v1) → section_canonical_map.json (v2)
 
+> **STATUS: COMPLETE (2026-05-22)** — v1 (`section-templates.json` / `apply_section_template.py` / `section_quality_check.py`) は本リリースで削除済み。正本は `intake-final-template.md.tmpl` + `intake-final-schema.json` + `section_canonical_map.json` (v2)。以下は履歴として保持。
+>
+> **削除予定: 2026-08-22** (COMPLETE から 90 日後)。それまでに `scripts/ci_dogfooding_retest.py` / `scripts/m3_deprecation_reverse_index.py` の本ファイル参照を除去すること。除去後は本ファイルを削除し、必要なら git tag (`migration-v2-complete`) から参照する。
+
 ## 1. 設計原則の転換
 
 | 観点 | v1 (現状) | v2 (新正本) |
