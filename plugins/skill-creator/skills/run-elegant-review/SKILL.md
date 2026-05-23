@@ -1,6 +1,6 @@
 ---
 name: run-elegant-review
-description: 新規/更新Skillの設計eleganceを多角的思考法と4条件で検証したいとき、量産パッケージの品質ゲートとして使う。
+description: 新規/更新Skillの設計eleganceを多角的思考法と4条件で検証したいとき、量産パッケージの品質ゲートとして使いたいときに起動する。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "<target-type> <target-path> [--scope skill|plugin|repo] [--dry-run] [--max-iter 3]"

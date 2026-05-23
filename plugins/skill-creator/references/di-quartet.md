@@ -15,7 +15,7 @@
 |---|---|---|---|
 | `ref-*` | 静的 reference の供給 (lookup 対象) | none | `ref-skill-design-rubric`, `ref-pkg-contract` |
 | `lookup-*` (将来予約) | 動的 query を ref-* に発行する adapter | read-only | (現状未使用、将来 lookup adapter 用) |
-| `assign-*` | 採点 / 検査の実行 (read-only) | none / report 出力のみ | `assign-skill-design-evaluator`, `assign-plugin-package-validator` |
+| `assign-*` | 採点 / 検査の実行 (read-only) | none / report 出力のみ | `assign-skill-design-evaluator`, `assign-plugin-package-evaluator` |
 | `run-*` | フローのオーケストレーション (write 可) | local-artifact | `run-build-skill`, `run-elegant-review` |
 
 ## 依存方向 (DAG)

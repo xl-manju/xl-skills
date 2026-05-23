@@ -1,5 +1,5 @@
 ---
-name: assign-plugin-package-validator
+name: assign-plugin-package-evaluator
 description: 36章 PKG-002〜008 sub-check を実行したいとき、plugin package の静的検査結果を findings JSON で得たいときに使う。
 user-invocable: false
 context: fork
@@ -9,7 +9,7 @@ pair: run-plugin-package-check
 kind: assign
 prefix: assign
 effect: conversation-output
-role_suffix: validator
+role_suffix: evaluator
 owner: team-platform
 since: 2026-05-23
 source: doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md
@@ -28,7 +28,7 @@ rubric_refs:
   - ref-pkg-contract
 ---
 
-# assign-plugin-package-validator
+# assign-plugin-package-evaluator
 
 ## Purpose & Output Contract
 

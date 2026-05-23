@@ -22,7 +22,7 @@ schema_refs:
 
 ## Purpose & Output Contract
 
-36章 Plugin Package Harness Contract の **PKG-001〜017 ID 表** と **`package-contract.json` JSON Schema** を機械可読化した参照専用 skill。`run-plugin-package-check`（B）と `assign-plugin-package-validator`（C）が同一定義を共有するためのシングルソース。
+36章 Plugin Package Harness Contract の **PKG-001〜017 ID 表** と **`package-contract.json` JSON Schema** を機械可読化した参照専用 skill。`run-plugin-package-check`（B）と `assign-plugin-package-evaluator`（C）が同一定義を共有するためのシングルソース。
 
 **入力**: PKG ID（PKG-001〜015、PKG-013a〜d、PKG-016/017 予約）または `package_mode` 値（`bundle` / `skill-only`）
 **出力**: ID 意味・実装スクリプトパス・適用 package_mode・eval-log 保存先パス・ governance 制約

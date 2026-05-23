@@ -36,7 +36,7 @@
 ### 2.1 責務 (Single Responsibility)
 
 - 担当: PKG ID 1 件のメタデータ（phase / script / severity / eval-log path / 関連章）を圧縮返答
-- 非担当: PKG check の実行（assign-plugin-package-validator）、phase 完了判定（run-plugin-package-check/R2）、契約改廃 governance（run-skill-rubric-governance）
+- 非担当: PKG check の実行（assign-plugin-package-evaluator）、phase 完了判定（run-plugin-package-check/R2）、契約改廃 governance（run-skill-rubric-governance）
 
 ### 2.2 ドメインルール
 
@@ -133,7 +133,7 @@ errors:
 
 ### 6.1 上位 skill との接続
 
-- 呼び出し元: `run-plugin-package-check` (Step 0 入力検証時)、`assign-plugin-package-validator` (PKG ID メタ参照時)
+- 呼び出し元: `run-plugin-package-check` (Step 0 入力検証時)、`assign-plugin-package-evaluator` (PKG ID メタ参照時)
 - 後続 phase: なし（リーフ参照）
 
 ### 6.2 並列性

@@ -27,7 +27,7 @@
       "id": "pkg-002-008",
       "step": 2,
       "phase_gate": 0,
-      "delegateSkill": "assign-plugin-package-validator",
+      "delegateSkill": "assign-plugin-package-evaluator",
       "delegate_context": "fork",
       "delegate_args": {
         "target_plugin": "${plugin}",
@@ -86,7 +86,7 @@
       "id": "pkg-014",
       "step": 7,
       "phase_gate": 2,
-      "delegateSkill": "assign-plugin-package-validator",
+      "delegateSkill": "assign-plugin-package-evaluator",
       "delegate_context": "fork",
       "delegate_args": {
         "target_plugin": "${plugin}",

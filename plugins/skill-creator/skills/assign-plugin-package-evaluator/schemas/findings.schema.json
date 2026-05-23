@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/schemas/pkg-validator-findings.json",
   "title": "PKG Validator Findings",
-  "description": "assign-plugin-package-validator が出力する findings JSON の schema。PKG-002〜008 の検査結果を統一形式で表現。",
+  "description": "assign-plugin-package-evaluator が出力する findings JSON の schema。PKG-002〜008 の検査結果を統一形式で表現。",
   "type": "object",
   "required": ["run_id", "target_plugin", "package_mode", "pkg_checks", "verdict"],
   "properties": {

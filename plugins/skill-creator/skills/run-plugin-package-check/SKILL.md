@@ -24,7 +24,7 @@ source: doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.m
 source-tier: internal
 last-audited: 2026-05-23
 audit-trigger: quarterly
-pair: assign-plugin-package-validator
+pair: assign-plugin-package-evaluator
 manifest: workflow-manifest.json
 responsibility_refs:
   - prompts/orchestrate.md
@@ -42,7 +42,7 @@ script_refs:
   - scripts/validate-plugin-permissions.py
   - scripts/aggregate-pkg-findings.py
 subagent_refs:
-  - assign-plugin-package-validator
+  - assign-plugin-package-evaluator
 ---
 
 # run-plugin-package-check
@@ -75,7 +75,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
 ## Key Rules
 
 1. **PKG ID 定義は ref-pkg-contract 経由**: 本 skill で再定義しない
-2. **PKG-002〜008 は assign-plugin-package-validator に委譲**: Skill tool 経由で `context: fork`
+2. **PKG-002〜008 は assign-plugin-package-evaluator に委譲**: Skill tool 経由で `context: fork`
 3. **PKG-001/009/010〜015 は本 skill が直接実装**: 各 scripts を sub-process で実行
 4. **`package_mode: skill-only` plugin に対する適用範囲**: PKG-002/004 のみ実行、それ以外は `not_applicable`
 5. **eval-log パス独自定義禁止**: 27章 §3.1 規約厳守
@@ -93,7 +93,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
    │     scripts/run-plugin-validate-strict.sh
    ▼
 [Step 2] PKG-002〜008 委譲
-   │     Skill(assign-plugin-package-validator, target_plugin=<name>, context=fork)
+   │     Skill(assign-plugin-package-evaluator, target_plugin=<name>, context=fork)
    ▼
 [Step 3] PKG-009 外部参照ゼロ
    │     ../../scripts/lint-external-refs.py --plugin <name>
@@ -108,7 +108,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
    │     scripts/validate-plugin-permissions.py --check 013<a-d>
    ▼
 [Step 7] PKG-014 runtime contract
-   │     assign-plugin-package-validator (delegated, --check pkg-014)
+   │     assign-plugin-package-evaluator (delegated, --check pkg-014)
    ▼
 [Step 8] PKG-015 rubric 違反率
    │     ../../scripts/lint-rubric-violation.py --plugin <name>
@@ -152,6 +152,6 @@ Phase 別の実行 Step は `workflow-manifest.json phases[].id` 参照。
 - `scripts/smoke-plugin-upgrade.sh` — PKG-012
 - `scripts/validate-plugin-permissions.py` — PKG-013a〜d
 - `scripts/aggregate-pkg-findings.py` — Step 9 集約
-- 子 skill: `assign-plugin-package-validator` (PKG-002〜008, PKG-014)
+- 子 skill: `assign-plugin-package-evaluator` (PKG-002〜008, PKG-014)
 - 参照 skill: `ref-pkg-contract`
 - 設計書: 36章（正本）、27章 §3.1/§4.1、34章 Phase 0/1/2、35章 observables、34a §4

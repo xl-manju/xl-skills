@@ -1,1 +1,0 @@
-../../plugins/skill-creator/agents/README.md

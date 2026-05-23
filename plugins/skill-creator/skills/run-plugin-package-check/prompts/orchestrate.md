@@ -39,7 +39,7 @@
 ### 2.1 責務 (Single Responsibility)
 
 - 担当: phase 0/1/2 別に PKG-001〜015 を順次/並列実行し findings を集約、verdict を出力
-- 非担当: 個別 PKG 実装（assign-plugin-package-validator）、完了判定 phase ロジック（R2 gate-decide）、契約 schema 改廃（governance）
+- 非担当: 個別 PKG 実装（assign-plugin-package-evaluator）、完了判定 phase ロジック（R2 gate-decide）、契約 schema 改廃（governance）
 
 ### 2.2 ドメインルール
 
@@ -85,7 +85,7 @@
 - `scripts/validate-plugin-permissions.py` (PKG-013a〜d)
 - `scripts/aggregate-pkg-findings.py` (Step 9 集約 + observable emit)
 - 外部 lint: `../../scripts/lint-external-refs.py` (PKG-009)、`../../scripts/lint-rubric-violation.py` (PKG-015)
-- delegate: `Skill(assign-plugin-package-validator, context=fork)` (PKG-002〜008/014)
+- delegate: `Skill(assign-plugin-package-evaluator, context=fork)` (PKG-002〜008/014)
 
 ## Layer 4: 共通ポリシー層
 
@@ -119,18 +119,18 @@
 ### 5.1 担当 agent
 
 - run-plugin-package-check skill 本体（context-fork 不要、orchestrator は親 context 継承）
-- 個別 PKG check は `Skill(assign-plugin-package-validator, context=fork)` で delegate
+- 個別 PKG check は `Skill(assign-plugin-package-evaluator, context=fork)` で delegate
 
 ### 5.2 推論手順 (再現可能)
 
 1. **Step 0 入力検証**: `plugins/<plugin>/.claude-plugin/plugin.json` 存在確認、`package_mode` 抽出（欠落→skill-only 推定）、`pkg` 引数で対象 ID 絞込
 2. **Step 1 PKG-001**: `scripts/run-plugin-validate-strict.sh` 実行
-3. **Step 2 PKG-002〜008**: `Skill(assign-plugin-package-validator, context=fork, pkg_ids=[002..008])`
+3. **Step 2 PKG-002〜008**: `Skill(assign-plugin-package-evaluator, context=fork, pkg_ids=[002..008])`
 4. **Step 3 PKG-009**: `../../scripts/lint-external-refs.py`
 5. **Step 4 PKG-010**: `scripts/smoke-plugin-install.sh`（`failure_action: abort`、fail で以降 skip）
 6. **Step 5 PKG-011/012**: `smoke-plugin-uninstall.sh` / `smoke-plugin-upgrade.sh`
 7. **Step 6 PKG-013a〜d**: `validate-plugin-permissions.py` 各 sub-check
-8. **Step 7 PKG-014**: `Skill(assign-plugin-package-validator, context=fork, pkg_ids=[PKG-014])`
+8. **Step 7 PKG-014**: `Skill(assign-plugin-package-evaluator, context=fork, pkg_ids=[PKG-014])`
 9. **Step 8 PKG-015**: `../../scripts/lint-rubric-violation.py`
 10. **Step 9 集約**: `aggregate-pkg-findings.py --plugin <name> --out eval-log/<plugin>/pkg-summary/<date>-<run>.json`
 11. **Step 10 verdict 出力**: stdout に markdown サマリ + exit code 設定

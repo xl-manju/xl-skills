@@ -8,7 +8,7 @@
 | key | value |
 |---|---|
 | name | run-pkg-check |
-| skill | assign-plugin-package-validator |
+| skill | assign-plugin-package-evaluator |
 | responsibility | R1 (PKG-002〜008/014 worker 実行) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/findings.schema.json |
@@ -103,7 +103,7 @@
 
 ### 5.1 担当 agent
 
-- assign-plugin-package-validator skill（kind=assign, **context: fork 強制**）
+- assign-plugin-package-evaluator skill（kind=assign, **context: fork 強制**）
 
 ### 5.2 推論手順 (再現可能)
 
@@ -128,7 +128,7 @@
 
 ### 6.1 上位 skill との接続
 
-- 呼び出し元: `run-plugin-package-check` (PKG-002〜008 phase で `Skill(assign-plugin-package-validator, context=fork)`)
+- 呼び出し元: `run-plugin-package-check` (PKG-002〜008 phase で `Skill(assign-plugin-package-evaluator, context=fork)`)
 - 後続 phase: `aggregate-pkg-findings.py` が本 worker findings + 他 script findings を結合
 
 ### 6.2 並列性

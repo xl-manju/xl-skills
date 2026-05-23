@@ -22,8 +22,8 @@ scripts:
   aggregate: scripts/aggregate-pkg-findings.py
 
 delegate_skills:
-  pkg_002_008: assign-plugin-package-validator
-  pkg_014: assign-plugin-package-validator
+  pkg_002_008: assign-plugin-package-evaluator
+  pkg_014: assign-plugin-package-evaluator
 
 external_scripts:
   pkg_009: ../../scripts/lint-external-refs.py

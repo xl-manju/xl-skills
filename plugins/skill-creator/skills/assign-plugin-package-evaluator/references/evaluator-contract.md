@@ -1,4 +1,4 @@
-# Evaluator Contract: assign-plugin-package-validator
+# Evaluator Contract: assign-plugin-package-evaluator
 
 ## 責務境界
 
