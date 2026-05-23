@@ -11,6 +11,7 @@ allowed-tools:
   - AskUserQuestion
 kind: run
 user-invocable: true
+disable-model-invocation: true
 # local-ext: frontmatter-fields.md 未掲載の独自フィールド。要governance届出
 effect: external-mutation
 source: plugins/skill-intake
@@ -18,10 +19,26 @@ source-tier: internal
 last-audited: 2026-05-21
 audit-trigger: monthly
 hierarchy_level: orchestrator
-rubric_refs: [quality-rubric, sink-contract]
+rubric_refs:
+  - references/quality-rubric.md
+  - references/execution-surface-rubric.md
+  - references/rubric.json
+subagent_template: references/seven-layer-subagent-template.md
+shared_schemas:
+  - schemas/handoff.schema.json
+  - schemas/findings.schema.json
+  - schemas/intake-final.schema.json
+lint_scripts:
+  - ../../scripts/lint_subagent_seven_layer.py
 role_suffix: aggregator
 owner: team-platform
 since: 2026-05-20
+responsibility_refs:
+  - prompts/main.md
+  - prompts/R1.md
+schema_refs:
+  - schemas/intake-final.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-skill-intake-aggregator

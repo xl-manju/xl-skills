@@ -28,6 +28,7 @@ def axis_text(v):
 
 
 MAX_TRUE_PROBLEM_LEN = 200
+MAX_TITLE_JA_LEN = 30
 
 
 def truncate(s, n):
@@ -35,23 +36,110 @@ def truncate(s, n):
     return s if len(s) <= n else s[: max(0, n - 1)] + '…'
 
 
+def derive_ja_title(intake):
+    """日本語タイトルを優先順位に従って導出。見つからなければ None。"""
+    meta = intake.get('meta') or {}
+    ndp = intake.get('notion_db_properties') or {}
+    # 1) meta.skill_title_ja (新規正式フィールド)
+    cand = meta.get('skill_title_ja')
+    if cand and str(cand).strip():
+        return str(cand).strip()[:MAX_TITLE_JA_LEN]
+    # 2) notion_db_properties.名前 が既に日本語の場合
+    name = ndp.get('名前')
+    if name and isinstance(name, str) and any(ord(c) > 127 for c in name):
+        return name.strip()[:MAX_TITLE_JA_LEN]
+    # 3) top-level skill_title_ja
+    cand = intake.get('skill_title_ja')
+    if cand and str(cand).strip():
+        return str(cand).strip()[:MAX_TITLE_JA_LEN]
+    # 4) purpose.verb_object から自動生成 (末尾「する」「したい」「。」を削り 30 字)
+    purpose = intake.get('purpose') or {}
+    vo = purpose.get('verb_object') or purpose.get('true_purpose') or ''
+    if vo:
+        title = str(vo).strip().rstrip('。').rstrip('.')
+        for suffix in ('したい', 'します', 'する'):
+            if title.endswith(suffix):
+                title = title[: -len(suffix)]
+                break
+        title = title.strip()
+        if title:
+            return title[:MAX_TITLE_JA_LEN]
+    return None
+
+
 def build_properties(intake, args):
-    """7 プロパティのみ書き込む。残り 12 項目は本文 children 側 (build_extra_body_blocks) で扱う。"""
+    """実際の Notion DB スキーマに合わせたプロパティ送信。
+    DB プロパティ (2026-05-23 実測):
+      名前(title), ステータス(select), パターン(select), 真の課題(rich_text),
+      ナレッジ資産(rich_text), 出力先(rich_text), 情報源(rich_text), 共有相手(rich_text),
+      ユーザープロファイル(rich_text), 未解決事項(rich_text),
+      外部連携(multi_select), 図解枚数(number), 価値実現スコア(number),
+      スキル作成完了(checkbox),
+      作成日時(created_time - 自動), 更新日時(last_edited_time - 自動), 担当者(people - 省略)
+    """
     axes = intake.get('five_axes') or intake.get('5_axes') or {}
     true_problem_short = truncate(axis_text(axes.get('true_problem')), MAX_TRUE_PROBLEM_LEN)
-    tags = intake.get('knowledge_asset_tags')
-    if not isinstance(tags, list):
-        tags = []
+
+    # meta / notion_db_properties からデータ取得
+    meta = intake.get('meta', {})
+    ndp = intake.get('notion_db_properties', {})
+    # 日本語タイトル優先（一目で何のスキルか分かるように）。なければ英語スラッグへフォールバック。
+    skill_name = (
+        derive_ja_title(intake)
+        or meta.get('skill_name_hint')
+        or ndp.get('名前')
+        or intake.get('skill_name_hint')
+        or 'untitled'
+    )
+    status = ndp.get('ステータス') or intake.get('status') or '下書き'
+    pattern_val = meta.get('pattern_code') or ndp.get('パターン') or intake.get('pattern') or 'A'
+
+    # 5軸テキスト
+    output_dest = axis_text(axes.get('output_target') or axes.get('output_destination'))
+    info_source = axis_text(axes.get('info_source'))
+    share_target = axis_text(axes.get('share_target'))
+
+    # ナレッジ資産
+    knowledge_assets = axis_text(axes.get('knowledge_assets'))
+
+    # ユーザープロファイル
+    up = intake.get('user_profile')
+    up_text = up if isinstance(up, str) else (json.dumps(up, ensure_ascii=False) if up else '')
+
+    # 未解決事項
+    oq = intake.get('open_questions') or []
+    oq_items = []
+    for q in oq:
+        if isinstance(q, dict):
+            oq_items.append(q.get('question', str(q)))
+        else:
+            oq_items.append(str(q))
+    oq_text = truncate('; '.join(oq_items), MAX_RT)
+
+    # 図解枚数
+    figs = intake.get('figures', {})
+    viz_count = len(figs.get('entries', [])) if isinstance(figs, dict) else 0
+
+    # 価値実現スコア
+    score = meta.get('value_realized_score') or ndp.get('value_realized_score') or 0
+
     props = {
-        '名前': {'title': rt(intake.get('skill_name_hint') or intake.get('skill_name') or 'untitled')},
-        'ステータス': {'select': {'name': intake.get('status') or '下書き'}},
-        'パターン': {'select': {'name': intake.get('pattern') or 'その他'}},
+        '名前': {'title': rt(skill_name)},
+        'ステータス': {'select': {'name': status}},
+        'パターン': {'select': {'name': pattern_val}},
         '真の課題': {'rich_text': rt(true_problem_short)},
-        'ナレッジ資産タグ': {'multi_select': [{'name': str(n)} for n in tags]},
+        'ナレッジ資産': {'rich_text': rt(truncate(knowledge_assets, MAX_RT))},
+        '出力先': {'rich_text': rt(truncate(output_dest, MAX_RT))},
+        '情報源': {'rich_text': rt(truncate(info_source, MAX_RT))},
+        '共有相手': {'rich_text': rt(truncate(share_target, MAX_RT))},
+        '図解枚数': {'number': viz_count} if viz_count > 0 else {'number': None},
+        '価値実現スコア': {'number': int(score)} if score else {'number': None},
     }
-    if getattr(args, 'md_url', None):
-        props['Markdown正本URL'] = {'url': args.md_url}
-    # 作成日時 は created_time (Notion 自動)。書き込み不要。
+    if up_text.strip():
+        props['ユーザープロファイル'] = {'rich_text': rt(truncate(up_text, MAX_RT))}
+    if oq_text.strip():
+        props['未解決事項'] = {'rich_text': rt(oq_text)}
+    # 作成日時/更新日時 は Notion 自動。担当者は people 型で省略。
     return props
 
 
@@ -90,8 +178,6 @@ def build_extra_body_blocks(intake, args):
         add_kv('図解枚数', str(intake['viz_count']))
     if isinstance(intake.get('value_score'), (int, float)) and not isinstance(intake.get('value_score'), bool):
         add_kv('価値実現スコア', str(intake['value_score']))
-    if isinstance(intake.get('handoff_to_creator'), bool):
-        add_kv('Creator 引き渡し', 'yes' if intake['handoff_to_creator'] else 'no')
     owner = intake.get('owner')
     if owner:
         add_kv('担当者', owner if isinstance(owner, str) else json.dumps(owner, ensure_ascii=False))
@@ -109,8 +195,6 @@ def build_extra_body_blocks(intake, args):
     integs = intake.get('integrations')
     if isinstance(integs, list) and len(integs) > 0:
         out.append(_toggle('外部連携', [', '.join(str(n) for n in integs)]))
-    if getattr(args, 'json_url', None):
-        add_kv('JSON 副本 URL', args.json_url)
 
     if len(out) <= 1:
         return []
@@ -122,8 +206,6 @@ def main():
     parser.add_argument('--intake', required=False)
     parser.add_argument('--blocks', required=False)
     parser.add_argument('--database-id', dest='database_id')
-    parser.add_argument('--md-url', dest='md_url')
-    parser.add_argument('--json-url', dest='json_url')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true')
     args = parser.parse_args()
 
@@ -191,9 +273,21 @@ def main():
         return 0
     # 実投稿: notion_http を遅延 import (dry-run 時は keychain アクセス回避)
     from notion_http import notion_fetch, NotionHttpError
+    MAX_FIRST = _LIMITS.get('MAX_BLOCKS_PER_APPEND', 100)
+    all_children = body['children']
+    # Notion API: POST /pages children limit = MAX_FIRST
+    body['children'] = all_children[:MAX_FIRST]
+    remaining = all_children[MAX_FIRST:]
     try:
         res = notion_fetch('/pages', method='POST', body=body)
-        out = {'id': res.get('id'), 'url': res.get('url'), 'created_time': res.get('created_time')}
+        page_id = res.get('id')
+        page_url = res.get('url')
+        # Append remaining blocks in chunks
+        chunk_size = MAX_FIRST
+        for i in range(0, len(remaining), chunk_size):
+            chunk = remaining[i:i + chunk_size]
+            notion_fetch(f'/blocks/{page_id}/children', method='PATCH', body={'children': chunk})
+        out = {'id': page_id, 'url': page_url, 'created_time': res.get('created_time')}
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0
     except NotionHttpError as e:

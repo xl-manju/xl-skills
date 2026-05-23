@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-intake-interview/interview.schema.json",
+  "title": "interview.json",
+  "description": "Phase 4 出力。5 軸シート充足状態と needs_excavation フラグを保持する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["filled_ratio", "five_axes_complete", "unresolved", "needs_excavation", "abstract_answers"],
+  "properties": {
+    "filled_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+    "five_axes_complete": {"type": "boolean"},
+    "unresolved": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "needs_excavation": {"type": "boolean"},
+    "abstract_answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["axis", "answer", "reason"],
+        "properties": {
+          "axis": {"type": "string", "enum": ["output", "source", "share", "true-pain", "knowledge-asset"]},
+          "answer": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ description: SKILL.mdを評価するとき、新規Skillを設計するときに
 disable-model-invocation: true
 user-invocable: false
 kind: ref
+prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-17
@@ -19,13 +20,13 @@ audit-trigger: quarterly
 ## Purpose & Output Contract
 
 Skill 設計の評価基準の **正本（upstream rubric）**。
-`assign-skill-design-evaluator` は本Skillの `rubric.json` を継承して採点する。
+`assign-skill-design-evaluator` は本Skillの `references/rubric.json` を継承して採点する。
 
 **出力**: なし（reference）。読み手は人間 or evaluator Skill のみ。
 
 ## Key Rules
 
-1. **本Skillが唯一の正本**: 他Skillの `rubric.json` は本ファイルを upstream とし deep-merge する（29章）。
+1. **本Skillが唯一の正本**: 他Skillの `references/rubric.json` は本ファイルを upstream とし deep-merge する（29章）。
 2. **threshold 80 / max 100**: severity weights は high -20, medium -10, low -3 固定。
 3. **rubric_version は semver**: minor=緩和、major=厳格化、patch=文言だけ（`run-skill-rubric-governance` 参照、27章）。
 4. **改正は governance runbook 経由**: 直接編集禁止。
@@ -39,7 +40,7 @@ Skill 設計の評価基準の **正本（upstream rubric）**。
 - **PD (Progressive Disclosure)**: 本文 <=100 or references/ 存在
 - **RG (Governance)**: rubric_hash 埋込
 
-各ルールの check 式と rationale は `rubric.json` を参照。
+各ルールの check 式と rationale は `references/rubric.json` を参照。
 
 ## Steps
 
@@ -52,7 +53,7 @@ Skill 設計の評価基準の **正本（upstream rubric）**。
 
 ## Additional Resources
 
-- `rubric.json` — 機械可読rubric（正本）
+- `references/rubric.json` — 機械可読rubric（正本）
 - `references/rubric-rationale.md` — 各ルールのwhy
 - 関連: `assign-skill-design-evaluator/references/rubric.json`（override層）
 - 関連: `run-skill-rubric-governance/` — 改正Runbook

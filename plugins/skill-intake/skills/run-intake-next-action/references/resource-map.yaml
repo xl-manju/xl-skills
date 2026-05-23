@@ -1,0 +1,6 @@
+version: 1
+read_when:
+  - file: references/pattern-recognition-rules-pointer.md
+    when: A/B/C/D/E 判定ルールを確認するとき
+  - file: references/mode-catalog.md
+    when: 各 mode の意味を確認するとき

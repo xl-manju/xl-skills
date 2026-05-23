@@ -1,5 +1,5 @@
 {
-  "tool": "publish_notion_page",
+  "tool": "verify_notion_schema",
   "source": "schema_default",
   "database_id": "36607a0cd18c80bf9effc74aa736645c"
 }

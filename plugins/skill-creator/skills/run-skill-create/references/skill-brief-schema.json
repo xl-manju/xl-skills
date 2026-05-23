@@ -2,6 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "skill-brief-schema.json",
   "title": "Skill Brief (run-skill-elicit → run-build-skill handoff)",
+  "x-canonical-redirect": "../schemas/skill-brief.schema.json",
+  "x-redirect-note": "正本は schemas/skill-brief.schema.json (workflow-manifest.json から resourceId として参照)。本ファイルは互換性のためのフィールド詳細リファレンスとして残す。両者は run-skill-elicit / run-build-skill 更新時に同期する。",
   "description": "run-skill-elicit が生成し eval-log/skill-brief.json に固定パスで書き出す JSON。run-build-skill / run-skill-create が消費する。01a Step3 (5 prefix CE要件) と 01 設計思想 (5要素モデル: Intent/Contract/Boundary/Execution/Feedback) を満たす。",
   "type": "object",
   "required": [

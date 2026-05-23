@@ -7,6 +7,7 @@ allowed-tools:
   - Read
   - Bash(python3 *)
 kind: delegate
+prefix: delegate
 effect: none
 delegate_agent: codex-cli
 owner: team-platform

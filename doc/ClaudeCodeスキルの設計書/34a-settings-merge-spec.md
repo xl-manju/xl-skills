@@ -298,3 +298,46 @@ if conflicts:
 `scripts/build-claude-settings.py` は少なくとも `--plugins-dir`、`--target`、`--dry-run`、`--check`、`--print-user-section-hash`、`--json` を提供する。終了コードは `0=success`、`1=drift`、`2=invariant violation / namespace conflict`、`3=invalid input / invalid plugin layout` とする。
 
 この章と CLI 仕様が競合した場合、INV の意味は本章、引数名と出力スキーマは task 04 を優先する。
+
+## §13 hook の Capability 化 (2026-05-22 補足)
+
+23章 § Capability 抽象への拡張 に従い、`plugin.json` の `hooks` 配下に inline 宣言された hook 群は、**個別の CapabilityManifest (`kind: hook`) として独立宣言可能** とする。本節はその互換性ルールを規定する。
+
+### 二経路の宣言
+
+| 宣言経路 | 配置 | 用途 | settings merge への影響 |
+|---|---|---|---|
+| **(A) inline 宣言** (従来) | `plugin.json` の `hooks` フィールド | bundle に密着し単一目的な小規模 hook | §7 マージアルゴリズム通り、`from_plugin` として直接抽出 |
+| **(B) 独立 CapabilityManifest** (新規) | `plugins/<name>/capabilities/<hook-name>.manifest.json` (`kind: hook`) | bundle 横断で再利用される hook、independent versioning が必要な hook | manifest の `interface.event / matcher / command` を §7 入力として展開 |
+
+経路 (B) の `CapabilityManifest` は、共通核 (`name / description / kind: "hook" / version / owner / tags / since`) と、kind=hook 固有の `interface` (`event / matcher / command`) と `invariant` (`event ∈ 公式 hook event 名 / 副作用境界宣言`) を持つ。schema は `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json` の `oneOf[kind=hook]` 分岐に従う。
+
+### settings merge への変更点
+
+- §7 マージアルゴリズムの「load hooks/hooks.json and hooks/*.json if present」のステップに、**経路 (B) の `capabilities/*.manifest.json` (where `kind == "hook"`) の追加スキャン** を加える。
+- 経路 (A) と (B) で同一の (event, matcher, command) を宣言した場合は §9 hook 衝突検出と同等に **exit 2** とする (silent merge 禁止)。
+- 経路 (B) の hook は `from_plugin` に加え、`from_capability` (manifest の `name`) を `managed_hooks` に併記する。これにより独立 versioning の追跡が可能になる。
+
+### INV への影響
+
+| INV | 影響 |
+|---|---|
+| INV-1 (user 管理値保存) | 影響なし。経路 (B) も managed_hooks に載るため、user 管理値との区別は維持される |
+| INV-2 (決定的生成) | manifest の scan 順序を plugin name → manifest file 名の辞書順で固定 |
+| INV-4 (plugin 順序) | 同一 plugin 内では (A) 由来 → (B) 由来の順で安定整列 |
+| INV-5 (衝突 ERROR) | (A) vs (B) の同一 (event,matcher,command) は exit 2 |
+| INV-10 (settings 構造検証) | `managed_hooks` の各 entry に `from_capability` (optional string) を追加可能化。schema 後方互換 |
+
+### `managed_hooks` 拡張 BNF
+
+```bnf
+managed-hook        ::= {"event": hook-event, "matcher": string-or-null, "command": string, "from_plugin": string, "from_capability": string-or-null}
+```
+
+`from_capability` が `null` の場合は経路 (A) (inline), 文字列の場合は経路 (B) (独立 manifest) を示す。既存 settings.json (`from_capability` フィールド不在) は INV-6 (未知キー保存) と整合的に load し、再生成時に追加する。
+
+### 関連章
+
+- 23章 § Capability 抽象への拡張: kind=hook の三層 contract 写像表
+- 33章 § CapabilityBundle governance: hook 改訂のカテゴリ判定
+- 35章: hook が観測する failure_mode の正本連携

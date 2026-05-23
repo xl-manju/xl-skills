@@ -131,6 +131,8 @@ def main(argv):
             targets.extend(pathlib.Path(".").glob(pattern))
     results = {"OK": [], "VIOLATION": []}
     for p in sorted(set(targets)):
+        if p.name.lower() == "readme.md":
+            continue
         fm = parse_frontmatter(p)
         name = fm.get("name", p.stem)
         desc = fm.get("description", "")

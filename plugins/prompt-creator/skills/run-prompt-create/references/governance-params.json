@@ -1,0 +1,31 @@
+{
+  "$comment": "run-prompt-create governance 自動承認パラメーター。prompts/governance-decide.md の機械評価に使用。solo_operator_auto を既定とし、初回ヒアリング (Gate 1) 以降の Gate 2-4 は条件充足時に自動承認する。",
+  "solo_operator_mode": true,
+  "stable_frozen": true,
+  "newly_failing_threshold": 0,
+  "llm_reviewer_required_verdicts": ["C1", "C2", "C3", "C4"],
+  "fallback_skill": "run-skill-rubric-governance",
+  "auto_approve_default": true,
+  "user_question_budget": 1,
+  "user_question_budget_note": "ユーザーへの能動的質問は brief 確定の Gate 1 で 1 回まで。Gate 2-4 は条件充足時に solo_operator_auto。条件不充足時のみ AskUserQuestion を発行。",
+  "prompt_specific_auto_approve_conditions": [
+    "layer_dependency_violations == 0",
+    "self_evaluation_checklist_present == true",
+    "markdown_format_default_kept == true",
+    "lint_agent_prompt_section == PASS",
+    "verify_completeness_score >= 0.95",
+    "responsibility_id_matches_owner_skill == true",
+    "atomic_field_violations == 0",
+    "translated_placeholder_residue == 0"
+  ],
+  "auto_approve_condition_rationale": {
+    "layer_dependency_violations": "L7→L1 単方向依存違反はプロンプト品質の根本欠陥",
+    "self_evaluation_checklist_present": "L5.3 self_evaluation_checklist がないと再現性が崩れる",
+    "markdown_format_default_kept": "YAML 新規作成は legacy 復活を意味し governance が必要",
+    "lint_agent_prompt_section": "Prompt Templates/Self-Evaluation 注入が機械検証済み",
+    "verify_completeness_score": "7 層充足率 95% 未満は LLM 判断揺れの温床",
+    "responsibility_id_matches_owner_skill": "R-id 不整合は orchestration 破綻",
+    "atomic_field_violations": "1フィールド=1概念 (50字目安) 違反は精度低下要因",
+    "translated_placeholder_residue": "{{...}} / TODO / 英語仮文残存は未完成のサイン"
+  }
+}

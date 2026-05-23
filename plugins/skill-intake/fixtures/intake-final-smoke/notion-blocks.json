@@ -106,9 +106,6 @@
           "name": "テンプレ"
         }
       ]
-    },
-    "Markdown正本URL": {
-      "url": "output/info-collector-agent/intake-final.md"
     }
   },
   "children": [

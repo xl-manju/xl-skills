@@ -5,6 +5,7 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Bash(python3 *)]
 kind: run
+prefix: run
 owner: team-platform
 since: 2026-05-21
 source: internal

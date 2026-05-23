@@ -1,120 +1,95 @@
 # xl-skills
 
-`xl-skills` は、Claude Code Skill を **作る・評価する・量産する・共有する** ための plugin 群です。中核は `plugins/skill-creator/`、運用検査は `plugins/skill-governance-*` に分割されています。
+`xl-skills` は、Claude Code を強化する **plugin 群** (機能拡張パッケージ) です。Claude Code に「スキルを作る」「品質を検査する」「非エンジニアからヒアリングする」といった能力を後から追加できます。
+
+> **plugin (プラグイン)**: Claude Code 本体を書き換えずに、後から機能を足すための小さな部品。スマートフォンアプリのようなものと考えてください。
 
 ---
 
 ## このドキュメントの読み方
 
-**初めての方**: [Part 1: クイックスタート](#part-1-クイックスタート5分) を **上から順番に** 実行してください。各ステップに「✅ 確認」コマンドが付いており、結果が想定通りなら次に進めます。
-
-**既に Claude Code を使っている方**: [Part 2: インストール (詳細)](#part-2-インストール詳細) から読んでください。
-
-**Skill を作りたい方**: Part 1 → [Part 3: Skill を作る最短フロー](#part-3-skill-を作る最短フロー)。
-
-**自分の plugin を配布したい方**: [Part 4: 自分の plugin を作って配布する](#part-4-自分の-plugin-を作って配布する)。
+- **インストールしたい方** → [Part 1: インストール手順](#part-1-インストール手順) を順番に実行
+- **API キーを設定したい方** → [Part 2: API キーの安全な保存 (Keychain)](#part-2-api-キーの安全な保存-keychain)
+- **どの plugin を入れるか迷う方** → [Part 3: plugin 一覧と役割](#part-3-plugin-一覧と役割)
+- **plugin の中身を理解したい方** → [Part 4: plugin の仕組み](#part-4-plugin-の仕組み)
 
 ---
 
-# Part 1: クイックスタート (5分)
+# Part 1: インストール手順
 
-このセクションは **完全にゼロからの手順** です。順番にコピペで実行してください。
+このリポジトリは **GitHub の marketplace から直接インストール**します。リポジトリを手元に clone する必要はありません。
+
+> **marketplace (マーケットプレイス)**: plugin が並んでいるお店のような場所。`xl-skills` 自体が 1 つのお店で、その中に複数の plugin が並んでいます。
 
 ## Step 0: 前提を確認する
 
-以下の 3 つがインストールされていることを確認します。
+Claude Code CLI が動く環境が必要です。
 
 ```bash
-# 1. git が入っているか
-git --version
-# → git version 2.x.x が出れば OK
-
-# 2. Claude Code CLI が入っているか
 claude --version
-# → claude code x.y.z が出れば OK
-# 入っていなければ: https://docs.claude.com/claude-code/setup
-
-# 3. Python 3.10 以上が入っているか (lint scripts 用)
-python3 --version
-# → Python 3.10 以上なら OK
+# → claude code x.y.z が表示されれば OK
 ```
 
-✅ **3 つすべてのバージョンが表示されたら Step 1 へ。**
+> ❌ 入っていなければ公式ガイド <https://docs.claude.com/claude-code/setup> を参照してください。
 
-> ❌ Claude Code が無い場合: 公式ガイド <https://docs.claude.com/claude-code/setup> に従ってインストール後、`claude login` を実行してください。
+## Step 1: marketplace を追加する
 
-## Step 1: このリポジトリを取得する
-
-選択肢が 2 つあります。**初めての方は方式 A を選んでください。**
-
-### 方式 A: GitHub から clone する (推奨)
-
-```bash
-# 好きな場所に clone (例: ~/dev/ )
-cd ~/dev
-git clone https://github.com/xl-manju/xl-skills.git
-cd xl-skills
-
-# ✅ 確認
-ls .claude-plugin/marketplace.json
-# → ファイルパスが表示されれば OK
-```
-
-### 方式 B: GitHub から直接 marketplace 追加 (上級者向け)
-
-Claude Code が GitHub URL から直接 marketplace を取得します。clone 不要ですが、ローカルでのカスタマイズができません。
+Claude Code セッションを起動し、以下を打ちます。
 
 ```text
 /plugin marketplace add xl-manju/xl-skills
 ```
 
-→ Part 1 の残り Step は Step 3 にジャンプしてください。
+これで「xl-skills というお店」が Claude Code に登録されます。
 
-## Step 2: marketplace として登録する
-
-方式 A で clone した場合、Claude Code に「ここに plugin 群があるよ」と教えます。**Claude Code セッション内** で実行します。
-
-```text
-/plugin marketplace add /Users/<yourname>/dev/xl-skills
-```
-
-> 💡 パスは Step 1 で `cd` した絶対パスです。`pwd` で確認できます。
-
-✅ **確認**: 以下を実行して `xl-skills` が出れば OK。
+✅ **確認**:
 
 ```text
 /plugin marketplace list
 ```
 
-## Step 3: plugin をインストールする
+`xl-skills` が表示されれば成功。
 
-最低限 `skill-creator` 1 つで Skill 作成は動きます。フル機能を使うなら全部入れます。
+## Step 2: plugin をインストールする
 
-### 3a. 最小構成 (まずはこれだけで OK)
+用途に合わせて選んでください。**まずは最小構成から始めることをおすすめします。**
+
+### 2a. 最小構成 (Skill を作りたいだけ)
 
 ```text
 /plugin install skill-creator@xl-skills
 /plugin install prompt-creator@xl-skills
 ```
 
-### 3b. フル構成 (運用検査・governance も含める)
+### 2b. 標準構成 (品質検査も使う)
+
+最小構成 + governance (運用検査) を追加:
 
 ```text
-/plugin install skill-creator@xl-skills
-/plugin install prompt-creator@xl-skills
 /plugin install skill-governance-config@xl-skills
 /plugin install skill-governance-lint@xl-skills
 /plugin install skill-governance-hooks@xl-skills
-/plugin install skill-governance-automation@xl-skills
-/plugin install skill-governance-adapters@xl-skills
-/plugin install skill-governance-migration@xl-skills
-/plugin install skill-governance-secrets@xl-skills
-/plugin install skill-intake@xl-skills
 ```
 
-✅ **確認**: `/plugin list` を実行し、上記が `installed` として表示されることを確認。
+### 2c. フル構成 (全部入り)
 
-## Step 4: 動作確認 (Smoke Test)
+すべての plugin をまとめて入れる場合は **bundle (束)** を使います。
+
+```text
+/plugin install xl-skills-full@xl-skills
+```
+
+> **bundle (バンドル)**: 複数の plugin を 1 行でまとめて入れるためのセット。`xl-skills-minimal` / `xl-skills-intake` などもあります。
+
+✅ **確認**:
+
+```text
+/plugin list
+```
+
+入れた plugin が `installed` と表示されれば成功。
+
+## Step 3: 動作確認
 
 Claude Code セッション内で以下を打ち、補完候補に出ることを確認します。
 
@@ -122,345 +97,300 @@ Claude Code セッション内で以下を打ち、補完候補に出ること�
 /skill-creator:run-skill-create
 ```
 
-実行すると対話が始まります。一旦キャンセル (`Ctrl-C` または「やめる」と返答) して構いません。
+実行が始まれば成功。一旦キャンセル (`Ctrl-C` または「やめる」と返答) して構いません。
 
-✅ **Skill が起動できた = インストール成功。**
-
-## Step 5: 最初の Skill を作ってみる
-
-本番の入口は **常に `run-skill-create`** です。これがオーケストレーターとなり、要件抽出 → 生成 → lint → 評価 → governance を順に呼びます。
+## Step 4: アップデート / アンインストール
 
 ```text
-/skill-creator:run-skill-create
-```
-
-進行は次の順 (自動):
-
-1. `run-skill-elicit`: 何を自動化したいかを brief にする
-2. `run-build-skill`: `SKILL.md`, `references/`, `scripts/`, `prompts/` を生成
-3. `run-prompt-creator-7layer`: 責務ごとの 7 層プロンプトを生成 (kind が run/assign の場合)
-4. lint scripts: 命名/frontmatter/依存方向/責務 anchor を検査
-5. `assign-skill-design-evaluator`: rubric に沿って独立評価
-6. `run-elegant-review`: 大きめの変更は構造レビュー
-7. governance: rubric や共通基盤変更なら承認フロー
-
-✅ **brief が JSON で保存され、`plugins/<your-plugin>/skills/<your-skill>/SKILL.md` が生成されれば成功。**
-
----
-
-## トラブルシュート (Part 1 で詰まったら)
-
-| 症状 | 対処 |
-|---|---|
-| `/plugin` コマンドが効かない | Claude Code のバージョンが古い可能性。`claude --version` を確認し最新化 |
-| `marketplace add` で「not found」 | パスが絶対パスでない可能性。`pwd` で取得した絶対パスを使う |
-| `install` で「authentication failed」 | private repo の場合は GitHub に gh auth でログイン: `gh auth login` |
-| Skill が補完に出ない | `/plugin list` で `installed` になっているか、無ければ再 install |
-| Python script で ModuleNotFoundError | このリポジトリのスクリプトは標準ライブラリのみ。Python 3.10+ か再確認 |
-
----
-
-# Part 2: インストール (詳細)
-
-## 2.1 インストール scope の使い分け
-
-`/plugin install` には 3 つの scope があり、`.claude/settings.json` のどこに記録するかが変わります。
-
-| scope | 記録先 | 用途 |
-|---|---|---|
-| `--scope user` | `~/.claude/settings.json` | 個人用、全 project で有効 |
-| `--scope project` | `<repo>/.claude/settings.json` | チームで共有 (git に commit) |
-| `--scope local` | `<repo>/.claude/settings.local.json` | 特定 project の自分だけ (git 無視) |
-
-チーム共有の例:
-
-```text
-/plugin marketplace add xl-manju/xl-skills --scope project
-/plugin install skill-creator@xl-skills --scope project
-```
-
-これで同じ repo を clone したメンバーは `claude` 起動時に自動で marketplace 追加が走ります。
-
-## 2.2 GitHub から直接インストール (リモート marketplace)
-
-```text
-/plugin marketplace add xl-manju/xl-skills
-/plugin install skill-creator@xl-skills
-```
-
-clone 不要。Claude Code がキャッシュへコピーします。**ローカルで lint scripts などを編集したい場合は方式 A (clone) を選んでください。**
-
-## 2.3 CLI からのインストール
-
-セッション外から入れる場合:
-
-```bash
-claude plugin marketplace add xl-manju/xl-skills
-claude plugin install skill-creator@xl-skills
-```
-
-## 2.4 アップデート
-
-```text
+# アップデート
 /plugin marketplace update xl-skills
 /plugin update skill-creator@xl-skills
-```
 
-## 2.5 アンインストール
-
-```text
+# アンインストール
 /plugin uninstall skill-creator@xl-skills
 /plugin marketplace remove xl-skills
 ```
 
+## トラブルシュート
+
+| 症状 | 対処 |
+|---|---|
+| `/plugin` コマンドが効かない | Claude Code のバージョンが古い可能性。`claude --version` を確認し最新化 |
+| `marketplace add` で `not found` | リポジトリ名のスペルを確認。`xl-manju/xl-skills` が正しい |
+| `install` で `authentication failed` | private リポジトリの可能性。`gh auth login` でログイン |
+| Skill が補完に出ない | `/plugin list` で `installed` か確認、無ければ再 install |
+
 ---
 
-# Part 3: Skill を作る最短フロー
+# Part 2: API キーの安全な保存 (Keychain)
 
-## 3.1 入口は常に `run-skill-create`
+`skill-intake` plugin など、外部サービス (Notion 等) を呼ぶ plugin は **API キー (秘密の合言葉)** が必要です。
 
-```text
-/skill-creator:run-skill-create
-```
+xl-skills では API キーを **コード・ファイル・環境変数に書かず、Mac の Keychain (キーチェーン) に保存**する方針を取っています。
 
-手作業で `SKILL.md` を書かないでください。`run-skill-create` が brief → 生成 → 評価 → governance の pipeline を固定します。
+> **Keychain (キーチェーン)**: Mac に標準で入っている、パスワードや秘密情報を安全に保管してくれる金庫のような仕組み。Safari のパスワード保存にも使われています。
 
-## 3.2 `kind` を最初に決める
+## なぜ Keychain を使うのか?
 
-| kind | 用途 | プロンプト必須 |
-|---|---|---|
-| `run` | 手順を実行する workflow | ✅ 責務ごとに必須 |
-| `ref` | 参照用の知識、仕様、rubric | optional |
-| `assign` | 評価や採点を担当する独立 Skill | ✅ 責務ごとに必須 |
-| `delegate` | 外部 agent / CLI に委譲 | skip |
-| `wrap` | 既存 workflow の前後に安全策追加 | optional |
+- `.env` ファイルや環境変数に書くと **間違って git に commit してしまう**事故が起きやすい
+- Keychain は OS レベルで暗号化されており、他人が覗けない
+- Mac ログイン中だけ取り出せるので、自動で守られる
 
-`run` / `assign` を選んだ場合、brief に `responsibilities[]` (R1, R2, ...) を 1 件以上書く必要があります (schema 強制)。
+## Step 1: Keychain に API キーを登録する
 
-## 3.3 責務単位のプロンプト生成
-
-`run-build-skill` は brief の `responsibilities[].id` ごとに `prompt-creator` を呼び、7 層 YAML を生成します。出力先:
-
-```
-plugins/<plugin>/skills/<skill>/prompts/R1.yaml
-plugins/<plugin>/skills/<skill>/prompts/R2.yaml
-```
-
-SubAgent (`agents/<role>.md`) には `<!-- responsibility: R1 -->` という anchor が挿入され、prompt-creator がその直下に実発話例を充填します。
-
-検証:
+例として Notion の API キー (Internal Integration Token) を登録します。Mac のターミナルで実行:
 
 ```bash
-python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py \
-  eval-log/skill-build-trace.json
-
-python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py \
-  --strict-coverage --brief eval-log/skill-brief.json \
-  plugins/<plugin>/agents/<role>.md
+security add-generic-password \
+  -s "notion-api-key" \
+  -a "skill-intake" \
+  -w "secret_xxxxxxxxxxxxxxxxxxx" \
+  -U
 ```
 
-両方が `OK` を返せば再現性 PASS です。
+- `-s` … サービス名 (=Keychain 内の項目名。plugin が読みに行く名前)
+- `-a` … アカウント名 (=どの用途で使うかの区別)
+- `-w` … 実際の API キー (この値だけは秘密に)
+- `-U` … 既にあれば更新
 
-## 3.4 Skill の最小形
+> 💡 上のコマンドは履歴に API キーが残ります。`-w` を省略するとターミナルが対話的にキーを聞いてくれるので、その方が安全です。
 
-```text
-plugins/<your-plugin>/
-├── .claude-plugin/plugin.json
-├── skills/
-│   └── run-your-workflow/
-│       ├── SKILL.md           # 必須
-│       ├── references/        # 長い仕様 (progressive disclosure)
-│       ├── scripts/           # 決定論的処理
-│       └── prompts/           # responsibility 別 7 層 YAML
-└── agents/                    # SubAgent .md
+## Step 2: 登録できたか確認
+
+```bash
+security find-generic-password -s "notion-api-key" -a "skill-intake" -w
 ```
 
-SKILL.md 最小例:
+API キーが表示されれば登録成功。
 
-```markdown
+## Step 3: plugin が読みに行くサービス名
+
+各 plugin が期待する Keychain のサービス名は以下です。**この名前で登録してください。**
+
+| plugin | サービス名 (-s) | アカウント名 (-a) | 用途 |
+|---|---|---|---|
+| `skill-intake` | `notion-api-key` | `skill-intake` | Notion ページ作成 |
+
+(他に必要になった場合は plugin の README に追記されます)
+
+## 環境変数で上書きしたい場合
+
+CI など Keychain が使えない環境では、以下の環境変数で上書きできます。
+
+```bash
+export INTAKE_KEYCHAIN_SERVICE="notion-api-key"
+export INTAKE_KEYCHAIN_ACCOUNT="skill-intake"
+```
+
+通常の利用では上書き不要です。
+
 ---
-name: run-your-workflow
-description: 何をしたいときに使うかを発火条件が分かるように書く。
+
+# Part 3: plugin 一覧と役割
+
+`xl-skills` には複数の plugin が入っており、それぞれ役割が分かれています。「料理に例えると」のイメージで読んでください。
+
+## 中核 plugin (まず入れる)
+
+| plugin | 役割 | 料理例 |
+|---|---|---|
+| **skill-creator** | Skill (作業手順書) を作る・更新する・評価する司令塔 | レシピを設計するシェフ |
+| **prompt-creator** | Skill の中で使う「AI への指示文」を 7 層構造で作る | 調味料の配合表を作る人 |
+| **skill-intake** | 非エンジニアからヒアリングして Skill 要件を引き出す | お客様の好みを聞き取る接客係 |
+
+## 運用検査 plugin (品質を保つ)
+
+`skill-governance-*` という名前の plugin は、Skill の **品質を機械的に検査する仕組み** を提供します。手作りの料理が衛生基準を満たしているか確認する保健所のような役割です。
+
+| plugin | 役割 |
+|---|---|
+| **skill-governance-config** | 共通設定の置き場 (出力先 adapter / rubric 採点表 / routing ルール) |
+| **skill-governance-lint** | Skill の命名・依存方向・frontmatter (ヘッダ情報) を機械チェック |
+| **skill-governance-hooks** | Claude Code のイベント (ファイル変更時など) に反応する検査スクリプト |
+| **skill-governance-automation** | rubric (採点表) の合成、評価ログ管理、巻き戻し処理 |
+| **skill-governance-adapters** | Notion / Google Sheets / Slack など外部サービスへの出力口 |
+| **skill-governance-migration** | 古い形式の prompt や CLAUDE.md を Skill 形式へ移行 |
+| **skill-governance-secrets** | API キー取得と「うっかり漏洩」検査 |
+
+> **rubric (ルーブリック)**: 採点表のこと。「ここまでできたら 80 点」のように、Skill が良いか悪いかを数値化する物差し。
+>
+> **lint (リント)**: 自動チェックツールのこと。「ファイル名のルールが守られているか」「文字数が長すぎないか」を機械的に確認します。
+>
+> **hook (フック)**: 特定のタイミング (ファイルを変更したとき・コミットしようとしたときなど) に自動で走るスクリプト。
+
+## どれを入れるべきか?
+
+- **試してみたいだけ** → `skill-creator` + `prompt-creator` の 2 つ
+- **チームで使う・品質を保ちたい** → 上記 + `skill-governance-config` / `lint` / `hooks` の 3 つ
+- **非エンジニアからヒアリングしたい** → `skill-intake` を追加
+- **全部試したい** → bundle `xl-skills-full` で一括
+
+---
+
+# Part 4: plugin の仕組み
+
+ここからは「plugin がどう動いているか」を知りたい方向けの解説です。インストールだけしたい方は読み飛ばして OK です。
+
+## 4.1 plugin に入っている 4 つの部品
+
+1 つの plugin の中には、以下の 4 種類の部品を入れることができます。Claude Code はそれぞれを別の方法で利用します。
+
+| 部品 | 役割 | 利用方法 |
+|---|---|---|
+| **Skill (スキル)** | 作業手順書 + 知識資料 | `/skill-creator:run-skill-create` のようにスラッシュコマンドで呼ぶ。または AI が自動で発火条件を見て呼ぶ |
+| **SubAgent (サブエージェント)** | 独立した別 AI として動く専門家 | Skill から呼ばれて、別の文脈で 1 つの仕事だけをこなす |
+| **Hook (フック)** | 特定タイミングで自動実行されるスクリプト | ユーザーが直接呼ばない。「保存したら走る」「コマンド前に走る」など |
+| **Slash Command (スラッシュコマンド)** | `/コマンド名` で呼べるショートカット | ユーザーが直接タイプする |
+
+> **SubAgent (サブエージェント)**: 親 AI とは別の文脈で動く子分 AI。先入観を避けたいとき (例: 自分が書いた文章を客観的にレビューするとき) に使います。
+
+### Skill とは具体的に何か?
+
+Skill は **1 つのフォルダ** で、中に以下のような構造を持ちます。
+
+```
+plugins/skill-creator/skills/run-skill-create/
+├── SKILL.md           ← 必須。何のスキルか、いつ呼ぶか、手順を書く
+├── references/        ← 補助資料 (長い仕様書や採点表)
+│   ├── resource-map.yaml  ← 補助資料の索引
+│   └── ...
+├── scripts/           ← Python スクリプト (機械的処理を担当)
+└── prompts/           ← AI に渡す指示文の雛形
+```
+
+`SKILL.md` の冒頭には **frontmatter (フロントマター)** という設定欄があり、ここで「いつ Claude が自動でこのスキルを呼ぶか」を宣言します。
+
+```yaml
+---
+name: run-skill-create
+description: 新規スキルを作りたいとき、既存スキルを更新したいときに使う。
 kind: run
 ---
-
-# run-your-workflow
-
-## Purpose & Output Contract
-
-入力、出力、完了条件を書く。
-
-## Steps
-
-手順を書く。決定論的処理は scripts/ に寄せる。
 ```
 
-## 3.5 量産時の鉄則
+### SubAgent とは?
 
-1. **入口をひとつに** — 新規作成は `run-skill-create` だけ
-2. **種別を最初に決める** — `run/ref/assign/delegate/wrap` を混ぜない
-3. **Progressive disclosure** — SKILL.md は入口・契約・手順だけ。詳細は `references/`
-4. **rubric を階層化** — 共通 / ドメイン / 個別を deep-merge
-5. **生成と評価を分離** — `run-build-skill` と `assign-skill-design-evaluator` で context fork
+SubAgent は **plugin の `agents/` フォルダに `.md` ファイル 1 つ**として置かれます。
 
----
-
-# Part 4: 自分の plugin を作って配布する
-
-## 4.1 Plugin root を作る
-
-```bash
-mkdir -p plugins/my-plugin/.claude-plugin
-mkdir -p plugins/my-plugin/skills
+```
+plugins/skill-intake/agents/skill-intake-purpose-excavator.md
 ```
 
-## 4.2 manifest を置く
+呼ばれると **新しい AI 文脈** で起動し、親 Claude の会話履歴を引きずらない状態で 1 つの仕事をします。
 
-`plugins/my-plugin/.claude-plugin/plugin.json`:
+### Hook とは?
+
+Hook は **plugin の `hooks/` フォルダ**にスクリプトとして置かれ、`settings.json` で「いつ走らせるか」を設定します。
+
+```
+plugins/skill-intake/hooks/pre-publish-secret-scrub.sh
+```
+
+例: 「Notion に公開する直前に、API キーが文章に混じっていないか自動チェック」など。
+
+### Slash Command とは?
+
+`/intake` のように打つだけで Skill を起動するショートカット。**plugin の `commands/` フォルダ**に置かれます。
+
+```
+plugins/skill-intake/commands/intake.md
+```
+
+## 4.2 plugin の最小構造
+
+新しい plugin を作るなら、最低限以下があれば動きます。
+
+```
+plugins/my-plugin/
+├── .claude-plugin/
+│   └── plugin.json    ← この plugin の名前・バージョンなどの設定
+├── skills/            ← Skill 群を置く (任意)
+├── agents/            ← SubAgent を置く (任意)
+├── hooks/             ← Hook を置く (任意)
+└── commands/          ← Slash Command を置く (任意)
+```
+
+`plugin.json` の例:
 
 ```json
 {
   "name": "my-plugin",
   "version": "1.0.0",
-  "description": "チームで共有する workflow skill 集"
+  "description": "私の作業を自動化する plugin"
 }
 ```
 
-## 4.3 Skill を入れる
+## 4.3 marketplace にどう登録されているか
 
-```text
-plugins/my-plugin/skills/run-main-workflow/SKILL.md
-plugins/my-plugin/skills/ref-domain-rules/SKILL.md
-plugins/my-plugin/skills/assign-main-evaluator/SKILL.md
-```
-
-## 4.4 marketplace catalog に登録
-
-`.claude-plugin/marketplace.json` の `plugins[]` に追加:
+リポジトリ直下の `.claude-plugin/marketplace.json` が **plugin 一覧の目録**です。
 
 ```json
 {
-  "name": "my-plugin",
-  "source": "./plugins/my-plugin",
-  "description": "チームで共有する workflow skill 集",
-  "version": "1.0.0"
+  "name": "xl-skills",
+  "plugins": [
+    {"name": "skill-creator", "source": "./plugins/skill-creator"},
+    {"name": "skill-intake",  "source": "./plugins/skill-intake"}
+  ]
 }
 ```
 
-## 4.5 ローカル検証
+Claude Code は `/plugin marketplace add xl-manju/xl-skills` を実行すると、この `marketplace.json` を読み、`plugins/` 配下から実体をキャッシュにコピーします。
 
-```bash
-# JSON 構文
-python3 -m json.tool .claude-plugin/marketplace.json >/dev/null
-find plugins -path '*/.claude-plugin/plugin.json' -print \
-  -exec python3 -m json.tool {} >/dev/null \;
+## 4.4 `.claude/` と `~/.claude/` の役割
 
-# Claude Code 公式 validator (使える環境のみ)
-claude plugin validate ./plugins/my-plugin
-```
+インストール後、ファイルがどこに置かれるかを整理します。
 
-Claude Code セッションで local marketplace から install できることを確認:
+| 場所 | 中身 | 性質 |
+|---|---|---|
+| `plugins/<plugin>/` (リポジトリ内) | plugin の **正本** (オリジナル) | これが本物 |
+| `~/.claude/plugins/...` (ホームディレクトリ) | Claude Code が自動で保持するキャッシュ | 自動管理、編集しない |
+| `<repo>/.claude/skills/...` | 開発用の **派生 (symlink)** | `plugins/` の正本へのショートカット |
 
-```text
-/plugin marketplace add /path/to/xl-skills
-/plugin install my-plugin@xl-skills
-/my-plugin:run-main-workflow
-```
+> **symlink (シンボリックリンク)**: ファイルの近道。実体は別の場所にあり、symlink はその場所を指すだけ。Windows のショートカットや、Mac の Finder の「エイリアス」と似た仕組み。
 
-## 4.6 GitHub へ push して配布
+### なぜ symlink を使うのか?
 
-```bash
-git add plugins/my-plugin .claude-plugin/marketplace.json
-git commit -m "feat(plugin): add my-plugin"
-git push origin main
-```
+リポジトリ内では `plugins/` が正本ですが、Claude Code は本来 `~/.claude/` 配下しか見ないため、**開発中の plugin を即座に試す**には `.claude/skills/` 等にコピーする必要があります。コピーだと差分管理が大変なので、symlink で「`.claude/skills/run-foo` は実は `plugins/.../run-foo` を指している」とすることで、片方を編集すれば両方反映される仕組みにしています。
 
-利用者への案内:
+利用者として `/plugin install` で入れる場合、symlink の存在を意識する必要はありません。
 
-```text
-/plugin marketplace add your-org/your-repo
-/plugin install my-plugin@your-repo
-```
+## 4.5 scripts / references がホームディレクトリ配下にあるとき
 
----
+`/plugin install` で入れた plugin は、実体が `~/.claude/plugins/cache/.../` に展開されます。Skill が参照する scripts や references も同じ場所にコピーされるため、**ユーザーが直接触る必要はありません**。
 
-# Part 5: リポジトリ構成
+カスタマイズしたい場合のみ、リポジトリを clone してローカルの `plugins/` を編集し、`/plugin marketplace add /path/to/xl-skills` でローカル marketplace として登録します。
 
-```text
-xl-skills/
-├── .claude-plugin/
-│   └── marketplace.json          # marketplace catalog
-├── plugins/
-│   ├── skill-creator/            # Skill 作成・評価・量産の中核
-│   ├── prompt-creator/           # 7 層プロンプト生成
-│   ├── skill-intake/             # 非エンジニア協働 intake
-│   ├── skill-governance-config/  # adapter/rubric/routing 設定
-│   ├── skill-governance-lint/    # SKILL.md/rubric/依存方向 lint
-│   ├── skill-governance-hooks/   # Claude Code hook script
-│   ├── skill-governance-automation/ # rubric 合成、eval-log、rollback
-│   ├── skill-governance-adapters/   # local/http/Notion/Sheets/Slack
-│   ├── skill-governance-migration/  # 既存 prompt → Skill 移行
-│   └── skill-governance-secrets/    # secret 取得・leak 検査
-├── doc/ClaudeCodeスキルの設計書/ # 設計思想と詳細仕様 (01〜35章)
-├── CONVENTIONS.md                # 層 A/B/C と配布境界
-└── README.md
-```
+## 4.6 plugin が読み込む順番
 
-## Plugin 一覧
+Claude Code セッション起動時:
 
-| Plugin | 役割 |
-|---|---|
-| `skill-creator` | Skill 作成・評価・量産・改名・rubric governance の中核 |
-| `prompt-creator` | brief.responsibilities[] ごとに 7 層プロンプトを生成 |
-| `skill-intake` | 非エンジニアと協働して要件を引き出し Notion 連携 |
-| `skill-governance-config` | adapter registry / rubric registry / routing 例 |
-| `skill-governance-lint` | frontmatter / 命名 / 依存方向 / 責務 anchor 検査 |
-| `skill-governance-hooks` | Claude Code hook 用検証・handoff script |
-| `skill-governance-automation` | rubric 合成 / hash / eval-log / rollback / meta-harness |
-| `skill-governance-adapters` | local/http/Notion/Sheets/Slack 出力 adapter |
-| `skill-governance-migration` | 既存 prompt / CLAUDE.md / docs を Skill へ移行 |
-| `skill-governance-secrets` | secret 取得と leak 検査 |
+1. `~/.claude/settings.json` を読む
+2. 登録済 marketplace から `marketplace.json` を読む
+3. `installed` 状態の plugin の `plugin.json` を読む
+4. 各 plugin の `skills/` / `agents/` / `commands/` / `hooks/` を Claude Code に登録
+5. ユーザーが `/コマンド` を打つ、または会話の文脈が Skill の `description` (発火条件) に合致すると起動
 
 ---
 
-# Part 6: 設計の指針
+# Part 5: 参考リンク
 
-## 6.1 複数 Skill の実行制御
-
-複数 Skill を同じ plugin に入れても「ユーザーが手で順番に呼ぶ」設計にしないでください。**親オーケストレーター** を必ず置きます。
-
-このリポジトリでは `plugins/skill-creator/skills/run-skill-create/` が親で、brief 作成 → 生成 → lint → 評価 → governance を順に呼びます。
-
-設計上のルール:
-
-- ユーザー向け入口は `run-*` の親 Skill に集約
-- 子 Skill は入出力 contract を固定
-- 評価 Skill は `assign-*` に分離し `context: fork` を使う
-- 機械的に検査できるものは `scripts/` と hook へ
-- 出力先は workflow から直書きせず `ref-output-routing` と adapter で解決
-- 途中状態は handoff / eval-log に残し compact/再開に耐える
-
-## 6.2 再現性の 3 軸
-
-| 軸 | 保証する仕組み |
-|---|---|
-| Schema | `skill-brief-schema.json` の allOf 条件で kind ↔ responsibilities を強制 |
-| Path | `prompt-placement-convention.md` + `validate-build-trace.py` の regex |
-| Hash | per_responsibility.sha256 を 2 回生成で一致確認 (dogfooding test) |
-
-## 6.3 参考 (Claude Code 公式)
+## Claude Code 公式
 
 - Plugin 作成: <https://code.claude.com/docs/en/plugins>
 - Plugin reference: <https://code.claude.com/docs/en/plugins-reference>
 - Marketplace 作成と配布: <https://code.claude.com/docs/en/plugin-marketplaces>
 - Plugin の発見とインストール: <https://code.claude.com/docs/en/discover-plugins>
 
+## このリポジトリの設計資料
+
+- 設計思想と詳細仕様: `doc/ClaudeCodeスキルの設計書/` (01〜35章)
+- 配布境界の取り決め: `CONVENTIONS.md`
+
 ---
 
-# 運用メモ
+# 運用メモ (上級者向け)
 
-- `plugins/` は配布対象の **正本** です。
-- `doc/`, `eval-log/`, `.claude/` はこの repository の設計・評価・ローカル運用です。
+- `plugins/` は配布対象の **正本**。
+- `doc/`, `eval-log/`, `.claude/` は設計・評価・ローカル運用のためのディレクトリで、配布対象には含まれません。
 - plugin はインストール時にキャッシュへコピーされるため、plugin root の外側を `../` で参照しないでください。
-- 他 plugin と共有したい共通ファイルは marketplace 内の sibling plugin として置くか、同一 plugin 内に取り込んでください。
-- `installers/creator-kit/` は旧配置向け。新規ユーザーは `plugins/` 前提の本 README に従ってください。
+- 他 plugin と共有したい共通ファイルは、marketplace 内の sibling plugin として置くか、同一 plugin 内に取り込んでください。

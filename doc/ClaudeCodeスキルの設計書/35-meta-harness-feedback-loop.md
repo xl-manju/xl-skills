@@ -130,9 +130,79 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 | ログを KPI 化して数値最適化 | Skill本来の目的が侵食される | rationale で改善の質的根拠を必須化 |
 | 観測スキーマを軽率に変更 | 改善履歴の比較性喪失 | スキーマ変更を P0_breaking 化 |
 
+## reflective loop の Capability 用語による再記述 (2026-05-22)
+
+23章 § Capability 抽象への拡張 で導入した **Capability / CapabilityBundle / CapabilityManifest / CapabilityContract** 用語に基づき、本章のパイプラインを kind 横断の reflective loop として再定式化する。従来 Skill 限定で書かれた本章の改善経路は、Agent / Hook / Command / Plugin-Composition / Prompt / Workflow へも汎用に適用される。
+
+### reflective loop の正本定義
+
+```
+intake → build → review → lessons-learned → rubric-governance → 次回 build
+```
+
+| 段 | Capability 用語での意味 | 対象 kind | 具体実装 |
+|---|---|---|---|
+| **intake** | ユーザー要求 → CapabilityManifest 雛形生成 | 全 kind | `run-skill-elicit` (skill), `prompt-creator` (prompt), 等 |
+| **build** | CapabilityManifest + 三層 contract 生成 | 全 kind | `run-build-skill` 等の generator |
+| **review** | 生成された Capability の rubric 採点 (kind 別 rubric) | 全 kind | `assign-*-evaluator` + `run-elegant-review` |
+| **lessons-learned** | failure_mode の bundle 直下蓄積 | bundle 単位 | bundle 直下 `lessons-learned/` |
+| **rubric-governance** | EVALS → rubric 改正 PR 自動化 | kind 別 rubric | 27章 + 33章 § CapabilityBundle governance (3) EVALS → rubric 自動 PR 経路 |
+| **次回 build** | 改訂 rubric が次回 build 時に強制 | 全 kind | reflective closure |
+
+### 具体実装の参照
+
+| 機構 | 役割 | 正本パス |
+|---|---|---|
+| **auto-record-lesson hook** | review 完了時に failure_mode を bundle 直下 `lessons-learned/` へ自動追記 | (Phase 3 で実装予定。PostToolUse hook として `plugins/skill-creator/.claude-plugin/plugin.json` または独立 `kind: hook` manifest に登録) |
+| **aggregate-evals script** | bundle 直下 `EVALS.json` を時系列集計し、閾値超え failure_mode を検出 | `creator-kit/scripts/aggregate-evals.py` (Phase 2 で実装予定) |
+| **observables.json** | 閉じた failure_mode 列挙 | `creator-kit/config/meta-harness-observables.json` / `.claude/config/meta-harness-observables.json` |
+| **log schema v1.0** | session log の正本スキーマ | `creator-kit/config/meta-harness-log-schema-v1.0.json` / `.claude/logs/schema-v1.0.json` |
+| **extract-session-events.py** | UserPromptSubmit / PostToolUse / Stop を jsonl に追記 | `creator-kit/scripts/extract-session-events.py` |
+
+### Capability 用語でのループ閉鎖条件
+
+reflective loop が閉じる (= 同じ failure_mode が再発しない状態に収束する) ための機械検証条件は以下:
+
+1. **CapabilityContract の invariant 強化**: failure_mode が再発した場合、対象 Capability の invariant (rubric) を強化する PR が EVALS → rubric 自動 PR 経路で起票される
+2. **CapabilityBundle 直下の三点蓄積**: `EVALS.json` + `changelog/` + `lessons-learned/` が bundle 直下で揃っており、次回 build 時に必ず読み込まれる (23a § 5 を bundle 単位に拡張)
+3. **composition lint PASS**: bundle 全体の DAG / rubric_refs / hooks 配線が PostToolUse hook で機械検証される (33章 § composition lint)
+
+### kind 別 reflective loop の差分
+
+| kind | failure_mode の主な観測点 | 改訂対象 |
+|---|---|---|
+| `skill` | description 未発動 / 出力不十分 | description + 本文 + gotchas |
+| `agent` | system_prompt 不整合 / tools 漏れ | system_prompt + tools 許可リスト |
+| `hook` | trigger 漏れ / 副作用越境 | event/matcher 条件 + 副作用境界宣言 |
+| `command` | 引数 schema 不一致 | argument schema + 出力フォーマット |
+| `plugin-composition` | DAG 断裂 / governance 配線漏れ | `dependencies` / `governance.rubric_refs` |
+| `prompt` | layer 欠落 / output schema 違反 | 7層 markdown 骨格 + expected output schema |
+| `workflow` | gate 通過漏れ / handoff 型不整合 | phases / gates / schemas |
+
+### Goodhart 罠の Capability 横断的予防
+
+Capability 抽象を導入することで、本章既存の Goodhart 罠予防策は **kind 横断で機械強制** できる:
+
+| 予防策 | Capability 抽象での強化点 |
+|---|---|
+| 観測軸は閉じた列挙 | observables.json の `failure_modes` を `kind` で分類 (追加は P0_breaking 維持) |
+| 再現性しきい値 | `min_recurrence_for_action` を kind 別に設定可能化 |
+| 改善は P1_structural | 33章 § CapabilityBundle governance MECE 表で kind 横断に固定 |
+| rationale に観測根拠 | EVALS → rubric 自動 PR の rationale に `failure_mode ID + session_id + capability_name + kind` を必須化 |
+| 観測スキーマの不変性 | log schema v1.0 + observables.json + `plugin-composition.yaml` の `observability` フィールドが**三位一体で不変**。いずれの変更も P0_breaking |
+
+### 関連章 (再掲)
+
+- 23章 § Capability 抽象への拡張: 統一抽象の定義 + 三層 contract 横断写像表
+- 23a章: 三層 contract モデル (本章 reflective loop が改訂対象とする正本構造)
+- 27章: rubric governance (EVALS → rubric 自動 PR の起点)
+- 33章 § CapabilityBundle governance: 自動 PR 経路 3 点 + composition lint
+- 34a章 §13: hook の Capability 化 (auto-record-lesson hook の登録経路)
+
 ## 更新ルール
 
 1. observables.json の `failure_modes` を変更する場合、本章「現在地」と 33章 § log-driven 節を同時更新する
 2. Phase 進捗があった場合、本章「Phase 別ロードマップ」の出口ゲート判定と「現在地」を更新する
 3. ログスキーマを変更する場合、本章「ログスキーマ」セクションを正本確定版に書き換え、changelog に P0_breaking として記録する
 4. 本章を変更する場合、自分自身が P1_structural になる（33章自己適用ルール）
+5. Capability 用語の写像表 (kind 別 reflective loop) を変更する場合、23章 § Capability 抽象への拡張 の横断適用表と同時更新する

@@ -1,0 +1,1 @@
+../../plugins/skill-creator/commands/capability-build.md

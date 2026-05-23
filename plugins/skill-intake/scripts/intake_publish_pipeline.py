@@ -36,8 +36,6 @@ def main():
     parser.add_argument('--blocks-out', dest='blocks_out')
     parser.add_argument('--gate-out', dest='gate_out')
     parser.add_argument('--database-id', dest='database_id')
-    parser.add_argument('--md-url', dest='md_url')
-    parser.add_argument('--json-url', dest='json_url')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true')
     args = parser.parse_args()
 
@@ -77,10 +75,6 @@ def main():
     pub_argv = ['--intake', intake_path, '--blocks', blocks_path]
     if args.database_id:
         pub_argv += ['--database-id', args.database_id]
-    if args.md_url:
-        pub_argv += ['--md-url', args.md_url]
-    if args.json_url:
-        pub_argv += ['--json-url', args.json_url]
     if args.dry_run:
         pub_argv.append('--dry-run')
     pub_status = run('publish', SCRIPT_DIR / 'publish_notion_page.py', pub_argv)

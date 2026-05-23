@@ -133,8 +133,29 @@ def project_db_properties(ctx):
         '真の課題': _rich(p.get('真の課題', '')),
         'ナレッジ資産タグ': _multi(p.get('ナレッジ資産タグ')),
         '実行環境': _select(p.get('実行環境')),
-        'Markdown正本URL': _url(p.get('Markdown正本URL')),
     }
+
+
+# ===== Section diagram helper =====
+
+def _render_section_diagrams(ctx, blocks, section_key):
+    """section_diagrams[section_key] を mermaid または image ブロックとして描画。
+    存在しない章 (§0, §5) はスキップ。§5 は _render_figures が別経路で処理。"""
+    sd = ctx.get('section_diagrams', {})
+    diagrams = sd.get(section_key, [])
+    if not diagrams:
+        return
+    for d in diagrams:
+        blocks.append(heading(3, f"【{d.get('kind', 'diagram')}】 {d.get('title', '')}"))
+        if d.get('one_liner'):
+            blocks.append(paragraph(f"言いたい一言: {d['one_liner']}"))
+        if d.get('mermaid_source'):
+            blocks.append(code(d['mermaid_source'], 'mermaid'))
+        elif d.get('image_url'):
+            blocks.append({'object': 'block', 'type': 'image',
+                           'image': {'type': 'external', 'external': {'url': d['image_url']}}})
+        if d.get('legend'):
+            blocks.append(paragraph(f"凡例: {d['legend']}"))
 
 
 # ===== Section renderers (§0〜§11) =====
@@ -186,6 +207,7 @@ def _render_assumption(ctx, blocks):
         blocks.append(heading(3, '1.5 ブラインドスポット'))
         for bs in a['blind_spots']:
             blocks.append(bullet(bs))
+    _render_section_diagrams(ctx, blocks, '1_assumption_challenger')
     blocks.append(divider())
 
 
@@ -199,6 +221,7 @@ def _render_profile(ctx, blocks):
         blocks.append(heading(3, '次フェーズへの含意'))
         for imp in p['implications']:
             blocks.append(bullet(imp))
+    _render_section_diagrams(ctx, blocks, '2_user_profile')
     blocks.append(divider())
 
 
@@ -221,6 +244,7 @@ def _render_purpose(ctx, blocks):
         for o in pu['output_priority']:
             text = f"**{o.get('text')}**" if o.get('is_top') else o.get('text', '')
             blocks.append(numbered(text))
+    _render_section_diagrams(ctx, blocks, '3_purpose_excavator')
     blocks.append(divider())
 
 
@@ -236,6 +260,7 @@ def _render_options(ctx, blocks):
     blocks.append(heading(3, 'コネクタ選択'))
     for k in ('input_sources', 'knowledge_assets', 'outputs', 'scheduler'):
         blocks.append(bullet(f"{k}: {c.get(k, '')}"))
+    _render_section_diagrams(ctx, blocks, '4_option_presenter')
     blocks.append(divider())
 
 
@@ -262,6 +287,7 @@ def _render_five_axes(ctx, blocks):
     blocks.append(heading(3, 'ナレッジ抽出パイプライン'))
     for k in ('ingest', 'analysis', 'storage', 'retrieval', 'update'):
         blocks.append(bullet(f"{k}: {pl.get(k, '')}"))
+    _render_section_diagrams(ctx, blocks, '6_five_axes_summary')
     blocks.append(divider())
 
 
@@ -274,6 +300,7 @@ def _render_design_decisions(ctx, blocks):
         blocks.append(heading(3, 'アウトプット優先順位'))
         for o in dd['output_priority']:
             blocks.append(numbered(o))
+    _render_section_diagrams(ctx, blocks, '7_design_decisions')
     blocks.append(divider())
 
 
@@ -283,6 +310,7 @@ def _render_open_questions(ctx, blocks):
     for q in oq:
         mark = '○' if q.get('blocking') else '×'
         blocks.append(bullet(f"[{mark}] {q.get('question')} → {q.get('defer_to', '')}"))
+    _render_section_diagrams(ctx, blocks, '8_open_questions')
     blocks.append(divider())
 
 
@@ -294,6 +322,7 @@ def _render_handoff(ctx, blocks):
     blocks.append(bullet(f"理由: {h.get('reason', '')}"))
     if h.get('starting_note'):
         blocks.append(paragraph(h['starting_note']))
+    _render_section_diagrams(ctx, blocks, '9_handoff_contract')
     blocks.append(divider())
 
 
@@ -306,6 +335,7 @@ def _render_self_update(ctx, blocks):
         blocks.append(paragraph(f"スコア根拠: {su['score_rationale']}"))
     for d in su.get('deductions', []):
         blocks.append(bullet(f"控除 -{d.get('points')}: {d.get('reason')}"))
+    _render_section_diagrams(ctx, blocks, '10_self_updater')
     blocks.append(divider())
 
 
@@ -314,6 +344,7 @@ def _render_artifacts(ctx, blocks):
     blocks.append(heading(2, f"11. 出力ファイル一覧（{a.get('base_path', '')}）"))
     for f in a.get('files', []):
         blocks.append(bullet(f"`{f.get('path')}` — {f.get('description', '')}"))
+    _render_section_diagrams(ctx, blocks, '11_artifact_index')
 
 
 # ===== Top-level =====

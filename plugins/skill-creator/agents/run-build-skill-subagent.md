@@ -3,6 +3,9 @@ name: run-build-skill-subagent
 description: run-build-skillでbriefから単一スキル骨格を生成したいとき、独立workerで更新したいときに使う。
 tools: Read, Glob, Grep, Write, Edit, Bash(python3 *)
 model: inherit
+owner_skill: run-build-skill
+phase_id: build-fanout-worker
+kind: agent
 ---
 
 # 役割

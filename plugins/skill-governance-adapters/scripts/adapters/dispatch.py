@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 # /// script
 # name: adapter-dispatch
 # purpose: Resolve output route and dispatch payload to the selected sink adapter.

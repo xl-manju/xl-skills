@@ -1,7 +1,7 @@
 {
   "name": "skill-creator",
-  "version": "1.0.1",
-  "description": "Claude Code Skill を作る/評価する/承認する/出力先にルーティングするためのメタスキル群",
+  "version": "1.1.0",
+  "description": "Claude Code Capability (Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow) を作成・評価・統治するメタプラグイン",
   "author": {
     "name": "xl-skills maintainers"
   },
@@ -14,11 +14,56 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/ref-task-context-map/scripts/preload-context-map.py", "timeout": 3000 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/wrap-git-commit-safe/scripts/preflight-git-commit.py", "timeout": 4000 }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Skill",
         "hooks": [
-          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-notify-skill-end.py" }
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-notify-skill-end.py" },
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-build-skill/scripts/auto-record-lesson.py", "timeout": 5000 }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-build-skill/scripts/lint-capability-manifest.py", "timeout": 5000 }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-rubric-governance/scripts/diff-rubric-impact.py", "timeout": 5000 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-elegant-review/scripts/check-review-trigger.py", "timeout": 3000 }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-rubric-governance/scripts/aggregate-evals.py", "timeout": 10000 }
         ]
       }
     ]

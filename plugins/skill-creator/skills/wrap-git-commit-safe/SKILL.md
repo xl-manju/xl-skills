@@ -10,6 +10,7 @@ allowed-tools:
   - Bash(git add *)
   - Bash(git commit *)
 kind: wrap
+prefix: wrap
 effect: local-artifact  # wrap-* は base: run-build-skill の effect を継承
 base: run-build-skill
 owner: team-platform

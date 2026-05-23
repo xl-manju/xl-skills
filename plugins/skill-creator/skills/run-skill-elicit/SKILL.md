@@ -9,6 +9,7 @@ allowed-tools:
   - Read
   - Write
 kind: run
+prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-18

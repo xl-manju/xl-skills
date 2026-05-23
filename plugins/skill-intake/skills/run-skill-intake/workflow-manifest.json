@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaVersion": 1,
+  "workflowId": "run-skill-intake",
+  "skill": "run-skill-intake",
+  "description": "intake 11 phase を子 Skill / SubAgent に順次委譲する薄い orchestrator。各 phase の業務ロジックは持たない。",
+  "phases": [
+    {"id": "P1-kickoff", "step": 1, "title": "Phase 1: kickoff", "dependsOn": [], "delegateSkill": "run-intake-kickoff", "resourceIds": ["ref-handoff-contract", "ref-workflow-sequence"], "fatal_exit_codes": [2, 3]},
+    {"id": "P2-assumption", "step": 2, "title": "Phase 2: assumption (仮説生成・検証)", "dependsOn": ["P1-kickoff"], "delegateSkill": null, "resourceIds": ["ref-workflow-sequence"], "fatal_exit_codes": [2, 3]},
+    {"id": "P3-profile", "step": 3, "title": "Phase 3: vocabulary profile 確定", "dependsOn": ["P2-assumption"], "delegateSkill": null, "resourceIds": ["ref-workflow-sequence"], "fatal_exit_codes": [2, 3]},
+    {"id": "P4-interview", "step": 4, "title": "Phase 4: 5 軸シート充足", "dependsOn": ["P3-profile"], "delegateSkill": "run-intake-interview", "resourceIds": ["ref-handoff-contract"], "fatal_exit_codes": [2, 3]},
+    {"id": "P5-excavation", "step": 5, "title": "Phase 5: 抽象回答の深掘り", "dependsOn": ["P4-interview"], "delegateSkill": null, "resourceIds": [], "fatal_exit_codes": [2, 3]},
+    {"id": "P6-options", "step": 6, "title": "Phase 6: 外部連携選択肢", "dependsOn": ["P5-excavation"], "delegateSkill": "ref-intake-option-catalog", "resourceIds": [], "fatal_exit_codes": [2, 3]},
+    {"id": "P7-visualize", "step": 7, "title": "Phase 7: 図解配置", "dependsOn": ["P6-options"], "delegateSkill": "run-intake-visualize", "resourceIds": [], "fatal_exit_codes": [2, 3]},
+    {"id": "P8-summary", "step": 8, "title": "Phase 8: summary 抽出", "dependsOn": ["P7-visualize"], "delegateSkill": null, "resourceIds": [], "fatal_exit_codes": [2, 3]},
+    {"id": "P9-next-action", "step": 9, "title": "Phase 9: skill-creator 引き渡しモード判定", "dependsOn": ["P8-summary"], "delegateSkill": "run-intake-next-action", "resourceIds": [], "fatal_exit_codes": [2, 3]},
+    {"id": "P10-finalize", "step": 10, "title": "Phase 10: intake.md / intake.json 生成", "dependsOn": ["P9-next-action"], "delegateSkill": "run-intake-finalize", "resourceIds": ["ref-handoff-contract"], "fatal_exit_codes": [2, 3]},
+    {"id": "P11-notion", "step": 11, "title": "Phase 11: Notion 公開 (fidelity-guard 経由)", "dependsOn": ["P10-finalize"], "delegateSkill": "run-notion-intake-publish", "resourceIds": [], "fatal_exit_codes": [2, 3]}
+  ],
+  "resources": [
+    {"id": "ref-handoff-contract", "kind": "reference", "path": "./references/handoff-contract.md", "phaseIds": ["P1-kickoff", "P4-interview", "P10-finalize"]},
+    {"id": "ref-workflow-sequence", "kind": "reference", "path": "./references/workflow-sequence.md", "phaseIds": ["P1-kickoff", "P2-assumption", "P3-profile"]},
+    {"id": "schema-orchestrator-trace", "kind": "schema", "path": "./schemas/output.schema.json", "phaseIds": []}
+  ]
+}

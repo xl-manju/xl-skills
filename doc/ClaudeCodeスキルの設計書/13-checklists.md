@@ -184,3 +184,13 @@ P0 は 4条件を機械判定へ近づける最小ゲートである。P0 が未
 ## 運用強化ゲート（P1/P2 追加）
 
 - [ ] **[Hook] P1**: `PostToolUse` — `rubric.json` 更新検知時に `re-evaluate-on-rubric-bump.py` が自動再評価を起動。違反率 30% 超でアラート出力。
+
+## prefix 駆動型内部構造ゲート（23a 連動）
+
+- [ ] `workflow-manifest.json` が存在し phases[] が宣言されているか (`run-*`)
+- [ ] `schemas/` の各 .json に `$schema` / `$id` / `title` / `required` / `additionalProperties:false` があるか
+- [ ] `prompts/<R-id>.yaml` が `responsibility_refs` と一対一対応しているか
+- [ ] `rubric.json` が `references/rubric.json` 配下にあるか (`ref-*`, `assign-*`)
+- [ ] `EVALS.json` / `changelog/` / `lessons-learned/` の蓄積基盤があるか (plugin 直下)
+- [ ] SKILL.md 行数が prefix 別目標以下か (run≤180 / ref≤120 / assign≤150 / delegate≤120 / wrap≤100)
+

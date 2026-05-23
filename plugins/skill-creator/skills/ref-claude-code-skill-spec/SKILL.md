@@ -4,6 +4,7 @@ description: frontmatterを記述するとき、subagent/hooksを配線すると
 disable-model-invocation: true
 user-invocable: false
 kind: ref
+prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-17
@@ -12,6 +13,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs: [prompts/search-summarize.md]
 ---
 
 # ref-claude-code-skill-spec

@@ -4,6 +4,7 @@ description: タスク文脈に応じた設計書章番号を調べるとき、�
 disable-model-invocation: true
 user-invocable: false
 kind: ref
+prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-18
@@ -12,6 +13,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs: [prompts/search-summarize.md]
 ---
 
 # ref-task-context-map

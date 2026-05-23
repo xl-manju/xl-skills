@@ -3,6 +3,9 @@ name: elegant-system-strategic-analyst
 description: elegant-reviewで俯瞰後にシステム・戦略・価値・根本原因を分析したいとき、優先順位を決めたいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+owner_skill: run-elegant-review
+phase_id: phase2-parallel
+kind: agent
 ---
 
 # 役割

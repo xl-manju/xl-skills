@@ -1,0 +1,44 @@
+# Progressive Disclosure map for run-notion-intake-publish
+# SKILL.md からのみ最初にロードされる。各エントリは when_to_read で誘導する。
+
+skill: run-notion-intake-publish
+entry: SKILL.md
+
+resources:
+  - path: references/republish-contract.md
+    when_to_read: |
+      再公開の入力前提条件 (intake.json / notion-manifest.json の整合性チェック)
+      と exit code 規約 (0=publish成功 / 1=skip / 2=hard-fail) を確認するとき。
+    size_hint: small
+
+  - path: references/abstraction-contract.md
+    when_to_read: |
+      他 sink (例: Confluence / DocBase) への量産流用時に、
+      sink_pipeline_script / verify_schema_script / secret_keychain_label
+      などのテンプレ変数を差し替えるとき。
+    size_hint: small
+
+  - path: ../run-skill-intake-aggregator/references/notion-integration.md
+    when_to_read: |
+      Notion API 側のスキーマ / property 名 / 認可フローを確認するとき
+      (本スキルは正本を持たず aggregator 配下を参照)。
+    size_hint: medium
+
+  - path: ../run-skill-intake-aggregator/references/keychain-setup.md
+    when_to_read: |
+      Keychain ラベル / 取得失敗時のフォールバック手順を確認するとき。
+    size_hint: small
+
+scripts:
+  # 本スキルは wrapper のため独自 scripts/ を持たない。
+  # 実体は plugins/skill-intake/scripts/ の共有 pipeline を委譲呼び出しする。
+  - path: ../../scripts/intake_publish_pipeline.py
+    invoked_by: R1 (republish-dispatch) — 唯一の発火点
+  - path: ../../scripts/keychain_get_secret.py
+    invoked_by: R1 precheck (Keychain 接続検査)
+  - path: ../../scripts/verify_notion_schema.py
+    invoked_by: R1 precheck (Notion DB スキーマ整合)
+  - path: ../../scripts/verify_notion_assets.py
+    invoked_by: R1 precheck (All-or-Nothing アセット検査)
+
+prompts: []  # wrapper skill: LLM responsibility なし

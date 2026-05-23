@@ -13,9 +13,24 @@ allowed-tools:
   - Bash(python3 *)
   - Skill(assign-skill-design-evaluator *)
 kind: run
+prefix: run
 effect: local-artifact  # findings.json/review-*.md をローカル生成。外部 API 呼び出しなし
 owner: team-platform
 since: 2026-05-18
+manifest: workflow-manifest.json
+responsibility_refs:
+  - prompts/phase1-reset.md
+  - prompts/phase2-parallel.md
+  - prompts/phase3-execute.md
+agent_refs:
+  - ../../agents/elegant-reset-observer.md
+  - ../../agents/elegant-logical-structural-analyst.md
+  - ../../agents/elegant-meta-divergent-analyst.md
+  - ../../agents/elegant-system-strategic-analyst.md
+  - ../../agents/elegant-improvement-executor.md
+schema_refs:
+  - schemas/findings.schema.json
+  - schemas/phase-output.schema.json
 rubric_refs:
   - ref-skill-design-rubric
   - references/elegant-4-conditions.json
@@ -145,34 +160,21 @@ audit-trigger: quarterly
 
 ## 実行フロー
 
-詳細は `references/orchestration-flow.md`、各エージェント責務は `references/agent-roles.md` を参照。
+フェーズ定義・依存・入出力スキーマ・ゲートはすべて `workflow-manifest.json` を正本とする。本文は概要のみ。
+
+| Phase | Agent | parallel | prompt | gate |
+|---|---|---|---|---|
+| phase1-reset | elegant-reset-observer | no | prompts/phase1-reset.md | schema-validate |
+| phase2-parallel | logical-structural / meta-divergent / system-strategic | yes (3並列) | prompts/phase2-parallel.md | paradigm-coverage==30 |
+| phase3-execute | elegant-improvement-executor | no | prompts/phase3-execute.md | C1-C4 PASS (max_iter=3) |
 
 ### 副作用境界
 
-- Phase1 と Phase2 は read-only。対象ファイルを編集せず、観察・findings 作成だけを行う。
-- Phase3 のみ write 可。編集は集約済み findings に紐づく最小パッチに限定する。
-- Phase2 単独監査として呼ばれた場合、`findings.json` などの成果物生成を求められても、ユーザー指定の出力先がない限り対象ディレクトリを書き換えない。
+- Phase1/Phase2 は read-only。対象を編集しない。
+- Phase3 のみ write 可。編集は集約済み findings に紐づく最小パッチに限定。
+- Phase2 単独監査時は、ユーザー指定の出力先がない限り対象ディレクトリを書き換えない。
 
-### Phase 1: 思考リセット俯瞰 (Agent 1: elegant-reset-observer)
-- 既存バイアスを破棄し、対象を素のまま観察
-- 目的・スコープ・前提・利害関係者を抽出
-- **省略禁止**: ここを飛ばすと Goodhart の罠 (rubric最適化のための形式改善) に陥る
-
-### Phase 2: 並列3エージェント分析
-Phase1 の出力を入力として、3エージェントを**並列**起動:
-
-- Agent 2 `elegant-logical-structural-analyst`: A論理分析5 + B構造分解4 = 9思考法
-- Agent 3 `elegant-meta-divergent-analyst`: Cメタ抽象3 + D発想拡張6 = 9思考法
-- Agent 4 `elegant-system-strategic-analyst`: Eシステム3 + F戦略価値4 + G問題解決5 = 12思考法
-
-各エージェントは担当思考法 × C1〜C4 のマトリクスで `paradigm_findings` を生成し、具体値を `variable_abstraction` に戻す。集約後、`scripts/validate-paradigm-coverage.py` で全30件の構造と内容を検証 → `scripts/build-paradigm-scorecard.py` で集約。
-
-### Phase 3: 改善実行 (Agent 5: elegant-improvement-executor)
-- findings を重大度順にソート
-- 4条件 FAIL 項目に対しパッチを適用
-- 具体情報の直書きを変数・テンプレート・既定値へ昇格し、`source_trace` に由来を残す
-- 再度 Phase2 へ (収束判定は `references/convergence-policy.json` 参照)
-- 収束条件 (全クリア) または安全弁発火 (max 3) まで継続
+詳細フローは `references/orchestration-flow.md`、エージェント責務は `references/agent-roles.md`、収束判定は `references/convergence-policy.json` を参照。
 
 ---
 

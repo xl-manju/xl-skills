@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-prompt-creator-7layer/prompt-creator-trace.schema.json",
+  "title": "prompt-creator-trace.json",
+  "description": "7 層プロンプト生成のトレース。validate-build-trace.py が path_convention / responsibility_id / sha256 を機械検証する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path_convention", "responsibility_id", "layer_yaml_path", "sha256", "validation"],
+  "properties": {
+    "path_convention": {"type": "string", "enum": ["skill-local-v1", "agents-legacy"]},
+    "responsibility_id": {"type": "string", "minLength": 1},
+    "layer_yaml_path": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "target_agent": {"type": ["string", "null"]},
+    "format": {"type": "string", "enum": ["yaml", "md", "json", "xml"]},
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verify_completeness", "validate_prompt", "lint_agent_prompt_section"],
+      "properties": {
+        "verify_completeness": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "validate_prompt": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "lint_agent_prompt_section": {"type": "string", "enum": ["PASS", "FAIL"]}
+      }
+    }
+  }
+}

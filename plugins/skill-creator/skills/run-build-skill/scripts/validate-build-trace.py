@@ -14,10 +14,26 @@
 # network: false
 # write-scope: none
 # ///
-"""Validate run-build-skill reproducibility trace.
+"""Validate run-build-skill reproducibility trace / CapabilityManifest / Bundle.
 
 Usage:
+  # 既存(後方互換): build trace JSON を検証
   validate-build-trace.py eval-log/skill-build-trace.json
+
+  # CapabilityManifest(任意 kind)を検証
+  validate-build-trace.py --manifest path/to/SKILL.md
+  validate-build-trace.py --manifest path/to/agent.md
+  validate-build-trace.py --manifest path/to/plugin-composition.yaml
+
+  # CapabilityBundle 内 capabilities[].ref の実在を一括検査
+  validate-build-trace.py --bundle plugins/skill-creator/plugin-composition.yaml
+
+  # 内蔵 self-test (3 件の代表 manifest をメモリ上で検査)
+  validate-build-trace.py --self-test
+
+CLI 出力契約 (新モード):
+  stdout: JSON {"valid": bool, "kind": str|null, "findings": [str, ...]}
+  exit:   0=PASS, 1=FAIL, 2=usage/parse error
 """
 from __future__ import annotations
 
@@ -26,14 +42,26 @@ import re
 import sys
 from pathlib import Path
 
+try:  # 任意依存: jsonschema があれば schema 検証を強化
+    import jsonschema  # type: ignore
+    _HAS_JSONSCHEMA = True
+except Exception:  # pragma: no cover - 環境依存
+    _HAS_JSONSCHEMA = False
+
+try:  # YAML は plugin-composition.yaml で必要。無ければ最小自前パーサで fallback
+    import yaml  # type: ignore
+    _HAS_YAML = True
+except Exception:  # pragma: no cover
+    _HAS_YAML = False
+
 
 LAYER_YAML_PATH_PATTERNS = {
     "skill-local-v1": re.compile(
         r"^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-"
-        r"[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$"
+        r"[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+(-[a-z0-9]+(-[a-z0-9]+)*)?\.(md|yaml)$"
     ),
     "agents-legacy": re.compile(
-        r"^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$"
+        r"^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.(md|yaml)$"
     ),
 }
 RESPONSIBILITY_ID_RE = re.compile(r"^R[0-9]+$")
@@ -264,12 +292,494 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
     return errs
 
 
+# =============================================================
+# CapabilityManifest 検証 (kind 別 dispatch)
+# =============================================================
+
+# 共通核 (commonCore.required)
+_COMMON_CORE_REQUIRED = ("name", "description", "kind", "version", "owner")
+_VALID_KINDS = {
+    "skill", "agent", "hook", "command",
+    "plugin-composition", "prompt", "workflow",
+}
+
+_HOOK_EVENT_ENUM = {
+    "PreToolUse", "PostToolUse", "UserPromptSubmit", "Stop",
+    "SessionEnd", "SubagentStop", "PreCompact", "Notification",
+}
+
+_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+_SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+
+
+def _emit_result(valid: bool, kind: object, findings: list[str]) -> int:
+    """新モード共通の JSON 出力。exit_code は valid に対応。"""
+    out = {"valid": bool(valid), "kind": kind, "findings": findings}
+    print(json.dumps(out, ensure_ascii=False, sort_keys=True))
+    return 0 if valid else 1
+
+
+def _load_frontmatter(text: str) -> tuple[dict | None, str]:
+    """SKILL.md / agent.md 等の YAML frontmatter を抽出して dict を返す。
+
+    返り値: (frontmatter_dict_or_None, error_message)
+    """
+    if not text.startswith("---"):
+        return None, "frontmatter delimiter '---' not found at top"
+    parts = text.split("\n---", 1)
+    if len(parts) < 2:
+        return None, "closing '---' for frontmatter not found"
+    fm_text = parts[0].lstrip("-").lstrip("\n")
+    if _HAS_YAML:
+        try:
+            data = yaml.safe_load(fm_text) or {}
+        except Exception as exc:  # pragma: no cover
+            return None, f"YAML parse error: {exc}"
+        if not isinstance(data, dict):
+            return None, "frontmatter must be a mapping"
+        return _normalize_dates(data), ""
+    # YAML 無し: 最小 key:value パーサ (フラット & スカラのみ)
+    data = {}
+    for line in fm_text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if ":" not in line or line.startswith(" "):
+            continue
+        k, v = line.split(":", 1)
+        data[k.strip()] = v.strip().strip('"').strip("'")
+    return data, ""
+
+
+def _normalize_dates(obj):
+    """YAML から date/datetime として読み込まれた値を ISO 文字列へ正規化。
+
+    jsonschema は format=date を string 上で評価するため、Python の date を
+    そのまま渡すと "is not of type 'string'" になる。再帰的に正規化する。
+    """
+    import datetime as _dt
+    if isinstance(obj, dict):
+        return {k: _normalize_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_dates(v) for v in obj]
+    if isinstance(obj, (_dt.date, _dt.datetime)):
+        return obj.isoformat()
+    return obj
+
+
+def _load_manifest(path: Path) -> tuple[dict | None, str]:
+    """manifest を path 拡張子に応じて読み込む。
+
+    - .md  : frontmatter を抽出
+    - .yaml/.yml/.json : 本体をパース
+    """
+    if not path.exists():
+        return None, f"file not found: {path}"
+    text = path.read_text(encoding="utf-8")
+    suffix = path.suffix.lower()
+    if suffix in {".md", ".markdown"}:
+        return _load_frontmatter(text)
+    if suffix in {".yaml", ".yml"}:
+        if _HAS_YAML:
+            try:
+                data = yaml.safe_load(text) or {}
+            except Exception as exc:
+                return None, f"YAML parse error: {exc}"
+        else:
+            # fallback: frontmatter parser を流用 (フラット限定)
+            data, err = _load_frontmatter("---\n" + text + "\n---\n")
+            if err:
+                return None, f"yaml fallback parse error: {err}"
+        if not isinstance(data, dict):
+            return None, "manifest root must be a mapping"
+        return _normalize_dates(data), ""
+    if suffix == ".json":
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            return None, f"json parse error: {exc}"
+        if not isinstance(data, dict):
+            return None, "manifest root must be a mapping"
+        return data, ""
+    return None, f"unsupported manifest extension: {suffix}"
+
+
+def _check_common_core(data: dict) -> list[str]:
+    findings: list[str] = []
+    for key in _COMMON_CORE_REQUIRED:
+        if not data.get(key):
+            findings.append(f"commonCore.{key} is empty/missing")
+    name = data.get("name")
+    if isinstance(name, str) and not _NAME_RE.match(name):
+        findings.append(f"name={name!r} must match ^[a-z][a-z0-9-]*$")
+    desc = data.get("description")
+    if isinstance(desc, str):
+        L = len(desc)
+        if L < 10 or L > 400:
+            findings.append(f"description length {L} out of [10,400]")
+    version = data.get("version")
+    if isinstance(version, str) and not _SEMVER_RE.match(version):
+        findings.append(f"version={version!r} must be SemVer X.Y.Z")
+    kind = data.get("kind")
+    if isinstance(kind, str) and kind not in _VALID_KINDS:
+        findings.append(f"kind={kind!r} not in {sorted(_VALID_KINDS)}")
+    return findings
+
+
+def _check_kind_skill(data: dict) -> list[str]:
+    f: list[str] = []
+    triggers = data.get("triggers")
+    if not isinstance(triggers, list) or not triggers:
+        f.append("skill.triggers must be non-empty array")
+    return f
+
+
+def _check_kind_agent(data: dict) -> list[str]:
+    f: list[str] = []
+    tools = data.get("tools")
+    if not isinstance(tools, list) or not tools:
+        f.append("agent.tools must be non-empty array")
+    if not data.get("isolation"):
+        f.append("agent.isolation missing (fork|worktree|inherit)")
+    elif data.get("isolation") not in {"fork", "worktree", "inherit"}:
+        f.append(f"agent.isolation invalid: {data.get('isolation')!r}")
+    model = data.get("model")
+    if model and model not in {"sonnet", "opus", "haiku", "inherit"}:
+        f.append(f"agent.model invalid: {model!r}")
+    if not data.get("phase"):
+        f.append("agent.phase missing")
+    return f
+
+
+def _check_kind_hook(data: dict) -> list[str]:
+    f: list[str] = []
+    event = data.get("event")
+    if not event:
+        f.append("hook.event missing")
+    elif event not in _HOOK_EVENT_ENUM:
+        f.append(f"hook.event={event!r} not in {sorted(_HOOK_EVENT_ENUM)}")
+    if not data.get("command"):
+        f.append("hook.command missing")
+    timeout = data.get("timeout_ms")
+    if timeout is not None:
+        if not isinstance(timeout, int) or not (100 <= timeout <= 60000):
+            f.append(f"hook.timeout_ms={timeout!r} out of [100,60000]")
+    return f
+
+
+def _check_kind_command(data: dict, manifest_path: Path | None) -> list[str]:
+    f: list[str] = []
+    if not data.get("argument-hint"):
+        f.append("command.argument-hint missing")
+    allowed = data.get("allowed-tools")
+    if not isinstance(allowed, list) or not allowed:
+        f.append("command.allowed-tools must be non-empty array")
+    entry = data.get("entrypoint")
+    if entry and manifest_path is not None:
+        # entrypoint が Skill 参照を指す場合、リポジトリ上に SKILL.md が存在するか確認
+        # 解決ルール: manifest と同一プラグイン root を起点に skills/<entry>/SKILL.md を試す
+        plugin_root = _resolve_plugin_root(manifest_path)
+        if plugin_root is not None:
+            candidate = plugin_root / "skills" / entry / "SKILL.md"
+            if not candidate.exists():
+                # 絶対/相対パス直書きの可能性も許容
+                alt = (manifest_path.parent / entry).resolve()
+                if not alt.exists():
+                    f.append(
+                        f"command.entrypoint={entry!r}: SKILL.md not found "
+                        f"(tried {candidate})"
+                    )
+    return f
+
+
+def _check_kind_prompt(data: dict) -> list[str]:
+    f: list[str] = []
+    layers = data.get("layers")
+    if not isinstance(layers, list) or len(layers) != 7:
+        f.append(f"prompt.layers must have exactly 7 items (got {len(layers) if isinstance(layers, list) else 'N/A'})")
+        return f
+    seen_idx: set[int] = set()
+    for i, layer in enumerate(layers):
+        if not isinstance(layer, dict):
+            f.append(f"prompt.layers[{i}] must be object")
+            continue
+        idx = layer.get("index")
+        if not isinstance(idx, int) or not (1 <= idx <= 7):
+            f.append(f"prompt.layers[{i}].index invalid: {idx!r}")
+        elif idx in seen_idx:
+            f.append(f"prompt.layers[{i}].index duplicated: {idx}")
+        else:
+            seen_idx.add(idx)
+        if not layer.get("title"):
+            f.append(f"prompt.layers[{i}].title missing")
+    return f
+
+
+def _check_kind_workflow(data: dict) -> list[str]:
+    f: list[str] = []
+    phases = data.get("phases")
+    if not isinstance(phases, list) or not phases:
+        f.append("workflow.phases must be non-empty array")
+        return f
+    for i, p in enumerate(phases):
+        if not isinstance(p, dict):
+            f.append(f"workflow.phases[{i}] must be object")
+            continue
+        if not p.get("id"):
+            f.append(f"workflow.phases[{i}].id missing")
+        agents = p.get("agents")
+        if not isinstance(agents, list) or not agents:
+            f.append(f"workflow.phases[{i}].agents must be non-empty array")
+    return f
+
+
+def _check_kind_plugin_composition(data: dict, manifest_path: Path | None) -> list[str]:
+    f: list[str] = []
+    caps = data.get("capabilities")
+    if not isinstance(caps, list) or not caps:
+        f.append("plugin-composition.capabilities must be non-empty array")
+        caps = []
+    cap_kinds = {"skill", "agent", "hook", "command", "prompt", "workflow"}
+    for i, c in enumerate(caps):
+        if not isinstance(c, dict):
+            f.append(f"capabilities[{i}] must be object")
+            continue
+        if c.get("kind") not in cap_kinds:
+            f.append(f"capabilities[{i}].kind invalid: {c.get('kind')!r}")
+        if not c.get("ref"):
+            f.append(f"capabilities[{i}].ref missing")
+    deps = data.get("dependencies", [])
+    if deps and not isinstance(deps, list):
+        f.append("plugin-composition.dependencies must be array")
+        deps = []
+    # DAG 循環検出
+    if isinstance(deps, list) and deps:
+        graph: dict[str, list[str]] = {}
+        for d in deps:
+            if isinstance(d, dict) and d.get("from") and d.get("to"):
+                graph.setdefault(d["from"], []).append(d["to"])
+        if _has_cycle(graph):
+            f.append("plugin-composition.dependencies contains cycle")
+    return f
+
+
+def _has_cycle(graph: dict[str, list[str]]) -> bool:
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {n: WHITE for n in graph}
+    for node in list(graph.keys()):
+        if color.get(node, WHITE) != WHITE:
+            continue
+        stack = [(node, iter(graph.get(node, [])))]
+        color[node] = GRAY
+        while stack:
+            n, it = stack[-1]
+            try:
+                nxt = next(it)
+            except StopIteration:
+                color[n] = BLACK
+                stack.pop()
+                continue
+            c = color.get(nxt, WHITE)
+            if c == GRAY:
+                return True
+            if c == WHITE:
+                color[nxt] = GRAY
+                stack.append((nxt, iter(graph.get(nxt, []))))
+    return False
+
+
+def _resolve_plugin_root(manifest_path: Path) -> Path | None:
+    """manifest_path から最寄りの plugins/<name>/ を遡って返す。"""
+    p = manifest_path.resolve()
+    for ancestor in [p] + list(p.parents):
+        if ancestor.parent.name == "plugins":
+            return ancestor
+    return None
+
+
+_KIND_DISPATCH = {
+    "skill": lambda d, _p: _check_kind_skill(d),
+    "agent": lambda d, _p: _check_kind_agent(d),
+    "hook": lambda d, _p: _check_kind_hook(d),
+    "command": lambda d, p: _check_kind_command(d, p),
+    "plugin-composition": lambda d, p: _check_kind_plugin_composition(d, p),
+    "prompt": lambda d, _p: _check_kind_prompt(d),
+    "workflow": lambda d, _p: _check_kind_workflow(d),
+}
+
+
+def _load_schema() -> dict | None:
+    schema_path = (
+        Path(__file__).resolve().parent.parent / "references" / "capability-manifest.schema.json"
+    )
+    if not schema_path.exists():
+        return None
+    try:
+        return json.loads(schema_path.read_text(encoding="utf-8"))
+    except Exception:  # pragma: no cover
+        return None
+
+
+def validate_manifest(data: dict, manifest_path: Path | None = None) -> tuple[bool, str | None, list[str]]:
+    """CapabilityManifest を共通核 + kind 固有で検証する純関数。"""
+    findings: list[str] = []
+    findings.extend(_check_common_core(data))
+    kind = data.get("kind") if isinstance(data.get("kind"), str) else None
+    if kind in _KIND_DISPATCH:
+        findings.extend(_KIND_DISPATCH[kind](data, manifest_path))
+    elif kind is not None:
+        findings.append(f"unknown kind dispatch: {kind!r}")
+
+    # jsonschema があれば追加で形式検証 (manual check の補強)
+    if _HAS_JSONSCHEMA:
+        schema = _load_schema()
+        if schema is not None:
+            try:
+                jsonschema.validate(data, schema)
+            except jsonschema.ValidationError as exc:
+                findings.append(f"jsonschema: {exc.message} at {list(exc.path)}")
+    return (not findings), kind, findings
+
+
+def _handle_manifest_mode(path: Path) -> int:
+    data, err = _load_manifest(path)
+    if data is None:
+        return _emit_result(False, None, [err])
+    valid, kind, findings = validate_manifest(data, manifest_path=path)
+    return _emit_result(valid, kind, findings)
+
+
+def _handle_bundle_mode(path: Path) -> int:
+    data, err = _load_manifest(path)
+    if data is None:
+        return _emit_result(False, None, [err])
+    findings: list[str] = []
+    # bundle 自体も plugin-composition として検証
+    valid_m, kind, m_findings = validate_manifest(data, manifest_path=path)
+    findings.extend(m_findings)
+    # ref の実在チェック (hook:* 仮想参照はスキップ)
+    caps = data.get("capabilities") or []
+    plugin_root = path.parent
+    for i, c in enumerate(caps):
+        if not isinstance(c, dict):
+            continue
+        ref = c.get("ref")
+        if not isinstance(ref, str) or not ref:
+            continue
+        if ref.startswith("hook:"):
+            # plugin.json hook 配線は別ファイルで管理。manifest では存在保留。
+            continue
+        ref_path = plugin_root / ref
+        # skill/agent は SKILL.md / *.md を持つディレクトリ。command は *.md ファイル想定。
+        # ディレクトリ or ファイルどちらかが存在すれば OK。
+        if ref_path.exists():
+            continue
+        # commands/<name> は .md 拡張子を補って再試行
+        if (plugin_root / (ref + ".md")).exists():
+            continue
+        findings.append(f"capabilities[{i}].ref not found: {ref}")
+    return _emit_result(not findings, kind, findings)
+
+
+def _self_test() -> int:
+    """内蔵 3 件の代表 manifest を検査し全 PASS で 0。"""
+    samples: list[tuple[str, dict, bool]] = [
+        (
+            "skill-ok",
+            {
+                "name": "run-sample",
+                "description": "サンプル発動条件の宣言。テスト用 manifest。",
+                "kind": "skill",
+                "version": "1.0.0",
+                "owner": "team-test",
+                "triggers": ["sample"],
+                "contract": {"intent": "x", "interface": {}, "invariant": ["i1"]},
+            },
+            True,
+        ),
+        (
+            "agent-missing-isolation",
+            {
+                "name": "agent-sample",
+                "description": "isolation を欠落させた失敗ケース。",
+                "kind": "agent",
+                "version": "0.1.0",
+                "owner": "team-test",
+                "tools": ["Read"],
+                "phase": "phase-1",
+            },
+            False,
+        ),
+        (
+            "plugin-composition-with-cycle",
+            {
+                "name": "bundle-sample",
+                "description": "DAG 循環を持つ plugin-composition 失敗ケース。",
+                "kind": "plugin-composition",
+                "version": "0.0.1",
+                "owner": "team-test",
+                "capabilities": [
+                    {"kind": "skill", "ref": "skills/a"},
+                    {"kind": "skill", "ref": "skills/b"},
+                ],
+                "dependencies": [
+                    {"from": "a", "to": "b"},
+                    {"from": "b", "to": "a"},
+                ],
+            },
+            False,
+        ),
+    ]
+    all_ok = True
+    results = []
+    for label, data, expect_valid in samples:
+        valid, kind, findings = validate_manifest(data)
+        ok = (valid == expect_valid)
+        all_ok &= ok
+        results.append({
+            "label": label, "expect_valid": expect_valid,
+            "got_valid": valid, "kind": kind,
+            "findings": findings, "pass": ok,
+        })
+    print(json.dumps({"self_test_pass": all_ok, "results": results}, ensure_ascii=False, indent=2))
+    return 0 if all_ok else 1
+
+
+# =============================================================
+# main: 引数ディスパッチ (後方互換 + 新モード)
+# =============================================================
+
 def main() -> int:
-    if len(sys.argv) != 2:
+    argv = sys.argv[1:]
+    if not argv:
+        print(
+            "usage: validate-build-trace.py <trace.json>\n"
+            "       validate-build-trace.py --manifest <path>\n"
+            "       validate-build-trace.py --bundle <plugin-composition.yaml>\n"
+            "       validate-build-trace.py --self-test",
+            file=sys.stderr,
+        )
+        return 2
+
+    # 新モード
+    if argv[0] == "--self-test":
+        return _self_test()
+    if argv[0] == "--manifest":
+        if len(argv) != 2:
+            print("usage: --manifest <path>", file=sys.stderr)
+            return 2
+        return _handle_manifest_mode(Path(argv[1]))
+    if argv[0] == "--bundle":
+        if len(argv) != 2:
+            print("usage: --bundle <plugin-composition.yaml>", file=sys.stderr)
+            return 2
+        return _handle_bundle_mode(Path(argv[1]))
+
+    # 既存モード (後方互換): 単一の trace JSON path
+    if len(argv) != 1:
         print("usage: validate-build-trace.py eval-log/skill-build-trace.json", file=sys.stderr)
         return 2
 
-    path = Path(sys.argv[1])
+    path = Path(argv[0])
     # A-3 強制化: ファイル未存在 or 空は FAIL (exit 1) として扱う
     # run-build-skill Step 3.5 開始前に必ずトレースを記録することを強制する。
     if not path.exists():

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xl-skills/plugins/prompt-creator/run-prompt-create/schemas/prompt-brief.schema.json",
+  "title": "Prompt Brief (machine-readable)",
+  "description": "run-prompt-elicit → run-prompt-creator-7layer / run-prompt-create に渡される prompt-brief.json の正本スキーマ。skill-brief と並列で、7 層プロンプト生成に必要な要求を構造化する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompt_name",
+    "responsibility_id",
+    "target_skill",
+    "owner_agent_or_skill",
+    "layers_required",
+    "trigger_conditions",
+    "output_contract",
+    "boundary",
+    "output_language"
+  ],
+  "properties": {
+    "prompt_name": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 60, "description": "R-id-slug 形式 (例: elicit, gate-review)。"},
+    "responsibility_id": {"type": "string", "pattern": "^R[0-9]+$", "description": "Owner skill の brief.responsibilities[].id と 1:1。"},
+    "target_skill": {"type": "string", "description": "プロンプトを所有する skill 名 (例: run-skill-create)。"},
+    "owner_agent_or_skill": {"type": "string", "description": "プロンプトを実行する agent / skill ID。"},
+    "layers_required": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"]},
+      "minItems": 1,
+      "description": "生成する 7 層のうち必須レイヤー。"
+    },
+    "trigger_conditions": {"type": "array", "items": {"type": "string", "maxLength": 80}, "minItems": 2, "maxItems": 3},
+    "output_contract": {"type": "string", "description": "プロンプトが満たすべき出力契約 (1-3 文)。"},
+    "boundary": {"type": "string", "minLength": 1, "maxLength": 200, "description": "「やらないこと」を 1 文で。"},
+    "format": {"type": "string", "enum": ["md", "yaml", "json", "xml"], "default": "md"},
+    "inject_sections": {"type": "array", "items": {"type": "string"}, "default": ["Prompt Templates", "Self-Evaluation"]},
+    "output_path": {"type": "string", "description": "skill-local-v1 / agents-legacy のいずれかに沿った出力先。省略時は規約パス。"},
+    "path_convention": {"type": "string", "enum": ["skill-local-v1", "agents-legacy"], "default": "skill-local-v1"},
+    "output_schema_ref": {"type": "string", "description": "出力 JSON の検証 schema へのパス。"},
+    "reproducible": {"type": "boolean", "default": true},
+    "self_evaluation_checklist": {"type": "array", "items": {"type": "string"}},
+    "output_language": {"type": "string", "enum": ["ja"]},
+    "parameter_language_exception": {"type": "boolean", "default": true},
+    "open_questions": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
+    "source_url_or_path": {"type": "string"},
+    "last_audited_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}
+  }
+}

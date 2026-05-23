@@ -3,6 +3,9 @@ name: elegant-improvement-executor
 description: elegant-reviewで分析結果が揃ったとき、範囲を絞って改善を実装したいときに使う。
 tools: Read, Glob, Grep, Edit, MultiEdit, Write, Bash(python3 *)
 model: inherit
+owner_skill: run-elegant-review
+phase_id: phase3-execute
+kind: agent
 ---
 
 # 役割

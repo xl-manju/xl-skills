@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-build-skill/schemas/build-flags.schema.json",
+  "title": "Build Flags",
+  "description": "run-build-skill が受け取るフラグの入出力定義。--with-prompts/--with-evaluator/--with-hooks は対応する phase を有効化する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["skill_name", "kind", "mode"],
+  "properties": {
+    "skill_name": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+    "kind": {"type": "string", "enum": ["run", "ref", "assign", "delegate", "wrap"]},
+    "mode": {"type": "string", "enum": ["create", "update"], "default": "create"},
+    "model": {"type": "string", "enum": ["opus", "sonnet"], "default": "opus"},
+    "with_subagent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "enables_phase": {"type": "string", "const": "prompts-emit"},
+        "output_dir": {"type": "string", "default": ".claude/agents/"}
+      }
+    },
+    "with_prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "enables_phase": {"type": "string", "const": "prompts-emit"},
+        "loop_unit": {"type": "string", "const": "r_id"},
+        "max_retry": {"type": "integer", "default": 3}
+      }
+    },
+    "with_evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "enables_phase": {"type": "string", "const": "evaluator-emit"},
+        "pair_naming": {"type": "string", "const": "assign-<skill>-evaluator"}
+      }
+    },
+    "with_hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "enables_phase": {"type": "string", "const": "scripts"},
+        "auto_merge_settings_json": {"type": "boolean", "const": false}
+      }
+    }
+  }
+}

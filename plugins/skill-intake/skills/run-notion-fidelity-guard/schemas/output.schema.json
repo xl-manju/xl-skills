@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-notion-fidelity-guard/fidelity-report.schema.json",
+  "title": "fidelity-report.json",
+  "description": "fidelity check + delta report の出力 schema。描画 GO/NO-GO を決定論で判定する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_ref", "decision", "section_results"],
+  "properties": {
+    "snapshot_ref": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"}
+      }
+    },
+    "decision": {"type": "string", "enum": ["GO", "NO_GO"]},
+    "section_results": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section", "required_fields_filled", "char_bounds_ok", "viz_slots_ok"],
+        "properties": {
+          "section": {"type": "string"},
+          "required_fields_filled": {"type": "boolean"},
+          "char_bounds_ok": {"type": "boolean"},
+          "viz_slots_ok": {"type": "boolean"},
+          "missing": {"type": "array", "items": {"type": "string"}},
+          "deltas": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
