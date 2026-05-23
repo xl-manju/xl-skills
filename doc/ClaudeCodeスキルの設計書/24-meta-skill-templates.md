@@ -7,6 +7,8 @@
 > **creator-kit 対応**: 現行の配布対象は `creator-kit/manifest.json` を正本とする。テンプレ本文をここへ重複展開せず、`run-skill-create`、`run-skill-elicit`、`run-build-skill`、`assign-skill-design-evaluator`、`run-elegant-review`、`run-skill-rubric-governance`、`ref-output-routing` などの収録有無は manifest で確認する。
 
 > **plugin 移行後の配置（2026-05-18 暫定）**: **現在（Phase 0 未完了）**: `.claude/skills/<skill-name>/SKILL.md`（`creator-kit/skills/` 正本）。**Phase 0 完了後**: `plugins/<plugin-name>/skills/<skill-name>/SKILL.md` 形式へ移行。`.claude/skills/<skill-name>/` は `plugins/*/skills/` への symlink 経由の派生となる（34章 § plugin 物理レイアウト）。本章の `.claude/skills/...` 記法は派生側の参照表現として読み、正本書き換えは plugin 配下に対して行う。`name:` フィールドは kebab-case の Skill 名のみで、plugin 名は配置パスで表現する（06章第17条）。
+>
+> **正本パスのレイヤー優先順位（package_mode 別）**: `package_mode != skill-only` の plugin package mode では `plugins/<plugin-name>/skills/<skill-name>/SKILL.md` が一次（正本）、`.claude/skills/<skill-name>/SKILL.md` は symlink 経由の派生表現にすぎない（[36-plugin-package-harness-contract.md](./36-plugin-package-harness-contract.md) §`package_mode`）。`package_mode: skill-only`（legacy / dev-only / migration exception、36章）の場合に限り `.claude/skills/<skill-name>/SKILL.md` を一次表記として読む。本章テンプレ本文の `.claude/skills/...` 表記は、互換のための派生側参照として維持しているのみで、新規生成・更新の書き換え先は plugin root を優先する。
 
 ## リンクパスの記法ルール
 
@@ -18,6 +20,8 @@
 両者は同じファイルを指すが、想定する参照起点が異なるため記法を切り替えている。
 
 ## `.claude/skills/run-build-skill/SKILL.md`
+
+> 表記注: 以下のパスは `package_mode: skill-only`（互換・移行例外）時の一次表記。`package_mode != skill-only` の plugin package mode では正本は `plugins/<plugin-name>/skills/run-build-skill/SKILL.md`、`.claude/skills/run-build-skill/SKILL.md` はその派生 symlink（36章）。
 
 ```markdown
 ---
@@ -91,6 +95,8 @@ run-build-skill/
 ```
 
 ## `.claude/skills/assign-skill-design-evaluator/SKILL.md`
+
+> 表記注: 同上。`package_mode != skill-only` では正本は `plugins/<plugin-name>/skills/assign-skill-design-evaluator/SKILL.md`（36章）。
 
 ```markdown
 ---
@@ -178,6 +184,8 @@ conflict_policy: most-specific-wins
 ```
 
 ## 昇格版: `.claude/skills/ref-skill-design-rubric/SKILL.md`
+
+> 表記注: 同上。`package_mode != skill-only` では正本は `plugins/<plugin-name>/skills/ref-skill-design-rubric/SKILL.md`（36章）。
 
 複数 evaluator が同じ rubric を共有する場合だけ、次の `ref-*` Skill に昇格する。MVP では作らない。
 
@@ -296,6 +304,8 @@ rules:
 
 `run` kind は単体workflow以外に、複数の構成要素を内包する **複合kind** を持つ。
 これらは独立した kind 値ではなく `kind: run` のまま、適用する combinator の組合せで識別する。
+
+Plugin package として量産する場合、`run-build-skill` は `.claude/skills/<skill>/` ではなく `plugins/<plugin-name>/skills/<skill>/` を正本出力先にする。必要な Agent / Hook / script / settings / config の同梱判定と package completeness check は [36-plugin-package-harness-contract.md](./36-plugin-package-harness-contract.md) を正本とする。
 
 | 複合kind | 旧テンプレ | atomic combinator 組合せ | 用途 |
 |---|---|---|---|

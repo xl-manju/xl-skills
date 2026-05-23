@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-skill-elicit/output.schema.json",
+  "title": "run-skill-elicit brief output",
+  "type": "object",
+  "required": ["topic", "purpose", "trigger_phrases", "io_contract"],
+  "additionalProperties": false,
+  "properties": {
+    "topic": {"type": "string"},
+    "purpose": {"type": "string"},
+    "trigger_phrases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "io_contract": {
+      "type": "object",
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": {"type": "array"},
+        "outputs": {"type": "array"}
+      }
+    },
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "owner": {"type": "string"}
+  }
+}

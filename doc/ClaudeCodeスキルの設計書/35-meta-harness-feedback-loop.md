@@ -12,9 +12,9 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 
 | 領域 | 正本 |
 |---|---|
-| 観測対象 failure mode の閉じた列挙 | `creator-kit/config/meta-harness-observables.json`（配布正本） / `.claude/config/meta-harness-observables.json`（導入先コピー） |
+| 観測対象 failure mode の閉じた列挙 | `plugins/skill-governance-config/config/meta-harness-observables.json`（配布正本） / `.claude/config/meta-harness-observables.json`（導入先コピー） |
 | ガバナンス境界（log由来改善のカテゴリ） | `33-change-governance.md` § log-driven ref-* 改善 |
-| 改善の周回ロジック（既存の elegant-review 周回） | `creator-kit/skills/run-elegant-review/references/{amplified-patterns,convergence-policy}.json` |
+| 改善の周回ロジック（既存の elegant-review 周回） | `plugins/skill-creator/skills/run-elegant-review/references/{amplified-patterns,convergence-policy}.json` |
 | 本章で扱うこと | パイプライン全体（収集 → 分類 → 起票 → ガバナンス接続） |
 
 ## 中核原則
@@ -56,16 +56,16 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 | Phase | スコープ | 入口ゲート | 出口ゲート |
 |---|---|---|---|
 | **Phase 0** | observables 列挙確定 + ガバナンス境界定義 | （前提なし） | `.claude/config/meta-harness-observables.json` 初版完成 + 33章 § log-driven 節 |
-| **Phase 1** | ログ収集機構（.claude/logs/ スキーマ + collect hook） | Phase 0 完了 | creator-kit manifest 登録 + スキーマ v1.0 確定 + 収集スクリプト配置 + **実ログ蓄積 ≥ 1 セッション** |
+| **Phase 1** | ログ収集機構（.claude/logs/ スキーマ + collect hook） | Phase 0 完了 | skill-governance-config plugin manifest 登録 + スキーマ v1.0 確定 + 収集スクリプト配置 + **実ログ蓄積 ≥ 1 セッション** |
 | **Phase 2** | classify + accumulate（observables との突合・カウント蓄積） | Phase 1 実装完了 + 実ログ蓄積 ≥ 1 セッション + 7日以上のログ蓄積 | failure_mode 別に閾値超え検出が機械実行できる |
 | **Phase 3** | propose（改善 PR 自動起票） | Phase 2 完了 + 誤検出率 < 20% の検証 | ref-* 改善 PR が drafts として自動生成される |
 | **Phase 4** | govern 接続（33章 P1_structural ワークフロー自動連結） | Phase 3 完了 + 3件以上の手動 PR 経験 | classify_change が log 起源 PR を P1 として自動分類 |
 
-**現在地**: Phase 1 実装完了・実ログ蓄積待機中（スキーマ v1.0 確定 + `creator-kit/scripts/extract-session-events.py` 配置 + hook example + manifest 登録 + .gitignore）。Phase 2 開始ゲート: 実ログ蓄積 ≥ 1 セッション（未達）。Phase 2 (classify + accumulate) は実ログ蓄積達成後に着手。
+**現在地**: Phase 1 実装完了・実ログ蓄積待機中（スキーマ v1.0 確定 + `plugins/skill-governance-automation/scripts/extract-session-events.py` 配置 + hook example + manifest 登録 + .gitignore）。Phase 2 開始ゲート: 実ログ蓄積 ≥ 1 セッション（未達）。Phase 2 (classify + accumulate) は実ログ蓄積達成後に着手。
 
 ## ログスキーマ v1.0（Phase 1 確定）
 
-配布正本: `creator-kit/config/meta-harness-log-schema-v1.0.json`。導入先コピー: `.claude/logs/schema-v1.0.json`。スキーマ変更は P0_breaking（33章 § log-driven ref-* 改善）。
+配布正本: `plugins/skill-governance-config/config/meta-harness-log-schema-v1.0.json`。導入先コピー: `.claude/logs/schema-v1.0.json`。スキーマ変更は P0_breaking（33章 § log-driven ref-* 改善）。
 
 ### 構成
 
@@ -81,20 +81,45 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 
 ### 収集機構（opt-in）
 
-- スクリプト: `creator-kit/scripts/extract-session-events.py`（install後は `scripts/extract-session-events.py`。28章 §4 動詞 `extract` 準拠）
-- hook 登録例: `creator-kit/config/meta-harness-hooks.json.example`（install後は `.claude/settings.meta-harness-hooks.json.example`。UserPromptSubmit / PostToolUse / Stop の3点）
+- スクリプト: `plugins/skill-governance-automation/scripts/extract-session-events.py`（install後は `scripts/extract-session-events.py`。28章 §4 動詞 `extract` 準拠）
+- hook 登録例: `plugins/skill-governance-config/config/meta-harness-hooks.json.example`（install後は `.claude/settings.meta-harness-hooks.json.example`。UserPromptSubmit / PostToolUse / Stop の3点）
 - 出力先: `.claude/logs/<YYYY-MM-DD>.jsonl`（`.claude/logs/.gitignore` で git 追跡除外）
 
 ### observables との対応
 
 `.claude/logs/schema-v1.0.json` の `observable_mapping` を正本とする。各 failure mode の `observable_signal` は本スキーマ上で**全て機械観測可能**であることを保証する（Phase 1 出口ゲートの達成条件）。
 
+#### failure_mode: `pkg_check_failed`（36章連動、2026-05-20 追加）
+
+36章 PKG-001〜017（PKG-013 分割後の 013a〜d、および将来の 016/017 を含む）のいずれかの gate が fail した時に発火する failure_mode。observables.json への追加は P0_breaking（本章 中核原則「観測軸は閉じた列挙」）。
+
+| field | 内容 |
+|---|---|
+| `failure_mode_id` | `pkg_check_failed` |
+| `observable_signal` | 34章 Phase 0/1/2 ゲートで実行される PKG gate script の exit code（非ゼロ）。eval-log 保存先は `eval-log/<plugin>/pkg-<id>/`（27章 §3.1） |
+| 観測指標 | (1) PKG ID 別 fail 件数、(2) 同一 plugin × 同一 PKG ID での再発率、(3) fail 発生から修正 merge までの平均解決時間 |
+| min_recurrence_for_action | 1（P0 gate のため即時起票。gotchas のしきい値とは別ルール） |
+| 起票先 | 36章 §現状との差分（PKG ID 改廃が必要な場合は 36章 + 27章 §4 governance） |
+
+#### failure_mode: `elegant_review_4condition_failed`（run-elegant-review v2 連動、2026-05-23 追加）
+
+`run-elegant-review` v2（25章 §runbook Step 5.5）の Phase 3 完了時、検証 4 条件（矛盾なし / 漏れなし / 整合性あり / 依存関係整合）のいずれかが FAIL した場合、または max_iterations(=3) 到達による安全弁発火（`safety_valve_fired=true`）時に発火する failure_mode。observables.json への追加は P0_breaking。
+
+| field | 内容 |
+|---|---|
+| `failure_mode_id` | `elegant_review_4condition_failed` |
+| `observable_signal` | `scripts/emit-observable.py` が `verdict.json`（`schemas/verdict.schema.json` 準拠）から `verdict.*=FAIL` または `safety_valve_fired=true` を検出し、`.claude/logs/meta-harness.jsonl` に 1 行 append。eval-log 保存先は `eval-log/<plugin>/<skill>/elegant-review/<run-id>/`（27章 §3.1） |
+| 観測指標 | (1) 4 条件別 fail 件数（contradiction/omission/inconsistency/dependency_break）、(2) 同一 plugin × 同一 skill での再発率、(3) `iteration_count` 分布（収束効率）、(4) `safety_valve_fired` 比率 |
+| min_recurrence_for_action | 1（設計 elegance gate のため即時起票。3 周回 max は安全弁であり成功扱いにしない） |
+| 起票先 | 30章 paradigm-analogy-map（思考法カタログ改廃）+ 27章 §4 rubric governance（rubric 強化が必要な場合） |
+| Goodhart 予防 | force_pass 禁止（max_iter 到達は failure 扱い）、proposer ≠ approver（23章）、Phase 1/2 read-only 強制 |
+
 ### Phase 1 出口判定
 
 - [x] スキーマ v1.0 確定（本節）
 - [x] 収集スクリプト動作確認（stdin JSON → jsonl 追記）
 - [x] hook 登録 example 配置（opt-in）
-- [x] creator-kit manifest 登録
+- [x] skill-governance-config plugin manifest 登録
 - [x] gitignore でログ実体を git から除外
 - [ ] 1セッション以上の実ログ蓄積（運用フェーズで達成）
 
@@ -108,6 +133,14 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 | 偶発事象の恒久ルール化 | `min_recurrence_for_action` を性質ごとに設定（gotchas≥3） |
 | 自己採点罠（自分のログで自分を採点） | log 由来改善は P1_structural（27章の自己採点禁則と同型） |
 | 観測軸の振動 | スキーマ変更を P0_breaking 化。改善履歴の比較性を保護 |
+
+## PKG gate 連動の閉ループ（36章 ⇔ 本章 ⇔ 27章）
+
+34章 Phase 0/1/2 ゲートで実行される 36章 PKG-001〜017 gate が fail した場合、(1) eval-log は 27章 §3.1 規約の `eval-log/<plugin>/pkg-<id>/` に保存され、(2) 本章 collect → classify ステップで `pkg_check_failed` failure_mode として観測カウントが蓄積され、(3) 蓄積結果は 36章 §現状との差分（PKG ID 改廃案の根拠）に feedback される。これにより 36章で導入された片道リンクが閉じ、PKG check が落ちても誰も観測しない single point of failure を解消する。PKG ID 改廃を伴う改善は本章単独では起票せず、必ず 36章正本 + 27章 §4 rubric governance の承認経路を経る。
+
+## elegant-review v2 連動の閉ループ（25章 ⇔ 本章 ⇔ 30章）
+
+25章 §runbook Step 5.5 で実行される `run-elegant-review` v2 の Phase 3 完了時に 4 条件のいずれかが FAIL すると、(1) verdict は `eval-log/<plugin>/<skill>/elegant-review/<run-id>/verdict.json` に保存され、(2) `scripts/emit-observable.py` が `elegant_review_4condition_failed` event を `.claude/logs/meta-harness.jsonl` に append、(3) 本章 collect → classify ステップで観測カウントが蓄積され、(4) 蓄積結果は 30章 paradigm-analogy-map（思考法カタログ改廃）および `run-elegant-review/references/thought-methods.yaml` 改訂の根拠に feedback される。これにより 25章 Step 5.5 で elegance lint が落ちても誰も観測しない single point of failure を解消し、PKG check（契約適合）と並列に設計 elegance（構造適合）を可視化する。思考法カタログ改廃を伴う改善は本章単独では起票せず、必ず 30章正本 + 27章 §4 rubric governance の承認経路を経る。
 
 ## 既存メカニズムとの関係
 
@@ -154,10 +187,10 @@ intake → build → review → lessons-learned → rubric-governance → 次回
 | 機構 | 役割 | 正本パス |
 |---|---|---|
 | **auto-record-lesson hook** | review 完了時に failure_mode を bundle 直下 `lessons-learned/` へ自動追記 | (Phase 3 で実装予定。PostToolUse hook として `plugins/skill-creator/.claude-plugin/plugin.json` または独立 `kind: hook` manifest に登録) |
-| **aggregate-evals script** | bundle 直下 `EVALS.json` を時系列集計し、閾値超え failure_mode を検出 | `creator-kit/scripts/aggregate-evals.py` (Phase 2 で実装予定) |
-| **observables.json** | 閉じた failure_mode 列挙 | `creator-kit/config/meta-harness-observables.json` / `.claude/config/meta-harness-observables.json` |
-| **log schema v1.0** | session log の正本スキーマ | `creator-kit/config/meta-harness-log-schema-v1.0.json` / `.claude/logs/schema-v1.0.json` |
-| **extract-session-events.py** | UserPromptSubmit / PostToolUse / Stop を jsonl に追記 | `creator-kit/scripts/extract-session-events.py` |
+| **aggregate-evals script** | bundle 直下 `EVALS.json` を時系列集計し、閾値超え failure_mode を検出 | `plugins/skill-governance-automation/scripts/aggregate-evals.py` (Phase 2 で実装予定) |
+| **observables.json** | 閉じた failure_mode 列挙 | `plugins/skill-governance-config/config/meta-harness-observables.json` / `.claude/config/meta-harness-observables.json` |
+| **log schema v1.0** | session log の正本スキーマ | `plugins/skill-governance-config/config/meta-harness-log-schema-v1.0.json` / `.claude/logs/schema-v1.0.json` |
+| **extract-session-events.py** | UserPromptSubmit / PostToolUse / Stop を jsonl に追記 | `plugins/skill-governance-automation/scripts/extract-session-events.py` |
 
 ### Capability 用語でのループ閉鎖条件
 
@@ -198,6 +231,28 @@ Capability 抽象を導入することで、本章既存の Goodhart 罠予防�
 - 27章: rubric governance (EVALS → rubric 自動 PR の起点)
 - 33章 § CapabilityBundle governance: 自動 PR 経路 3 点 + composition lint
 - 34a章 §13: hook の Capability 化 (auto-record-lesson hook の登録経路)
+
+## 3 層メタモデル (META-001)
+
+reflective loop は 3 層に分解できる。Phase 3 で追加された emit_observable step はこの 3 層の Layer 2 ↔ Layer 3 を結線する。
+
+| 層 | 名称 | 役割 | 具体実装 |
+|---|---|---|---|
+| Layer 1 | Object-level (対象 Skill) | 直接の Capability 実行 | 各 Skill の business logic |
+| Layer 2 | Review-level (品質ゲート) | C1-C4 / PKG / rubric 採点 | `run-elegant-review` / `run-plugin-package-check` / `assign-skill-design-evaluator` |
+| Layer 3 | Meta-level (収束ガバナンス) | failure_mode 蓄積 → rubric 改訂 | 本章 + 27章 + 33章 |
+
+## observable 形式選定理由 (BRAIN-001)
+
+JSONL append 1 行を採用した理由は (1) 並行書き込み安全性 (append-only)、(2) tail/jq による cross-session 集計の容易さ、(3) schema_version によるスキーマ互換性確保、の 3 点。SQLite 等の構造化 store は採用しなかった (toolchain 依存増・grep 不能を回避)。
+
+## safety_valve_fired の独立観測 (F-0010)
+
+`safety_valve_fired=true` は verdict.* が全 PASS であっても observable emit を強制する。これは max_iterations 到達 = 自動収束失敗の構造的シグナルであり、見かけ上の PASS を Goodhart 罠として隠蔽しないため。`scripts/emit-observable.py` 内の判定 `not failed and not verdict.get("safety_valve_fired")` で実装済。
+
+## rate-limit (F-0008 strategic)
+
+同一 plugin × skill × failed_condition の組合せでの自動 PR 起票は **7 日 / 1 PR** に制限する。連続発火時は 2 回目以降を既存 issue にコメント追記し、新規 PR を抑止する。これは Goodhart 罠（観測軸の振動）と PR ノイズ増殖を予防するため。
 
 ## 更新ルール
 

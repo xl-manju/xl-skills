@@ -95,6 +95,10 @@ rubric 改正手続きを「**自動検出 → 招集 → 評価 → 猶予 → 
 注: `plugin` フィールドは plugin 移行後に使用する（34章 Phase 0 完了後）。移行前は `"plugin": "core"` で統一し、移行後は `plugins/<name>/` の kebab-case 名を入れる。パスは `eval-log/<plugin>/<date>-score.jsonl` に対応する。
 ```
 
+#### PKG gate 用 eval-log パス（36章連動、2026-05-20 追加）
+
+36章 PKG-001〜017 の gate script 実行結果（install smoke / package validate / contract lint 等）は `eval-log/<plugin>/pkg-<id>/<YYYY-MM-DD>-<run>.{json,log}` に保存する。同パスは 35章 `pkg_check_failed` failure_mode の `observable_signal` 入力源として参照され、34章 Phase 0/1/2 ゲートチェックの evidence になる。append-only（§10 アンチパターン #6 を準用）。
+
 集計鍵は `rubric_item_id` と `release`。`findings[].passed: false` を母数で割れば項目別違反率になる。
 
 ### 3.2 違反率集計 script
@@ -190,6 +194,19 @@ CI から `lint-rubric-violation.py` の exit 2 を受け、`Stop` Hook で招�
 | **tooling 役（新規）** | script/Hook/CI 維持、`impact-report.json` の品質保証 | 人または `assign-governance-tooling-contributor` |
 
 tooling 役は人手判断をしない。「人手判断に必要な数値が揃っているか」だけを保証する。提案者と承認者の兼任は禁止（23 章踏襲）。tooling 役は他役と兼任可。
+
+### 4.1 PKG ID 改廃の governance（36章連動、2026-05-20 追加）
+
+36章 Plugin Package Harness Contract の **PKG ID（PKG-001〜017、PKG-013 の 013a/013b/013c/013d への分割等を含む）の新設・分割・削除・意味変更** は、本章 rubric governance のレビュー対象に含める。理由は、PKG gate は rubric 違反率と同じく eval-log 集計に直結し（§3.1 PKG gate 用 eval-log パス）、ID 使い回しが時系列比較性を破壊するため（§10 アンチパターン #7 と同型）。
+
+| 操作 | 承認要件 |
+|---|---|
+| PKG ID 新設 | 36章正本への追加 PR + 本章 §5 改正提案 YAML（`trigger.type: "manual"` で起票、提案者≠承認者） |
+| PKG ID 分割（例: 013 → 013a〜d） | 上記に加え、旧 ID を deprecated として 1 release 以上猶予（§7） |
+| PKG ID 削除 | 上記に加え、`diff-rubric-impact.py` 相当の影響評価（既存 plugin の PKG fail 履歴に対する影響）を添付 |
+| PKG ID 意味変更 | 36章 + 本章で **major bump 扱い**。新 ID（例: `PKG-001-v2`）を発行し旧 ID を deprecated（§10 #7 準用） |
+
+PKG ID の改廃を 36章単独で行うことは禁止。本章承認を経ない PKG ID 変更は CI block 対象とする。
 
 ---
 ## 5. 改正提案テンプレ（YAML）
@@ -324,6 +341,35 @@ evaluator は `rubric_hash` を出力に含める（09 章踏襲）。算出は 
 ```
 
 CHANGELOG.md にも同 release エントリを追加する。
+
+### 8.4 quality-rubric.md 自動再生成 governance-log (DLOOP-001)
+
+`plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md` のような **rubric の派生 markdown** は、`rubric.json` 改訂時に CI で自動再生成する。再生成イベントは `eval-log/<plugin>/rubric-governance-log.jsonl` に 1 行 append し、以下フィールドを必須化する:
+
+| field | 内容 |
+|---|---|
+| `event` | `rubric_derived_md_regenerated` |
+| `ts` | ISO8601 |
+| `source_rubric_id` + `source_rubric_hash` | 派生元 rubric.json の id と sha256 |
+| `target_path` | 再生成された .md の相対パス |
+| `trigger_session_id` / `trigger_failure_mode` | 再生成の根拠となった 35 章 observable (任意) |
+
+これは double-loop 学習 (前回 review の改善が次回に反映されているか) を機械観測可能にするため。手作業での .md 直接編集は禁止 (CI lint で diff 検出 → exit 1)。
+
+### 8.5 elegant-review v2 governance-log: 範囲外 finding のスキップ記録 (2026-05-23 セッション)
+
+`run-elegant-review` v2 改善実行で **規模・新規実装リスク** から本セッションで未着手とした finding を記録する。再評価条件と次セッション開始時の必須確認項目を明示し、永久 deferral を防止する。
+
+| ID | 概要 | スキップ理由 | trade-off | 再評価条件 | 次セッション必須確認 | deadline |
+|---|---|---|---|---|---|---|
+| LAT-001 | prompt-as-template-engine adapter pilot | 新規 adapter 実装 (規模大、跨複数 plugin) | 即時着手なら elegant-review が遅延、6 章命名規約抵触リスク | adapter 設計 ADR が起票され proposer≠approver で承認後 | adapter scope/契約/test 計画/migration 影響を 5 行以内で要約 | 2026-06-20 |
+| IF-001 | scripts/lint-prompt-naming.sh 新規 + CI 配線 | 新規 lint script + CI workflow 改修 (規模中、CI 全体回帰リスク) | 即時着手なら CI 安定性に影響 | prompt 命名規約 (responsibility_refs パス規則) が確定後 | 命名規約 v1 仕様文書 + 既存 prompt の違反件数 baseline | 2026-06-13 |
+| G6 | rate-limit (7 日/1 PR) 計測 script | `plugins/skill-governance-automation/scripts/check-emit-rate-limit.py` 新規。observable jsonl 集計 + PR メタ照合実装が必要 | 即時実装で elegant-review 範囲超 | observable jsonl の record 数が rate-limit 想定の最小 sample (>=10) を満たすか確認後 | jsonl 母数 + PR メタソース仕様 (gh api or PR title prefix) | 2026-06-06 |
+| G7 | classify/accumulate 中間層実装 (`classify-meta-harness.py` / `accumulate-observables.py`) | 35 章 3 層モデルの新規 script 2 件、データフロー設計が未確定 | 即時実装で 35 章設計と二重実装の risk | 35 章 §3 層メタモデルが Layer 2/3 入出力 schema を確定 | classify 出力 schema + accumulate 集計鍵 | 2026-06-13 |
+
+**自動 escalation**: deadline 超過 release で本 §8.5 表に残存している ID は、`scripts/lint-rubric-violation.py` の検出対象に **強制 inject** する (CI で表を parse し deadline < today なら exit 2)。これにより人手で deferral を継続できない。
+
+**proposer ≠ approver**: 本表への ID 追加は提案者起票だが、削除 (= 完了マーク) は別 SubAgent または別人間が `eval-log/<plugin>/rubric-governance-log.jsonl` への完了 event 追記と引換に行う (§4 governance 役割表に準拠)。
 
 ---
 ## 9. 自動化責務分担表

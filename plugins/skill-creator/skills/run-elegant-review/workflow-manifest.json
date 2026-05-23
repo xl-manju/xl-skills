@@ -1,92 +1,201 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "_comment_schemaVersion": "manifest フォーマットの schema 番号 (int, 別概念)。spec_version (string) は skill 仕様のリリースタグであり SKILL.md と一致させる",
   "workflowId": "run-elegant-review",
   "owner_skill": "run-elegant-review",
-  "description": "Phase1 reset → Phase2 3並列分析 → Phase3 改善実行の3フェーズワークフロー。30思考法 × C1-C4 を満たすまで反復 (max 3)。",
+  "spec_version": "2.0",
+  "description": "Phase1 reset(SubAgent fork) → Phase2 3並列分析 → Phase3 改善実行。30思考法 × C1-C4 を満たすまで反復 (max 3)。25章 §runbook Step 5.5 として配置。",
+  "input_contract": {
+    "target": {
+      "plugin": "string (kebab-case, required)",
+      "skill": "string (kebab-case, required)",
+      "scope_mode": "enum[skill, plugin, repo] (required)"
+    },
+    "context": {
+      "build_log": "path (optional, run-build-skill 直後の trace)",
+      "related_skills": "string[] (optional)"
+    },
+    "options": {
+      "dry_run": "bool (default false)",
+      "max_iterations": "int (default 3)",
+      "skip_thought_methods": "string[] (skip_reason 必須)"
+    }
+  },
   "phases": [
     {
       "id": "phase1-reset",
-      "title": "思考リセット俯瞰",
-      "agent": "../../agents/elegant-reset-observer.md",
+      "title": "思考リセット（SubAgent fork 必須、スキップ不可）",
+      "subagent": "elegant-reset-observer",
+      "context": "fork",
       "parallel": false,
-      "input_schema": "./schemas/phase-output.schema.json#/definitions/phase1_input",
-      "output_schema": "./schemas/phase-output.schema.json#/definitions/phase1_output",
       "prompt": "./prompts/phase1-reset.md",
-      "entryHookId": "phase1-entry",
-      "exitHookId": "phase1-exit",
-      "gate": {
-        "type": "schema-validate",
-        "schema": "./schemas/phase-output.schema.json#/definitions/phase1_output",
+      "input": {
+        "source": "input_contract.target",
+        "schema": "./schemas/phase-output.schema.json#/definitions/phase1_input",
+        "operations": [
+          "step1: 先行 context 要約 → shared_state.md (200 字以内)",
+          "step2: 明示破棄宣言 (親 context 参照禁止を発話)",
+          "step3: target 関連ファイルを fresh で Read"
+        ]
+      },
+      "output": {
+        "artifact": "shared_state.md",
+        "schema": "./schemas/phase-output.schema.json#/definitions/phase1_output"
+      },
+      "completion_signal": {
+        "type": "file-exists-and-schema-validate",
+        "files": ["shared_state.md"],
         "must_include": ["purpose", "scope", "stakeholders", "concrete_values_to_abstract"]
-      }
+      },
+      "failure_action": {
+        "policy": "abort",
+        "reason": "リセット失敗は致命的。後続フェーズの C2/C3 が偽陽性 PASS する"
+      },
+      "entryHookId": "phase1-entry",
+      "exitHookId": "phase1-exit"
     },
     {
       "id": "phase2-parallel",
-      "title": "並列3エージェント分析",
+      "title": "並列多角的分析（3 SubAgent ファンアウト）",
       "dependsOn": ["phase1-reset"],
       "parallel": true,
-      "agents": [
-        "../../agents/elegant-logical-structural-analyst.md",
-        "../../agents/elegant-meta-divergent-analyst.md",
-        "../../agents/elegant-system-strategic-analyst.md"
+      "subagents": [
+        {"id": "elegant-logical-structural-analyst", "thought_methods_count": 10, "category": "A2"},
+        {"id": "elegant-meta-divergent-analyst", "thought_methods_count": 9, "category": "A3"},
+        {"id": "elegant-system-strategic-analyst", "thought_methods_count": 11, "category": "A4"}
       ],
-      "input_schema": "./schemas/phase-output.schema.json#/definitions/phase2_input",
-      "output_schema": "./schemas/phase-output.schema.json#/definitions/phase2_output",
+      "context": "fork",
       "prompt": "./prompts/phase2-parallel.md",
-      "entryHookId": "phase2-entry",
-      "exitHookId": "phase2-exit",
-      "gate": {
+      "input": {
+        "source": "shared_state.md + references/thought-methods.yaml",
+        "schema": "./schemas/phase-output.schema.json#/definitions/phase2_input"
+      },
+      "output": {
+        "artifacts": [
+          "findings-phase2-logical.json",
+          "findings-phase2-meta.json",
+          "findings-phase2-system.json"
+        ],
+        "schema": "./schemas/finding.schema.json",
+        "aggregation": "merge into findings.json (Phase 3 input)"
+      },
+      "completion_signal": {
         "type": "paradigm-coverage",
         "command": "python3 scripts/validate-paradigm-coverage.py",
-        "schema": "./schemas/findings.schema.json",
-        "must_equal": {"paradigm_findings_count": 30}
-      }
+        "rule": "thought_method_coverage.used + skipped_with_reason == 30 (B2, C1 緩和: 全種が finding or skip_reason)"
+      },
+      "failure_action": {
+        "policy": "partial-continue",
+        "rule": "1 SubAgent 失敗時は他 2 つを保持して continue、欠落分は次反復で補完"
+      },
+      "entryHookId": "phase2-entry",
+      "exitHookId": "phase2-exit"
     },
     {
       "id": "phase3-execute",
-      "title": "改善実行",
+      "title": "改善実行（ファンイン、Phase 3 限定で write 可）",
       "dependsOn": ["phase2-parallel"],
-      "agent": "../../agents/elegant-improvement-executor.md",
+      "subagent": "elegant-improvement-executor",
+      "context": "fork",
       "parallel": false,
-      "input_schema": "./schemas/phase-output.schema.json#/definitions/phase3_input",
-      "output_schema": "./schemas/phase-output.schema.json#/definitions/phase3_output",
       "prompt": "./prompts/phase3-execute.md",
-      "entryHookId": "phase3-entry",
-      "exitHookId": "phase3-exit",
-      "gate": {
+      "input": {
+        "source": "aggregated findings.json",
+        "schema": "./schemas/finding.schema.json"
+      },
+      "steps": [
+        "step0: DAG 生成 (findings[].location + depends_on から依存グラフ構築、B3)",
+        "step1: severity 優先順位 (contradiction > omission > inconsistency > dependency_break > smell)",
+        "step2: 独立対象 parallel / 依存あり serial",
+        "step3: auto_fixable=true は git stash 後 自動 commit / false は提案のみ",
+        "step4: 4 条件再検証 (max_iter=options.max_iterations, default 3)",
+        "step5: verdict.json を schemas/verdict.schema.json 準拠で生成",
+        "step6: emit_observable (always実行) - python3 scripts/emit-observable.py --verdict <log_dir>/verdict.json (PASS/FAIL 双方で観測完全性を確保、safety_valve_fired は verdict 独立で emit を強制)"
+      ],
+      "delegate_codex_criteria": {
+        "any_of": [
+          "changed_lines > 50",
+          "includes_tests (tests/ or *_test.py or *.spec.*)",
+          "unique_files_count > 3"
+        ],
+        "delegate_to": "delegate-codex-skill-review",
+        "phase_restriction": "phase3-only (C2 解消: phase1/2 委譲禁止)"
+      },
+      "output": {
+        "artifacts": [
+          "findings.json (最終版、schemas/finding.schema.json 配列)",
+          "verdict.json (schemas/verdict.schema.json)",
+          "review-<scope_mode>.md"
+        ],
+        "log_dir": "eval-log/<plugin>/<skill>/elegant-review/<run-id>/"
+      },
+      "completion_signal": {
         "type": "four-conditions",
-        "must_pass": ["C1", "C2", "C3", "C4"],
-        "convergence_policy": "./references/convergence-policy.json",
+        "rule": "fail_counts.contradiction == 0 AND .omission == 0 AND .inconsistency == 0 AND .dependency_break == 0",
         "max_iterations": 3,
-        "on_max_iteration": "human_review"
-      }
+        "convergence_policy": "./references/convergence-policy.json"
+      },
+      "failure_action": {
+        "policy": "rollback-and-escalate",
+        "operations": [
+          "max_iter 到達 → status=incomplete, force_pass 禁止, human_review",
+          "4 条件悪化検出 → git stash pop (B7 ロールバック)"
+        ],
+        "_note_emit_observable": "emit は steps.step6 (always 実行) で一本化。failure_action から削除し append-only jsonl の重複行を防止 (G3)"
+      },
+      "entryHookId": "phase3-entry",
+      "exitHookId": "phase3-exit"
     }
   ],
+  "side_effect_boundaries": {
+    "phase1": "read-only",
+    "phase2": "read-only",
+    "phase3": "write-allowed (改善 PR ブランチ作成、observable emit)"
+  },
+  "approval_policy": {
+    "rule": "proposer != approver (C4, 23 章)",
+    "approvers_allowed": ["assign-skill-design-evaluator (別 SubAgent context)", "human (solo_operator_mode=false)"],
+    "self_approval": "forbidden"
+  },
+  "observable": {
+    "event": "elegant_review_4condition_failed",
+    "schema_version": "1.0",
+    "emit_script": "./scripts/emit-observable.py",
+    "log_target": ".claude/logs/meta-harness.jsonl",
+    "trigger": "any of (verdict.*=FAIL) OR safety_valve_fired=true",
+    "design_chapter_ref": "35 §observables"
+  },
   "resources": [
-    {"id": "agent-reset-observer", "kind": "agent", "path": "../../agents/elegant-reset-observer.md", "phaseIds": ["phase1-reset"]},
-    {"id": "agent-logical-structural", "kind": "agent", "path": "../../agents/elegant-logical-structural-analyst.md", "phaseIds": ["phase2-parallel"]},
-    {"id": "agent-meta-divergent", "kind": "agent", "path": "../../agents/elegant-meta-divergent-analyst.md", "phaseIds": ["phase2-parallel"]},
-    {"id": "agent-system-strategic", "kind": "agent", "path": "../../agents/elegant-system-strategic-analyst.md", "phaseIds": ["phase2-parallel"]},
-    {"id": "agent-improvement-executor", "kind": "agent", "path": "../../agents/elegant-improvement-executor.md", "phaseIds": ["phase3-execute"]},
-    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"]},
+    {"id": "subagent-reset-observer", "kind": "subagent", "name": "elegant-reset-observer", "phaseIds": ["phase1-reset"]},
+    {"id": "subagent-logical-structural", "kind": "subagent", "name": "elegant-logical-structural-analyst", "phaseIds": ["phase2-parallel"]},
+    {"id": "subagent-meta-divergent", "kind": "subagent", "name": "elegant-meta-divergent-analyst", "phaseIds": ["phase2-parallel"]},
+    {"id": "subagent-system-strategic", "kind": "subagent", "name": "elegant-system-strategic-analyst", "phaseIds": ["phase2-parallel"]},
+    {"id": "subagent-improvement-executor", "kind": "subagent", "name": "elegant-improvement-executor", "phaseIds": ["phase3-execute"]},
+    {"id": "schema-finding", "kind": "schema", "path": "./schemas/finding.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "単数 finding (機械観測 signal: contradiction/omission/inconsistency/dependency_break/smell)"},
+    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "集約 wrapper (paradigm_findings[] + variable_abstraction + four_conditions verdict)。issues.severity は low/medium/high/critical の運用ラベルで finding.schema.json の機械観測 signal と責務分割"},
+    {"id": "schema-verdict", "kind": "schema", "path": "./schemas/verdict.schema.json", "phaseIds": ["phase3-execute"]},
     {"id": "schema-phase-output", "kind": "schema", "path": "./schemas/phase-output.schema.json", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
+    {"id": "ref-thought-methods", "kind": "reference", "path": "./references/thought-methods.yaml", "phaseIds": ["phase2-parallel"]},
     {"id": "ref-4-conditions", "kind": "reference", "path": "./references/4-conditions.json", "phaseIds": ["phase2-parallel", "phase3-execute"]},
     {"id": "ref-30-paradigms", "kind": "reference", "path": "./references/30-paradigms-full.md", "phaseIds": ["phase2-parallel"]},
     {"id": "ref-convergence-policy", "kind": "reference", "path": "./references/convergence-policy.json", "phaseIds": ["phase3-execute"]},
     {"id": "ref-orchestration-flow", "kind": "reference", "path": "./references/orchestration-flow.md", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
+    {"id": "ref-agent-roles", "kind": "reference", "path": "./references/agent-roles.md", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
     {"id": "ref-variable-template", "kind": "reference", "path": "./references/variable-template-contract.md", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
     {"id": "ref-amplified-patterns", "kind": "reference", "path": "./references/amplified-patterns.json", "phaseIds": ["phase3-execute"]},
     {"id": "script-validate-coverage", "kind": "script", "path": "./scripts/validate-paradigm-coverage.py", "phaseIds": ["phase2-parallel"]},
-    {"id": "script-build-scorecard", "kind": "script", "path": "./scripts/build-paradigm-scorecard.py", "phaseIds": ["phase2-parallel"]}
+    {"id": "script-build-scorecard", "kind": "script", "path": "./scripts/build-paradigm-scorecard.py", "phaseIds": ["phase2-parallel"]},
+    {"id": "script-emit-observable", "kind": "script", "path": "./scripts/emit-observable.py", "phaseIds": ["phase3-execute"]}
   ],
   "entry": [
-    {"id": "phase1-entry", "command": "validate target_type and target_path; ensure read-only mode"},
-    {"id": "phase2-entry", "command": "validate phase1 output schema; spawn 3 agents in parallel"},
-    {"id": "phase3-entry", "command": "validate aggregated findings; verify paradigm count == 30"}
+    {"id": "phase1-entry", "command": "validate input_contract.target (plugin, skill, scope_mode all required); enforce read-only"},
+    {"id": "phase2-entry", "command": "validate shared_state.md exists; spawn 3 SubAgents in context:fork parallel"},
+    {"id": "phase3-entry", "command": "validate aggregated findings; verify thought_method_coverage.total == 30; git stash push -m elegant-review-pre-phase3-<run-id>"}
   ],
   "exit": [
-    {"id": "phase1-exit", "command": "handoff raw_observations.json"},
-    {"id": "phase2-exit", "command": "run validate-paradigm-coverage.py and build-paradigm-scorecard.py; handoff findings.json"},
-    {"id": "phase3-exit", "command": "verify C1-C4 PASS or escalate to human_review on max_iterations"}
-  ]
+    {"id": "phase1-exit", "command": "handoff shared_state.md"},
+    {"id": "phase2-exit", "command": "run validate-paradigm-coverage.py; build-paradigm-scorecard.py; aggregate findings.json"},
+    {"id": "phase3-exit", "command": "verify 4 conditions; on FAIL/safety_valve emit observable; on max_iter human_review"}
+  ],
+  "design_chapters": ["09", "17", "25 §runbook Step 5.5", "26 §dogfooding", "30", "35 §observables", "36"]
 }

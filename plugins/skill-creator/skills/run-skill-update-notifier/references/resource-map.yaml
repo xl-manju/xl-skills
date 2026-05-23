@@ -1,0 +1,5 @@
+resources:
+  - path: hook-wiring.md
+    read_when: "Stop hook からの呼び出し配線を確認するとき"
+  - path: output-format.md
+    read_when: "通知 1 行の書式を確認するとき"

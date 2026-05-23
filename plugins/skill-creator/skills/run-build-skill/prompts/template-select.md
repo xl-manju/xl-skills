@@ -18,22 +18,29 @@
 
 ### 1.1 不変ルール
 - selection_rules を順次照合し、最初に match した 1 件のみ採用
+  - 目的: 決定論的選択を保証
+  - 背景: 複数 match の暗黙優先は drift を生む
 - 不一致 kind では fallback ではなく明示エラーで停止
+  - 目的: silent 誤選択の防止
+  - 背景: fallback は誤った skill 生成を量産する
 
 ### 1.2 倫理ガード
 - 該当 rule を取り違えて自動修正しない
+  - 目的: 人間レビューの機会を奪わない
+  - 背景: 自動修正は監査困難な変更を残す
 
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: brief.kind / role_suffix / composite から template + combinators を 1 件決定する
+- 担当: `brief.kind / role_suffix / composite` から template + combinators を 1 件決定
 - 非担当: 骨格生成 (R1)、prompt 生成 (R2)、trace 記入 (R4)
 
 ### 2.2 ドメインルール
-- COMPOSER_MODE=atomic の場合 combinators を atomic_order (kind → flag) で適用
+- `COMPOSER_MODE=atomic` の場合、combinators を `atomic_order` (kind → flag) で適用
 - 本文に表を埋め込まず、結果のみを build_flow_coverage へ追記
 
 ### 2.3 入力契約
+
 | field | type | required | 説明 |
 |---|---|---|---|
 | kind | string | yes | eval-log/skill-brief.json#/kind |
@@ -43,28 +50,31 @@
 
 ### 2.4 出力契約
 - schema: `schemas/template-selection.schema.json#/properties/selection_rules/items`
-- 必須: 採用 rule + combinators 列
+- 必須: 採用 rule + combinators 列 (順序保持)
 
 ## Layer 3: インフラ層 (外部依存)
 
 ### 3.1 参照リソース
+
 | id | path | when_to_read |
 |---|---|---|
 | schema | schemas/template-selection.schema.json | rule 照合時 |
 
 ### 3.2 外部ツール / API
-- なし
+- なし (純粋な決定論的選択ロジック)
 
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
 - 不一致 kind は exit 1 + 該当 kind を log に残す
+  - 目的: 新規 kind の追加漏れを検知
+  - 背景: schema 更新忘れの早期発見
 
 ### 4.2 観測 / ロギング
-- build_flow_coverage[template_select] に採用 rule id を記録
+- 出力先: `build_flow_coverage[template_select]` に採用 rule id を記録
 
 ### 4.3 セキュリティ
-- 特になし
+- 特になし (read-only な選択処理)
 
 ## Layer 5: エージェント層 (実行主体定義)
 
@@ -72,17 +82,17 @@
 - run-build-skill 配下の R3 SubAgent
 
 ### 5.2 推論手順 (再現可能)
-1. brief.kind / role_suffix / composite を抽出する
-2. schemas/template-selection.schema.json#/selection_rules を順次照合する
+1. `brief.kind / role_suffix / composite` を抽出
+2. `schemas/template-selection.schema.json#/selection_rules` を順次照合
 3. 最初に match した 1 件の template + combinators 列を返す
-4. COMPOSER_MODE=atomic なら combinators を atomic_order で並べ替える
+4. `COMPOSER_MODE=atomic` なら combinators を `atomic_order` で並べ替え
 5. 不一致時は明示エラー (exit 1)
 
 ### 5.3 自己検証 checklist
-- [ ] selection_rules のうち最初に match した 1 件のみ採用したか
-- [ ] combinators の適用順が atomic_order と一致するか
-- [ ] 不一致 kind に対し fallback ではなく明示エラーで停止したか
-- [ ] 決定論性: 同 (kind, role_suffix, composite) で同一 rule.id を返すか
+- [ ] 最初に match した 1 件のみ採用 (複数採用なし)
+- [ ] combinators 適用順が atomic_order と一致
+- [ ] 不一致 kind に対し fallback ではなく明示エラー
+- [ ] 同 (kind, role_suffix, composite) で同一 rule.id を返す
 
 ## Layer 6: オーケストレーション層
 
@@ -91,7 +101,7 @@
 - 後続 phase: trace-write (R4)
 
 ### 6.2 並列性
-- R1/R2 と独立並列可
+- R1/R2 と独立並列可 (副作用なし)
 
 ## Layer 7: UI / 提示層
 
@@ -105,6 +115,11 @@
 
 ## 出力指示
 
-LLM は brief から kind / role_suffix / composite を取り、selection_rules を順次照合し
-最初の match を返す。出力は template-selection.schema.json#/properties/selection_rules/items
-準拠の JSON のみ。余計な前置き・思考過程出力は禁止。
+LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
+
+入力 `{{kind}} / {{role_suffix}} / {{composite}}` を取り、`{{selection_schema}}` の
+selection_rules を順次照合し、最初の match を返す。`COMPOSER_MODE=atomic` の場合は
+combinators を `atomic_order` で並べ替える。不一致 kind は exit 1。
+
+出力は `schemas/template-selection.schema.json#/properties/selection_rules/items` 準拠の JSON のみ。
+余計な前置き・後書き・思考過程出力は禁止。

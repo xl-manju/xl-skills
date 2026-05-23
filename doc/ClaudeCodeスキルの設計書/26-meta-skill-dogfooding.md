@@ -74,6 +74,10 @@ re-eval → score 上昇を確認
 
 同じ findings が `run-build-skill` 生成物でも頻出するなら、`templates/` か `rubric.json` を更新し、過去の Skill にも適用 (regression check)。
 
+## dogfooding と `skill-only` モードの関係（恒久例外）
+
+[36-plugin-package-harness-contract.md](./36-plugin-package-harness-contract.md) §`skill-only` では、`package_mode: skill-only` を「legacy / dev-only / migration exception」と定義し、新規量産では選択しない方針を取る。一方で本章の dogfooding ループ（設計書 01-26 自身を artifact とみなして `assign-skill-design-evaluator` に通す運用）は、配布対象ではなく設計書の自己検査であり、`/plugin install` UX を保証する必要がない。したがって dogfooding 用途に限り `skill-only` モードを**恒久例外として許容**する。これは 36章で列挙された3例外（legacy / dev-only / migration）のうち「dev-only（局所検証）」に該当し、設計書側に明示しておくことで「dogfooding が package completeness check に通らない」ことを fail として誤検知するのを防ぐ。dogfooding artifact は plugin package を構成しないため、36章の PKG-001〜010 は適用対象外であり、`completeness check: not applicable (dogfooding)` を完了レポートに残す。逆方向のリンクとして、36章 §`skill-only` 列挙箇所からは本章を「dev-only の恒久例外運用」として参照する。
+
 ## 運用ルール
 
 - 設計書を変更したら必ず evaluator を再走させる (CI 化推奨: `TaskCompleted` Hook で gate)

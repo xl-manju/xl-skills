@@ -1,0 +1,151 @@
+# Prompt: R2-codex-review
+
+> このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
+> seven-layer-format.md を正本とする。Layer 番号と依存方向 (L1 ← L7) は不変。
+
+## メタ
+
+| key | value |
+|---|---|
+| name | codex-review |
+| skill | delegate-codex-skill-review |
+| responsibility | R2 (codex 応答受領 / response 整形) |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
+| output_schema | schemas/io-contract.schema.json (output ブロック) |
+| reproducible | true |
+
+## Layer 1: 基本定義層 (不変原則)
+
+### 1.1 不変ルール
+
+- **CONST_001 (自セッション採点禁止)**: 本 prompt は codex の応答そのものを根拠とする。自セッションでスコアを書き換えない
+  - **目的**: Sycophancy / 自己肯定バイアスの混入を物理的に防ぐため
+  - **背景**: 09 章評価フローの第三者性要求
+- **CONST_002 (Sycophancy 再要求必須)**: codex 応答が肯定所見のみなら最大 N 回再要求する
+  - **目的**: 形式的 PASS を許容しないため
+  - **背景**: critical axis 全 >=1 の閾値を実効化するには再要求が必要
+- **CONST_003 (version pin)**: codex CLI の version は応答 metadata に記録し、未知 version は escalation
+  - **目的**: 採点ロジック drift を観測可能にするため
+  - **背景**: version 差で rubric 解釈が変動する
+
+### 1.2 倫理ガード
+
+- proposer ≠ approver: 採点結果に対する自己修正禁止、修正は別 skill (run-skill-rubric-governance) 経由
+- force_pass 禁止: critical axis に 1 件でも 0 があれば pass にしない
+
+## Layer 2: ドメイン層 (本質ロジック)
+
+### 2.1 責務 (Single Responsibility)
+
+- 担当: codex 応答を受け取り schema 準拠の response JSON に整形、Sycophancy 検出 / 再要求制御
+- 非担当: request 生成（R1-delegate）、SKILL.md 改変、rubric 定義変更、governance 起票
+
+### 2.2 ドメインルール
+
+- 全 critical axis で score >=1 のとき `pass_status: pass`、1 件でも 0 で `fail`
+- 応答に observation / rationale / suggested_fix のいずれかが欠落する finding は incomplete として再要求
+- Sycophancy 検出基準: findings 配列で severity が全て info / praise のみ → retry
+- 再要求は `sycophancy_retry_count` でカウント、上限 3
+
+### 2.3 入力契約
+
+| field | type | required | 説明 |
+|---|---|---|---|
+| `request_path` | path | yes | R1 が emit した request JSON path |
+| `codex_raw_response` | object | yes | codex CLI が返した raw JSON |
+| `options.max_sycophancy_retry` | int | no | default 3 |
+
+### 2.4 出力契約
+
+- schema: `schemas/io-contract.schema.json` の output ブロック準拠
+- 必須フィールド: `pass_status` (`pass|fail|skipped`), `critical_axis_scores[]`, `findings[]`, `sycophancy_retry_count`, `codex_version`
+- 各 `findings[i]` は `observation`, `rationale`, `suggested_fix`, `severity`, `axis_ref` を含む
+
+## Layer 3: インフラ層 (外部依存)
+
+### 3.1 参照リソース
+
+| id | path | when_to_read |
+|---|---|---|
+| schema | `schemas/io-contract.schema.json` | output validation |
+| request | `eval-log/delegate-codex-request.json` | metadata 突合 |
+| rubric | `../ref-skill-design-rubric/rubric.json` | critical axis 一覧 |
+
+### 3.2 外部ツール / API
+
+- 外部 `codex` CLI 自体は本 prompt 内で起動しない（応答を受け取るのみ）
+- 必要時 codex 再要求は R1 経由でユーザーに依頼
+
+## Layer 4: 共通ポリシー層
+
+### 4.1 失敗時挙動
+
+- schema validation FAIL → 最大 3 回自己修正、超過で escalation `schema-invalid`
+- Sycophancy 上限超過 → escalation `sycophancy-unrecoverable`
+- codex CLI 不在（request の status=skipped）→ output も `pass_status: skipped` 透過
+- structural error → exit 3
+
+### 4.2 観測 / ロギング
+
+- 出力: `eval-log/delegate-codex-response.json`（27 章 §3.1 規約準拠）
+- 35 章 observable: pass_status=fail で `delegate_review_failed` を emit（aggregator 経由）
+- escalation は `log/escalation.jsonl` に追記
+
+### 4.3 セキュリティ
+
+- codex 応答に含まれる外部 URL / コード片は提案として扱い自動適用しない
+- secret 取扱なし
+
+## Layer 5: エージェント層 (実行主体定義)
+
+### 5.1 担当 agent
+
+- delegate-codex-skill-review skill 直接呼出（**context: fork 強制**、親 context のバイアスを継承しない）
+
+### 5.2 推論手順 (再現可能)
+
+1. `request_path` を Read し metadata（target_skill, codex_version, sycophancy_guard）取得
+2. `codex_raw_response` を §2.4 schema に向けて整形（findings 各要素を observation/rationale/suggested_fix に正規化）
+3. Sycophancy 判定: findings 全件 severity in {info, praise} なら `sycophancy_retry_count++` し再要求要求を出す
+4. critical_axis_scores を rubric.json と突合、全 axis >=1 で `pass_status: pass`、1 件でも 0 で `fail`
+5. self_validate: `io-contract.schema.json` output ブロックで validate
+6. `eval-log/delegate-codex-response.json` に保存、exit code 設定
+
+### 5.3 自己検証 checklist
+
+- [ ] `findings[]` の各要素に observation / rationale / suggested_fix が揃う
+- [ ] `pass_status` と `critical_axis_scores` が矛盾しない（pass なら全 >=1）
+- [ ] `codex_version` が request metadata と一致
+- [ ] schema validator exit 0
+- [ ] SKILL.md / rubric.json / 他 skill への書込みゼロ
+
+## Layer 6: オーケストレーション層
+
+### 6.1 上位 skill との接続
+
+- 呼び出し元: R1-delegate（codex 実行後にユーザーが本 prompt を起動）、`run-skill-create` Gate 4 任意拡張
+- 後続: `run-skill-rubric-governance`（fail 時の改善経路）、`assign-skill-design-evaluator`（並走採点）
+
+### 6.2 並列性
+
+- 異なる target への並列可
+- 同一 request_path への並列禁止（response 競合）
+
+## Layer 7: UI / 提示層
+
+### 7.1 ユーザー提示形式
+
+- 主出力: `eval-log/delegate-codex-response.json`（機械可読 JSON）
+- 上位 skill が markdown サマリに整形する想定
+
+### 7.2 言語
+
+- 本文: 日本語、`pass_status` enum / axis 名 / key は英語
+
+---
+
+## 出力指示 (LLM 実行時に読む箇所)
+
+LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
+
+入力 `{{request_path}}` / `{{codex_raw_response}}` / `{{options}}` を受け、Layer 5.2 の手順を逐次実行し、`eval-log/delegate-codex-response.json` を §2.4 schema 準拠で書き出す。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
