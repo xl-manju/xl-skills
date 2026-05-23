@@ -105,6 +105,20 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py",
     "plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py",
     "plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py",
+    # PR #12: skill-intake / prompt-creator / skill-creator 拡張に伴う暫定 PENDING (Change Governance で rename 予定)
+    "plugins/prompt-creator/skills/run-prompt-create/scripts/evaluate-create-gates.py",
+    "plugins/skill-intake/scripts/analyze_user_intent.py",
+    "plugins/skill-intake/scripts/convert_v1_to_v2_context.py",
+    "plugins/skill-intake/scripts/lint_subagent_seven_layer.py",
+    "plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py",
+    "plugins/skill-intake/skills/run-intake-interview/scripts/check-five-axes-coverage.py",
+    "plugins/skill-intake/skills/run-intake-visualize/scripts/verify-visuals.py",
+    "plugins/skill-creator/scripts/compute-dogfooding-metrics.py",
+    "plugins/skill-creator/skills/run-build-skill/scripts/auto-record-lesson.py",
+    "plugins/skill-creator/skills/run-elegant-review/scripts/check-review-trigger.py",
+    "plugins/skill-creator/skills/wrap-git-commit-safe/scripts/preflight-git-commit.py",
+    "plugins/skill-creator/skills/run-skill-rubric-governance/scripts/aggregate-evals.py",
+    "plugins/skill-creator/skills/ref-task-context-map/scripts/preload-context-map.py",
     # run-skill-update-notifier (PR #8): notifier verb pending allowed-list extension
     "plugins/skill-creator/skills/run-skill-update-notifier/scripts/notifier-check.py",
 }
