@@ -1,12 +1,14 @@
 # 34a 章 settings.json マージ仕様
 
-最終更新: 2026-05-19
+最終更新: 2026-05-21
 
 ## §1 目的
 
 `plugins/<name>/.claude-plugin/plugin.json` と `plugins/<name>/{hooks,settings}/` から、開発用 `.claude/settings.json` の plugin 由来設定区間を決定的に再生成するための正本仕様を定義する。
 
 本章は 34章の plugin 物理レイアウトを補完する。CLI 引数の詳細は `doc/migration/phase0/04-settings-merge-cli-specification.md`、実装は `doc/migration/phase0/07-build-claude-settings-implementation.md` が従う。
+
+Skill Creator が量産する plugin package にどの hooks / settings / permissions を同梱するかの判定は `36-plugin-package-harness-contract.md` を正本とする。本章は、同梱された設定断片を開発用 `.claude/settings.json` にどう安全に派生生成するかだけを扱う。
 
 ## §2 三層モデル参照と正本境界
 
@@ -32,6 +34,8 @@ plugin 由来で `.claude/settings.json` にマージする対象は、現時点
 `skills/`、`agents/`、`commands/` の生成は `.claude/settings.json` ではなく `.claude/{skills,agents,commands}/` の symlink 派生で扱う。したがって、同名 skill 等の衝突は本章の settings merge だけでなく、`doc/migration/phase0/03-symlink-build-specification.md` の namespace preflight で必ず検出する。
 
 ## §4 グローバル名前空間 preflight
+
+本節は 36章 PKG-003 と整合する。PKG-003 が「package 単位の衝突検査」を扱うのに対し、本節は「`.claude/settings.json` 派生生成時の衝突解決」を扱う。両者は同一の名前空間定義を共有する。
 
 settings merge を実行する前に、plugin 群全体を走査して以下の名前空間を作る。
 

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-migrate-audit/output.schema.json",
+  "title": "run-migrate-audit output",
+  "type": "object",
+  "required": ["audit_id", "classified", "abstraction_findings"],
+  "additionalProperties": false,
+  "properties": {
+    "audit_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "classified": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_path", "category"],
+        "additionalProperties": false,
+        "properties": {
+          "source_path": {"type": "string"},
+          "category": {"type": "string", "enum": ["skill", "reference", "template", "schema", "script", "doc", "archive", "discard"]},
+          "rationale": {"type": "string"}
+        }
+      }
+    },
+    "abstraction_findings": {
+      "type": "array",
+      "items": {"type": "object"}
+    }
+  }
+}

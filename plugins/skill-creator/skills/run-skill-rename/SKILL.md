@@ -21,6 +21,11 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: source-update
 effect: local-artifact
+responsibility_refs:
+  - prompts/main.yaml
+schema_refs:
+  - schemas/output.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-skill-rename

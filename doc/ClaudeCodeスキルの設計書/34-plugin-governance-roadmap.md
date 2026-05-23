@@ -16,7 +16,10 @@
 | plugin 命名規約 | `06-classification-and-naming.md` 第17条 | 命名ゲート (Phase 0 完了後適用) |
 | plugin 境界 governance | `33-change-governance.md` MECE 表 | 境界違反の分類と強制ルール |
 | classify_change stub | `scripts/guard-change-category.py` | Phase 0 の主要未実装タスク |
-| eval-log plugin 対応 | `27-rubric-governance-runbook.md` §3.1 | eval-log パスの plugin 拡張 |
+| eval-log plugin 対応 | `27-rubric-governance-runbook.md` §3.1 | eval-log パスの plugin 拡張（PKG gate 用 `eval-log/<plugin>/pkg-<id>/` も §3.1 に準拠） |
+| plugin package harness | `36-plugin-package-harness-contract.md` | plugin install だけで Skill / Agent / Hook / script / settings を使える同梱契約（PKG-001〜017 の正本） |
+
+**正本分担の追記（2026-05-20）**: Plugin Package Harness Contract（PKG-001〜017、`references/package-contract.json` schema、Install UX Contract）の正本は **36章**。本章は Phase 0/1/2 ゲートで参照するのみで、ID 改廃・schema 変更は 36章 + 27章 rubric governance の承認を要する（27章 §4 参照）。
 
 ---
 
@@ -272,6 +275,22 @@ xl-skills/                          # marketplace リポジトリ
 - [ ] `build-claude-symlinks.py` 実装と test
 - [ ] `build-claude-settings.py` 実装と test
 - [ ] migrate スクリプトの `--dry-run` ログ取得
+- [ ] **36章 PKG-001〜009 lint 実装**（package completeness check の P0 セット。`scripts/validate-plugin-package.py` として配置、Python stdlib 限定）
+- [ ] **`references/package-contract.json` の schema 整備と validator script の所在明示**（schema 正本: 36章、validator: `scripts/validate-package-contract.py`、CI 接続点を本章 §更新ルールに記録）
+- [ ] **`claude plugin validate --strict` の harness 内ラッパー**（`scripts/run-plugin-validate-strict.sh` として包み、exit code を CI gate に接続。PKG-001 と同期）
+
+### Phase 1 ゲート（PKG smoke 自動化、新設）
+
+Phase 1 完了の追加条件として、以下を満たすこと:
+
+- [ ] **PKG-010 install smoke の自動化**: local marketplace install smoke が `scripts/smoke-plugin-install.sh` 等で再現可能になり、entrypoint / hook registration / script existence の3確認を機械実行できる。実行ログは `eval-log/<plugin>/pkg-010/` に保存（27章 §3.1 に準拠）
+
+### Phase 2 ゲート（出荷前 PKG gate、新設）
+
+Phase 2 完了の追加条件として、以下を満たすこと:
+
+- [ ] **PKG-011〜015 出荷前 gate 配備**（PKG-013 が `013a/013b/013c/013d` に分割された場合は分割後の全 ID を含む）。各 gate の fail は `pkg_check_failed` failure_mode として 35章 observables に登録される（35章 §observables 参照）
+- [ ] PKG-016 / PKG-017（将来追加される ID を含む）の取り扱いを 36章で確定してから本ゲートを clear する
 
 ### Skill 作成側への反映
 
@@ -281,6 +300,16 @@ xl-skills/                          # marketplace リポジトリ
 
 ---
 
+## 関連章
+
+| 章 | 本章との関係 |
+|---|---|
+| 23 案D/D' | plugin アーキテクチャ前提 |
+| 27 §3.1 / §4 | eval-log パス規約（`eval-log/<plugin>/pkg-<id>/` 含む）、PKG ID 改廃の governance |
+| 33 MECE 表 | plugin 境界違反の分類 |
+| 35 observables | PKG gate fail → `pkg_check_failed` failure_mode の閉ループ |
+| 36 PKG-001〜017 | Plugin Package Harness Contract 正本。Phase 0/1/2 ゲートはここを参照する |
+
 ## 更新ルール
 
 1. Phase 移行ゲートが変わったら、本章のチェックリストと公式制約照合表を同時に更新する
@@ -289,3 +318,4 @@ xl-skills/                          # marketplace リポジトリ
 4. **classify_change の TODO(human) を本章で勝手に実装しない**（自己適用ルール）
 5. Phase 0 の「温存」判断を変える場合は P0_breaking として proposal を作成する
 6. plugin 物理レイアウト・symlink 戦略・settings.json マージ仕様を変更する場合は P0_breaking として proposal を作成する
+7. **PKG-001〜017 の ID 新設・分割・削除は本章で行わず、36章正本 + 27章 §4 rubric governance の承認を経る**（PKG ID 改廃の governance）。本章は PKG ID の参照のみ更新する

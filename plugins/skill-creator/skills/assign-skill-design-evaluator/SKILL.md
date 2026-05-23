@@ -28,6 +28,10 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs:
+  - prompts/evaluate.yaml
+schema_refs:
+  - schemas/evaluator-output.schema.json
 ---
 
 # assign-skill-design-evaluator

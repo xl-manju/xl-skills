@@ -1,0 +1,3 @@
+resources:
+  - path: brief-template.md
+    read_when: "brief.json の必須項目テンプレートを参照するとき"

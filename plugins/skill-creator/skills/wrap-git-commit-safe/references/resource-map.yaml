@@ -1,0 +1,3 @@
+resources:
+  - path: ../templates/commit-template.md
+    read_when: "commit message を整形するとき"

@@ -23,6 +23,11 @@ reference_refs:
   - ref-claude-code-skill-spec
   - ref-skill-naming-convention
   - ref-cross-platform-runtime
+responsibility_refs:
+  - prompts/main.yaml
+schema_refs:
+  - schemas/output.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-migrate-audit

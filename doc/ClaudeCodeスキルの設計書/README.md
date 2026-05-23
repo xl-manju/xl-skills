@@ -37,6 +37,7 @@
 | plugin 移行ロードマップ | `34-plugin-governance-roadmap.md` | Phase 0-4 ゲート、公式制約照合、3アナリスト収束証拠は `34` を優先する |
 | settings.json マージ仕様 | `34a-settings-merge-spec.md` | `.claude/settings.json` の管理メタデータ、INV-1〜12、衝突検出、名前空間 preflight は `34a` を優先する |
 | Meta-Harness FBループ | `35-meta-harness-feedback-loop.md` + `.claude/config/meta-harness-observables.json` | log-driven ref-* 改善のパイプライン、observables 列挙、Goodhart 予防は `35` を優先する |
+| Plugin Package Harness | `36-plugin-package-harness-contract.md` | Skill Creator が量産する plugin package の同梱判定、install UX、package completeness check は `36` を優先する |
 | 元情報の存在・数・差分 | `21-source-traceability.md` | 画像数、実在パス、コード現物の有無は `21` を優先する |
 
 「コード共有有」の元記事は記事本文と画像を現物確認済み。ただし、記事中で言及される同梱 `skills.zip` / Notion 内の Skill 実コードは、このリポジトリ内に現物がないため **code-unavailable** として扱う。実コードと記事説明が競合する場合は、実コード取得後に `21` へ追記してから裁定する。
@@ -69,9 +70,9 @@
 | Ubiquitous Language（共通言語） | チームで揃える業務用語 | Skill 名や domain segment の基準 |
 | Gotchas（落とし穴） | よく踏む失敗と回避策 | LLM が間違えやすい点を短く書く |
 
-## ファイル構成（全37本）
+## ファイル構成（全40本）
 
-Markdown は README を含めて 38 本。README を除く設計書は 37 本で、`00a` / `01a` / `34a` は補助導線として採番している。`27〜30` は依存注入型クリーンアーキ実装の追加章、`31` は出力routing/adapterとKeychain保護の追加章、`32` は creator-kit 実装状態の台帳章、`33` は変更ガバナンス章、`34` は plugin 移行ロードマップ章、`34a` は settings.json マージ仕様章。
+Markdown は README を含めて 41 本。README を除く設計書は 40 本で、`00a` / `01a` / `34a` は補助導線として採番している。`27〜30` は依存注入型クリーンアーキ実装の追加章、`31` は出力routing/adapterとKeychain保護の追加章、`32` は creator-kit 実装状態の台帳章、`33` は変更ガバナンス章、`34` は plugin 移行ロードマップ章、`34a` は settings.json マージ仕様章、`36` は plugin package harness 契約章。
 
 行数規律の適用範囲: `08` / `13` / `24` の **300 行 hard cap は生成対象の `.claude/skills/<skill-name>/SKILL.md` 本文に適用する**。本ディレクトリの設計書 Markdown は正本性・追跡性・判断根拠を優先し、300 行以上でも許容する。
 
@@ -117,6 +118,7 @@ Markdown は README を含めて 38 本。README を除く設計書は 37 本で
 | [34-plugin-governance-roadmap.md](34-plugin-governance-roadmap.md) | plugin 移行ガバナンスロードマップ (Phase 0-4、公式制約5点照合、3アナリスト収束証拠サマリ) |
 | [34a-settings-merge-spec.md](34a-settings-merge-spec.md) | settings.json マージ仕様 (INV-1〜12、管理メタデータ構文、衝突検出、名前空間 preflight、CLIへの引き継ぎ) |
 | [35-meta-harness-feedback-loop.md](35-meta-harness-feedback-loop.md) | Meta-Harness フィードバックループ (セッションログ→ref-* 改善のパイプライン Phase 0-4、observables 閉列挙、Goodhart 罠予防) |
+| [36-plugin-package-harness-contract.md](36-plugin-package-harness-contract.md) | Plugin Package Harness 契約 (Skill Creator が量産する plugin package の同梱判定、install UX、package completeness check) |
 
 ## 命名規約・検証エンジン 横断索引
 
@@ -197,6 +199,7 @@ Markdown は README を含めて 38 本。README を除く設計書は 37 本で
 10. [32-creator-kit-implementation-ledger.md](32-creator-kit-implementation-ledger.md) — 実装状態と残課題を確認
 11. 横断参照: [09](09-evaluation-orchestration.md) 評価ループ + 評価ピラミッド / [11](11-templates.md) 基本テンプレ / [13](13-checklists.md) チェックリスト
 12. plugin 移行を検討する場合: [34-plugin-governance-roadmap.md](34-plugin-governance-roadmap.md) — Phase 0-4 ゲート確認
+13. plugin package として量産する場合: [36-plugin-package-harness-contract.md](36-plugin-package-harness-contract.md) — Skill / Agent / Hook / Script / settings の同梱判定
 
 ### D. 既存パラダイム経験者向け（ESLint / pytest / LSP / Terraform から入る）
 

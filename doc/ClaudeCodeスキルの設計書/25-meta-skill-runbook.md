@@ -6,6 +6,17 @@
 
 別プロジェクトでメタSkill基盤を使う場合は、個別Skillを手でコピーせず `creator-kit/` を配布単位にする。配布形態は git submodule、単純コピー、同一マシン内 symlink の3つで、詳細手順は `creator-kit/README.md` に委譲する。
 
+### 配布レイヤーの時系列分離（manifest 二義性の解消）
+
+本 runbook で `manifest` が指す対象は時系列で2層あり、混同しないこと。詳細は [36-plugin-package-harness-contract.md](./36-plugin-package-harness-contract.md) §`package_mode` を正本とする。
+
+| フェーズ | 配布単位 | `manifest` が指す実体 | `name:` 表記 |
+|---|---|---|---|
+| 現行（creator-kit 配布 = `skill-only` 相当の移行期表現） | `creator-kit/` | `creator-kit/manifest.json`（kit 内の Skill 収録目録） | kebab-case の Skill 名（plugin 名は不在） |
+| Phase 2 以降（36章 `package_mode != skill-only`） | `plugins/<plugin-name>/` plugin package | `plugins/<plugin-name>/.claude-plugin/plugin.json`（Claude Code 公式 plugin manifest） | kebab-case の Skill 名のみ。plugin 名は配置パスで表現（06章第17条） |
+
+Phase 2 以降の標準運用では、配布単位は `creator-kit/` ではなく `plugins/<plugin-name>/` の plugin package になる。ユーザーは `/plugin install <plugin>` だけで必要な Skill / Agent / Hook / script / settings を利用できる状態を完了条件とする。どの component を同梱するか、どの検査を package completeness check とするかは [36-plugin-package-harness-contract.md](./36-plugin-package-harness-contract.md) を正本とする。`skill-only` は legacy / dev-only / migration exception 扱いであり（36章 §`skill-only`）、新規量産では選択しない。
+
 標準のE2E入口は `run-skill-create` である。`run-skill-create` は要望から完成までを、`run-skill-elicit` → `run-build-skill` → creator-kit登録判定 → P0 lint → `assign-skill-design-evaluator` → `run-elegant-review` → governance の順でゲート付きに連鎖させる。新規作成と更新のどちらもこの入口から開始し、途中でユーザー判断が必要な箇所だけ gate template に従って確認する。
 
 既存プロジェクトを kit 化する場合は、まず `bash creator-kit/migrate-from-project.sh --dry-run` で移動対象を確認し、問題なければ本実行する。kit 由来 symlink だけを uninstall 対象とし、プロジェクト固有 Skill や業務設計書は移動しない。`xl-skills` 本体の symlink 配置は完了しており、`.claude/skills/` は `creator-kit/skills/*` への symlink 参照として確認済みである。ただし `migrate-from-project.sh` の正式実行ログは未取得であり、C4は暫定PASSとして扱う (32章参照)。
@@ -31,10 +42,12 @@
 [Step 4] 雛形展開 + scripts 生成 (Python3 + ps1)
    │
    ▼
-[Step 5] creator-kit登録判定
+[Step 5] creator-kit登録判定（現行: creator-kit/manifest.json）
    │     scripts/build-manifest-registration-plan.py
    │     ├── 共通基盤なら登録案を提示 → 承認後 apply
    │     └── project固有なら登録せず理由を記録
+   │     ※ Phase 2 以降は plugin package（.claude-plugin/plugin.json）を対象に
+   │       PKG completeness check（36章フロー[5]）を実施。skill-only 時のみ creator-kit 経路。
    ▼
 [Step 6] forked evaluator 起動 (assign-skill-design-evaluator)
    │     Read references/rubric.json
@@ -86,6 +99,8 @@ python3 scripts/lint-manifest-contents.py
 ```
 
 承認なしに `manifest.json` を更新しない。登録しない場合も、完了レポートに `creator_kit_registration: skipped` と理由を残す。
+
+ここで `manifest.json` が指すのは `creator-kit/manifest.json`（kit 収録目録）であり、Claude Code 公式 plugin manifest（`plugins/<plugin-name>/.claude-plugin/plugin.json`）とは別物である。Phase 2 以降の plugin package mode では、本ゲートは PKG completeness check（36章フロー[5]、PKG-001〜010）に置き換わる。本 runbook で「manifest」と書かれた箇所は、文脈が creator-kit 配布なら前者、plugin package 配布なら後者を指す。
 
 ## 失敗時 retry ルール
 

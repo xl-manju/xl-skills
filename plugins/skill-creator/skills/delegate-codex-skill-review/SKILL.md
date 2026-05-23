@@ -5,6 +5,7 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools:
   - Read
+  - Write
   - Bash(python3 *)
 kind: delegate
 prefix: delegate
@@ -19,6 +20,16 @@ last-audited: 2026-05-19
 audit-trigger: source-update
 hierarchy_level: L1
 # delegate-* prefix の最小実例。Skill レビューを外部 codex CLI に委譲する。
+responsibility_refs:
+  - prompts/R1-delegate.md
+  - prompts/R2-codex-review.md
+schema_refs:
+  - schemas/io-contract.schema.json
+reference_refs:
+  - references/codex-connection.md
+  - references/resource-map.yaml
+script_refs:
+  - scripts/check-codex-installed.py
 ---
 
 # delegate-codex-skill-review
@@ -31,6 +42,17 @@ hierarchy_level: L1
 **出力**: `eval-log/delegate-codex-request.json` (ユーザーが任意で実行する codex review 入力)
 
 **完了条件**: codex CLI が標準フローの必須依存ではないことを保ったまま、任意実行用の入力とコマンド例が提示されている。
+
+## 内製 vs 委譲の選定根拠 (PARA-001)
+
+| 観点 | 内製 (`run-elegant-review`) | 外部委譲 (本 skill) |
+|---|---|---|
+| Sycophancy リスク | 高 (自己採点罠) | 低 (第三者 LLM) |
+| 再現性 | 高 (schema 固定) | 中 (codex モデル更新で変動) |
+| 依存 | Python 標準のみ | 外部 codex CLI 別途インストール |
+| 適用シーン | 標準フロー全件 | 重要 PR / 自己採点疑義時の cross-check |
+
+判断指針: 標準フローは内製で完結させ、本 skill は **opt-in の cross-check** として使う。両者は競合せず補完関係。
 
 ## Key Rules
 

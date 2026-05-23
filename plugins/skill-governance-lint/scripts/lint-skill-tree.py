@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*\.(md|yaml|py|sh|json|patch)$")
-ALLOWED_DIRS = {"templates", "references", "scripts", "examples", "hooks", "log"}
+ALLOWED_DIRS = {"templates", "references", "scripts", "examples", "hooks", "log", "prompts", "schemas"}
 ALLOWED_NESTED_DIRS = {
     ("templates", "combinators"),
 }
@@ -60,18 +60,71 @@ def _needs_os_preamble(fm: dict) -> bool:
 
 
 def _parse_fm_simple(text: str) -> dict:
-    """最小限 frontmatter パーサー（scalar のみ）。"""
+    """最小限 frontmatter パーサー（scalar + 簡易 list）。
+
+    list は `key:` に続く `  - value` 形式のみ対応 (MED-4 拡張)。
+    """
     if not text.startswith("---"):
         return {}
     parts = text.split("---", 2)
     if len(parts) < 3:
         return {}
     fm: dict = {}
+    current_list_key: str | None = None
     for line in parts[1].splitlines():
+        # list item (e.g. "  - prompts/foo.md")
+        m_item = re.match(r"^\s+-\s+(.+)$", line)
+        if m_item and current_list_key is not None:
+            fm.setdefault(current_list_key, [])
+            if isinstance(fm[current_list_key], list):
+                fm[current_list_key].append(m_item.group(1).strip())
+            continue
+        # scalar or list-start
         m = re.match(r"^([a-zA-Z_-]+):\s*(.*)$", line)
         if m:
-            fm[m.group(1)] = m.group(2).strip()
+            key, val = m.group(1), m.group(2).strip()
+            if val == "":
+                # list start
+                current_list_key = key
+                fm[key] = []
+            else:
+                fm[key] = val
+                current_list_key = None
+        elif not line.strip():
+            current_list_key = None
     return fm
+
+
+def check_prompts_listed(root: "Path", skill_md: "Path") -> list[str]:
+    """MED-4: prompts/*.{md,yaml} が SKILL.md frontmatter の responsibility_refs に
+    列挙されているか warn ベースで検出する。
+
+    未列挙でも exit 1 にはせず、warn (stderr に [Warn] prefix) を出すのみ。
+    skip 条件: prompts/ ディレクトリが存在しない場合。
+    """
+    warns: list[str] = []
+    prompts_dir = root / "prompts"
+    if not prompts_dir.is_dir():
+        return warns
+    text = skill_md.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return warns
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return warns
+    fm_text = parts[1]
+    listed_paths = set(re.findall(r"prompts/[A-Za-z0-9._-]+", fm_text))
+    for f in sorted(prompts_dir.iterdir()):
+        if not f.is_file():
+            continue
+        if f.suffix not in {".md", ".yaml"}:
+            continue
+        rel = f"prompts/{f.name}"
+        if rel not in listed_paths:
+            warns.append(
+                f"[Warn]MED-4: {rel} が SKILL.md frontmatter responsibility_refs に未列挙"
+            )
+    return warns
 
 
 def check_os_preamble(skill_md: "Path") -> list[str]:
@@ -157,6 +210,10 @@ def lint_one(root: Path) -> list[str]:
 
     # B-2: OS プリアンブルチェック (13章 クロスプラットフォーム [Lint])
     errs.extend(check_os_preamble(skill_md))
+
+    # MED-4: prompts/ 未列挙 warn (exit 1 にしない、stderr warn のみ)
+    for w in check_prompts_listed(root, skill_md):
+        print(w, file=sys.stderr)
 
     # rubric placement check: ref-* / assign-* は rubric.json を直下に置けない
     skill_name = root.name

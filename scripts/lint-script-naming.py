@@ -121,6 +121,9 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-creator/skills/ref-task-context-map/scripts/preload-context-map.py",
     # run-skill-update-notifier (PR #8): notifier verb pending allowed-list extension
     "plugins/skill-creator/skills/run-skill-update-notifier/scripts/notifier-check.py",
+    # PR #13: elegant-review v2 / plugin-package-check の新規 verb (emit/aggregate) pending rename
+    "plugins/skill-creator/skills/run-elegant-review/scripts/emit-observable.py",
+    "plugins/skill-creator/skills/run-plugin-package-check/scripts/aggregate-pkg-findings.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

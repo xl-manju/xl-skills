@@ -13,6 +13,11 @@ source-tier: internal
 last-audited: 2026-05-21
 audit-trigger: quarterly
 role_suffix: none
+responsibility_refs:
+  - prompts/main.yaml
+schema_refs:
+  - schemas/output.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-skill-update-notifier

@@ -19,6 +19,11 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs:
+  - prompts/main.yaml
+schema_refs:
+  - schemas/output.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-skill-elicit
