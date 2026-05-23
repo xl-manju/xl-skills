@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlocal/xl-skills/schemas/capability-manifest-v1.json",
+  "title": "CapabilityManifest",
+  "description": "Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow の統一宣言スキーマ。共通核(commonCore) + kind固有(kindSpecific を if/then で注入)。23a章 三層 contract モデルを target_type 横断に汎化。",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/definitions/commonCore" },
+    {
+      "oneOf": [
+        { "$ref": "#/definitions/kindSkill" },
+        { "$ref": "#/definitions/kindAgent" },
+        { "$ref": "#/definitions/kindHook" },
+        { "$ref": "#/definitions/kindCommand" },
+        { "$ref": "#/definitions/kindPluginComposition" },
+        { "$ref": "#/definitions/kindPrompt" },
+        { "$ref": "#/definitions/kindWorkflow" }
+      ]
+    }
+  ],
+  "definitions": {
+    "commonCore": {
+      "type": "object",
+      "required": ["name", "description", "kind", "version", "owner"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "kebab-case 一意名。prefix(run/assign/ref/delegate/wrap/intake-*)はkind=skillでのみ強制。" },
+        "description": { "type": "string", "minLength": 10, "maxLength": 400, "description": "発動条件のみを宣言。03章R1/R5準拠。" },
+        "kind": {
+          "type": "string",
+          "enum": ["skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow"],
+          "description": "Capability 種別。rubric / templates / validator が kind ごとに分岐する。"
+        },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "description": "SemVer。rubric 連動のため semver bump rules に従う。" },
+        "owner": { "type": "string", "description": "team名または個人。governance escalation 先。" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "since": { "type": "string", "format": "date" },
+        "last-audited": { "type": "string", "format": "date" },
+        "audit-trigger": { "type": "string", "enum": ["quarterly", "on-change", "on-rubric-bump", "manual"] },
+        "contract": {
+          "type": "object",
+          "description": "三層 contract (23a章)。すべての kind で必須化することで machine-checkable な不変条件を確保。",
+          "required": ["intent", "interface", "invariant"],
+          "properties": {
+            "intent": { "type": "string", "description": "なぜ存在するか。価値提案。" },
+            "interface": { "type": "object", "description": "入出力・呼出規約。kind 固有 schema が詳細化。" },
+            "invariant": { "type": "array", "items": { "type": "string" }, "description": "変更してはならない不変条件の箇条書き。" }
+          }
+        },
+        "rubric_refs": { "type": "array", "items": { "type": "string" }, "description": "依拠する rubric.json への参照。L0→L1→L2 deep-merge 順。" },
+        "responsibility_refs": { "type": "array", "items": { "type": "string" }, "description": "プロンプト・スクリプトなど責務委譲先への参照。" }
+      }
+    },
+
+    "kindSkill": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "skill" },
+        "triggers": { "type": "array", "items": { "type": "string" }, "description": "発動キーワード/状況。03章R5。" },
+        "anchors": { "type": "array", "items": { "type": "string" }, "description": "設計原則アンカー (例: Clean Code / SRP)。" },
+        "disable-model-invocation": { "type": "boolean" },
+        "user-invocable": { "type": "boolean" },
+        "pair": { "type": "string", "description": "Generator/Evaluator 双方向リンク先 skill name。" },
+        "effect": { "type": "string", "enum": ["none", "read", "write", "external"] },
+        "source": { "type": "string" },
+        "source-tier": { "type": "string", "enum": ["external-official", "internal", "experimental"] }
+      },
+      "required": ["triggers"]
+    },
+
+    "kindAgent": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "agent" },
+        "tools": { "type": "array", "items": { "type": "string" }, "description": "agent が使用可能なツール allowlist。" },
+        "model": { "type": "string", "enum": ["sonnet", "opus", "haiku", "inherit"] },
+        "isolation": { "type": "string", "enum": ["fork", "worktree", "inherit"], "description": "context 分離方針。assign-* 評価器は必ず fork。" },
+        "phase": { "type": "string", "description": "親オーケストレーション内での担当 phase 名。" },
+        "fan-out": { "type": "string", "enum": ["single", "parallel", "sequential"] }
+      },
+      "required": ["tools", "isolation"]
+    },
+
+    "kindHook": {
+      "type": "object",
+      "description": "Claude Code Hooks 仕様(settings.json/plugin.json hooks)に準拠。",
+      "properties": {
+        "kind": { "const": "hook" },
+        "event": {
+          "type": "string",
+          "enum": ["PreToolUse", "PostToolUse", "UserPromptSubmit", "Stop", "SessionEnd", "SubagentStop", "PreCompact", "Notification"],
+          "description": "Claude Code が発火するライフサイクルイベント。"
+        },
+        "matcher": {
+          "type": "object",
+          "description": "発火条件の絞り込み(ツール名/パスパターン等)。",
+          "properties": {
+            "tool": { "type": "string", "description": "対象ツール名(例: Edit, Write, Bash)。" },
+            "path_glob": { "type": "string", "description": "対象ファイル glob。" },
+            "argument_pattern": { "type": "string", "description": "Bash の場合 cmd の正規表現。" }
+          }
+        },
+        "command": { "type": "string", "description": "実行するコマンド or スクリプトパス。$CLAUDE_PLUGIN_ROOT 利用可。" },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 60000, "default": 5000 },
+        "exit_code_policy": { "type": "string", "enum": ["non-blocking", "blocking-on-nonzero", "blocking-on-2"], "default": "non-blocking", "description": "非ゼロ終了で操作をブロックするか。2は明示拒否。" },
+        "side_effect_scope": { "type": "string", "enum": ["read-only", "lessons-write", "git-write", "external"], "description": "Hook の副作用境界。governance 分析で使用。" }
+      },
+      "required": ["event", "command"]
+    },
+
+    "kindCommand": {
+      "type": "object",
+      "description": "SlashCommand (commands/*.md) frontmatter スキーマ。",
+      "properties": {
+        "kind": { "const": "command" },
+        "argument-hint": { "type": "string", "description": "/command <hint> の <hint> 部分。" },
+        "allowed-tools": { "type": "array", "items": { "type": "string" } },
+        "entrypoint": { "type": "string", "description": "実体ロジックを持つ Skill name。command は薄いラッパに保つ。" }
+      },
+      "required": ["argument-hint", "allowed-tools"]
+    },
+
+    "kindPluginComposition": {
+      "type": "object",
+      "description": "CapabilityBundle(plugin-composition.yaml)のスキーマ。plugin 単位の宣言。",
+      "properties": {
+        "kind": { "const": "plugin-composition" },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "ref"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["skill", "agent", "hook", "command", "prompt", "workflow"] },
+              "ref": { "type": "string", "description": "Capability への相対パス。" },
+              "tier": { "type": "string", "enum": ["core", "ref", "extension"] }
+            }
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Capability 間 DAG。循環は lint で検出。",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "type": { "type": "string", "enum": ["calls", "reads", "extends", "evaluates"] }
+            }
+          }
+        },
+        "eval_sinks": { "type": "array", "items": { "type": "string" }, "description": "EVALS.json など評価ログ集約先。" },
+        "governance": {
+          "type": "object",
+          "properties": {
+            "rubric_refs": { "type": "array", "items": { "type": "string" } },
+            "changelog": { "type": "string" },
+            "roadmap": { "type": "string" }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "properties": {
+            "hooks": { "type": "array", "items": { "type": "string" }, "description": "配線済み hook 名一覧。" },
+            "metrics": { "type": "array", "items": { "type": "string" } },
+            "lessons_path": { "type": "string" }
+          }
+        }
+      },
+      "required": ["capabilities"]
+    },
+
+    "kindPrompt": {
+      "type": "object",
+      "description": "prompt-creator 7層構造プロンプト準拠。",
+      "properties": {
+        "kind": { "const": "prompt" },
+        "layers": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "required": ["index", "title"],
+            "properties": {
+              "index": { "type": "integer", "minimum": 1, "maximum": 7 },
+              "title": { "type": "string" },
+              "ref": { "type": "string" }
+            }
+          }
+        },
+        "self_evaluation": { "type": "string", "description": "Self-Evaluation セクションへの参照。" }
+      },
+      "required": ["layers"]
+    },
+
+    "kindWorkflow": {
+      "type": "object",
+      "description": "manifest 駆動の複数 phase オーケストレーション(例: run-elegant-review)。",
+      "properties": {
+        "kind": { "const": "workflow" },
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "agents"],
+            "properties": {
+              "id": { "type": "string" },
+              "agents": { "type": "array", "items": { "type": "string" } },
+              "parallel": { "type": "boolean", "default": false },
+              "gate": { "type": "string", "description": "次 phase へ進む条件。" }
+            }
+          }
+        },
+        "max_iterations": { "type": "integer", "minimum": 1, "default": 3 }
+      },
+      "required": ["phases"]
+    }
+  }
+}

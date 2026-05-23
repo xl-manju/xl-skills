@@ -1,0 +1,12 @@
+# resource-map.yaml — 設計書06 第13条スキーマ準拠
+# ref-cross-platform-runtime の references/ ファイル索引
+resources:
+  - file: os-matrix.md
+    topic: macOS / Linux / Windows での挙動差分マトリクス
+    read_when: 他 Skill が host OS で分岐するとき、OS 判定に失敗したとき
+  - file: forbidden-clis.md
+    topic: cross-platform で使用禁止の CLI と代替コマンド一覧
+    read_when: 使用 CLI が host OS で動かない疑いがあるとき
+prompts:
+  - file: ../prompts/search-summarize.md
+    purpose: R1 検索/要約 (query → matches[])

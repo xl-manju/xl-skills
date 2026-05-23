@@ -4,7 +4,8 @@ description: YAML仕様が変わったか確認するとき、公式仕様との
 disable-model-invocation: false
 allowed-tools:
   - Read
-kind: ref
+kind: skill
+prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-18
@@ -13,6 +14,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs: [prompts/search-summarize.md]
 ---
 
 # ref-yaml-spec-fetcher

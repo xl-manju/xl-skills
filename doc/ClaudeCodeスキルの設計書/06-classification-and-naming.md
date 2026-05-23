@@ -408,3 +408,9 @@ ref-api-conventions
 run-api-implementation
 assign-api-review-evaluator
 ```
+
+## § X prefix 別内部構造規約 → 23a 章参照
+
+prefix が宣言する実行モードに応じて、`prompts/` `agents/` `schemas/` `templates/` `references/` `workflow-manifest.json` の設置要件は非対称に決まる。本章は命名（外形）の正本であり、内部構造の正本は別章に分離する。
+詳細は [23a-prefix-driven-internal-structure.md](23a-prefix-driven-internal-structure.md) を参照。
+

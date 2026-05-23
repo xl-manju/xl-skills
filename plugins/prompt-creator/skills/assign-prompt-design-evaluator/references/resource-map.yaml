@@ -1,0 +1,24 @@
+# assign-prompt-design-evaluator resource map
+machine_readable:
+  rubric: references/prompt-rubric.json
+  schemas:
+    findings: ../run-prompt-create/schemas/findings.schema.json
+  scripts:
+    - ../../scripts/verify_completeness.js
+    - ../../scripts/validate_prompt.js
+prompts:
+  R1_evaluate: prompts/evaluate.md
+references:
+  criteria: references/c1-c4-criteria.md
+phase_resources:
+  scripted_check:
+    must_read: [references/prompt-rubric.json]
+    scripts: [verify_completeness.js, validate_prompt.js]
+  c1_c4_machine:
+    must_read: [references/prompt-rubric.json]
+  four_pass_llm:
+    must_read: [references/c1-c4-criteria.md]
+  emit_findings:
+    must_read: [../run-prompt-create/schemas/findings.schema.json]
+eval_log_artifacts:
+  findings: eval-log/docs/<NN>-<timestamp>.json

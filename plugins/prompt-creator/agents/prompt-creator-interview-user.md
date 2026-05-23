@@ -3,6 +3,11 @@ name: prompt-creator-interview-user
 description: プロンプト要件をユーザにヒアリングしたいとき、Prompt 作成シートを対話で埋めたいときに使う。
 tools: Read, Write, AskUserQuestion
 model: sonnet
+owner_skill: run-prompt-elicit
+responsibility_id: R1
+context: fork
+since: 2026-05-22
+last-audited: 2026-05-22
 ---
 
 ## Purpose

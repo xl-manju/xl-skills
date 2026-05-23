@@ -389,3 +389,80 @@ rubric（評価基準）は read-only でも「永久不変」ではない。Goo
 1. ヒアリング (`run-skill-elicit`) と生成 (`run-build-skill`) の同一コンテキスト実行は可（sequential）。
 2. 生成 (`run-build-skill`) と評価 (`assign-skill-design-evaluator`) は必ず分離コンテキスト（context: fork）。
 3. 改名 (`run-skill-rename`) と評価は独立。改名後に評価が必要な場合は別途 `assign-skill-design-evaluator` を呼ぶ。
+
+## § X-1 prefix 別内部構造規約 (23a 参照)
+
+各 Skill の内部構造は prefix が宣言する実行モードに応じて非対称に決まる。本章は meta-skill 群の責務分割と連携の正本であり、内部構造の正本は分離する。
+詳細は [23a-prefix-driven-internal-structure.md](23a-prefix-driven-internal-structure.md) § 3 を参照。
+
+## § X-2 manifest + schemas + prompts 三層 contract モデル (23a § 4 参照)
+
+Step / Gate / handoff の正本は `workflow-manifest.json` + `schemas/` + `prompts/<R-id>.yaml` の三層に置く。SKILL.md は参照役に徹し、散文に同じ内容を写経しない。詳細は [23a-prefix-driven-internal-structure.md](23a-prefix-driven-internal-structure.md) § 4 を参照。
+
+---
+
+## Capability 抽象への拡張 (2026-05-22)
+
+本章は当初「Skill を Skill で作るためのアーキテクチャ」として書かれたが、2026-05 の skill-creator プラグイン整備の過程で、Claude Code 拡張資産は Skill だけではなく **Agent / Hook / Command / Plugin-Composition / Prompt / Workflow** を含む 7 種に分岐していることが明らかになった。本節はその知見を取り込み、これら全種を **Capability** という統一抽象で扱う設計判断を明文化する。
+
+### 動機 (なぜ Skill 中心の枠組みでは破綻するか)
+
+| 観測された破綻 | 原因 |
+|---|---|
+| Agent / Hook / Command の品質基準が場当たり的 | rubric / templates が Skill 専用に設計され、他 kind では空欄か流用 |
+| plugin 単位の改訂が `plugins/<name>/.claude-plugin/plugin.json` の手書きに依存 | bundle 全体の依存関係 (DAG) を機械検証する正本が無い |
+| EVALS / lessons-learned / changelog が plugin 直下で揃わない | plugin = bundle という概念が定義されていない |
+| reflective loop (35章) が Skill 改訂にしか走らない | 観測対象 (failure mode) が Skill 起動ログ前提 |
+
+### 統一抽象の定義
+
+| 抽象 | 役割 | 正本パス |
+|---|---|---|
+| **Capability** | Claude Code 拡張資産の最小単位。`kind ∈ {skill, agent, hook, command, plugin-composition, prompt, workflow}` のいずれかを宣言する | `plugins/skill-creator/skills/ref-skill-glossary/references/terms.md` |
+| **CapabilityManifest** | 各 Capability の宣言ファイル。共通核 (`name / description / kind / version / owner / tags / since`) + kind 固有スキーマ (注入) の二層構造 | `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json` |
+| **CapabilityBundle** | 複数 Capability の集合 ≒ plugin。`plugin-composition.yaml` (別名 `capability-bundle.yaml`) で `capabilities[] / dependencies / eval-sinks / governance.rubric_refs / observability.hooks` を宣言 | plugin 直下 `plugin-composition.yaml` |
+| **CapabilityContract** | 三層 contract: **intent**(なぜ存在するか) / **interface**(入出力・呼出規約) / **invariant**(変更してはならない不変条件)。23a章の三層 contract モデルを Capability 全 kind に拡張 | 各 Capability の `workflow-manifest.json` / `schemas/` / `prompts/<R-id>.md` |
+
+### Skill との互換性
+
+Skill は Capability の **特殊形 (`kind: skill`)** として扱う。既存の `run-* / ref-* / assign-* / delegate-* / wrap-*` prefix 規約 (23a § 2) は `kind: skill` 配下のサブ分類として継続有効である。本節の追加は破壊変更ではなく、**包含関係を上位に明示する** 拡張に留まる。
+
+### 三層 contract の Capability 横断適用
+
+23a § 4 で確立した三層 contract モデル (`workflow-manifest.json` + `schemas/` + `prompts/`) は、kind ごとに以下のように写像される。
+
+| kind | intent (なぜ) | interface (入出力) | invariant (不変) |
+|---|---|---|---|
+| `skill` | description (発動条件) | frontmatter + Output Contract | rubric_refs / Gotchas |
+| `agent` | agent の責務宣言 | system_prompt + tools 許可リスト | fork context 必須 / 親 context 不汚染 |
+| `hook` | trigger event の意図 | event/matcher/command の三組 | 公式 hook event 名のみ / 副作用境界 |
+| `command` | slash command の使途 | argument schema + 出力 | コマンド名の namespace 衝突禁止 |
+| `plugin-composition` | bundle の存在理由 | `capabilities[]` / `dependencies` DAG / `eval-sinks` | DAG 循環禁止 / governance.rubric_refs 必須 |
+| `prompt` | prompt 単体の責務 | input slots + expected output schema | 7層 markdown 骨格 / 1 ファイル = 1 責務 |
+| `workflow` | フェーズ進行の意図 | phases + gates + handoff schemas | dependsOn 循環禁止 / fatal_exit_codes 必須 |
+
+### 設計判断の根拠
+
+1. **rubric / templates / validator が kind ごとに分岐する必然性**: kind 別に invariant が異なるため、単一 rubric では Goodhart 罠が再生産される。Capability 抽象で kind を一級市民に昇格させることで、kind 固有 rubric を `references/rubric-<kind>.json` として独立 versioning できる。
+2. **CapabilityBundle = plugin の同一視**: Claude Code 公式 `.claude-plugin/` の単位と本リポジトリの `plugins/<name>/` の単位を一致させることで、案D' (公式 plugin 型) への移行コストを最小化する (34章 Phase 0 ゲート整合)。
+3. **composition lint の機械検証性**: `plugin-composition.yaml` を PostToolUse hook で lint することで、依存 DAG・rubric_refs・hooks 配線の整合を**変更時点で検出**する。23a § 5 の「再現性保証メカニズム」を bundle 単位に拡張したもの。
+
+### 移行ステータス
+
+| Phase | 内容 | 状態 |
+|---|---|---|
+| Phase A | 用語確定 (`ref-skill-glossary/references/terms.md` に追加) | 完了 (2026-05-22) |
+| Phase B | CapabilityManifest schema 整備 (`run-build-skill/references/capability-manifest.schema.json`) | 完了 (2026-05-22) |
+| Phase C | `plugin-composition.yaml` の各 plugin 配置 + composition lint hook | 進行中 |
+| Phase D | rubric / templates の kind 別分岐 | 未着手 |
+| Phase E | reflective loop (35章) の Capability 横断化 | 未着手 |
+
+Phase D/E は 33章 P1_structural として個別に proposal する。
+
+### 関連章
+
+- 23a章: 三層 contract の Skill 内部実装 (本節はそれを kind 横断に汎化)
+- 33章: CapabilityBundle governance のカテゴリ判定 (§ CapabilityBundle governance)
+- 34a章: hook の Capability 化 (kind=hook の CapabilityManifest 宣言)
+- 35章: reflective loop の Capability 用語による再記述
+

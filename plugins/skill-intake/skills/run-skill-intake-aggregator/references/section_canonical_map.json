@@ -7,7 +7,8 @@
     "dry_resolution": "§3 と旧 §7.5 の knowledge_asset 重複は §6_five_axes_summary 配下に $ref で fold し、旧 7_5_knowledge_asset を廃止",
     "dogfooding_threshold": {"$ref": "runtime-config.json#/dogfooding", "note": "DRY: 閾値・キー集合の正本は runtime-config.json 側。ここはポインタ宣言のみ (F2 修正 2026-05-22)"},
     "absence_behavior_default": "block",
-    "viz_slots_engine": "fa-icon prefix 'fa:fa-*' は本文では用いず、Mermaid 識別子のみ正本化"
+    "viz_slots_engine": "fa-icon prefix 'fa:fa-*' は本文では用いず、Mermaid 識別子のみ正本化",
+    "diagram_uniqueness_enforcement": "asset_id must be unique across sections, except §5 figN siblings"
   },
   "sections": [
     {
@@ -34,7 +35,7 @@
         {"key": "value_realized_score", "type": "integer", "constraint": "0-100 (§10 self-updater の self-evaluation)", "absence_behavior": "warn-fallback", "default": null}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "cvis-exec-summary-card", "mandatory": true}
+        {"role": "primary", "asset_id": "cvis-exec-summary-card", "mandatory": true, "kind": "structure"}
       ],
       "char_bounds": {"min": 300, "max": 1200},
       "absence_behavior": "block",
@@ -59,7 +60,8 @@
         {"key": "blindspots", "type": "array", "constraint": "[{text}]", "absence_behavior": "warn-fallback", "default": []}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-mindmap-surface-vs-deep", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-mindmap-surface-vs-deep", "mandatory": true, "kind": "workflow"},
+        {"role": "secondary", "asset_id": "mermaid-quadrant-blindspot-map", "mandatory": false, "kind": "workflow"}
       ],
       "char_bounds": {"min": 250, "max": 1500},
       "absence_behavior": "block",
@@ -82,7 +84,8 @@
         {"key": "implications_for_next_phase", "type": "array", "constraint": "後続フェーズへの含意 1-3件", "absence_behavior": "warn-fallback", "default": []}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "cvis-persona-card", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-radar-6dim", "mandatory": true, "kind": "structure"},
+        {"role": "secondary", "asset_id": "cvis-persona-card", "mandatory": false, "kind": "structure"}
       ],
       "char_bounds": {"min": 250, "max": 1500},
       "absence_behavior": "block",
@@ -110,7 +113,8 @@
         {"key": "tacit_locus", "type": "object", "constraint": "{where, extraction_strategy_hint}", "absence_behavior": "warn-fallback", "default": null}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-mindmap-stated-to-excavated", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-journey-5whys", "mandatory": true, "kind": "workflow"},
+        {"role": "secondary", "asset_id": "mermaid-mindmap-stated-to-excavated", "mandatory": false, "kind": "workflow"}
       ],
       "char_bounds": {"min": 300, "max": 1800},
       "absence_behavior": "block",
@@ -132,7 +136,8 @@
         {"key": "connectors", "type": "object", "constraint": "{input_sources[], knowledge_assets[], outputs[], scheduler}", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-comparison-table", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-flowchart-decision-tree", "mandatory": true, "kind": "workflow"},
+        {"role": "secondary", "asset_id": "mermaid-table-pro-con", "mandatory": false, "kind": "workflow"}
       ],
       "char_bounds": {"min": 400, "max": 2500},
       "absence_behavior": "block",
@@ -154,11 +159,11 @@
         {"key": "rules_check", "type": "object", "constraint": "{nodes_7_plus_minus_2:bool, label_len_le_10:bool, color_legend:bool, no_emoji:bool, one_liner_present:bool}", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "fig1_architecture", "asset_id": "mtmpl-flowchart-lr", "mandatory": true},
-        {"role": "fig2_core_mechanism", "asset_id": "mtmpl-flowchart-tb", "mandatory": true},
-        {"role": "fig3_pipeline", "asset_id": "mtmpl-sequence", "mandatory": true},
-        {"role": "fig4_before_after", "asset_id": "mtmpl-before-after-lr", "mandatory": true},
-        {"role": "fig5_boundary", "asset_id": "mtmpl-boundary-tb", "mandatory": true}
+        {"role": "fig1_architecture", "asset_id": "mtmpl-flowchart-lr", "mandatory": true, "kind": "mechanism"},
+        {"role": "fig2_core_mechanism", "asset_id": "mtmpl-flowchart-tb", "mandatory": true, "kind": "mechanism"},
+        {"role": "fig3_pipeline", "asset_id": "mtmpl-sequence", "mandatory": true, "kind": "mechanism"},
+        {"role": "fig4_before_after", "asset_id": "mtmpl-before-after-lr", "mandatory": true, "kind": "mechanism"},
+        {"role": "fig5_boundary", "asset_id": "mtmpl-boundary-tb", "mandatory": true, "kind": "mechanism"}
       ],
       "char_bounds": {"min": 500, "max": 3500},
       "absence_behavior": "block",
@@ -180,7 +185,8 @@
         {"key": "knowledge_pipeline", "type": "object", "constraint": "{ingest:[], analysis:[], storage:[], retrieval:[], update:enum(daily/weekly/monthly/event)}", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-comparison-table-5axes", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-pie-5axes-weight", "mandatory": true, "kind": "mechanism"},
+        {"role": "secondary", "asset_id": "mermaid-flowchart-knowledge-pipeline", "mandatory": false, "kind": "mechanism"}
       ],
       "char_bounds": {"min": 400, "max": 2000},
       "absence_behavior": "block",
@@ -204,7 +210,8 @@
         {"key": "output_priority_finalized", "type": "array", "constraint": "[{rank, output, mandatory:bool}]", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-comparison-table-adoptions", "mandatory": true}
+        {"role": "primary", "asset_id": "mermaid-gantt-adoption-timeline", "mandatory": true, "kind": "mechanism"},
+        {"role": "secondary", "asset_id": "mermaid-c4-component-adoptions", "mandatory": false, "kind": "mechanism"}
       ],
       "char_bounds": {"min": 300, "max": 1500},
       "absence_behavior": "block",
@@ -227,7 +234,8 @@
         {"key": "deferred_count", "type": "integer", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "cvis-traffic-light", "mandatory": false}
+        {"role": "primary", "asset_id": "cvis-traffic-light", "mandatory": false, "kind": "structure"},
+        {"role": "secondary", "asset_id": "mermaid-quadrant-question-priority", "mandatory": false, "kind": "structure"}
       ],
       "char_bounds": {"min": 150, "max": 1000},
       "absence_behavior": "block",
@@ -250,7 +258,8 @@
         {"key": "starting_command", "type": "string", "constraint": "コピペ実行可能", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-flowchart-next-action", "mandatory": false}
+        {"role": "primary", "asset_id": "mermaid-flowchart-next-action", "mandatory": false, "kind": "workflow"},
+        {"role": "secondary", "asset_id": "mermaid-state-handoff-modes", "mandatory": false, "kind": "workflow"}
       ],
       "char_bounds": {"min": 150, "max": 800},
       "absence_behavior": "block",
@@ -276,7 +285,8 @@
         {"key": "skipped_next_phases", "type": "array", "constraint": "MCP切断等で次フェーズスキップした記録", "absence_behavior": "warn-fallback", "default": []}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "cvis-score-gauge", "mandatory": false}
+        {"role": "primary", "asset_id": "cvis-score-gauge", "mandatory": false, "kind": "structure"},
+        {"role": "secondary", "asset_id": "mermaid-bar-deductions", "mandatory": false, "kind": "structure"}
       ],
       "char_bounds": {"min": 200, "max": 1500},
       "absence_behavior": "warn-fallback",
@@ -298,7 +308,7 @@
         {"key": "base_path", "type": "string", "constraint": ".claude/skills/skill-intake-interviewer/output/<hint>/ または plugins/skill-intake/output/<hint>/", "absence_behavior": "block"}
       ],
       "viz_slots": [
-        {"role": "primary", "asset_id": "mtmpl-comparison-table-artifacts", "mandatory": false}
+        {"role": "primary", "asset_id": "mermaid-tree-artifact-files", "mandatory": false, "kind": "structure"}
       ],
       "char_bounds": {"min": 200, "max": 1200},
       "absence_behavior": "block",

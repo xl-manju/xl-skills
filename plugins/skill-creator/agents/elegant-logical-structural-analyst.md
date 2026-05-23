@@ -3,6 +3,9 @@ name: elegant-logical-structural-analyst
 description: elegant-reviewで俯瞰後に論理と構造を分析したいとき、4条件に照らして検証したいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+owner_skill: run-elegant-review
+phase_id: phase2-parallel
+kind: agent
 ---
 
 # 役割

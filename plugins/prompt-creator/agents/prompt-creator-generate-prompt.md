@@ -3,6 +3,11 @@ name: prompt-creator-generate-prompt
 description: Prompt 作成シートから 7 層構造プロンプトを生成したいとき、Layer 単位で本文を組み立てたいときに使う。
 tools: Read, Write, Edit, Bash
 model: sonnet
+owner_skill: run-prompt-creator-7layer
+responsibility_id: R2
+context: fork
+since: 2026-05-22
+last-audited: 2026-05-22
 ---
 
 ## Purpose

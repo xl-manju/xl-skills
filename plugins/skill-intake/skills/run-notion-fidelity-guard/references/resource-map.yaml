@@ -38,12 +38,12 @@ scripts:
     invoked_by: R3 (delta-report, optional metrics)
 
 prompts:
-  - path: prompts/R1.yaml
+  - path: prompts/R1.md
     responsibility: canonical-snapshot-extraction
-    layers: [L2, L4, L6]
-  - path: prompts/R2.yaml
+    layers: [L1, L2, L3, L4, L5, L6, L7]
+  - path: prompts/R2.md
     responsibility: fidelity-check
-    layers: [L1, L2, L4, L5, L6]
-  - path: prompts/R3.yaml
+    layers: [L1, L2, L3, L4, L5, L6, L7]
+  - path: prompts/R3.md
     responsibility: delta-report
-    layers: [L5, L6, L7]
+    layers: [L1, L2, L3, L4, L5, L6, L7]

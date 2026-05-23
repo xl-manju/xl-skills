@@ -146,3 +146,6 @@ const bank = loadQuestionBank();
 const next = bank.filter(q => q.axis === missingAxis && q.depth === currentDepth);
 const picked = next[Math.floor(Math.random() * next.length)];
 ```
+## Session adb2d5d3a69d2270f — 2026-05-22T22:43:12.492606Z
+- 文字起こしデータの構造がバラバラな場合、自動化ロジックが壊れやすいですか？過去の商談で金額・期間・条件の出現順序がどの程度バラつきますか？
+- 自動化後、法的確認・捺印などの人間レビュー工程はどの程度必要ですか？実際には週何分の時間が浮きそうですか？

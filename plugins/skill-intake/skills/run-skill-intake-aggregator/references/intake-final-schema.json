@@ -18,6 +18,7 @@
     "handoff",
     "self_update",
     "artifacts",
+    "section_diagrams",
     "notion_db_properties"
   ],
   "properties": {
@@ -27,6 +28,7 @@
       "required": ["skill_name_hint", "generated_at", "pattern_code", "depth", "vocabulary_tier", "status", "value_realized_score"],
       "properties": {
         "skill_name_hint": {"type": "string", "pattern": "^[a-z][a-z0-9-]{3,31}$"},
+        "skill_title_ja": {"type": "string", "maxLength": 30, "description": "Notion DB 名前列に投入する日本語タイトル。例: '商談文字起こし→契約書自動生成→Slack配信'。30 字以内、記号 → で工程を示す。未指定なら publisher が purpose.verb_object から自動生成し、それも空なら skill_name_hint へフォールバック。"},
         "generated_at": {"type": "string", "format": "date-time"},
         "pattern_code": {"type": "string", "enum": ["A", "B", "C"]},
         "pattern_label": {"type": "string"},
@@ -352,7 +354,7 @@
       "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る17プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。実行環境 (Claude Code / Cowork / 両方) を 17 番目のプロパティとして追加 (2026-05-22)。",
       "required": ["名前", "ステータス", "パターン", "ワークフロー", "深度", "熟練度", "テーマ抽出", "責務境界", "配信タイミング", "出力先", "共有相手", "引き渡しモード", "真の課題", "実行環境", "作成日"],
       "properties": {
-        "名前": {"type": "string", "x-derive": "meta.skill_name_hint"},
+        "名前": {"type": "string", "maxLength": 30, "x-derive": "meta.skill_title_ja (優先) → notion_db_properties.名前 (日本語) → top-level skill_title_ja → purpose.verb_object 自動整形 → meta.skill_name_hint (英語フォールバック)。日本語タイトルで一目で内容が分かる形式 (例: '商談文字起こし→契約書自動生成→Slack配信')"},
         "ステータス": {"type": "string", "enum": ["下書き", "レビュー中", "Gate A承認済み", "引き渡し済み", "構築済み", "アーカイブ"], "x-derive": "meta.status"},
         "パターン": {"type": "string", "enum": ["A", "B", "C", "D", "E"], "x-derive": "meta.pattern_code"},
         "ワークフロー": {"type": "string", "x-derive": "meta.workflow_pattern_label", "description": "例: 'B 自動収集配信'"},
@@ -372,8 +374,7 @@
           "x-derive": "execution_surface.primary（判定ルール: references/execution-surface-rubric.md）",
           "description": "スキルをどこで実行するかの正本。判定木: ローカルファイル R/W or Bash/Python subprocess or git ops が必要 → 'Claude Code'。MCP-only かつ対話/Artifacts 中心 → 'Cowork'。両条件を満たし MCP-only スキル → '両方'。"
         },
-        "作成日": {"type": "string", "format": "date-time", "x-derive": "meta.generated_at"},
-        "Markdown正本URL": {"type": "string", "format": "uri", "x-derive": "artifacts.base_path + 'intake-final.md'"}
+        "作成日": {"type": "string", "format": "date-time", "x-derive": "meta.generated_at"}
       }
     },
 
@@ -392,6 +393,48 @@
               "description": {"type": "string"}
             }
           }
+        }
+      }
+    },
+
+    "section_diagrams": {
+      "type": "object",
+      "x-source": "visualizer SubAgent が各章用 mermaid を組み立てて出力",
+      "description": "章別の section_diagrams マップ。key は section_canonical_map.json の section_key (§5 除く §1-§4, §6-§10)、value は diagram object の配列。§5 (visualizer) は既存 figures フィールドが正本のためここには含めない。",
+      "additionalProperties": false,
+      "properties": {
+        "1_assumption_challenger":  {"$ref": "#/$defs/section_diagram_array"},
+        "2_user_profile":           {"$ref": "#/$defs/section_diagram_array"},
+        "3_purpose_excavator":      {"$ref": "#/$defs/section_diagram_array"},
+        "4_option_presenter":       {"$ref": "#/$defs/section_diagram_array"},
+        "6_five_axes_summary":      {"$ref": "#/$defs/section_diagram_array"},
+        "7_design_decisions":       {"$ref": "#/$defs/section_diagram_array"},
+        "8_open_questions":         {"$ref": "#/$defs/section_diagram_array"},
+        "9_handoff_contract":       {"$ref": "#/$defs/section_diagram_array"},
+        "10_self_updater":          {"$ref": "#/$defs/section_diagram_array"},
+        "11_artifact_index":        {"$ref": "#/$defs/section_diagram_array"}
+      }
+    }
+  },
+
+  "$defs": {
+    "section_diagram_array": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["role", "asset_id", "kind", "title", "one_liner", "mermaid_source"],
+        "additionalProperties": false,
+        "properties": {
+          "role": {"type": "string", "enum": ["primary", "secondary", "tertiary"]},
+          "asset_id": {"type": "string", "description": "section_canonical_map.json の viz_slots.asset_id と一致"},
+          "kind": {"type": "string", "enum": ["workflow", "structure", "mechanism"]},
+          "title": {"type": "string", "minLength": 2, "maxLength": 60},
+          "one_liner": {"type": "string", "maxLength": 80, "description": "言いたい一言、Notion 上で図の直前に表示"},
+          "mermaid_source": {"type": "string", "description": "mermaid コード本体。cvis-* は image_url で代替可"},
+          "image_url": {"type": "string", "format": "uri", "description": "cvis-* (独自 SVG/PNG) を使う場合の Notion 添付 URL"},
+          "legend": {"type": "string", "description": "色凡例等、省略可"}
         }
       }
     }

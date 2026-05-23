@@ -184,3 +184,65 @@ plugin 移行を進める場合、plugin 境界を越える変更は追加のガ
 3. P0/P1 変更は changelog に記録した上で、本章「既知の未消化違反」セクションも更新する
 4. blast radius の算出ルールが変わったら、`lint-script-naming.py` 等のlint側も同時更新する
 5. 本章を変更する場合は、自分自身が P1_structural になるため、本章のワークフローに従う (自己適用ルール)
+
+## CapabilityBundle governance (2026-05-22)
+
+23章 § Capability 抽象への拡張 で導入した **CapabilityBundle** (= plugin 単位 / `plugin-composition.yaml`) に対するガバナンス境界を以下に定める。本節は従来の Skill 単体を対象とした P0-P3 ワークフローを bundle 単位へ拡張する。
+
+### 自動 PR 経路 3 点
+
+CapabilityBundle 単位の改訂は、以下 3 経路の自動 PR を governance フローへ組み込む。各経路は 33章既存の P0-P3 分類に従い、対応するカテゴリで自動分類される。
+
+| 経路 | 入力 | 出力 (自動 PR) | カテゴリ | 自動分類条件 |
+|---|---|---|---|---|
+| **(1) `plugin-composition.yaml` 改訂** | `capabilities[] / dependencies / eval-sinks` の変更 | bundle DAG の差分 + composition lint レポート | P1_structural (依存追加) / P0_breaking (plugin 境界違反) | `lint-composition.py --classify` の出力を `classify_change` が読む |
+| **(2) `CHANGELOG.md` / `ROADMAP.md` 連動** | bundle 内の Capability 改訂 (kind 横断) | bundle 直下 `CHANGELOG.md` の自動追記 + `ROADMAP.md` の Phase 進捗更新 | 元改訂と同カテゴリ (継承) | 元 commit の category を継承 |
+| **(3) EVALS → rubric 自動 PR** | bundle 直下 `EVALS.json` の閾値超え検出 | 該当 rubric (`references/rubric-<kind>.json`) への改正 proposal | P1_structural (27章 rubric governance に接続) | 35章 reflective loop で生成、auto_apply 禁止 |
+
+### CapabilityBundle 境界 MECE 表
+
+plugin 境界 MECE 表 (33章既存) を CapabilityBundle 用に再表現する。
+
+| 変更の性質 | bundle 境界 | カテゴリ | 追加ルール |
+|---|---|---|---|
+| bundle 内 Capability の新規追加 | 境界内 | P1_structural | `plugin-composition.yaml` の `capabilities[]` 更新 + composition lint PASS |
+| bundle 内 Capability の rubric 更新 | 境界内 | P2_content | rubric_refs の `kind` 整合を check |
+| bundle 間の `dependencies` 追加 | 境界をまたぐ | **P0_breaking** | bundle 境界違反として proposal 必須 |
+| `plugin-composition.yaml` の `eval-sinks` 変更 | 境界定義変更 | **P0_breaking** | EVALS 比較性保護のため P0 固定 |
+| bundle 名 (plugin name) 変更 | 境界の identity 変更 | **P0_breaking** | 34a章 INV-9 (グローバル名前空間一意性) と整合 |
+| `governance.rubric_refs` 追加 | governance 配線変更 | P1_structural | 27章 rubric governance への接続を確認 |
+| `observability.hooks` 追加 | 観測軸変更 | P1_structural | 35章 observables.json との整合性 check |
+| `observability` のスキーマ変更 | 観測軸の identity 変更 | **P0_breaking** | reflective loop 改善履歴の比較性保護 |
+
+### composition lint の機械強制
+
+`plugin-composition.yaml` の改訂は、PostToolUse hook により以下を機械検証する。検証 PASS なしでは commit を許可しない。
+
+| lint 項目 | 検証内容 |
+|---|---|
+| DAG 循環検出 | `dependencies` フィールドの有向グラフが循環していない |
+| `capabilities[]` 整合 | 宣言された Capability が物理ファイルとして存在し、`kind` が一致 |
+| `rubric_refs` 解決 | `governance.rubric_refs` の参照先 rubric.json が存在し、`kind` 整合 |
+| `hooks` 配線 | `observability.hooks` が 34a章の hook event 名のみを使用 |
+| EVALS sink 整合 | `eval-sinks` が指す sink が adapter として存在 (31章 Sink Contract 整合) |
+
+### Capability 自己適用ルール
+
+本節 (CapabilityBundle governance) を変更する場合、その変更自体が **P1_structural** に該当する。`observability` スキーマ・`eval-sinks` の identity を変更する変更は **P0_breaking** として扱い、changelog に記録する。
+
+### 移行スケジュール
+
+| Phase | 内容 | 状態 |
+|---|---|---|
+| Phase A | `plugin-composition.yaml` schema 確定 | 進行中 |
+| Phase B | composition lint hook 実装 + PostToolUse 登録 | 未着手 |
+| Phase C | CHANGELOG / ROADMAP 自動連動スクリプト | 未着手 |
+| Phase D | EVALS → rubric 自動 PR (35章 Phase 3 と同期) | 未着手 (35章 Phase 1 待ち) |
+
+## 変更履歴
+
+| 日付 | 変更 | 概要 | impact |
+|---|---|---|---|
+| 2026-05-22 | 23a-prefix-driven-internal-structure 新設 | elegant-review に基づく prefix 別内部構造規約と manifest 駆動 contract モデルを正本化 | high |
+| 2026-05-22 | CapabilityBundle governance 節追加 | plugin-composition.yaml / CHANGELOG / ROADMAP / EVALS→rubric 自動 PR 経路 3 点を P0-P3 ワークフローに組み込み | high |
+

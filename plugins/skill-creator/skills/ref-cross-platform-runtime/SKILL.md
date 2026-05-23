@@ -4,7 +4,8 @@ description: 他Skillが host OS で分岐するとき、OS判定に失敗した
 effect: none
 disable-model-invocation: false
 user-invocable: false
-kind: ref
+kind: skill
+prefix: ref
 owner: team-platform
 since: 2026-05-19
 # doc/21 source-traceability
@@ -13,6 +14,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: source-update
 hierarchy_level: L0
+responsibility_refs: [prompts/search-summarize.md]
 ---
 
 # ref-cross-platform-runtime

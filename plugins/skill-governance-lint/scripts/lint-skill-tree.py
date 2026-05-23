@@ -136,7 +136,7 @@ def lint_one(root: Path) -> list[str]:
             if len(rel.parts) >= 2:
                 top, fname = rel.parts[0], rel.parts[-1]
                 if top in {"templates", "references", "examples"}:
-                    allowed_template_exts = (".md", ".yaml", ".json", ".patch")
+                    allowed_template_exts = (".md", ".md.tmpl", ".yaml", ".json", ".patch", ".j2")
                     if not fname.endswith(allowed_template_exts):
                         errs.append(f"第8〜11条違反: {rel} 拡張子不正")
                 if top == "scripts":
@@ -157,6 +157,16 @@ def lint_one(root: Path) -> list[str]:
 
     # B-2: OS プリアンブルチェック (13章 クロスプラットフォーム [Lint])
     errs.extend(check_os_preamble(skill_md))
+
+    # rubric placement check: ref-* / assign-* は rubric.json を直下に置けない
+    skill_name = root.name
+    if skill_name.startswith("ref-") or skill_name.startswith("assign-"):
+        bad_rubric = root / "rubric.json"
+        if bad_rubric.is_file():
+            errs.append(
+                f"rubric placement 違反: {skill_name}/rubric.json は禁止。"
+                f" 期待パス: {skill_name}/references/rubric.json"
+            )
 
     return errs
 

@@ -3,6 +3,11 @@ name: prompt-creator-review-prompt
 description: 7 層構造プロンプトを 4 パス品質レビューで検証したいとき、改善差分を提示したいときに使う。
 tools: Read, Edit, Bash
 model: sonnet
+owner_skill: assign-prompt-design-evaluator
+responsibility_id: R1
+context: fork
+since: 2026-05-22
+last-audited: 2026-05-22
 ---
 
 ## Purpose

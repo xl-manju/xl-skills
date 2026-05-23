@@ -51,7 +51,7 @@ res = notion_fetch(
     body={
         "parent": {"database_id": database_id},  # --database-id か INTAKE_NOTION_DATABASE_ID 経由
         "properties": {
-            "名前": {"title": [{"type": "text", "text": {"content": skill_name_hint}}]}
+            "名前": {"title": [{"type": "text", "text": {"content": skill_title_ja}}]}  # 日本語タイトル優先
         },
         "children": blocks,
     },
@@ -69,29 +69,27 @@ token = get_secret()  # service/account は INTAKE_KEYCHAIN_SERVICE / _ACCOUNT �
 
 ## 公開先データベース
 
-DB スキーマは `notion-db-schema.json` の正本に従う。検索/絞り込みに必要な 7 プロパティのみを DB 列とし、それ以外の項目はページ本文 (children) の「メタ情報」セクションに rich_text / toggle で記述する (19 列→7 列に削減)。
+DB スキーマは `notion-db-schema.json` の正本に従う。検索/絞り込みに必要な 6 プロパティのみを DB 列とし、それ以外の項目はページ本文 (children) の「メタ情報」セクションに rich_text / toggle で記述する。
 
 | # | プロパティ | 型 | 内容 |
 |---|------------|----|------|
-| 1 | 名前 | title | skill_name_hint |
+| 1 | 名前 | title | スキルの日本語タイトル (30 字以内、記号 → で工程を示す。例: `商談文字起こし→契約書自動生成→Slack配信`)。`meta.skill_title_ja` 優先、未指定なら `purpose.verb_object` から自動生成、最終フォールバックのみ英語 `skill_name_hint` |
 | 2 | ステータス | select | 下書き / レビュー中 / 引き渡し済み / 構築済み / アーカイブ |
 | 3 | パターン | select | 量産型 / 自動化 / ナレッジ / レビュー / その他 |
 | 4 | 真の課題 | rich_text | 5 軸 true_problem の短文サマリ (200 字以内、詳細は本文へ) |
 | 5 | ナレッジ資産タグ | multi_select | 思考プロセス / 暗黙知 / 判断基準 / テンプレ / チェックリスト / その他 |
 | 6 | 作成日時 | created_time | Notion 自動 |
-| 7 | Markdown正本URL | url | intake.md の共有 URL |
 
-### 本文 children に移した 12 項目
+### 本文 children に移した項目
 
 `publish_notion_page.py:build_extra_body_blocks()` がページ先頭の「メタ情報 (DB プロパティ補完)」セクションに次の項目を rich_text / toggle で出力する。
 
 - 出力先 / 情報源 / 共有相手 (5 軸の残り)
-- 図解枚数 / 価値実現スコア / Creator 引き渡し
+- 図解枚数 / 価値実現スコア
 - 担当者 / 更新日時
 - ユーザープロファイル (toggle)
 - 未解決事項 (toggle)
 - 外部連携 (toggle)
-- JSON 副本 URL
 
 DB が存在しない場合は `scripts/create_notion_database.py --mode=create` で作成。既存 DB との差分は `scripts/verify_notion_schema.py --on-conflict skip-warn|overwrite|fail-stop` で扱う（既定: `skip-warn`、破壊回避）。
 

@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-build-skill/schemas/skill-build-trace.schema.json",
+  "title": "Skill Build Trace",
+  "description": "skill-build-trace.json の章別 doc_coverage と pattern_decisions の必須形式。validate-build-trace.py が機械検証する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "skill_name",
+    "skill_kind",
+    "build_mode",
+    "source_docs",
+    "doc_coverage",
+    "build_flow_coverage",
+    "layer_decisions",
+    "pattern_decisions",
+    "reproducibility_gates"
+  ],
+  "properties": {
+    "skill_name": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+    "skill_kind": {"type": "string", "enum": ["run", "ref", "assign", "delegate", "wrap"]},
+    "build_mode": {"type": "string", "enum": ["create", "update"]},
+    "source_docs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "chapter_id"],
+        "properties": {
+          "path": {"type": "string"},
+          "chapter_id": {"$ref": "#/definitions/chapterId"},
+          "read_excerpt": {"type": "string"}
+        }
+      }
+    },
+    "doc_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(01|01a|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35)$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": {"type": "string", "enum": ["covered", "na", "skipped"]},
+            "reason": {"type": "string"},
+            "evidence": {"type": "string"}
+          }
+        }
+      }
+    },
+    "build_flow_coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step", "status"],
+        "properties": {
+          "step": {"type": "string"},
+          "status": {"type": "string", "enum": ["done", "skipped", "na"]},
+          "artifact": {"type": "string"}
+        }
+      }
+    },
+    "layer_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["layer", "decision"],
+        "properties": {
+          "layer": {"type": "string", "enum": ["Skill", "Subagent", "Hook", "MCP", "CLI", "script"]},
+          "decision": {"type": "string"},
+          "rationale": {"type": "string"}
+        }
+      }
+    },
+    "pattern_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pattern", "decision"],
+        "properties": {
+          "pattern": {"type": "string"},
+          "decision": {"type": "string", "enum": ["adopt", "reject", "na"]},
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "reproducibility_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["C1", "C2", "C3", "C4"],
+      "properties": {
+        "C1": {"type": "string", "enum": ["pass", "fail", "na"]},
+        "C2": {"type": "string", "enum": ["pass", "fail", "na"]},
+        "C3": {"type": "string", "enum": ["pass", "fail", "na"]},
+        "C4": {"type": "string", "enum": ["pass", "fail", "na"]}
+      }
+    },
+    "variable_contract": {
+      "type": "object",
+      "description": "本文・テンプレ・config の具体値直書き禁止に対する変数化記録",
+      "additionalProperties": true
+    }
+  },
+  "definitions": {
+    "chapterId": {
+      "type": "string",
+      "enum": ["01", "01a", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"]
+    }
+  }
+}

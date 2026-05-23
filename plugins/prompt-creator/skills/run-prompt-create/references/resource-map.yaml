@@ -1,0 +1,63 @@
+# run-prompt-create resource map (Progressive Disclosure)
+# Phase 開始時に必要なファイルだけ open する。一括ロード禁止 (CD-005)。
+machine_readable:
+  manifest: workflow-manifest.json
+  schemas:
+    prompt_brief: schemas/prompt-brief.schema.json
+    build_trace: schemas/build-trace.schema.json
+    findings: schemas/findings.schema.json
+    handoff: schemas/handoff.schema.json
+  scripts:
+    evaluate_gates: scripts/evaluate-create-gates.py
+
+prompts:
+  R1_elicit: prompts/elicit.md
+  R2_gate_review: prompts/gate-review.md
+  R3_governance_decide: prompts/governance-decide.md
+
+phase_resources:
+  elicit:
+    must_read: [schemas/prompt-brief.schema.json, prompts/elicit.md]
+    optional: [../run-prompt-creator-7layer/SKILL.md]
+  build:
+    must_read: [schemas/prompt-brief.schema.json, schemas/build-trace.schema.json]
+    delegate: ../run-prompt-creator-7layer/SKILL.md
+  p0-lint:
+    must_read: [schemas/findings.schema.json]
+    lint_scripts:
+      - plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py
+      - plugins/skill-governance-lint/scripts/validate-frontmatter.py
+      - plugins/skill-governance-lint/scripts/lint-skill-name.py
+      - plugins/skill-governance-lint/scripts/lint-skill-description.py
+      - plugins/skill-governance-lint/scripts/lint-dependency-direction.py
+      - plugins/skill-governance-lint/scripts/lint-manifest-contents.py
+      - plugins/prompt-creator/scripts/verify_completeness.js
+      - plugins/prompt-creator/scripts/validate_prompt.js
+  design-evaluate:
+    must_read: [schemas/findings.schema.json]
+    delegate: ../assign-prompt-design-evaluator/SKILL.md
+    context: fork
+  elegant-review:
+    must_read: [schemas/findings.schema.json, prompts/gate-review.md]
+    delegate: plugins/skill-creator/skills/run-elegant-review/SKILL.md
+    decision_script: scripts/evaluate-create-gates.py
+    context: fork
+  governance:
+    must_read: [prompts/governance-decide.md, prompts/gate-review.md, schemas/handoff.schema.json]
+    delegate: plugins/skill-creator/skills/run-skill-rubric-governance/SKILL.md
+    params: references/governance-params.json
+  report:
+    must_read: [schemas/handoff.schema.json]
+
+eval_log_artifacts:
+  brief: eval-log/prompt-brief.json
+  build_trace: eval-log/prompt-build-trace.json
+  findings: eval-log/findings.json
+  handoffs:
+    - eval-log/handoff-after_prompt_elicit.json
+    - eval-log/handoff-after_prompt_build.json
+    - eval-log/handoff-after_prompt_lint.json
+    - eval-log/handoff-after_prompt_evaluator.json
+    - eval-log/handoff-after_prompt_elegant.json
+    - eval-log/handoff-after_prompt_governance.json
+    - eval-log/handoff-prompt_done.json

@@ -103,6 +103,7 @@ Markdown は README を含めて 38 本。README を除く設計書は 37 本で
 | [21-source-traceability.md](21-source-traceability.md) | 元記事・画像・公式仕様との追跡表 |
 | [22-cross-platform-runtime.md](22-cross-platform-runtime.md) | **Mac/Windows 両対応**の CLI/シェル/パス要件と回避策 |
 | [23-meta-skill-architecture.md](23-meta-skill-architecture.md) | メタSkill（Skillを作るSkill）のアーキテクチャ |
+| [23a-prefix-driven-internal-structure.md](23a-prefix-driven-internal-structure.md) | prefix 駆動型内部構造規約と manifest 駆動 contract モデル (三層 contract モデルの正本) |
 | [24-meta-skill-templates.md](24-meta-skill-templates.md) | メタSkill 用テンプレート集 |
 | [25-meta-skill-runbook.md](25-meta-skill-runbook.md) | メタSkill 運用Runbook（生成→検証→配布） |
 | [26-meta-skill-dogfooding.md](26-meta-skill-dogfooding.md) | メタSkill を自分自身に適用する dogfooding 手順 |

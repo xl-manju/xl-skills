@@ -61,3 +61,27 @@ DDDの「すべての関係者が同じ語で同じ概念を指す」原則。�
 
 ## TODO(human)
 rubric.json 内の人間判断保留マーカー。検出時は finding にせず `pending_human` 配列へ。
+
+## Capability
+Claude Code 拡張資産の統一抽象。Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow を包含する上位概念。すべて CapabilityManifest を持ち CapabilityContract(intent/interface/invariant) に従う。23章 meta-skill-architecture を target_type 横断に汎化したもの。
+
+## CapabilityManifest
+Capability の宣言ファイル。共通核(`name / description / kind / version / owner / tags / since`) と kind 固有スキーマ(注入)で構成。正本スキーマ: `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json`。
+
+## CapabilityBundle
+複数 Capability の集合 ≒ plugin。`plugin-composition.yaml`(別名 capability-bundle.yaml) で `capabilities[]` / `dependencies` (DAG) / `eval-sinks` / `governance.rubric_refs` / `observability.hooks` を宣言。
+
+## CapabilityContract
+三層 contract: **intent**(なぜ存在するか) / **interface**(入出力・呼出規約) / **invariant**(変更してはならない不変条件)。23a章の三層 contract モデルを Capability 全 kind に拡張。
+
+## kind
+Capability の種別を表す列挙。値: `skill | agent | hook | command | plugin-composition | prompt | workflow`。rubric / templates / validator が kind ごとに分岐する。
+
+## plugin-composition.yaml
+CapabilityBundle の宣言ファイル。plugin 直下に配置し、capabilities/dependencies/eval-sinks/governance/observability を宣言。`render-dependency-graph.py` で Mermaid 図に変換可能。
+
+## reflective loop
+intake → build → review → lessons-learned → rubric-governance → 次回 build 品質向上、の閉ループ。35章 meta-harness の中核。auto-record-lesson hook と EVALS→rubric 自動 PR 経路で実体化。
+
+## composition lint
+plugin-composition.yaml の依存 DAG・rubric_refs・hooks 配線整合を検証する PostToolUse hook。CapabilityBundle 単位の machine-checkable governance。

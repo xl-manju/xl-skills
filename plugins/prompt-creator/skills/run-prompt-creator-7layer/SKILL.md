@@ -39,6 +39,12 @@ source: doc/prompt-creator/  # 4 scripts (generate_sheet/validate_sheet/scaffold
 source-tier: internal
 last-audited: 2026-05-20
 audit-trigger: quarterly
+responsibility_refs:
+  - prompts/main.md
+schema_refs:
+  - schemas/output.schema.json
+  - schemas/hearing-result.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-prompt-creator-7layer
@@ -69,6 +75,7 @@ skill-brief またはユーザー要求から **7 層プロンプト** (Role/Con
 6. **300 行制約**: SKILL.md / SubAgent 各 300 行以下。
 7. **ループ整合性**: run-build-skill 呼出時は `lint-agent-prompt-section.py` 通過必須。FAIL 時最大 3 回自律修正→未達なら orchestrator 差戻。
 8. **責務境界**: 担当は Prompt Templates / Self-Evaluation の 2 セクションのみ。9 セクション骨格は run-build-skill 責務。
+9. **Markdown 既定**: prompt 出力は **Markdown 形式 (`.md`) を既定**とし、骨格は `references/seven-layer-markdown-template.md` を写経する (`.yaml` は legacy フォールバックのみ許容、新規作成禁止)。
 
 ## End-to-End Flow
 

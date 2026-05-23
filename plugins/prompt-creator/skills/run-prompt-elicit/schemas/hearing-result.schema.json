@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xl-skills/plugins/prompt-creator/run-prompt-elicit/schemas/hearing-result.schema.json",
+  "title": "Prompt Hearing Result",
+  "description": "Step 3 対話ヒアリングの中間生データ。Step 4 で prompt-brief.json に正規化される前のユーザー回答原文を保持。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "timestamp", "answers"],
+  "properties": {
+    "session_id": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "topic": {"type": "string"},
+    "target_skill_input": {"type": "string"},
+    "responsibility_id_input": {"type": "string"},
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer"],
+        "properties": {
+          "question": {"type": "string"},
+          "answer": {"type": "string"},
+          "ai_derived": {"type": "boolean", "default": false, "description": "AI 推定値か否か (導出確認の対象判定)"},
+          "user_confirmed": {"type": "boolean", "default": false}
+        }
+      }
+    },
+    "evaluation_priorities": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Pass 0 (動的評価基準) で重みを増す観点"
+    },
+    "open_questions": {"type": "array", "items": {"type": "string"}}
+  }
+}

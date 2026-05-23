@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaVersion": 1,
+  "workflowId": "run-prompt-creator-7layer",
+  "skill": "run-prompt-creator-7layer",
+  "description": "skill-brief または対話入力から 7 層プロンプト (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) を Layer 単位で生成し SubAgent .md に注入する。",
+  "phases": [
+    {
+      "id": "P1-hearing",
+      "step": 1,
+      "title": "ヒアリング (skill-brief or AskUserQuestion) で 7 層構成情報を収集",
+      "gate": "C1",
+      "dependsOn": [],
+      "entryHook": "load-resource-map",
+      "exitHook": null,
+      "resourceIds": ["ref-resource-map", "ref-prompt-sheet-template", "schema-hearing"],
+      "fatal_exit_codes": [2]
+    },
+    {
+      "id": "P2-scaffold",
+      "step": 2,
+      "title": "scaffold_prompt.js で Layer 別 yaml 雛形を生成",
+      "gate": "C2",
+      "dependsOn": ["P1-hearing"],
+      "entryHook": null,
+      "exitHook": null,
+      "resourceIds": ["ref-seven-layer", "ref-writing-style"],
+      "fatal_exit_codes": [2, 3]
+    },
+    {
+      "id": "P3-layer-emit",
+      "step": 3,
+      "title": "Layer 単位 (1 Layer = 1 出力) で内容を充填",
+      "gate": "C3",
+      "dependsOn": ["P2-scaffold"],
+      "entryHook": null,
+      "exitHook": null,
+      "resourceIds": ["ref-seven-layer", "ref-quality-criteria"],
+      "fatal_exit_codes": [2, 3]
+    },
+    {
+      "id": "P4-merge",
+      "step": 4,
+      "title": "merge_layers.js で 7 Layer を 1 prompt yaml に統合",
+      "gate": "C4",
+      "dependsOn": ["P3-layer-emit"],
+      "entryHook": null,
+      "exitHook": "merge-layers",
+      "resourceIds": [],
+      "fatal_exit_codes": [2, 3]
+    },
+    {
+      "id": "P5-validate",
+      "step": 5,
+      "title": "validate_prompt.js + verify_completeness.js + lint-agent-prompt-section.py 実行",
+      "gate": "C5",
+      "dependsOn": ["P4-merge"],
+      "entryHook": null,
+      "exitHook": "validate-prompt",
+      "resourceIds": ["schema-trace"],
+      "fatal_exit_codes": [2, 3]
+    },
+    {
+      "id": "P6-inject",
+      "step": 6,
+      "title": "SubAgent .md の Prompt Templates / Self-Evaluation を Edit で注入 (owner_agent ありの場合のみ)",
+      "gate": "C6",
+      "dependsOn": ["P5-validate"],
+      "entryHook": null,
+      "exitHook": "log-usage",
+      "resourceIds": [],
+      "fatal_exit_codes": [2, 3]
+    }
+  ],
+  "resources": [
+    {"id": "ref-resource-map", "kind": "reference", "path": "./references/resource-map.yaml", "phaseIds": ["P1-hearing"]},
+    {"id": "ref-prompt-sheet-template", "kind": "reference", "path": "./references/prompt-sheet-template.md", "phaseIds": ["P1-hearing"]},
+    {"id": "ref-seven-layer", "kind": "reference", "path": "./references/seven-layer-format.md", "phaseIds": ["P2-scaffold", "P3-layer-emit"]},
+    {"id": "ref-writing-style", "kind": "reference", "path": "./references/writing-style-principles.md", "phaseIds": ["P2-scaffold"]},
+    {"id": "ref-quality-criteria", "kind": "reference", "path": "./references/quality-criteria.md", "phaseIds": ["P3-layer-emit"]},
+    {"id": "schema-hearing", "kind": "schema", "path": "./schemas/hearing-result.schema.json", "phaseIds": ["P1-hearing"]},
+    {"id": "schema-trace", "kind": "schema", "path": "./schemas/output.schema.json", "phaseIds": ["P5-validate"]}
+  ]
+}

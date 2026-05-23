@@ -11,7 +11,7 @@
     "名前": {
       "type": "title",
       "required": true,
-      "description": "スキル名候補 (skill-name-hint)",
+      "description": "スキルの日本語タイトル (例: 商談文字起こし→契約書自動生成→Slack配信)。30 字以内、記号 → で工程を示す。英語スラッグ (skill_name_hint) はフォールバックのみ。",
       "source": "notion_db_properties.名前"
     },
     "ステータス": {
@@ -106,11 +106,6 @@
       "required": true,
       "description": "Notion 自動付与",
       "source": "notion_db_properties.作成日"
-    },
-    "Markdown正本URL": {
-      "type": "url",
-      "required": false,
-      "source": "notion_db_properties.Markdown正本URL"
     }
   },
   "body_sections": {

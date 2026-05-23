@@ -6,7 +6,8 @@ user-invocable: true
 allowed-tools:
   - Read
   - Bash(python3 *)
-kind: delegate
+kind: skill
+prefix: delegate
 effect: none
 delegate_agent: codex-cli
 owner: team-platform

@@ -21,5 +21,5 @@
 
 - [ ] `SKILL.md` Abstraction Variables 表が更新されている
 - [ ] `references/fidelity-check-rules.md` の閾値表が新値と一致している
-- [ ] `prompts/R2.yaml` の評価基準 layer に新閾値が反映されている
+- [ ] `prompts/R2.md` の評価基準 layer に新閾値が反映されている
 - [ ] snapshot が再生成されている (`canonical-page-snapshot.json` の `generated_at` が新しい)

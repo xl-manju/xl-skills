@@ -3,7 +3,8 @@ name: ref-skill-glossary
 description: 未知の用語に遭遇したとき、用語統一を確認するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: ref
+kind: skill
+prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-18
@@ -12,6 +13,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
+responsibility_refs: [prompts/search-summarize.md]
 ---
 
 # ref-skill-glossary

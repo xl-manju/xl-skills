@@ -1,8 +1,11 @@
 ---
 name: run-build-skill-subagent
-description: run-build-skillでbriefから単一スキル骨格を生成したいとき、独立workerで更新したいときに使う。
+description: run-build-skillでbriefから単一スキル骨格を生成したいとき、独立workerで更新したいときに使う。elegant-* 系 (レビュー用) とは責務が異なり、本 agent は生成系 worker として run-build-skill から fan-out される。
 tools: Read, Glob, Grep, Write, Edit, Bash(python3 *)
 model: inherit
+owner_skill: run-build-skill
+phase_id: build-fanout-worker
+kind: agent
 ---
 
 # 役割

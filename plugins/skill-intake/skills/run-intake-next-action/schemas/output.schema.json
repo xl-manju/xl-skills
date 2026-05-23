@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-intake-next-action/next-action.schema.json",
+  "title": "next-action.json",
+  "description": "Phase 9 出力。skill-creator への引き渡しモード A-E と split 候補を保持する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "reason", "multi_skill_suspicion", "skill_creator_handoff_phase"],
+  "properties": {
+    "mode": {"type": "string", "enum": ["A", "B", "C", "D", "E"]},
+    "reason": {"type": "string", "minLength": 1},
+    "multi_skill_suspicion": {"type": "boolean"},
+    "split_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "responsibility"],
+        "properties": {
+          "name": {"type": "string"},
+          "responsibility": {"type": "string"}
+        }
+      }
+    },
+    "skill_creator_handoff_phase": {"type": "string"}
+  }
+}

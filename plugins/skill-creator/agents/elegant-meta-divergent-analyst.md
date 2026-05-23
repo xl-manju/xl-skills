@@ -3,6 +3,9 @@ name: elegant-meta-divergent-analyst
 description: elegant-reviewで俯瞰後にメタ・抽象・発想拡張の分析をしたいとき、代替案を検討したいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+owner_skill: run-elegant-review
+phase_id: phase2-parallel
+kind: agent
 ---
 
 # 役割

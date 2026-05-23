@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-skill-intake-aggregator/intake-final.schema.json",
+  "title": "intake-final.json",
+  "description": "aggregator 最終出力。詳細フィールドは references/intake-final-schema.json (旧正本) を Phase C で本ファイルへ統合予定。本スタブは contract 表面のみ宣言する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["skill_name_hint", "pattern", "vocabulary_tier", "sections", "validation"],
+  "properties": {
+    "skill_name_hint": {"type": "string", "minLength": 1},
+    "pattern": {"type": "string", "enum": ["A", "B", "C", "D", "E"]},
+    "vocabulary_tier": {"type": "string", "enum": ["L0", "L1", "L2", "L3"]},
+    "sections": {
+      "type": "object",
+      "description": "12 section (§0-§11) の構造化データ。詳細スキーマは references/intake-final-schema.json を参照。"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completeness", "quality_score"],
+      "properties": {
+        "completeness": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "quality_score": {"type": "number", "minimum": 0, "maximum": 100},
+        "failures": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-intake-finalize/intake.schema.json",
+  "title": "intake.json",
+  "description": "Phase 10 出力。skill-creator への引き渡し JSON。validation field は quality_gate / cross_check の結果を保持する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["skill_name_hint", "pattern", "sections", "validation"],
+  "properties": {
+    "skill_name_hint": {"type": "string", "minLength": 1},
+    "pattern": {"type": "string", "enum": ["A", "B", "C", "D", "E"]},
+    "sections": {
+      "type": "object",
+      "description": "セクション ID をキーとし render 済み構造化データを保持する。実体は intake-final-schema.json (aggregator references) を参照。"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["render", "quality_gate", "cross_check"],
+      "properties": {
+        "render": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "quality_gate": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "cross_check": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["where", "reason", "retry_phase"],
+            "properties": {
+              "where": {"type": "string"},
+              "reason": {"type": "string"},
+              "retry_phase": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

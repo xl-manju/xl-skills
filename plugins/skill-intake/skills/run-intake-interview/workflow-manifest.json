@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaVersion": 1,
+  "workflowId": "run-intake-interview",
+  "skill": "run-intake-interview",
+  "description": "ヒアリングシート sheet.md の 5 軸空欄を AskUserQuestion で順次充足し interview.json を生成する。",
+  "phases": [
+    {
+      "id": "P1-load-sheet",
+      "step": 1,
+      "title": "profile.json と sheet.md 読込、空欄抽出",
+      "gate": "C1",
+      "dependsOn": [],
+      "entryHook": null,
+      "exitHook": null,
+      "resourceIds": ["ref-five-axes"],
+      "fatal_exit_codes": [2]
+    },
+    {
+      "id": "P2-fill-by-axis",
+      "step": 2,
+      "title": "5 軸優先順位で空欄を AskUserQuestion で 1 問ずつ充足",
+      "gate": "C2",
+      "dependsOn": ["P1-load-sheet"],
+      "entryHook": null,
+      "exitHook": null,
+      "resourceIds": ["ref-question-bank", "ref-abstract-answer"],
+      "fatal_exit_codes": [2]
+    },
+    {
+      "id": "P3-flag-abstract",
+      "step": 3,
+      "title": "抽象的回答に needs_excavation フラグを立てる (深掘りは P5 責務)",
+      "gate": "C3",
+      "dependsOn": ["P2-fill-by-axis"],
+      "entryHook": null,
+      "exitHook": null,
+      "resourceIds": ["ref-abstract-answer"],
+      "fatal_exit_codes": [2]
+    },
+    {
+      "id": "P4-emit",
+      "step": 4,
+      "title": "interview.json 生成と check-five-axes-coverage.py 実行",
+      "gate": "C4",
+      "dependsOn": ["P3-flag-abstract"],
+      "entryHook": null,
+      "exitHook": "check-five-axes-coverage",
+      "resourceIds": ["schema-interview"],
+      "fatal_exit_codes": [2, 3]
+    }
+  ],
+  "resources": [
+    {"id": "ref-five-axes", "kind": "reference", "path": "./references/five-axes-priority.md", "phaseIds": ["P1-load-sheet", "P2-fill-by-axis"]},
+    {"id": "ref-question-bank", "kind": "reference", "path": "./references/question-bank-pointer.md", "phaseIds": ["P2-fill-by-axis"]},
+    {"id": "ref-abstract-answer", "kind": "reference", "path": "./references/abstract-answer-patterns.md", "phaseIds": ["P2-fill-by-axis", "P3-flag-abstract"]},
+    {"id": "schema-interview", "kind": "schema", "path": "./schemas/output.schema.json", "phaseIds": ["P4-emit"]}
+  ]
+}

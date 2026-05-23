@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaVersion": 1,
+  "workflowId": "run-skill-intake-aggregator",
+  "skill": "run-skill-intake-aggregator",
+  "description": "非エンジニアの skill 要望を 11 R-phase に分けて構造化 brief / intake.md / Notion に集約する。下位 intake skill 群と互換のレガシー実装で、Phase C 完了後は薄い orchestrator へ移行予定。",
+  "phases": [
+    {"id": "R1-aggregate", "step": 1, "title": "対話入力を構造化 brief に集約", "dependsOn": [], "resourceIds": ["prompt-R1", "schema-intake-final"], "fatal_exit_codes": [2, 3]},
+    {"id": "R2-vocabulary", "step": 2, "title": "vocabulary tier 確定", "dependsOn": ["R1-aggregate"], "resourceIds": ["ref-vocabulary-tiers"], "fatal_exit_codes": [2, 3]},
+    {"id": "R3-question-bank", "step": 3, "title": "質問銀行から未確定軸を抽出", "dependsOn": ["R2-vocabulary"], "resourceIds": ["ref-question-bank"], "fatal_exit_codes": [2, 3]},
+    {"id": "R4-elicitation", "step": 4, "title": "elicitation 実行 (5 軸シート充足)", "dependsOn": ["R3-question-bank"], "resourceIds": ["ref-elicitation"], "fatal_exit_codes": [2, 3]},
+    {"id": "R5-pattern", "step": 5, "title": "pattern recognition", "dependsOn": ["R4-elicitation"], "resourceIds": ["ref-pattern-rules"], "fatal_exit_codes": [2, 3]},
+    {"id": "R6-options", "step": 6, "title": "外部連携カタログから options 抽出", "dependsOn": ["R5-pattern"], "resourceIds": ["ref-integration-catalog"], "fatal_exit_codes": [2, 3]},
+    {"id": "R7-visualize", "step": 7, "title": "Mermaid/SVG 配置", "dependsOn": ["R6-options"], "resourceIds": ["ref-viz-mandatory"], "fatal_exit_codes": [2, 3]},
+    {"id": "R8-completeness", "step": 8, "title": "section 充足判定", "dependsOn": ["R7-visualize"], "resourceIds": ["ref-completeness"], "fatal_exit_codes": [2, 3]},
+    {"id": "R9-quality", "step": 9, "title": "quality rubric 採点", "dependsOn": ["R8-completeness"], "resourceIds": ["ref-quality-rubric"], "fatal_exit_codes": [2, 3]},
+    {"id": "R10-render", "step": 10, "title": "intake.md / intake.json render", "dependsOn": ["R9-quality"], "resourceIds": ["ref-template", "schema-intake-final"], "fatal_exit_codes": [2, 3]},
+    {"id": "R11-publish", "step": 11, "title": "Notion 公開 (fidelity-guard 経由)", "dependsOn": ["R10-render"], "resourceIds": ["ref-notion"], "fatal_exit_codes": [2, 3]}
+  ],
+  "resources": [
+    {"id": "prompt-R1", "kind": "prompt", "path": "./prompts/R1.md", "phaseIds": ["R1-aggregate"]},
+    {"id": "ref-vocabulary-tiers", "kind": "reference", "path": "./references/vocabulary-tiers.md", "phaseIds": ["R2-vocabulary"]},
+    {"id": "ref-question-bank", "kind": "reference", "path": "./references/question-bank.md", "phaseIds": ["R3-question-bank"]},
+    {"id": "ref-elicitation", "kind": "reference", "path": "./references/elicitation-techniques.md", "phaseIds": ["R4-elicitation"]},
+    {"id": "ref-pattern-rules", "kind": "reference", "path": "./references/pattern-recognition-rules.md", "phaseIds": ["R5-pattern"]},
+    {"id": "ref-integration-catalog", "kind": "reference", "path": "./references/integration-catalog.md", "phaseIds": ["R6-options"]},
+    {"id": "ref-viz-mandatory", "kind": "reference", "path": "./references/visualization-mandatory-rules.md", "phaseIds": ["R7-visualize"]},
+    {"id": "ref-completeness", "kind": "reference", "path": "./references/section-completeness-rules.md", "phaseIds": ["R8-completeness"]},
+    {"id": "ref-quality-rubric", "kind": "reference", "path": "./references/quality-rubric.md", "phaseIds": ["R9-quality"]},
+    {"id": "ref-template", "kind": "reference", "path": "./references/intake-final-template.md.tmpl", "phaseIds": ["R10-render"]},
+    {"id": "ref-notion", "kind": "reference", "path": "./references/notion-integration.md", "phaseIds": ["R11-publish"]},
+    {"id": "schema-intake-final", "kind": "schema", "path": "./schemas/intake-final.schema.json", "phaseIds": ["R1-aggregate", "R10-render"]}
+  ]
+}

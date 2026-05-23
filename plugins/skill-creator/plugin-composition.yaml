@@ -1,0 +1,122 @@
+# CapabilityBundle 宣言 — plugins/skill-creator
+# 正本スキーマ: skills/run-build-skill/references/capability-manifest.schema.json (kindPluginComposition)
+# 用途: skill-creator 自身の dogfooding 兼、CapabilityBundle のリファレンス実装。
+
+name: skill-creator
+description: Claude Code Skill / Agent / Hook / Command / Composition / Prompt / Workflow の統一 Capability を作成・評価・統治するメタプラグイン。
+kind: plugin-composition
+version: 1.1.0
+owner: team-platform
+since: 2026-05-17
+last-audited: 2026-05-22
+
+contract:
+  intent: Claude Code 拡張資産(Capability)を一貫した品質で生成・改良するため、共通核 + kind 固有スキーマで統一抽象を提供する。
+  interface:
+    inputs: [user-request, plugin-composition.yaml, rubric.json]
+    outputs: [CapabilityManifest, EVALS.json, lessons-learned/*.md, proposals/*.md]
+  invariant:
+    - 全 Capability は CapabilityManifest を持ち kind を宣言すること
+    - rubric_refs は L0→L1→L2 deep-merge 順を保つこと
+    - elegant-review は Phase1(reset) → Phase2(3並列分析) → Phase3(改善) の順序を保つこと
+    - hook の副作用境界(side_effect_scope)は manifest 上で宣言されたもののみ
+    - cross-plugin 参照は skill-intake 配下に限定(本リリースの一時許容)
+
+capabilities:
+  # === Skills (kind=skill) ===
+  - { kind: skill, ref: skills/run-skill-create,            tier: core }
+  - { kind: skill, ref: skills/run-skill-elicit,            tier: core }
+  - { kind: skill, ref: skills/run-build-skill,             tier: core }
+  - { kind: skill, ref: skills/run-elegant-review,          tier: core }
+  - { kind: skill, ref: skills/run-skill-rubric-governance, tier: core }
+  - { kind: skill, ref: skills/run-skill-rename,            tier: extension }
+  - { kind: skill, ref: skills/run-skill-update-notifier,   tier: extension }
+  - { kind: skill, ref: skills/run-migrate-audit,           tier: extension }
+  - { kind: skill, ref: skills/assign-skill-design-evaluator, tier: core }
+  - { kind: skill, ref: skills/delegate-codex-skill-review, tier: extension }
+  - { kind: skill, ref: skills/wrap-git-commit-safe,        tier: extension }
+  - { kind: skill, ref: skills/ref-skill-design-rubric,     tier: ref }
+  - { kind: skill, ref: skills/ref-domain-rubric-template,  tier: ref }
+  - { kind: skill, ref: skills/ref-domain-task-spec-rubric, tier: ref }
+  - { kind: skill, ref: skills/ref-skill-glossary,          tier: ref }
+  - { kind: skill, ref: skills/ref-skill-naming-convention, tier: ref }
+  - { kind: skill, ref: skills/ref-claude-code-skill-spec,  tier: ref }
+  - { kind: skill, ref: skills/ref-cross-platform-runtime,  tier: ref }
+  - { kind: skill, ref: skills/ref-output-routing,          tier: ref }
+  - { kind: skill, ref: skills/ref-task-context-map,        tier: ref }
+  - { kind: skill, ref: skills/ref-yaml-spec-fetcher,       tier: ref }
+
+  # === Agents (kind=agent) ===
+  - { kind: agent, ref: agents/run-build-skill-subagent,          tier: core }
+  - { kind: agent, ref: agents/elegant-reset-observer,            tier: core }
+  - { kind: agent, ref: agents/elegant-logical-structural-analyst, tier: core }
+  - { kind: agent, ref: agents/elegant-meta-divergent-analyst,    tier: core }
+  - { kind: agent, ref: agents/elegant-system-strategic-analyst,  tier: core }
+  - { kind: agent, ref: agents/elegant-improvement-executor,      tier: core }
+
+  # === Commands (kind=command) ===
+  - { kind: command, ref: commands/install-bundle,    tier: extension }
+  - { kind: command, ref: commands/capability-build,  tier: core }
+  - { kind: command, ref: commands/capability-review, tier: core }
+  - { kind: command, ref: commands/plugin-compose,    tier: core }
+  - { kind: command, ref: commands/skill-improve,     tier: core }
+
+  # === Hooks (kind=hook) — plugin.json 配線と1対1対応 ===
+  - { kind: hook, ref: "hook:UserPromptExpansion/cache-refresh",      tier: extension }
+  - { kind: hook, ref: "hook:PostToolUse-Skill/notify-skill-end",     tier: extension }
+  - { kind: hook, ref: "hook:PostToolUse-Skill/auto-record-lesson",   tier: core }
+  - { kind: hook, ref: "hook:PostToolUse-Edit/lint-capability-manifest", tier: core }
+  - { kind: hook, ref: "hook:PostToolUse-Edit-rubric/diff-rubric-impact", tier: core }
+  - { kind: hook, ref: "hook:PreToolUse-Bash/wrap-git-commit-safe",   tier: extension }
+  - { kind: hook, ref: "hook:Stop/elegant-review-trigger",            tier: extension }
+  - { kind: hook, ref: "hook:UserPromptSubmit/ref-task-context-map-preload", tier: extension }
+  - { kind: hook, ref: "hook:SessionEnd/aggregate-evals",             tier: core }
+
+dependencies:
+  # 主要 DAG。lint で循環検出。
+  - { from: skills/run-skill-create,        to: skills/run-skill-elicit,            type: calls }
+  - { from: skills/run-skill-create,        to: skills/run-build-skill,             type: calls }
+  - { from: skills/run-skill-create,        to: skills/run-elegant-review,          type: calls }
+  - { from: skills/run-build-skill,         to: agents/run-build-skill-subagent,    type: calls }
+  - { from: skills/run-build-skill,         to: skills/ref-skill-design-rubric,     type: reads }
+  - { from: skills/run-build-skill,         to: skills/ref-claude-code-skill-spec,  type: reads }
+  - { from: skills/run-build-skill,         to: skills/ref-skill-naming-convention, type: reads }
+  - { from: skills/run-elegant-review,      to: agents/elegant-reset-observer,      type: calls }
+  - { from: skills/run-elegant-review,      to: agents/elegant-logical-structural-analyst, type: calls }
+  - { from: skills/run-elegant-review,      to: agents/elegant-meta-divergent-analyst, type: calls }
+  - { from: skills/run-elegant-review,      to: agents/elegant-system-strategic-analyst, type: calls }
+  - { from: skills/run-elegant-review,      to: agents/elegant-improvement-executor, type: calls }
+  - { from: skills/assign-skill-design-evaluator, to: skills/ref-skill-design-rubric, type: evaluates }
+  - { from: skills/run-skill-rubric-governance,   to: skills/ref-skill-design-rubric, type: extends }
+  - { from: commands/capability-build,      to: skills/run-build-skill,             type: calls }
+  - { from: commands/capability-review,     to: skills/run-elegant-review,          type: calls }
+  - { from: commands/skill-improve,         to: skills/run-elegant-review,          type: calls }
+  - { from: commands/plugin-compose,        to: skills/run-build-skill,             type: calls }
+
+eval_sinks:
+  - EVALS.json
+  - lessons-learned/
+
+governance:
+  rubric_refs:
+    - skills/ref-skill-design-rubric/references/rubric.json
+    - skills/ref-domain-rubric-template/references/rubric.json
+    - skills/ref-domain-task-spec-rubric/references/rubric.json
+  changelog: CHANGELOG.md
+  roadmap: ROADMAP.md
+  merge_strategy: deep-merge
+  conflict_policy: most-specific-wins
+
+observability:
+  hooks:
+    - PostToolUse-Skill/auto-record-lesson
+    - PostToolUse-Edit/lint-capability-manifest
+    - PostToolUse-Edit-rubric/diff-rubric-impact
+    - SessionEnd/aggregate-evals
+    - Stop/elegant-review-trigger
+  metrics:
+    - lessons_per_pr
+    - review_cycle_time_ms
+    - rubric_bump_frequency
+    - capability_count_by_kind
+  lessons_path: lessons-learned/

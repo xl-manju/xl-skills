@@ -422,3 +422,46 @@ fi
 
 TODO(human): `scripts/build-yaml-spec-cache.py` の実装は、Claude Code 公式ドキュメントの
 機械取得方法が確定した後に実施する。`llms.txt` または公式 API 経由の可否を確認すること。
+
+---
+
+## Phase I: Capability 7 kind 分岐手順
+
+`run-build-skill` は Capability 統一抽象により skill 以外の 6 種 (agent / hook / command / plugin-composition / prompt / workflow) も同一エントリで構築する。既存「skill のみ」手順 (Phase 0〜H) は **kind=skill** 配下のサブフローとして保持し、本節はそれ以外を扱う。
+
+### I.0 共通事前条件 (全 kind)
+
+1. `brief.kind` (または引数 `kind`) を確定。7 kind 以外なら exit 1。
+2. `references/capability-manifest.schema.json` の `commonCore` を満たす frontmatter (`name` / `kind` / `version` / `owner` / `since` / `source-tier`) を必ず生成する。
+3. kind 別 skeleton を選択 (下表)。
+4. `validate-build-trace.py` に `capability_kind` フィールドを記録する。
+
+### I.1 kind 別 skeleton と検証コマンド
+
+| kind | skeleton | 出力先パターン | 主検証コマンド |
+|---|---|---|---|
+| skill | `templates/{run,ref,assign-generator,assign-evaluator,wrap,delegate}.md` | `plugins/<plugin>/skills/<name>/SKILL.md` | `lint-skill-name.py` / `lint-skill-description.py` / `lint-skill-tree.py` / `validate-frontmatter.py` |
+| agent | `templates/agent-skeleton.md` | `plugins/<plugin>/agents/<name>.md` | `lint-agent-prompt-section.py` / `validate-frontmatter.py` |
+| hook | `templates/hook-skeleton.md` | `plugins/<plugin>/hooks/<name>.{py,md}` | `lint-script-frontmatter.py` / `validate-frontmatter.py` |
+| command | `templates/command-skeleton.md` | `plugins/<plugin>/commands/<name>.md` | `lint-command-md.py` (未整備時は warn) / `validate-frontmatter.py` |
+| plugin-composition | `templates/plugin-composition-skeleton.yaml` | `plugins/<plugin>/plugin-composition.yaml` | `lint-plugin-composition.py` (未整備時は warn) |
+| prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` | `lint-prompt-md.py` (未整備時は warn) |
+| workflow | `templates/workflow-skeleton.md` | `plugins/<plugin>/workflows/<name>.md` | `lint-workflow-md.py` (未整備時は warn) / `validate-frontmatter.py` |
+
+### I.2 共通検証ステップ
+
+全 kind 共通で以下を実行する。
+
+```bash
+python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE/<kind-relative-path>"
+python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json \
+  --capability-schema "$SKILL_DIR/references/capability-manifest.schema.json"
+```
+
+`validate-build-trace.py --capability-schema` 引数が未実装なら warn を出してフォールバック、`capability_kind` 欄が空でないことだけ最低限確認する。
+
+### I.3 既存 skill 手順との関係
+
+- 引数 `kind` を省略、または `kind ∈ {run, ref, assign, wrap, delegate}` の場合は **kind=skill** として Phase 0〜H をそのまま実行する。
+- それ以外 (`agent` / `hook` / `command` / `plugin-composition` / `prompt` / `workflow`) は Phase I.0 → I.1 → I.2 のみを実行し、Phase D 以降の skill 専用手順 (rubric ペア評価、SubAgent 派生、prompt-creator ループ) はスキップ可能。`brief` で明示的に要求された場合のみ部分実行する。
+- 全 kind で `eval-log/skill-build-trace.json` の `capability_kind` フィールドに kind 名を必ず記録する。

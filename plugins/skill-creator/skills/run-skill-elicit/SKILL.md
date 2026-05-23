@@ -8,7 +8,8 @@ arguments: [topic]
 allowed-tools:
   - Read
   - Write
-kind: run
+kind: skill
+prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-18

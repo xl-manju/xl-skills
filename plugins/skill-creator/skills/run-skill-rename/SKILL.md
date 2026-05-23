@@ -11,7 +11,8 @@ allowed-tools:
   - Edit
   - Bash(python3 *)
   - Bash(git *)
-kind: run
+kind: skill
+prefix: run
 owner: team-platform
 since: 2026-05-18
 # doc/21 source-traceability

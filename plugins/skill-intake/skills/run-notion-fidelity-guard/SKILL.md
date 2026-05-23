@@ -8,7 +8,7 @@ allowed-tools:
   - Glob
 kind: run
 user-invocable: true
-effect: read-only
+effect: conversation-output
 source: plugins/skill-intake
 source-tier: internal
 last-audited: 2026-05-22
@@ -18,6 +18,13 @@ rubric_refs: [ref-output-routing, run-skill-intake-aggregator]
 role_suffix: fidelity-guard
 owner: team-platform
 since: 2026-05-22
+responsibility_refs:
+  - prompts/R1.md
+  - prompts/R2.md
+  - prompts/R3.md
+schema_refs:
+  - schemas/output.schema.json
+manifest: workflow-manifest.json
 ---
 
 # run-notion-fidelity-guard
@@ -62,9 +69,9 @@ intake-final-context.json を Notion へ描画する直前に、`info-collector-
 
 | ID | 名前 | スコープ | 7-layer prompt |
 |---|---|---|---|
-| R1 | canonical-snapshot-extraction | aggregator の `section_canonical_map.json` から `canonical-page-snapshot.json` を派生固定 | `prompts/R1.yaml` (L2/L4/L6) |
-| R2 | fidelity-check | intake-final-context.json と canonical-page-snapshot.json の section 粒度比較 + verdict 判定 | `prompts/R2.yaml` (L1/L2/L4/L5/L6) |
-| R3 | delta-report | missing/excess/granularity_warnings を Markdown と exit code に変換 | `prompts/R3.yaml` (L5/L6/L7) |
+| R1 | canonical-snapshot-extraction | aggregator の `section_canonical_map.json` から `canonical-page-snapshot.json` を派生固定 | `prompts/R1.md` (L1-L7) |
+| R2 | fidelity-check | intake-final-context.json と canonical-page-snapshot.json の section 粒度比較 + verdict 判定 | `prompts/R2.md` (L1-L7) |
+| R3 | delta-report | missing/excess/granularity_warnings を Markdown と exit code に変換 | `prompts/R3.md` (L1-L7) |
 
 ## Steps
 
