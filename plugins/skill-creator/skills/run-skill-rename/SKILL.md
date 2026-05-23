@@ -11,7 +11,7 @@ allowed-tools:
   - Edit
   - Bash(python3 *)
   - Bash(git *)
-kind: skill
+kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-18

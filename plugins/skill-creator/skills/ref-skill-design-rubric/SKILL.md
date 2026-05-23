@@ -3,7 +3,7 @@ name: ref-skill-design-rubric
 description: SKILL.mdを評価するとき、新規Skillを設計するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

@@ -4,7 +4,7 @@ description: rubric変更を提案するとき、rubric改正を施行すると�
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Bash(python3 *), Bash(git *)]
-kind: skill
+kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-17

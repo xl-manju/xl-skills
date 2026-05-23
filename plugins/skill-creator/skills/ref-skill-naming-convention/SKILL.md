@@ -3,7 +3,7 @@ name: ref-skill-naming-convention
 description: Skillを命名するとき、改名するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

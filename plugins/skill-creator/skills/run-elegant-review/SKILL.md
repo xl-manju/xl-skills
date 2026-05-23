@@ -12,7 +12,7 @@ allowed-tools:
   - Glob
   - Bash(python3 *)
   - Skill(assign-skill-design-evaluator *)
-kind: skill
+kind: run
 prefix: run
 effect: local-artifact  # findings.json/review-*.md をローカル生成。外部 API 呼び出しなし
 owner: team-platform

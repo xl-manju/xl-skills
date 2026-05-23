@@ -5,7 +5,7 @@ effect: local-artifact
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Write, Edit, Bash(python3 *), Grep, Glob, Skill(assign-skill-design-evaluator *)]
-kind: skill
+kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-19

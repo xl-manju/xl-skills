@@ -7,7 +7,7 @@ arguments: [task_kind]
 allowed-tools:
   - Read
   - Bash(python3 *)
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

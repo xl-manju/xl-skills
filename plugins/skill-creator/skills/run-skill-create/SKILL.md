@@ -14,7 +14,7 @@ allowed-tools:
   - Bash(git status *)
   - Skill
 model: opus
-kind: skill
+kind: run
 prefix: run
 effect: local-artifact
 owner: team-platform

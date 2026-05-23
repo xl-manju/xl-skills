@@ -3,7 +3,7 @@ name: ref-domain-task-spec-rubric
 description: タスク仕様書ドメイン用L1 rubricを参照したいとき、Phase 1-13/SRP/ユビキタス言語の評価基準を確認したいときに使う。
 user-invocable: false
 disable-model-invocation: true
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

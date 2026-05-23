@@ -3,7 +3,7 @@ name: ref-task-context-map
 description: タスク文脈に応じた設計書章番号を調べるとき、動的ロードするべき章を特定するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

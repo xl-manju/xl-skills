@@ -6,7 +6,7 @@ context: fork
 agent: general-purpose
 allowed-tools: [Read, Grep, Bash(python3 *)]
 pair: run-build-skill
-kind: skill
+kind: assign
 prefix: assign
 effect: conversation-output
 role_suffix: evaluator

@@ -6,7 +6,7 @@ user-invocable: true
 allowed-tools:
   - Read
   - Bash(python3 *)
-kind: skill
+kind: delegate
 prefix: delegate
 effect: none
 delegate_agent: codex-cli

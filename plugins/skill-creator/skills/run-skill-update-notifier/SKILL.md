@@ -4,7 +4,7 @@ description: Skill 実行末尾に最新版有無を1行通知するとき、ユ
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: [Read, Bash(python3 *)]
-kind: skill
+kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-21

@@ -3,7 +3,7 @@ name: ref-skill-glossary
 description: 未知の用語に遭遇したとき、用語統一を確認するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

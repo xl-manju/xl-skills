@@ -4,7 +4,7 @@ description: 他Skillが host OS で分岐するとき、OS判定に失敗した
 effect: none
 disable-model-invocation: false
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 owner: team-platform
 since: 2026-05-19

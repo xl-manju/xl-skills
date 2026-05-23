@@ -4,7 +4,7 @@ description: YAML仕様が変わったか確認するとき、公式仕様との
 disable-model-invocation: false
 allowed-tools:
   - Read
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

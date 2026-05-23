@@ -15,7 +15,7 @@ allowed-tools:
   - Bash(python3 *)
   - Skill(assign-skill-design-evaluator *)
 pair: assign-skill-design-evaluator
-kind: skill
+kind: run
 prefix: run
 effect: local-artifact
 owner: team-platform

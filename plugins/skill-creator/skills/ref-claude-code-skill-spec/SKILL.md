@@ -3,7 +3,7 @@ name: ref-claude-code-skill-spec
 description: frontmatterを記述するとき、subagent/hooksを配線するときに読む。
 disable-model-invocation: true
 user-invocable: false
-kind: skill
+kind: ref
 prefix: ref
 effect: none
 owner: team-platform

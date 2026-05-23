@@ -9,7 +9,7 @@ allowed-tools:
   - Bash(git diff *)
   - Bash(git add *)
   - Bash(git commit *)
-kind: skill
+kind: wrap
 prefix: wrap
 effect: local-artifact  # wrap-* は base: run-build-skill の effect を継承
 base: run-build-skill
