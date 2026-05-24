@@ -47,6 +47,7 @@ reference_refs:
   - ref-skill-glossary
   - ref-task-context-map
   - ref-output-routing
+  - ref-knowledge-loop
   - references/reproducibility-trace-schema.md
   - references/goal-seek-paradigm.md
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
