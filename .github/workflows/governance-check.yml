@@ -53,6 +53,9 @@ jobs:
       - name: lint SSOT duplication (skill-creator 一本化強制)
         run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict
         continue-on-error: false
+      - name: lint goal-seek SSOT drift (engine/fork/max_loops 既定の分散コピー一致)
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
+        continue-on-error: false
       - name: lint goal-seek conformance (実行系の固定手順禁止)
         run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/skill-creator/skills
         continue-on-error: false
@@ -64,4 +67,33 @@ jobs:
         continue-on-error: false
       - name: validate frontmatter (commonCore必須 + SemVer version 再発防止)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+        continue-on-error: false
+      # ── prompt-creator conformance (skill-creator 仕様準拠) ──
+      - name: prompt-creator validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/prompt-creator/skills
+        continue-on-error: false
+      - name: prompt-creator lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/prompt-creator/skills
+        continue-on-error: false
+      - name: prompt-creator lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/prompt-creator/skills
+        continue-on-error: false
+      - name: prompt-creator lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/prompt-creator/skills
+        continue-on-error: false
+      - name: lint dependency direction (全プラグイン, prompt-creator cross-plugin 参照解決)
+        run: python3 scripts/lint-dependency-direction.py --skills-dir plugins
+        continue-on-error: false
+      - name: lint-knowledge-loop self-test
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
+        continue-on-error: false
+      - name: knowledge-skeleton scripts self-test
+        run: |
+          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py --self-test
+          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/build_index.py --self-test
+          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py --self-test
+          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/add_entry.py --self-test
+        continue-on-error: false
+      - name: lint-knowledge-loop Loop B store (--store-only --strict)
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/skill-creator --store-only --strict
         continue-on-error: false

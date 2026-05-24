@@ -266,7 +266,7 @@ Claude Code セッション内で:
 /intake デイリーレポート生成スキルを作りたい
 ```
 
-メイン orchestrator は `run-skill-intake-aggregator` skill。以下の 12 phase を順次実行:
+メイン orchestrator は `run-skill-intake-aggregator` skill。以下の **11 phase / 12 SubAgent** (Phase 4 は interviewer ⇄ purpose-excavator のペア稼働で 1 phase) を順次実行:
 
 | Phase | SubAgent / 補助 skill | 役割 |
 |---|---|---|
@@ -305,7 +305,7 @@ Claude Code セッション内で:
 /intake-publish <hint>
 ```
 
-`run-notion-intake-publish` skill が `scripts/intake_publish_pipeline.py` を **単一発火点** として呼ぶ。render / quality_gate / publish の重複実装はない。
+`run-notion-intake-publish` skill が `scripts/intake_publish_pipeline.py` を **単一発火点** (定義は `skills/run-skill-intake-aggregator/SKILL.md` 「単一発火点」項を参照) として呼ぶ。render / quality_gate / publish の重複実装はない。
 
 ### 8-2. 追加要望・改善を反映（PATCH 更新）
 
@@ -368,7 +368,7 @@ plugins/skill-intake/
 │   ├── post-publish-notify.sh         # Slack 通知 (任意, silent skip)
 │   ├── post-keychain-add.sh           # Keychain 登録直後の検証 (手動)
 │   └── README.md
-├── scripts/                           # 共有スクリプト (37本, Python 3 標準ライブラリのみ)
+├── scripts/                           # 共有スクリプト (34本 plugin 直下 + 3本 skills/<name>/scripts/ 配下 = 計 37本, Python 3 標準ライブラリのみ)
 │   ├── keychain_get_secret.py         # Keychain アクセスの唯一経路
 │   ├── notion_http.py                 # Notion REST wrapper
 │   ├── intake_publish_pipeline.py     # publish/republish/revise の単一発火点
@@ -388,7 +388,7 @@ plugins/skill-intake/
 │   ├── example-team-onboarding/       # 例: チームオンボーディング
 │   ├── info-collector-agent/          # SubAgent プロンプト検証用
 │   └── intake-final-smoke/            # 最終版 render の smoke test
-└── skills/                            # スキル (10個)
+└── skills/                            # スキル (11個)
     ├── run-skill-intake-aggregator/   # メイン: 12 phase orchestrator
     │   ├── SKILL.md
     │   ├── references/                # 24 本 (handoff-contract, intake.schema.json,
@@ -403,6 +403,7 @@ plugins/skill-intake/
     ├── run-intake-next-action/        # Phase 8 決定論 (引き渡しモード判定)
     ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
     ├── run-notion-fidelity-guard/     # Notion 公開前粒度検証
+    ├── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
     └── ref-intake-option-catalog/     # 外部連携カタログ参照
 ```
 
@@ -410,7 +411,7 @@ plugins/skill-intake/
 
 | コマンド | 用途 | 引数 |
 |---|---|---|
-| `/intake` | 新規ヒアリング起動（12 phase） | `[topic]` |
+| `/intake` | 新規ヒアリング起動（11 phase / 12 SubAgent） | `[topic]` |
 | `/intake-publish` | 既存 intake の再公開（内容変更なし） | `<hint>` |
 | `/intake-revise` | 追加要望を Notion ページに PATCH 反映 | `<hint> [--dry-run]` |
 | `/intake-status` | 進行状況（phase / 5 軸充足 / 図解枚数） | `[<hint>]` |

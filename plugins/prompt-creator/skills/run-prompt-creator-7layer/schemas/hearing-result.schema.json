@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Prompt Sheet Input",
-  "description": "7layer worker が legacy sheet/scaffold 入力として受け取る構造化済みJSONのスキーマ。raw hearing result の正本は run-prompt-elicit/schemas/hearing-result.schema.json。validate_sheet.js, generate_sheet.js, scaffold_prompt.js が入力として使用。ゴールシーク型: 固定手順(steps)は収集せず、達成ゴール(goals)と完了チェックリスト(checklist)を収集する。",
+  "description": "7layer worker が legacy sheet/scaffold 入力として受け取る構造化済みJSONのスキーマ。raw hearing result の正本は run-prompt-elicit/schemas/hearing-result.schema.json。validate-sheet.py, generate-sheet.py, scaffold-prompt.py が入力として使用。ゴールシーク型: 固定手順(steps)は収集せず、達成ゴール(goals)と完了チェックリスト(checklist)を収集する。",
   "type": "object",
   "required": [
     "prompt_name",

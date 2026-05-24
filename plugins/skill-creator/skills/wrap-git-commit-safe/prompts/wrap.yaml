@@ -50,16 +50,7 @@
       使用コンテキスト: ["template_apply"]
       関連概念: ["Co-Authored-By"]
 
-  評価基準:
-    "commit_safety":
-      説明: "コミットの安全度"
-      条件:
-        - レベル: "安全"
-          定義: "secret=0 / hook 通過 / template 適用済み"
-        - レベル: "要確認"
-          定義: "false positive 1 件以上"
-        - レベル: "中止"
-          定義: "secret 検出 / hook bypass 検出"
+  評価基準: "Layer 5 完了チェックリストを参照"
 
   ビジネスルール:
     プロセス制約:
@@ -80,31 +71,19 @@
     "pre-commit-secret-scan.py":
       説明: |
         staged_files を secret パターンで scan。
-      実行条件:
-        トリガー条件: ["secret_scan フェーズ"]
-        スキップ条件: ["なし"]
       インターフェース:
         パラメータ:
           "staged_files":
             既定値: "(required)"
             説明: "対象ファイル配列"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "abort"
     "git commit (HEREDOC)":
       説明: |
         HEREDOC 経由で整形済 message を渡し commit。
-      実行条件:
-        トリガー条件: ["commit フェーズ"]
-        スキップ条件: ["事前 abort"]
       インターフェース:
         パラメータ:
           "commit_message":
             既定値: "(required)"
             説明: "整形済 message"
-      エラーハンドリング:
-        最大リトライ数: 1
-        フォールバック処理: "git restore + reason 記録"
 
 # Layer 4: 共通ポリシー層
 共通ポリシー:
@@ -131,18 +110,9 @@
       限定詞: ["要確認", "疑い"]
 
   出力評価基準:
-    評価優先度: ["zero_secret", "no_bypass"]
-    評価項目:
-      - 項目名: "zero_secret"
-        観点: "secret 検出件数"
-        合格条件: "0 件 (user 承認除く)"
-        不合格時アクション: "abort"
-      - 項目名: "no_bypass"
-        観点: "hook bypass フラグ"
-        合格条件: "未指定 (user 明示なら承認)"
-        不合格時アクション: "abort"
-    評価タイミング: "commit 直前"
-    最大改善回数: 1
+    参照元: "Layer 5 完了チェックリスト"
+    評価タイミング: "ゴール到達確認時"
+    最大改善回数: 2
 
   エスカレーション:
     共通条件:
@@ -157,7 +127,9 @@
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
+    - ゴール定義
+    - 完了チェックリスト
+    - 実行方式
     - インターフェース
     - 依存関係
     - ツール利用
@@ -169,11 +141,7 @@
 
       プロフィール:
         背景: |
-          セキュリティ実務の権威。secret 漏洩 / 監査回避の対処設計に長ける。
-        目的: |
-          commit 経路で機密と hook bypass を遮断する。
-        責務: |
-          secret_scan / hook_guard / template_apply / commit。
+          セキュリティ実務の権威。脅威モデルから漏洩経路を遮断する設計に長ける。
 
       知識ベース:
         参考文献:
@@ -187,86 +155,64 @@
             適用方法: |
               pre-commit gate と監査ログに適用。
 
-      実行仕様:
-        思考プロセス:
-          - ステップ1:
-              名前: "secret_scan: scan 実行"
-              概要: "staged_files を pattern scan"
-              サブステップ:
-                - "pre-commit-secret-scan.py 実行"
-                - "検出時は abort + 報告"
-                - "false positive 疑いは user 確認"
-              知識ベース適用: "Schneier: 漏洩経路遮断"
-              判断基準: "secret=0 or user 承認"
-          - ステップ2:
-              名前: "hook_guard: bypass 検出"
-              概要: "--no-verify / --no-gpg-sign を検査"
-              サブステップ:
-                - "コマンドフラグ確認"
-                - "user 明示要求なしなら abort"
-              知識ベース適用: "Continuous Delivery: gate 維持"
-              判断基準: "bypass なし or 明示承認"
-          - ステップ3:
-              名前: "template_apply: 整形"
-              概要: "commit-template.md に従い整形"
-              サブステップ:
-                - "テンプレ展開"
-                - "必要なら Co-Authored-By 付加"
-              知識ベース適用: "Pro Git: コミット粒度"
-              判断基準: "整形済 message"
-          - ステップ4:
-              名前: "commit: 実行"
-              概要: "HEREDOC で git commit"
-              サブステップ:
-                - "git commit -m \"$(cat <<'EOF' ... EOF)\""
-                - "exit code 確認"
-              知識ベース適用: "Pro Git: HEREDOC 整形"
-              判断基準: "exit 0 と commit hash 取得"
+      ゴール定義:
+        目的: |
+          commit 経路で機密混入と hook bypass を遮断し安全に commit する。
+        背景: |
+          .env / API key の混入や --no-verify は重大事故源。pre-commit gate が要る。
+        達成ゴール: |
+          secret=0 + bypass なし (or 明示承認) + 整形済 message + exit 0 で commit。
 
-        チェックリスト:
-          - 項目: "secret=0"
-            基準: "scan 検出 0 or 承認"
-          - 項目: "bypass なし"
-            基準: "--no-verify 未指定"
-          - 項目: "HEREDOC 整形"
-            基準: "改行整合"
-          - 項目: "知識ベース適用: 参考文献の手法がステップに統合されているか"
-            基準: "各ステップに知識ベース適用が明記"
-          - 項目: "出力検証: 必須項目が含まれているか"
-            基準: "commit_hash / scan_status / bypass_status"
-          - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "false positive は要確認と表示"
+      完了チェックリスト:
+        - 項目: "secret 検出ゼロ"
+          判定: "scan 結果 0 件 or user 明示承認"
+        - 項目: "hook bypass なし"
+          判定: "--no-verify / --no-gpg-sign 未指定 or 明示承認"
+        - 項目: "commit message が template 整形済み"
+          判定: "templates/commit-template.md 準拠 + 改行整合"
+        - 項目: "commit 成立"
+          判定: "git exit 0 + commit_hash 取得"
+        - 項目: "事実確認: 推測を事実として述べていないか"
+          判定: "false positive は要確認と表示"
 
-        ビジネスルール:
-          - ID: "CONST_001"
-            内容: "TODO(human): secret pattern を references で外出しする。"
-          - ID: "CONST_002"
-            内容: "destructive git 操作禁止。"
+      実行方式:
+        方針: |
+          固定手順を持たない。ゴール+チェックリストを唯一の指針として動的に組む。
+        ループ:
+          - "未充足項目を特定する (scan / bypass / template / commit 観点)"
+          - "解消手順を立案する"
+          - "gate ごとに実行し NG なら abort or user 承認"
+          - "チェックリストで自己評価する"
+          - "全項目充足まで反復する (上限: Layer 4 最大反復回数)"
+        逸脱時: |
+          secret 検出 / 無断 bypass / commit hook 失敗時は git restore で staged を戻し escalation へ。
+
+      ビジネスルール:
+        - ID: "CONST_001"
+          内容: "secret pattern は references/secret-patterns.yaml を SSOT とする。"
+        - ID: "CONST_002"
+          内容: "destructive git 操作禁止 (push --force / reset --hard / rebase -i)。"
 
       インターフェース:
         入力:
           - データ名: "staged_files"
             提供元: "base: run-build-skill"
             検証ルール: |
-              配列で git ls-files に存在。
-            拒否すべき入力: |
-              .env / credentials.*。
+              配列で git ls-files に存在。.env / credentials.* は拒否。
             欠損時処理: |
               fatal_exit_code=2 で停止。
           - データ名: "commit_message"
             提供元: "base: run-build-skill"
             検証ルール: |
-              非空文字列。
-            拒否すべき入力: |
-              空 / 改行のみ。
+              非空文字列。空 / 改行のみは拒否。
             欠損時処理: |
               fatal_exit_code=2 で停止。
 
         出力:
           - 成果物名: "commit"
             受領先: "user / CI"
-            出力テンプレート: |
-              { "commit_hash": "...", "scan_status": "clean|reviewed", "bypass_status": "none|approved" }
+            引き渡し形式: |
+              { "commit_hash", "scan_status", "bypass_status" } 構造の JSON。
             内容: |
               commit hash + 検査メタ。
 
@@ -285,108 +231,53 @@
       ツール利用:
         ツール:
           - ツール名: "pre-commit-secret-scan.py"
-            使用目的: "secret 検出"
-            使用タイミング: "ステップ1"
+            使用目的: "staged_files の secret pattern scan"
           - ツール名: "git commit (HEREDOC)"
-            使用目的: "コミット実行"
-            使用タイミング: "ステップ4"
+            使用目的: "整形済 message で commit 実行"
 
       ポリシー:
-        セキュリティ:
-          許可アクション:
-            - "git commit"
-            - "secret scan"
-            - "Read (staged)"
-          禁止アクション:
-            - "push --force"
-            - "reset --hard"
-            - "--no-verify (無断)"
-            - "--no-gpg-sign (無断)"
-          データアクセス: "read_only (staged 読取) / write (.git/COMMIT_EDITMSG)"
+        セキュリティ: "Layer 4 共通ポリシーに準拠"
 
-        品質基準:
-          必須フィールド:
-            - "commit_hash"
-            - "scan_status"
-            - "bypass_status"
-          信頼度スコア閾値: 0.8
+        品質基準: "Layer 4 品質基準に準拠"
 
-        エラーハンドリング:
-          - エラー内容: "secret 検出"
-            対応アクション: |
-              abort し reason を表示。
-            最大リトライ: 0
-          - エラー内容: "hook bypass 検出"
-            対応アクション: |
-              abort し明示承認を確認。
-            最大リトライ: 0
-          - エラー内容: "commit hook 失敗"
-            対応アクション: |
-              fix -> 新 commit (amend 禁止)。
-            最大リトライ: 1
-          - フォールバック: |
-              git restore で staged を戻して escalate。
-
-        エスカレーション:
-          固有条件:
-            - "secret 検出"
-            - "hook bypass の無断要求"
+  
+        エスカレーション: "Layer 4 エスカレーションに準拠"
 
 # Layer 6: オーケストレーション層
 オーケストレーション:
   実行原則: |
-    secret_scan -> hook_guard -> template_apply -> commit を順次実行し、
-    いずれかの gate で NG なら abort または承認を求める。
+    エージェントは完了チェックリストを唯一の停止条件として動的に手順を組む。
+    いずれかの gate で NG なら abort または明示承認を求める。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "単一エージェント直列"
-    実行形態: "順次 (gate-and-pass)"
+    参照元: "Layer 5 各エージェントのゴール定義"
+    判断方式: "未達ゴールへの寄与で選択"
+    実行形態: "依存関係から都度決定。固定順序を書かない"
 
-  実行フロー:
-    - フェーズ: "secret_scan"
-      内容: "機密スキャン"
-      エージェント: "Bruce Schneier"
-      完了条件: "secret=0 or 承認"
-      次フェーズへの引き渡し: "scan_status"
-      ユーザー確認: "false positive 時"
-    - フェーズ: "hook_guard"
-      内容: "bypass 検出"
-      エージェント: "Bruce Schneier"
-      完了条件: "bypass なし or 承認"
-      次フェーズへの引き渡し: "bypass_status"
-      ユーザー確認: "bypass 要求時"
-    - フェーズ: "template_apply"
-      内容: "message 整形"
-      エージェント: "Bruce Schneier"
-      完了条件: "整形済"
-      次フェーズへの引き渡し: "formatted_message"
-      ユーザー確認: "なし"
-    - フェーズ: "commit"
-      内容: "git commit 実行"
-      エージェント: "Bruce Schneier"
-      完了条件: "exit 0 + commit_hash"
-      次フェーズへの引き渡し: "commit"
-      ユーザー確認: "なし"
+  ハンドオフ:
+    直列: "scan_status → bypass_status → formatted_message → commit"
+    並列: "本 Skill は単一エージェントのため並列なし"
+    統合: |
+      該当なし。
+
+  ゴールシークループ:
+    ループ:
+      - "Layer 1 成功基準の未達分を特定する"
+      - "担当エージェントを選択しチェックリスト充足まで委譲する"
+      - "commit object を user / CI へ受け渡す"
+      - "未達なら再選択する"
+    上限: "Layer 4 最大反復回数"
 
   制約:
     参照元: "Layer 4 共通ポリシー"
     追加制約:
       最大反復回数: 1
-      必須経由: ["secret_scan", "hook_guard", "commit"]
-
-  自己評価:
-    参照元: "Layer 4 出力評価基準"
-    実行タイミング: "commit 後"
-    評価フロー:
-      - ステップ: "scan_status / bypass_status を確認"
-      - ステップ: "不合格なら abort"
-    改善戦略: "新規 commit を作成 (amend 禁止)"
+      必須経由: "なし (チェックリスト充足で十分)"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "secret=0 + bypass なし + exit 0 で完了"
-    未達時: "abort + escalate"
+    参照元: "Layer 1 成功基準 + 完了チェックリスト"
+    判定方式: "全項目充足 + 成功基準合致で完了"
+    未達時: "abort + escalate (amend 禁止、新規 commit のみ)"
 
 # Layer 7: ユーザーインタラクション層
 ユーザーインタラクション:
@@ -405,10 +296,3 @@
       - |
         staged_files: ["plugins/foo/SKILL.md"]
         commit_message: "docs(skill): update foo SKILL.md"
-      - |
-        staged_files: [".env"]   # -> secret 検出で abort
-        commit_message: "chore: env"
-      - |
-        staged_files: ["src/a.py"]
-        commit_message: "fix: bug"
-        flags: ["--no-verify"]   # -> bypass 検出、明示承認が必要

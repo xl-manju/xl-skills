@@ -50,9 +50,9 @@
       "delegateSkill": null,
       "commands": [
         "python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py ${TARGET_AGENT_OR_SKILL}",
-        "node plugins/prompt-creator/scripts/verify_completeness.js --input ${PROMPT_OUTPUT}",
-        "node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_OUTPUT} --phase prompt",
-        "node plugins/prompt-creator/scripts/validate_prompt.js --input eval-log/prompt-build-trace.json --phase trace --schema plugins/prompt-creator/skills/run-prompt-create/schemas/build-trace.schema.json",
+        "python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py --input ${PROMPT_OUTPUT}",
+        "python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py --input ${PROMPT_OUTPUT} --phase prompt",
+        "python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py --input eval-log/prompt-build-trace.json --phase trace --schema plugins/prompt-creator/skills/run-prompt-create/schemas/build-trace.schema.json",
         "python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir ${SKILLS_DIR}",

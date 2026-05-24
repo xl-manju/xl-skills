@@ -54,7 +54,7 @@
 | schema | ../run-prompt-create/schemas/findings.schema.json |
 
 ### 3.2 ツール
-- node verify_completeness.js / validate_prompt.js
+- python3 verify-completeness.py / validate-prompt.py
 - Read / Glob / Grep
 
 ## Layer 4: 共通ポリシー
@@ -75,7 +75,7 @@
 
 ### 5.2 推論手順
 1. references/prompt-rubric.json を Read
-2. verify_completeness.js / validate_prompt.js を実行し completeness_score を取得
+2. verify-completeness.py / validate-prompt.py を実行し completeness_score を取得
 3. C1-C4 の scripted checks を実行 (regex_match / regex_absent)
 4. C1-C4 の non-scripted checks を Layer 単位で意味判定
 5. 4 パスレビュー (Pass 0-4) を順次実行

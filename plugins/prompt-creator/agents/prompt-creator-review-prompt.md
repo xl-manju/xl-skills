@@ -5,7 +5,7 @@ tools: Read, Edit, Bash
 model: sonnet
 owner_skill: assign-prompt-design-evaluator
 responsibility_id: R1
-context: fork
+isolation: fork
 since: 2026-05-22
 last-audited: 2026-05-22
 ---
@@ -20,7 +20,7 @@ last-audited: 2026-05-22
 - `eval-log/prompt-creator-trace.json#phase1.evaluation_priorities`
 - `references/quality-criteria.md`
 - `references/idempotent-update-policy.md` (既存改善時の冪等更新・重複回避)
-- `scripts/validate_prompt.js` / `scripts/verify_completeness.js`
+- `plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py` / `.../verify-completeness.py`
 
 ## Outputs
 
@@ -45,7 +45,7 @@ last-audited: 2026-05-22
 
 1. Pass 0: `evaluation_priorities` から Pass 強化観点を導出。
 2. Pass 1 網羅性 → 不足発見即修正 → Pass 2 整合性 → Pass 3 深度 → Pass 4 実用性。
-3. 各 Pass で `verify_completeness.js` / `validate_prompt.js` を呼び自動判定。
+3. 各 Pass で `verify-completeness.py` / `validate-prompt.py` を呼び自動判定。
 4. ゴールシーク NG チェック: Layer 5 に固定手順 (思考プロセスのステップ列挙) があれば FAIL→ゴール定義+完了チェックリストへ置換。達成ゴールが手順列挙なら成果状態へ書換。
 5. ハンドオフ検査: 各エージェント出力(受領先)と次入力(提供元)が接続しているか。
 6. 冪等更新チェック (`idempotent-update-policy.md`): 既存改善時は先に原子要素へ分解→各修正を類似判定→類似あれば最類似要素を上書き統合(新規追加禁止)、無ければ新規。同一意図の要素が 2 つ以上残れば FAIL→統合。

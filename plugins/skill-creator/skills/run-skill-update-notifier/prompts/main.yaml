@@ -53,14 +53,7 @@
       使用コンテキスト: ["全フェーズ"]
       関連概念: ["refresh"]
 
-  評価基準:
-    "notification_discipline":
-      説明: "通知の節度"
-      条件:
-        - レベル: "良"
-          定義: "差分時のみ 1 行、それ以外無出力"
-        - レベル: "悪"
-          定義: "二重通知 / up-to-date でも出力"
+  評価基準: "Layer 5 完了チェックリストを参照"
 
   ビジネスルール:
     プロセス制約:
@@ -81,28 +74,16 @@
     "notifier-check.py":
       説明: |
         installed と latest を比較する。
-      実行条件:
-        トリガー条件: ["check フェーズ"]
-        スキップ条件: ["cache が無く mode=check-only"]
       インターフェース:
         パラメータ:
           "mode":
             既定値: "auto"
             説明: "auto|check-only|refresh"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "status=offline で通知抑制"
     "hook-cache-refresh.py":
       説明: |
         cache を更新する。
-      実行条件:
-        トリガー条件: ["mode=refresh", "cache_age > 24h"]
-        スキップ条件: ["offline"]
       インターフェース:
         パラメータ: {}
-      エラーハンドリング:
-        最大リトライ数: 1
-        フォールバック処理: "warn を log に残し続行"
 
 # Layer 4: 共通ポリシー層
 共通ポリシー:
@@ -129,18 +110,9 @@
       限定詞: ["unknown", "offline"]
 
   出力評価基準:
-    評価優先度: ["single_line_or_empty", "discipline_silent_modes"]
-    評価項目:
-      - 項目名: "single_line_or_empty"
-        観点: "通知行数"
-        合格条件: "0 行 or 1 行"
-        不合格時アクション: "emit を再構成"
-      - 項目名: "discipline_silent_modes"
-        観点: "up-to-date/offline/unknown で無出力"
-        合格条件: "該当状態で出力 0"
-        不合格時アクション: "emit ロジック修正"
-    評価タイミング: "emit 後"
-    最大改善回数: 1
+    参照元: "Layer 5 完了チェックリスト"
+    評価タイミング: "ゴール到達確認時"
+    最大改善回数: 2
 
   エスカレーション:
     共通条件:
@@ -155,7 +127,9 @@
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
+    - ゴール定義
+    - 完了チェックリスト
+    - 実行方式
     - インターフェース
     - 依存関係
     - ツール利用
@@ -167,11 +141,7 @@
 
       プロフィール:
         背景: |
-          Kanban / システムフロー設計に強く、ノイズ最小の通知契約に長ける。
-        目的: |
-          静かな 1 行通知で差分のみ知らせる。
-        責務: |
-          load_cache / check / emit / refresh。
+          Kanban / フロー設計の権威。WIP 制限の発想で通知契約を設計する。
 
       知識ベース:
         参考文献:
@@ -185,79 +155,60 @@
             適用方法: |
               installed と latest の diff 判定に適用。
 
-      実行仕様:
-        思考プロセス:
-          - ステップ1:
-              名前: "load_cache: cache 読込"
-              概要: "version-snapshot.json を読む"
-              サブステップ:
-                - "ファイル存在確認"
-                - "JSON parse"
-                - "なければ unknown"
-              知識ベース適用: "SRE: 安全側 default"
-              判断基準: "cache 状態確定"
-          - ステップ2:
-              名前: "check: 比較"
-              概要: "notifier-check.py 実行"
-              サブステップ:
-                - "installed/latest 取得"
-                - "diff 算出"
-                - "ネットワーク不能なら offline"
-              知識ベース適用: "SemVer: 比較ルール"
-              判断基準: "status 確定"
-          - ステップ3:
-              名前: "emit: 1 行通知"
-              概要: "差分時のみ stderr に 1 行"
-              サブステップ:
-                - "output-format.md の書式に従う"
-                - "up-to-date/offline/unknown は無出力"
-              知識ベース適用: "Kanban: WIP=1"
-              判断基準: "出力 0 行 or 1 行"
-          - ステップ4:
-              名前: "refresh: cache 更新"
-              概要: "条件次第で hook-cache-refresh.py"
-              サブステップ:
-                - "mode=refresh or age>24h を判定"
-                - "実行"
-              知識ベース適用: "SRE: 自動回復"
-              判断基準: "cache 新 mtime"
+      ゴール定義:
+        目的: |
+          差分時のみ 1 行で通知し UX ノイズを抑える。
+        背景: |
+          頻繁通知は alert fatigue を招く。silent-on-success を徹底する。
+        達成ゴール: |
+          status 確定 + 差分時のみ stderr 1 行 + 必要時のみ cache 更新済み。
 
-        チェックリスト:
-          - 項目: "1 行 or 0 行"
-            基準: "出力行数"
-          - 項目: "silent モード遵守"
-            基準: "up-to-date/offline/unknown で無出力"
-          - 項目: "知識ベース適用: 参考文献の手法がステップに統合されているか"
-            基準: "各ステップに知識ベース適用が明記"
-          - 項目: "出力検証: 必須項目が含まれているか"
-            基準: "status / installed / latest"
-          - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "unknown は unknown と明記"
+      完了チェックリスト:
+        - 項目: "出力は 0 行 or 1 行"
+          判定: "stderr 行数で客観判定"
+        - 項目: "up-to-date/offline/unknown で無出力"
+          判定: "状態と出力の対応表で判定"
+        - 項目: "status/installed/latest を内部保持"
+          判定: "必須フィールドの有無"
+        - 項目: "cache mtime が refresh 条件と整合"
+          判定: "mode/age と mtime の照合"
+        - 項目: "事実確認: 推測を事実として述べていないか"
+          判定: "unknown 時は unknown と明記"
 
-        ビジネスルール:
-          - ID: "CONST_001"
-            内容: "TODO(human): cache 失効時間 24h は config 化したい。"
-          - ID: "CONST_002"
-            内容: "通知は 1 行のみ。"
+      実行方式:
+        方針: |
+          固定手順を持たない。ゴール+チェックリストを唯一の指針として動的に組む。
+        ループ:
+          - "未充足項目を特定する"
+          - "解消手順を立案する (例: load_cache / check / emit / refresh)"
+          - "立案手順を実行し成果物を更新する"
+          - "チェックリストで自己評価する"
+          - "全項目充足まで反復する (上限: Layer 4 最大反復回数)"
+        逸脱時: |
+          上限到達 / cache 破損時は無出力で安全停止し escalation へ。
+
+      ビジネスルール:
+        - ID: "CONST_001"
+          内容: "cache 失効時間は references/config から読込 (既定 24h)。"
+        - ID: "CONST_002"
+          内容: "通知は 1 行のみ。"
 
       インターフェース:
         入力:
           - データ名: "mode"
-            提供元: "外部"
+            提供元: "外部/ユーザー"
             検証ルール: |
-              auto|check-only|refresh のいずれか。
-            拒否すべき入力: |
-              範囲外文字列。
+              auto|check-only|refresh のいずれか。範囲外は拒否。
             欠損時処理: |
               auto を採用。
 
         出力:
           - 成果物名: "stderr_line"
             受領先: "user shell"
-            出力テンプレート: |
-              "{{plugin}} {{installed}} -> {{latest}} (run: xl-skills update)"
+            引き渡し形式: |
+              "{{plugin}} {{installed}} -> {{latest}} (run: xl-skills update)" 形式 1 行。
             内容: |
-              差分時のみ 1 行。
+              差分時のみ 1 行。silent モードは無出力。
 
       依存関係:
         前提エージェント:
@@ -274,20 +225,12 @@
       ツール利用:
         ツール:
           - ツール名: "notifier-check.py"
-            使用目的: "version 比較"
-            使用タイミング: "ステップ2"
+            使用目的: "installed と latest の比較"
           - ツール名: "hook-cache-refresh.py"
             使用目的: "cache 更新"
-            使用タイミング: "ステップ4"
 
       ポリシー:
-        セキュリティ:
-          許可アクション:
-            - "Read (cache)"
-            - "stderr 出力"
-          禁止アクション:
-            - "plugin.json/marketplace.json/bundles.json 書換"
-          データアクセス: "read_only (config) / read_write (cache)"
+        セキュリティ: "Layer 4 共通ポリシーに準拠"
 
         品質基準:
           必須フィールド:
@@ -296,22 +239,7 @@
             - "latest"
           信頼度スコア閾値: 0.7
 
-        エラーハンドリング:
-          - エラー内容: "ネットワーク不能"
-            対応アクション: |
-              status=offline で通知抑制。
-            最大リトライ: 0
-          - エラー内容: "cache 破損"
-            対応アクション: |
-              unknown 扱いで通知抑制し refresh。
-            最大リトライ: 1
-          - エラー内容: "mode 不正"
-            対応アクション: |
-              auto に fallback。
-            最大リトライ: 0
-          - フォールバック: |
-              無出力で安全停止。
-
+  
         エスカレーション:
           固有条件:
             - "cache 復旧不能"
@@ -320,59 +248,38 @@
 # Layer 6: オーケストレーション層
 オーケストレーション:
   実行原則: |
-    load_cache -> check -> emit -> refresh を順次実行し、
-    差分時のみ 1 行通知する。silent モードは厳格に守る。
+    エージェントは完了チェックリストを唯一の停止条件として動的に手順を組む。
+    silent モードは厳格に守る。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "単一エージェント直列"
-    実行形態: "順次"
+    参照元: "Layer 5 各エージェントのゴール定義"
+    判断方式: "未達ゴールへの寄与で選択"
+    実行形態: "依存関係から都度決定。固定順序を書かない"
 
-  実行フロー:
-    - フェーズ: "load_cache"
-      内容: "snapshot 読込"
-      エージェント: "David J. Anderson"
-      完了条件: "cache 状態確定"
-      次フェーズへの引き渡し: "cache_state"
-      ユーザー確認: "なし"
-    - フェーズ: "check"
-      内容: "version 比較"
-      エージェント: "David J. Anderson"
-      完了条件: "status 確定"
-      次フェーズへの引き渡し: "status"
-      ユーザー確認: "なし"
-    - フェーズ: "emit"
-      内容: "1 行通知"
-      エージェント: "David J. Anderson"
-      完了条件: "0 行 or 1 行"
-      次フェーズへの引き渡し: "なし"
-      ユーザー確認: "なし"
-    - フェーズ: "refresh"
-      内容: "cache 更新"
-      エージェント: "David J. Anderson"
-      完了条件: "cache 新 mtime or skip"
-      次フェーズへの引き渡し: "なし"
-      ユーザー確認: "なし"
+  ハンドオフ:
+    直列: "cache_state → status → emit 判断 → refresh 判断"
+    並列: "本 Skill は単一エージェントのため並列なし"
+    統合: |
+      該当なし。
+
+  ゴールシークループ:
+    ループ:
+      - "Layer 1 成功基準の未達分を特定する"
+      - "担当エージェントを選択しチェックリスト充足まで委譲する"
+      - "出力を後続(なし: 終了)へ受け渡す"
+      - "未達なら再選択する"
+    上限: "Layer 4 最大反復回数"
 
   制約:
     参照元: "Layer 4 共通ポリシー"
     追加制約:
       最大反復回数: 1
-      必須経由: ["load_cache", "check", "emit"]
-
-  自己評価:
-    参照元: "Layer 4 出力評価基準"
-    実行タイミング: "emit 後"
-    評価フロー:
-      - ステップ: "出力行数を確認"
-      - ステップ: "silent モード遵守を確認"
-      - ステップ: "不合格なら emit を再構成"
-    改善戦略: "余分な出力を抑制"
+      必須経由: "なし (チェックリスト充足で十分)"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "出力 0 行 or 1 行 + silent モード遵守"
-    未達時: "emit を再実行"
+    参照元: "Layer 1 成功基準 + 完了チェックリスト"
+    判定方式: "全項目充足 + 成功基準合致で完了"
+    未達時: "担当エージェントを再選択する"
 
 # Layer 7: ユーザーインタラクション層
 ユーザーインタラクション:
@@ -388,7 +295,3 @@
         mode: auto
       - |
         mode: check-only   # cache 更新しない
-      - |
-        mode: refresh      # 強制 cache 更新
-      - |
-        mode: auto         # offline -> 無出力

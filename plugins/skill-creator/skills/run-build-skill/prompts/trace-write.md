@@ -84,19 +84,25 @@
 ### 5.1 担当 agent
 - run-build-skill 配下の R4 SubAgent (最終フェーズ)
 
-### 5.2 推論手順 (再現可能)
-1. `eval-log/skill-build-trace.json` を schema に従って初期化
-2. `doc_coverage` に 01/01a/02-35 章 ID を埋める (未読は `status=na + reason`)
-3. `pattern_decisions / layer_decisions / reproducibility_gates (C1-C4)` を記入
-4. `variable_contract` に変数化具体値の source_trace を記録
-5. `validate-build-trace.py` を実行し exit 0 を確認
+### 5.2 ゴール定義
+- **目的**: skill-build-trace.json を章別 enum + 再現性ゲート (C1-C4) で機械検証可能な状態にする
+- **背景**: 黙示の skip や未記入は監査不能と false-pass を生むため、章 ID 固定と validate-build-trace.py 通過を必須化する
+- **達成ゴール**: schema 準拠 trace が成立し validate-build-trace.py exit 0、再実行で sha256 一致する状態
 
-### 5.3 自己検証 checklist
-- [ ] C1-C4 ゲートに pass/fail/na が必ず入る
-- [ ] 全章 ID のうち未 covered 章に reason 残存
-- [ ] variable_contract に source_trace あり
+### 5.3 完了チェックリスト (停止条件)
+- [ ] C1-C4 reproducibility_gates に pass/fail/na が必ず入る
+- [ ] doc_coverage の全章 ID (01/01a/02-35) を網羅、未読は status=na + reason 残存
+- [ ] pattern_decisions / layer_decisions を記入
+- [ ] variable_contract に変数化具体値の source_trace あり
 - [ ] validate-build-trace.py exit 0
-- [ ] 同 brief + 同 scaffold で trace の JSON sha256 一致
+- [ ] 同 brief + 同 scaffold で trace JSON sha256 一致
+
+### 5.4 実行方式 (動的手順生成ループ)
+1. 未充足チェックリスト項目を特定 (どの章 / ゲートが欠けているか)
+2. 解消手順を立案 (schema 初期化 / 章記入 / source_trace 記録 / 検証実行 のいずれか)
+3. 実行し trace.json を更新
+4. validate-build-trace.py で自己評価、全項目充足まで反復
+5. 上限到達時は exit 1 (検証スクリプト未実行のまま pass 宣言禁止)
 
 ## Layer 6: オーケストレーション層
 

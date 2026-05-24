@@ -2,7 +2,7 @@
 
 プロンプト生成時に使用する7層構造の論理テンプレート（正規形）。
 構造定義は YAML で示すが、**最終成果物の既定出力フォーマットは Markdown** とし、
-`convert_format.js` で YAML 正規形 → Markdown / JSON / XML へ変換する。
+`convert-format.py` で YAML 正規形 → Markdown / JSON / XML へ変換する。
 
 ## アーキテクチャ原則
 
@@ -435,7 +435,7 @@
 
 ## フォーマット変換ガイド
 
-最終成果物の既定フォーマットは **Markdown**。YAML 正規形を `convert_format.js` で変換する。
+最終成果物の既定フォーマットは **Markdown**。YAML 正規形を `convert-format.py` で変換する。
 
 ### Markdown変換時（既定）
 - Layer → `##` 見出し（## Layer 1: 基本定義層）

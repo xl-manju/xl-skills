@@ -114,26 +114,32 @@ next_action: |
 
 - run-plugin-package-check skill 直接呼出（context-fork 不要、pure decision）
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. 入力 `phase` / `run_report` / `package_mode` を §2.3 で検証
-2. `workflow-manifest.json` の `completion_signals.phase_{phase}` を Read し `required_pkg` / `fail_count_max` を取得
-3. `package_mode=skill-only` の場合、required_pkg を PKG-002/004 のみに絞込
-4. `run_report.pkg_checks` を走査し `status: fail` の PKG ID を `failed_pkg_ids` に集約
-5. PKG-001 が `status: skip` かつ `skip_reason: claude_cli_unavailable` の場合は `exemptions[]` に追加（Phase 0 PASS 許容）
-6. PKG-013 は a/b/c/d 全 pass で初めて PKG-013 全体 pass、1 件 fail で全体 fail
-7. `failed_pkg_ids.length <= fail_count_max` AND 全 required_pkg が `pkg_checks` に存在 → `verdict: PASS`
-8. それ以外 → `verdict: FAIL`、`next_action` を生成（fail PKG 名と再実行コマンド）
-9. §2.4 YAML 構造体を構築し stdout に出力
+- **目的**: phase 別の `required_pkg` / `fail_count_max` と run_report を照合し、PASS/FAIL の客観判定 YAML を返す
+- **背景**: 判定基準は workflow-manifest.json が単一情報源。複数定義は drift を生むため、本 prompt は照合のみを担う pure decision
+- **達成ゴール**: §2.4 YAML 構造体が manifest の completion_signals に整合し、`verdict` / `failed_pkg_ids` / `exemptions` / FAIL 時の `next_action` が矛盾なく確定した状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] `package_mode=skill-only` で required_pkg が PKG-002/004 のみに絞込済み
-- [ ] PKG-013 が a/b/c/d 全 pass チェックで集約されている
-- [ ] PKG-001 skip 例外が `exemptions[]` に明示されている
-- [ ] FAIL 時 `next_action` が空でない
-- [ ] verdict enum が PASS / FAIL のいずれか
-- [ ] manifest の completion_signals を直接参照したか (再定義していないか)
+- [ ] manifest の `completion_signals.phase_{phase}` を直接参照（判定基準を本 prompt 内で再定義していない）
+- [ ] `package_mode=skill-only` で required_pkg を PKG-002/004 のみに絞込
+- [ ] PKG-013 が a/b/c/d 全 pass のときのみ PKG-013 全体 pass
+- [ ] PKG-001 が `status: skip` + `skip_reason: claude_cli_unavailable` のとき Phase 0 で `exemptions[]` に明示
+- [ ] `failed_pkg_ids.length <= fail_count_max` かつ全 required_pkg が `pkg_checks` に存在のとき `verdict: PASS`
+- [ ] FAIL 時 `next_action` が空でなく、修正対象 PKG ID と次に取るべきコマンドを含む
+- [ ] `verdict` が `PASS` / `FAIL` のいずれか（force_pass 禁止）
+- [ ] 副作用なし（pure function を維持）
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、入力 `phase` / `run_report` / `package_mode` の組合せに応じて必要な照合手順を都度設計する
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（入力 schema 検証 / manifest 読込 / required_pkg 絞込 / PKG-013 集約 / PKG-001 例外抽出 / verdict 集計 / next_action 生成 等から必要なものを選択）
+  3. 立案手順を実行し §2.4 YAML 構造体を更新
+  4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 最大反復）
+- 逸脱時: required_pkg 欠落 / structural error は §4.1 に従い exit 2 / 3 で停止
 
 ## Layer 6: オーケストレーション層
 
@@ -163,4 +169,4 @@ next_action: |
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{phase}}` / `{{run_report}}` / `{{package_mode}}` を受け、Layer 5.2 の手順を逐次実行し、Layer 2.4 の YAML 構造体のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
+入力 `{{phase}}` / `{{run_report}}` / `{{package_mode}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い照合手順を動的生成・実行する。最終的に Layer 2.4 の YAML 構造体のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。

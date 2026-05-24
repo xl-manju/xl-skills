@@ -9,7 +9,7 @@ disable-model-invocation: false
 effect: local-artifact
 source: plugins/skill-intake
 source-tier: internal
-last-audited: 2026-05-22
+last-audited: 2026-05-24
 audit-trigger: monthly
 hierarchy_level: L1
 rubric_refs: []
@@ -23,33 +23,37 @@ responsibility_refs:
 
 ## Purpose & Output Contract
 
-Phase 6 担当。purpose.json の `true_purpose.verb_object` を基に、`references/integration-catalog-pointer.md` 経由で外部連携候補 (Slack / Notion / Gmail / Drive / Linear 等) を引き、ユーザーに提示して `options.json` を生成する。
+Phase 6 担当の **静的カタログ参照 ref skill**。他 skill (主に run-skill-intake-aggregator) から参照され、`purpose.json` の `true_purpose.verb_object` を起点に外部連携候補 (Slack / Notion / Gmail / Drive / Linear 等) を引き当て、ユーザー選択を経て `options.json` を生成するための判断材料を提供する。
 
-**入力**: `purpose.json`, integration カタログ
-**出力**: `output/<hint>/options.json` (selected_integrations / rejected)
-**完了条件**: 必須 (tier=required) 連携が全て選択済み + ユーザーが選択肢確認に応答。
+**入力**: `purpose.json`, `references/integration-catalog-pointer.md` 経由の integration カタログ
+**出力**: `output/<hint>/options.json` (`selected_integrations` / `rejected` 配列)
+**完了条件**: tier=required の連携が全て選択または除外 (reason 付き) で確定し、ユーザーが選択肢確認に応答済み。
+**性質**: ref kind のため prompts/schemas/workflow-manifest は持たず、参照ロジックは `references/` 配下に閉じる。
 
 ## Key Rules
 
-1. **カタログ参照のみ**: 新規連携の追加・カタログ書き換えはしない。読み取り専用。
-2. **必須/任意の明示**: 各候補に tier (required / optional) を付ける。
-3. **rejected の理由必須**: ユーザーが除外した候補は `reason` を必ず記録する。
+1. **カタログ参照のみ**: 新規連携の追加・カタログ書き換えは行わず、読み取り専用で振る舞う。
+2. **必須/任意 tier の明示**: 各候補に `tier ∈ {required, optional}` を必ず付与する。
+3. **rejected の理由必須**: ユーザーが除外した候補には `reason` を必ず記録する (空文字禁止)。
+4. **新規連携の提案禁止**: カタログ外の連携が要るときは別 phase で skill 拡張を提起する (本 skill で勝手に拡張しない)。
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: purpose.json 読込
+**Goal**: purpose.json から導出した verb_object に対し、tier=required 連携が全て確定し reason 付きで rejected も埋まった `options.json` を生成する。
 
-`true_purpose.verb_object` と `time_freed_intent` を抽出。
+**Why**: Phase 6 で連携選択が漏れると後続 phase (実装計画・タスク仕様化) が空中分解し、aggregator が options.json を消費できなくなるため。tier=required を必ず明示・確定させることで、後段の責務分離 (実装 skill / 評価 skill) が崩れない。
 
-### Step 2: カタログから候補抽出
+**Checklist** (上から順にチェックし、未充足があればその項目に戻る反復構造):
 
-`integration-catalog-pointer.md` 経由で旧 aggregator references/integration-catalog.md を読み、verb_object に親和する連携候補を抽出。
+- [ ] `purpose.json` の `true_purpose.verb_object` と `time_freed_intent` を抽出済み
+- [ ] `references/integration-catalog-pointer.md` 経由で旧 aggregator `references/integration-catalog.md` を読み、verb_object に親和する候補を列挙済み
+- [ ] 各候補に `tier`, `id`, `name` を付与し、tier=required の候補が漏れなく含まれているか確認済み
+- [ ] AskUserQuestion で候補をユーザー提示し、selected / rejected の判断を取得済み
+- [ ] rejected 全項目に空でない `reason` が記録済み (tier=required を除外する場合も理由必須)
+- [ ] `output/<hint>/options.json` を `{ "selected_integrations": [...], "rejected": [...] }` 形式で書き出し済み
+- [ ] 出力が purpose.json の verb_object と整合し、新規連携 (カタログ外) を提案していないことを自己確認済み
 
-### Step 3: ユーザー選択取得
-
-候補を AskUserQuestion で提示し、selected / rejected を確定。
-
-### Step 4: options.json 書き出し
+期待出力例:
 
 ```json
 {
@@ -60,8 +64,10 @@ Phase 6 担当。purpose.json の `true_purpose.verb_object` を基に、`refere
 
 ## Gotchas
 
-1. **新規連携を提案しない**: カタログ外の連携を引き出したい場合は別 phase で Skill 拡張を検討する。
-2. **tier=required の自動採用**: 必須連携は提示するが除外も認める (reason 必須)。
+1. **tier=required も除外可、ただし reason 必須**: 必須連携は提示するが、ユーザーが明示的に除外する場合は理由を残し下流 skill に判断材料を渡す。
+2. **カタログ外候補の誘惑**: verb_object に近い連携がカタログに無い場合でも本 skill では補完せず、aggregator 側で skill 拡張要求として上げる。
+3. **pointer 経由の参照**: `integration-catalog.md` は aggregator 側にあるため必ず `integration-catalog-pointer.md` を経由し、直接ハードコード参照しない。
+4. **ref kind の自己抑制**: prompts/schemas/workflow-manifest を持ち込まない。動的判断ロジックが必要になったら run-/wrap- kind への昇格を検討する。
 
 ## Additional Resources
 

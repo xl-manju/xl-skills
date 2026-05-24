@@ -21,6 +21,7 @@ contract:
     - elegant-review は Phase1(reset) → Phase2(3並列分析) → Phase3(改善) の順序を保つこと
     - hook の副作用境界(side_effect_scope)は manifest 上で宣言されたもののみ
     - cross-plugin 参照は skill-intake 配下に限定(本リリースの一時許容)
+    - knowledge-loop は単一機構(ref-knowledge-loop 正本)を生成物(Loop A)と skill-creator 自身(Loop B)で自己適用し、並行ストアを作らないこと(SSOT)
 
 capabilities:
   # === Skills (kind=skill) ===
@@ -50,6 +51,7 @@ capabilities:
   - { kind: skill, ref: skills/ref-output-routing,          tier: ref }
   - { kind: skill, ref: skills/ref-task-context-map,        tier: ref }
   - { kind: skill, ref: skills/ref-yaml-spec-fetcher,       tier: ref }
+  - { kind: skill, ref: skills/ref-knowledge-loop,          tier: ref }
 
   # === Agents (kind=agent) ===
   - { kind: agent, ref: agents/run-build-skill-subagent,          tier: core }
@@ -88,6 +90,8 @@ dependencies:
   - { from: skills/run-build-skill,         to: skills/ref-claude-code-skill-spec,  type: reads }
   - { from: skills/run-build-skill,         to: skills/ref-skill-naming-convention, type: reads }
   - { from: skills/run-build-skill,         to: skills/run-goal-seek,               type: emits-goal-seek }
+  - { from: skills/run-build-skill,         to: skills/ref-knowledge-loop,          type: reads }
+  - { from: skills/run-skill-elicit,        to: skills/ref-knowledge-loop,          type: reads }
   - { from: skills/run-elegant-review,      to: agents/elegant-reset-observer,      type: calls }
   - { from: skills/run-elegant-review,      to: agents/elegant-logical-structural-analyst, type: calls }
   - { from: skills/run-elegant-review,      to: agents/elegant-meta-divergent-analyst, type: calls }

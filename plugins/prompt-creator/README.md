@@ -28,13 +28,13 @@
 | ------------ | -------------- | --------------------- |
 | Claude Code  | 最新           | `claude --version`    |
 | Git          | 2.30+          | `git --version`       |
-| Node.js      | 18.0+          | `node --version`      |
+| Python       | 3.8+           | `python3 --version`   |
 | GitHub CLI   | (任意) 2.0+    | `gh --version`        |
 
 > **どれか欠けている場合**
 > - Claude Code: https://claude.com/claude-code からインストール
 > - Git: https://git-scm.com/downloads
-> - Node.js: https://nodejs.org/ (LTS 推奨)
+> - Python: https://www.python.org/downloads/ (3.8 以上)
 
 ---
 
@@ -171,10 +171,10 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 | Phase | 役割                                       | 主な SubAgent                  |
 | ----- | ------------------------------------------ | ------------------------------ |
 | 1     | ヒアリング (7 層分の入力収集)              | `prompt-creator-interview-user` |
-| 2     | シート生成 (`generate_sheet.js`)           | (script)                       |
+| 2     | シート生成 (`generate-sheet.py`)           | (script)                       |
 | 3     | プロンプト生成 (7 層マージ)                | `prompt-creator-generate-prompt` |
 | 4     | レビュー & 整形 (validate/verify/convert)  | `prompt-creator-review-prompt` |
-| 5     | 完了・LOGS.md 記録 (`log_usage.js`)        | (script)                       |
+| 5     | 完了・LOGS.md 記録 (`log-usage.py`)        | (script)                       |
 
 ### 5-3. 出力物
 
@@ -210,23 +210,24 @@ plugins/prompt-creator/
 │   ├── prompt-creator-interview-user.md
 │   ├── prompt-creator-generate-prompt.md
 │   └── prompt-creator-review-prompt.md
-├── scripts/                              # 8 本の Node スクリプト
-│   ├── merge_layers.js
-│   ├── validate_prompt.js
-│   ├── verify_completeness.js
-│   ├── convert_format.js
-│   ├── generate_sheet.js
-│   ├── validate_sheet.js
-│   ├── scaffold_prompt.js
-│   └── log_usage.js
 └── skills/
     ├── run-prompt-create/                 # 正本 orchestrator
     │   ├── prompts/
     │   ├── references/
     │   ├── schemas/
+    │   ├── scripts/                       # evaluate-create-gates.py
     │   └── workflow-manifest.json
     ├── run-prompt-elicit/                 # Step 1 worker
     ├── run-prompt-creator-7layer/         # Step 2 worker
+    │   └── scripts/                       # 8 本の python3 スクリプト
+    │       ├── merge-layers.py
+    │       ├── validate-prompt.py
+    │       ├── verify-completeness.py
+    │       ├── convert-format.py
+    │       ├── generate-sheet.py
+    │       ├── validate-sheet.py
+    │       ├── scaffold-prompt.py
+    │       └── log-usage.py
     └── assign-prompt-design-evaluator/    # Step 3b evaluator
 ```
 
@@ -234,24 +235,24 @@ plugins/prompt-creator/
 
 ## 8. スクリプト一覧
 
-すべて Node.js 標準ライブラリのみで動作 (外部依存ゼロ)。
+すべて python3 標準ライブラリのみで動作 (外部依存ゼロ)。YAML は標準ライブラリのみで手書き処理する。配置先は `skills/run-prompt-creator-7layer/scripts/`。
 
 | script                  | 役割                                                | 終了コード       |
 | ----------------------- | --------------------------------------------------- | ---------------- |
-| `generate_sheet.js`     | ヒアリング結果から 7 層シートを生成                 | 0=成功 / 1=失敗  |
-| `validate_sheet.js`     | シートの充足度検証                                  | 0=valid          |
-| `scaffold_prompt.js`    | シート→7 層プロンプト雛形変換                       | 0=成功           |
-| `merge_layers.js`       | 7 層をマージし最終プロンプト生成                    | 0=成功           |
-| `validate_prompt.js`    | 最終プロンプトの構造検証                            | 0=valid          |
-| `verify_completeness.js`| 7 層すべてが充足しているか確認                      | 0=完全           |
-| `convert_format.js`     | 内部正規形 YAML → Markdown / JSON / XML 変換         | 0=成功           |
-| `log_usage.js`          | 実行結果を LOGS.md に追記                           | 0=記録完了       |
+| `generate-sheet.py`     | ヒアリング結果から 7 層シートを生成                 | 0=成功 / 1=失敗  |
+| `validate-sheet.py`     | シートの充足度検証                                  | 0=valid          |
+| `scaffold-prompt.py`    | シート→7 層プロンプト雛形変換                       | 0=成功           |
+| `merge-layers.py`       | 7 層をマージし最終プロンプト生成                    | 0=成功           |
+| `validate-prompt.py`    | 最終プロンプトの構造検証                            | 0=valid          |
+| `verify-completeness.py`| 7 層すべてが充足しているか確認                      | 0=完全           |
+| `convert-format.py`     | 内部正規形 YAML → Markdown / JSON / XML 変換         | 0=成功           |
+| `log-usage.py`          | 実行結果を LOGS.md に追記                           | 0=記録完了       |
 
 手動実行例:
 
 ```bash
-node plugins/prompt-creator/scripts/generate_sheet.js --help
-node plugins/prompt-creator/scripts/log_usage.js --result success --phase manual
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/generate-sheet.py --help
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py --result success --phase manual
 ```
 
 ---
@@ -270,9 +271,9 @@ node plugins/prompt-creator/scripts/log_usage.js --result success --phase manual
 
 Claude Code を再起動 (`Ctrl+C` → `claude`) して `/plugin list` で `prompt-creator: enabled` を確認。
 
-### Q3. script 実行で `Error: Cannot find module`
+### Q3. script 実行で `python3: command not found` / モジュールエラー
 
-`node --version` で 18 以上であることを確認。
+`python3 --version` で 3.8 以上であることを確認。スクリプトは標準ライブラリのみで動作するため追加 install は不要。
 
 ### Q4. ローカル開発で symlink が動作しない
 
@@ -293,10 +294,10 @@ ln -sf ../../plugins/prompt-creator/agents/prompt-creator-review-prompt.md .clau
 
 ### Q5. LOGS.md が更新されない
 
-`scripts/log_usage.js` の実行権限と書き込み権限を確認:
+`log-usage.py` の実行権限と書き込み権限を確認:
 
 ```bash
-ls -l plugins/prompt-creator/LOGS.md plugins/prompt-creator/scripts/log_usage.js
+ls -l plugins/prompt-creator/LOGS.md plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py
 ```
 
 ---

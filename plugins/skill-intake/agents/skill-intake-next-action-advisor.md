@@ -99,30 +99,19 @@ model: sonnet
 ### 4.3 セキュリティ
 - next-action.json に PII / secret を含めない。
 
-## Layer 5: エージェント層 (実行主体)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 context_fork 要否
 - false。pattern-recognition-rules.md の決定論適用が主で、差異検出時のみユーザー確認を挟む構造のため独立 context は不要。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. summary.json と purpose.json を読み、対象スキルの責務スコープを確認する。
-2. pattern-recognition-rules.md に照らし判定する: 類似度 80% 以上 → B / プロンプト改善のみ → C / 責務 2 件以上 → D / 完全新規 → A / 判定不能 → E。
-3. D 判定の場合は分離候補 (候補スキル名と責務) を最大 3 件列挙する。
-4. kickoff.json でユーザーが選んだパターンと判定結果が異なる場合のみ AskUserQuestion で確認する。
-5. 確定モード・reason・split_candidates・skill_creator_handoff_phase を next-action.json に書き出す。
-6. self-eval rubric を実行する。
-7. handoff JSON を保存する。
+### 5.2 ゴール定義
+- **目的**: ヒアリング結果から `run-skill-create` への引き渡しモード A/B/C/D/E を pattern-recognition-rules.md に基づいて判定し、kickoff 差異がある場合のみユーザー確認で確定させる。
+- **背景**: モード誤判定は skill-creator のフェーズ選択を狂わせ手戻りを生む。kickoff 独断上書きは UX を損なう。マルチスキル疑いを見落とすと責務肥大化を生む。
+- **達成ゴール**: `next-action.json` に mode / reason (ルール ID 付) / multi_skill_suspicion / split_candidates / skill_creator_handoff_phase が記録され、kickoff 差異が解消され、handoff agent が即実行できる状態。
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: mode / reason / multi_skill_suspicion / split_candidates / skill_creator_handoff_phase が全て JSON に記録されている
-- [ ] **再現性**: 同 summary/purpose/options/kickoff 入力で同 mode に到達する
-- [ ] **責務遵守**: 5 軸要約・Markdown 正本生成・Notion 公開を含めていない
-- [ ] **言語遵守**: 本文日本語 / JSON key 英語
-- [ ] **推定系 phase 固有 (推定根拠の追跡可能性)**: reason に pattern-recognition-rules.md のルール ID が明示され、入力データのどのフィールドから導かれたかを追跡可能であり、D 判定時 split_candidates が verb_object 分解から正しく導かれている
-
-未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
+### 5.3 実行方式 (ゴールシーク)
+- 固定手順を持たない。完了チェックリスト未充足項目を特定 → pattern-recognition-rules 参照 → 判定 → kickoff 差異検出時 AskUserQuestion → Write → 自己評価 → 全充足まで反復 (上限: L4 最大反復回数)。
+- 逸脱時: E 継続なら failure-modes.md 該当条項を reason に記載し orchestrator halt。差異確認応答得られず → kickoff 尊重 + multi_skill_suspicion=true 記録 (L4.1)。
 
 ## Layer 6: オーケストレーション層
 
@@ -157,16 +146,35 @@ model: sonnet
 
 ## Prompt Templates
 
-通常は判定のみで対話を行わない。kickoff の選択と判定結果が異なる差異検出時にのみ確認発話を行う。
+7 層構造 (L1「kickoff 上書き禁止 / E 多用禁止」/ L2 mode 5 分類 / L3 pattern-recognition-rules / failure-modes / L4 ポリシー / L6 R10 ハンドオフ / L7 差異時のみ AskUserQuestion) を反映したテンプレ。通常は判定のみで対話なし。**目的**: 差異確認を最小化し決定論性を保つ。**背景**: 不必要な対話は再現性を損なう。
 
-### Round 1: 差異確認 (任意)
+### Round 1: 差異確認 (kickoff.mode != 判定 mode の時のみ / L1.1「ユーザー選択を勝手に上書きしない」)
 
-> 「kickoff で選んだパターン A (新規作成) と判定結果 D (マルチスキル疑い) が異なります。責務が 2 つに分かれている可能性があります。分割して進めますか?」
+> 「kickoff で選んだパターン {{kickoff_mode}} ({{kickoff_label}}) と判定結果 {{detected_mode}} ({{detected_label}} / 根拠: {{rule_id}}) が異なります。{{差異の意味: 例 責務が 2 つに分かれている可能性}}。どう進めますか?」
 
 選択肢:
-1. はい、分割する (mode=D 確定、split_candidates を skill-creator に引き継ぐ)
-2. いいえ、A のまま進める (mode=A 確定、multi_skill_suspicion=true を記録)
-3. 判断保留 (E 暫定、failure-modes.md を再確認して再判定)
+1. {{detected_mode}} で確定する (split_candidates={{n 件}} を skill-creator に引き継ぐ)
+2. {{kickoff_mode}} のまま進める (multi_skill_suspicion=true を記録)
+3. 判断保留 (mode=E 暫定、failure-modes.md を再確認して再判定)
+
+### 完了報告テンプレ (L7 / L6)
+
+> next-action 確定: mode={{A|B|C|D|E}} / reason={{rule_id}} / skill_creator_handoff_phase={{Phase n}}。次は `skill-intake-handoff` (R10)。成果物: `output/{{hint}}/next-action.json`。
+
+## Self-Evaluation
+
+L5.2 ゴール達成判定の唯一の停止条件。**目的**: 判定根拠の追跡可能性と決定論性を客観検証する。**背景**: reason に rule ID がなければ判定の再現性と説明責任が失われる。
+
+- [ ] **完全性**: mode / reason / multi_skill_suspicion / split_candidates / skill_creator_handoff_phase が next-action.json に記録されている
+- [ ] **判定根拠**: reason に pattern-recognition-rules.md のルール ID が明示され、入力 (summary / purpose / options / kickoff) のどのフィールドから導かれたか追跡可能
+- [ ] **D 妥当性**: D 判定時 split_candidates が 1-3 件、各候補は purpose.json の verb_object 分解に対応している
+- [ ] **再現性**: 同 (summary/purpose/options/kickoff) 入力で同 mode に到達する
+- [ ] **kickoff 尊重**: kickoff 差異検出時に AskUserQuestion を経たか、得られなかった場合 multi_skill_suspicion=true を記録している
+- [ ] **E 抑制**: mode=E の場合 failure-modes.md 該当条項を reason に引用している
+- [ ] **責務遵守**: 5 軸要約 (R8) / Markdown 正本生成 (R10) / Notion 公開 (R11) に踏み込んでいない
+- [ ] **言語遵守**: 本文日本語 / JSON key 英語
+
+1 つでも NO なら 5.3 実行方式に従い該当項目の解消手順を立案・再実行する。
 
 ## Handoff
 

@@ -11,19 +11,31 @@ allowed-tools:
   - Write
   - Glob
   - Grep
-  - Bash(node *)
   - Bash(python3 *)
   - Task
 kind: assign
+version: 2.1.0
 effect: local-artifact
 owner: team-platform
+contract:
+  intent: 生成済みプロンプトを親 context のバイアスから切り離して独立評価し、findings.json を返すため、C1-C4 + 4 パスの採点専用 evaluator を提供する。
+  interface:
+    inputs: [prompt_path, brief, output]
+    outputs: [findings.json]
+  invariant:
+    - 必ず context:fork で起動し、親 context の解釈バイアスを引き継がないこと
+    - 評価対象を書き換えず findings の出力のみ行うこと (write=findings only、Goodhart 防止)
+    - C1-C4 verdict を全付与し、空 findings を残さない (PASS でも info を 1 件以上) こと
+    - high severity が 1 件でもあれば全体を FAIL とすること
 since: 2026-05-22
 script_refs:
-  - ../../scripts/verify_completeness.js
-  - ../../scripts/validate_prompt.js
+  - ../run-prompt-creator-7layer/scripts/verify-completeness.py
+  - ../run-prompt-creator-7layer/scripts/validate-prompt.py
+rubric_refs:
+  - ref-skill-design-rubric              # L0: 共通設計 rubric (skill-creator 正本, 固定)
+  - references/prompt-rubric.json         # L2: 本 evaluator 固有 (C1-C4 prompt 判定)
 reference_refs:
   - references/resource-map.yaml
-  - references/prompt-rubric.json
   - references/c1-c4-criteria.md
 source: doc/prompt-creator/references/quality-criteria.md
 source-tier: internal
@@ -83,8 +95,8 @@ doc/prompt-creator/references/quality-criteria.md 由来:
 
 ### Step 1: 客観検証 (script)
 ```bash
-node plugins/prompt-creator/scripts/verify_completeness.js --input ${PROMPT_PATH}
-node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_PATH} --phase prompt
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py --input ${PROMPT_PATH}
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py --input ${PROMPT_PATH} --phase prompt
 ```
 
 ### Step 2: C1-C4 機械評価

@@ -47,7 +47,20 @@
           }
         },
         "rubric_refs": { "type": "array", "items": { "type": "string" }, "description": "依拠する rubric.json への参照。L0→L1→L2 deep-merge 順。" },
-        "responsibility_refs": { "type": "array", "items": { "type": "string" }, "description": "プロンプト・スクリプトなど責務委譲先への参照。" }
+        "responsibility_refs": { "type": "array", "items": { "type": "string" }, "description": "プロンプト・スクリプトなど責務委譲先への参照。" },
+        "knowledge_loop": {
+          "type": "object",
+          "description": "任意。with-knowledge combinator を適用したスキルが宣言する横断 capability 記述子。knowledge/ 蓄積・3段階検索・§12フィードバックループの実体を指す。正本仕様は ref-knowledge-loop。commonCore.required には含めない(全 kind 共通の必須ではないため)。",
+          "required": ["pattern"],
+          "additionalProperties": false,
+          "properties": {
+            "pattern": { "enum": ["index-search", "router-registry"], "description": "index-search型=固定/ペルソナ。router-registry型=外部素材から継続同期。" },
+            "index": { "type": "string", "description": "索引ファイルへの相対パス。index-search型は knowledge/knowledge-index.json、router-registry型は knowledge/router.json。" },
+            "scoring_weights": { "type": "object", "description": "フィールド重み付きスコアリングの重み (title/keywords/quote/voice/fulltext)。省略時は既定値。" },
+            "usage_log": { "type": "string", "description": "§12 活用ログ (jsonl) への相対パス。matched_ids/used_ids/satisfaction を追記。" },
+            "consult_at": { "type": "array", "items": { "type": "string" }, "description": "蓄積知識を参照する局面 (例: runtime, build-time)。Loop B (skill-creator 自己適用) では build-time を含む。" }
+          }
+        }
       }
     },
 

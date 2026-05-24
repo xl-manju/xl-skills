@@ -1,6 +1,6 @@
 ---
 name: run-prompt-creator-7layer
-description: 7層プロンプトを生成・更新するとき、または owner_agent 指定時に Prompt Templates/Self-Evaluation を充填するときに使う。
+description: 7 層構造プロンプトを生成・更新するとき、owner_agent 向けに Prompt Templates/Self-Evaluation を充填するときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[--responsibility-id <R-id>] [--output <path>] [--target-agent <path>] [--skill-brief <path>] [--format yaml|md|json|xml] [--inject-sections <list>]"
@@ -11,22 +11,34 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
-  - Bash(node *)
   - Bash(python3 *)
   - AskUserQuestion
 kind: run
+version: 2.1.0
 effect: local-artifact
 owner: team-platform
+contract:
+  intent: ユーザー要求またはヒアリング結果から、エンドユーザー向け成果物としての 7 層構造プロンプトを生成するため、Layer 単位生成 worker を提供する。
+  interface:
+    inputs: [responsibility_id, output, target_agent, skill_brief, format, inject_sections]
+    outputs: [seven-layer-prompt.md, prompt-build-trace.json, prompt-creator-trace.json]
+  invariant:
+    - 7 層構造 (L1→L7) を厳守し、一括生成せず Layer 単位生成→merge とすること
+    - Layer 5 は固定手順を持たず、達成ゴール + 完了チェックリストで宣言すること
+    - Layer 依存方向は L7→L1 の単方向のみとすること
+    - 既存改善は冪等更新 (分解→類似は上書き統合・無ければ新規) で同一意図要素を重複させないこと
+    - ゴールシーク反復は SubAgent / チームで分離 context で実行し、親へは最終差分のみ返すこと
+    - SKILL.md / SubAgent 各 300 行以下を保つこと
 since: 2026-05-20
 script_refs:
-  - ../../scripts/merge_layers.js
-  - ../../scripts/validate_prompt.js
-  - ../../scripts/convert_format.js
-  - ../../scripts/verify_completeness.js
-  - ../../scripts/generate_sheet.js
-  - ../../scripts/validate_sheet.js
-  - ../../scripts/scaffold_prompt.js
-  - ../../scripts/log_usage.js
+  - scripts/merge-layers.py
+  - scripts/validate-prompt.py
+  - scripts/convert-format.py
+  - scripts/verify-completeness.py
+  - scripts/generate-sheet.py
+  - scripts/validate-sheet.py
+  - scripts/scaffold-prompt.py
+  - scripts/log-usage.py
 reference_refs:
   - references/resource-map.yaml
   - references/seven-layer-format.md
@@ -36,15 +48,19 @@ reference_refs:
   - references/prompt-sheet-template.md
   - references/idempotent-update-policy.md
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
-source: doc/prompt-creator/  # 4 scripts (generate_sheet/validate_sheet/scaffold_prompt/log_usage) + LOGS.md を含めて再取り込み済み
+source: doc/prompt-creator/
 source-tier: internal
-last-audited: 2026-05-20
+last-audited: 2026-05-24
 audit-trigger: quarterly
 responsibility_refs:
   - prompts/main.md
 schema_refs:
   - schemas/output.schema.json
   - schemas/hearing-result.schema.json
+responsibilities:
+  - id: R1
+    name: main
+    prompt_required: true
 manifest: workflow-manifest.json
 ---
 
@@ -69,11 +85,11 @@ Layer 5 はゴールシーク型 (達成ゴール+完了チェックリスト+�
 - `eval-log/prompt-build-trace.json` (`run-prompt-create/schemas/build-trace.schema.json` 互換)
 - `eval-log/prompt-creator-trace.json` (worker-local trace。必須フィールド: `path_convention`, `responsibility_id`, `layer_artifact_path`, `sha256`)
 
-**完了条件**: `verify_completeness.js` PASS + `validate_prompt.js` PASS + `lint-agent-prompt-section.py` PASS。
+**完了条件**: `verify-completeness.py` PASS + `validate-prompt.py` PASS + `lint-agent-prompt-section.py` PASS。
 
 ## Key Rules
 
-1. **Script First**: 決定論的処理は Node スクリプト。LLM は意味判断のみ。
+1. **Script First**: 決定論的処理は python3 スクリプト。LLM は意味判断のみ。
 2. **1 Layer = 1 出力**: 一括生成禁止、Layer 単位生成→merge。
 3. **質ベース判定**: 「実行可能か/検証可能か」。数量カウント禁止。
 4. **Progressive Disclosure**: `references/` は Phase 直前で必要分のみ読込。
@@ -81,8 +97,8 @@ Layer 5 はゴールシーク型 (達成ゴール+完了チェックリスト+�
 6. **300 行制約**: SKILL.md / SubAgent 各 300 行以下。
 7. **ループ整合性**: run-build-skill 呼出時は `lint-agent-prompt-section.py` 通過必須。FAIL 時最大 3 回自律修正→未達なら orchestrator 差戻。
 8. **責務境界**: 担当は Prompt Templates / Self-Evaluation の 2 セクションのみ。9 セクション骨格は run-build-skill 責務。
-9. **Markdown 既定**: prompt 出力は **Markdown 形式 (`.md`) を既定**とする。論理構造の正本は `references/seven-layer-format.md`。内部正規形は YAML (scaffold/merge/verify の前提) とし、最終成果物は `convert_format.js` で Markdown へ変換する。`references/seven-layer-markdown-template.md` は提示形式の補助テンプレ。
-10. **ゴールシーク**: Layer 5 に固定手順 (思考プロセスのステップ列挙) を書かない。達成ゴール+完了チェックリストを宣言し、手順は実行時にエージェントが自律生成する。`verify_completeness.js` が固定手順を検出したら FAIL。
+9. **Markdown 既定**: prompt 出力は **Markdown 形式 (`.md`) を既定**とする。論理構造の正本は `references/seven-layer-format.md`。内部正規形は YAML (scaffold/merge/verify の前提) とし、最終成果物は `convert-format.py` で Markdown へ変換する。`references/seven-layer-markdown-template.md` は提示形式の補助テンプレ。
+10. **ゴールシーク**: Layer 5 に固定手順 (思考プロセスのステップ列挙) を書かない。達成ゴール+完了チェックリストを宣言し、手順は実行時にエージェントが自律生成する。`verify-completeness.py` が固定手順を検出したら FAIL。
 11. **冪等更新 (重複回避・上書き優先)**: 既存プロンプトを改善するときは闇雲に追加せず、先に既存を原子要素へ分解・分析し、類似要素があれば上書き統合・無ければ新規追加する。同一意図の要素が 2 つ以上残ったら FAIL。正本 `references/idempotent-update-policy.md`。
 12. **セッション分離**: ゴールシーク反復は SubAgent / エージェントチームで分離 context で実行する。中間探索情報を親 context に流さず、親へは最終差分と完了判定のみ返す (現セッション汚染防止)。
 
@@ -119,7 +135,7 @@ brief 既知部分は重複質問せず差分のみ。出力: `eval-log/prompt-c
 ### Phase 2: シート生成
 
 ```bash
-node scripts/validate_prompt.js --input eval-log/hearing-result.json --phase hearing --schema plugins/prompt-creator/skills/run-prompt-elicit/schemas/hearing-result.schema.json
+python3 scripts/validate-prompt.py --input eval-log/hearing-result.json --phase hearing --schema plugins/prompt-creator/skills/run-prompt-elicit/schemas/hearing-result.schema.json
 ```
 
 AI 推定は導出確認→ユーザー承認。
@@ -146,7 +162,7 @@ Layer 役割 (Clean Architecture / DDD):
 
 依存方向: L7→L6→...→L1。Layer 5 は固定手順を持たず、ゴールと完了チェックリストで宣言する。詳細: `references/seven-layer-format.md`。
 
-合算: `node scripts/merge_layers.js --layers tmp/prompt-layers/ --output tmp/prompt.yaml`
+合算: `python3 scripts/merge-layers.py --layers tmp/prompt-layers/ --output tmp/prompt.yaml`
 
 ### Phase 4-B: 4 パスレビュー
 
@@ -157,8 +173,8 @@ Pass 0 (動的基準生成) → Pass 1 網羅性 → Pass 2 整合性 → Pass 3
 ### Phase 4-C: 自律改善
 
 ```bash
-node scripts/verify_completeness.js --input tmp/prompt.yaml
-node scripts/validate_prompt.js --input tmp/prompt.yaml --phase prompt
+python3 scripts/verify-completeness.py --input tmp/prompt.yaml
+python3 scripts/validate-prompt.py --input tmp/prompt.yaml --phase prompt
 ```
 
 未充足あれば generate-prompt 再起動 (最大 3 回)。既存改善時は冪等更新 (`idempotent-update-policy.md`): 分解→類似は上書き統合・無ければ新規。反復は SubAgent/チームで分離 context で回し、親へは最終差分のみ返す。
@@ -166,7 +182,7 @@ node scripts/validate_prompt.js --input tmp/prompt.yaml --phase prompt
 ### Phase 4-D: 変換+注入
 
 ```bash
-node scripts/convert_format.js --input tmp/prompt.yaml --format ${FORMAT} --output ${OUT}
+python3 scripts/convert-format.py --input tmp/prompt.yaml --format ${FORMAT} --output ${OUT}
 ```
 
 ループ呼出時は対象 SubAgent .md へ Edit 注入。
@@ -179,14 +195,14 @@ python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py "${TA
 
 exit 0 でループ完了。FAIL は Phase 4-A 再起動 (最大 3 周)。
 
-実行後 `node scripts/log_usage.js --result <success|fail> --phase "Phase 5"` で `LOGS.md` に記録 (利用統計/失敗パターン蓄積)。
+実行後 `python3 scripts/log-usage.py --result <success|fail> --phase "Phase 5"` で `LOGS.md` に記録 (利用統計/失敗パターン蓄積)。
 
 ## Gotchas
 
 1. 7 層一括生成禁止 (Layer 単位→merge)。
 2. 「3 つ以上」型禁止→質ベース判定。
 3. 長文フィールド禁止 (要素原子性、1 値 50 文字目安)。
-4. package.json 不持込 → YAML は手書きシリアライズ。
+4. 外部依存不持込 → YAML は python3 標準ライブラリのみで手書きシリアライズ。
 5. doc/prompt-creator/ は deprecated、正本は plugins/。
 6. 自律修正 3 回上限、超過時 orchestrator 差戻。
 7. 9 セクション骨格生成禁止 (run-build-skill 責務)。

@@ -67,7 +67,21 @@
     "open_questions": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
     "responsibilities": {"type": "array", "items": {"type": "object"}},
     "prompt_creator_policy": {"type": "string", "enum": ["required", "optional", "skip", "auto"]},
-    "additional_resources": {"type": "array", "items": {"type": "object"}}
+    "additional_resources": {"type": "array", "items": {"type": "object"}},
+    "knowledge_loop": {
+      "type": ["object", "null"],
+      "description": "Loop A: 生成スキルにナレッジ蓄積・3段階検索・§12フィードバックループを組み込むか。null/未指定なら組み込まない。正本仕様は ref-knowledge-loop。with-knowledge combinator が消費する。",
+      "additionalProperties": false,
+      "properties": {
+        "pattern": {"type": "string", "enum": ["index-search", "router-registry"], "description": "index-search型=固定/ペルソナ。router-registry型=外部素材から継続同期・蓄積。"},
+        "categories": {"type": "array", "items": {"type": "string"}, "description": "初期カテゴリ案 (kebab-case)。"},
+        "source_kind": {"type": "string", "description": "蓄積元素材の種別 (例: 議事録/動画/教材)。router-registry型で使用。"}
+      }
+    },
+    "consult_build_knowledge": {
+      "type": "boolean",
+      "description": "Loop B: 本スキル作成時に skill-creator 自身の蓄積知見 (plugins/skill-creator/knowledge/ + lessons-learned 索引) を検索して活用するか。既定 true。"
+    }
   },
   "allOf": [
     {

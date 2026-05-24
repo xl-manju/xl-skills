@@ -1,7 +1,7 @@
 {
   "version": 1,
   "rubric_id": "skill-design",
-  "rubric_version": "1.2.0",
+  "rubric_version": "1.3.0",
   "layer": "L0",
   "threshold": 80,
   "max_skill_md_lines": 300,
@@ -17,7 +17,7 @@
     "prompt",
     "workflow"
   ],
-  "_kind_dispatch_doc": "各 rule は applies_to_kinds でどの target_type に適用するかを宣言する。'*' は全 kind 共通核。kind 固有 rule は当該 kind の評価時のみ採点対象。1.2.0 で kind=skill 以外 6 種の最小 rule (3-5 個ずつ) を追加。",
+  "_kind_dispatch_doc": "各 rule は applies_to_kinds でどの target_type に適用するかを宣言する。'*' は全 kind 共通核。kind 固有 rule は当該 kind の評価時のみ採点対象。1.2.0 で kind=skill 以外 6 種の最小 rule (3-5 個ずつ) を追加。1.3.0 で横断 capability『knowledge-loop』の KL-* rule (5 個) を追加。KL-* は applies_to_kinds='*' だが check 文の冒頭で knowledge/ ディレクトリまたは frontmatter.knowledge_loop の存在ゲートを持ち、knowledge-loop を組み込まないスキルは無条件 PASS (誤減点防止)。正本仕様は ref-knowledge-loop/references/。",
   "severity_weights": {
     "high": -20,
     "medium": -10,
@@ -318,6 +318,46 @@
       "applies_to_kinds": ["workflow"],
       "check": "workflow declares 'max_iterations:' (or equivalent safety valve) for any phase containing a loop / re-entry",
       "rationale": "発散制御の安全弁。convergence-policy (run-elegant-review) と整合する。"
+    },
+    {
+      "id": "KL-001",
+      "area": "knowledge-loop",
+      "severity": "high",
+      "applies_to_kinds": ["*"],
+      "check": "if (frontmatter.knowledge_loop present OR knowledge/ directory exists): knowledge/ contains knowledge-index.json (Index-Search型) OR router.json (Router-Registry型) AND at least one category file with >=3 entries. otherwise PASS (skip)",
+      "rationale": "ref-knowledge-loop §パターン選択: 索引(index/router)とデータ分離が知識ループの基盤。空ストアは運用不能。存在ゲートで非knowledgeスキルを誤減点しない。"
+    },
+    {
+      "id": "KL-002",
+      "area": "knowledge-loop",
+      "severity": "medium",
+      "applies_to_kinds": ["*"],
+      "check": "if knowledge/ present: every entry has the 6 required fields (id, title|content, intent|purpose, background, keywords|tags, source) each at quality rubric level>=2 per ref-knowledge-loop/references/knowledge-construction.md §4.3. otherwise PASS (skip)",
+      "rationale": "100人が同品質で書ける再現性の要。必須フィールド欠落 or レベル1は検索精度とAI意味解釈を破綻させる。"
+    },
+    {
+      "id": "KL-003",
+      "area": "knowledge-loop",
+      "severity": "medium",
+      "applies_to_kinds": ["*"],
+      "check": "if knowledge/ present: search separates a deterministic script stage (search_knowledge.py: Stage1 カテゴリ絞り込み + Stage2 フィールド重み付きスコアリング) from an AI semantic stage (Stage3). full-text-only search without field weighting is FAIL. otherwise PASS (skip)",
+      "rationale": "ref-knowledge-loop §3段階検索: 決定論段(再現可能)とAI段(意味解釈)の分離が精度の前提。全文検索のみは出現頻度ノイズで精度劣化。"
+    },
+    {
+      "id": "KL-004",
+      "area": "knowledge-loop",
+      "severity": "medium",
+      "applies_to_kinds": ["*"],
+      "check": "if knowledge/ present: §12 feedback loop is wired (record_usage.py + usage-log.jsonl path) recording matched_ids/used_ids/satisfaction, enabling the 4 quality-improvement patterns. otherwise PASS (skip)",
+      "rationale": "『使うほど良くなる』ループの実体。活用ログが無いと品質改善サイクルが回らず蓄積が陳腐化する。"
+    },
+    {
+      "id": "KL-005",
+      "area": "knowledge-loop",
+      "severity": "low",
+      "applies_to_kinds": ["*"],
+      "check": "if knowledge/ present: file split thresholds (500行 / 25エントリ) are documented AND lifecycle tracking exists (registry.json status 遷移 or version field with deprecated 廃棄ルール). otherwise PASS (skip)",
+      "rationale": "ref-knowledge-loop §分割/§更新ログ: 無制限肥大と陳腐エントリ滞留を防ぐ運用規律。"
     }
   ]
 }

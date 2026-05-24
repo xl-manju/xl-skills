@@ -105,24 +105,32 @@
 
 - assign-plugin-package-evaluator skill（kind=assign, **context: fork 強制**）
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. 入力検証: `target_plugin` 値の正規表現マッチ + `pkg_ids` の中核 7 件 + PKG-014 限定確認
-2. `plugins/<target_plugin>/.claude-plugin/plugin.json` を Read し `package_mode` 抽出（欠落 → `skill-only` 推定）
-3. `package_mode=skill-only` なら PKG-003/005/006/007/008 を `not_applicable` 確定（script 実行スキップ）
-4. 残る PKG ID を順次 `python3 scripts/validate-plugin-package.py --check <pkg-id> --plugin <name>` で実行
-5. 各 sub-process 結果（exit code + JSON stdout）を `pkg_results[i]` に集約
-6. `fail_fast=true` かつ 1 件目 fail で残 PKG を `status: skip` で確定し break
-7. `verdict.{pass,fail,skip,not_applicable}` を集計
-8. `options.output_path` 指定時は eval-log に保存
-9. stdout に findings JSON 出力、exit code 設定
+- **目的**: 中核 7 件 + PKG-014 の静的検査を一括実行し findings JSON を集約する
+- **背景**: 個別 worker / 別 script との責務分離。本 worker は静的検査 8 件の executor 集約点
+- **達成ゴール**: 指定 `target_plugin` の `pkg_results[]` が全対象 ID 分揃い、`verdict` が集計され、§2.4 schema 準拠の findings JSON が stdout / eval-log に出力された状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] 全 PKG ID が `pkg_results[]` に存在（実行 or skip or not_applicable）
-- [ ] schema validation pass（`schemas/findings.schema.json`）
-- [ ] eval-log 保存先が 27章 §3.1 規約準拠
-- [ ] unsupported_pkg_id を受理していない
+- [ ] 全対象 PKG ID が `pkg_results[]` に存在（`pass|fail|skip|not_applicable` のいずれか）
+- [ ] `package_mode=skill-only` のとき PKG-003/005/006/007/008 が `not_applicable` で確定
+- [ ] `fail_fast=true` 発火後の残 PKG ID が `status: skip` + `skip_reason: "fail_fast_triggered"`
+- [ ] `verdict.{pass,fail,skip,not_applicable}` が `pkg_results[]` と一致
+- [ ] `schemas/findings.schema.json` の validation を通過
+- [ ] `options.output_path` 指定時、eval-log path が 27章 §3.1 規約準拠
+- [ ] `unsupported_pkg_id` を受理せず exit 2 を返している
+- [ ] target 配下に書込み副作用が発生していない
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、入力状況に応じて必要な手順を都度設計・実行・自己評価する
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（入力検証 / plugin.json 読込 / not_applicable 確定 / `validate-plugin-package.py --check <id>` sub-process 起動 / 集約 / eval-log 保存 等から必要なものを選択）
+  3. 立案手順を実行し `pkg_results[]` と `verdict` を更新
+  4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 信頼度・最大反復）
+- 逸脱時: ループ上限到達 / sub-process 連続失敗時は §4.1 に従い exit code を設定し、Layer 4 エスカレーション経路へ
 
 ## Layer 6: オーケストレーション層
 
@@ -153,4 +161,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{target_plugin}}` / `{{pkg_ids}}` / `{{options}}` を受け、Layer 5.2 の手順を逐次実行し、Layer 2.4 の findings JSON のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
+入力 `{{target_plugin}}` / `{{pkg_ids}}` / `{{options}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い手順を動的生成・実行する。最終的に Layer 2.4 の findings JSON のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。

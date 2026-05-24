@@ -78,20 +78,24 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-output-routing 配下の R1 SubAgent (context fork 推奨)。
+- ref-output-routing 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. resource-map.yaml を読み scope を解決する。
-2. query を sink 名 / task_kind / 権限キーワードでマッチする。
-3. ヒット箇所と該当 contract 表 (input / output / effect 列) を併せて抽出する。
-4. security-model.md の禁止項目に抵触する箇所は `warn` フラグを付与する。
-5. 該当ゼロなら `matches: []` + `suggestions` を返す。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し sink-contract / security-model から最小十分な根拠抽出を返す。
+- **背景**: caller は sink 種別・effect・禁止条項のみを必要とし、実書き込みや security model 改訂は ref-* の責務外。本文埋め込みでは caller LLM が禁止条項を読み飛ばす事故が発生したため、warn フラグで明示する。
+- **達成ゴール**: query に該当する sink 行と security 条項が references から逐語引用され、effect 列と warn フラグを保持し、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま判定に使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] sink-contract と security-model の整合 (sink が禁止対象でないか) を確認したか
-- [ ] effect 列 (none/write/network) を欠落させていないか
-- [ ] warn フラグの付与基準が security-model に明示的に紐付くか
-- [ ] 該当ゼロ時に suggestions を返したか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が sink-contract.md / security-model.md の実在行から逐語引用されている (捏造ゼロ)
+- [ ] 呼出元責務外の情報 (実書き込み / 契約変更 / security model 改訂) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] effect 列 (none/write/network) を欠落させていない
+- [ ] warn フラグの付与基準が security-model.md の明示行に紐付いている
+- [ ] sink-contract と security-model の整合 (禁止対象でないか) を検証済み
+- [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

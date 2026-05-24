@@ -5,7 +5,7 @@ tools: Read, Write, AskUserQuestion
 model: sonnet
 owner_skill: run-prompt-elicit
 responsibility_id: R1
-context: fork
+isolation: fork
 since: 2026-05-22
 last-audited: 2026-05-22
 ---
@@ -82,7 +82,7 @@ quality-rubric.md の 5 次元で自己採点。
 | 完全性 | required 全充填 |
 | 一貫性 | brief との整合 |
 | 深度 | 優先度の根拠把握 |
-| 検証可能性 | validate_prompt.js PASS |
+| 検証可能性 | validate-prompt.py PASS |
 | 簡潔性 | 質問 3-5 問遵守 |
 
 未達は 1 回自己修正、再未達なら orchestrator 差し戻し。

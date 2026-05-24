@@ -20,7 +20,7 @@
 
 ### 1.1 不変ルール
 - 1 Layer = 1 出力。7 層を 1 度のレスポンスで生成してはならない (背景: Layer 間の依存方向 L7→L1 を可視化し、レビュー単位を独立化するため)。
-- 決定論部分 (scaffold / merge / validate / lint) は Node/Python スクリプトに委譲し、LLM は意味判断のみ行う (背景: 再現性とテスト容易性を担保するため)。
+- 決定論部分 (scaffold / merge / validate / lint) は python3 スクリプトに委譲し、LLM は意味判断のみ行う (背景: 再現性とテスト容易性を担保するため)。
 - worker-local trace の出力契約は `schemas/output.schema.json` とする。orchestrator へ渡す正本 trace は `../run-prompt-create/schemas/build-trace.schema.json` 互換の `eval-log/prompt-build-trace.json` とする。
 
 ### 1.2 倫理ガード
@@ -70,22 +70,22 @@
 | build-trace-schema | ../run-prompt-create/schemas/build-trace.schema.json | orchestrator handoff 時 |
 
 ### 3.2 外部ツール / API
-- `node scripts/scaffold_prompt.js` — Layer 別雛形生成
-- `node scripts/merge_layers.js` — 1 prompt md/yaml へ統合
-- `node scripts/validate_prompt.js` — schema/構造検証
-- `node scripts/verify_completeness.js` — Layer 充足検証
+- `python3 scripts/scaffold-prompt.py` — Layer 別雛形生成
+- `python3 scripts/merge-layers.py` — 1 prompt md/yaml へ統合
+- `python3 scripts/validate-prompt.py` — schema/構造検証
+- `python3 scripts/verify-completeness.py` — Layer 充足検証
 - `python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py` — 戻り検証
-- `node scripts/log_usage.js` — `LOGS.md` への利用統計記録
+- `python3 scripts/log-usage.py` — `LOGS.md` への利用統計記録
 
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
-- `validate_prompt.js` / `verify_completeness.js` / `lint-agent-prompt-section.py` のいずれかが FAIL した場合は Phase 4-A から最大 3 回まで自律修正を反復する。
+- `validate-prompt.py` / `verify-completeness.py` / `lint-agent-prompt-section.py` のいずれかが FAIL した場合は Phase 4-A から最大 3 回まで自律修正を反復する。
 - 3 回超過時は exit 非 0 で orchestrator に差戻し、trace.json に `status: "deferred"` を残す。
 
 ### 4.2 観測 / ロギング
 - `eval-log/prompt-creator-trace.json` に Phase 単位で append (sha256 を含む)。
-- 成功 / 失敗を `LOGS.md` へ `log_usage.js` 経由で記録 (失敗パターン蓄積)。
+- 成功 / 失敗を `LOGS.md` へ `log-usage.py` 経由で記録 (失敗パターン蓄積)。
 
 ### 4.3 セキュリティ
 - skill-brief 内の秘匿フィールドはハッシュ化して trace に格納。
@@ -104,10 +104,10 @@
 
 ### 5.2 推論手順 (再現可能)
 1. ヒアリング結果を `schemas/hearing-result.schema.json` で検証する。
-2. `scaffold_prompt.js` で Layer 別 .md 雛形を生成する。
+2. `scaffold-prompt.py` で Layer 別 .md 雛形を生成する。
 3. 1 Layer = 1 出力で本文を充填する (一括生成禁止)。生成物の Layer 5 はゴール定義+完了チェックリストで宣言し、固定手順 (思考プロセスのステップ列挙) を書かない。
-4. `merge_layers.js` で 1 つの prompt .md に統合する。
-5. `validate_prompt.js` → `verify_completeness.js` → `lint-agent-prompt-section.py` を順に実行する。
+4. `merge-layers.py` で 1 つの prompt .md に統合する。
+5. `validate-prompt.py` → `verify-completeness.py` → `lint-agent-prompt-section.py` を順に実行する。
 6. `owner_agent` がある場合のみ対象 SubAgent .md へ Edit で注入する。
 7. `eval-log/prompt-build-trace.json` を build-trace schema に従い出力し、補助的に `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` に従い出力する。
 
@@ -115,7 +115,7 @@
 - [ ] 1 Layer = 1 出力を遵守したか (一括生成していないか)
 - [ ] 全ルール / 制約に目的 + 背景を併記したか (`writing-style-principles.md`)
 - [ ] SKILL.md / SubAgent .md が各 300 行以下に収まっているか
-- [ ] `validate_prompt.js` / `verify_completeness.js` / `lint-agent-prompt-section.py` が全 PASS したか
+- [ ] `validate-prompt.py` / `verify-completeness.py` / `lint-agent-prompt-section.py` が全 PASS したか
 - [ ] prompt-build-trace.json と worker-local trace の sha256 が layer .md の実体と一致するか
 
 ## Layer 6: オーケストレーション層

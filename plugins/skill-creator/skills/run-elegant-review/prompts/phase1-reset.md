@@ -10,27 +10,34 @@
 | name | phase1-reset |
 | skill | run-elegant-review |
 | responsibility | Phase1 (バイアスリセット + 素観察) |
-| layers_covered | [L0, L1, L2] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | ./schemas/phase-output.schema.json#/definitions/phase1_output |
-| reproducible | true (read-only) |
+| reproducible | true (同 target_path → 同 raw_observations) |
+| parallel | false (Phase2 前段の単発) |
 
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- read-only ツール (Read/Glob/Grep) のみ使用
-  - 目的: 観察フェーズの中立性確保
-  - 背景: 編集が混在すると採点バイアスを生む
-- rubric / findings 構造に触れない
-  - 目的: Phase2 の独立採点を保護
-  - 背景: 先行構造化は思考法多様性を潰す
-- 採点や C1-C4 verdict は Phase2 に委ねる
-  - 目的: 責務単一性の維持
-  - 背景: 観察と評価の混在は再現性を破壊
+- 思考リセットは context fork で実施 (親 context の既存判断を持ち込まない)
+  - 目的: バイアスリセットの物理保証
+  - 背景: 同一 context での「忘れる」宣言は遵守率が低く再現性を破壊
+- read-only ツール (Read/Glob/Grep) のみ使用、編集系 (Edit/Write/MultiEdit) 禁止
+  - 目的: 観察フェーズの中立性と元状態保存
+  - 背景: 編集混在は採点バイアスを生み Phase3 の diff 基準も失う
+- rubric / findings 構造に触れない、採点・C1-C4 (矛盾/漏れ/整合性/依存関係整合) verdict は Phase2 に委ねる
+  - 目的: 責務単一性と Phase2 独立採点の保護
+  - 背景: 先行構造化は 30 思考法レンズの多様性を潰し再現性を破壊
+- 観察ログの物理削除禁止 (上書き統合のみ)
+  - 目的: 監査追跡可能性の維持
+  - 背景: 削除は trace 喪失と冪等性破壊を招く
 
 ### 1.2 倫理ガード
 - 既存 rubric の言葉を観察に持ち込まない
   - 目的: フレーム効果の排除
   - 背景: 既存語彙は新規発見を抑制する
+- PII / secret / 認証情報を観察ログへ転記しない (検出時はマスク `***`)
+  - 目的: 情報漏洩防止
+  - 背景: review ログは workspace 共有され流出経路となり得る
 
 ## Layer 2: ドメイン層 (本質ロジック)
 
@@ -76,31 +83,42 @@
 
 ### 4.2 観測 / ロギング
 - 出力先: `review_workspace/raw_observations.json`
+- trace 連携: `eval-log/<plugin>/<skill>/elegant-review/<run-id>/elegant-review-trace.json` の phase1 セクションに概要記録
+- 反復上限: Layer 4 共通 (max_iterations=3、未充足は Phase2 開始前にエスカレーション)
 
 ### 4.3 セキュリティ
 - 対象ファイルを編集しない (read-only)
   - 目的: 元状態の保存
   - 背景: Phase3 で diff を取るための基準
+- PII / secret / 認証情報を `raw_observations.json` に転記しない (検出時 `***` マスク)
+  - 目的: 漏洩防止
+  - 背景: ログは後続 phase と共有される
 
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
 - `../../agents/elegant-reset-observer.md` (context-fork 推奨)
 
-### 5.2 推論手順 (再現可能)
-1. `target_path` を Read/Glob し、目的・スコープ・関係者・既知制約を列挙 (L0)
-2. 第一印象の懸念を「事実」と「仮定」に分けて記録 (L1)
-3. 固有名詞・固定パス・固定 URL・固定 owner を kind 付きで variable_candidates にマーク (L2)
-4. in_scope / out_of_scope を区別して記録
-5. `./schemas/phase-output.schema.json#/definitions/phase1_output` に従い出力
+### 5.2 ゴール定義
+- **目的**: 対象を素のまま観察し、Phase2 採点へ渡せる中立な観察ログを成立させる
+- **背景**: 既存 rubric 語彙や編集を混ぜると採点バイアスと思考法多様性の損失を生むため、read-only と語彙隔離を要件化
+- **達成ゴール**: facts / assumptions / variable_candidates / scope (in/out) が schema 準拠で記録され、同 target_path で決定論的に再現する状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (停止条件)
 - [ ] bias_reset: 既存 rubric の言葉を観察に持ち込まなかった
-- [ ] read_only: 対象ファイルを編集しなかった
+- [ ] read_only: 対象ファイルを編集しなかった (編集系ツール未使用)
 - [ ] fact_assumption_split: 事実と仮定を明示分離
-- [ ] variable_candidates: 変数化候補を kind 付きで列挙
-- [ ] scope_explicit: in_scope / out_of_scope を区別
+- [ ] variable_candidates: 固有名詞・固定パス・URL・owner を kind 付きで列挙
+- [ ] scope_explicit: in_scope / out_of_scope を区別して記録
+- [ ] schema_conform: `./schemas/phase-output.schema.json#/definitions/phase1_output` 準拠
 - [ ] determinism: 同 target_path で facts が並び順含め一致 (sort 安定化)
+
+### 5.4 実行方式 (固定手順を持たない動的生成ループ)
+**固定手順禁止**。完了チェックリストの未充足項目を唯一の指針とし、状況に応じて手順をその都度設計・実行・自己評価する。例示 (網羅でない):
+- 未充足項目を特定 → 解消候補手順を立案 (Read/Glob/Grep / 事実-仮定分離 / 変数候補抽出 / scope 区別 のいずれか)
+- 実行し `raw_observations.json` を更新 → schema 検証で自己評価
+- 全項目充足まで反復 (上限: Layer 4 max_iterations=3)
+- 編集系ツール呼び出し検出は即 exit 1
 
 ## Layer 6: オーケストレーション層
 
@@ -108,8 +126,10 @@
 - 呼び出し元: run-elegant-review (Phase1)
 - 後続 phase: phase2-parallel
 
-### 6.2 並列性
-- 単発実行 (Phase2 の前段として直列)
+### 6.2 ハンドオフ / 並列性
+- 前 phase 受領元: run-elegant-review 起動入力 (`target_type` / `target_path` / `review_workspace`)
+- 次 phase 提供先: phase2-parallel (`raw_observations.json`)
+- 並列: なし (Phase2 前段の単発、直列)
 
 ## Layer 7: UI / 提示層
 

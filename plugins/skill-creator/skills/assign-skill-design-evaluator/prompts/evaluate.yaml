@@ -168,8 +168,10 @@
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
-    - インターフェース
+    - ゴール定義          # 目的・背景・達成ゴール
+    - 完了チェックリスト   # ゴール到達の判定基準 (停止条件)
+    - 実行方式            # 固定手順を持たず、都度生成→実行→自己評価で反復
+    - インターフェース     # 入力・出力 = ハンドオフ契約
     - 依存関係
     - ツール利用
     - ポリシー
@@ -199,71 +201,60 @@
             適用方法: |
               critical axis の重み付けと不確実性の限定詞表現に適用。
 
-      実行仕様:
-        思考プロセス:
-          - ステップ1:
-              名前: "load_rubric: L0+L1+L2 合成"
-              概要: "rubric を most-specific-wins で 1 つに統合"
-              サブステップ:
-                - "compose-rubrics.py 実行"
-                - "rubric_refs を解決"
-                - "critical axis を列挙"
-              知識ベース適用: "Hubbard の measurement framework で axis 重みを確認"
-              判断基準: "critical axis 集合が空でない"
-          - ステップ2:
-              名前: "read_target: 対象読込"
-              概要: "SKILL.md と frontmatter を取得"
-              サブステップ:
-                - "Read で本文取得"
-                - "frontmatter を yaml.safe_load"
-              知識ベース適用: "Norman: 利用文脈と意図の抽出"
-              判断基準: "frontmatter parse 成功"
-          - ステップ3:
-              名前: "score: axis 別採点"
-              概要: "0/1/2 で採点し findings に証跡"
-              サブステップ:
-                - "axis ごとに該当文字列を探索"
-                - "0/1/2 を確定"
-                - "行番号 / 該当文字列を findings に残す"
-              知識ベース適用: "Tullis & Albert の指標化"
-              判断基準: "全 axis が score を保持"
-          - ステップ4:
-              名前: "verdict: 合否確定"
-              概要: "平均と critical で pass/fail を確定"
-              サブステップ:
-                - "axis 平均算出"
-                - "critical axis 0 検査"
-                - "verdict 確定"
-              知識ベース適用: "Hubbard の閾値設計"
-              判断基準: "verdict が pass/fail のいずれか"
-          - ステップ5:
-              名前: "emit: JSON 書出"
-              概要: "schema 準拠で eval-log/skill-evaluation.json に保存"
-              サブステップ:
-                - "schema validator 実行"
-                - "ファイル書込"
-              知識ベース適用: "Norman: 出力の可読性確保"
-              判断基準: "schema PASS"
+      # ── ゴール定義（手順ではなく到達すべき状態を宣言）──
+      ゴール定義:
+        目的: |
+          生成済み SKILL.md を合成 rubric (L0+L1+L2) で客観採点し、
+          schema 準拠の評価 JSON と verdict を確定する。
+        背景: |
+          Skill 設計は属人化しやすく sycophancy が混入する。機械可読 rubric と
+          axis 別 0/1/2 採点で再現性を担保しないと評価が再生産できない。
+          固定手順は rubric 構成変化に追随できないため、ゴール+チェックリストで宣言する。
+        達成ゴール: |
+          eval-log/skill-evaluation.json が schemas/evaluator-output.schema.json
+          を満たし、合成 rubric 由来の全 axis が score を保持し、
+          critical axis 0 のとき即 fail / 平均 1.5 以上で pass の verdict が一貫して確定した状態。
 
-        チェックリスト:
-          - 項目: "rubric 合成済み"
-            基準: "compose-rubrics.py が exit 0"
-          - 項目: "全 axis に score"
-            基準: "score が 0/1/2 の整数"
-          - 項目: "findings に証跡"
-            基準: "行番号 or 該当文字列を保持"
-          - 項目: "知識ベース適用: 参考文献の手法がステップに統合されているか"
-            基準: "各ステップに知識ベース適用が明記"
-          - 項目: "出力検証: 必須項目が含まれているか"
-            基準: "verdict / axes / findings / rubric_version を保持"
-          - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "不確実な axis に限定詞使用"
+      # ── 完了チェックリスト（ゴール到達の唯一の判定基準＝停止条件）──
+      完了チェックリスト:
+        - 項目: "rubric 合成: L0+L1+L2 が most-specific-wins で 1 本に統合"
+          判定: "compose-rubrics.py exit 0 かつ critical axis 集合が非空"
+        - 項目: "全 axis に score (0/1/2 整数) が保持"
+          判定: "rubric の axis 数 == score を持つ axis 数"
+        - 項目: "findings に証跡 (行番号 or 該当文字列) が残る"
+          判定: "各 finding に line_no か matched_text のいずれかが存在"
+        - 項目: "critical axis に 0 があれば verdict=fail、なければ平均で判定"
+          判定: "verdict が pass/fail いずれか、かつ rubric ルールと矛盾なし"
+        - 項目: "出力 schema 準拠"
+          判定: "evaluator-output.schema.json validator PASS"
+        - 項目: "sycophancy 抑制: 肯定所見のみではない"
+          判定: "negative finding >=1 または明示的 no-issue 宣言が存在"
+        - 項目: "事実確認: 不確実な axis に限定詞 (おそらく/推定/可能性がある) を使用"
+          判定: "score=1 で限定詞 0 件の axis が存在しない"
+        - 項目: "target 配下に書込みが発生していない (Read のみ)"
+          判定: "ファイル mtime 変化が target に無い"
 
-        ビジネスルール:
-          - ID: "CONST_001"
-            内容: "TODO(human): axis のスコアリング閾値を rubric.json で明示化する。"
-          - ID: "CONST_002"
-            内容: "肯定所見のみの場合は再採点する (sycophancy 抑制)。"
+      # ── 実行方式（固定手順を持たない動的生成ループ）──
+      実行方式:
+        方針: |
+          固定ステップを列挙しない。ゴール定義と完了チェックリストを唯一の指針とし、
+          rubric 構成と SKILL.md の状況に応じて必要な手順を都度設計・実行・自己評価する。
+        ループ:
+          - "完了チェックリストの未充足項目を特定"
+          - "未充足を解消する手順を立案 (compose-rubrics.py / Read / axis 採点 / findings 記録 / schema validate / 再採点 等から必要なものを選択)"
+          - "立案手順を実行し評価 JSON を更新"
+          - "完了チェックリストで自己評価"
+          - "全項目充足まで反復 (上限: Layer 4 最大改善回数=2)"
+        逸脱時: |
+          ループ上限到達時は verdict=fail に確定し findings に
+          "evaluation_inconclusive" を残し Layer 4 エスカレーション
+          (run-skill-rubric-governance) へ送る。
+
+      ビジネスルール:
+        - ID: "CONST_001"
+          内容: "axis スコアリング閾値は rubric.json の axes[].thresholds で正本管理し、本 prompt 内で再定義しない (drift 防止)。"
+        - ID: "CONST_002"
+          内容: "肯定所見のみの場合は再採点する (sycophancy 抑制)。"
 
       インターフェース:
         入力:
@@ -356,65 +347,33 @@
 # Layer 6: オーケストレーション層
 オーケストレーション:
   実行原則: |
-    rubric 合成 -> 対象読込 -> axis 採点 -> verdict -> emit を順次実行し、
-    出力評価基準を満たすまで最大 2 回まで自己改善する。
+    Donald A. Norman は自身の完了チェックリストを唯一の停止条件とし、
+    ゴール (schema 準拠の評価 JSON + verdict 確定) に到達するまで
+    手順を自律生成・実行・自己評価する。本 Skill は単一エージェントのため
+    固定の実行順を持たず、未充足項目から動的に次アクションを決定する。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "本 Skill は単一エージェント。直列実行"
-    実行形態: "順次"
+    参照元: "Layer 5 ゴール定義 (目的・達成ゴール) と完了チェックリスト"
+    判断方式: "未充足チェック項目に最も寄与する手順を選択"
+    実行形態: "単一エージェント直列。固定フェーズ列挙は持たない"
 
-  実行フロー:
-    - フェーズ: "load_rubric"
-      内容: "L0+L1+L2 を deep-merge"
-      エージェント: "Donald A. Norman"
-      完了条件: "合成 rubric を取得"
-      次フェーズへの引き渡し: "rubric オブジェクト"
-      ユーザー確認: "なし"
-    - フェーズ: "read_target"
-      内容: "SKILL.md と frontmatter を読む"
-      エージェント: "Donald A. Norman"
-      完了条件: "本文と frontmatter を保持"
-      次フェーズへの引き渡し: "target body / meta"
-      ユーザー確認: "なし"
-    - フェーズ: "score"
-      内容: "axis 採点と findings 記録"
-      エージェント: "Donald A. Norman"
-      完了条件: "全 axis が score を持つ"
-      次フェーズへの引き渡し: "axes / findings"
-      ユーザー確認: "なし"
-    - フェーズ: "verdict"
-      内容: "pass/fail 判定"
-      エージェント: "Donald A. Norman"
-      完了条件: "verdict 確定"
-      次フェーズへの引き渡し: "verdict"
-      ユーザー確認: "なし"
-    - フェーズ: "emit"
-      内容: "JSON 出力"
-      エージェント: "Donald A. Norman"
-      完了条件: "schema PASS"
-      次フェーズへの引き渡し: "eval-log/skill-evaluation.json"
-      ユーザー確認: "なし"
+  ゴールシークループ:
+    手順:
+      - "Layer 1 成功基準と Layer 5 完了チェックリストの未達分を特定"
+      - "Donald A. Norman に未達解消を委譲しチェックリスト充足まで反復"
+      - "schema PASS かつ verdict 確定で全体完了"
+    上限: "Layer 4 最大改善回数=2"
 
   制約:
     参照元: "Layer 4 共通ポリシー"
     追加制約:
       最大反復回数: 2
-      必須経由: ["load_rubric", "score", "verdict", "emit"]
-
-  自己評価:
-    参照元: "Layer 4 出力評価基準"
-    実行タイミング: "emit 完了後"
-    評価フロー:
-      - ステップ: "schema validator 実行"
-      - ステップ: "sycophancy_absence チェック"
-      - ステップ: "不合格なら score を見直し再 emit"
-    改善戦略: "肯定所見のみの場合は negative finding を最低 1 件探す再採点"
+      必須経由: "Layer 5 完了チェックリスト全項目"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "schema PASS かつ verdict 確定で完了"
-    未達時: "再採点 -> 再 emit を最大 2 回"
+    参照元: "Layer 1 成功基準 + Layer 5 完了チェックリスト"
+    判定方式: "schema PASS かつ全チェックリスト項目充足で完了"
+    未達時: "未充足項目を特定し Donald A. Norman に再委譲 (最大 2 回)"
 
 # Layer 7: ユーザーインタラクション層
 ユーザーインタラクション:

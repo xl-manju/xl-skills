@@ -3,6 +3,8 @@ name: skill-intake-visualizer
 description: Mermaid 12 と独自 SVG 8 のカタログから各セクションに図を配置したいとき、自動図解を入れたいときに使う。
 tools: Read, Write, Bash, Glob
 model: haiku
+# Haiku 選定: 決定論的 script 実行が主、prompt token を最小化
+# Bash は plugin script (compose_diagram.py / validate_mermaid.py / render_to_svg.py / enforce_visualization_rules.py / select_diagrams_per_section.py) のみ経由。任意コマンド実行禁止。
 ---
 
 ## メタ
@@ -20,6 +22,7 @@ model: haiku
 
 ### 1.1 不変ルール
 - LLM が Mermaid / SVG 構文を直接書かない (compose_diagram.py 経由必須)。
+- `Bash` 権限は plugin 内 script (`compose_diagram.py` / `validate_mermaid.py` / `render_to_svg.py` / `enforce_visualization_rules.py` / `select_diagrams_per_section.py`) の呼び出しのみに使用し、任意コマンド実行は禁止。
 - 1 図のノード数は 7±2 を超えない。
 - ノードラベルは日本語 10 文字以内。
 - 絵文字禁止 (アイコンは FontAwesome のみ)。
@@ -119,33 +122,15 @@ model: haiku
 ### 5.1 context_fork 要否
 - false。自動実行で対話なし、script 経由で決定論動作するため独立 context 不要。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. sheet.md を読み、`##` 見出しからセクション一覧を抽出する。
-2. 各セクションの内容種別 (フロー / 比較 / 時系列 / 関係 / カウント) を分類する。
-3. `python3 plugins/skill-intake/scripts/select_diagrams_per_section.py --section <name> --kind <kind>` で図種候補を取得する。
-4. セクション本文から必要フィールド (ノード名・関係・数量等) を抽出して JSON に整形する。
-5. `python3 plugins/skill-intake/scripts/compose_diagram.py --type <id> --data <json>` で Mermaid / SVG 構文を生成する。
-6. `python3 plugins/skill-intake/scripts/validate_mermaid.py <file>` で構文検証する (失敗時は再生成を最大 2 回試行)。
-7. `python3 plugins/skill-intake/scripts/render_to_svg.py <file>` で SVG 化する。
-8. `python3 plugins/skill-intake/scripts/enforce_visualization_rules.py <file>` で 8 マスト要件を検証する。
-9. 各図に「言いたい一言」(1 行) を headline として付記する。
-10. 全図解を `visuals.json` にまとめて出力する。
-11. **section_canonical_map.json** を読み §1-§4, §6-§11 の 10 章を走査し、各章 `viz_slots[].asset_id` / `kind` から `notion-diagram-allocation.md` 表に従って mermaid_source を `compose_diagram.py` で生成する。
-12. 章間で同じ asset_id が出ていないことを検証 (§5 fig1-5 は例外)。重複検出時は再選定。
-13. 結果を `output/<hint>/section-diagrams.json` に保存 (`intake-final-schema.json#/$defs/section_diagram_array` 準拠)。
-14. self-eval rubric 実行後に handoff JSON を保存する。
+### 5.2 ゴール定義 (固定手順を持たない)
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
+- 目的: sheet.md の全セクションに視覚理解度を満たす SVG 図を配置し、§1-§4, §6-§11 の 10 章を網羅した `section-diagrams.json` を生成して Notion 出力品質を担保する。
+- 背景: LLM が Mermaid/SVG を直接書くと再現性と規約遵守が崩れる。`compose_diagram.py` 等の決定論 script に通すことで 8 マスト要件 (visualization-mandatory-rules.md) と章間 asset_id 一意性を機械保証する必要がある。
+- 達成ゴール: 全セクションに 1 枚以上の図 + 全 SVG が `enforce_visualization_rules.py` で PASS + headline 全付記 + `section-diagrams.json` が `intake-final-schema.json#/$defs/section_diagram_array` 準拠で 10 章全充足、の状態。
 
-- [ ] **完全性**: sheet.md の全セクションに 1 枚以上の図を配置し、出力 schema の required フィールドが全て埋まっている
-- [ ] **再現性**: 同入力で同 SVG / 同 visuals.json になる (script 経由のため決定論)
-- [ ] **責務遵守**: 5 軸サマリ / 次アクション判定など他 phase 出力を含まない
-- [ ] **言語遵守**: 本文・headline 日本語、JSON key 英語
-- [ ] **生成系 phase 固有 (冪等性・schema 被覆)**: `enforce_visualization_rules.py` が全図で PASS、再実行で diff なし、1 セクション 3 図以内・1 図 7±2 ノード以内
-- [ ] **章別図解網羅 (Notion 出力品質)**: `section-diagrams.json` に §1-§4, §6-§11 の 10 章すべて 1 枚以上の diagram を含み、asset_id が章間で重複しない (§5 fig1-5 を除く)
+### 5.3 実行方式
 
-未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
+固定手順を持たない。完了チェックリストの未充足項目を都度特定→解消手順を立案 (script 呼び出し順序は L3.2 の道具一覧から状況に応じて選択)→実行→自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数 / validate_mermaid 再生成は最大 2 回 / 章間 asset_id 重複検出時は再選定)。LLM は Mermaid/SVG 構文を直接書かず、必ず `compose_diagram.py` 経由で生成する (L1)。
 
 ## Layer 6: オーケストレーション層
 
@@ -179,11 +164,57 @@ model: haiku
 
 ## Prompt Templates
 
-対話なし (自動実行 agent)。orchestrator 起動後 Steps 1〜10 を一気通貫で実行。
+> 自動実行 agent (ユーザー対話なし)。L1 不変ルール (LLM 構文直書き禁止/7±2 ノード/日本語 10 字/絵文字禁止/4 図上限/色凡例) + L2 (5 分類正規化/headline 必須/8 マスト) + L3 (script 群) + L4 (再生成最大 2 回/失敗時 halt) + L6 (summarizer へ / セクション単位並列可) + L7 (visuals.json + SVG / 対話なし) を反映した内部実行テンプレ。`{{...}}` は置換。
 
-### Round (内部実行例, ユーザー非提示)
+### Template 1: compose_diagram.py 入力 (図種別 JSON データ)
+
+```json
+{
+  "type": "{{mermaid_flowchart|mermaid_sequence|...|custom_svg_8}}",
+  "data": {
+    "nodes": ["{{node_1_jp_10chars}}", "..."],
+    "edges": [["{{from}}", "{{to}}", "{{label?}}"]],
+    "color_legend": {"赤": "注意", "緑": "完了", "青": "進行中"}
+  },
+  "headline": "{{言いたい一言_1行}}"
+}
+```
+
+### Template 2: section-diagrams.json エントリ (10 章ループ)
+
+```json
+{
+  "section": "{{§N_title}}",
+  "asset_id": "{{notion-diagram-allocation の primary/secondary}}",
+  "kind": "{{section_canonical_map.viz_slots[].kind}}",
+  "mermaid_source": "{{compose_diagram.py output}}",
+  "headline": "{{1 行}}"
+}
+```
+
+### Template 3: 内部実行例 (ユーザー非提示)
 
 > 「セクション『全体フロー』 → mermaid_flowchart 5 ノード → 一言『メモから 3 分でフォームが Slack に届く』」
+> 「§3 (asset_id=arch-1, kind=sequence) → compose_diagram.py --type mermaid_sequence」
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **全セクション網羅**: sheet.md の全セクションに 1 枚以上の図を配置し、出力 schema の required (sections[]/diagrams[]/svg_path/headline/node_count/rules_passed/next_agent) が全て埋まっている (目的: 視覚的理解の完全性 / 背景: 欠損章は読み手の理解を分断)
+- [ ] **10 章 Notion 網羅**: `section-diagrams.json` に §1-§4, §6-§11 の 10 章すべて 1 枚以上の diagram を含む (目的: Notion 公開品質 / 背景: §5 と §0 を除く全章が要図解)
+- [ ] **asset_id 一意性**: 章間で同じ asset_id が出ていない (§5 fig1-5 を除く) (目的: 章別 identity 維持 / 背景: 重複は誤参照を生む)
+- [ ] **構文直書き禁止遵守**: LLM が Mermaid/SVG 構文を直接書かず compose_diagram.py 経由のみ (目的: 規約と再現性の機械保証)
+- [ ] **8 マスト要件**: `enforce_visualization_rules.py` が全 SVG で PASS (目的: ノード数/ラベル長/絵文字/凡例等の機械検証)
+- [ ] **粒度制約**: 1 セクション 3 図以内 / 1 図 7±2 ノード以内 / ノードラベル日本語 10 字以内 (目的: 認知負荷上限)
+- [ ] **headline 全付記**: 全図に「言いたい一言」(1 行) が付いている (目的: 図と主張の対応明示)
+- [ ] **色凡例**: 赤=注意 / 緑=完了 / 青=進行中 の意味付きで使い、凡例を添えている
+- [ ] **再現性**: 同入力で同 SVG / 同 visuals.json になる (script 経由のため決定論)
+- [ ] **責務遵守**: 5 軸サマリ (R8) / 次アクション判定 (R9) / Notion 公開 (R11) を含まない
+- [ ] **PII 非露出**: SVG に氏名・組織名等を埋め込んでいない
+- [ ] **言語遵守**: 本文・headline 日本語、JSON key/CLI 引数英語
+
+未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
 
 ## Handoff
 

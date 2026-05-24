@@ -17,7 +17,6 @@ hierarchy_level: L1
 rubric_refs:
   - ../run-skill-intake-aggregator/references/quality-rubric.md
   - references/republish-contract.md
-  - run-skill-intake-aggregator
 role_suffix: publish
 owner: team-platform
 since: 2026-05-20
@@ -31,6 +30,11 @@ since: 2026-05-20
 やり直さず **Notion 側だけ** 再公開するための薄い wrapper skill。
 実体は `plugins/skill-intake/scripts/intake_publish_pipeline.py` (単一発火点) を
 1 回呼ぶだけで、render / quality_gate / publish の重複実装は禁止する。
+
+**起動形態 (disable-model-invocation wrapper 特性)**: 本 skill は
+`disable-model-invocation: true` のため LLM 自律起動は不可。呼び出し元 (人間 or
+上位 skill) が **Bash script 経由** で直接 dispatch する。LLM 判断面は持たないため
+`prompts/` および `schemas/` は意図的に保持しない (R1 は pure script orchestration)。
 
 - 入力: `<skill-name-hint>` (前提: `output/<hint>/intake.json` と
   `output/<hint>/notion-manifest.json` が既に存在)
@@ -51,7 +55,7 @@ since: 2026-05-20
 ## Key Rules
 
 1. **単一発火点**: publish パイプは `intake_publish_pipeline.py` のみ。本 skill から
-   `render_notion_page.py` / `publish_notion_page.py` を直接呼ばない。
+   `render_notion_page.py` / `publish_notion_page.py` を直接呼ばない。単一発火点の SSOT 定義は `../run-skill-intake-aggregator/SKILL.md` 「単一発火点」項 (ゴールシークループ内) を参照。
 2. **再公開専用**: ヒアリング・図解生成・JSON 整形はやらない (aggregator の責務)。
 3. **All-or-Nothing**: `verify_notion_assets.py` 通過必須。PNG 1 枚でも欠ければ停止。
 4. **Secret-Out-of-Repo**: トークンは Keychain からのみ取得。環境変数・CLI 引数禁止。
@@ -108,6 +112,40 @@ exit !=0 で停止。トークンは `notion_http.py` が Keychain から都度�
 | `on_schema_conflict` | `skip-warn` | スキーマ差分時挙動 ∈ {skip-warn,fail,auto-migrate} |
 
 仕様は `references/abstraction-contract.md`。
+
+## ゴールシーク実行
+
+呼び出し元 (人間 or 上位 skill) が「再公開を完遂できたか」を自己判定するための
+3 層プロトコル。本 skill は wrapper のため LLM の自由裁量は持たず、各層は
+script exit code と成果物ファイル存在で機械判定する。
+
+### Goal (達成すべきゴール)
+
+`output/<hint>/notion-url.txt` に有効な Notion URL が書かれ、`notion-log.json` の
+`status` が `published` で、対応する Notion ページが update mode で同一 `page_id`
+を保ったまま最新 intake/manifest を反映していること。再公開は **冪等** であり、
+同一 intake/manifest で複数回起動しても新規ページを増やさず既存ページを更新する。
+
+### Why (なぜそのゴールか)
+
+intake 成果物は canonical source として `output/<hint>/` 配下で管理され、Notion は
+読み手向けの **派生 view**。view を作り直すたびに `page_id` を変えると外部参照
+リンクが破壊されるため、再公開は常に「同一 page を update する」契約を採る。
+これにより canonical 修正 → 再公開のループが安全に回り、ヒアリング工程を再消費
+しない (aggregator 責務との重複排除)。
+
+### Checklist (機械判定可能な完了条件)
+
+| # | 検査 | 合格基準 |
+|---|---|---|
+| 1 | pipeline exit code | `intake_publish_pipeline.py` が exit 0 |
+| 2 | URL ファイル | `output/<hint>/notion-url.txt` が非空かつ `https://www.notion.so/` で始まる |
+| 3 | ログ status | `output/<hint>/notion-log.json` の `status == "published"` |
+| 4 | page_id 不変 | `notion-publish-result.json.page_id` が前回値と一致 (初回除く) |
+| 5 | precheck 全 pass | Keychain / schema / assets の 3 検査が全て exit 0 |
+| 6 | 再公開拒否ルール非該当 | `references/republish-contract.md` の拒否条件全て非該当 |
+
+いずれか不合格なら exit code (1=skip / 2=hard-fail) を呼び出し元へ伝搬し停止。
 
 ## Gotchas
 

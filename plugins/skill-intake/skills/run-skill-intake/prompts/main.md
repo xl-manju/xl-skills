@@ -10,7 +10,7 @@
 | name | main |
 | skill | run-skill-intake |
 | responsibility | R1-orchestrate-11-phases (1 prompt = 1 責務 = 1 agent) |
-| layers_covered | [L2, L4, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/output.schema.json |
 | reproducible | true (workflow-manifest.json の phases を順序通り起動) |
 
@@ -70,23 +70,27 @@
 ### 4.3 セキュリティ
 - Notion トークン等の secret は orchestrator のログに残さない (delegateSkill 内で扱う)。
 
-## Layer 5: エージェント層 (実行主体定義)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `@intake-orchestrator` (非対話、phase 起動のみ)
+- `@intake-orchestrator` (非対話、phase 起動のみ、context-fork 不要)
 
-### 5.2 推論手順 (再現可能)
-1. workflow-manifest.json の phases を順次起動する。
-2. 各 phase の delegateSkill を起動し、出力 artifact のパスを受け取る。
-3. handoff-contract.md に従い、次 phase に必要な入力のみを引き渡す。
-4. 任意 phase が FAIL した場合は orchestrator-trace.json に error を記録し中断する。
-5. 11 phase 完了後、intake.md / intake.json / Notion URL を `orchestrator-trace.artifacts` に書き出す。
+### 5.2 ゴール定義
+- 目的: intake 11 phase を子 Skill / SubAgent に委譲し、artifacts (intake.md / intake.json / notion-url) を全 PASS 時のみ生成する薄い orchestrator として機能する。
+- 背景: 業務ロジックを orchestrator に混在させると責務肥大化と silent-fail を生む。phase 委譲の薄さと中断契約を機構で保つ必要がある。
+- 達成ゴール: orchestrator-trace.json と完成 artifacts が schema 準拠で揃い、いずれかの phase が FAIL したときは artifacts が未充填かつ error が trace に明記された状態。
 
-### 5.3 自己検証 checklist
-- [ ] 業務ロジックを orchestrator 内に書いていないか (薄さ維持)
-- [ ] 各 phase の出力が次 phase の input schema に適合しているか
-- [ ] FAIL 時に中断し、戻り先 phase を error に記録しているか
-- [ ] 11 phase 全てが PASS した場合のみ artifacts.intake_md/intake_json を埋めているか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] orchestrator 内に業務ロジック (5 軸ヒアリング / 可視化 / Notion 公開等) が混入していない (薄さ維持)
+- [ ] 各 phase の出力が handoff-contract.md の次 phase 入力 schema に適合
+- [ ] 任意 phase FAIL を観測した時点でパイプライン中断し、orchestrator-trace.json に error 行 (phase id / exit code / stderr 要約) を残している
+- [ ] 11 phase 全 PASS のときのみ artifacts.intake_md / intake_json / notion_url が埋まり、部分成果物が漏出していない
+- [ ] secret / Notion トークンが orchestrator のログに残っていない (Layer 4.3)
+- [ ] ユーザー入力取得は phase 1 のみ (orchestrator が後付けで意図推測していない)
+
+### 5.4 実行方式
+- 固定手順を持たない。未充足チェック項目を特定→workflow-manifest.json の phases から次に起動すべきものを選定→delegateSkill 実行→trace 記録→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
+- 逸脱時: FAIL 観測または上限到達で中断 (再開は手動、orchestrator は冪等 resume を持たない)。
 
 ## Layer 6: オーケストレーション層
 

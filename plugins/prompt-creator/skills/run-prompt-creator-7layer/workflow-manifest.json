@@ -3,10 +3,10 @@
   "schemaVersion": 1,
   "workflowId": "run-prompt-creator-7layer",
   "skill": "run-prompt-creator-7layer",
-  "description": "skill-brief または対話入力から 7 層プロンプト (L1 基本定義 / L2 ドメイン / L3 インフラ / L4 共通ポリシー / L5 エージェント / L6 オーケストレーション / L7 ユーザーインタラクション) を Layer 単位で生成する。SubAgent .md 注入は owner_agent ありの場合のみ行う。",
+  "description": "skill-brief または対話入力から 7 層プロンプト (L1 基本定義 / L2 ドメイン / L3 インフラ / L4 共通ポリシー / L5 エージェント / L6 オーケストレーション / L7 ユーザーインタラクション) を Layer 単位で生成する。SubAgent .md 注入は owner_agent ありの場合のみ行う。phase id は worker 文脈固有 (phase-*) とし、orchestrator (run-prompt-create) の step id (elicit/build/p0-lint/...) と衝突させない。",
   "phases": [
     {
-      "id": "P1-hearing",
+      "id": "phase-interview",
       "step": 1,
       "title": "ヒアリング (skill-brief or AskUserQuestion) で 7 層構成情報を収集",
       "gate": "C1",
@@ -17,55 +17,55 @@
       "fatal_exit_codes": [2]
     },
     {
-      "id": "P2-scaffold",
+      "id": "phase-sheet",
       "step": 2,
-      "title": "scaffold_prompt.js で Layer 別内部正規形 YAML 雛形を生成",
+      "title": "scaffold-prompt.py で Layer 別内部正規形 YAML 雛形を生成",
       "gate": "C2",
-      "dependsOn": ["P1-hearing"],
+      "dependsOn": ["phase-interview"],
       "entryHook": null,
       "exitHook": null,
       "resourceIds": ["ref-seven-layer", "ref-writing-style"],
       "fatal_exit_codes": [2, 3]
     },
     {
-      "id": "P3-layer-emit",
+      "id": "phase-layer-gen",
       "step": 3,
       "title": "Layer 単位 (1 Layer = 1 出力) で内容を充填",
       "gate": "C3",
-      "dependsOn": ["P2-scaffold"],
+      "dependsOn": ["phase-sheet"],
       "entryHook": null,
       "exitHook": null,
       "resourceIds": ["ref-seven-layer", "ref-quality-criteria"],
       "fatal_exit_codes": [2, 3]
     },
     {
-      "id": "P4-merge",
+      "id": "phase-convert",
       "step": 4,
-      "title": "merge_layers.js で 7 Layer を内部正規形 YAML に統合し、指定 format へ変換",
+      "title": "merge-layers.py で 7 Layer を内部正規形 YAML に統合し、指定 format へ変換",
       "gate": "C4",
-      "dependsOn": ["P3-layer-emit"],
+      "dependsOn": ["phase-layer-gen"],
       "entryHook": null,
       "exitHook": "merge-layers",
       "resourceIds": [],
       "fatal_exit_codes": [2, 3]
     },
     {
-      "id": "P5-validate",
+      "id": "phase-return-verify",
       "step": 5,
-      "title": "validate_prompt.js + verify_completeness.js + lint-agent-prompt-section.py 実行",
+      "title": "validate-prompt.py + verify-completeness.py + lint-agent-prompt-section.py 実行",
       "gate": "C5",
-      "dependsOn": ["P4-merge"],
+      "dependsOn": ["phase-convert"],
       "entryHook": null,
       "exitHook": "validate-prompt",
       "resourceIds": ["schema-trace"],
       "fatal_exit_codes": [2, 3]
     },
     {
-      "id": "P6-inject",
+      "id": "phase-inject",
       "step": 6,
       "title": "SubAgent .md の Prompt Templates / Self-Evaluation を Edit で注入 (owner_agent ありの場合のみ)",
       "gate": "C6",
-      "dependsOn": ["P5-validate"],
+      "dependsOn": ["phase-return-verify"],
       "entryHook": null,
       "exitHook": "log-usage",
       "resourceIds": [],
@@ -73,12 +73,12 @@
     }
   ],
   "resources": [
-    {"id": "ref-resource-map", "kind": "reference", "path": "./references/resource-map.yaml", "phaseIds": ["P1-hearing"]},
-    {"id": "ref-prompt-sheet-template", "kind": "reference", "path": "./references/prompt-sheet-template.md", "phaseIds": ["P1-hearing"]},
-    {"id": "ref-seven-layer", "kind": "reference", "path": "./references/seven-layer-format.md", "phaseIds": ["P2-scaffold", "P3-layer-emit"]},
-    {"id": "ref-writing-style", "kind": "reference", "path": "./references/writing-style-principles.md", "phaseIds": ["P2-scaffold"]},
-    {"id": "ref-quality-criteria", "kind": "reference", "path": "./references/quality-criteria.md", "phaseIds": ["P3-layer-emit"]},
-    {"id": "schema-hearing", "kind": "schema", "path": "./schemas/hearing-result.schema.json", "phaseIds": ["P1-hearing"]},
-    {"id": "schema-trace", "kind": "schema", "path": "./schemas/output.schema.json", "phaseIds": ["P5-validate"]}
+    {"id": "ref-resource-map", "kind": "reference", "path": "./references/resource-map.yaml", "phaseIds": ["phase-interview"]},
+    {"id": "ref-prompt-sheet-template", "kind": "reference", "path": "./references/prompt-sheet-template.md", "phaseIds": ["phase-interview"]},
+    {"id": "ref-seven-layer", "kind": "reference", "path": "./references/seven-layer-format.md", "phaseIds": ["phase-sheet", "phase-layer-gen"]},
+    {"id": "ref-writing-style", "kind": "reference", "path": "./references/writing-style-principles.md", "phaseIds": ["phase-sheet"]},
+    {"id": "ref-quality-criteria", "kind": "reference", "path": "./references/quality-criteria.md", "phaseIds": ["phase-layer-gen"]},
+    {"id": "schema-hearing", "kind": "schema", "path": "./schemas/hearing-result.schema.json", "phaseIds": ["phase-interview"]},
+    {"id": "schema-trace", "kind": "schema", "path": "./schemas/output.schema.json", "phaseIds": ["phase-return-verify"]}
   ]
 }

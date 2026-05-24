@@ -5,7 +5,7 @@
   "description": "Phase 9 出力。skill-creator への引き渡しモード A-E と split 候補を保持する。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["mode", "reason", "multi_skill_suspicion", "skill_creator_handoff_phase"],
+  "required": ["mode", "reason", "multi_skill_suspicion", "confirmed_with_user", "skill_creator_handoff_phase"],
   "properties": {
     "mode": {"type": "string", "enum": ["A", "B", "C", "D", "E"]},
     "reason": {"type": "string", "minLength": 1},
@@ -22,6 +22,7 @@
         }
       }
     },
+    "confirmed_with_user": {"type": "boolean", "description": "kickoff.json.pattern と mode が不一致のとき AskUserQuestion で追認した結果。一致時は false のまま。"},
     "skill_creator_handoff_phase": {"type": "string"}
   }
 }

@@ -54,6 +54,7 @@ local_artifacts:
     - ../schemas/template-selection.schema.json
     - ../schemas/responsibility-slot.schema.json
     - ../schemas/build-flags.schema.json
+    - ../schemas/goal-seek-loop.schema.json   # loop実行系の周回progress契約 (with-goal-seek配線)
   prompts:
     - ../prompts/scaffold.md
     - ../prompts/responsibility-emit.md

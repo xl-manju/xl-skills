@@ -1,5 +1,6 @@
 ---
 name: run-skill-intake-aggregator
+prefix: run
 description: 非エンジニアと協働してスキル要件を引き出すとき、Markdown/JSON/Notion ページを Keychain 経由で短時間に一括生成したいときに使う。
 allowed-tools:
   - Read
@@ -12,7 +13,6 @@ allowed-tools:
 kind: run
 user-invocable: true
 disable-model-invocation: true
-# local-ext: frontmatter-fields.md 未掲載の独自フィールド。要governance届出
 effect: external-mutation
 source: plugins/skill-intake
 source-tier: internal
@@ -130,33 +130,51 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 
 初回セットアップは `references/keychain-setup.md`。
 
-## Steps (orchestrator として)
+## ゴールシーク実行
 
-### Step 0: 前提検証
-```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py --check   # トークン有無確認 (中身は表示しない)
-python3 plugins/skill-intake/scripts/verify_notion_schema.py --on-conflict skip-warn   # database_id は schema.database_id_default を fallback で使用
-```
-exit 44 なら `references/keychain-setup.md` を案内して停止。
+固定 Steps を持たず、`workflow-manifest.json` の `phases[]` (R1-R11) を SSOT として参照する。orchestrator は完了チェックリストを唯一の停止条件とし、未達 phase を都度埋めて反復する。
 
-### Step 1-11: 12 SubAgent 順次起動 (Step 4 で interviewer⇄excavator がペア稼働)
-各 SubAgent 完了後に `python3 plugins/skill-intake/scripts/quality_gate.py output/<hint>/intake.json` で自己採点 PASS を必須化。
+### ゴール (Goal)
 
-### Step 12: cross-check + 公開 (single entry pipeline)
-```bash
-python3 plugins/skill-intake/scripts/cross_check.py output/<hint>/intake.json output/<hint>/intake.md
-python3 plugins/skill-intake/scripts/verify_notion_assets.py output/<hint>/notion-manifest.json
-python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
-  --intake output/<hint>/intake.json \
-  --manifest output/<hint>/notion-manifest.json
-```
-`intake_publish_pipeline.py` が内部で render → quality_gate (blocks 網羅性込) → publish を順に exec し、いずれかが exit !=0 ならその時点で停止する。SubAgent `skill-intake-notion-publisher` および sibling skill `run-notion-intake-publish` はいずれもこの pipeline を **単一発火点** として呼び、独自に render/publish スクリプトを直叩きしない (二重発火点禁止)。
+非エンジニアの skill 要望から、`intake.md` (Markdown 正本) + `intake.json` (JSON 副本) + Notion ページが揃い、`intake-final.schema.json` 準拠・5 軸全充足・quality-rubric 閾値以上・図解マスト 8 ルール充足・Keychain 認証経由の Notion 公開が成功している状態。
+
+### 目的・背景 (Why)
+
+完全非技術者を含む不特定多数から「本人も言語化できていない真の課題」を引き出すには、11 phase 直列固定ではなく `quality_score` / completeness / asset 検証の未達点を都度ピンポイントで埋める必要がある。固定 Steps は phase 間の差し戻し (例: R8 で section 充足 FAIL → R4 elicitation 再実行) に弱く、回帰リスクが高い。
+
+### 完了チェックリスト (Checklist)
+
+- [ ] `workflow-manifest.json` の全 R-phase (R1-R11) が PASS で完了し、`output/<hint>/intake.md` `intake.json` `notion-url.txt` `notion-blocks.json` `self-update.json` が揃っている
+- [ ] `python3 plugins/skill-intake/scripts/render-intake-final.py` が JSON Schema (`intake-final.schema.json`) + adopted 一意性検証で PASS
+- [ ] `python3 plugins/skill-intake/scripts/check_completeness.py` で 5 軸 (出力先・情報源・共有相手・真の課題・ナレッジ資産) 全充足
+- [ ] `python3 plugins/skill-intake/scripts/quality_gate.py output/<hint>/intake.json` が rubric 閾値以上で PASS、`validation.quality_score` に書き戻し済み
+- [ ] `python3 plugins/skill-intake/scripts/cross_check.py output/<hint>/intake.json output/<hint>/intake.md` PASS (md/json 整合)
+- [ ] `python3 plugins/skill-intake/scripts/verify_notion_assets.py output/<hint>/notion-manifest.json` で PNG/Mermaid 12 + SVG 8 のうち使用分が全て生成済み (All-or-Nothing)
+- [ ] `python3 plugins/skill-intake/scripts/keychain_get_secret.py --check` exit 0、Notion トークンは平文で成果物・ログに残置なし
+- [ ] `python3 plugins/skill-intake/scripts/intake_publish_pipeline.py --intake … --manifest …` が単一発火点として render→quality_gate→publish を完走し Notion URL 取得済み
+- [ ] 12 SubAgent (kickoff / assumption-challenger / user-profiler / interviewer ⇄ purpose-excavator / option-presenter / visualizer / summarizer / next-action-advisor / handoff / notion-publisher / self-updater) 各々の出力 handoff が `schemas/handoff.schema.json` 準拠で残されている
+- [ ] orchestrator-trace.json に各 phase の入出力パス・exit code・所要時間が記録され、再実行で順序一致 (determinism)
+- [ ] 固有名詞 (個人名 / 社名 / 固定 page_id) を成果物に直書きしていない (variable_abstraction)
+
+### ゴールシークループ
+
+正本 `plugins/skill-creator/skills/run-skill-create/SKILL.md` の「ゴールシーク実行」章 (5 ステップ: 現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+
+- **未達評価の単位は phase**: `workflow-manifest.json` の `phases[]` を SSOT とし、checklist 未充足項目 → 対応 phase (R1-R11) を特定 → 起動 → exit code と handoff を trace へ追記 → 自己評価を反復。
+- **fatal_exit_codes**: 各 phase の `fatal_exit_codes: [2, 3]` を受けたら即中断し `orchestrator-trace.json` に error を残す。schema 違反は 3 回まで自己修正後 `skill-intake-handoff` へ escalate。
+- **差し戻しパス**: R8 (completeness) FAIL → R4 (elicitation) 再実行 / R9 (quality) 閾値未達 → R7 (visualize) または R4 へ / R11 (publish) FAIL → R10 (render) または asset 再生成へ。
+- **context:fork**: 12 SubAgent は分離 context で起動し、親へは差分と exit code のみ返却 (中間ログを親に流さない)。
+- **単一発火点**: Notion 公開は `intake_publish_pipeline.py` のみを発火点とし、SubAgent `skill-intake-notion-publisher` と sibling `run-notion-intake-publish` から二重に render/publish を直叩きしない。
+- **All-or-Nothing 公開**: PNG 1 枚でも欠けたら `verify_notion_assets.py` で停止。途中まで公開せず asset 再生成へ戻す。
+- **自動修正禁止**: quality_gate / completeness FAIL は根本原因をユーザーに提示し、LLM 判断で内容を勝手に直さない (推測補完禁止)。
+
+各 phase の `id` / `dependsOn` / `resourceIds` / `fatal_exit_codes` は `workflow-manifest.json` 参照。R-phase 詳細責務は `prompts/R<n>.md`、entry orchestration は `prompts/main.md`。
 
 ## Slash Commands
 
 | コマンド | 用途 |
 |--|--|
-| `/intake [topic]` | 本スキルを起動 (= 12 phase 全実行) |
+| `/intake [topic]` | 本スキルを起動 (= 11 phase / 12 SubAgent 全実行。interviewer ⇄ excavator はペア稼働で 1 phase) |
 | `/intake-publish <hint>` | 既存 intake を Notion 再公開のみ |
 | `/intake-status <hint>` | 進行中ヒアリングの状況確認 |
 
@@ -209,7 +227,7 @@ python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
 
 `skill-intake-kickoff` / `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-interviewer` / `skill-intake-purpose-excavator` / `skill-intake-option-presenter` / `skill-intake-visualizer` / `skill-intake-summarizer` / `skill-intake-next-action-advisor` / `skill-intake-handoff` / `skill-intake-notion-publisher` / `skill-intake-self-updater`
 
-### Scripts (plugin 直下 `scripts/`, 34 本)
+### Scripts (合計 37 本 = plugin 直下 `scripts/` 34 本 + `skills/<name>/scripts/` 配下 3 本)
 
 `keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 既存 27 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
 

@@ -81,21 +81,24 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-claude-code-skill-spec 配下の R1 SubAgent (context fork: 推奨。caller context を汚さない)。
+- ref-claude-code-skill-spec 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. resource-map.yaml を読み、scope に該当する file をフィルタする。
-2. 各 file 内を query で keyword / 章番号マッチし、ヒット箇所の前後 ±10 行を抽出する。
-3. ヒットが複数なら score 降順に最大 5 件まで残し、path + 行範囲が同一なら dedupe する。
-4. 抽出は原文のまま改変せず、要約は別フィールド `summary` に分離する。
-5. 1 件も無ければ `matches: []` + 近傍 topic の `suggestions` を返す。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し Claude Code 公式 / ローカル skill 仕様の該当章を逐語抽出して返す。
+- **背景**: caller は仕様確認のみを必要とし、仕様改訂・実装判断は ref-* の責務外。公式 / ローカルの混同は誤実装の主因になるため区別を保持する。
+- **達成ゴール**: query に該当する仕様行と前後文脈が官民区別付きで引用され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま参照に使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] query に対する false positive を含んでいないか
-- [ ] 原文改変していないか (逐語抽出)
-- [ ] official / local 区別を保持したか
-- [ ] 該当ゼロ時に suggestions を返したか
-- [ ] 出力が token budget (<= 2KB 目安) に収まるか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が references の実在行から逐語引用されている (改変ゼロ)
+- [ ] 呼出元責務外の情報 (仕様改訂提案 / 実装判断) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] query に対する false positive を含まない
+- [ ] official / local 区別を matches[].source で保持している
+- [ ] 要約は別フィールド `summary` に分離している (本文は逐語)
+- [ ] 該当ゼロ時は `matches: []` + 近傍 topic の `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

@@ -1,11 +1,11 @@
 # 品質チェック基準
 
 review-prompt.md（品質レビューエージェント）が参照する品質基準定義。
-validate_prompt.js（Script）の構造検証を補完する意味的品質チェック。
+validate-prompt.py（Script）の構造検証を補完する意味的品質チェック。
 
 ## Script vs LLM の検証範囲
 
-| 検証項目 | validate_prompt.js (Script) | review-prompt.md (LLM) |
+| 検証項目 | validate-prompt.py (Script) | review-prompt.md (LLM) |
 |---------|---------------------------|------------------------|
 | Layer 1-7の存在 | **担当** | - |
 | 変数テンプレート空チェック | **担当** | - |
@@ -74,7 +74,7 @@ validate_prompt.js（Script）の構造検証を補完する意味的品質チ�
 
 ### 3.1 変数テンプレート
 
-- `{{}}`（空の変数）がない → validate_prompt.jsで検出済み
+- `{{}}`（空の変数）がない → validate-prompt.pyで検出済み
 - 変数名が自己説明的（`{{顧客名}}`は良い、`{{x}}`は不可）
 - 同一変数名が一貫して使用されている
 
@@ -103,7 +103,7 @@ validate_prompt.js（Script）の構造検証を補完する意味的品質チ�
 
 ### 4.2 フォーマット品質
 
-- `#`コメントのみ使用（`====`、`----`なし → validate_prompt.jsで検出済み）
+- `#`コメントのみ使用（`====`、`----`なし → validate-prompt.pyで検出済み）
 - インデントが一貫している
 - フォーマット固有のルール（YAML: 2スペース、JSON: 日本語キー等）に準拠
 

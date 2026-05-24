@@ -10,7 +10,7 @@
 | name | main |
 | skill | run-intake-visualize |
 | responsibility | R1-deterministic-figure-placement (1 prompt = 1 責務 = 1 agent) |
-| layers_covered | [L2, L4, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/output.schema.json |
 | reproducible | true (アセットカタログからの選択は決定論的) |
 
@@ -71,24 +71,27 @@
 ### 4.3 セキュリティ
 - アセットファイルパスは workspace root 起点の相対パスで記録 (絶対 PATH 漏出回避)。
 
-## Layer 5: エージェント層 (実行主体定義)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `@visualizer` (決定論バッチ、LLM はカタログ照合のみ)
+- `@visualizer` (決定論バッチ、LLM はカタログ照合のみ、context-fork 不要)
 
-### 5.2 推論手順 (再現可能)
-1. section-figure-mapping.md でセクション→図種の対応表をロードする。
-2. 各セクションについてカタログから 1-3 図を選択する (新規創作禁止)。
-3. SVG は `render_to_image.py` で PNG 化し `output/<hint>/visuals/` に保存する。
-4. visuals.json (section → [{figure_id, type, png_path}]) を出力する。
-5. `verify-visuals.py` を実行し全セクション 1 図以上を確認する。
+### 5.2 ゴール定義
+- 目的: 全 12 セクションへカタログ既存図を決定論的に配置し Notion 互換 PNG を生成する。
+- 背景: 図解の創作は誤情報注入リスクが高く、可視化の網羅不足は intake の理解度を下げる。アセット制約と網羅性を機械で担保する。
+- 達成ゴール: visuals.json (output.schema.json 準拠) と `output/<hint>/visuals/*.png` が揃い、verify-visuals.py が PASS する状態。
 
-### 5.3 自己検証 checklist
-- [ ] 全 12 セクション (§0-§11) に 1 図以上配置されているか
-- [ ] SVG がすべて PNG 化されているか (Notion 互換性)
-- [ ] カタログ外の新規図を含めていないか
-- [ ] verify-visuals.py が PASS したか
-- [ ] determinism: 同 sheet + purpose で visuals.json の (section → figure_id) マッピングが一致するか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] 全 12 セクション (§0-§11) に 1-3 図が配置 (1 セクション 4 図以上なし)
+- [ ] SVG が全て PNG 化されて Notion 互換 (拡張子 `.png`、参照パスは workspace 相対)
+- [ ] visuals.json の figure_id が Mermaid 12 + SVG 8 アセットカタログの id 集合に包含 (新規創作ゼロ)
+- [ ] verify-visuals.py が PASS (網羅性 / 整合性)
+- [ ] 同 sheet + purpose で 2 回連続実行し visuals.json の (section → figure_id) が完全一致 (determinism)
+- [ ] sheet.md にない事実が図へ注入されていない (倫理ガード)
+
+### 5.4 実行方式
+- 固定手順を持たない。未充足チェック項目を特定→解消手順を都度立案 (カタログ照合 / PNG 化 / verify 起動など)→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
+- 逸脱時: 必須セクションに該当図がカタログに無い場合は Layer 4.1 に従い exit 2 で停止しエスカレーション。
 
 ## Layer 6: オーケストレーション層
 

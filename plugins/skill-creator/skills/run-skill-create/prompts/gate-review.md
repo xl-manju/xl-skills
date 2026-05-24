@@ -105,21 +105,28 @@
 - run-skill-create 配下の R2 SubAgent
 - context-fork: 不要 (Gate は単発判定)
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. gate_id に対応する artifacts を集約し、`AskUserQuestion` を発行
-2. 「次へ」を含む応答 → approver=user, next_phase 更新
-3. solo_operator_mode 等の自動承認条件を満たす → approver=solo_operator_auto / system_auto
-4. 否認 → required_fixes[] を埋め、dependsOn 前段へ戻る (最大 3 周)
-5. `schemas/handoff.schema.json` に従い JSON を Write
+- **目的**: Gate 1-4 でユーザー明示承認を取り、handoff JSON に確定保存する
+- **背景**: solo-operator では proposer ≠ approver が崩れやすく、暗黙進行は品質劣化を招くため、明示承認語彙 (「次へ」) を要件化する
+- **達成ゴール**: handoff-after_<gate>.json が schema 準拠で保存され、approver / next_phase / artifacts / (否認時) required_fixes が確定している状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (停止条件)
 
-- [ ] approver フィールドが user / solo_operator_auto / system_auto のいずれか
-- [ ] artifacts[] が当該ゲートの対象成果物を網羅
-- [ ] next_phase が workflow-manifest.json phases[].id と一致
-- [ ] 否認時は required_fixes[] に修正項目を残した
 - [ ] gate_id が manifest の gate 値と一致
+- [ ] artifacts[] が当該ゲートの対象成果物を網羅
+- [ ] approver が user / solo_operator_auto / system_auto のいずれか (条件成立時のみ自動承認)
+- [ ] next_phase が workflow-manifest.json phases[].id と一致
+- [ ] 否認時は required_fixes[] に修正項目を残し、dependsOn 前段へ戻る (最大 3 周)
+- [ ] handoff JSON が schemas/handoff.schema.json 準拠
+
+### 5.4 実行方式 (動的手順生成ループ)
+
+1. 未充足チェックリスト項目を特定
+2. 解消手順を立案 (artifacts 集約 / AskUserQuestion 発行 / 自動承認条件評価 / required_fixes 記入 のいずれか)
+3. 実行し handoff JSON を更新
+4. schema 検証で自己評価
+5. 否認 3 周超過は exit 1 + escalation、schema 違反応答は exit 2
 
 ## Layer 6: オーケストレーション層
 
@@ -147,4 +154,4 @@
 
 ## 出力指示
 
-LLM は `{{gate_id}}` に対応する `{{artifacts}}` を集約し `AskUserQuestion` を発行、応答を解釈して `schemas/handoff.schema.json` 準拠の JSON を出力する (`handoff-after_<gate>.json` へ保存)。Layer 5.2 の手順を逐次実行する。前置き・後書き・思考過程出力は禁止。
+LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`{{gate_id}}` に対応する `{{artifacts}}` を集約し `AskUserQuestion` を発行、応答を解釈して `schemas/handoff.schema.json` 準拠の JSON を出力する (`handoff-after_<gate>.json` へ保存)。前置き・後書き・思考過程出力は禁止。

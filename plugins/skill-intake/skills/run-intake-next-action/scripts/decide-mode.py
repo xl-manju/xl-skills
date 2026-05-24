@@ -41,6 +41,7 @@ def main():
         "reason": reason,
         "multi_skill_suspicion": multi,
         "split_candidates": splits,
+        "confirmed_with_user": False,
         "skill_creator_handoff_phase": handoff,
     }
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

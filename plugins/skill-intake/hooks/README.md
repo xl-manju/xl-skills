@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PLUGIN_ROOT/plugins/skill-intake/hooks/pre-publish-secret-scrub.sh"
+            "command": "$CLAUDE_PLUGIN_ROOT/hooks/pre-publish-secret-scrub.sh"
           }
         ]
       }
@@ -32,7 +32,7 @@
 }
 ```
 
-`$CLAUDE_PLUGIN_ROOT` は plugin がインストールされたルート。worktree や直接編集中は絶対パスに置換しても良い。
+`$CLAUDE_PLUGIN_ROOT` は **個別 plugin の installed root** (`<...>/plugins/skill-intake/`) を指す (Claude Code 公式仕様)。よって hook command は `$CLAUDE_PLUGIN_ROOT/hooks/<file>` の形で記述する (リポジトリルートからの相対ではない)。worktree や直接編集中は絶対パスに置換しても良い。
 
 ### 2. 実行権限
 

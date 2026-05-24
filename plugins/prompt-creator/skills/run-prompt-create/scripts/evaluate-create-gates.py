@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# /// script
+# name: evaluate-create-gates
+# purpose: run-prompt-create の elegant-review 起動可否 / fast_mode 適用可否をファイル状態のみで機械決定する
+# inputs:
+#   - argv: --prompt-name <name>, --brief <path>, --output <path>, --fast, --threshold <int>
+#   - file: brief JSON (output_path 推定用), git diff --numstat HEAD
+# outputs:
+#   - stdout: 判定 JSON {"elegant_review_required": bool, "fast_mode": bool, "diff_lines": int, "reasons": [...]}
+# contexts: [C]
+# network: false
+# write-scope: none
+# dependencies: []
+# ///
 """evaluate-create-gates.py
 
 run-prompt-create の Step 4 (elegant-review) 起動可否 / fast_mode 適用可否を

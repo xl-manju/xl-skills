@@ -124,6 +124,14 @@ PENDING_RENAME_PATHS = {
     # PR #13: elegant-review v2 / plugin-package-check の新規 verb (emit/aggregate) pending rename
     "plugins/skill-creator/skills/run-elegant-review/scripts/emit-observable.py",
     "plugins/skill-creator/skills/run-plugin-package-check/scripts/aggregate-pkg-findings.py",
+    # prompt-creator js→py 移行 (PR: spec-reflection): 旧 JS 名 (merge/verify/scaffold/generate/convert/log)
+    # を踏襲。許可動詞へのリネームは後続 Change Governance PR で SKILL.md/agent/manifest 参照と同時実施。
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py",
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py",
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/scaffold-prompt.py",
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/generate-sheet.py",
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/convert-format.py",
+    "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

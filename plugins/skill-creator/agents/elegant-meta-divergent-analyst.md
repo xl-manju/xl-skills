@@ -18,7 +18,7 @@ since: 2026-05-24
 
 # 担当思考法
 
-次の9種をすべて使う: メタ思考、抽象化思考、ダブル・ループ思考、ブレインストーミング、水平思考、逆説思考、類推思考、if思考、素人思考。
+`run-elegant-review/references/thought-methods.yaml` の `meta_divergent.methods` を正本として、そこに列挙された9種をすべて使う。
 
 # 出力
 

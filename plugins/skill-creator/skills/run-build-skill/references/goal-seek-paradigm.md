@@ -63,6 +63,18 @@ source-tier: internal
 
 > `run-goal-seek` はこの分離を内蔵する（ループを SubAgent に fork して起動）。生成される実行系スキルがゴールシークを内部で回す場合も、同様に SubAgent / Agent Team へ切り離して起動すること。
 
+## 実行可能機構としての配線（with-goal-seek combinator）
+
+ゴールシークは「散文で書く」だけでなく、生成スキルに**実行可能な機構として配線**される。これにより、配布先のどの環境でも「ユーザーの悩み（要望）をゴールに変換し、達成まで自律ループを回す」挙動が同じ仕組みで再現される。
+
+- **default-ON の対象**: loop 実行系 kind（`run` / `wrap` / `delegate`）は `render-combinators.py` が `with-goal-seek.patch` を**既定で自動適用**する（`--no-goal-seek` で opt-out）。`assign-*`（一発採点でループしない評価系）と `ref-*`（read-only）は対象外。
+- **frontmatter `goal_seek:`**: 2 つの独立軸を宣言する。**(1) 外部依存軸 `engine`**（既定 `inline`＝本 Skill 内の AI 推論で自己完結・外部スキル不要／`run-goal-seek` は同梱時のみ任意で使う重量オーケストレータで必須ではない）。**(2) context 衛生軸 `fork`**（既定 `subagent`＝反復を分離 context で実行し親へ最終差分のみ返す。Claude Code 組込みの Agent/Task であり外部スキル依存ではない／`agent-team`／`inline` は軽量単発の opt-down）。加えて `spec: eval-log/goal-spec.json`（あればロード、無ければ AI が推定）/ `progress: eval-log/<skill>-progress.json` / `max_loops`（既定5）。**engine の自己完結性は with-knowledge の「外部依存ゼロ・同梱完結」原則と対称**であり、fork の分離既定は [[feedback-goalseek-session-separation]]（反復は分離 context で実行し親へ最終差分のみ）に従う。
+- **`### ゴールシーク配線` サブセクション**: goal-spec のロード、周回 progress JSON 記録、コンテキスト分離、打ち切り規約を本文に明記する。
+- **周回状態の契約**: 各周回の状態は `schemas/goal-seek-loop.schema.json` 準拠の `eval-log/<skill>-progress.json`（`iteration` / 各 checklist 項目 `{id,text,status}` / `open_issues` / `status`）に記録する。観測可能性をこの JSON で担保する。
+- **lint 強制**: `lint-goal-seek.py` が loop 実行系に対し、(1) 二値チェックリスト項目（`- [ ]`/`- [x]`）の存在、(2) 曖昧語（「丁寧」「品質を高める」等）の不在を **violation (exit 1)** で検査し、(3) `### ゴールシーク配線` の不在を **warning** で助言する（既存スキルは次回更新時に combinator で注入）。CI は `governance-check.yml` が全生成スキルへ実行する。
+
+> この二層（散文で意図を示し、combinator + schema + lint で機構を強制する）により、再現性は仕組みで担保しつつ、ループ Step 2 の「何をするか」は AI の自由度に委ねる。
+
 ## チェックリストの良し悪し
 
 - **良い**: 「`eval-log/result.json` が schema 検証を通過する」「テストが全て green」「成果物が後続 skill の入力契約を満たす」— 観測可能・二値判定。

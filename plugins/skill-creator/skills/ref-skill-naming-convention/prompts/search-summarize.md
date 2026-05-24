@@ -81,21 +81,26 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-skill-naming-convention 配下の R1 SubAgent (context fork 推奨)。
+- ref-skill-naming-convention 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. resource-map.yaml で scope を解決する。
-2. query が条文番号なら articles-full.md の該当条を完全抽出する。
-3. prefix 名なら prefix-axis-matrix 該当行と decision-table 該当ケースを併記する。
-4. role-suffix なら role-suffix-vocabulary 該当行と承認手続きパスを抽出する。
-5. 該当ゼロなら近傍 prefix / suffix を `suggestions` に入れる。
-6. `naming-rule.schema.json` (任意) があれば pattern / allowed_prefixes を併せて返す。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し命名規約の該当条文 / prefix matrix / role-suffix / 承認手続きを返す。
+- **背景**: caller は skill 命名判断のみを必要とし、規約改訂は ref-* の責務外。prefix 軸欠落や条文ずれは命名違反の主因のため厳守する。
+- **達成ゴール**: query に該当する条文・prefix 軸 4 列・role-suffix 承認パスが引用され、未定義 prefix に warn が付与され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が命名にそのまま使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] 条文番号と本文の対応がずれていないか
-- [ ] prefix 軸 4 列 (発動主体/context/write 権限/評価対象) を欠落させていないか
-- [ ] role-suffix の承認手続きパスを欠落させていないか
-- [ ] 未定義 prefix に warn を付けたか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が articles-full.md / prefix-axis-matrix / role-suffix-vocabulary の実在行から逐語引用されている
+- [ ] 呼出元責務外の情報 (規約改訂 / 新規 prefix 追加) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] 条文番号と本文の対応がずれていない
+- [ ] prefix 軸 4 列 (発動主体/context/write 権限/評価対象) を欠落させていない
+- [ ] role-suffix の承認手続きパスを欠落させていない
+- [ ] 未定義 prefix に warn を付与している
+- [ ] `naming-rule.schema.json` 存在時は pattern / allowed_prefixes を併記
+- [ ] 該当ゼロ時は近傍 prefix / suffix を `suggestions` に入れる (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

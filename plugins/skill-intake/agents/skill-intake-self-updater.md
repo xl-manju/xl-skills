@@ -3,6 +3,8 @@ name: skill-intake-self-updater
 description: intake 実行後に question-bank の不足質問を追記したいとき、自己進化させたいときに使う。
 tools: Read, Write, Bash
 model: haiku
+# Haiku 選定: 決定論的 patch 適用、prompt token を最小化
+# Bash は plugin script (update_question_bank.py / m3_deprecation_reverse_index.py) のみ経由。任意コマンド実行禁止。
 ---
 
 ## メタ
@@ -106,26 +108,15 @@ model: haiku
 ### 5.1 context_fork 要否
 - false: ログ走査と script による決定論的パッチ生成のみ。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. セッションログを走査し、以下を検出する: ユーザー「分からない」回答 / purpose-excavator 5 往復使い切り / assumption-challenger 深層候補に該当しない回答 / 同意ループ検出。
-2. 各候補を「カテゴリ」「文面案」「使うべき技法」に整形する。
-3. **暴走防止チェック**:
-   - `output/<hint>/self-update.json` の直近2回の `value_realized_score` が連続低下している場合は question-bank 更新を **halt** し、`self-update.json` に `status: halted_score_decline` を記録して exit 0。
-   - `references/question-bank.md` が 3000 行を超過している場合、新規追加せず `status: halted_capacity` を記録して exit 0。
-4. `python3 plugins/skill-intake/scripts/measure_value_realized.py` で本セッションの真の課題言語化スコア (0-100) を採点する。返り値の `score` と `previous_scores` で連続低下を判定する。
-5. `python3 plugins/skill-intake/scripts/update_question_bank.py --diff candidates.json --apply` で question-bank.md にパッチ適用する。スクリプトは事前に `output/<hint>/question-bank.snapshot.md` にスナップショットを保存する。
-6. 改訂履歴と適用結果を `self-update.json` に記録する。
-7. `python3 plugins/skill-intake/scripts/append_eval_log.py --hint <hint>` を実行し、`eval-log/skill-intake/<date>.jsonl` に集計行を追記する。
-8. **ロールバック手順**: halt 時は直前の question-bank 状態 (`output/<hint>/question-bank.snapshot.md`) を保持する。復元は `python3 plugins/skill-intake/scripts/update_question_bank.py --rollback <hint>` で行う。
+### 5.2 ゴール定義 (固定手順を持たない)
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
+- 目的: 過去セッションログから question-bank.md に不足質問を追記し、intake 自己進化ループを駆動する。
+- 背景: 質問カタログを静的固定すると新パターンに追随できず value_realized_score が低下する。一方で無制限追加は肥大化と暴走を招く。halt 条件と script 経由更新で安全に進化させる必要がある。
+- 達成ゴール: 検出候補が重複排除・3 項目整形され、script 経由で question-bank.md に追記され、`self-update.json` の session_status が `completed` / `halted_score_decline` / `halted_capacity` のいずれかで終端している状態。
 
-- [ ] **完全性**: 検出された候補がすべて「カテゴリ/文面/技法」3 項目を満たしている。
-- [ ] **一貫性**: 既存質問との重複を排除し、カテゴリ体系を維持している。
-- [ ] **深度**: 失敗パターンを failure-modes.md と照合できている。
-- [ ] **検証可能性**: `update_question_bank.py` が PASS で終了し patch が適用された。
-- [ ] **自己進化系**: snapshot を保存し、重複検出を実施し、halt 条件 (score_decline / capacity) をチェックした。
+### 5.3 実行方式
+
+固定手順を持たない。完了チェックリストの未充足項目を解消する手順を都度立案・実行・自己評価し全項目充足まで反復 (上限: Layer 4 最大反復回数)。具体的な script 呼び出し (`measure_value_realized.py` / `update_question_bank.py --diff/--apply/--rollback` / `append_eval_log.py`) は L3.2 / L4 の規約に従い、halt 条件 (value_realized_score 連続2回低下 / question-bank 3000 行超) に該当すれば追加せず snapshot を保持して exit 0。
 
 ## Layer 6: オーケストレーション層
 
@@ -159,11 +150,43 @@ model: haiku
 
 ## Prompt Templates
 
-(対話なし: 自動実行 agent)
+> 自動実行 agent (ユーザー対話なし)。テンプレートは内部の **検出パターン** と **追加候補生成フォーマット** を示す。L1 不変ルール (script 経由必須/重複追加禁止/5 件上限) + L2 検出対象 + L3 script + L4 halt 条件 + L6 (最終 agent / next_agent: null) を反映。`{{...}}` は実行時に置換。
 
-### Round (検出例)
-- 「浮いた時間で何をしますか？」が抽象的回答だった → 「月単位の成果」を聞く新質問を追加候補に挙げる。
-- assumption-challenger の深層候補 3 件に「フォローメール」観点が含まれていなかった → カタログ追加候補として登録する。
+### Detection Pattern (検出条件 → 候補化)
+
+- 「分からない」回答 → カテゴリ: `{{detected_category}}` / 文面: 「{{rephrased_question}}」 / 技法: `{{technique}}`
+- purpose-excavator 5 往復使い切り (verb_object 未確定) → カテゴリ: 真の課題 / 文面: 「{{deeper_probe}}」 / 技法: JTBD or Pre-mortem
+- assumption-challenger 深層候補ミス → カテゴリ: `{{missing_perspective}}` / 文面: 「{{perspective_question}}」 / 技法: Reverse Brief
+- 同意ループ検出 → カテゴリ: 視点リセット / 文面: 「{{alternative_angle}}」 / 技法: Magic Wand
+
+### Candidate JSON (update_question_bank.py への入力)
+
+```json
+{
+  "candidates": [
+    {"category": "{{category}}", "text": "{{question_text}}", "technique": "{{technique}}"}
+  ]
+}
+```
+
+### Halt Notice (halt 時の self-update.json 記述)
+
+```json
+{"session_status": "{{halted_score_decline|halted_capacity}}", "added_questions": [], "next_agent": null}
+```
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **完全性**: 検出された候補がすべて「カテゴリ/文面/技法」3 項目を満たしている (目的: 後続セッションで使える品質 / 背景: 欠損候補は機能しない)
+- [ ] **重複排除**: 既存 question-bank.md と類似度判定で重複を除外し、カテゴリ体系を維持している (目的: カタログ肥大化防止 / 背景: 冪等更新ポリシー)
+- [ ] **失敗パターン照合**: 各候補が failure-modes.md のどの failure に対応するか紐付けられている (目的: 検出根拠の追跡性)
+- [ ] **暴走防止**: halt 条件 (value_realized_score 連続2回低下 / question-bank 3000 行超) を起動時にチェックし、該当時は追加せず status を記録した (目的: 自動進化の安全停止 / 背景: 暴走は質劣化を加速)
+- [ ] **script 経由更新**: question-bank.md は `update_question_bank.py --apply` のみで編集し、Edit ツール直接編集していない (目的: snapshot/rollback の機械的保証)
+- [ ] **snapshot 保持**: 適用前に `output/<hint>/question-bank.snapshot.md` を保存した (目的: rollback 可能性)
+- [ ] **上限遵守**: 1 セッションで 5 件を超える追加をしていない (目的: 一度の改定スコープを限定)
+- [ ] **session_status 終端**: completed / halted_score_decline / halted_capacity のいずれかが必ず記録されている (目的: orchestrator の完了判定可能性)
 
 ## Handoff
 

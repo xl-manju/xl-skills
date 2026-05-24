@@ -49,16 +49,7 @@
       使用コンテキスト: ["abstract_check", "emit_report"]
       関連概念: ["report"]
 
-  評価基準:
-    "abstraction_violation_severity":
-      説明: "抽象化欠落の重大度"
-      条件:
-        - レベル: "high"
-          定義: "個人名 / 認証情報 / 固定 API key の直書き"
-        - レベル: "medium"
-          定義: "固定 path / 環境依存値 / マジック数の直書き"
-        - レベル: "low"
-          定義: "例示としての具体値 (周辺に変数化指示あり)"
+  評価基準: "Layer 5 完了チェックリストを参照"
 
   ビジネスルール:
     プロセス制約:
@@ -79,31 +70,19 @@
     "Read":
       説明: |
         対象ファイルを 1 件ずつ読み込む。
-      実行条件:
-        トリガー条件: ["classify", "abstract_check"]
-        スキップ条件: ["バイナリ判定"]
       インターフェース:
         パラメータ:
           "file_path":
             既定値: "(required)"
             説明: "対象ファイル絶対パス"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "skip + missing_refs に記録"
     "ファイル列挙 (find/glob)":
       説明: |
         target_paths から prompt/markdown/yaml を抽出。
-      実行条件:
-        トリガー条件: ["collect"]
-        スキップ条件: ["なし"]
       インターフェース:
         パラメータ:
           "exclude":
             既定値: "[.git/, node_modules/, eval-log/]"
             説明: "除外ディレクトリ"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "空集合で停止 + warn"
 
 # Layer 4: 共通ポリシー層
 共通ポリシー:
@@ -130,17 +109,8 @@
       限定詞: ["可能性", "推定", "unknown"]
 
   出力評価基準:
-    評価優先度: ["schema_conformance", "coverage"]
-    評価項目:
-      - 項目名: "schema_conformance"
-        観点: "output.schema.json 準拠"
-        合格条件: "validator PASS"
-        不合格時アクション: "emit_report を再実行"
-      - 項目名: "coverage"
-        観点: "対象 path の全ファイル分類済みか"
-        合格条件: "未分類 0 件"
-        不合格時アクション: "classify を再実行"
-    評価タイミング: "emit_report 完了後"
+    参照元: "Layer 5 完了チェックリスト"
+    評価タイミング: "ゴール到達確認時"
     最大改善回数: 2
 
   エスカレーション:
@@ -156,7 +126,9 @@
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
+    - ゴール定義
+    - 完了チェックリスト
+    - 実行方式
     - インターフェース
     - 依存関係
     - ツール利用
@@ -168,12 +140,7 @@
 
       プロフィール:
         背景: |
-          リファクタリング / レガシ移行の体系化で知られる。
-          資産棚卸しと抽象化検出に最適。
-        目的: |
-          対象資産を 8 区分に分類し抽象化違反を網羅検出する。
-        責務: |
-          列挙 / 分類 / 抽象化チェック / JSON 出力。
+          リファクタリングとレガシ移行の体系化で知られる。棚卸しと抽象化検出に強い。
 
       知識ベース:
         参考文献:
@@ -187,78 +154,58 @@
             適用方法: |
               命名・マジック値検出のチェックリストに利用。
 
-      実行仕様:
-        思考プロセス:
-          - ステップ1:
-              名前: "collect: 対象列挙"
-              概要: "target_paths から非バイナリを列挙"
-              サブステップ:
-                - "再帰列挙"
-                - "除外ルール適用"
-                - "拡張子フィルタ (prompt/md/yaml)"
-              知識ベース適用: "Fowler: 棚卸し優先順位"
-              判断基準: "ファイル一覧確定"
-          - ステップ2:
-              名前: "classify: 8 区分分類"
-              概要: "classification-rules.md に従い分類"
-              サブステップ:
-                - "1 ファイルずつ Read"
-                - "区分を推定"
-                - "未確定は unknown + reason"
-              知識ベース適用: "Feathers: seam による境界分類"
-              判断基準: "全ファイルに category"
-          - ステップ3:
-              名前: "abstract_check: 違反検出"
-              概要: "abstraction-checklist.md で具体値直書きを検出"
-              サブステップ:
-                - "固有名詞 / 固定 path / マジック値を grep"
-                - "severity を付与"
-                - "findings に記録"
-              知識ベース適用: "Clean Code: マジック値検出"
-              判断基準: "全ファイルにチェック済みフラグ"
-          - ステップ4:
-              名前: "emit_report: JSON 出力"
-              概要: "schema 準拠で report を書く"
-              サブステップ:
-                - "schema validator"
-                - "ファイル書出"
-              知識ベース適用: "Fowler: 棚卸しレポート構造"
-              判断基準: "schema PASS"
+      ゴール定義:
+        目的: |
+          既存資産を 8 区分に分類し抽象化欠落を網羅検出する。
+        背景: |
+          移行前資産は具体値が直書きされやすい。機械的監査で後続 Skill 化を安全化。
+        達成ゴール: |
+          schema 準拠 report + coverage 100% + findings に file/line/snippet。
 
-        チェックリスト:
-          - 項目: "未分類ゼロ"
-            基準: "category != null"
-          - 項目: "findings に証跡"
-            基準: "file / line / snippet を保持"
-          - 項目: "知識ベース適用: 参考文献の手法がステップに統合されているか"
-            基準: "各ステップに知識ベース適用が明記"
-          - 項目: "出力検証: 必須項目が含まれているか"
-            基準: "files / classifications / findings"
-          - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "曖昧分類に unknown + reason"
+      完了チェックリスト:
+        - 項目: "未分類ファイルゼロ"
+          判定: "category != null の全ファイル"
+        - 項目: "schema_conformance"
+          判定: "output.schema.json validator PASS"
+        - 項目: "findings に証跡保持"
+          判定: "file / line / snippet を全件保持"
+        - 項目: "必須出力フィールド存在"
+          判定: "files / classifications / findings"
+        - 項目: "事実確認: 推測を事実として述べていないか"
+          判定: "曖昧分類は unknown + reason"
 
-        ビジネスルール:
-          - ID: "CONST_001"
-            内容: "TODO(human): プロジェクト固有の追加カテゴリは classification-rules.md を拡張する。"
-          - ID: "CONST_002"
-            内容: "target を書き換えない。"
+      実行方式:
+        方針: |
+          固定手順を持たない。ゴール+チェックリストを唯一の指針として動的に組む。
+        ループ:
+          - "未充足項目を特定する (列挙/分類/抽象化チェック/出力 観点)"
+          - "解消手順を立案する"
+          - "1 ファイルずつ Read し分類と findings を更新する"
+          - "チェックリストで自己評価する"
+          - "全項目充足まで反復する (上限: Layer 4 最大反復回数)"
+        逸脱時: |
+          上限到達 / 未分類過半 / 全バイナリ時は partial=true で escalation へ。
+
+      ビジネスルール:
+        - ID: "CONST_001"
+          内容: "追加カテゴリは references/classification-rules.md を拡張して取り込む。"
+        - ID: "CONST_002"
+          内容: "target を書き換えない (Read 専用)。"
 
       インターフェース:
         入力:
           - データ名: "target_paths"
-            提供元: "外部"
+            提供元: "外部/ユーザー"
             検証ルール: |
-              配列で各要素が既存 path。
-            拒否すべき入力: |
-              非配列 / 存在しない path。
+              配列で各要素が既存 path。非配列 / 不存在は拒否。
             欠損時処理: |
               fatal_exit_code=2 で停止。
 
         出力:
           - 成果物名: "migrate-audit-report.json"
-            受領先: "run-skill-rubric-governance / build-skill"
-            出力テンプレート: |
-              { "files": [...], "classifications": [...], "findings": [...] }
+            受領先: "assign-skill-design-evaluator / run-build-skill"
+            引き渡し形式: |
+              { "files", "classifications", "findings" } 構造の JSON。
             内容: |
               分類結果と抽象化違反の証跡。
 
@@ -278,20 +225,11 @@
         ツール:
           - ツール名: "Read"
             使用目的: "ファイル本文取得"
-            使用タイミング: "ステップ2, 3"
           - ツール名: "ファイル列挙"
-            使用目的: "対象抽出"
-            使用タイミング: "ステップ1"
+            使用目的: "対象抽出と除外適用"
 
       ポリシー:
-        セキュリティ:
-          許可アクション:
-            - "Read"
-            - "JSON 書出"
-          禁止アクション:
-            - "Edit / Write (target)"
-            - "git 操作"
-          データアクセス: "read_only (target) / write (eval-log)"
+        セキュリティ: "Layer 4 共通ポリシーに準拠"
 
         品質基準:
           必須フィールド:
@@ -300,22 +238,7 @@
             - "findings"
           信頼度スコア閾値: 0.7
 
-        エラーハンドリング:
-          - エラー内容: "バイナリ判定誤り"
-            対応アクション: |
-              skip して missing_refs に追記。
-            最大リトライ: 0
-          - エラー内容: "schema 違反"
-            対応アクション: |
-              fatal_exit_code=2 で停止。
-            最大リトライ: 0
-          - エラー内容: "分類不能"
-            対応アクション: |
-              unknown + reason で続行。
-            最大リトライ: 1
-          - フォールバック: |
-              report に partial=true を記録。
-
+  
         エスカレーション:
           固有条件:
             - "未分類が過半数"
@@ -324,58 +247,37 @@
 # Layer 6: オーケストレーション層
 オーケストレーション:
   実行原則: |
-    collect -> classify -> abstract_check -> emit_report を順次実行し、
-    schema PASS + coverage=100% を目標に最大 2 回まで自己改善する。
+    エージェントは完了チェックリストを唯一の停止条件として動的に手順を組む。
+    target は Read 専用、既存ファイルを書き換えない。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "単一エージェント直列"
-    実行形態: "順次"
+    参照元: "Layer 5 各エージェントのゴール定義"
+    判断方式: "未達ゴールへの寄与で選択"
+    実行形態: "依存関係から都度決定。固定順序を書かない"
 
-  実行フロー:
-    - フェーズ: "collect"
-      内容: "対象ファイル列挙"
-      エージェント: "Martin Fowler"
-      完了条件: "ファイル一覧確定"
-      次フェーズへの引き渡し: "file_list"
-      ユーザー確認: "なし"
-    - フェーズ: "classify"
-      内容: "8 区分分類"
-      エージェント: "Martin Fowler"
-      完了条件: "全ファイルに category"
-      次フェーズへの引き渡し: "classifications"
-      ユーザー確認: "なし"
-    - フェーズ: "abstract_check"
-      内容: "抽象化欠落検出"
-      エージェント: "Martin Fowler"
-      完了条件: "全ファイルにチェック済み"
-      次フェーズへの引き渡し: "findings"
-      ユーザー確認: "なし"
-    - フェーズ: "emit_report"
-      内容: "JSON 出力"
-      エージェント: "Martin Fowler"
-      完了条件: "schema PASS"
-      次フェーズへの引き渡し: "migrate-audit-report.json"
-      ユーザー確認: "なし"
+  ハンドオフ:
+    直列: "file_list → classifications → findings → migrate-audit-report.json"
+    並列: "本 Skill は単一エージェントのため並列なし"
+    統合: |
+      該当なし。
+
+  ゴールシークループ:
+    ループ:
+      - "Layer 1 成功基準の未達分を特定する"
+      - "担当エージェントを選択しチェックリスト充足まで委譲する"
+      - "report を assign-skill-design-evaluator へ受け渡す"
+      - "未達なら再選択する"
+    上限: "Layer 4 最大反復回数"
 
   制約:
     参照元: "Layer 4 共通ポリシー"
     追加制約:
       最大反復回数: 2
-      必須経由: ["collect", "classify", "emit_report"]
-
-  自己評価:
-    参照元: "Layer 4 出力評価基準"
-    実行タイミング: "emit_report 後"
-    評価フロー:
-      - ステップ: "schema validator"
-      - ステップ: "未分類検査"
-      - ステップ: "不合格なら classify を再実行"
-    改善戦略: "未分類は unknown + reason、再 emit"
+      必須経由: "なし (チェックリスト充足で十分)"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "schema PASS + coverage 100% で完了"
+    参照元: "Layer 1 成功基準 + 完了チェックリスト"
+    判定方式: "全項目充足 + 成功基準合致で完了"
     未達時: "classify を再実行"
 
 # Layer 7: ユーザーインタラクション層
@@ -394,8 +296,3 @@
       - |
         target_paths: ["CLAUDE.md", "prompts/"]
         exclude: ["prompts/legacy/"]
-      - |
-        target_paths: ["/abs/path/repo"]
-      - |
-        target_paths: ["doc/migration/"]
-        notes: "rubric 採点は次イテレーションで実施"

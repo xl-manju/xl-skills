@@ -11,19 +11,30 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
-  - Bash(node *)
   - Bash(python3 *)
   - Bash(git *)
   - AskUserQuestion
   - Skill
 kind: run
+version: 2.1.0
 effect: local-artifact
 owner: team-platform
+contract:
+  intent: 7 層プロンプトを要望から成果物まで品質保証付きで送り出すため、elicit→build→evaluate→governance をゲート制御で連鎖させる orchestrator を提供する。
+  interface:
+    inputs: [topic, mode, fast]
+    outputs: [seven-layer-prompt.md, prompt-build-trace.json, findings.json, "handoff-*.json", completion-report]
+  invariant:
+    - Gate 1 (brief 確認) のみユーザー対話を行い、Gate 2-4 は workflow-manifest.json の auto_approve_conditions を機械評価すること
+    - 各フェーズは独立 Skill へ委譲し、本スキルは制御のみを担うこと
+    - evaluator / governance reviewer は必ず context:fork で起動すること (Sycophancy 防止)
+    - 各ゲート通過時に handoff-<step>.json を schemas/handoff.schema.json 準拠で永続化すること
+    - Layer 依存方向 L7→L1 を逸脱した生成物は Gate で差し戻すこと
 since: 2026-05-22
 script_refs:
   - scripts/evaluate-create-gates.py
-  - ../../scripts/verify_completeness.js
-  - ../../scripts/validate_prompt.js
+  - ../run-prompt-creator-7layer/scripts/verify-completeness.py
+  - ../run-prompt-creator-7layer/scripts/validate-prompt.py
 reference_refs:
   - references/resource-map.yaml
   - references/governance-params.json
@@ -129,7 +140,7 @@ responsibilities:
 `git diff` と `eval-log/prompt-build-trace.json` をもとに manifest 条件を機械評価し、全充足なら handoff を `solo_operator_auto` で保存。条件不充足時のみ findings を提示して停止する。
 
 ### Step 3b: 設計評価 (phase=design-evaluate)
-`Skill(assign-prompt-design-evaluator, args=<prompt_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings 提示 → Step 2 / TODO(human) 判断。
+`Skill(assign-prompt-design-evaluator, args=<prompt_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings を Step 2 へ自律差し戻し (最大 3 周回)。3 周未収束は Step 5 governance-decide へ昇格して solo_operator_auto 失効を判定する。
 
 ### Step 4: パラダイム評価 (phase=elegant-review, 条件付き)
 新規または >30 行変更時のみ。判定は `scripts/evaluate-create-gates.py`。`Skill(run-elegant-review, args=[prompt, <prompt_path>], context=fork)` で C1-C4 全 PASS 必須。
@@ -152,7 +163,8 @@ findings と C1-C4 を機械評価し、全充足なら handoff を `solo_operat
 - elegant_review: PASS (or N/A)
 - governance: solo_auto_approved (or manual)
 - output_path: <path>
-- TODO(human): [...]
+- residual_findings: [<未収束 finding 一覧 / 空配列なら全解消>]
+- follow_up_actions: [<AI が自動選定した次アクション>]
 ```
 
 ## Gotchas

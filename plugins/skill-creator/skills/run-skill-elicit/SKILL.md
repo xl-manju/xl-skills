@@ -63,6 +63,8 @@ rubric_refs       : [L0/L1の参照rubric Skill名]              # L2時必須
 open_questions    : [TODO(human)としてユーザーに返す未確定事項]
 cross_platform    : true|false                              # Mac/Windows両対応か (11章・14章 cross-platform run-* 雛形)
 os_preamble_required: true|false                           # OSプリアンブル (!`uname -s 2>/dev/null || ver`) 要否
+knowledge_loop    : null | {pattern, categories, source_kind} # Loop A: 生成スキルにナレッジ蓄積/検索/§12機構を組み込むか (with-knowledge combinator)
+consult_build_knowledge: true|false                         # Loop B: 作成時に skill-creator 蓄積知見を参照するか (既定 true)
 ```
 
 **完了条件**: skill_name / prefix / hierarchy_level / trigger_conditions / output_contract / boundary が全て確定。`prefix=wrap` なら base_skill、`prefix=delegate` なら delegate_agent、`hierarchy_level=L2` なら rubric_refs も必須。
@@ -94,6 +96,7 @@ build へ渡る brief の品質が後工程全体の質を決める。曖昧さ�
 - [ ] 実行系 (prefix≠ref) の場合 goal / purpose_background / checklist が brief に埋め込まれている (判定不能表現・手順そのものは項目化しない)。ref は skip
 - [ ] placement_candidates と決定論的 hint (Subagent→needs_independent_context/with_subagent_hint、Agent Team→agent_team_required、Hook→with_hooks/needs_lifecycle_enforcement) が設定されている
 - [ ] cross_platform / os_preamble_required が確認済み
+- [ ] ナレッジループ要否を判定済み (ref-knowledge-loop の5条件に1つ以上該当→`knowledge_loop.pattern` 設定、非該当→null)。`consult_build_knowledge` (既定true) の場合は蓄積知見を参照し設計へ反映している
 - [ ] 対話は 5 問以内に収め、超過・判断分岐する細部は open_questions (TODO(human)) に記録されている
 
 ### ゴールシークループ
@@ -109,6 +112,20 @@ build へ渡る brief の品質が後工程全体の質を決める。曖昧さ�
 ### 局面カタログ (順序は都度判断)
 
 未達フィールドに応じて以下を使い分ける。番号は参照用であり固定実行順ではない。
+
+#### 蓄積知見の参照 (Loop B / build-time)
+
+`consult_build_knowledge` が true (既定) のとき、topic が分かった直後に skill-creator 自身の蓄積知見を検索し、過去の設計判断・パラダイム・落とし穴を当ヒアリングの初期仮説に反映する (質問を増やさず AI 内部で活用する)。
+
+```bash
+# パスはプロジェクトルート基準 (eval-log/ 出力と同じ規約)
+python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py \
+  --dir plugins/skill-creator/knowledge/ --query "<topic と要求の要約>" --limit 5
+```
+
+- ストアは skill-creator 自身の `plugins/skill-creator/knowledge/` (正本)。スクリプトは複製せずテンプレ正本を `--dir` 指定で実行する (SSOT)。
+- 上位ヒットは prefix 推定・boundary・既知の落とし穴回避の根拠として使う。ユーザーには結論のみ brief 確認画面で開示する。
+- 採否は brief 完成後に記録する (下記「活用ログ記録」)。検索 0 件・スクリプト不在でも `consult_build_knowledge=false` 相当で続行 (ヒアリングを止めない)。
 
 #### topic 確認
 topic 指定ありなら要約を 1 文に。なしなら「どんな作業を自動化したいですか？」。
@@ -219,6 +236,30 @@ prefix=run の場合は原則 `role_suffix=null` とし、生成者・評価者�
 
 > この質問は1問扱い。5問上限にカウントされる。prefix=ref や副作用なしの Skill では通常 No でよい。
 
+#### ナレッジループ要否判定 (Loop A)
+
+作成する Skill 自身が「知見を蓄積し実行時に検索して使う」必要があるかを判定する。正本判定は `../ref-knowledge-loop` の「knowledge/ を追加する5条件」(外部素材依存 / ペルソナ再現 / 知識10件以上 / 継続的蓄積 / 精度優先検索)。1つ以上該当する場合のみ `knowledge_loop` を設定する。
+
+- 該当する → `knowledge_loop.pattern` を判定 (ウィザードは ref-knowledge-loop のパターン選択フロー):
+  - 継続的に外部素材から蓄積 → `router-registry` (`source_kind` も確認: 議事録/動画/教材等)
+  - 固定知識・ペルソナ再現 → `index-search`
+  - 初期 `categories` 案 (kebab-case) を 1〜数件ヒアリングまたは AI 導出。
+- 該当しない (静的 `references/` で足りる) → `knowledge_loop: null` (既定)。質問を増やさない。
+- 設定時、build 側は `--with-knowledge <pattern>` フラグで `with-knowledge.patch` と `knowledge-skeleton/<pattern>/` を注入する。
+
+#### 活用ログ記録 (Loop B / §12)
+
+brief 確定後、Loop B 検索を行っていた場合は採否を記録し、skill-creator 自身の知見品質改善サイクル (§12) を回す。
+
+```bash
+python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py --record \
+  --dir plugins/skill-creator/knowledge/ --query "<topic 要約>" \
+  --matched-ids "<検索ヒットid,...>" --used-ids "<実際に設計へ反映したid,...>" \
+  --satisfaction helpful|neutral|unhelpful
+```
+
+検索を行わなかった (`consult_build_knowledge=false` / ヒット0件) 場合はスキップしてよい。
+
 #### brief 生成 (JSON)
 
 `eval-log/skill-brief.json` を Write で出力。プロジェクトルート基準の固定パス。スキーマ違反 (必須フィールド欠落) があれば再質問する。
@@ -244,6 +285,8 @@ echo "eval-log/skill-brief.json を生成。run-build-skill / run-skill-create �
 
 - `references/brief-template.md` — skill-brief の人間可読フィールド早見 (正本スキーマへのポインタ)
 - `../run-skill-create/schemas/skill-brief.schema.json` — JSON 出力スキーマ**正本** (フィールド詳細はこの description を参照)
+- `../ref-knowledge-loop/SKILL.md` — ナレッジループ判定 (5条件・パターン選択フロー) の正本。`knowledge_loop` 設定時に参照
+- `../../knowledge/` — skill-creator 自身の蓄積知見 (Loop B ストア)。作成時に `search_knowledge.py --dir` で検索
 - `01a-build-flow.md` Step3 — 5 prefix 判定の正本表
 - `06-classification-and-naming.md` — prefix / role-suffix 判定の詳細
 - `29-multi-project-rubric-composition.md` — L0/L1/L2 階層と rubric_refs 一方向依存

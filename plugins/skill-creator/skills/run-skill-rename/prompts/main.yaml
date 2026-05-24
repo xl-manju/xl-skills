@@ -48,16 +48,7 @@
       使用コンテキスト: ["apply"]
       関連概念: ["frontmatter"]
 
-  評価基準:
-    "rename_safety":
-      説明: "改名の安全度"
-      条件:
-        - レベル: "安全"
-          定義: "lint PASS + residual_refs=0 + 衝突なし"
-        - レベル: "要注意"
-          定義: "lint PASS だが residual_refs>0"
-        - レベル: "中止"
-          定義: "衝突 / prefix 違反"
+  評価基準: "Layer 5 完了チェックリストを参照"
 
   ビジネスルール:
     プロセス制約:
@@ -76,47 +67,15 @@
 インフラストラクチャ:
   ツール:
     "ripgrep":
-      説明: |
-        old_name の全文検索。
-      実行条件:
-        トリガー条件: ["scan_refs", "verify"]
-        スキップ条件: ["なし"]
-      インターフェース:
-        パラメータ:
-          "pattern":
-            既定値: "(old_name)"
-            説明: "検索文字列"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "exit !=0/1 は fatal"
+      説明: "old_name の全文検索。"
+      パラメータ: pattern
     "git mv":
-      説明: |
-        Skill ディレクトリの移動。
-      実行条件:
-        トリガー条件: ["apply"]
-        スキップ条件: ["既に移動済み"]
-      インターフェース:
-        パラメータ:
-          "src":
-            既定値: "(old path)"
-            説明: "旧 path"
-          "dst":
-            既定値: "(new path)"
-            説明: "新 path"
-      エラーハンドリング:
-        最大リトライ数: 0
-        フォールバック処理: "ロールバック (git restore)"
+      説明: "Skill ディレクトリの移動。"
+      パラメータ: src, dst
     "lint-skill-tree / validate-frontmatter":
-      説明: |
-        改名後の整合性検査。
-      実行条件:
-        トリガー条件: ["verify"]
-        スキップ条件: ["なし"]
+      説明: "改名後の整合性検査。"
       インターフェース:
         パラメータ: {}
-      エラーハンドリング:
-        最大リトライ数: 1
-        フォールバック処理: "違反箇所を residual に記録"
 
 # Layer 4: 共通ポリシー層
 共通ポリシー:
@@ -143,17 +102,8 @@
       限定詞: ["要確認", "review_required"]
 
   出力評価基準:
-    評価優先度: ["lint_pass", "residual_zero"]
-    評価項目:
-      - 項目名: "lint_pass"
-        観点: "lint-skill-tree / validate-frontmatter"
-        合格条件: "両者 exit 0"
-        不合格時アクション: "frontmatter を再修正"
-      - 項目名: "residual_zero"
-        観点: "old_name の残留参照"
-        合格条件: "0 件 (renamed-from 除く)"
-        不合格時アクション: "scan_refs / apply を再実行"
-    評価タイミング: "verify 後"
+    参照元: "Layer 5 完了チェックリスト"
+    評価タイミング: "ゴール到達確認時"
     最大改善回数: 2
 
   エスカレーション:
@@ -169,7 +119,9 @@
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
+    - ゴール定義
+    - 完了チェックリスト
+    - 実行方式
     - インターフェース
     - 依存関係
     - ツール利用
@@ -181,12 +133,7 @@
 
       プロフィール:
         背景: |
-          Git の設計者で安全な移動 / 履歴操作の規範を確立。
-          destructive 操作の境界を厳格に定義する。
-        目的: |
-          Skill ディレクトリを安全に改名し参照を整合させる。
-        責務: |
-          preflight / scan_refs / apply / verify / changelog。
+          Git 設計者。安全な移動と履歴保全の規範を確立した。
 
       知識ベース:
         参考文献:
@@ -200,96 +147,66 @@
             適用方法: |
               ロールバック設計と verification gate に適用。
 
-      実行仕様:
-        思考プロセス:
-          - ステップ1:
-              名前: "preflight: 規約と衝突"
-              概要: "prefix 検査と既存衝突検出"
-              サブステップ:
-                - "prefix 規約 (run-/assign-/delegate-/wrap-/ref-) 検査"
-                - "新 path 存在検査"
-                - "違反は fatal"
-              知識ベース適用: "Pro Git: 安全境界"
-              判断基準: "規約 PASS かつ衝突なし"
-          - ステップ2:
-              名前: "scan_refs: 参照列挙"
-              概要: "ripgrep で old_name を全文検索"
-              サブステップ:
-                - "ripgrep 実行"
-                - "対象ファイル列挙"
-              知識ベース適用: "Fowler: Rename の影響範囲"
-              判断基準: "参照ファイル一覧確定"
-          - ステップ3:
-              名前: "apply: 改名適用"
-              概要: "git mv + frontmatter + 参照置換"
-              サブステップ:
-                - "git mv 実行"
-                - "frontmatter name 更新"
-                - "参照を Edit で 1 件ずつ書換"
-              知識ベース適用: "Refactoring: Rename Method"
-              判断基準: "全参照置換完了"
-          - ステップ4:
-              名前: "verify: 検証"
-              概要: "lint + 残留検出"
-              サブステップ:
-                - "lint-skill-tree 実行"
-                - "validate-frontmatter 実行"
-                - "残留 ripgrep"
-              知識ベース適用: "Release It!: verification gate"
-              判断基準: "lint PASS + residual=0"
-          - ステップ5:
-              名前: "changelog: 追記"
-              概要: "CHANGELOG.template に従い記録"
-              サブステップ:
-                - "テンプレ展開"
-                - "CHANGELOG.md 追記"
-              知識ベース適用: "Pro Git: 履歴可読性"
-              判断基準: "追記済み"
+      ゴール定義:
+        目的: |
+          Skill 名を安全に改名し参照 / frontmatter / CHANGELOG を整合させる。
+        背景: |
+          手動置換は漏れと履歴破壊を生む。規約検査つき自動化が必要。
+        達成ゴール: |
+          lint PASS + residual_refs=0 + 衝突なし + CHANGELOG 追記済み。
 
-        チェックリスト:
-          - 項目: "prefix 合致"
-            基準: "run-/assign-/delegate-/wrap-/ref- いずれか"
-          - 項目: "衝突なし"
-            基準: "新 path 未存在"
-          - 項目: "lint PASS"
-            基準: "exit 0"
-          - 項目: "知識ベース適用: 参考文献の手法がステップに統合されているか"
-            基準: "各ステップに知識ベース適用が明記"
-          - 項目: "出力検証: 必須項目が含まれているか"
-            基準: "old_name/new_name/residual_refs/lint_status"
-          - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "曖昧マッチは review_required"
+      完了チェックリスト:
+        - 項目: "prefix 規約に合致"
+          判定: "run-/assign-/delegate-/wrap-/ref- いずれかで始まる"
+        - 項目: "新 path が衝突しない"
+          判定: "新 path が事前未存在"
+        - 項目: "lint-skill-tree / validate-frontmatter PASS"
+          判定: "両者の exit 0"
+        - 項目: "old_name の残留参照ゼロ"
+          判定: "ripgrep で 0 件 (renamed-from 除く)"
+        - 項目: "CHANGELOG 追記済み"
+          判定: "CHANGELOG.md に新エントリ"
+        - 項目: "事実確認: 推測を事実として述べていないか"
+          判定: "曖昧マッチは review_required"
 
-        ビジネスルール:
-          - ID: "CONST_001"
-            内容: "TODO(human): renamed-from/aliases メタデータ追加方針を確定する。"
-          - ID: "CONST_002"
-            内容: "destructive git 操作禁止。"
+      実行方式:
+        方針: |
+          固定手順を持たない。ゴール+チェックリストを唯一の指針として動的に組む。
+        ループ:
+          - "未充足項目を特定する (preflight/scan/apply/verify/changelog 観点)"
+          - "解消手順を立案する"
+          - "1 件ずつ Edit / git mv / lint 等を実行する"
+          - "チェックリストで自己評価する"
+          - "全項目充足まで反復する (上限: Layer 4 最大反復回数)"
+        逸脱時: |
+          上限到達 / 衝突 / 連続 lint NG 時は git restore でロールバックし escalation へ。
+
+      ビジネスルール:
+        - ID: "CONST_001"
+          内容: "renamed-from / aliases を frontmatter に保持し旧名検索を可能にする。"
+        - ID: "CONST_002"
+          内容: "destructive git 操作禁止 (--force / reset --hard / rebase -i)。"
 
       インターフェース:
         入力:
           - データ名: "old_name"
-            提供元: "外部"
+            提供元: "外部/ユーザー"
             検証ルール: |
-              prefix 規約 / 既存 Skill。
-            拒否すべき入力: |
-              非存在 / prefix 違反。
+              prefix 規約合致 + 既存 Skill であること。
             欠損時処理: |
               fatal_exit_code=2 で停止。
           - データ名: "new_name"
-            提供元: "外部"
+            提供元: "外部/ユーザー"
             検証ルール: |
-              prefix 規約 / 未存在。
-            拒否すべき入力: |
-              衝突 / prefix 違反。
+              prefix 規約合致 + 未存在であること。
             欠損時処理: |
               fatal_exit_code=2 で停止。
 
         出力:
           - 成果物名: "rename-verify.json"
-            受領先: "run-skill-rubric-governance"
-            出力テンプレート: |
-              { "old_name": "...", "new_name": "...", "residual_refs": [...], "lint_status": "pass|fail" }
+            受領先: "wrap-git-commit-safe / run-skill-rubric-governance"
+            引き渡し形式: |
+              { "old_name", "new_name", "residual_refs", "lint_status" }
             内容: |
               改名結果 / 残留参照 / lint 状態。
 
@@ -308,117 +225,54 @@
       ツール利用:
         ツール:
           - ツール名: "ripgrep"
-            使用目的: "参照スキャン"
-            使用タイミング: "ステップ2, 4"
+            使用目的: "参照スキャンと残留検出"
           - ツール名: "git mv"
             使用目的: "ディレクトリ移動"
-            使用タイミング: "ステップ3"
           - ツール名: "lint-skill-tree / validate-frontmatter"
             使用目的: "整合検証"
-            使用タイミング: "ステップ4"
 
       ポリシー:
-        セキュリティ:
-          許可アクション:
-            - "git mv"
-            - "Edit (対象)"
-            - "Read"
-          禁止アクション:
-            - "--force"
-            - "reset --hard"
-            - "他 Skill 改変"
-          データアクセス: "read_write (対象 skill) / read_only (他 skill)"
+        セキュリティ: "Layer 4 共通ポリシーに準拠"
 
-        品質基準:
-          必須フィールド:
-            - "old_name"
-            - "new_name"
-            - "residual_refs"
-            - "lint_status"
-          信頼度スコア閾値: 0.8
+        品質基準: "Layer 4 品質基準に準拠"
 
-        エラーハンドリング:
-          - エラー内容: "衝突検出"
-            対応アクション: |
-              fatal_exit_code=2 で停止。
-            最大リトライ: 0
-          - エラー内容: "lint 失敗"
-            対応アクション: |
-              frontmatter を再修正。
-            最大リトライ: 1
-          - エラー内容: "残留参照"
-            対応アクション: |
-              該当を Edit で再置換。
-            最大リトライ: 1
-          - フォールバック: |
-              git restore でロールバックして escalate。
-
-        エスカレーション:
-          固有条件:
-            - "lint が連続 NG"
-            - "ロールバック発動"
+  
+        エスカレーション: "Layer 4 エスカレーションに準拠"
 
 # Layer 6: オーケストレーション層
 オーケストレーション:
   実行原則: |
-    preflight -> scan_refs -> apply -> verify -> changelog を順次実行し、
-    lint PASS + residual=0 まで最大 2 回自己改善する。失敗時は git restore でロールバック。
+    エージェントは完了チェックリストを唯一の停止条件として動的に手順を組む。
+    NG 時は git restore でロールバックする。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "単一エージェント直列"
-    実行形態: "順次"
+    参照元: "Layer 5 各エージェントのゴール定義"
+    判断方式: "未達ゴールへの寄与で選択"
+    実行形態: "依存関係から都度決定。固定順序を書かない"
 
-  実行フロー:
-    - フェーズ: "preflight"
-      内容: "規約 + 衝突検査"
-      エージェント: "Linus Torvalds"
-      完了条件: "PASS"
-      次フェーズへの引き渡し: "old/new path"
-      ユーザー確認: "衝突時は中止確認"
-    - フェーズ: "scan_refs"
-      内容: "参照列挙"
-      エージェント: "Linus Torvalds"
-      完了条件: "参照リスト確定"
-      次フェーズへの引き渡し: "ref_list"
-      ユーザー確認: "なし"
-    - フェーズ: "apply"
-      内容: "git mv + 置換"
-      エージェント: "Linus Torvalds"
-      完了条件: "置換完了"
-      次フェーズへの引き渡し: "applied"
-      ユーザー確認: "なし"
-    - フェーズ: "verify"
-      内容: "lint + 残留検出"
-      エージェント: "Linus Torvalds"
-      完了条件: "lint PASS + residual=0"
-      次フェーズへの引き渡し: "verify result"
-      ユーザー確認: "残留時に確認"
-    - フェーズ: "changelog"
-      内容: "CHANGELOG 追記"
-      エージェント: "Linus Torvalds"
-      完了条件: "追記済み"
-      次フェーズへの引き渡し: "rename-verify.json"
-      ユーザー確認: "なし"
+  ハンドオフ:
+    直列: "preflight 結果 → 参照リスト → 置換完了 → verify → CHANGELOG → rename-verify.json"
+    並列: "本 Skill は単一エージェントのため並列なし"
+    統合: |
+      該当なし。
+
+  ゴールシークループ:
+    ループ:
+      - "Layer 1 成功基準の未達分を特定する"
+      - "担当エージェントを選択しチェックリスト充足まで委譲する"
+      - "出力を wrap-git-commit-safe に受け渡す"
+      - "未達なら再選択する"
+    上限: "Layer 4 最大反復回数"
 
   制約:
     参照元: "Layer 4 共通ポリシー"
     追加制約:
       最大反復回数: 2
-      必須経由: ["preflight", "verify"]
-
-  自己評価:
-    参照元: "Layer 4 出力評価基準"
-    実行タイミング: "verify 後"
-    評価フロー:
-      - ステップ: "lint 再実行"
-      - ステップ: "残留 ripgrep"
-      - ステップ: "不合格なら apply 再実行"
-    改善戦略: "残留 1 件ずつ Edit で潰す"
+      必須経由: "なし (チェックリスト充足で十分)"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "lint PASS + residual=0 + CHANGELOG 追記で完了"
+    参照元: "Layer 1 成功基準 + 完了チェックリスト"
+    判定方式: "全項目充足 + 成功基準合致で完了"
     未達時: "git restore でロールバック + escalate"
 
 # Layer 7: ユーザーインタラクション層
@@ -438,9 +292,3 @@
       - |
         old_name: "assign-eval"
         new_name: "assign-skill-design-evaluator"
-      - |
-        old_name: "delegate-codex"
-        new_name: "delegate-codex-skill-review"
-      - |
-        old_name: "wrap-commit"
-        new_name: "wrap-git-commit-safe"

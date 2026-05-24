@@ -87,21 +87,26 @@
 ### 5.1 担当 agent
 - run-build-skill 配下の R1 SubAgent (context-fork 不要)
 
-### 5.2 推論手順 (再現可能)
-1. `eval-log/skill-brief.json` を Read し `{{SKILL_NAME}} / {{KIND}} / {{OUT_BASE}}` を抽出
-2. `schemas/template-selection.schema.json#/selection_rules` から該当 template の骨格を取得
-3. frontmatter (`responsibility_refs` / `manifest`) と本文見出し (Purpose / Key Rules / **ゴールシーク実行**) を変数化形式で生成。実行系 kind は固定手順を書かず `## ゴールシーク実行` (Goal+Checklist+Loop) とし、`{{goal}}` / `{{purpose_background}}` / `{{generated_checklist}}` を brief の `goal` / `purpose_background` / `checklist` (無ければ `output_contract` の完了条件と `key_constraints` から導出) で埋める。`ref-*` は対象外。詳細は `references/goal-seek-paradigm.md`。
-4. `variable_contract.source_trace` に brief フィールド由来を記録
+### 5.2 ゴール定義
+- **目的**: brief から再利用可能な SKILL.md 骨格を機械再現性付きで吐く
+- **背景**: 直書きと固定手順は drift / 複製事故を生むため変数化+ゴールシーク化が必須
+- **達成ゴール**: brief を入力に schema 準拠の骨格 Markdown + scaffold trace が成立し、再実行で sha256 一致する状態
 
-### 5.3 自己検証 checklist
-- [ ] SKILL.md 行数が 170 行以下
-- [ ] frontmatter に responsibility_refs と manifest を含む
-- [ ] kind→template 対応表が schemas/ へ外出し済 (本文は 1 行参照のみ)
+### 5.3 完了チェックリスト (停止条件)
+- [ ] SKILL.md が 170 行以下で frontmatter に responsibility_refs / manifest を含む
+- [ ] kind→template 対応は schemas 参照 1 行のみで本文に表が無い
 - [ ] 実行系 kind は `## ゴールシーク実行` を持ち固定 `### Step N:` を羅列していない (`ref-*` 除く)
-- [ ] `{{goal}}` / `{{generated_checklist}}` が brief 由来で埋まりリテラル未残存
-- [ ] 具体値が変数化済 (source_trace あり)
+- [ ] `{{goal}}` / `{{purpose_background}}` / `{{generated_checklist}}` が brief 由来で埋まりリテラル未残存
+- [ ] 具体値は全て変数化され variable_contract.source_trace に brief フィールド由来が記録されている
 - [ ] 依存方向 L7→L1 単方向 (逆参照 0)
-- [ ] 同 brief 再実行で出力 sha256 一致 (validate-build-trace.py)
+- [ ] 同 brief 再実行で出力 sha256 一致 (validate-build-trace.py exit 0)
+
+### 5.4 実行方式 (動的手順生成ループ)
+1. 未充足チェックリスト項目を特定
+2. 解消手順をその場で立案 (brief 読み / schema 参照 / 骨格生成 / source_trace 記録 のいずれか)
+3. 立案手順を実行し成果物を更新
+4. チェックリストで自己評価し全項目充足まで反復 (上限: Layer 4 最大反復回数)
+5. 上限到達時は exit 1 + Layer 4 エスカレーション
 
 ## Layer 6: オーケストレーション層
 
@@ -126,9 +131,10 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{skill_brief}}` を Read し、SKILL.md 骨格を変数化形式で生成する。
-kind→template は `{{template_selection_schema}}` の selection_rules を参照する。
-出力は次の 2 つのみとする:
+Layer 5.2 のゴール+5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
+動的に手順を生成・実行・自己評価する。入力 `{{skill_brief}}` を Read し、SKILL.md
+骨格を変数化形式で生成、kind→template は `{{template_selection_schema}}` の
+selection_rules を参照する。出力は次の 2 つのみとする:
 
 1. `SKILL.md` 本文 (Markdown / 170 行以下 / frontmatter 含む)
 2. `build_flow_coverage[scaffold]` エントリ (JSON / source_trace を含む)

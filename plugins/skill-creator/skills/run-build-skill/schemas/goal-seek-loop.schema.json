@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-build-skill/schemas/goal-seek-loop.schema.json",
+  "title": "goal-seek-loop-progress",
+  "description": "with-goal-seek 配線を持つ生成スキルが、ゴールシークループの各周回で eval-log/<skill>-progress.json に記録する実行時状態の契約。これにより配布先のどの環境でも『ゴールへ向けて自動ループを回す』挙動が観測可能・再現可能になる。",
+  "x-scope-note": "ランタイムの進捗状態 (出力)。入力ゴール定義は run-goal-elicit/schemas/goal-spec.schema.json (構造化 checklist)。混用しない: 本スキーマは周回ごとに更新される状態ログ、goal-spec は不変の達成目標。",
+  "type": "object",
+  "required": ["skill", "goal", "iteration", "checklist", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "skill": {
+      "type": "string",
+      "description": "ループを回している生成スキル名 (frontmatter.name)。"
+    },
+    "goal": {
+      "type": "string",
+      "description": "達成すべき最終状態を1文・観測可能な完了形で。goal-spec があればその goal を写す。"
+    },
+    "spec_ref": {
+      "type": "string",
+      "description": "ロードした goal-spec のパス。AI が文脈から推定生成した場合は 'inferred'。"
+    },
+    "iteration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "現在の周回番号 (0始まり)。max_loops 到達で打ち切り。"
+    },
+    "max_loops": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "ゴールシークループの最大周回数。frontmatter goal_seek.max_loops と一致させる。"
+    },
+    "fork_context": {
+      "type": "string",
+      "enum": ["inline", "subagent", "agent-team"],
+      "default": "subagent",
+      "description": "ループ本体の実行コンテキスト。多周回/重い試行は親 context を汚さないよう subagent/agent-team に fork する。"
+    },
+    "checklist": {
+      "type": "array",
+      "minItems": 1,
+      "description": "完了チェックリストの周回状態。各項目は二値判定可能な受入基準。",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^C[0-9]+$" },
+          "text": { "type": "string", "description": "検証可能な達成条件 (二値判定)。曖昧語禁止。" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "done", "blocked"],
+            "description": "pending=[ ] / done=[x] / blocked=この周回では達成不能。"
+          },
+          "verify_by": {
+            "type": "string",
+            "enum": ["reasoning", "script", "lint", "test", "human"],
+            "description": "判定手段。決定論的に検査できるものは script/lint/test に寄せる。"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["in_progress", "completed", "handed_off"],
+      "description": "in_progress=未達項目あり / completed=全 done / handed_off=max_loops 到達で open_issues を上位へ差し戻し。"
+    },
+    "open_issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "max_loops 到達でも未達/blocked の項目と理由。人間 or 上位 orchestrator への差し戻し対象。"
+    },
+    "handoff": {
+      "type": "string",
+      "description": "達成後に出力した handoff-*.json のパス (任意)。後続 Capability への受け渡し。"
+    }
+  }
+}
