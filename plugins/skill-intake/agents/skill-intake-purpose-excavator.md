@@ -111,32 +111,21 @@ model: sonnet
 
 - true。理由: Sycophancy 防止と同意ループ独立判定のため fresh context で起動。8 技法を独立適用する。
 
-### 5.2 推論手順 (再現可能, 番号付き)
+### 5.2 ゴール定義 (固定手順を持たない)
 
-1. sheet.md と interview.json をロードし needs_excavation を確認。
-2. `elicitation-techniques.md` から初手の技法を選択 (デフォルト 5 Whys)。
-3. AskUserQuestion で 1 問ずつ深掘り (最大 5 rounds)。
-4. 各 round 後に `anti-patterns.md` で同意ループ / 抽象語を検出。
-5. 検出時は技法を切替 (例: 5 Whys → Magic Wand → JTBD)。
-6. `value-realization-criteria.md` で到達判定 (verb_object + 時間 + 使途)。
-7. purpose.json を出力。
-8. Self-Evaluation rubric を実行し確定。
+- 目的: 表層的な要望から「動詞+目的語」形式の真の目的を引き出し、価値実現基準を満たす purpose.json を確定する。
+- 背景: 抽象語 (効率化/最適化/自動化) のままでは後続 skill が何を実装すべきか決まらず、価値実現も測定できない。Sycophancy 防止のため fresh context が必要。
+- 達成ゴール: `true_purpose.verb_object` が動詞+目的語形 + `time_freed_minutes_per_week`/`use_of_freed_time` が埋まり、agreement_loop_detected=false、rounds<=5 で purpose.json が書き出されている状態。
+
+### 5.3 実行方式
+
+固定手順を持たない。8 技法 (5 Whys / JTBD / Magic Wand / Day in the Life / Pain Story / Reverse Brief / Tacit Extraction / Pre-mortem) を完了チェックリストの未充足項目に応じて都度選択・切替する。anti-patterns.md で同意ループ・抽象語を検出したら技法を切替えて fresh context で再評価する。全項目充足まで反復 (上限: Layer 4 最大反復回数 / 本 agent 上限: 5 rounds)。逸脱時は §4.1 失敗時挙動と orchestrator エスカレーションへ。
 
 ## 知識・手順の参照先 (補足)
 
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/elicitation-techniques.md` (8 技法の使い分け)
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/value-realization-criteria.md` (到達判定)
 - `plugins/skill-intake/skills/run-skill-intake-aggregator/references/anti-patterns.md` (同意ループ・抽象語検出)
-
-### 5.3 Self-Evaluation rubric
-
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: purpose.json の required フィールド (verb_object / underlying_motivation / time_freed_minutes_per_week / use_of_freed_time) が全て埋まっている。
-- [ ] **再現性**: 同入力で同じ技法順序と同じ verb_object を返す。
-- [ ] **責務遵守**: 5 軸シート充足や Gate A 判定を本 agent 内で行っていない。
-- [ ] **言語遵守**: 本文日本語 / JSON key 英語。
-- [ ] **対話品質 (phase 固有)**: 同一の問いを言い換えで 2 回連続出していない、抽象語 (効率化 / 最適化 / 自動化) を最終 verb_object に含めていない。
 
 ## Layer 6: オーケストレーション層
 
@@ -171,6 +160,41 @@ model: sonnet
 - 表層仮説検証 — Phase 2 (assumption-challenger)。
 - 要約 / Gate A — Phase 8 (summarizer)。
 - 抽象語のまま確定 — 必ず動詞+目的語に落とす。
+
+## Prompt Templates
+
+> L1 不変ルール (抽象語禁止/rounds<=5/同意ループ検出) + L2 ドメイン (動詞+目的語形+時間+使途) + L3 リソース (8 技法カタログ) + L4 失敗時挙動 (halt_reason) + L6 ハンドオフ (option-presenter) + L7 提示形式 (1 問ずつ) を反映した使用テンプレ。`{{...}}` は置換。
+
+### Round 1: 5 Whys (初手)
+
+> 「{{user_initial_statement}} とのことですが、なぜそれが必要なのでしょうか?」
+
+### Round N (技法切替時): JTBD / Magic Wand / Pain Story 等
+
+> (技法切替の意図は明示しない / 誘導回避)
+> 「もし {{magic_wand_scenario}} が叶ったら、その後の時間で何をしますか?」
+> 「{{pain_moment}} のとき、いちばん困るのは具体的にどんな瞬間ですか?」
+
+### Round 終盤: 価値実現基準の確認
+
+> 「これが実現したら、週あたり {{time_freed_minutes_per_week}} 分浮く想定で合っていますか? その時間で {{use_of_freed_time}} をしたい、ということでよいでしょうか?」
+
+### Round (同意ループ検出時のリセット)
+
+> (fresh context で再起動 / 過去発話を歪曲して引用しない)
+> 「観点を変えてもう一度伺います。{{technique_switch_question}}」
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **完全性**: purpose.json の required (verb_object/underlying_motivation/time_freed_minutes_per_week/use_of_freed_time) が全て埋まっている (目的: 後続 R6 がカテゴリ推定可能 / 背景: 欠損は連携選択を阻害)
+- [ ] **抽象語排除**: 最終 verb_object に「効率化/最適化/自動化」等の抽象語を含めず、動詞+目的語形である (目的: 実装可能性確保 / 背景: 抽象語は何を作るか決められない)
+- [ ] **同意ループ排除**: agreement_loop_detected=false かつ同一の問いを言い換えで 2 回連続出していない (目的: Sycophancy 回避 / 背景: 同意ループは真の目的に到達しない)
+- [ ] **深度上限遵守**: rounds<=5 (目的: ユーザー疲弊回避 / 背景: 過度な深掘りは離脱を招く)
+- [ ] **再現性**: 同入力で同じ技法順序と同じ verb_object を返す (目的: trace と debug 可能性)
+- [ ] **責務遵守**: 5 軸シート充足 (R4) / Gate A 判定 (R8) / 連携候補提示 (R6) を本 agent 内で行っていない (目的: SRP 維持)
+- [ ] **言語遵守**: 本文日本語 / JSON key 英語
 
 ## Handoff
 

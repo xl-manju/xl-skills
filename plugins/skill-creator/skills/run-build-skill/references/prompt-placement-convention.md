@@ -42,36 +42,36 @@ prompt-creator が brief.responsibilities[] ごとに生成する 7 層 YAML を
 正規パスパターン:
 
 ```
-plugins/<plugin-name>/skills/<skill-name>/prompts/<responsibility-id>.yaml
+plugins/<plugin-name>/skills/<skill-name>/prompts/<responsibility-id>.md
 ```
 
-例:
+例 (`.md` 既定。`.yaml` は legacy 後方互換):
 
 ```
-plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R1.yaml
-plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R2.yaml
-plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.yaml
+plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R1.md
+plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R2.md
+plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.md
 ```
 
 正規表現 (`validate-build-trace.py` が照合):
 
 ```
-^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$
+^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+(-[a-z0-9]+(-[a-z0-9]+)*)?\.(md|yaml)$
 ```
 
 ## ディレクトリ規約
 
 | 項目 | 値 | 根拠 |
 |---|---|---|
-| ディレクトリ名 | `prompts/` (固定) | `agents/` は plugin 直下既存ディレクトリ。SubAgent 実体 (.md) と prompt 生成物 (.yaml) を物理的に分離するため別名 |
+| ディレクトリ名 | `prompts/` (固定) | `agents/` は plugin 直下既存ディレクトリ。SubAgent 実体 (`agents/*.md`) と責務単位 prompt 生成物 (`prompts/<R-id>.md` 既定) を物理的に分離するため別名 |
 | ディレクトリ階層 | 1 階層のみ (ネスト禁止) | lint-skill-tree.py 第 13 条に準拠 |
-| ファイル名 | `<responsibility.id>.yaml` | brief.responsibilities[].id (R1, R2, ...) と 1:1 対応 |
-| 拡張子 | `.yaml` 固定 | seven-layer-format.md 正本フォーマット |
-| インデックス | `prompts/index.json` (任意) | 全 yaml の sha256 + responsibility メタを一覧。`build-trace.json` への突合補助。任意生成 |
+| ファイル名 | `<responsibility.id>.md` 既定 (`.yaml` legacy) | brief.responsibilities[].id (R1, R2, ...) と 1:1 対応 |
+| 拡張子 | `.md` 既定 (`.yaml` は legacy 後方互換) | seven-layer-format.md 正本フォーマット |
+| インデックス | `prompts/index.json` (任意) | 全 prompt (`.md` 既定 / `.yaml` legacy) の sha256 + responsibility メタを一覧。`build-trace.json` への突合補助。任意生成 |
 
 ## 命名規則の根拠
 
-- **`R[0-9]+`**: brief.responsibilities[].id の正規表現と同一 (skill-brief-schema.json `pattern: "^R[0-9]+$"`)
+- **`R[0-9]+`**: brief.responsibilities[].id の正規表現と同一 (正本 `../../run-skill-create/schemas/skill-brief.schema.json` `pattern: "^R[0-9]+$"`)
 - **`prompts/` の選択理由**: 
   - `agents/` は `plugins/<plugin>/agents/` として既存 plugin 直下に確保済み (SubAgent .md 用)
   - skill 内部の責務 prompt は **skill 単位の成果物** であり、skill ディレクトリ配下に隔離するのが SRP に適う
@@ -80,7 +80,7 @@ plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.yaml
 ## SKILL.md との関係
 
 - **SKILL.md には prompts/ ディレクトリの内容を直接転記しない** (ユーザー要件)
-- SKILL.md の `## Additional Resources` 節に「`prompts/<id>.yaml` — prompt-creator が生成する責務単位 7 層プロンプト (validate-build-trace.py で sha256 検証)」のような **案内 1 行のみ** 追加可
+- SKILL.md の `## Additional Resources` 節に「`prompts/<id>.md` (`.md` 既定 / `.yaml` legacy) — prompt-creator が生成する責務単位 7 層プロンプト (validate-build-trace.py で sha256 検証)」のような **案内 1 行のみ** 追加可
 - SKILL.md は責務単位 prompt の内容を一切重複させない (300 行制約 + DRY)
 
 ## 再現性保証
@@ -119,7 +119,7 @@ python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trac
 
 ## 関連参照
 
-- `skill-brief-schema.json#responsibilities` — id 仕様
+- `../../run-skill-create/schemas/skill-brief.schema.json#responsibilities` — id 仕様 (正本)
 - `reproducibility-trace-schema.md#prompt_generation_model` — per_responsibility[].layer_yaml_path
 - `agent-template.md#prompt-creator-連携` — SubAgent.md 側 anchor 規約
 - `plugins/prompt-creator/skills/run-prompt-creator-7layer/SKILL.md` — 出力フォーマット (7 層 YAML)

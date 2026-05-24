@@ -9,7 +9,7 @@
 - すべての差分は **変数プレースホルダ** (`{{...}}`) で記述し、プロジェクト固有値・ハードコードを禁止する。
 - 適用順序は `run-build-skill` Step 2 で固定:
   1. **kind-specific**（必ず 1 つ適用）: `with-run.patch` / `with-ref.patch` / `with-wrap.patch` / `with-assign-evaluator.patch` / `with-assign-generator.patch` / `with-delegate.patch`
-  2. **optional flag**（0〜N 個）: `with-evaluator.patch` / `with-hooks.patch` / `with-subagent.patch`
+  2. **optional flag**（0〜N 個）: `with-evaluator.patch` / `with-hooks.patch` / `with-subagent.patch` / `with-knowledge.patch`
   3. **project flag**（0〜N 個、Phase 1 で追加予定）: `with-cross-platform.patch` / `with-rubric.patch`
 - 同一セクションを複数 combinator が触る場合は **順序保証** により後勝ち（flag combinator が kind-specific を上書き可）。
 
@@ -23,7 +23,7 @@
 
 | kind | combinator | 補足 |
 |---|---|---|
-| `run` | `with-run.patch` | `## Steps` セクション骨格を注入 |
+| `run` | `with-run.patch` | `## ゴールシーク実行` (Goal+Checklist+Loop) を注入 |
 | `ref` | `with-ref.patch` | `## 参照内容` セクション、`disable-model-invocation: true` を frontmatter に注入 |
 | `assign` + `role_suffix: generator` | `with-assign-generator.patch` | `## 生成契約` セクション、`pair:` 必須を注入 |
 | `assign` + `role_suffix: evaluator` | `with-assign-evaluator.patch` | `## Evaluator Contract` + `context: fork` + `user-invocable: false` を注入 |
@@ -38,6 +38,7 @@
 | `with_evaluator_pair` | `with-evaluator.patch` | generator 側に `pair:` フィールド + Evaluator 連携セクション。**generator自身に `context: fork` を入れてはならない** |
 | `with_hooks` | `with-hooks.patch` | `PreToolUse` / `PostToolUse` 配線 + security セクション |
 | `with_subagent` | `with-subagent.patch` | `agent`, Subagent body 連携。`context: fork` は **subagent 用** combinator が扱う |
+| `with_knowledge` | `with-knowledge.patch` | `## ナレッジループ` 節 + frontmatter `knowledge_loop` 記述子を注入。knowledge/ 雛形 (`../knowledge-skeleton/<pattern>/`) と Python スクリプト群 (search_knowledge / build_index / record_usage) を併せて展開。正本仕様は `ref-knowledge-loop`。全 kind に適用可能な横断 combinator |
 
 ## 移行戦略（Phase 0）
 
@@ -70,3 +71,4 @@ COMPOSER_MODE="atomic"
 - `with-evaluator.patch` — generator に **pair: のみ** 注入（`context: fork` は注入しない）
 - `with-hooks.patch` — Hook 配線 + security 強化
 - `with-subagent.patch` — Subagent 連携
+- `with-knowledge.patch` — ナレッジループ（蓄積/検索/§12フィードバック）注入。`../knowledge-skeleton/` 雛形と併用

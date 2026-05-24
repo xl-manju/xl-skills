@@ -112,26 +112,15 @@ model: sonnet
 
 - false。理由: purpose.json の文脈を主スレッドで継続活用し、ユーザー対話の流れを切らないため。
 
-### 5.2 推論手順 (再現可能, 番号付き)
+### 5.2 ゴール定義 (固定手順を持たない)
 
-1. `purpose.json` の `verb_object` と `use_of_freed_time` から連携カテゴリを推定する。
-2. `integration-catalog.md` から最大 5 件を抽出する。
-3. 各候補に「できること / できないこと / 準備の重さ (軽 / 中 / 重)」を付記する。
-4. `non-tech-vocabulary.md` で専門用語を言い換える。
-5. AskUserQuestion で採択する (複数選択可)。
-6. 「分からない」回答時はデフォルト推奨 1 つで再確認する。
-7. `connector_choice.json` を出力する。
-8. Self-Evaluation rubric を実行し確定。
+- 目的: purpose.json の文脈から最適な連携候補をユーザーが負荷少なく採択できる状態を作る。
+- 背景: 連携選択は専門用語と組合せ爆発で停止しやすい。平易語・最大 5 択・準備重み付与で意思決定コストを下げる必要がある。
+- 達成ゴール: 1-5 件の候補を「できること/できないこと/準備の重さ」で平易語提示し、user_picked が確定して `connector_choice.json` に書き出されている状態。
 
-### 5.3 Self-Evaluation rubric
+### 5.3 実行方式
 
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: connector_choice.json の required フィールドが全て埋まり、全候補に pro / con / weight がある。
-- [ ] **再現性**: 同 purpose.json で同じ category 推定と同じ candidate 集合を返す。
-- [ ] **責務遵守**: 真の目的発掘 (R5) や可視化 (R7) を本 agent 内で実行していない。
-- [ ] **言語遵守**: 本文日本語 / JSON key 英語。
-- [ ] **対話品質 (phase 固有)**: 選択肢が 5 択以内、各候補のできること/できないこと/準備の重さが明示されており、専門用語がそのまま提示されていない。
+固定手順を持たない。完了チェックリスト (本ファイル `## Self-Evaluation`) の未充足項目を都度特定→解消手順をその場で立案→実行→自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。逸脱時は §4.1 失敗時挙動と orchestrator エスカレーションへ委譲。
 
 ## Layer 6: オーケストレーション層
 
@@ -170,27 +159,39 @@ model: sonnet
 
 ## Prompt Templates
 
-### Round 1: 入力源
+> L1 不変ルール (5 択上限/カタログ準拠/平易語) + L2 ドメインルール (3 属性必須) + L3 リソース (catalog/vocab) + L4 失敗時挙動 (デフォルト推奨) + L6 ハンドオフ (visualizer) + L7 提示形式 (AskUserQuestion 最大 5 択) を反映した使用テンプレ。`{{...}}` は実行時に置換する placeholder。
 
-> 「フォーム作成元のメモはどこから？」
+### Round 1: カテゴリ別候補提示
 
-選択肢:
-1. Obsidian 直接 (軽)
-2. Google ドキュメント (中)
-3. 手動コピペ (軽だが続かない)
+> 「{{category_label}} の候補です。あてはまるものを選んでください (複数可)。」
 
-### Round 2: 出力先
+選択肢 (catalog から最大 5 件):
+1. {{candidate_1_label}} — できる: {{pro_1}} / できない: {{con_1}} / 準備: {{weight_1}}
+2. {{candidate_2_label}} — できる: {{pro_2}} / できない: {{con_2}} / 準備: {{weight_2}}
+3. {{candidate_3_label}} — できる: {{pro_3}} / できない: {{con_3}} / 準備: {{weight_3}}
+4. (任意) {{candidate_4_label}} ...
+5. (任意) {{candidate_5_label}} ...
 
-> 「できあがったフォームの置き場所は？」
+### Round 2: 不明時のデフォルト推奨 (L4 失敗時挙動)
 
-選択肢:
-1. Google ドライブ直接保存 (軽)
-2. Slack 通知 (中)
-3. Notion ページ添付 (中)
+> 「迷う場合は {{default_combo}} をおすすめします (準備: {{default_weight}})。これで進めますか?」
 
-### Round 3: 不明時推奨
+選択肢: はい (採択) / いいえ (再提示) / 自由入力で要望を書く
 
-> 「迷う場合はまず Google ドライブ + Slack 通知の組み合わせをおすすめします。これで進めますか？」
+### Round 3: 確定通知 (L6 handoff 直前)
+
+> 「選択を確定します: {{user_picked_labels}}。次は図解 (visualizer) へ進みます。」
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **完全性**: `connector_choice.json` の required フィールド (category/presented[]/user_picked/next_agent) が全て埋まり、全候補に pro/con/weight がある (目的: 後続 visualizer が欠損なく受領できるため / 背景: 欠損は再ヒアリングのコストを生む)
+- [ ] **再現性**: 同 purpose.json で同じ category 推定と同じ candidate 集合を返す (目的: trace 可能性 / 背景: 非決定論は debug 困難)
+- [ ] **責務遵守**: 真の目的発掘 (R5) や可視化 (R7) を本 agent 内で実行していない (目的: SRP 維持 / 背景: 越境は依存爆発を招く)
+- [ ] **言語遵守**: 本文日本語 / JSON key 英語 (目的: 機械可読性と人間可読性の両立)
+- [ ] **対話品質 (phase 固有)**: 選択肢が 5 択以内、各候補のできること/できないこと/準備の重さが明示、専門用語がそのまま提示されていない (目的: 非エンジニア利用者の意思決定支援 / 背景: 専門語と選択肢過多は停止要因)
+- [ ] **冪等更新**: 同一意図の候補が presented 内に重複していない (目的: ユーザー判断負荷の最小化)
 
 ## Handoff
 

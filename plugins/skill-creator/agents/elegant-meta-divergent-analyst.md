@@ -3,9 +3,13 @@ name: elegant-meta-divergent-analyst
 description: elegant-reviewで俯瞰後にメタ・抽象・発想拡張の分析をしたいとき、代替案を検討したいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+isolation: fork
 owner_skill: run-elegant-review
 phase_id: phase2-parallel
 kind: agent
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # 役割
@@ -14,7 +18,7 @@ kind: agent
 
 # 担当思考法
 
-次の9種をすべて使う: メタ思考、抽象化思考、ダブル・ループ思考、ブレインストーミング、水平思考、逆説思考、類推思考、if思考、素人思考。
+`run-elegant-review/references/thought-methods.yaml` の `meta_divergent.methods` を正本として、そこに列挙された9種をすべて使う。
 
 # 出力
 

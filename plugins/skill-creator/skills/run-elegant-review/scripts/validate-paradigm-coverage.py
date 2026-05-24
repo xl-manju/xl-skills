@@ -66,35 +66,35 @@ PARADIGMS: dict[int, list[str]] = {
 
 EXPECTED_META: dict[int, tuple[str, str, str]] = {
     1: ("critical", "A-logical", "elegant-logical-structural-analyst"),
-    2: ("deductive", "A-logical", "elegant-logical-structural-analyst"),
-    3: ("inductive", "A-logical", "elegant-logical-structural-analyst"),
-    4: ("abductive", "A-logical", "elegant-logical-structural-analyst"),
+    2: ("deduction", "A-logical", "elegant-logical-structural-analyst"),
+    3: ("induction", "A-logical", "elegant-logical-structural-analyst"),
+    4: ("abduction", "A-logical", "elegant-logical-structural-analyst"),
     5: ("vertical", "A-logical", "elegant-logical-structural-analyst"),
     6: ("decomposition", "B-structural", "elegant-logical-structural-analyst"),
     7: ("mece", "B-structural", "elegant-logical-structural-analyst"),
     8: ("two-axis", "B-structural", "elegant-logical-structural-analyst"),
-    9: ("process-thinking", "B-structural", "elegant-logical-structural-analyst"),
-    10: ("meta-thinking", "C-meta", "elegant-meta-divergent-analyst"),
+    9: ("process", "B-structural", "elegant-logical-structural-analyst"),
+    10: ("meta", "C-meta", "elegant-meta-divergent-analyst"),
     11: ("abstraction", "C-meta", "elegant-meta-divergent-analyst"),
     12: ("double-loop", "C-meta", "elegant-meta-divergent-analyst"),
     13: ("brainstorming", "D-divergent", "elegant-meta-divergent-analyst"),
     14: ("lateral", "D-divergent", "elegant-meta-divergent-analyst"),
     15: ("paradox", "D-divergent", "elegant-meta-divergent-analyst"),
     16: ("analogy", "D-divergent", "elegant-meta-divergent-analyst"),
-    17: ("what-if", "D-divergent", "elegant-meta-divergent-analyst"),
-    18: ("beginner-mind", "D-divergent", "elegant-meta-divergent-analyst"),
-    19: ("systems-thinking", "E-system", "elegant-system-strategic-analyst"),
-    20: ("causal-analysis", "E-system", "elegant-system-strategic-analyst"),
+    17: ("if", "D-divergent", "elegant-meta-divergent-analyst"),
+    18: ("naive", "D-divergent", "elegant-meta-divergent-analyst"),
+    19: ("systems", "E-system", "elegant-system-strategic-analyst"),
+    20: ("causal", "E-system", "elegant-system-strategic-analyst"),
     21: ("causal-loop", "E-system", "elegant-system-strategic-analyst"),
     22: ("trade-on", "F-strategic", "elegant-system-strategic-analyst"),
-    23: ("positive-sum", "F-strategic", "elegant-system-strategic-analyst"),
+    23: ("plus-sum", "F-strategic", "elegant-system-strategic-analyst"),
     24: ("value-proposition", "F-strategic", "elegant-system-strategic-analyst"),
     25: ("strategic", "F-strategic", "elegant-system-strategic-analyst"),
-    26: ("why-thinking", "G-problem", "elegant-system-strategic-analyst"),
-    27: ("improvement", "G-problem", "elegant-system-strategic-analyst"),
+    26: ("why", "A-logical", "elegant-logical-structural-analyst"),
+    27: ("kaizen", "G-problem", "elegant-system-strategic-analyst"),
     28: ("hypothesis", "G-problem", "elegant-system-strategic-analyst"),
-    29: ("issue-thinking", "G-problem", "elegant-system-strategic-analyst"),
-    30: ("kj-method", "G-problem", "elegant-system-strategic-analyst"),
+    29: ("issue", "G-problem", "elegant-system-strategic-analyst"),
+    30: ("kj", "G-problem", "elegant-system-strategic-analyst"),
 }
 
 
@@ -126,29 +126,6 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
 
     valid_conditions = {"C1", "C2", "C3", "C4"}
     valid_severities = {"critical", "high", "medium", "low"}
-    valid_scopes = {"target-specific", "reusable-pattern", "governance-rule", "lint-candidate", "template-candidate"}
-    valid_reuse_surfaces = {"template", "rubric", "lint", "hook", "reference", "manifest", "runbook", "none"}
-    valid_source_tiers = {
-        "article-text",
-        "image-derived",
-        "code-unavailable",
-        "code-verified",
-        "internal",
-        "external-spec",
-    }
-    valid_migration_buckets = {
-        "always-on",
-        "ref",
-        "run",
-        "wrap",
-        "assign",
-        "delegate",
-        "hook",
-        "docs",
-        "mcp",
-        "none",
-    }
-    valid_runtime_variants = {"mac", "linux", "windows", "unknown", "any", "none"}
     for pid in sorted(set(PARADIGMS) & set(by_id)):
         item = by_id[pid]
         expected_name, expected_category, expected_agent = EXPECTED_META[pid]
@@ -175,47 +152,21 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
                 errors.append(f"paradigm {pid} issue {i}: invalid severity")
             if not str(issue.get("description", "")).strip():
                 errors.append(f"paradigm {pid} issue {i}: missing description")
-            if not str(issue.get("suggested_fix", "")).strip():
-                errors.append(f"paradigm {pid} issue {i}: missing suggested_fix")
-            if issue.get("source_tier") not in valid_source_tiers:
-                errors.append(f"paradigm {pid} issue {i}: invalid source_tier")
-            if not str(issue.get("trace_evidence", "")).strip():
-                errors.append(f"paradigm {pid} issue {i}: missing trace_evidence")
-            if issue.get("migration_bucket") not in valid_migration_buckets:
-                errors.append(f"paradigm {pid} issue {i}: invalid migration_bucket")
-            if issue.get("runtime_variant") not in valid_runtime_variants:
-                errors.append(f"paradigm {pid} issue {i}: invalid runtime_variant")
-            if not str(issue.get("dependency_assumption", "")).strip():
-                errors.append(f"paradigm {pid} issue {i}: missing dependency_assumption")
-            if not str(issue.get("negative_case", "")).strip():
-                errors.append(f"paradigm {pid} issue {i}: missing negative_case")
-            if not str(issue.get("re_audit_trigger", "")).strip():
-                errors.append(f"paradigm {pid} issue {i}: missing re_audit_trigger")
-            if "finding_scope" in issue and issue.get("finding_scope") not in valid_scopes:
-                errors.append(f"paradigm {pid} issue {i}: invalid finding_scope")
-            if "reuse_surface" in issue and issue.get("reuse_surface") not in valid_reuse_surfaces:
-                errors.append(f"paradigm {pid} issue {i}: invalid reuse_surface")
+            if not str(issue.get("recommended_intervention", "")).strip():
+                errors.append(f"paradigm {pid} issue {i}: missing recommended_intervention")
 
     variable_abstraction = data.get("variable_abstraction")
-    if not isinstance(variable_abstraction, dict):
-        errors.append("missing variable_abstraction")
-    else:
-        variables = variable_abstraction.get("variables")
-        if not isinstance(variables, list) or not variables:
-            errors.append("variable_abstraction.variables must be non-empty")
-        else:
-            for idx, var in enumerate(variables):
-                if not isinstance(var, dict):
-                    errors.append(f"variable_abstraction.variables[{idx}] must be object")
-                    continue
-                for key in ("name", "meaning", "default", "required", "not_applicable_when"):
-                    if key not in var:
-                        errors.append(f"variable_abstraction.variables[{idx}] missing {key}")
-                if not str(var.get("name", "")).startswith("{{"):
-                    errors.append(f"variable_abstraction.variables[{idx}].name must be template variable")
-        source_trace = variable_abstraction.get("source_trace")
-        if not isinstance(source_trace, list):
-            errors.append("variable_abstraction.source_trace must be a list")
+    if not isinstance(variable_abstraction, list):
+        errors.append("variable_abstraction must be a list")
+    for idx, var in enumerate(variable_abstraction or []):
+        if not isinstance(var, dict):
+            errors.append(f"variable_abstraction[{idx}] must be object")
+            continue
+        for key in ("concrete_value", "variable_name", "source_trace"):
+            if key not in var:
+                errors.append(f"variable_abstraction[{idx}] missing {key}")
+        if not str(var.get("variable_name", "")).startswith("{{"):
+            errors.append(f"variable_abstraction[{idx}].variable_name must be template variable")
 
     return not errors, errors
 

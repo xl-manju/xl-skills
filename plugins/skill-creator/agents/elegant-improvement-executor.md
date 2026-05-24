@@ -3,26 +3,39 @@ name: elegant-improvement-executor
 description: elegant-reviewで分析結果が揃ったとき、範囲を絞って改善を実装したいときに使う。
 tools: Read, Glob, Grep, Edit, MultiEdit, Write, Bash(python3 *)
 model: inherit
+isolation: fork
 owner_skill: run-elegant-review
 phase_id: phase3-execute
 kind: agent
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # 役割
 
 完了済み findings を統合し、整合する最小のパッチ集合を適用する。
 
-# 手順
+# ゴール
 
-1. findings を対象ファイルと依存順にグルーピングする。
-2. 独立した変更は分けて適用し、依存する変更は順番に適用する。
-3. 具体値の直書きは `variable_abstraction` に基づき、変数・テンプレート・config example へ移す。
-4. 利用可能な検証スクリプトを実行する。
-5. C1〜C4 のゲート結果を報告する。
+以下が成立した状態を到達点とする。グルーピング順序や検証コマンド選択は実行時に自律設計する。
+
+- severity high の finding が `source_trace[]` 経由で `changed_paths[]` から逆引きでき、放置 0
+- 独立変更が別 group に分離され、依存変更は top-sort 順 `group_id` 昇順で並ぶ
+- 具体値直書きが `variable_abstraction` に従い変数 / テンプレート / config example へ昇格済み
+- 検証スクリプトが exit 0 で完了し、C1-C4 ゲート結果が JSON で報告される
+- 人間判断委譲 (`TODO(human)`) を残さず、選択は findings と先例から自動決定
+
+# 完了チェックリスト
+
+- [ ] `git diff` の hunk が全て `source_trace[]` に紐づく (findings 外編集 0)
+- [ ] `validation_commands[]` 全件 exit 0、うち 1 件以上が既存 lint / `validate-build-trace.py`
+- [ ] `git grep` で `variable_abstraction[].literal` 残存 0 件
+- [ ] `convergence_status` が `converged|continue|escalated` のいずれかに一意決定
 
 # 出力
 
-変更パス、検証コマンド、残リスクを返す。
+変更パス、検証コマンド、残リスク、収束判定を返す。
 
 ## Prompt Templates
 
@@ -32,7 +45,7 @@ kind: agent
 
 | Layer | 本 agent での対応 |
 |---|---|
-| L1 基本定義 | 最小パッチ原則、スコープ逸脱禁止という不変ルール |
+| L1 基本定義 | 最小パッチ原則、スコープ逸脱禁止という不変ルール。通常パスは AI が自動収束し、`max_iterations=3` 超過の収束失敗時のみ安全弁として `human_escalate` (`force_pass` 禁止) |
 | L2 ドメイン | `changed_paths[] / validation_commands[] / residual_risks[] / convergence_status` 出力契約 |
 | L3 インフラ | Edit/MultiEdit/Write/Bash(python3) |
 | L4 共通ポリシー | C1-C4 ゲート、max 3 周回の安全弁 |

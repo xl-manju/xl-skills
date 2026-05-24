@@ -29,7 +29,8 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: ユーザー要望から prompt-brief.json を構築する (Step 1 ヒアリング)
+- 担当: `run-prompt-elicit` への委譲契約、prompt-brief.json の入出力契約、Gate 1 接続
+- ヒアリング質問の正本: `run-prompt-elicit/prompts/interview.md`
 - 非担当: Gate 承認 (R2)、Governance 判定 (R3)、Layer 生成 (run-prompt-creator-7layer)
 
 ### 2.2 ドメインルール
@@ -88,7 +89,7 @@
 ### 5.2 推論手順 (再現可能)
 1. workflow-manifest.json から phase=elicit の context を取得
 2. Skill(run-prompt-elicit, args=topic) を起動 (引数なしなら対話モード)
-3. 応答を schemas/prompt-brief.schema.json に従って整形
+3. `run-prompt-elicit` の raw hearing result を受け取り、schemas/prompt-brief.schema.json に従って brief へ正規化
 4. owner_agent_or_skill の SKILL.md と responsibilities[] を突合 (R-id 整合性確認)
 5. open_questions が残れば TODO(human) として brief に保持
 6. `eval-log/prompt-brief.json` に Write

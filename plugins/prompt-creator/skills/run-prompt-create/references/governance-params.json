@@ -1,5 +1,5 @@
 {
-  "$comment": "run-prompt-create governance 自動承認パラメーター。prompts/governance-decide.md の機械評価に使用。solo_operator_auto を既定とし、初回ヒアリング (Gate 1) 以降の Gate 2-4 は条件充足時に自動承認する。",
+  "$comment": "run-prompt-create governance 自動承認パラメーター。自動承認条件のSSOTは workflow-manifest.json の governance.auto_approve_conditions。本ファイルは評価に必要な値と補足理由を提供する。",
   "solo_operator_mode": true,
   "stable_frozen": true,
   "newly_failing_threshold": 0,

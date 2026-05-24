@@ -8,6 +8,7 @@ prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-23
+version: 0.1.0
 source: doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md
 source-tier: internal
 last-audited: 2026-05-23

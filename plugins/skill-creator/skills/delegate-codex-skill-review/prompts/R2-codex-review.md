@@ -102,22 +102,32 @@
 
 - delegate-codex-skill-review skill 直接呼出（**context: fork 強制**、親 context のバイアスを継承しない）
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. `request_path` を Read し metadata（target_skill, codex_version, sycophancy_guard）取得
-2. `codex_raw_response` を §2.4 schema に向けて整形（findings 各要素を observation/rationale/suggested_fix に正規化）
-3. Sycophancy 判定: findings 全件 severity in {info, praise} なら `sycophancy_retry_count++` し再要求要求を出す
-4. critical_axis_scores を rubric.json と突合、全 axis >=1 で `pass_status: pass`、1 件でも 0 で `fail`
-5. self_validate: `io-contract.schema.json` output ブロックで validate
-6. `eval-log/delegate-codex-response.json` に保存、exit code 設定
+- **目的**: codex 応答を schema 準拠の response JSON へ整形し、sycophancy 検出・再要求制御を経て pass/fail 判定を確定する
+- **背景**: 自セッション採点禁止 (09章)。codex 側にも肯定バイアスが残るため、severity 構成で sycophancy を検出し最大 N 回まで再要求してから判定する必要がある
+- **達成ゴール**: `eval-log/delegate-codex-response.json` が §2.4 schema を満たし、`pass_status` / `critical_axis_scores` / `findings` / `sycophancy_retry_count` / `codex_version` が矛盾なく整合した状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] `findings[]` の各要素に observation / rationale / suggested_fix が揃う
-- [ ] `pass_status` と `critical_axis_scores` が矛盾しない（pass なら全 >=1）
+- [ ] `findings[]` 各要素に `observation` / `rationale` / `suggested_fix` / `severity` / `axis_ref` が揃う
+- [ ] critical axis 全 score >=1 のときのみ `pass_status: pass`、1 件でも 0 で `fail`（force_pass 禁止）
+- [ ] sycophancy 検出時（findings 全件 severity ∈ {info, praise}）`sycophancy_retry_count++` し再要求要求を出した
+- [ ] `sycophancy_retry_count` が上限（既定 3）以内、超過時は escalation `sycophancy-unrecoverable`
 - [ ] `codex_version` が request metadata と一致
-- [ ] schema validator exit 0
-- [ ] SKILL.md / rubric.json / 他 skill への書込みゼロ
+- [ ] request の `status: skipped` 透過時は output も `pass_status: skipped`
+- [ ] `schemas/io-contract.schema.json` output ブロック validation を通過
+- [ ] SKILL.md / rubric.json / 他 skill への書込みゼロ（fork context 維持）
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、codex_raw_response の形状（正常 / 肯定のみ / schema 不一致 / skipped）に応じて整形・突合・再要求手順を都度設計する
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（request metadata 取得 / findings 正規化 / sycophancy 検出 / rubric 突合 / pass_status 確定 / schema 自己修正 / eval-log 保存 等から必要なものを選択）
+  3. response JSON を更新
+  4. §5.3 で自己評価し全項目充足まで反復（schema 自己修正最大 3 回、sycophancy 再要求最大 3 回）
+- 逸脱時: schema 再試行超過は escalation `schema-invalid`、structural error は §4.1 に従い exit 3 で停止
 
 ## Layer 6: オーケストレーション層
 
@@ -148,4 +158,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{request_path}}` / `{{codex_raw_response}}` / `{{options}}` を受け、Layer 5.2 の手順を逐次実行し、`eval-log/delegate-codex-response.json` を §2.4 schema 準拠で書き出す。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
+入力 `{{request_path}}` / `{{codex_raw_response}}` / `{{options}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い整形・突合・再要求手順を動的生成・実行する。最終的に `eval-log/delegate-codex-response.json` を §2.4 schema 準拠で書き出す。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。

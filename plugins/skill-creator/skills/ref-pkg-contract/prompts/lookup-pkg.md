@@ -112,22 +112,33 @@ errors:
 
 - ref-pkg-contract skill 直接呼出（context-fork 不要、read-only）
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. 入力 `query.pkg_id` を §2.3 正規表現で検証
-2. `references/pkg-id-catalog.yaml` を Read し当該 ID を検索
-3. PKG-013 単体クエリなら 013a-d に展開し配列で返す
-4. `query.context.package_mode` 指定時は catalog の `package_modes` 配列と突合し `applicable` 判定
-5. `reserved: true` なら applicable 判定をスキップし `warn: reserved_unresolved` 設定
-6. 36章本文との齟齬検出（PKG ID/severity/phase 差分）→ あれば `warn: catalog_doc_drift`
-7. §2.4 YAML 構造体を構築し返却
+- **目的**: PKG ID 1 件のメタデータ (phase / script / severity / eval-log path / 関連章) を catalog 一次情報から圧縮取得し §2.4 YAML で返す
+- **背景**: PKG ID 表の参照系は本 prompt のみが正当窓口。catalog yaml が機械可読正本、36章本文は人間用。齟齬は drift として併記し機械処理を止めない
+- **達成ゴール**: 入力 `query.pkg_id` に対し catalog 一致 / not-found / reserved / drift の状態が一意に判定され、§2.4 YAML 構造体が `additionalProperties` 無しで返却された状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] 出力に `additionalProperties` を含まない
-- [ ] `eval_log_path` が `eval-log/<plugin>/pkg-<id>/...` 形式
-- [ ] PKG-013 入力で 4 件展開されている
-- [ ] reserved ID で `warnings` に `reserved_unresolved` が含まれる
+- [ ] `pkg_id` 正規表現マッチを通過
+- [ ] catalog yaml を一次情報として参照（本 prompt 内で PKG 表を再定義していない）
+- [ ] PKG-013 単体クエリで 013a/b/c/d 4 件に展開
+- [ ] `context.package_mode` 指定時 `applicable` / `applicable_reason` を判定
+- [ ] `reserved: true` の ID で `warnings: [reserved_unresolved]` 必須
+- [ ] catalog と 36章本文齟齬検出時に `warnings: [catalog_doc_drift]` 併記
+- [ ] `eval_log_path` が 27章 §3.1 規約 `eval-log/<plugin>/pkg-<id>/...` 形式
+- [ ] 不明 ID は hallucination せず `errors: [unknown_pkg_id]` で停止
+- [ ] 副作用なし（read-only を維持）
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、入力 ID 形状（単発 / 013 集約 / reserved）に応じて必要な参照・展開・突合手順を都度設計する
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（regex 検証 / catalog Read / 013 展開 / package_mode 突合 / reserved 判定 / 36章 drift 検出 等から必要なものを選択）
+  3. §2.4 YAML 構造体を組み立て / 更新
+  4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 最大反復）
+- 逸脱時: catalog / schema 不在は §4.1 に従い exit 3 で停止
 
 ## Layer 6: オーケストレーション層
 
@@ -157,4 +168,4 @@ errors:
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{query}}` を受け取り、Layer 5.2 の手順を逐次実行し、Layer 2.4 の YAML 構造体のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。catalog 不在時は exit 3 で停止。
+入力 `{{query}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い参照・展開手順を動的生成・実行する。最終的に Layer 2.4 の YAML 構造体のみを stdout に出力する。前置き・後書き・思考過程出力は禁止。catalog 不在時は exit 3 で停止。

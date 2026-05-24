@@ -82,22 +82,26 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-skill-design-rubric 配下の R1 SubAgent (context fork 推奨)。
+- ref-skill-design-rubric 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. references/rubric.json をパースし rubric.version を取得する。
-2. `target_layer` でフィルタする。
-3. query を `axis.name / axis.aliases / axis.keywords` にあいまい一致で検索する。
-4. scope に応じて返却を絞る。
-5. 200-400 字で要約 + 各 axis の rationale 1 行抜粋を付ける。
-6. 該当 axis を強化する設計改善 hint を 1-3 件 (rubric 内由来のみ) 添える。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し skill 設計 rubric の該当 axes / weights / rationale を target_layer 単位で返す。
+- **背景**: caller は skill 設計評価のみを必要とし、rubric 改訂は ref-* の責務外。改善 hint を rubric 外から捏造すると設計判断を誤らせるため rubric 内由来に限定する。
+- **達成ゴール**: query に該当する axes が version + target_layer フィルタ + rationale 1 行 + 改善 hint (rubric 内由来) 付きで引用され、weight 合計が 1.0 を破らず、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が評価にそのまま使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] rubric_version が references/rubric.json と一致しているか
-- [ ] target_layer フィルタが守られているか
-- [ ] matches[].weight 合計が 1.0 ±0.01 を破らないか
-- [ ] 改善 hint が rubric 内 axis に紐づいているか (捏造禁止)
-- [ ] summary が 50-800 字に収まっているか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が references/rubric.json の実在 axis から逐語引用されている
+- [ ] 呼出元責務外の情報 (rubric 改訂 / skill 実装) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] rubric_version が references/rubric.json と一致している
+- [ ] target_layer フィルタが守られている
+- [ ] matches[].weight 合計が 1.0 ±0.01 を破らない
+- [ ] 改善 hint が rubric 内 axis に紐づいている (捏造禁止)
+- [ ] summary が 50-800 字に収まる
+- [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

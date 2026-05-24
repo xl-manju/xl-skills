@@ -78,20 +78,25 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-yaml-spec-fetcher 配下の R1 SubAgent (context fork 推奨)。
+- ref-yaml-spec-fetcher 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. resource-map.yaml で対象を解決する。
-2. `yaml-spec-cache.md` の `last_fetched:` を確認し、30 日超過なら `staleness=true` を付与する。
-3. query をフィールド名 / 日付でマッチし、定義行と例を抽出する。
-4. spec-diff-history.md に該当フィールドの変更履歴があれば併記する。
-5. キャッシュ未配置の場合は `matches: []` + `staleness=missing` を返す。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し YAML spec キャッシュの該当フィールド定義・例・変更履歴を鮮度判定付きで返す。
+- **背景**: caller は YAML spec 参照のみを必要とし、ネット再取得や spec 改訂は ref-* の責務外。鮮度判定欠落は古い spec での誤実装を招くため必須。
+- **達成ゴール**: query に該当するフィールド定義が `last_fetched` 鮮度判定 (30 日閾値) と staleness フラグ付きで引用され、spec-diff-history と整合し、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま参照に使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] `last_fetched` の鮮度判定 (30 日閾値) を正しく行ったか
-- [ ] キャッシュと現行 03 章の差分が history に整合しているか
-- [ ] キャッシュ未配置時に safe-fail (`staleness=missing` + exit 0) したか
-- [ ] 推奨再取得 URL を warn に添えたか (閾値超過時)
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が yaml-spec-cache.md の実在行から逐語引用されている
+- [ ] 呼出元責務外の情報 (再 fetch 実行 / spec 改訂) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] `last_fetched` の鮮度判定 (30 日閾値) を正しく行っている
+- [ ] キャッシュと現行 03 章の差分が spec-diff-history.md に整合している
+- [ ] キャッシュ未配置時は safe-fail (`staleness=missing` + exit 0)
+- [ ] 閾値超過時に推奨再取得 URL を warn に添えている
+- [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

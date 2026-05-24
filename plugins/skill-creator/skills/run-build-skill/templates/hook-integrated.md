@@ -54,32 +54,31 @@ role_suffix: {{role_suffix}}
 - 同イベントに複数 hook を登録しない（登録順依存で読み取り困難になる）
 - PostToolUse で「禁止表現」をしない（副作用が出た後の block は意味がない）
 
-## Steps
+## ゴールシーク実行
+> 固定手順は書かない。Gate を完了チェックリストとし、配線・検証の手順は AI が都度判断する。詳細は run-build-skill `references/goal-seek-paradigm.md`。
 
-### Step 1: 静的禁止の宣言（permissions.deny）
-`settings.json` に以下を追加（既存の deny を上書きしないこと）:
-```json
-{
-  "permissions": {
-    "deny": [{{deny_rules_list}}]
-  }
-}
-```
+### ゴール (Goal)
+permissions.deny と Hook の二段防御が配線され、危険操作が決定論的に block される状態。
 
-### Step 2: Hook スクリプトの配線
-```bash
-# scripts/ に hook 実装を配置
-ls scripts/hook-{{name}}-guard.py scripts/hook-{{name}}-validate.py
-# settings.json の hooks セクションに matcher 付きで登録
-```
+### 完了チェックリスト (Checklist)
+- [ ] `settings.json` の `permissions.deny` に禁止 command/path を列挙した（既存 deny を上書きしていない）
+- [ ] `scripts/hook-{{name}}-guard.py` / `-validate.py` を配置し settings.json に matcher 付きで登録した
+- [ ] dry-run で guard が想定対象に exit 2（block）を返すことを確認した
 
-### Step 3: 動作検証
-```bash
-# Hook が想定通り block するか dry-run
-echo '{"tool":"Write","tool_input":{"file_path":"<禁止対象>"}}' \
-  | python3 scripts/hook-{{name}}-guard.py
-# exit 2 が返ればOK
-```
+### ゴールシークループ
+未達 `[ ]` を特定 → 手順を都度生成 → 実行 → チェックリスト再評価 → 全達成まで反復。
+
+### 局面カタログ（順序は都度判断）
+- **静的禁止の宣言**: `settings.json` に deny を追加。
+  ```json
+  { "permissions": { "deny": [{{deny_rules_list}}] } }
+  ```
+- **Hook 配線**: `scripts/` に hook 実装を置き settings.json の hooks セクションに登録。
+- **動作検証 (dry-run)**:
+  ```bash
+  echo '{"tool":"Write","tool_input":{"file_path":"<禁止対象>"}}' \
+    | python3 scripts/hook-{{name}}-guard.py   # exit 2 が返ればOK
+  ```
 
 ## Gotchas
 - **Hook で access 制御だけ書く**: `permissions.deny` を併用しないと hook 設定ミス時に素通り。設計書10章 §7.5 アンチパターン①

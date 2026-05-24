@@ -1,25 +1,19 @@
-# run-prompt-elicit resource map
-machine_readable:
-  schemas:
-    hearing_result: schemas/hearing-result.schema.json
-    prompt_brief: ../run-prompt-create/schemas/prompt-brief.schema.json
-prompts:
-  R1_interview: prompts/interview.md
-references:
-  question_bank: references/elicit-question-bank.md
-delegate_agents:
-  interview_user: plugins/prompt-creator/agents/prompt-creator-interview-user.md
-phase_resources:
-  pre_check:
-    must_read: [eval-log/prompt-brief.json (任意, 既存差分用)]
-  target_skill_lookup:
-    must_read: [plugins/<plugin>/skills/<target_skill>/SKILL.md]
-  interview:
-    must_read: [references/elicit-question-bank.md]
-    delegate: plugins/prompt-creator/agents/prompt-creator-interview-user.md
-    context: fork
-  brief_build:
-    must_read: [schemas/hearing-result.schema.json, ../run-prompt-create/schemas/prompt-brief.schema.json]
-eval_log_artifacts:
-  hearing_result: eval-log/hearing-result.json
-  brief: eval-log/prompt-brief.json
+# resource-map.yaml — 設計書06 第13条スキーマ準拠
+# run-prompt-elicit (Step 1 worker) の Progressive Disclosure 索引。
+# 上位 (schemas, prompts) は機械可読 contract。references/* は人間向け補助資料。
+resources:
+  - file: ../schemas/hearing-result.schema.json
+    topic: 対話ヒアリングの中間生データスキーマ
+    read_when: brief_build で hearing-result を構築・検証するとき
+  - file: ../../run-prompt-create/schemas/prompt-brief.schema.json
+    topic: Step1→Step2 渡しの prompt-brief.json 正本スキーマ
+    read_when: brief_build で brief を構築・検証するとき (最初に読む)
+  - file: elicit-question-bank.md
+    topic: ヒアリング質問テンプレ集
+    read_when: interview で質問を設計するとき
+  - file: ../prompts/interview.md
+    topic: R1 ヒアリング責務プロンプト
+    read_when: interview agent へ渡す context を組み立てるとき
+  - file: ../../../agents/prompt-creator-interview-user.md
+    topic: 対話ヒアリング委譲 agent (context:fork)
+    read_when: interview を Task で起動するとき

@@ -40,7 +40,99 @@ FLAG_PATCHES = {
     "with_evaluator": "with-evaluator.patch",
     "with_hooks": "with-hooks.patch",
     "with_subagent": "with-subagent.patch",
+    "with_knowledge": "with-knowledge.patch",
 }
+
+# goal-seek 配線を default-ON で注入する loop 実行系 kind。
+# assign(評価系=一発採点でループしない) と ref(read-only) は対象外。
+GOAL_SEEK_KINDS = ("run", "wrap", "delegate")
+
+
+# with-knowledge.patch の決定論的注入内容。配布スキルが自己完結するよう、
+# skill-creator 内部 (ref-knowledge-loop / templates/ / Loop B / --dir) への参照を一切含めない。
+KNOWLEDGE_FM_BLOCK = (
+    "# knowledge-loop: 蓄積/検索/§12フィードバックを組み込む。"
+    "検索・追加・記録・整合性検証は本 Skill 同梱の scripts/ で完結する (外部ツール不要)。\n"
+    "knowledge_loop:\n"
+    "  pattern: {{knowledge_loop.pattern}}       # index-search | router-registry\n"
+    "  index: knowledge/knowledge-index.json     # router-registry 型は knowledge/router.json\n"
+    "  usage_log: knowledge/usage-log.jsonl\n"
+    "  consult_at: {{knowledge_loop.consult_at | default([\"runtime\"])}}"
+)
+
+KNOWLEDGE_SECTION = (
+    "## ナレッジループ\n"
+    "本 Skill は `knowledge/` に蓄積した知見を実行時に検索し、活用結果を記録して品質を自己改善する。"
+    "検索・追加・記録・整合性検証はすべて本 Skill 同梱の `scripts/` だけで完結し、外部ツールやメタリポジトリへの依存はない。\n\n"
+    "### 構造（pattern: {{knowledge_loop.pattern}}）\n"
+    "- `knowledge/knowledge-index.json`（index-search 型）/ `knowledge/router.json` + `registry.json`（router-registry 型）。"
+    "いずれも `consult_at: [\"runtime\"]` を宣言する。\n"
+    "- 各エントリは必須6フィールド `id / title|content / intent|purpose / background / keywords|tags / source` を満たす。"
+    "整合性 (ID重複・必須欠落) は `scripts/build_index.py --stats` で検証する。\n\n"
+    "### 検索（決定論段 → AI段）\n"
+    "1. `scripts/search_knowledge.py --query \"<query>\" --limit 5`"
+    "（Stage1 カテゴリ絞り込み + Stage2 重み付きスコアリング・決定論・100%再現）。\n"
+    "2. 上位 N 件を文脈に照らして取捨選択する（AI判断）。\n\n"
+    "### 知見の追加（日々の更新）\n"
+    "- `scripts/add_entry.py --category <id> --id <eid> --title \"...\" --intent \"...\" "
+    "--background \"...\" --keywords \"k1,k2,...\" --source \"<出典>\"` で追加する。"
+    "必須6フィールドを検証して追記するため JSON の手編集は不要。"
+    "誤ったストアへの追加はストアの `consult_at` 不一致として拒否される。\n\n"
+    "### §12 フィードバックループ（使うほど良くする）\n"
+    "- 検索→活用のたびに `scripts/record_usage.py --record --query ... --matched-ids ... "
+    "--used-ids ... --satisfaction helpful|neutral|unhelpful` で `knowledge/usage-log.jsonl` に追記。\n"
+    "- 定期的に `scripts/record_usage.py --analyze --emit-queue brushup-queue.jsonl` で"
+    "「マッチするが使われない」「unhelpful 多発」等を検出してキュー化し、"
+    "`--mark-needs-update` で該当エントリに status を付与、title/keywords/background を改善する。\n\n"
+    "### ライフサイクル\n"
+    "- 1ファイル 500行 または 25エントリ超でサブトピック分割（`scripts/build_index.py --stats` で監視）。\n"
+    "- router-registry 型は `registry.json` の status（pending / processed / needs-update / deprecated）で素材の再同期を追跡。\n\n"
+    "> このナレッジループは本 Skill 単体で完結する。配布先のどの環境でも、"
+    "追加・更新・検索・記録が同梱 `scripts/` だけで同じ手順で行える。"
+)
+
+
+# with-goal-seek.patch の決定論的注入内容。loop 実行系 (run/wrap/delegate) は _base.md が
+# 継承する `## ゴールシーク実行` 散文に加えて、ループを「実行可能な機構」として配線する:
+# goal-spec のロード / 周回 progress JSON / 打ち切り規約。
+# 重要 (self-contained): ループ本体は本 Skill 内の AI 推論で自己完結し、外部スキルへの依存を持たない。
+# run-goal-seek は「重い周回時の任意の最適化手段」であり必須ではない (with-knowledge と同じ自己完結原則)。
+GOAL_SEEK_FM_BLOCK = (
+    "# goal-seek: 固定手順を持たず Goal+Checklist へ向けて反復する。engine は外部スキル非依存(inline)で"
+    "自己完結し、反復ループは fork で分離 context に切り出し親へ最終差分のみ返す(2軸は独立)。\n"
+    "goal_seek:\n"
+    "  engine: {{goal_seek.engine | default(\"inline\")}}      # inline(既定/自己完結・外部スキル不要) | run-goal-seek(同梱時のみ任意で使う重量オーケストレータ)\n"
+    "  spec: eval-log/goal-spec.json                       # 任意。あればロードして利用、無ければ AI が文脈から推定\n"
+    "  progress: eval-log/{{skill_name}}-progress.json     # schemas/goal-seek-loop.schema.json 準拠\n"
+    "  max_loops: {{goal_seek.max_loops | default(5)}}\n"
+    "  fork: {{goal_seek.fork | default(\"subagent\")}}        # subagent(既定/反復を分離contextで実行し親へ最終差分のみ) | agent-team | inline(軽量単発のみ opt-down)"
+)
+
+# _base.md の `### ゴールシークループ` 直後に挿入する実行配線サブセクション。
+GOAL_SEEK_LOOP_ANCHOR = (
+    "1. 未達 `[ ]` を特定 → 2. 手順を都度生成（固定化禁止）→ 3. 実行 → "
+    "4. チェックリスト再評価し `[x]` 更新 → 全 `[x]` まで反復。規定周回で未達なら open_issues に差し戻す。"
+)
+
+GOAL_SEEK_WIRING_SECTION = (
+    "### ゴールシーク配線（実行可能機構）\n"
+    "本 Skill のループは散文だけでなく実行可能機構として配線される。"
+    "ユーザーの悩み（要望）をゴールに変換し、達成まで自律ループを回す:\n\n"
+    "- **goal-spec**: `eval-log/goal-spec.json` があればロードして利用する"
+    "（spec schema が同梱されていれば検証、無ければそのまま利用）。無ければ既存コンテキスト"
+    "（直近依頼・制約・対象ファイル）から AI が最適ゴール+完了チェックリストを推定生成する"
+    "（ユーザーへの追加質問は原則しない）。\n"
+    "- **周回状態**: 各周回で `eval-log/{{skill_name}}-progress.json`"
+    "（`run-build-skill/schemas/goal-seek-loop.schema.json` 準拠）に "
+    "`iteration` / 各 checklist 項目 `{id,text,status}` / `open_issues` を記録する。\n"
+    "- **コンテキスト分離（fork 軸）**: 反復ループは既定で SubAgent（`Agent`）に分離して実行し、"
+    "親には最終成果物と `handoff-*.json` 要約のみ返す（中間試行で親 context を汚さない）。"
+    "`fork: inline` は軽量単発時の opt-down。なお重い周回で `engine: run-goal-seek`（同梱時のみ）を"
+    "使うのは外部依存軸の任意最適化で、fork 分離とは独立（`references/goal-seek-paradigm.md`「コンテキスト分離」）。\n"
+    "- **打ち切り**: `goal_seek.max_loops`（既定 5）到達でも未達なら、残項目を `open_issues` に記録し"
+    "人間 or 上位 orchestrator へ差し戻す。\n\n"
+    "> この配線により、本 Skill は配布先のどの環境でも「ゴールへ向けて自動でループを回す」挙動を同じ機構で再現する。"
+)
 
 
 class ComposeError(RuntimeError):
@@ -54,6 +146,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--with-evaluator", action="store_true")
     parser.add_argument("--with-hooks", action="store_true")
     parser.add_argument("--with-subagent", action="store_true")
+    parser.add_argument(
+        "--with-knowledge",
+        action="store_true",
+        help="inject self-contained knowledge-loop block (pattern stays as {{knowledge_loop.pattern}} template var)",
+    )
+    parser.add_argument(
+        "--no-goal-seek",
+        action="store_true",
+        help="opt out of the default-ON goal-seek wiring for loop kinds (run/wrap/delegate)",
+    )
     parser.add_argument(
         "--templates-dir",
         type=Path,
@@ -75,6 +177,9 @@ def selected_patches(args: argparse.Namespace) -> list[str]:
     for flag, patch_name in FLAG_PATCHES.items():
         if getattr(args, flag):
             patches.append(patch_name)
+    # goal-seek 配線は loop 実行系で default-ON (--no-goal-seek で opt-out)。
+    if args.kind in GOAL_SEEK_KINDS and not args.no_goal_seek:
+        patches.append("with-goal-seek.patch")
     return patches
 
 
@@ -193,15 +298,11 @@ def add_section_after(text: str, anchor: str, section: str) -> str:
 def apply_semantic_patch(text: str, patch_name: str) -> str:
     """Compatibility adapter for reviewed patches whose base moved to Japanese headings."""
     if patch_name == "with-run.patch":
+        # run-kind の固有差分は frontmatter のみ。手順は _base.md の `## ゴールシーク実行` を継承し、
+        # 固定手順 (### Step 1/2/3) は注入しない (goal-seek 原則「固定手順は書かない」と矛盾するため)。
+        text = ensure_frontmatter_line(text, "effect: {{effect | default(\"local-artifact\")}}", "kind")
         text = ensure_frontmatter_line(text, "role_suffix: {{role_suffix | default(\"workflow\")}}", "effect")
-        return add_section_after(
-            text,
-            "## 手順\n{{generated_steps}}",
-            "### Step 1: 入力確認\n{{step1_input_check}}\n\n"
-            "### Step 2: 主処理\n{{step2_main_process}}\n\n"
-            "### Step 3: 検証\n{{step3_validation}}\n\n"
-            "各 Step は副作用と返り値を明示し、失敗時の retry / rollback 条件を `## 注意点` に記載する。",
-        )
+        return text
     if patch_name == "with-ref.patch":
         text = ensure_frontmatter_line(text, "disable-model-invocation: true", "description")
         text = ensure_frontmatter_line(text, "user-invocable: false", "disable-model-invocation")
@@ -300,6 +401,12 @@ def apply_semantic_patch(text: str, patch_name: str) -> str:
             "- file ownership を分け、同一 file を複数 teammate に触らせない。\n"
             "- cleanup は必ず lead 経由で行う。",
         )
+    if patch_name == "with-knowledge.patch":
+        text = ensure_frontmatter_line(text, KNOWLEDGE_FM_BLOCK, "rubric_refs")
+        return add_section_after(text, "## 主要ルール\n{{key_constraints}}", KNOWLEDGE_SECTION)
+    if patch_name == "with-goal-seek.patch":
+        text = ensure_frontmatter_line(text, GOAL_SEEK_FM_BLOCK, "rubric_refs")
+        return add_section_after(text, GOAL_SEEK_LOOP_ANCHOR, GOAL_SEEK_WIRING_SECTION)
     raise ComposeError(f"unknown combinator: {patch_name}")
 
 

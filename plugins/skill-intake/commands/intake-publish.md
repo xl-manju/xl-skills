@@ -1,4 +1,5 @@
 ---
+name: intake-publish
 description: 既存 intake を Notion DB に再公開 (run-notion-intake-publish) — ヒアリングはやり直さず Notion API 呼び出しのみ
 argument-hint: "<skill-name-hint>"
 ---

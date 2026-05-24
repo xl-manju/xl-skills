@@ -14,8 +14,11 @@ AskUserQuestionで以下を段階的に収集する。一度に全部聞かず�
 | 2 | 誰が使うか | 利用者像の明確化 |
 | 3 | なぜ必要か | 背景・課題の把握 |
 | 4 | どんな出力がほしいか | 成果物イメージの具体化 |
-| 5 | 制約・注意点はあるか | 品質基準・禁止事項の設定 |
-| 6 | 何を重視するか（評価優先度） | 動的評価基準の生成材料 |
+| 5 | 何が出来上がれば完了か（ゴール・完了条件） | Layer 5 ゴール定義・完了チェックリストの材料 |
+| 6 | 制約・注意点はあるか | 品質基準・禁止事項の設定 |
+| 7 | 何を重視するか（評価優先度） | 動的評価基準の生成材料 |
+
+> 項目5は「手順」ではなく「達成状態と完了条件」を聞く。手順は各エージェントが実行時に自律生成するため、設計時に固定手順を収集しない。
 
 ### ヒアリングのルール
 
@@ -46,8 +49,8 @@ AskUserQuestionで以下を段階的に収集する。一度に全部聞かず�
 ## Phase 2: Prompt作成シート生成 + 導出確認
 
 1. LLMがヒアリング結果をJSON構造化（schemas/hearing-result.schema.json準拠）
-2. `node scripts/generate_sheet.js <hearing.json>` でテンプレート展開 [Script]
-3. `node scripts/validate_sheet.js <hearing.json>` で充足度検証 [Script]
+2. `python3 scripts/generate-sheet.py <hearing.json>` でテンプレート展開 [Script]
+3. `python3 scripts/validate-sheet.py <hearing.json>` で充足度検証 [Script]
 4. 未充足フィールドがあればLLMが追加質問を設計 [LLM]
 5. シートをユーザーに提示
 6. **導出確認**: AIの解釈・設計判断をユーザーに透明化して最終承認を得る
@@ -85,15 +88,15 @@ AskUserQuestionで以下を確認：
 
 | Step | アクション | 担当 |
 |------|-----------|------|
-| A-1 | `scaffold_prompt.js`で7層骨格を決定論的生成 | Script |
+| A-1 | `scaffold-prompt.py`で7層骨格を決定論的生成 | Script |
 | A-2 | Layer 1: 基本定義を充填 | LLM |
 | A-3 | Layer 2: ドメイン定義を充填 | LLM |
 | A-4 | Layer 3: インフラストラクチャを充填 | LLM |
 | A-5 | Layer 4: 共通ポリシーを充填 | LLM |
-| A-6 | Layer 5: エージェント定義を充填 | LLM |
+| A-6 | Layer 5: エージェント定義を充填（ゴール定義+完了チェックリスト。固定手順は書かない） | LLM |
 | A-7 | Layer 6: オーケストレーションを充填 | LLM |
 | A-8 | Layer 7: ユーザーインタラクションを充填 | LLM |
-| A-9 | `merge_layers.js`で7ファイルを合算 | Script |
+| A-9 | `merge-layers.py`で7ファイルを合算 | Script |
 
 各Layer生成ルール:
 - **1Layer=1出力**: 独立したLLM呼び出しで生成
@@ -101,12 +104,14 @@ AskUserQuestionで以下を確認：
 - **長文分割**: 複合的な内容はリスト・テーブル・サブキーに分解
 - **前Layer参照**: Layer N生成時にLayer 1〜(N-1)を参照して整合性確保
 - **省略禁止**: 「以下同様」は使わず全項目書き出し
+- **ゴールシーク（Layer 5）**: 達成ゴールは成果状態で記述。固定手順（思考プロセスのステップ列挙）を書かず、手順はエージェントの実行方式（自律生成ループ）に委ねる
+- **ハンドオフ（Layer 5/6）**: 各エージェントの出力(受領先)と次エージェントの入力(提供元)を接続し、直列/並列の連鎖を明示
 
 ### Phase 4-B: 多段階検証（パイプライン方式）
 
 | Step | アクション | 担当 |
 |------|-----------|------|
-| B-1 | `validate_prompt.js`で7層構造検証 | Script |
+| B-1 | `validate-prompt.py`で7層構造検証 | Script |
 | B-1.5 | Pass 0: `evaluation_priorities`から動的評価基準を生成 | LLM |
 | B-2 | Pass 1: 網羅性チェック（+ derivation_log反映確認） | LLM |
 | B-3 | Pass 2: 整合性チェック | LLM |
@@ -155,7 +160,7 @@ evaluation_priorities: [{{priority_1}}, {{priority_2}}]
 | Step | アクション | 担当 |
 |------|-----------|------|
 | D-1 | YAML正規形 → 指定フォーマットに変換 | Script |
-| D-2 | `validate_prompt.js`で変換後の再検証 | Script |
+| D-2 | `validate-prompt.py`で変換後の再検証 | Script |
 | D-3 | 指定パスにファイル書き出し | Write |
 | D-4 | ユーザーに出力完了を報告 | LLM |
 
@@ -166,6 +171,6 @@ evaluation_priorities: [{{priority_1}}, {{priority_2}}]
 > Phase 4-D で変換・検証済みのため、このPhaseは書き出しとログのみ。
 
 1. 指定パスにプロンプトファイルを書き出す [Write]
-2. `node scripts/log_usage.js --result success --phase "Phase 5"` [Script]
+2. `python3 scripts/log-usage.py --result success --phase "Phase 5"` [Script]
 3. ユーザーに出力完了を報告
 4. 必要に応じてPrompt作成シートも同じディレクトリに保存

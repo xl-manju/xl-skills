@@ -8,6 +8,7 @@ kind: ref
 prefix: ref
 owner: team-platform
 since: 2026-05-19
+version: 0.1.0
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/22-cross-platform-runtime.md
 source-tier: internal

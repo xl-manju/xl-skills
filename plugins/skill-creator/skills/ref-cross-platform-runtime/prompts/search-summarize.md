@@ -77,20 +77,24 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-cross-platform-runtime 配下の R1 SubAgent (context fork 推奨)。
+- ref-cross-platform-runtime 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. resource-map.yaml で対象 references を絞り込む。
-2. query を CLI 名 / OS 名 / 機能名で keyword マッチする。
-3. 該当行と前後 ±5 行、および同表の alternative 列を併せて抽出する。
-4. 出力を per-OS テーブル形式に正規化 (mac / linux / windows カラムを保持)。
-5. 該当ゼロなら `matches: []` + 近傍 topic の `suggestions`。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し OS 横断 CLI 仕様・禁止 CLI 一覧から最小十分な根拠を返す。
+- **背景**: caller は CLI 採否判断のみを必要とし、CLI 一覧の改訂は ref-* の責務外。OS 表記揺れと alternative 欠落が誤実装の主因のため正規化する。
+- **達成ゴール**: query に該当する CLI 行が per-OS 列と alternative 付きで引用され、禁止行に warn が付与され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま判定に使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] 抽出した CLI が forbidden-clis.md の最新行と一致しているか
-- [ ] OS 表記揺れ (mac / macOS / darwin) を正規化したか
-- [ ] alternative 列を欠落させていないか
-- [ ] 禁止行に warn フラグを付与したか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が forbidden-clis.md / runtime references の実在行から逐語引用されている
+- [ ] 呼出元責務外の情報 (CLI 一覧改訂 / 実行) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] per-OS テーブル (mac / linux / windows) が揃い alternative 列を欠落させていない
+- [ ] OS 表記揺れ (mac / macOS / darwin) を正規化済み
+- [ ] 禁止行に warn フラグを付与済み
+- [ ] 該当ゼロ時は `matches: []` + 近傍 topic の `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

@@ -103,22 +103,33 @@
 
 - delegate-codex-skill-review skill 直接呼出（context-fork 不要、副作用は eval-log/ のみ）
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. **precheck**: `python3 scripts/check-codex-installed.py` 実行。exit 2 なら status=skipped で停止
-2. **target 検証**: `target_skill_path` の絶対 path / SKILL.md 確認
-3. **collect_context**: target 同階層の prompts/schemas/references を列挙して Read、欠落は `missing_refs[]` に記録
-4. **build_request**: schema 準拠で JSON 組立。system_prompt に sycophancy 抑制文を注入
-5. **self_validate**: `io-contract.schema.json` で validate、必須キー / 抑制キーワード存在確認
-6. **emit**: `eval-log/delegate-codex-request.json` に保存、stdout に codex 実行コマンド 1 行案内
+- **目的**: target Skill の周辺資源を集約し、sycophancy 抑制 system_prompt 付きの codex 委譲 request JSON を schema 準拠で生成する
+- **背景**: 自セッション採点は肯定バイアスが強く critical axis 検出率が低い（09章）。codex への第三者委譲で評価独立性を確保するが、本 prompt は送信前で停止し request 生成までを担う
+- **達成ゴール**: `eval-log/delegate-codex-request.json` が §2.4 schema を満たし、sycophancy 抑制キーワードを含む system_prompt と target の prompts/schemas/references を集約した files[] が揃い、stdout に codex 実行コマンド 1 行のみ案内された状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] `system_prompt` に sycophancy 抑制キーワード >=1 件
-- [ ] `files[]` に target SKILL.md 本文が含まれる
+- [ ] codex 未導入時 `status: skipped` + `reason: codex_not_installed` で安全停止
+- [ ] `target_skill_path` が絶対 path の SKILL.md
+- [ ] target 同階層 prompts/schemas/references が files[] に集約、欠落は `missing_refs[]` に記録
+- [ ] `system_prompt` に sycophancy 抑制キーワード（`critical axis` / `not sycophantic` / `evidence required` 等）が 1 件以上
 - [ ] `metadata.codex_version` が CLI 実出力または `skipped` のいずれか
-- [ ] schema validator exit 0
-- [ ] target に書込みが発生していない
+- [ ] `schemas/io-contract.schema.json` input ブロック validation を通過
+- [ ] target 配下に書込み副作用が発生していない
+- [ ] eval-log path が 27章 §3.1 規約準拠
+- [ ] codex CLI は本 prompt 内で実行していない（送信前停止）
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、target の構成（周辺資源の有無 / codex 導入状況）に応じて必要な手順を都度設計する
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（`check-codex-installed.py` preflight / target 検証 / 周辺資源 Read 集約 / system_prompt 構築 / sycophancy 抑制注入 / schema validate / eval-log 保存 / stdout 案内 等から必要なものを選択）
+  3. request JSON と stdout 案内を更新
+  4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 最大反復、build_request 再試行は §4.1 に従い最大 1 回）
+- 逸脱時: 周辺資源が全欠落 / schema 再試行超過時は §4.1 に従い escalation `target_too_sparse` / exit 3 で停止
 
 ## Layer 6: オーケストレーション層
 
@@ -150,4 +161,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{target_skill_path}}` / `{{extra_refs}}` / `{{options}}` を受け、Layer 5.2 の手順を逐次実行し、`eval-log/delegate-codex-request.json` を §2.4 schema 準拠で書き出し、stdout に codex 実行コマンド 1 行のみ案内する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
+入力 `{{target_skill_path}}` / `{{extra_refs}}` / `{{options}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い手順を動的生成・実行する。最終的に `eval-log/delegate-codex-request.json` を §2.4 schema 準拠で書き出し、stdout に codex 実行コマンド 1 行のみ案内する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。

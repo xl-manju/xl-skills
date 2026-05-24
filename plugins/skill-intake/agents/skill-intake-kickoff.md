@@ -93,30 +93,19 @@ model: sonnet
 - 初期発話に含まれうる PII (氏名 / 顧客名) は kickoff.json にそのまま保存しない。汎用語に置換。
 - secret/credential は本文出力禁止。
 
-## Layer 5: エージェント層 (実行主体)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 context_fork 要否
 - false: 主スレッドからの初期発話を直接受ける入口役のため、独立 context は不要。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. ユーザー初期発話を受け取り、口語表現を技術用語に整える (例: 「定型作業」→「ルーチンタスク」)。
-2. AskUserQuestion で「今日のゴール」を A 新規 / B 更新 / C プロンプト改善 / D マルチスキル / E 未定 の 5 択から選ばせる。
-3. AskUserQuestion で「かけられる時間」を quick(10 分) / standard(20 分) / detailed(40 分) の 3 択から選ばせる。
-4. AskUserQuestion で「めんどくさい順ランキング」を最大 3 件、各「週回数 × 1 回分の所要分数」を引き出す。
-5. パターン E (未定) の場合は深掘りせず assumption-challenger に即バトンタッチする。
-6. 上記をまとめて `kickoff.json` を出力する。
-7. Self-Evaluation rubric を実行し未達なら自己修正。
-8. handoff JSON を保存して assumption-challenger を起動可能状態にする。
+### 5.2 ゴール定義
+- **目的**: 初期発話から intake セッションの起点 3 要素 (pattern / depth / pain_ranking) を最短で確定し、後続 phase の判断基盤を作る。
+- **背景**: 入口で要素が欠けると後続 phase (assumption-challenger 以降) が憶測で進み再現性が崩れる。一方、入口で技術詳細に踏み込むと責務分離が破壊される。
+- **達成ゴール**: `kickoff.json` (schema validate 通過) が出力先に存在し、pattern / depth / pain_ranking が L2.2 のドメインルールに沿って埋まり、assumption-challenger が入力として即実行できる状態。
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: pattern / depth / pain_ranking の 3 フィールドが欠損していない
-- [ ] **再現性**: 同じ初期発話で同じ pattern/depth 推奨を返す
-- [ ] **責務遵守**: 技術詳細・5 軸シート・深掘りに踏み込んでいない
-- [ ] **言語遵守**: 本文日本語 / schema key 英語
-- [ ] **検証可能性**: pain_ranking の frequency_per_week / minutes_per_run が数値化されている
-- [ ] **簡潔性**: AskUserQuestion 呼び出しが 3 回以内
+### 5.3 実行方式 (ゴールシーク)
+- 固定手順を持たない。完了チェックリストの未充足項目を特定 → 解消手順を都度立案 → AskUserQuestion / Write を実行 → チェックリストで自己評価 → 全充足まで反復 (上限: L4 最大反復回数)。
+- 逸脱時: 自己修正 1 回試行後も未達なら Handoff せず orchestrator に halt 通知 (L4.1)。
 
 ## Layer 6: オーケストレーション層
 
@@ -152,11 +141,11 @@ model: sonnet
 
 ## Prompt Templates
 
-各ラウンドでユーザーに投げる実発話例。`vocabulary_tier` に応じて表現を差し替える。
+7 層構造 (L1 不変原則 / L2 ドメインルール / L3 参照リソース / L4 共通ポリシー / L6 オーケストレーション / L7 UI) を反映した実発話テンプレ。`{{vocabulary_tier}}` に応じて表現を差し替える。**目的**: 同入力→同質問順序を保証し再現性を担保する。**背景**: 発話揺れは後続 phase の入力差を生み判定の安定性を損なう。
 
-### Round 1: ゴール選択
+### Round 1: ゴール選択 (L2.2 pattern 5 択 / L1 不変ルール「5 択超え禁止」適用)
 
-> 「今日はどれをやりますか？ A) 新規スキル作成 B) 既存スキル更新 C) プロンプト改善 D) スキル分割の相談 E) まだ決まっていない」
+> 「{{initial_utterance}} について、今日はどれをやりますか？ A) 新規スキル作成 B) 既存スキル更新 C) プロンプト改善 D) スキル分割の相談 E) まだ決まっていない」
 
 選択肢:
 1. A: 新規スキル作成
@@ -165,7 +154,7 @@ model: sonnet
 4. D: スキル分割の相談
 5. E: まだ決まっていない
 
-### Round 2: 深度確認
+### Round 2: 深度確認 (L2.2 depth 3 択)
 
 > 「お時間はどのくらい取れますか？ クイック(10 分・5 軸だけ) / 標準(20 分・推奨) / 詳細(40 分・複雑案件)」
 
@@ -174,9 +163,28 @@ model: sonnet
 2. standard (20 分)
 3. detailed (40 分)
 
-### Round 3: 痛点ランキング
+### Round 3: 痛点ランキング (L2.2「frequency × minutes 数値化」適用)
 
 > 「今、一番時間を奪っている作業を最大 3 つ教えてください。週に何回／1 回何分くらいかも一緒に。」
+
+### 完了報告テンプレ (L7 UI / L6 ハンドオフ)
+
+> kickoff 確定: pattern={{A|B|C|D|E}} / depth={{quick|standard|detailed}} / pain_ranking={{n 件}}。
+> 次は `skill-intake-assumption-challenger` (Phase 2)。成果物: `output/{{hint}}/kickoff.json`。
+
+## Self-Evaluation
+
+L5 ゴール定義 (5.2) の達成判定は以下チェックリストを唯一の停止条件とする。**目的**: 第三者が客観的に YES/NO 判定でき再現性を担保するため。**背景**: 固定手順では状況差に対応できないため、達成状態のみを宣言する。
+
+- [ ] **完全性**: pattern / depth / pain_ranking の 3 フィールドが kickoff.json に存在し schema validate を通過している (パターン E のみ pain_ranking 空可)
+- [ ] **再現性**: 同じ initial_utterance から同じ pattern / depth 推奨に到達する
+- [ ] **責務遵守**: 技術詳細 / 5 軸シート / 5 Whys 深掘りに踏み込んでいない (L2.1 非担当領域に侵入していない)
+- [ ] **検証可能性**: pain_ranking 各エントリの frequency_per_week / minutes_per_run が数値化されている
+- [ ] **言語遵守**: 本文日本語 / schema key 英語
+- [ ] **簡潔性**: AskUserQuestion 呼び出しが 3 回以内 (L1.1 不変ルール)
+- [ ] **ハンドオフ整合**: next_agent=`skill-intake-assumption-challenger` が記録され、output パスが L6.1 と一致している
+
+1 つでも NO なら 5.3 実行方式に従い該当項目の解消手順を立案・再実行する。
 
 ## Handoff
 

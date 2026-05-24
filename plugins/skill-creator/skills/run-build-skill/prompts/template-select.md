@@ -81,18 +81,23 @@
 ### 5.1 担当 agent
 - run-build-skill 配下の R3 SubAgent
 
-### 5.2 推論手順 (再現可能)
-1. `brief.kind / role_suffix / composite` を抽出
-2. `schemas/template-selection.schema.json#/selection_rules` を順次照合
-3. 最初に match した 1 件の template + combinators 列を返す
-4. `COMPOSER_MODE=atomic` なら combinators を `atomic_order` で並べ替え
-5. 不一致時は明示エラー (exit 1)
+### 5.2 ゴール定義
+- **目的**: brief の (kind, role_suffix, composite) から 1 件の template + combinators を決定論的に選ぶ
+- **背景**: 複数 match の暗黙優先や fallback は drift と誤生成を量産するため、最初の match 1 件のみで停止する
+- **達成ゴール**: 同入力で常に同 rule.id が返り、不一致 kind は明示エラーで停止する状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (停止条件)
 - [ ] 最初に match した 1 件のみ採用 (複数採用なし)
-- [ ] combinators 適用順が atomic_order と一致
-- [ ] 不一致 kind に対し fallback ではなく明示エラー
-- [ ] 同 (kind, role_suffix, composite) で同一 rule.id を返す
+- [ ] combinators 適用順が atomic_order と一致 (`COMPOSER_MODE=atomic` 時)
+- [ ] 不一致 kind に対し fallback ではなく明示エラー (exit 1)
+- [ ] 同 (kind, role_suffix, composite) で同一 rule.id を返す (決定論)
+- [ ] 採用 rule id を `build_flow_coverage[template_select]` へ記録
+
+### 5.4 実行方式 (動的手順生成ループ)
+1. 未充足チェックリスト項目を特定
+2. 解消手順を立案 (brief 抽出 / 順次照合 / combinators 並べ替え / trace 追記 のいずれか)
+3. 実行し成果物を更新
+4. チェックリストで自己評価、全項目充足まで反復
 
 ## Layer 6: オーケストレーション層
 

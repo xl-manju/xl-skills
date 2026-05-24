@@ -21,11 +21,47 @@ Usage:
 """
 from __future__ import annotations
 import datetime
+import json
 import re
 import sys
 from pathlib import Path
 
-REQUIRED = {"name", "description"}
+# --- commonCore 必須集合の SSOT ローダー -------------------------------------
+# 正本 = capability-manifest.schema.json#/definitions/commonCore.required。
+# lint はこの正本を動的ロードし、必須集合のハードコードを廃する(三重定義の解消)。
+# schema を読めない環境(配布断片化等)でのみ下記 fallback を使う。fallback と
+# 正本の drift は `--self-test` (CI 配線可能) が検出して exit 1 する。
+_FALLBACK_COMMON_CORE_REQUIRED = ("name", "description", "kind", "version", "owner")
+_SCHEMA_RELPATH = (
+    "plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json"
+)
+
+
+def _find_schema() -> Path | None:
+    """__file__ から上位へ歩いて capability-manifest.schema.json を探す。"""
+    here = Path(__file__).resolve()
+    for parent in [here, *here.parents]:
+        cand = parent / _SCHEMA_RELPATH
+        if cand.exists():
+            return cand
+    return None
+
+
+def _load_common_core_required() -> tuple[str, ...]:
+    """commonCore.required を schema(正本)から読む。失敗時のみ fallback。"""
+    schema = _find_schema()
+    if schema is None:
+        return _FALLBACK_COMMON_CORE_REQUIRED
+    try:
+        data = json.loads(schema.read_text(encoding="utf-8"))
+        req = data["definitions"]["commonCore"]["required"]
+        if isinstance(req, list) and req and all(isinstance(x, str) for x in req):
+            return tuple(req)
+    except (json.JSONDecodeError, KeyError, OSError):
+        pass
+    return _FALLBACK_COMMON_CORE_REQUIRED
+
+
 # doc/21 source-traceability 準拠の必須化（ref-* は source 必須 / 他 kind は WARN）
 SOURCE_REQUIRED_FOR_KIND = {"ref"}
 SOURCE_TIER_VALUES = {
@@ -39,6 +75,22 @@ SOURCE_TIER_VALUES = {
 }
 KIND_VALUES = {"run", "ref", "assign", "wrap", "delegate", "workflow", "reference",
                "evaluator", "generator"}
+# CapabilityManifest (capability-manifest.schema.json) の非 skill kind。
+# SKILL.md 以外の Capability ファイル (agents/ commands/ hooks/ ...) で使う。
+NON_SKILL_KINDS = {"agent", "hook", "command", "plugin-composition", "prompt", "workflow"}
+# commonCore: 全 Capability kind 共通必須。正本は schema から動的ロード(SSOT)。
+# SKILL.md / 非SKILL.md(agent/hook/...) の双方がこの同一集合を共有する。
+COMMON_CORE_REQUIRED = _load_common_core_required()
+# kind 固有の必須フィールド (同 schema の kind<Kind>.required)。
+KIND_SPECIFIC_REQUIRED = {
+    "agent": ("tools", "isolation"),
+    "command": ("argument-hint", "allowed-tools"),
+    "hook": ("event", "command"),
+    "plugin-composition": ("capabilities",),
+    "prompt": ("layers",),
+    "workflow": ("phases",),
+}
+SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 EFFECT_VALUES = {"none", "conversation-output", "local-artifact", "external-mutation"}
 MERGE_STRATEGY_VALUES = {"deep-merge", "strict", "override", "layered"}
 CONFLICT_POLICY_VALUES = {"most-specific-wins", "error", "warn-and-merge"}
@@ -127,7 +179,7 @@ def check_refs_exist(fm: dict, skill_path: Path) -> list[str]:
             if not entry:
                 continue
             if re.match(r"^(ref|run|assign|wrap|delegate)-[a-z0-9-]+$", entry):
-                cand1 = repo / "creator-kit" / "skills" / entry
+                cand1 = repo / "plugins" / "skill-creator" / "skills" / entry
                 cand2 = repo / ".claude" / "skills" / entry
                 if not (cand1.exists() or cand2.exists()):
                     errs.append(
@@ -181,18 +233,69 @@ def _check_source_tier_demotion(
     return None
 
 
+def validate_capability(p: Path, fm: dict, text: str) -> tuple[str, list[str]]:
+    """SKILL.md 以外の Capability (agent/command/hook/...) を commonCore + kind 固有で検証する。
+
+    CapabilityManifest (capability-manifest.schema.json) に整合。skill 専用ルール
+    (trigger count==2 / assign fork / source-tier skill enum) は適用しない。
+    """
+    errs: list[str] = []
+    kind = fm.get("kind", "").split("#", 1)[0].strip()
+    name = fm.get("name", "")
+
+    # commonCore 必須
+    for field in COMMON_CORE_REQUIRED:
+        if field not in fm or not fm[field]:
+            errs.append(f"commonCore: missing required field '{field}' for kind={kind} "
+                        "(capability-manifest.schema.json#/definitions/commonCore)")
+    # version は SemVer
+    ver = fm.get("version", "")
+    if ver and not SEMVER_RE.match(str(ver).split("#", 1)[0].strip()):
+        errs.append(f"version '{ver}' must be SemVer (X.Y.Z)")
+    # name は kebab-case
+    if name and not re.match(r"^[a-z][a-z0-9-]*$", name):
+        errs.append(f"name '{name}' must be kebab-case (^[a-z][a-z0-9-]*$)")
+    # kind 固有の必須フィールド
+    for field in KIND_SPECIFIC_REQUIRED.get(kind, ()):  # noqa: B007
+        if field not in fm or fm[field] in (None, "", []):
+            errs.append(f"kind={kind}: missing required field '{field}' "
+                        f"(capability-manifest.schema.json#/definitions/kind{kind.title().replace('-', '')})")
+    # 未展開テンプレート変数
+    _unresolved_re = re.compile(r"\{\{[^}]+\}\}")
+    for _k, _v in fm.items():
+        if isinstance(_v, str) and _unresolved_re.search(_v):
+            errs.append(f"unresolved template variable in '{_k}': {_v}")
+    return name or p.stem, errs
+
+
 def validate_file(p: Path) -> tuple[str, list[str]]:
     if not p.exists():
         return str(p), [f"not found: {p}"]
 
     text = p.read_text(encoding="utf-8")
     fm = parse_fm(text)
+
+    # SKILL.md 以外で非 skill kind を宣言する Capability は専用検証へ分岐
+    if p.name != "SKILL.md" and fm.get("kind", "").split("#", 1)[0].strip() in NON_SKILL_KINDS:
+        return validate_capability(p, fm, text)
+
     errs: list[str] = []
 
-    # required
-    for r in REQUIRED:
+    # commonCore 必須項目の存在検査。SKILL.md も非SKILL.md と同一の必須集合
+    # (COMMON_CORE_REQUIRED = schema 由来 SSOT) を共有する。検査は「存在 + 形式」のみ。
+    # 内容の質 (description の良し悪し / version bump 幅 / kind 選定) は rubric+AI が担う
+    # 二層分離: 機械=再現性、AI=自由度。
+    for r in COMMON_CORE_REQUIRED:
         if r not in fm or not fm[r]:
-            errs.append(f"missing required field: {r}")
+            errs.append(f"missing required field: {r} "
+                        "(commonCore SSOT: capability-manifest.schema.json#/definitions/commonCore.required)")
+
+    # version: SemVer 形式 (X.Y.Z)。存在は上記 commonCore ループが担保。
+    # kind は SKILL.md では sub-role prefix のため KIND_VALUES (下記) で別途 enum 評価。
+    ver = fm.get("version", "")
+    ver_norm = str(ver).split("#", 1)[0].strip()
+    if ver_norm and not SEMVER_RE.match(ver_norm):
+        errs.append(f"version '{ver_norm}' must be SemVer (X.Y.Z)")
 
     # description quality: 日本語トリガー句 (〜とき/〜場合/〜際/〜時) または
     # 英語の "Use when" / "Read when" のいずれかを含むこと。
@@ -317,8 +420,24 @@ def validate_file(p: Path) -> tuple[str, list[str]]:
 def main() -> int:
     args = sys.argv[1:]
     if not args:
-        print("usage: validate-frontmatter.py /path/to/SKILL.md | --skills-dir /path/to/skills", file=sys.stderr)
+        print("usage: validate-frontmatter.py /path/to/SKILL.md | --skills-dir /path/to/skills | --self-test", file=sys.stderr)
         return 2
+
+    # --self-test: schema(正本) と fallback 定数の drift を検出するゲート。
+    # 三重定義の再発防止: schema を改訂したら fallback も同期されているかを CI で機械検証する。
+    if "--self-test" in args:
+        schema = _find_schema()
+        if schema is None:
+            print(f"self-test FAIL: schema not found ({_SCHEMA_RELPATH})", file=sys.stderr)
+            return 1
+        loaded = _load_common_core_required()
+        if tuple(loaded) != _FALLBACK_COMMON_CORE_REQUIRED:
+            print("self-test FAIL: commonCore.required drift "
+                  f"(schema={list(loaded)} != fallback={list(_FALLBACK_COMMON_CORE_REQUIRED)}). "
+                  "schema 改訂時は _FALLBACK_COMMON_CORE_REQUIRED も同期せよ。", file=sys.stderr)
+            return 1
+        print(f"self-test ok: commonCore.required = {list(loaded)} (schema == fallback)")
+        return 0
 
     if "--skills-dir" in args:
         idx = args.index("--skills-dir")

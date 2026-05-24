@@ -105,21 +105,27 @@
 - run-skill-create 配下の R3 SubAgent
 - context-fork: 不要 (純粋判定ロジック)
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. `references/governance-params.json` を Read し solo_operator_mode を取得
-2. `eval-log/findings.json` と evaluator_result を Read し 4 条件を機械評価
-3. 4 条件全充足 → approver=solo_operator_auto で handoff 出力
-4. いずれか不充足 → `Skill(run-skill-rubric-governance)` を起動し approver=user で handoff 出力
-5. `handoff-after_governance.json` に書き出す
+- **目的**: 4 条件の機械評価で承認/手動振り分けを決定論的に確定する
+- **背景**: LLM 判断は同一入力でブレが出るため、論理式で固定し恣意的な緩和を排除する
+- **達成ゴール**: handoff-after_governance.json が approver=solo_operator_auto または user で確定保存され、next_phase=report に接続する状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (停止条件)
 
-- [ ] 4 条件を機械的に評価したか (LLM 判断で甘くしていないか)
-- [ ] solo_operator_mode=false なら必ず手動承認フローに回したか
-- [ ] 否認時の required_fixes[] が後続 Step に再投入可能な形か
-- [ ] approver フィールドが正しく solo_operator_auto / user のどちらか
-- [ ] handoff 出力が next_phase=report に繋がるか
+- [ ] 4 条件 (solo_operator_mode / stable_frozen / newly_failing==0 / LLM-reviewer pass) を機械的に評価
+- [ ] solo_operator_mode=false なら必ず手動承認フローに回した
+- [ ] 4 条件全充足のみ approver=solo_operator_auto、それ以外は approver=user
+- [ ] 否認時の required_fixes[] が後続 Step に再投入可能な形
+- [ ] handoff JSON が schemas/handoff.schema.json 準拠で next_phase=report に繋がる
+
+### 5.4 実行方式 (動的手順生成ループ)
+
+1. 未充足チェックリスト項目を特定
+2. 解消手順を立案 (params Read / 4 条件評価 / Skill(run-skill-rubric-governance) 起動 / handoff Write のいずれか)
+3. 実行し handoff JSON を更新
+4. schema 検証で自己評価、全項目充足まで反復
+5. 評価不能は手動承認 (safe-fail)、governance_params 不在は exit 3
 
 ## Layer 6: オーケストレーション層
 
@@ -146,4 +152,4 @@
 
 ## 出力指示
 
-LLM は `{{governance_params}}` + `{{findings}}` + `{{evaluator_result}}` から 4 条件を機械評価し、approver=solo_operator_auto / user を確定して `handoff-after_governance.json` を出力する。Layer 5.2 の手順を逐次実行する。出力は `schemas/handoff.schema.json` 準拠の JSON のみ。前置き・後書き・思考過程出力は禁止。
+LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`{{governance_params}}` + `{{findings}}` + `{{evaluator_result}}` から 4 条件を機械評価し、approver=solo_operator_auto / user を確定して `handoff-after_governance.json` を出力する。出力は `schemas/handoff.schema.json` 準拠の JSON のみ。前置き・後書き・思考過程出力は禁止。

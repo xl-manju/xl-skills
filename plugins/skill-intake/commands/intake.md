@@ -1,5 +1,6 @@
 ---
-description: ヒアリングインタビューを起動 (run-skill-intake-aggregator) — 5 軸ヒアリング・図解マスト・Notion 公開まで一気通貫
+name: intake
+description: ヒアリングインタビューを起動 (run-skill-intake-aggregator, 11 phase / 12 SubAgent) — 5 軸ヒアリング・図解マスト・Notion 公開まで一気通貫
 argument-hint: "[topic]"
 ---
 
@@ -10,7 +11,7 @@ argument-hint: "[topic]"
 ## 振る舞い
 
 1. `Skill(run-skill-intake-aggregator, args="$ARGUMENTS")` を呼ぶ。
-2. スキル側の 12 SubAgent (skill-intake-kickoff → … → skill-intake-self-updater) が順次起動する。
+2. スキル側の 11 phase / 12 SubAgent (skill-intake-kickoff → … → skill-intake-self-updater。Phase 4 は interviewer ⇄ purpose-excavator のペア稼働) が順次起動する。
 3. Gate A (summarizer) でユーザー承認を得てから Notion 公開に進む。
 4. 完了後、Markdown 正本 / JSON 副本 / Notion URL のパスを返す。
 

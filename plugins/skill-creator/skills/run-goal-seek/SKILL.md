@@ -1,0 +1,113 @@
+---
+name: run-goal-seek
+description: 目的・背景・ゴールに対し固定手順なしでタスクを遂行したいとき、完了チェックリストが全充足するまで手順を都度生成して反復実行したいときに使う。
+disable-model-invocation: false
+user-invocable: true
+argument-hint: "[topic?] [--spec eval-log/goal-spec.json]"
+arguments: [topic, spec]
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash(python3 *)
+  - Skill
+  - Agent
+kind: run
+prefix: run
+effect: local-artifact
+owner: team-platform
+since: 2026-05-24
+version: 0.1.0
+role_suffix: orchestrator
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-05-24
+audit-trigger: quarterly
+schema_refs:
+  - ../run-goal-elicit/schemas/goal-spec.schema.json
+reference_refs:
+  - ../run-build-skill/references/goal-seek-paradigm.md
+completeness_exempt:
+  - "prompts: 責務単位プロンプトを持たない汎用オーケストレーター。手順は固定化せずゴールシークループで都度生成するため、prompt-creator の R-id 単位 7 層プロンプトは適用外 (prompt-placement-convention.md の ref/wrap/delegate 同等の skip 扱い)。ループ規約は ../run-build-skill/references/goal-seek-paradigm.md を共有正本として参照。"
+---
+
+# run-goal-seek
+
+## 目的と出力契約
+
+既存コンテキストから最適ゴールを推定し、そのゴールに対して **手順を固定せず**、完了チェックリストが全て満たされるまで「手順を都度生成 → 実行 → 検証」を反復するゴールシーク実行オーケストレーター。**ループ本体は親セッションを汚さないよう SubAgent（または Agent Team）に fork して実行**し、親には最終成果物とハンドオフ要約のみを返す。達成した成果物を後続 Capability へ受け渡す。
+
+- **入力**: `goal-spec.json` (`--spec`、既定 `eval-log/goal-spec.json`)。無ければ会話履歴・`topic`・関連ファイルから `run-goal-elicit` 相当の推定を内部実行して生成する。
+- **出力**:
+  - 各タスク固有の成果物（goal で定義された最終状態）
+  - `eval-log/goal-seek-progress.json` — 各周回のチェックリスト状態と生成手順の記録
+  - `eval-log/handoff-goal-seek.json` — 成果物パスと達成チェックリスト（後続 skill が拾う汎用ハンドオフ）
+- **完了条件**: `goal-spec.checklist` が全項目 `done:true`。または `max_loops` 到達で残項目を `open_issues` に記録して停止。
+
+## 境界
+
+ユーザーへの追加ヒアリングはしない。`goal-spec` が無い場合は AI が「仮想ヒアリング済み」としてゴールとチェックリストを推定する。本スキルはそのゴールを**達成するまで回す**ことに専念し、達成手順を事前に固定しない。
+
+## 主要ルール
+
+1. **手順を事前固定しない**: 各周回でチェックリストの未達項目を見てから手順を立てる。
+2. **チェックリストで完了判定**: 自然言語の「できた気がする」ではなく、各項目を観測可能に検証して `done` を更新する。
+3. **決定論検査を優先**: `verify_by` が `script`/`lint`/`test` の項目は機械検証で判定する。
+4. **最大周回数を守る**: `max_loops`（既定 5）超過で停止し `open_issues` に残項目を記録、人間 or 上位 orchestrator に差し戻す。
+5. **ハンドオフ**: 完了後、`handoff_targets` があれば各 skill へ成果物を渡す。無くても汎用 `handoff-goal-seek.json` を必ず出す。
+6. **コンテキスト分離（必須）**: ループは親セッションで直接回さず、`Agent` ツールで専用 SubAgent に fork して実行する。複数ゴールを並列で回すなら Agent Team に分離する。親に返すのは最終成果物パスと `handoff-goal-seek.json` 要約のみで、周回の中間情報（生成手順・試行錯誤）は fork 内に留める。詳細は `../run-build-skill/references/goal-seek-paradigm.md` の「コンテキスト分離」。
+7. **質問しない自走**: 不足情報は最尤仮説で補い、仮定を `goal-spec.constraints` / `goal-seek-progress.json.open_issues` に残す。
+
+## ゴールシーク実行
+> 固定手順は書かない。毎周「ゴール・目的/背景・チェックリスト」を読み、その時点で最適な手順を AI が生成・実行する。詳細は `../run-build-skill/references/goal-seek-paradigm.md`。
+
+### ゴール (Goal)
+`goal-spec.goal` で宣言された最終状態に到達し、`checklist` が全項目 `done:true` になった状態。
+
+### 目的・背景 (Why)
+固定手順は実行時の文脈変化に脆い。ゴールとチェックリストを到達点として固定し、手順はその都度導出することで、各プラグイン/タスクが自律的にゴールへ収束できる。
+
+### 完了チェックリスト (Checklist)
+> 実体は `goal-spec.json` の `checklist`（タスク固有）。本スキル自身のメタチェックは以下。
+- [ ] goal-spec をロードし schema 検証を通過した（無ければAIが既存コンテキストから推定生成）
+- [ ] goal-spec.checklist の全項目を `done:true` にした、または `max_loops` 到達で `open_issues` を記録した
+- [ ] `eval-log/handoff-goal-seek.json` を出力し、`handoff_targets` があれば各 skill へ渡した
+
+### ゴールシークループ
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。本スキル固有の差分のみ記す:
+- 現状評価は `goal-spec.checklist` の `done:false` 項目を対象にする。
+- `goal-spec` 不在時は、会話履歴・`topic`・関連ファイル・直近 diff を根拠に `purpose/background/goal/checklist` を生成してから開始する。
+- 手順生成で必要なら子 Skill を `Skill()` で起動する。
+- 検証で `verify_by` 判定後、周回記録を `goal-seek-progress.json` に追記する。
+- `max_loops` 超過時は残項目を `open_issues` に記録して停止する。
+
+## 検証
+
+```bash
+# 完了判定: 全 checklist が done:true か、open_issues が記録されているか
+python3 - "$PWD/eval-log/goal-spec.json" "$PWD/eval-log/goal-seek-progress.json" <<'PY'
+import json, sys, os
+spec = json.load(open(sys.argv[1], encoding="utf-8"))
+undone = [c["id"] for c in spec["checklist"] if not c.get("done")]
+prog_path = sys.argv[2]
+prog = json.load(open(prog_path, encoding="utf-8")) if os.path.exists(prog_path) else {}
+if undone:
+    assert prog.get("open_issues"), f"未達 {undone} があるが open_issues 未記録"
+    print(f"停止: open_issues に {len(undone)} 件記録済み")
+else:
+    print("完了: 全 checklist done")
+PY
+```
+
+## 注意点
+
+- **手順を SKILL.md に固定で書かない**: このスキルの価値は「都度生成」。Step 1/2/3 を本文にハードコードしない。
+- **無限ループ防止**: 同じ未達項目が 2 周連続で進まない場合は手順アプローチを変える。それでも `max_loops` で必ず止める。
+- **ハンドオフの取り違え**: `handoff_targets` の skill 入力契約を満たしているか渡す前に確認する。
+- **goal-spec 不在**: `--spec` も既定パスも無ければ追加質問せず、AI が `run-goal-elicit` 相当の推定で spec を作ってから本ループへ入る。
+
+## 追加リソース
+
+- `../run-goal-elicit/SKILL.md` — 前段のゴール抽出スキル
+- `../run-goal-elicit/schemas/goal-spec.schema.json` — 入力契約の正本
+- `../run-build-skill/references/goal-seek-paradigm.md` — ゴールシークの正本定義

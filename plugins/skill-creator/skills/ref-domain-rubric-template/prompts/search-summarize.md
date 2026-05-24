@@ -79,21 +79,25 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-domain-rubric-template 配下の R1 SubAgent (context fork 推奨)。
+- ref-domain-rubric-template 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. references/rubric.json をパースし version を取得する。
-2. query に該当する keys を deep search で抽出する (ネスト含む)。
-3. scope に応じて返却部分集合を絞る。
-4. 200-400 字で要約 + JSON 参照パス (`#/axes/0/name` 等) を併記する。
-5. domain 適用時の注意点 (constraint 違反例) を実 rubric から 1-3 件添える。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し rubric テンプレート (axes / weights / constraints) の該当部分集合を JSON Pointer 付きで返す。
+- **背景**: caller は domain rubric 構築のテンプレ参照のみを必要とし、rubric 改訂は ref-* の責務外。捏造 constraint 違反例は scoring を誤らせるため実 rubric 由来のみ許可。
+- **達成ゴール**: query に該当する rubric keys が version + JSON Pointer 付きで引用され、constraint 違反例も実 rubric 由来で添えられ、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま参照に使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] rubric.json の version が応答に明記されているか
-- [ ] matches[].path が JSON Pointer 風に正規化されているか
-- [ ] scope (axes_only 等) の絞り込みが守られているか
-- [ ] constraint 違反例が実 rubric から派生しているか (捏造禁止)
-- [ ] summary が 50-800 字に収まっているか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が references/rubric.json の実在 key から逐語引用されている (捏造ゼロ)
+- [ ] 呼出元責務外の情報 (rubric 改訂 / domain 適用判断) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] rubric.json の version が応答に明記されている
+- [ ] matches[].path が JSON Pointer 風 (`#/axes/0/name`) に正規化されている
+- [ ] scope (axes_only 等) の絞り込みが守られている
+- [ ] constraint 違反例が実 rubric 由来で 1-3 件、summary が 50-800 字に収まる
+- [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

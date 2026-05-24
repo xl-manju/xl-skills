@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-build-skill/schemas/build-flags.schema.json",
   "title": "Build Flags",
-  "description": "run-build-skill が受け取るフラグの入出力定義。--with-prompts/--with-evaluator/--with-hooks は対応する phase を有効化する。",
+  "description": "run-build-skill が受け取るフラグの入出力定義。--with-prompts/--with-evaluator/--with-hooks/--with-knowledge は対応する phase を有効化する。",
   "type": "object",
   "additionalProperties": false,
   "required": ["skill_name", "kind", "mode"],
@@ -47,6 +47,43 @@
         "enables_phase": {"type": "string", "const": "scripts"},
         "auto_merge_settings_json": {"type": "boolean", "const": false}
       }
+    },
+    "with_knowledge": {
+      "type": "object",
+      "description": "生成スキルに knowledge/ 蓄積・3段階検索・§12フィードバックループを注入する横断 combinator。正本仕様は ref-knowledge-loop。",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "enables_phase": {"type": "string", "const": "references"},
+        "pattern": {
+          "type": "string",
+          "enum": ["index-search", "router-registry"],
+          "description": "index-search型=固定ナレッジ/ペルソナ。router-registry型=外部素材から継続同期・蓄積。選択フローは ref-knowledge-loop/references/knowledge-construction.md。"
+        },
+        "combinator": {"type": "string", "const": "with-knowledge.patch"},
+        "scaffold_dir": {
+          "type": "string",
+          "const": "templates/knowledge-skeleton/",
+          "description": "pattern に応じて index-search/ または router-registry/ サブツリーをコピーする雛形の場所。"
+        },
+        "lint": {"type": "string", "const": "lint-knowledge-loop.py"}
+      },
+      "required": ["enabled"]
+    },
+    "with_goal_seek": {
+      "type": "object",
+      "description": "loop 実行系 (run/wrap/delegate) にゴールシークの実行可能機構 (goal-spec ロード / 周回 progress JSON / 打ち切り規約 / 任意で run-goal-seek への fork 委譲) を配線する横断 combinator。default-ON で、--no-goal-seek 指定時のみ opt-out。ループ本体は inline (本 Skill 内 AI 推論) で自己完結し外部依存ゼロ (with-knowledge と対称)。正本仕様は references/goal-seek-paradigm.md。",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean", "default": true, "description": "loop 実行系では既定 true。assign/ref は対象外。"},
+        "applies_to": {"type": "array", "items": {"type": "string", "enum": ["run", "wrap", "delegate"]}, "default": ["run", "wrap", "delegate"]},
+        "combinator": {"type": "string", "const": "with-goal-seek.patch"},
+        "progress_schema": {"type": "string", "const": "schemas/goal-seek-loop.schema.json"},
+        "engine": {"type": "string", "enum": ["inline", "run-goal-seek"], "default": "inline", "description": "inline=本 Skill 内 AI 推論で自己完結 (既定/外部依存なし)。run-goal-seek=重い周回のみ任意で Skill に fork 委譲し親 context を汚さない最適化 (必須ではない)。"},
+        "max_loops": {"type": "integer", "minimum": 1, "default": 5},
+        "lint": {"type": "string", "const": "lint-goal-seek.py"}
+      },
+      "required": ["enabled"]
     }
   }
 }

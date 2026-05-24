@@ -13,8 +13,19 @@ allowed-tools:
   - AskUserQuestion
   - Task
 kind: run
+version: 2.1.0
 effect: local-artifact
 owner: team-platform
+contract:
+  intent: プロンプト要望を対話で構造化し、後続 build/evaluate が依拠できる prompt-brief.json を確定するため、Step 1 ヒアリング責務を提供する。
+  interface:
+    inputs: [topic, target_skill, responsibility_id, batch]
+    outputs: [prompt-brief.json, hearing-result.json]
+  invariant:
+    - 質問は 1 セッション 3-5 問 + 評価優先度に絞ること
+    - AI の推定・解釈は導出確認 (ユーザー承認) を経るまで confirm 扱いしないこと
+    - responsibility_id は target_skill の responsibilities[].id と 1:1 で対応すること
+    - batch モードでは AskUserQuestion を使用しないこと
 since: 2026-05-22
 script_refs: []
 reference_refs:

@@ -2,9 +2,9 @@
   "$schema": "{{SCHEMA_ID}}",
   "version": 1,
   "target": {
-    "type": "skill | rubric | proposal | kit-component | script | config | agent | custom",
+    "type": "skill",
     "path": "<absolute path>",
-    "reviewed_at": "<ISO8601>"
+    "reviewed_at": "2026-05-24T00:00:00Z"
   },
   "loop_count": 0,
   "paradigm_findings": [
@@ -21,7 +21,7 @@
     },
     {
       "paradigm_id": 2,
-      "paradigm_name": "deductive",
+      "paradigm_name": "deduction",
       "category": "A-logical",
       "agent": "elegant-logical-structural-analyst",
       "observations": [
@@ -32,7 +32,7 @@
     },
     {
       "paradigm_id": 3,
-      "paradigm_name": "inductive",
+      "paradigm_name": "induction",
       "category": "A-logical",
       "agent": "elegant-logical-structural-analyst",
       "observations": [
@@ -43,7 +43,7 @@
     },
     {
       "paradigm_id": 4,
-      "paradigm_name": "abductive",
+      "paradigm_name": "abduction",
       "category": "A-logical",
       "agent": "elegant-logical-structural-analyst",
       "observations": [
@@ -98,7 +98,7 @@
     },
     {
       "paradigm_id": 9,
-      "paradigm_name": "process-thinking",
+      "paradigm_name": "process",
       "category": "B-structural",
       "agent": "elegant-logical-structural-analyst",
       "observations": [
@@ -109,7 +109,7 @@
     },
     {
       "paradigm_id": 10,
-      "paradigm_name": "meta-thinking",
+      "paradigm_name": "meta",
       "category": "C-meta",
       "agent": "elegant-meta-divergent-analyst",
       "observations": [
@@ -186,7 +186,7 @@
     },
     {
       "paradigm_id": 17,
-      "paradigm_name": "what-if",
+      "paradigm_name": "if",
       "category": "D-divergent",
       "agent": "elegant-meta-divergent-analyst",
       "observations": [
@@ -197,7 +197,7 @@
     },
     {
       "paradigm_id": 18,
-      "paradigm_name": "beginner-mind",
+      "paradigm_name": "naive",
       "category": "D-divergent",
       "agent": "elegant-meta-divergent-analyst",
       "observations": [
@@ -208,7 +208,7 @@
     },
     {
       "paradigm_id": 19,
-      "paradigm_name": "systems-thinking",
+      "paradigm_name": "systems",
       "category": "E-system",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -219,7 +219,7 @@
     },
     {
       "paradigm_id": 20,
-      "paradigm_name": "causal-analysis",
+      "paradigm_name": "causal",
       "category": "E-system",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -252,7 +252,7 @@
     },
     {
       "paradigm_id": 23,
-      "paradigm_name": "positive-sum",
+      "paradigm_name": "plus-sum",
       "category": "F-strategic",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -285,9 +285,9 @@
     },
     {
       "paradigm_id": 26,
-      "paradigm_name": "why-thinking",
-      "category": "G-problem",
-      "agent": "elegant-system-strategic-analyst",
+      "paradigm_name": "why",
+      "category": "A-logical",
+      "agent": "elegant-logical-structural-analyst",
       "observations": [
         "{{observation}}"
       ],
@@ -296,7 +296,7 @@
     },
     {
       "paradigm_id": 27,
-      "paradigm_name": "improvement",
+      "paradigm_name": "kaizen",
       "category": "G-problem",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -318,7 +318,7 @@
     },
     {
       "paradigm_id": 29,
-      "paradigm_name": "issue-thinking",
+      "paradigm_name": "issue",
       "category": "G-problem",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -329,7 +329,7 @@
     },
     {
       "paradigm_id": 30,
-      "paradigm_name": "kj-method",
+      "paradigm_name": "kj",
       "category": "G-problem",
       "agent": "elegant-system-strategic-analyst",
       "observations": [
@@ -339,122 +339,51 @@
       "score": 0.0
     }
   ],
-  "variable_abstraction": {
-    "policy": "具体値は再利用成果物に直書きせず、変数と既定値へ戻す",
-    "variables": [
-      {
-        "name": "{{PROJECT_ROOT}}",
-        "meaning": "対象プロジェクトのルート",
-        "example_value": "/path/to/project",
-        "default": "実行時 cwd",
-        "required": true,
-        "not_applicable_when": "対象が単一ファイルで、相対参照を生成しない場合"
-      },
-      {
-        "name": "{{KIT_ROOT}}",
-        "meaning": "creator-kit のルート",
-        "example_value": "{{PROJECT_ROOT}}/creator-kit",
-        "default": "{{PROJECT_ROOT}}/creator-kit",
-        "required": true,
-        "not_applicable_when": "creator-kit 外の単独レビューで kit 成果物を生成しない場合"
-      },
-      {
-        "name": "{{DOC_ROOT}}",
-        "meaning": "参照設計書のルート",
-        "example_value": "{{PROJECT_ROOT}}/doc",
-        "default": "{{PROJECT_ROOT}}/doc",
-        "required": false,
-        "not_applicable_when": "設計書由来ではない対象をレビューする場合"
-      },
-      {
-        "name": "{{SOURCE_CANONICAL_PATH}}",
-        "meaning": "source_trace で正本として扱うパスまたは URL",
-        "example_value": "doc/spec.md",
-        "default": "internal",
-        "required": false,
-        "not_applicable_when": "根拠が会話内指定のみで外部正本を持たない場合"
-      },
-      {
-        "name": "{{runtime_shell}}",
-        "meaning": "実行時に使う shell",
-        "example_value": "bash",
-        "default": "bash|powershell",
-        "required": false,
-        "not_applicable_when": "実行コマンドを生成しない場合"
-      },
-      {
-        "name": "{{python_cmd}}",
-        "meaning": "Python 起動コマンド",
-        "example_value": "python3",
-        "default": "python3|python",
-        "required": false,
-        "not_applicable_when": "Python スクリプトを呼ばない場合"
-      },
-      {
-        "name": "{{rubric_id}}",
-        "meaning": "評価基準ID",
-        "example_value": "skill-design",
-        "default": "skill-design",
-        "required": false,
-        "not_applicable_when": "rubric を扱わない対象の場合"
-      },
-      {
-        "name": "{{rubric_version}}",
-        "meaning": "評価基準バージョン",
-        "example_value": "1.0.0",
-        "default": "1.0.0",
-        "required": false,
-        "not_applicable_when": "rubric を扱わない対象の場合"
-      },
-      {
-        "name": "{{execution_context}}",
-        "meaning": "script実行コンテキスト A-E",
-        "example_value": "C",
-        "default": "C",
-        "required": false,
-        "not_applicable_when": "script / hook / CI を扱わない場合"
-      },
-      {
-        "name": "{{write_scope}}",
-        "meaning": "script が書き込める範囲",
-        "example_value": "none|output-dir",
-        "default": "none|output-dir",
-        "required": false,
-        "not_applicable_when": "script を扱わない場合"
-      },
-      {
-        "name": "{{hook_event}}",
-        "meaning": "Hookイベント名",
-        "example_value": "PreToolUse",
-        "default": "PreToolUse",
-        "required": false,
-        "not_applicable_when": "hook を扱わない場合"
-      },
-      {
-        "name": "{{eval_log_path}}",
-        "meaning": "評価ログ出力先",
-        "example_value": "eval-log/core/YYYY-MM-DD-score.jsonl",
-        "default": "eval-log/core/YYYY-MM-DD-score.jsonl",
-        "required": false,
-        "not_applicable_when": "評価ログを生成しない場合"
-      },
-      {
-        "name": "{{SCRIPT_ROOT}}",
-        "meaning": "script 配置ルート",
-        "example_value": "{{KIT_ROOT}}/scripts",
-        "default": "{{KIT_ROOT}}/scripts",
-        "required": false,
-        "not_applicable_when": "script を呼ばない場合"
-      }
-    ],
-    "source_trace": [
-      {
-        "concrete_value": "...",
-        "variable": "{{...}}",
-        "source_tier": "internal",
-        "trace_evidence": "..."
-      }
-    ]
+  "variable_abstraction": [
+    {
+      "concrete_value": "/path/to/project",
+      "variable_name": "{{PROJECT_ROOT}}",
+      "default_value": "実行時 cwd",
+      "source_trace": "対象プロジェクトのルート"
+    },
+    {
+      "concrete_value": "doc/spec.md",
+      "variable_name": "{{SOURCE_CANONICAL_PATH}}",
+      "default_value": "internal",
+      "source_trace": "source_trace で正本として扱うパスまたは URL"
+    },
+    {
+      "concrete_value": "eval-log/core/YYYY-MM-DD-score.jsonl",
+      "variable_name": "{{eval_log_path}}",
+      "default_value": "eval-log/core/YYYY-MM-DD-score.jsonl",
+      "source_trace": "評価ログ出力先"
+    }
+  ],
+  "four_conditions": {
+    "C1": {
+      "verdict": "PASS",
+      "evidence": [
+        "{{gate_evidence}}"
+      ]
+    },
+    "C2": {
+      "verdict": "PASS",
+      "evidence": [
+        "{{gate_evidence}}"
+      ]
+    },
+    "C3": {
+      "verdict": "PASS",
+      "evidence": [
+        "{{gate_evidence}}"
+      ]
+    },
+    "C4": {
+      "verdict": "PASS",
+      "evidence": [
+        "{{gate_evidence}}"
+      ]
+    }
   },
   "four_condition_gates": {
     "C1_consistency": {

@@ -76,7 +76,7 @@
           "findings-phase2-meta.json",
           "findings-phase2-system.json"
         ],
-        "schema": "./schemas/finding.schema.json",
+        "schema": "./schemas/findings.schema.json",
         "aggregation": "merge into findings.json (Phase 3 input)"
       },
       "completion_signal": {
@@ -101,13 +101,13 @@
       "prompt": "./prompts/phase3-execute.md",
       "input": {
         "source": "aggregated findings.json",
-        "schema": "./schemas/finding.schema.json"
+        "schema": "./schemas/findings.schema.json"
       },
       "steps": [
         "step0: DAG 生成 (findings[].location + depends_on から依存グラフ構築、B3)",
         "step1: severity 優先順位 (contradiction > omission > inconsistency > dependency_break > smell)",
         "step2: 独立対象 parallel / 依存あり serial",
-        "step3: auto_fixable=true は git stash 後 自動 commit / false は提案のみ",
+        "step3: auto_fixable=true は pre-phase3.patch 記録後に自動 commit / false は提案のみ",
         "step4: 4 条件再検証 (max_iter=options.max_iterations, default 3)",
         "step5: verdict.json を schemas/verdict.schema.json 準拠で生成",
         "step6: emit_observable (always実行) - python3 scripts/emit-observable.py --verdict <log_dir>/verdict.json (PASS/FAIL 双方で観測完全性を確保、safety_valve_fired は verdict 独立で emit を強制)"
@@ -123,7 +123,7 @@
       },
       "output": {
         "artifacts": [
-          "findings.json (最終版、schemas/finding.schema.json 配列)",
+          "findings.json (最終版、schemas/findings.schema.json 集約 object)",
           "verdict.json (schemas/verdict.schema.json)",
           "review-<scope_mode>.md"
         ],
@@ -139,7 +139,7 @@
         "policy": "rollback-and-escalate",
         "operations": [
           "max_iter 到達 → status=incomplete, force_pass 禁止, human_review",
-          "4 条件悪化検出 → git stash pop (B7 ロールバック)"
+          "4 条件悪化検出 → 自動改善コミットのみ revert (ユーザー dirty state は触らない)"
         ],
         "_note_emit_observable": "emit は steps.step6 (always 実行) で一本化。failure_action から削除し append-only jsonl の重複行を防止 (G3)"
       },
@@ -190,7 +190,7 @@
   "entry": [
     {"id": "phase1-entry", "command": "validate input_contract.target (plugin, skill, scope_mode all required); enforce read-only"},
     {"id": "phase2-entry", "command": "validate shared_state.md exists; spawn 3 SubAgents in context:fork parallel"},
-    {"id": "phase3-entry", "command": "validate aggregated findings; verify thought_method_coverage.total == 30; git stash push -m elegant-review-pre-phase3-<run-id>"}
+    {"id": "phase3-entry", "command": "validate aggregated findings; verify thought_method_coverage.total == 30; write pre-phase3.patch with git diff --binary"}
   ],
   "exit": [
     {"id": "phase1-exit", "command": "handoff shared_state.md"},

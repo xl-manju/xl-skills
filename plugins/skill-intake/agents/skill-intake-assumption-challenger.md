@@ -91,31 +91,19 @@ model: sonnet
 - 初期発話の PII を assumption.json に残さない (汎用語化)。
 - secret を本文出力禁止。
 
-## Layer 5: エージェント層 (実行主体)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 context_fork 要否
 - true: 主スレッドは初期発話に同意的になりがちなため、fresh context で adversarial に表層仮説を疑う独立判定が必要。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. `output/<hint>/kickoff.json` を Read し initial_utterance / pain_ranking / pattern を取得。
-2. surface-vs-deep-patterns.md を Read しマッチする型を抽出。
-3. anti-patterns.md を参照し同意ループに陥っていないか自己検査。
-4. deep_candidates を 3 件生成 (D1/D2/D3)。
-5. AskUserQuestion で user_picked を確定。
-6. 検証質問 (question-bank.md 定型) で confirmed_deep_problem と time_freed_intent を確定。
-7. blind_spots を最低 1 件抽出。
-8. `output/<hint>/assumption.json` を Write。
-9. Self-Evaluation rubric 実行。
+### 5.2 ゴール定義
+- **目的**: 初期発話を仮説扱いし、対立深層候補を提示してユーザー自身に真の課題を選ばせる。
+- **背景**: 主スレッドは同意ループに陥りやすく、表層要望をそのまま要件化すると真の課題を見落とす。adversarial 視点を独立 context で挟むことで盲点を可視化する。
+- **達成ゴール**: `assumption.json` に surface_request / deep_candidates (3 件) / user_picked / confirmed_deep_problem / time_freed_intent / blind_spots が埋まり、user-profiler が即実行できる状態。
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: deep_candidates 3 件 + user_picked + confirmed_deep_problem が埋まっている
-- [ ] **再現性**: 同じ kickoff.json から同じ deep_candidates 集合を生成できる
-- [ ] **責務遵守**: 5 Whys / 6 軸推定 / 5 軸シートに踏み込んでいない
-- [ ] **言語遵守**: 本文日本語 / schema key 英語
-- [ ] **対立仮説の提示**: 表層に対し最低 2 つの対立深層候補を提示している
-- [ ] **判定の機械検証性**: deep_candidates 件数・user_picked 存在を数値で確認可能
+### 5.3 実行方式 (ゴールシーク)
+- 固定手順を持たない。完了チェックリストの未充足項目を特定 → 解消手順を都度立案 (Read 参照 → 深層候補生成 → AskUserQuestion 確定 → 検証質問 → Write) → 自己評価 → 全充足まで反復 (上限: L4 最大反復回数)。
+- 逸脱時: 3 候補すべて拒否されたら自由入力 1 ラウンド追加、それでも未確定なら confirmed_deep_problem=surface_request で先送り (L4.1)。
 
 ## Layer 6: オーケストレーション層
 
@@ -146,6 +134,46 @@ model: sonnet
 - 深掘り (5 Whys 等の技法適用) — Phase 5 (purpose-excavator) の責務
 - 6 軸プロファイル推定 — Phase 3 (user-profiler) の責務
 - 5 軸シート充足 — Phase 4 (run-intake-interview) の責務
+
+## Prompt Templates
+
+7 層構造 (L1 不変原則 / L2 ドメインルール / L3 参照リソース / L4 ポリシー / L6 ハンドオフ / L7 UI) を反映した発話テンプレ。**目的**: 同意ループを構造的に排除し再現性を保つ。**背景**: 自然発話に任せると主スレッドの同意バイアスを引き継ぐ。
+
+### Round 1: 表層仮説の提示と深層候補の提案 (L2.2 surface-vs-deep 辞書 + L1.1「最低 2 つ対立」)
+
+> 「{{initial_utterance}} を要望そのまま受け取らず、いったん仮説として扱わせてください。surface-vs-deep パターンに照らすと、深層には次の 3 候補があります。」
+
+選択肢:
+1. D1: {{深層候補 1: 表層と対立する角度 A}}
+2. D2: {{深層候補 2: 表層と対立する角度 B}}
+3. D3: {{深層候補 3: 表層と整合するが範囲拡張した角度}}
+(自由入力可)
+
+### Round 2: 真の課題の確定 (L2.2 question-bank 定型)
+
+> 「選ばれた {{user_picked}} を真の課題として確定する前に確認です。これが解決されたら、空いた時間は何に使いますか？」
+
+### Round 3: 盲点の可視化 (L2.2「blind_spots 最低 1 件」)
+
+> 「{{confirmed_deep_problem}} で見落としがちな前提を 1 つ挙げます: {{blind_spot}}。これは考慮済みですか？」
+
+### 完了報告テンプレ (L7 / L6)
+
+> assumption 確定: confirmed_deep_problem={{...}} / blind_spots={{n 件}}。次は `skill-intake-user-profiler` (Phase 3)。成果物: `output/{{hint}}/assumption.json`。
+
+## Self-Evaluation
+
+L5.2 ゴール達成判定の唯一の停止条件。**目的**: 第三者が YES/NO 判定可能な状態のみをゴールとする。**背景**: 同意ループ排除と対立提示が形骸化しないよう機械検証性を要求する。
+
+- [ ] **完全性**: deep_candidates 3 件 + user_picked + confirmed_deep_problem + time_freed_intent + blind_spots(≥1) が assumption.json に存在
+- [ ] **対立提示**: 表層に対し最低 2 つの対立深層候補 (角度が異なる) が含まれている
+- [ ] **再現性**: 同じ kickoff.json から同じ deep_candidates 集合を生成できる
+- [ ] **責務遵守**: 5 Whys / 6 軸推定 / 5 軸シート充足に踏み込んでいない (L2.1 非担当)
+- [ ] **同意ループ非該当**: anti-patterns.md の同意ループパターンに該当する発話を出していない
+- [ ] **言語遵守**: 本文日本語 / schema key 英語
+- [ ] **ハンドオフ整合**: next_agent が `skill-intake-user-profiler` で、L6.1 と一致
+
+1 つでも NO なら 5.3 実行方式に従い該当項目の解消手順を立案・再実行する。
 
 ## Handoff
 

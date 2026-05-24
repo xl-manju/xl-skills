@@ -10,7 +10,7 @@
 | name | main |
 | skill | run-intake-finalize |
 | responsibility | R1-deterministic-render-and-validate (1 prompt = 1 責務 = 1 agent) |
-| layers_covered | [L2, L4, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/output.schema.json |
 | reproducible | true (LLM 推論を呼ばない決定論処理) |
 
@@ -70,25 +70,28 @@
 ### 4.3 セキュリティ
 - 個人情報・社外秘の漏出検査は quality_gate に委譲 (本責務は検証実行のみ)。
 
-## Layer 5: エージェント層 (実行主体定義)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `@finalize-renderer` (非対話バッチ、LLM 呼び出し禁止)
+- `@finalize-renderer` (非対話バッチ、LLM 推論呼び出し禁止、Jinja2 / script のみ)
 
-### 5.2 推論手順 (再現可能)
-1. Phase 1-9 の全 JSON / sheet.md / visuals.json の存在を確認する。
-2. template-pointer.md 経由で `intake-final-template.md.tmpl` をロードする。
-3. `render-intake-final.py` を Bash で実行し intake.md / intake.json を生成する。
-4. `quality_gate.py` を実行 (FAIL なら `failures[].retry_phase` を埋める)。
-5. `cross_check.py` を実行 (FAIL なら同上)。
-6. validation サマリを intake.json の `validation` field に書き戻す。
+### 5.2 ゴール定義
+- 目的: Phase 1-9 の全成果物を決定論的に統合し、人間可読 intake.md と機械可読 intake.json を bit-identical な再現性で生成すること。
+- 背景: LLM 推論を含むと再実行で差分が出て、後段の Notion 公開・diff 監査が破綻する。検証 2 段 (quality_gate → cross_check) は順序固定でなければ偽陽性/偽陰性が混入する。
+- 達成ゴール: schemas/output.schema.json 準拠の intake.md / intake.json が生成され、quality_gate と cross_check が PASS、または FAIL 時に failures[].retry_phase が埋まり validation サマリが intake.json に書き戻されている状態。
 
-### 5.3 自己検証 checklist
-- [ ] LLM 推論を呼ばずに決定論で完了したか
-- [ ] 失敗時に該当 phase への戻り先 (retry_phase) を明示しているか
-- [ ] intake.json が schemas/output.schema.json に適合するか
-- [ ] quality_gate / cross_check が PASS したか
-- [ ] determinism: 同 Phase 1-9 出力で intake.md / intake.json が bit-identical (LLM 推論を呼ばないため)
+### 5.3 完了チェックリスト (停止条件)
+- [ ] LLM 推論を呼ばずに Jinja2 / script のみで完了している
+- [ ] intake.json が schemas/output.schema.json に適合している
+- [ ] quality_gate.py と cross_check.py を順序通り (順序入替禁止) 実行した
+- [ ] FAIL 時に failures[] の各項目に retry_phase が明示されている
+- [ ] 同一 Phase 1-9 入力で intake.md / intake.json が bit-identical (determinism)
+- [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
+
+### 5.4 実行方式
+- 固定手順を持たない。完了チェックリストを唯一の停止条件とし、未充足項目を特定→必要 script (render / quality_gate / cross_check) をその都度起動→validation 更新→checklist で自己評価を反復する (上限: Layer 4 最大反復回数)。
+- 検証 2 段の順序 (quality_gate → cross_check) は不変。並べ替え不可。
+- 反復は分離 context で完結させ、親へは intake.md/json パス + validation サマリ + exit code のみ返却。
 
 ## Layer 6: オーケストレーション層
 
@@ -96,8 +99,9 @@
 - 呼び出し元: `run-skill-intake` の Phase 10 (render)
 - 後続 phase: `run-notion-intake-publish` (Notion 公開)
 
-### 6.2 並列性
-- render → quality_gate → cross_check は直列固定。
+### 6.2 ハンドオフ / 並列性
+- 直列: render → quality_gate → cross_check は直列固定 (順序入替禁止)。intake.md / intake.json (受領先 = run-notion-intake-publish) を後続の入力 (提供元 = finalize-renderer) に接続。
+- 並列: 並列起動禁止 (検証順序維持と atomic write 保証のため)。
 
 ## Layer 7: UI / 提示層
 

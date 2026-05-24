@@ -19,6 +19,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-18
+version: 0.1.0
 pair: assign-skill-design-evaluator
 manifest: workflow-manifest.json
 responsibility_refs:
@@ -95,59 +96,40 @@ audit-trigger: quarterly
 
 依存・entryHook/exitHook・resourceIds・fatal_exit_codes は `workflow-manifest.json` 参照。
 
-## Steps (圧縮形)
+## ゴールシーク実行
 
-各 Step の詳細は `workflow-manifest.json phases[].id` と対応する `prompts/*.md` に委譲。
+### ゴール (Goal)
 
-### Step 1: 要求ヒアリング (phase=elicit)
-`Skill(run-skill-elicit, args=topic)` → `eval-log/skill-brief.json`。プロンプトは `prompts/elicit.md` (R1)。スキーマは `schemas/skill-brief.schema.json`。
+ユーザー要望から生成された `<skill_name>/` 一式が、全 P0 lint pass・evaluator JSON pass・(solo_operator_mode 下) LLM-reviewer pass を満たし、4 ゲート全承認済みで、登録判定・handoff・完了レポートまで完結した状態になっている。
 
-### Gate 1: brief 確認
-`prompts/gate-review.md` テンプレで承認取得。否認時は Step 1 へ戻る (最大 3 回)。
+### 目的・背景 (Why)
 
-### Step 2: スキル生成 (phase=build)
-`Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])`。`eval-log/skill-build-trace.json` が `schemas/build-trace.schema.json` 準拠で章 coverage 全 PASS/N/A/skip 理由付きであることを Gate 2 前提とする。
+新規/更新 Skill を「端から端まで」品質保証付きで送り出すための制御層。各フェーズは独立 Skill へ委譲し、本スキルはゲート制御とハンドオフ整合のみを担う。固定手順では入力 (topic/mode/--fast)・lint 失敗・FAIL 差し戻しなど実行時文脈に脆いため、未達ゲートを都度埋める。
 
-### Step 3: plugin/marketplace 登録判定 (phase=manifest-register) + Gate 2.5
-横展開対象 (run-/assign-/ref- 系、hook/lint/adapter、共通 rubric/template) なら `python3 plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py` で提案生成 → 承認後 `--apply`。プロジェクト固有は未登録理由を完了レポートに残す。
+### 完了チェックリスト (Checklist)
 
-### Step 3.5: bundle 登録判定 (phase=bundle-register)
-他 plugin の skill/agent/command/hook を呼ぶ場合は `.claude-plugin/bundles.json` に登録。対象 bundle は `xl-skills-full` (基本) / `xl-skills-minimal` / `xl-skills-intake`。登録不要時は理由を完了レポートに残す。**理由なき未登録は rubric 違反**。
+- [ ] `eval-log/skill-brief.json` が `schemas/skill-brief.schema.json` 準拠で生成され、Gate 1 承認済み
+- [ ] `<skill_name>/` 一式 (SKILL.md + references/ + scripts/) が `Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])` で生成され、`eval-log/skill-build-trace.json` が `schemas/build-trace.schema.json` 準拠・章 coverage 全 PASS/N/A/skip 理由付き
+- [ ] 横展開対象なら plugin/marketplace 登録が Gate 2.5 承認後 `--apply` 済み (`build-manifest-registration-plan.py`)。プロジェクト固有は未登録理由がレポートに記録されている
+- [ ] 他 plugin リソースを呼ぶ場合 `.claude-plugin/bundles.json` (`xl-skills-full`/`-minimal`/`-intake`) 登録済み。不要なら理由がレポートにある (理由なき未登録は rubric 違反)
+- [ ] P0 lint 8 本 + manifest-contents が全 exit 0 (`workflow-manifest.json phases[id=p0-lint].commands`)。`TODO`/未展開 `{{...}}`/英語仮文の残存なし (パラメーター名除く)
+- [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み
+- [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし
+- [ ] 新規 or >30 行変更時、`run-elegant-review` (context:fork) で C1-C4 全 PASS。PASS 時 `eval-log/pattern-feedback.json` に pattern_ref_candidates/new_patterns/mass_production_risk を提案保存
+- [ ] governance 承認済み: `references/governance-params.json` の 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) 全充足で自動、不充足なら `run-skill-rubric-governance` 経由 (`prompts/governance-decide.md` R3)。Gate 4 承認済み
+- [ ] 各ゲート通過時に `eval-log/handoff-<step>.json` が `schemas/handoff.schema.json` 準拠で保存されている
+- [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/TODO(human)) が日本語本文で提示されている (パラメーター名のみ英語)
 
-### Step 4a: P0 lint (自動) (phase=p0-lint)
-cwd はプロジェクトルート。`SKILLS_DIR="${CLAUDE_SKILLS_DIR:-plugins/skill-creator/skills}"`。コマンド列は `workflow-manifest.json phases[id=p0-lint].commands` に集約 (8 本 lint + manifest-contents)。**全 exit 0 必須**、失敗時は findings → Step 2 (最大 3 周)。`TODO` / 未展開 `{{...}}` / 英語仮文残存も Step 2 へ戻す (パラメーター名除く)。
+### ゴールシークループ
 
-### Gate 2: diff 確認
-`git diff plugins/skill-creator/skills/<name>/` と `eval-log/skill-build-trace.json` を提示して承認取得。前提: Step 4a 全 pass。
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
 
-### Step 4b: 設計評価 (phase=design-evaluate)
-`Skill(assign-skill-design-evaluator, args=<skill_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings 提示 → Step 2 / TODO(human) 判断。
-
-### Step 5: パラダイム評価 (phase=elegant-review, 条件付き)
-新規または >30 行変更時のみ。判定は機械化:
-```bash
-python3 plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py \
-  --skill-name "$SKILL_NAME" --kind "$KIND" --brief eval-log/skill-brief.json
-```
-`Skill(run-elegant-review, args=[skill, <skill_path>], context=fork)` で C1-C4 全 PASS 必須。PASS 時、`findings.pattern_ref_candidates / new_patterns / mass_production_risk` を `eval-log/pattern-feedback.json` に提案として残す (template/rubric/lint/hook 反映は Step 6 経由)。
-
-### Gate 3: 評価結果確認
-findings 提示。FAIL 残存時は修正方針確認。
-
-### Step 6: governance 承認 (phase=governance) + Gate 4
-プロンプト `prompts/governance-decide.md` (R3) の判定ロジックに従う。プロジェクトルート `references/governance-params.json` の `solo_operator_mode` を読み、4 条件 (solo=true / 安定版凍結 / newly_failing=0 / LLM-reviewer pass) 全充足で自動承認、それ以外は `run-skill-rubric-governance` 起動。Gate 4 で完了レポート提示。
-
-### Step 7: 完了レポート (phase=report)
-```markdown
-# Skill Creation Report: <skill_name>
-- mode: create|update
-- gates_passed: [1,2,3,4]
-- creator_kit_registration: applied|skipped|not_applicable
-- evaluator_result: PASS
-- elegant_review: PASS (or N/A)
-- governance: solo_auto_approved (or manual)
-- TODO(human): [...]
-```
+- **未達評価の単位はゲート**: Gate 1→2→2.5→3→4 を順に「未承認」とみなして都度埋める。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/gate-review.md`)。
+- **委譲先 (子 Skill)**: `run-skill-elicit` / `run-build-skill` / `assign-skill-design-evaluator` / `run-elegant-review` / `run-skill-rubric-governance`。本スキルは制御のみ、各子が自設計書を参照。
+- **context:fork 必須**: evaluator / elegant-review / governance reviewer は必ず fork で起動 (Sycophancy 防止)。
+- **差し戻し**: P0 lint fail または evaluator/elegant FAIL なら `run-build-skill` 再実行へ戻す (最大 3 周)。`--fast` 判定・elegant 起動判定は `scripts/evaluate-create-gates.py` で機械決定 (条件不一致は黙って通常フロー)。
+- **lint 自動修正禁止**: 根本原因をユーザー提示し LLM 判断で勝手に直さない。
+- 各フェーズ phase=id・entryHook/exitHook・dependsOn・fatal_exit_codes は `workflow-manifest.json` 参照。プロンプト R1/R2/R3 は `prompts/*.md`。
 
 ## Gotchas
 

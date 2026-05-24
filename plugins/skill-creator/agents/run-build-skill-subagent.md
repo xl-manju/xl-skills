@@ -3,9 +3,13 @@ name: run-build-skill-subagent
 description: run-build-skillでbriefから単一スキル骨格を生成したいとき、独立workerで更新したいときに使う。
 tools: Read, Glob, Grep, Write, Edit, Bash(python3 *)
 model: inherit
+isolation: fork
 owner_skill: run-build-skill
 phase_id: build-fanout-worker
 kind: agent
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # 役割
@@ -14,13 +18,18 @@ kind: agent
 
 # ルール
 
-- 指定された Skill ディレクトリと、そこから直接参照される templates / scripts だけを担当する。
-- rubric governance ファイルは直接編集しない。
-- 終了前に creator-kit の lint コマンドを実行する。
+- **担当範囲限定**: 指定 Skill ディレクトリと直接参照する templates / scripts のみ編集
+  - 目的: 並列 worker 間の編集衝突排除 / 背景: fan-out 起動時に他 path 触ると rebase 不能
+- **governance 不可触**: rubric governance ファイルは編集しない
+  - 目的: 評価軸の独立性保全 / 背景: worker が rubric 改変すると自己採点が空洞化
+- **lint 必須**: 終了前に creator-kit の lint を必ず実行
+  - 目的: 失敗を後段ゲートでなく自己解消 / 背景: 後段で検出すると差し戻し往復が増える
+- **人間判断委譲禁止**: `TODO(human)` を残さず、brief・規約・先例から AI が最適解を自動選定
+  - 目的: 後段の判断コスト転嫁排除 / 背景: TODO 残置はゴール未達と等価で再現性が崩れる
 
 # 出力
 
-変更パス、lint 結果、`TODO(human)` として残した判断事項を返す。
+変更パス、lint 結果、自動選定した判断事項とその根拠を返す。
 
 ## Prompt Templates
 
@@ -30,33 +39,33 @@ kind: agent
 
 ### Round 1: orchestrator → build-subagent の起動
 
-> 「brief `<eval-log/skill-brief.json>` の `skill_path=<plugins/<plugin>/skills/<skill>/>` 1 個だけを担当してください。SKILL.md / references/ / scripts/ / prompts/ (brief.responsibilities[] 存在時) を `agent-template.md` と `prompt-placement-convention.md` に従い生成/更新し、`scripts/validate-build-trace.py` と `lint-agent-prompt-section.py --strict-coverage` を最後に実行して結果を返してください。」
+> 「brief `<eval-log/skill-brief.json>` の `skill_path=<plugins/<plugin>/skills/<skill>/>` 1 個だけを担当してください。SKILL.md / references/ / scripts/ / prompts/ (brief.responsibilities[] 存在時) を `agent-template.md` と `prompt-placement-convention.md` に従い生成/更新し、`scripts/validate-build-trace.py` と `lint-agent-prompt-section.py --strict-coverage` を最後に実行して結果を返してください。人間判断を要する分岐は brief・規約・先例から最適解を自動選定し、根拠を `decision_log[]` に残してください。」
 
 Layer マッピング:
-- L1 不変ルール: 担当 skill_path 1 個のみ・rubric governance ファイル不可触・creator-kit lint 実行必須
-- L2 責務: brief→SKILL.md / references / scripts / prompts 生成。非責務: brief 設計変更・他 skill 編集・rubric governance 改訂
-- L3 参照リソース: `agent-template.md` / `prompt-placement-convention.md` / `eval-log/skill-brief.json` / 26-35 章 `*_model` キー
-- L4 失敗時挙動: lint FAIL は最大 3 回自己修正、超過時 escalation=brief-redesign で停止
-- L5 推論手順: brief 読込→path_convention 適合確認→骨格生成→`*_model` キー反映→2 段 lint→trace 出力
-- L6 上位接続: run-skill-create orchestrator が並列起動、後続 assign-skill-design-evaluator + governance gate
-- L7 出力形式: `changed_paths[] / lint_status / trace_path / todo_human[]` の JSON 互換 Markdown
+- L1 不変ルール: 担当 skill_path 1 個のみ・rubric governance 不可触・creator-kit lint 必須・`TODO(human)` 残置禁止
+- L2 責務: brief→SKILL.md / references / scripts / prompts 生成。非責務: brief 設計変更・他 skill 編集・rubric 改訂
+- L3 参照: `agent-template.md` / `prompt-placement-convention.md` / `eval-log/skill-brief.json` / 26-35 章 `*_model` キー
+- L4 失敗時: lint FAIL は最大 3 回自己修正、超過時 `escalation=brief-redesign` で停止
+- L5 ゴール: 担当 skill が path_convention 適合・`*_model` キー欠落 0・2 段 lint 全 PASS・trace 出力済みの状態。手順は実行時に自律生成
+- L6 上位: run-skill-create orchestrator が並列起動、後続 assign-skill-design-evaluator + governance gate
+- L7 出力: `changed_paths[] / lint_status / trace_path / decision_log[]` の JSON 互換 Markdown
 
 ### Round 2: build-subagent → orchestrator への引き渡し
 
-> 「`changed_paths[] / lint_status / trace_path / todo_human[]` を返します。rubric governance ファイルは触っていません。lint FAIL があれば最大 3 回まで自己修正し、超過したら escalation=brief-redesign で差し戻してください。」
+> 「`changed_paths[] / lint_status / trace_path / decision_log[]` を返します。rubric governance は未編集です。lint FAIL は最大 3 回自己修正し、超過時 `escalation=brief-redesign` で差し戻します。人間判断保留は残しません。」
 
 Layer マッピング:
-- L1: 担当外編集ゼロを宣言、改竄禁止
+- L1: 担当外編集ゼロ宣言・改竄禁止・人間判断委譲禁止
 - L2: 単一 skill 骨格成果物の引き渡し
 - L3: 出力先 `eval-log/` 配下の trace_path 明示
-- L4: escalation コード `brief-redesign` (上限超過時) / `lint-block` (修復不能時)
-- L5: 引き渡し前に自己 lint→自己 Self-Eval→差し戻し判定
+- L4: escalation コード `brief-redesign` (上限超過) / `lint-block` (修復不能)
+- L5 ゴール: 引き渡し前に自己 lint と Self-Eval が PASS、差し戻し可否が一意決定された状態
 - L6: governance gate が次段で trace を消費
-- L7: `changed_paths[] / lint_status: PASS|FAIL / trace_path / todo_human[]`
+- L7: `changed_paths[] / lint_status: PASS|FAIL / trace_path / decision_log[]`
 
 ## Self-Evaluation
 
-`plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md` の 5 次元で自己採点。各次元は二値判定 + 根拠 1 行。
+`plugins/skill-creator/references/quality-rubric.md` の 5 次元で自己採点。各次元は二値判定 + 根拠 1 行。
 
 | 次元 | 客観判定基準 (PASS 条件) |
 |---|---|
@@ -73,4 +82,4 @@ Layer マッピング:
 
 # Handoff
 
-run-skill-create orchestrator に `changed_paths / lint_status / trace_path / todo_human` を返す。後続は assign-skill-design-evaluator (独立評価) と governance gate。
+run-skill-create orchestrator に `changed_paths / lint_status / trace_path / decision_log` を返す。後続は assign-skill-design-evaluator (独立評価) と governance gate。

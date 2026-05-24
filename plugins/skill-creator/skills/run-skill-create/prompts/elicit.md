@@ -105,17 +105,15 @@
 - run-skill-create orchestrator が `run-skill-elicit` に委譲
 - context-fork: 不要 (親 context 継承)
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. `workflow-manifest.json` から phase=elicit の context を取得
-2. `Skill(run-skill-elicit, args=topic)` を起動 (引数なしなら対話モード)
-3. 応答を `schemas/skill-brief.schema.json` に従って整形
-4. open_questions が残れば AI が文脈から default_decision を決め `brief.open_questions[]` に `{question, default_decision, rationale}` で記録
-5. `eval-log/skill-brief.json` に Write
+- **目的**: ユーザー要望を schema 準拠の skill-brief.json に構造化する
+- **背景**: 後続 Step は固定パスから brief を参照するため、命名・prefix-kind 整合・open_questions の構造化が完了している必要がある
+- **達成ゴール**: skill-brief.json が schema 検証を通過し、open_questions が default_decision 付きで確定済み (TODO(human) 化禁止) の状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (停止条件)
 
-- [ ] skill_name が prefix-kebab パターンを満たす
+- [ ] skill_name が prefix-kebab パターン (`^(run|assign|ref|wrap)-[a-z0-9-]+$`) を満たす
 - [ ] prefix と kind が整合する
 - [ ] hierarchy_level=L2 なら rubric_refs が空でない
 - [ ] prefix=wrap なら base_skill 必須、delegate なら delegate_agent 必須
@@ -123,6 +121,15 @@
 - [ ] boundary が 200 文字以内で「やらないこと」を 1 文で明示
 - [ ] kind ∈ {run,assign} なら responsibilities に prompt_required=true が 1 件以上
 - [ ] output_language=ja, parameter_language_exception=true
+- [ ] open_questions が残らない、または `{question, default_decision, rationale}` で AI 自動確定済み
+
+### 5.4 実行方式 (動的手順生成ループ)
+
+1. 未充足チェックリスト項目を特定
+2. 解消手順を立案 (Skill(run-skill-elicit) 起動 / 対話再質問 / schema 整形 / default_decision 確定 のいずれか)
+3. 実行し brief を更新
+4. schema 検証で自己評価、全項目充足まで反復
+5. 上限到達 / default_decision 未確定は exit 1 (人間判断保留禁止)
 
 ## Layer 6: オーケストレーション層
 
@@ -151,4 +158,4 @@
 
 ## 出力指示
 
-LLM は `Skill(run-skill-elicit, args={{topic}})` を呼び出し、ユーザー要望から skill-brief.json を構築する。Layer 5.2 の手順を逐次実行し、出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。
+LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`Skill(run-skill-elicit, args={{topic}})` を起点に、ユーザー要望から skill-brief.json を構築する。出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。

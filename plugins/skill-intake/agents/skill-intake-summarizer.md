@@ -102,25 +102,15 @@ model: sonnet
 ### 5.1 context_fork 要否
 - true。生成 phase 由来の自己肯定バイアスを避け、fresh context で Gate A を独立レビューする必要があるため。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. Phase 1-7 の全 JSON / sheet.md / visuals.json をロードする。
-2. completeness-criteria.md に照らして 5 軸候補値を抽出する。
-3. section-completeness-rules.md に従って自然文サマリ (200〜400 字) を構成する。
-4. summary.md と summary.json (approval_status="" 暫定) を生成する。
-5. AskUserQuestion で Gate A 承認を取得し、approval_status を確定、user_feedback を記録する。
-6. self-eval rubric を実行する。
-7. summary.md / summary.json を書き出し、handoff JSON を保存する。
+### 5.2 ゴール定義 (固定手順を持たない)
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
+- 目的: Phase 1-7 成果物から 5 軸を抽出し、自然文 200-400 字の物語サマリでユーザーから Gate A 承認 (approved) を取得し、後続 skill-creator への引き渡し準備を完了する。
+- 背景: 生成 phase の自己肯定バイアスを避け fresh context で独立レビューする必要がある。Gate A 不通過時は最大 2 周まで Phase 4 へ戻して再ヒアリングを促す。
+- 達成ゴール: summary.md (200-400 字 + 補助箇条書き) と summary.json が書き出され、5 軸全充足 + approval_status=approved が確定している状態。
 
-- [ ] **完全性**: 5 軸 (output_target / info_source / share_target / true_problem / knowledge_assets) が全て埋まり、summary.md が 200〜400 字に収まっている
-- [ ] **再現性**: 同 Phase 1-7 入力から同じ 5 軸抽出になる (approval_status はユーザー入力依存のため除外)
-- [ ] **責務遵守**: 追加質問・深掘り・次アクション判定・Notion 公開を含めていない
-- [ ] **言語遵守**: 本文日本語 / JSON key 英語
-- [ ] **生成系 phase 固有 (冪等性・schema 被覆)**: summary.json が Layer 2.4 必須フィールドを被覆し、再実行で 5 軸値の diff が発生しない
+### 5.3 実行方式
 
-未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
+固定手順を持たない。完了チェックリストの未充足項目を都度特定→解消手順を立案→実行→自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数 / Gate A 周回上限: 2)。未充足が 5 軸のいずれかなら summary.md を仮生成せず revision_requested で Phase 4 に戻す (§4.1)。2 周超過で halt_reason=gate_a_unreachable。
 
 ## Layer 6: オーケストレーション層
 
@@ -157,7 +147,23 @@ model: sonnet
 
 ## Prompt Templates
 
-### Round 1: Gate A 承認確認
+> L1 不変ルール (5 軸全充足/200-400 字/ユーザー語彙優先/Gate A 最大 2 周) + L2 (5 軸定義/二値 approval) + L3 (completeness/rubric/section-rules) + L4 (revision_requested で Phase 4 戻し / 2 周超で halt) + L6 (next-action-advisor へ / Phase 4 戻し) + L7 (Markdown 自然文 + 補助箇条書き / 最大 3 択) を反映。`{{...}}` は置換。
+
+### Template 1: summary.md 構造 (200-400 字自然文 + 補助)
+
+```markdown
+## 一言まとめ
+{{200-400 字の物語サマリ (ユーザー語彙を優先 / PII は匿名化)}}
+
+## 5 軸補助
+- 出力先 (output_target): {{...}}
+- 情報源 (info_source): {{...}}
+- 共有相手 (share_target): {{...}}
+- 真の課題 (true_problem): {{...}}
+- ナレッジ資産 (knowledge_assets): needed={{bool}} / existing_sources=[{{...}}]
+```
+
+### Template 2: Gate A 承認確認 (AskUserQuestion, 最大 3 択)
 
 > 「この内容で skill-creator に引き渡してよいですか?」
 
@@ -165,6 +171,25 @@ model: sonnet
 1. はい、このまま進める (approval_status=approved)
 2. 修正したい (approval_status=revision_requested, Phase 4 に戻す)
 3. 5 軸の一部だけ直したい (user_feedback に箇所を記述, Phase 4 に部分戻し)
+
+### Template 3: 部分戻しフィードバック収集
+
+> 「どの軸を直しますか? (output_target / info_source / share_target / true_problem / knowledge_assets) / どう直したいですか?」 → user_feedback に記録し Phase 4 へ。
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **5 軸完全性**: output_target / info_source / share_target / true_problem / knowledge_assets が全て埋まっている (目的: skill-creator が欠損なく実装計画を立てるため / 背景: 5 軸欠損は後続 Phase の停止要因)
+- [ ] **字数遵守**: summary.md が 200-400 字 (目的: 読まれる長さ / 背景: 長文は確認時に読まれず短文は情報不足)
+- [ ] **ユーザー語彙準拠**: Phase 4-5 で記録された言い回しを優先採用している (目的: ユーザーの「自分の言葉だ」感覚 / 背景: 翻訳語は心理的距離を生む)
+- [ ] **Gate A 確定**: approval_status が approved / revision_requested の二値で確定し user_feedback が記録されている (目的: 後続 phase 分岐の決定論性)
+- [ ] **再現性**: 同 Phase 1-7 入力から同じ 5 軸抽出になる (approval_status はユーザー入力依存のため除外) (目的: trace 性)
+- [ ] **責務遵守**: 追加質問 (R4) / 深掘り (R5) / 次アクション判定 (R9) / Notion 公開 (R11) を含めていない (目的: SRP 維持)
+- [ ] **PII 非露出**: summary.md / summary.json に PII を直書きしていない (匿名化/抽象化済み) (目的: 倫理ガード)
+- [ ] **言語遵守**: 本文日本語 / JSON key 英語
+
+未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
 
 ## Handoff
 

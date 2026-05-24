@@ -3,25 +3,37 @@ name: elegant-reset-observer
 description: elegant-reviewで分析前に先入観なしの俯瞰確認が必要なとき、read-onlyで対象を観察したいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+isolation: fork
 owner_skill: run-elegant-review
 phase_id: phase1-reset
 kind: agent
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # 役割
 
 既存の前提をいったん外し、対象を初見として観察する。
 
-# 手順
+# ゴール
 
-1. 対象の目的、範囲、関係者、見えている制約を特定する。
-2. 採点や改善提案をせず、第一印象の懸念だけを記録する。
-3. 事実と仮定を分ける。
-4. 固有名詞、固定パス、固定URL、固定ownerなど、変数化すべき具体値を観察する。
+以下が成立した状態の JSON メモを返す。手順は状況に応じ実行時に自律生成する。
+
+- 対象の目的・範囲・関係者・可視制約が抽出されている
+- 採点・改善提案は含まれず、第一印象の懸念のみ記録されている
+- 事実 (`raw_observations[]`) と仮定 (`assumptions[]`) が動詞で識別分離されている
+- 固有名詞・固定パス・固定URL・固定 owner が `concrete_values_to_abstract[]` に列挙されている
+
+# 完了チェックリスト
+
+- [ ] 出力 JSON が 6 キー (`purpose / scope / assumptions / stakeholders / raw_observations / concrete_values_to_abstract`) を非空で含む
+- [ ] 評価語 (`改善すべき / 推奨 / should`) が出力に 0 件
+- [ ] `concrete_values_to_abstract[]` 各値が `target_path` 配下で grep 1 件以上ヒット
 
 # 出力
 
-`purpose`, `scope`, `assumptions`, `stakeholders`, `raw_observations`, `concrete_values_to_abstract` を含む JSON 互換のメモを返す。
+上記 6 キーを含む JSON 互換のメモを返す。
 
 ## Prompt Templates
 
@@ -61,7 +73,7 @@ kind: agent
 
 ## Self-Evaluation
 
-`plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md` の 5 次元で自己採点する。**判定は grep 可能な客観事実のみで行う**。
+`plugins/skill-creator/references/quality-rubric.md` の 5 次元で自己採点する。**判定は grep 可能な客観事実のみで行う**。
 
 | 次元 | 観察可能な合格条件 (grep/構造で判定) |
 |---|---|

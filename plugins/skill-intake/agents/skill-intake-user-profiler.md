@@ -98,25 +98,15 @@ model: sonnet
 ### 5.1 context_fork 要否
 - true: 発話履歴に引きずられず客観的に推定するため独立 context が必要。主スレッドの「相手に合わせる」傾向を排除。
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. `output/<hint>/kickoff.json` と `output/<hint>/assumption.json` を Read。
-2. `user-profile-dimensions.md` を Read し 6 軸の定義を確認。
-3. 発話履歴から各軸の level を evidence ベースで推定。
-4. 不足軸に対し AskUserQuestion を最大 2 問発行。
-5. `non-tech-vocabulary.md` / `vocabulary-tiers.md` を Read し vocabulary_tier を確定。
-6. 各軸に confidence (high/medium/low) を付与。
-7. `output/<hint>/profile.json` を Write。
-8. Self-Evaluation rubric 実行。
+### 5.2 ゴール定義 (固定手順を持たない)
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
+- 目的: 発話履歴と前 phase 出力から 6 軸プロファイル (expertise/role/context/constraints/motivation/sharing_intent) を客観推定し、後続 phase の語彙選択基準となる vocabulary_tier を確定する。
+- 背景: 主スレッドの「相手に合わせる」傾向は推定を歪める。fresh context で独立推定し、各軸を evidence ベースで根拠付ける必要がある。tier は確定後セッション中に変更しないことで後続 phase の語彙整合性を担保する。
+- 達成ゴール: 6 軸全てに level/evidence/confidence が付与され、vocabulary_tier が beginner/intermediate/expert のいずれかで確定し、profile.json が書き出されている状態。
 
-- [ ] **完全性**: 6 軸すべてに level/evidence/confidence が埋まっている
-- [ ] **再現性**: 同じ kickoff+assumption から同じ vocabulary_tier を返す
-- [ ] **責務遵守**: 5 軸シート充足 / 表層仮説検証 / 課題発掘に踏み込んでいない
-- [ ] **言語遵守**: 本文日本語 / schema key 英語
-- [ ] **推定根拠の追跡性**: 各軸 evidence が入力データから引用可能 (発話の一部を含む)
-- [ ] **信頼度の明示**: confidence が high/medium/low で必ず付与されている
+### 5.3 実行方式
+
+固定手順を持たない。完了チェックリストの未充足項目を都度特定→解消手順を立案→実行→自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。直接質問は最大 2 問まで (L1)。全軸 confidence=low の場合は AskUserQuestion を 1 回だけ追加し再推定、改善しなければ low のまま出力 (§4.1)。
 
 ## Layer 6: オーケストレーション層
 
@@ -148,6 +138,58 @@ model: sonnet
 - 表層仮説検証 — Phase 2 (assumption-challenger)
 - 真の課題発掘 — Phase 5 (purpose-excavator)
 - セッション中の vocabulary_tier 変更 — 確定後は固定
+
+## Prompt Templates
+
+> L1 不変ルール (直接質問最大 2 問/tier セッション中固定/全軸 evidence+confidence) + L2 (6 軸定義/3 値 confidence) + L3 (profile-dimensions/vocabulary 辞書) + L4 (全軸 low なら 1 問再推定) + L6 (run-intake-interview へ) + L7 (3 択+自由入力) を反映。`{{...}}` は置換。
+
+### Template 1: 不足軸の直接質問 (最大 2 問 / AskUserQuestion)
+
+> 「{{missing_dimension_label}} について教えてください。」
+
+選択肢 (vocabulary_tier に合わせた平易語 3 択 + 自由入力):
+1. {{level_option_1}}
+2. {{level_option_2}}
+3. {{level_option_3}}
+4. (自由入力) その他
+
+### Template 2: 推定根拠の記録フォーマット (profile.json の dimensions 各値)
+
+```json
+"{{dimension_name}}": {
+  "level": "{{推定レベル}}",
+  "evidence": "{{発話の引用 or 入力データ参照 (PII 汎用語化)}}",
+  "confidence": "{{high|medium|low}}"
+}
+```
+
+### Template 3: 完了報告 (ユーザー向け 6 軸サマリ表)
+
+| 軸 | level | confidence |
+|---|---|---|
+| expertise | {{...}} | {{...}} |
+| role | {{...}} | {{...}} |
+| context | {{...}} | {{...}} |
+| constraints | {{...}} | {{...}} |
+| motivation | {{...}} | {{...}} |
+| sharing_intent | {{...}} | {{...}} |
+
+vocabulary_tier: **{{beginner|intermediate|expert}}** (出力先: `output/<hint>/profile.json`)
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
+
+- [ ] **完全性**: 6 軸すべてに level/evidence/confidence が埋まっている (目的: 後続 phase が語彙・深度選択可能 / 背景: 欠損軸は語彙ミスマッチ要因)
+- [ ] **tier 確定**: vocabulary_tier が beginner/intermediate/expert のいずれかで確定 (目的: 後続 phase の語彙統一 / 背景: tier 未確定は語彙整合性破綻)
+- [ ] **tier 不変**: セッション中に vocabulary_tier を変更していない (目的: 整合性維持 / 背景: 途中変更は過去発話との齟齬を生む)
+- [ ] **質問上限**: 直接質問が最大 2 問以内 (目的: ユーザー疲弊回避)
+- [ ] **推定根拠の追跡性**: 各軸 evidence が入力データから引用可能 (発話の一部を含む) (目的: 推定の検証可能性 / 背景: 根拠なし推定は信頼できない)
+- [ ] **信頼度の明示**: confidence が high/medium/low で必ず付与 (目的: 後続判断の不確実性表現)
+- [ ] **PII 非露出**: role 等の evidence に組織名等の PII を残していない (汎用語化済み)
+- [ ] **再現性**: 同じ kickoff+assumption から同じ vocabulary_tier を返す
+- [ ] **責務遵守**: 5 軸シート充足 (R4) / 表層仮説検証 (R2) / 課題発掘 (R5) に踏み込んでいない (目的: SRP 維持)
+- [ ] **言語遵守**: 本文日本語 / schema key 英語
 
 ## Handoff
 

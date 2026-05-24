@@ -10,7 +10,7 @@
 | name | search-summarize |
 | skill | ref-intake-option-catalog |
 | responsibility | R1-catalog-lookup-and-options-emit (1 prompt = 1 責務 = 1 agent) |
-| layers_covered | [L2, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/options.schema.json |
 | reproducible | true (カタログ照合は決定論的) |
 
@@ -69,24 +69,26 @@
 ### 4.3 セキュリティ
 - 連携の API キー / トークンはこの責務では扱わない。
 
-## Layer 5: エージェント層 (実行主体定義)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `@option-presenter` (対話あり、AskUserQuestion 経由)
+- `@option-presenter` (対話あり、AskUserQuestion 経由、Read-only カタログ参照)
 
-### 5.2 推論手順 (再現可能)
-1. purpose.json から `verb_object` / `time_freed_intent` を抽出する。
-2. integration-catalog-pointer.md 経由でカタログを Read-only で参照する。
-3. tier-criteria.md に従い候補に `tier=required|optional` を付与する。
-4. ユーザーに提示し選択を取得、rejected には `reason` を必須記録する。
-5. options.json を出力する。
+### 5.2 ゴール定義
+- 目的: purpose.json の意図に対し、整備済みカタログから候補連携を抽出・tier 付与し、ユーザー合意を経て options.json を確定すること。
+- 背景: カタログ外の連携を勝手に追加すると後段の認証/実装責務が破綻する。必須連携の脱落や恣意的却下は workflow 全体の目的を毀損する。
+- 達成ゴール: tier=required が全て selected に含まれ、rejected には reason が記録された options.schema.json 準拠の options.json が出力されている状態。
 
-### 5.3 自己検証 checklist
-- [ ] 必須 (tier=required) 連携が全て selected_integrations に含まれているか
-- [ ] rejected 各項目に reason が記録されているか
-- [ ] カタログ未掲載の連携を追加していないか (Read-only 遵守)
-- [ ] 出力が options.schema.json に適合するか
-- [ ] determinism: 同 purpose.json と同ユーザー選択履歴で options.json (selected_integrations + rejected) が一致するか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 必須 (tier=required) 連携が全て selected_integrations に含まれている
+- [ ] rejected 各項目に reason が記録されている (恣意的除外の防止)
+- [ ] カタログ未掲載の連携を追加していない (Read-only 遵守)
+- [ ] 出力が options.schema.json に適合している
+- [ ] 同 purpose.json と同ユーザー選択履歴で options.json が一致する (determinism)
+
+### 5.4 実行方式
+- 固定手順を持たない。完了チェックリストを唯一の停止条件とし、未充足項目 (例: 必須欠落 / reason 欠落 / schema 違反) を特定→必要処理 (再抽出 / 追加質問 / reason 収集 / schema 修正) を都度立案・実行→checklist で自己評価を反復する (上限: Layer 4 最大反復回数)。
+- AskUserQuestion は 1 問ずつ (並列禁止)。反復は分離 context で完結させ、親へは options.json + exit code のみ返却。
 
 ## Layer 6: オーケストレーション層
 
@@ -94,8 +96,9 @@
 - 呼び出し元: `run-skill-intake` の Phase 6 (options 選定)
 - 後続 phase: `run-intake-visualize` / `run-intake-next-action`
 
-### 6.2 並列性
-- AskUserQuestion は 1 問ずつ (並列禁止)。
+### 6.2 ハンドオフ / 並列性
+- 直列: options.json (受領先 = run-intake-visualize / run-intake-next-action) を後続 phase の入力 (提供元 = option-presenter) に接続。
+- 並列: AskUserQuestion は 1 問ずつ (並列禁止)。
 
 ## Layer 7: UI / 提示層
 

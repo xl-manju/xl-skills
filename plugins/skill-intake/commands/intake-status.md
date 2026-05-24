@@ -1,4 +1,5 @@
 ---
+name: intake-status
 description: 進行中ヒアリングの状況を表示 — 各 phase の完了状況・残り 5 軸・図解枚数を一覧化
 argument-hint: "[<skill-name-hint>]"
 ---

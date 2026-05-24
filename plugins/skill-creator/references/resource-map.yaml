@@ -46,6 +46,21 @@ references:
       - assign-skill-design-evaluator
     relates_to: [di-quartet]
 
+  - id: ssot-dedup-procedure
+    path: references/ssot-dedup-procedure.md
+    kind: pattern
+    read_when:
+      - "skill-creator or 生成 plugin を改善する前 (編集着手前の重複事前解析)"
+      - "似た内容でどちらを正本に採用すべきか曖昧な重複を検出した時"
+      - "redirect 宣言と本文が乖離した schema / reference を見つけた時"
+      - "情報が肥大化・点在して SSOT が崩れている疑いがある時"
+    produced_by: team-platform
+    consumed_by:
+      - run-build-skill
+      - run-elegant-review
+      - run-skill-create
+    relates_to: [orchestrate-gate-pattern]
+
 read_policy:
   default: "lazy (read_when 条件成立時のみ load)"
   override: "orchestrator が明示的に require した場合は eager load 可"

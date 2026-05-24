@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Prompt作成シート ヒアリング結果",
-  "description": "interview-user.md が出力するヒアリング結果JSONのスキーマ。validate_sheet.js, generate_sheet.js, scaffold_prompt.js, verify_completeness.js が入力として使用。",
+  "title": "Prompt Sheet Input",
+  "description": "7layer worker が legacy sheet/scaffold 入力として受け取る構造化済みJSONのスキーマ。raw hearing result の正本は run-prompt-elicit/schemas/hearing-result.schema.json。validate-sheet.py, generate-sheet.py, scaffold-prompt.py が入力として使用。ゴールシーク型: 固定手順(steps)は収集せず、達成ゴール(goals)と完了チェックリスト(checklist)を収集する。",
   "type": "object",
   "required": [
     "prompt_name",
@@ -9,7 +9,7 @@
     "purpose",
     "background",
     "success_criteria",
-    "steps",
+    "goals",
     "challenges"
   ],
   "properties": {
@@ -38,28 +38,53 @@
       "minLength": 1,
       "description": "どのような状態になれば完成と判断できるか"
     },
-    "steps": {
+    "goals": {
       "type": "array",
       "minItems": 1,
-      "description": "目的達成のための手順（各ステップを読んで次に何をすべきか迷わない粒度で記述）",
+      "description": "達成ゴール（成果状態で記述。手順ではなく『何が出来上がれば到達か』）。Layer 5 ゴール定義の材料。",
       "items": {
-        "type": "object",
-        "required": ["description"],
-        "properties": {
-          "step": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "description": "手順の説明"
-          },
-          "output_format": {
-            "type": "string",
-            "description": "このステップの出力フォーマット（変数テンプレート付き）"
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          {
+            "type": "object",
+            "required": ["description"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "達成ゴール（成果状態）"
+              },
+              "output_format": {
+                "type": "string",
+                "description": "このゴールの成果物フォーマット（変数テンプレート付き）"
+              }
+            }
           }
-        }
+        ]
+      }
+    },
+    "checklist": {
+      "type": "array",
+      "description": "完了チェックリスト（ゴール到達の停止条件。第三者がYES/NOで判定できる項目）。Layer 5 完了チェックリストの材料。",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          {
+            "type": "object",
+            "required": ["item"],
+            "properties": {
+              "item": {
+                "type": "string",
+                "minLength": 1,
+                "description": "達成条件"
+              },
+              "judgement": {
+                "type": "string",
+                "description": "YES/NO判定の基準"
+              }
+            }
+          }
+        ]
       }
     },
     "challenges": {

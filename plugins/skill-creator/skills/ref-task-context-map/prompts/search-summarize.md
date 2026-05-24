@@ -77,20 +77,24 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-task-context-map 配下の R1 SubAgent (context fork 推奨)。
+- ref-task-context-map 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. task-context-map.yaml を読み、context entries を走査する。
-2. query を entry の `trigger_keywords / verbs / domains` にマッチする。
-3. ヒット entry の `chapter_refs[]` (章番号 + パス) を抽出して返す。
-4. 複数ヒットなら priority 降順、最大 5 件まで保持する (同 priority は安定 sort)。
-5. 該当ゼロなら近傍 trigger を `suggestions` に入れる。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し task-context-map.yaml の該当 entry と chapter_refs を priority 順で返す。
+- **背景**: caller は task 文脈別の参照章特定のみを必要とし、map 改訂は ref-* の責務外。priority 順の崩れや実在しないパス返却は caller を誤誘導するため厳守する。
+- **達成ゴール**: query に該当する entry の chapter_refs[] が priority 降順 (安定 sort) で最大 5 件、実在パスで引用され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が文脈遷移にそのまま使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] chapter_refs のパスが `doc/ClaudeCodeスキルの設計書/` 配下で実在しているか
-- [ ] 同 priority 内の順序を安定 sort で再現性確保したか
-- [ ] 上限 5 件を超えていないか
-- [ ] 該当ゼロ時に suggestions を返したか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が task-context-map.yaml の実在 entry から引用されている
+- [ ] 呼出元責務外の情報 (map 改訂 / 新規 entry 追加) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] chapter_refs のパスが `doc/ClaudeCodeスキルの設計書/` 配下で実在している
+- [ ] 同 priority 内の順序を安定 sort で再現性確保している
+- [ ] 上限 5 件を超えていない
+- [ ] 該当ゼロ時は近傍 trigger を `suggestions` に入れる (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

@@ -121,27 +121,32 @@
 - run-plugin-package-check skill 本体（context-fork 不要、orchestrator は親 context 継承）
 - 個別 PKG check は `Skill(assign-plugin-package-evaluator, context=fork)` で delegate
 
-### 5.2 推論手順 (再現可能)
+### 5.2 ゴール定義
 
-1. **Step 0 入力検証**: `plugins/<plugin>/.claude-plugin/plugin.json` 存在確認、`package_mode` 抽出（欠落→skill-only 推定）、`pkg` 引数で対象 ID 絞込
-2. **Step 1 PKG-001**: `scripts/run-plugin-validate-strict.sh` 実行
-3. **Step 2 PKG-002〜008**: `Skill(assign-plugin-package-evaluator, context=fork, pkg_ids=[002..008])`
-4. **Step 3 PKG-009**: `../../scripts/lint-external-refs.py`
-5. **Step 4 PKG-010**: `scripts/smoke-plugin-install.sh`（`failure_action: abort`、fail で以降 skip）
-6. **Step 5 PKG-011/012**: `smoke-plugin-uninstall.sh` / `smoke-plugin-upgrade.sh`
-7. **Step 6 PKG-013a〜d**: `validate-plugin-permissions.py` 各 sub-check
-8. **Step 7 PKG-014**: `Skill(assign-plugin-package-evaluator, context=fork, pkg_ids=[PKG-014])`
-9. **Step 8 PKG-015**: `../../scripts/lint-rubric-violation.py`
-10. **Step 9 集約**: `aggregate-pkg-findings.py --plugin <name> --out eval-log/<plugin>/pkg-summary/<date>-<run>.json`
-11. **Step 10 verdict 出力**: stdout に markdown サマリ + exit code 設定
+- **目的**: phase 0/1/2 別に PKG-001〜015 を必要な実行形態（順次 / 並列 / delegate）で動かし findings を集約し verdict を出す
+- **背景**: 各 PKG は workflow-manifest.json で failure_action / 並列性が定義済。手順を固定せずマニフェスト駆動で動的に組む必要がある（PKG 追加時の改修コスト低減・skill-only 対応）
+- **達成ゴール**: `pkg_checks{}` が全対象 PKG ID 分埋まり、`verdict` が集計され、§2.4 schema 準拠 run-report が eval-log に保存、§4.2 markdown サマリが stdout に出力された状態
 
-### 5.3 自己検証 checklist
+### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] 全 PKG ID が `pkg_checks{}` に存在（実行 / skip / not_applicable のいずれか）
-- [ ] `failure_action: abort` Step fail 時に以降 Step が skip されている
-- [ ] `package_mode=skill-only` で PKG-001/003/005/006/007/008/009/010〜015 が `not_applicable`
-- [ ] eval-log path が 27章 §3.1 規約準拠
-- [ ] `dry_run=true` 時に副作用ゼロ
+- [ ] 全対象 PKG ID が `pkg_checks{}` に存在（`pass|fail|skip|not_applicable`）
+- [ ] `failure_action: abort` Step fail 後の以降 Step が `status: skip`
+- [ ] `package_mode=skill-only` で PKG-002/004 以外は `not_applicable`
+- [ ] PKG-013 は a/b/c/d 全 pass のときのみ全体 pass
+- [ ] eval-log path が 27章 §3.1 規約準拠（`eval-log/<plugin>/pkg-<id>/<YYYY-MM-DD>-<run>.{json,log}`）
+- [ ] `dry_run=true` 時に副作用ゼロ（実行予定 ID 列挙のみ）
+- [ ] 集約は `aggregate-pkg-findings.py` 経由（observable emit は集約 script に一本化）
+- [ ] §2.4 schema validation を通過、§4.2 markdown サマリが stdout に出力
+
+### 5.4 実行方式 (固定手順を持たないゴールシークループ)
+
+- 方針: 固定 Step 列挙を持たない。§5.2 ゴール定義 / §5.3 完了チェックリスト / `workflow-manifest.json` の phase ordering / failure_action / parallel フラグを唯一の指針とし、入力 `phase` / `pkg` / `package_mode` に応じて実行プランを都度組む
+- ループ:
+  1. §5.3 の未充足項目を特定する
+  2. 未充足を解消する手順を立案（manifest 読込 / 対象 ID 絞込 / `run-plugin-validate-strict.sh` / `Skill(assign-plugin-package-evaluator, context=fork)` delegate / smoke scripts / `validate-plugin-permissions.py` / 外部 lint / `aggregate-pkg-findings.py` 等から必要なものを選択し、failure_action と parallel フラグに従う）
+  3. 立案手順を実行し `pkg_checks{}` を更新
+  4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 最大反復）
+- 逸脱時: aggregate 失敗 / structural error は §4.1 に従い exit 3 で停止し Layer 4 エスカレーション
 
 ## Layer 6: オーケストレーション層
 
@@ -173,4 +178,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `{{plugin}}` / `{{phase}}` / `{{pkg}}` / `{{dry_run}}` / `{{output_dir}}` を受け、Layer 5.2 の Step 0〜10 を逐次実行する。各 Step 完了時に `failure_action` を判定し、Step 10 で Layer 2.4 の run-report JSON を eval-log に保存し、§4.2 の markdown サマリを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。
+入力 `{{plugin}}` / `{{phase}}` / `{{pkg}}` / `{{dry_run}}` / `{{output_dir}}` を受け、Layer 5.2 ゴール定義と §5.3 完了チェックリストを停止条件とし、§5.4 ゴールシークループに従い `workflow-manifest.json` の phase ordering / failure_action / parallel フラグを参照しつつ実行プランを動的生成・実行する。最終的に Layer 2.4 の run-report JSON を eval-log に保存し、§4.2 markdown サマリを stdout に出力する。前置き・後書き・思考過程出力は禁止。exit code は §4.1 に従う。

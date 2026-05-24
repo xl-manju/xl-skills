@@ -27,8 +27,8 @@
         "description": { "type": "string", "minLength": 10, "maxLength": 400, "description": "発動条件のみを宣言。03章R1/R5準拠。" },
         "kind": {
           "type": "string",
-          "enum": ["skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow"],
-          "description": "Capability 種別。rubric / templates / validator が kind ごとに分岐する。"
+          "enum": ["skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow", "run", "ref", "assign", "wrap", "delegate"],
+          "description": "Capability 種別(2層モデル)。非SKILL.md(agents/commands/hooks/...)は capability 種別(skill/agent/hook/command/plugin-composition/prompt/workflow)を宣言する。SKILL.md は capability 種別が skill であり、frontmatter kind には skill sub-role(prefix: run/ref/assign/wrap/delegate)を直書きする慣習(ref-skill-naming-convention 第2条)。validator は SKILL.md を KIND_VALUES、非SKILL.md を本 enum 前段で分岐検証する。"
         },
         "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "description": "SemVer。rubric 連動のため semver bump rules に従う。" },
         "owner": { "type": "string", "description": "team名または個人。governance escalation 先。" },
@@ -47,15 +47,29 @@
           }
         },
         "rubric_refs": { "type": "array", "items": { "type": "string" }, "description": "依拠する rubric.json への参照。L0→L1→L2 deep-merge 順。" },
-        "responsibility_refs": { "type": "array", "items": { "type": "string" }, "description": "プロンプト・スクリプトなど責務委譲先への参照。" }
+        "responsibility_refs": { "type": "array", "items": { "type": "string" }, "description": "プロンプト・スクリプトなど責務委譲先への参照。" },
+        "knowledge_loop": {
+          "type": "object",
+          "description": "任意。with-knowledge combinator を適用したスキルが宣言する横断 capability 記述子。knowledge/ 蓄積・3段階検索・§12フィードバックループの実体を指す。正本仕様は ref-knowledge-loop。commonCore.required には含めない(全 kind 共通の必須ではないため)。",
+          "required": ["pattern"],
+          "additionalProperties": false,
+          "properties": {
+            "pattern": { "enum": ["index-search", "router-registry"], "description": "index-search型=固定/ペルソナ。router-registry型=外部素材から継続同期。" },
+            "index": { "type": "string", "description": "索引ファイルへの相対パス。index-search型は knowledge/knowledge-index.json、router-registry型は knowledge/router.json。" },
+            "scoring_weights": { "type": "object", "description": "フィールド重み付きスコアリングの重み (title/keywords/quote/voice/fulltext)。省略時は既定値。" },
+            "usage_log": { "type": "string", "description": "§12 活用ログ (jsonl) への相対パス。matched_ids/used_ids/satisfaction を追記。" },
+            "consult_at": { "type": "array", "items": { "type": "string" }, "description": "蓄積知識を参照する局面 (例: runtime, build-time)。Loop B (skill-creator 自己適用) では build-time を含む。" }
+          }
+        }
       }
     },
 
     "kindSkill": {
       "type": "object",
+      "description": "SKILL.md。capability 種別は skill。frontmatter kind には skill sub-role(prefix: run/ref/assign/wrap/delegate)を直書きする(ref-skill-naming-convention 第2条)。明示的な kind:skill も後方互換で許容。",
       "properties": {
-        "kind": { "const": "skill" },
-        "triggers": { "type": "array", "items": { "type": "string" }, "description": "発動キーワード/状況。03章R5。" },
+        "kind": { "enum": ["skill", "run", "ref", "assign", "wrap", "delegate"], "description": "skill sub-role(prefix)。capability 種別 skill を含意。" },
+        "triggers": { "type": "array", "items": { "type": "string" }, "description": "発動キーワード/状況(03章R5)。任意: SKILL.md は description のトリガー句で代替可(lint が description のトリガー句を強制)。" },
         "anchors": { "type": "array", "items": { "type": "string" }, "description": "設計原則アンカー (例: Clean Code / SRP)。" },
         "disable-model-invocation": { "type": "boolean" },
         "user-invocable": { "type": "boolean" },
@@ -63,8 +77,7 @@
         "effect": { "type": "string", "enum": ["none", "read", "write", "external"] },
         "source": { "type": "string" },
         "source-tier": { "type": "string", "enum": ["external-official", "internal", "experimental"] }
-      },
-      "required": ["triggers"]
+      }
     },
 
     "kindAgent": {

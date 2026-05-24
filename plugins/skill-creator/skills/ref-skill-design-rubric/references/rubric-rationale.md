@@ -34,8 +34,10 @@
 - **Why**: SKILL.md本文の300行制約は Less is More 原則の機械的下限。
 - **Source**: 24章
 
-## BD-004（medium, TODO(human)）
-- **Why**: Learn-by-Doing。人間判断で追加ルールの check 式を起草する。
+## BD-004 description↔body 整合（medium, LLM judge）
+- **Why**: description は Claude が『いつ呼ぶか』を判断する契約 (08章)。body が trigger を満たさないと Skill は呼ばれても約束を履行できず、Goodhart 罠 (描いただけで採点を通す) に陥る。BD-001..003 が『節の存在』を見るのに対し BD-004 は『description ↔ body の整合』を見るため直交する。
+- **Note**: 旧版は `TODO(human)` の空欄スロットだったが、1.2.0 で AI 起案 + governance 承認により実ルール化（[[feedback-no-todo-human]] / proposer≠approver 整合）。
+- **Source**: 08, 09章
 
 ## NM-001 dirname == name（high）
 - **Why**: Skill loader が name 解決に失敗。第7条。

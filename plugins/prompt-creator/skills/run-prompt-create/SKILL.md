@@ -11,19 +11,30 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
-  - Bash(node *)
   - Bash(python3 *)
   - Bash(git *)
   - AskUserQuestion
   - Skill
 kind: run
+version: 2.1.0
 effect: local-artifact
 owner: team-platform
+contract:
+  intent: 7 層プロンプトを要望から成果物まで品質保証付きで送り出すため、elicit→build→evaluate→governance をゲート制御で連鎖させる orchestrator を提供する。
+  interface:
+    inputs: [topic, mode, fast]
+    outputs: [seven-layer-prompt.md, prompt-build-trace.json, findings.json, "handoff-*.json", completion-report]
+  invariant:
+    - Gate 1 (brief 確認) のみユーザー対話を行い、Gate 2-4 は workflow-manifest.json の auto_approve_conditions を機械評価すること
+    - 各フェーズは独立 Skill へ委譲し、本スキルは制御のみを担うこと
+    - evaluator / governance reviewer は必ず context:fork で起動すること (Sycophancy 防止)
+    - 各ゲート通過時に handoff-<step>.json を schemas/handoff.schema.json 準拠で永続化すること
+    - Layer 依存方向 L7→L1 を逸脱した生成物は Gate で差し戻すこと
 since: 2026-05-22
 script_refs:
   - scripts/evaluate-create-gates.py
-  - ../../scripts/verify_completeness.js
-  - ../../scripts/validate_prompt.js
+  - ../run-prompt-creator-7layer/scripts/verify-completeness.py
+  - ../run-prompt-creator-7layer/scripts/validate-prompt.py
 reference_refs:
   - references/resource-map.yaml
   - references/governance-params.json
@@ -55,7 +66,7 @@ responsibilities:
 
 # run-prompt-create
 
-> 端から端まで 7 層プロンプトを構築する **orchestrator skill**。`run-skill-create` と対称構造で、Gate 1-4 連鎖と eval-log 永続化により再現性を担保する。
+> 端から端まで 7 層プロンプトを構築する **orchestrator skill**。Gate 1 のみユーザー確認を行い、以降は manifest 条件に基づく自動ゲートと eval-log 永続化で再現性を担保する。
 
 ## Purpose & Output Contract
 
@@ -69,7 +80,7 @@ responsibilities:
 - `eval-log/handoff-<step>.json` (`schemas/handoff.schema.json` 準拠) ×7
 - 完了レポート (日本語、パラメーター名のみ英語)
 
-**完了条件**: P0 lint pass + evaluator JSON pass (`--fast` 条件不該当時は elegant-review pass も必須) + (solo_operator_mode 下) LLM-reviewer pass。
+**完了条件**: P0 lint pass + (`--fast` でない場合は evaluator JSON pass と elegant-review pass) + `workflow-manifest.json` の `auto_approve_conditions` 全充足または governance handoff 確定。
 
 ### 起動モード
 
@@ -82,7 +93,7 @@ responsibilities:
 
 ## Key Rules
 
-1. **自動承認既定**: 初回 brief 確定 (Gate 1) のみユーザーに AskUserQuestion を発行。Gate 2-4 は `references/governance-params.json` の `prompt_specific_auto_approve_conditions` を機械評価し、全充足時は `solo_operator_auto` で自動承認。
+1. **自動承認既定**: 初回 brief 確定 (Gate 1) のみユーザーに AskUserQuestion を発行。Gate 2-4 は `workflow-manifest.json` の `auto_approve_conditions` を機械評価し、全充足時は `solo_operator_auto` で自動承認。
 2. **条件不充足時のみ停止**: P0 lint fail / evaluator FAIL / Layer 依存違反 / 充足率 95% 未満などのいずれかで停止し findings 提示。
 3. **子スキルへの委譲**: 各フェーズは独立 Skill を Skill tool で起動 (`workflow-manifest.json` の `delegateSkill`)。本スキルは制御のみ。
 4. **context:fork**: evaluator/governance reviewer は必ず context:fork で起動 (Sycophancy 防止)。
@@ -103,11 +114,11 @@ responsibilities:
 [Step 3a p0-lint] (fail→Step 2、最大 3 周) ─[Gate 2 自動]─▶
 [Step 3b design-evaluate] assign-prompt-design-evaluator (context:fork) ─→ findings
 [Step 4 elegant-review] (条件: new or >30 行, context:fork) ─[Gate 3 自動]─▶
-[Step 5 governance] (8 条件充足で solo_operator_auto) ─[Gate 4 自動]─▶
+[Step 5 governance] (manifest 条件充足で solo_operator_auto) ─[Gate 4 自動]─▶
 [Step 6 report]
 ```
 
-★ ユーザー対話は Gate 1 のみ。Gate 2-4 は `prompt_specific_auto_approve_conditions` (8 条件) を機械評価し、全充足で自動承認。1 条件でも不充足なら findings 提示 + 修正ループ。
+★ ユーザー対話は Gate 1 のみ。Gate 2-4 は `workflow-manifest.json` の `auto_approve_conditions` を機械評価し、全充足で自動承認。1 条件でも不充足なら findings 提示 + 修正ループ。
 
 依存・entryHook/exitHook・resourceIds・fatal_exit_codes は `workflow-manifest.json` 参照。
 
@@ -125,20 +136,20 @@ responsibilities:
 ### Step 3a: P0 lint (自動) (phase=p0-lint)
 `workflow-manifest.json phases[id=p0-lint].commands` に集約 (8 本)。**全 exit 0 必須**、失敗時は findings → Step 2 (最大 3 周)。`TODO` / 未展開 `{{...}}` / 英語仮文残存も Step 2 へ戻す (パラメーター名除く)。
 
-### Gate 2: diff 確認
-`git diff` と `eval-log/prompt-build-trace.json` を提示して承認取得。前提: Step 3a 全 pass。
+### Gate 2: lint/diff 自動判定
+`git diff` と `eval-log/prompt-build-trace.json` をもとに manifest 条件を機械評価し、全充足なら handoff を `solo_operator_auto` で保存。条件不充足時のみ findings を提示して停止する。
 
 ### Step 3b: 設計評価 (phase=design-evaluate)
-`Skill(assign-prompt-design-evaluator, args=<prompt_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings 提示 → Step 2 / TODO(human) 判断。
+`Skill(assign-prompt-design-evaluator, args=<prompt_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings を Step 2 へ自律差し戻し (最大 3 周回)。3 周未収束は Step 5 governance-decide へ昇格して solo_operator_auto 失効を判定する。
 
 ### Step 4: パラダイム評価 (phase=elegant-review, 条件付き)
 新規または >30 行変更時のみ。判定は `scripts/evaluate-create-gates.py`。`Skill(run-elegant-review, args=[prompt, <prompt_path>], context=fork)` で C1-C4 全 PASS 必須。
 
-### Gate 3: 評価結果確認
-findings 提示。FAIL 残存時は修正方針確認。
+### Gate 3: 評価結果自動判定
+findings と C1-C4 を機械評価し、全充足なら handoff を `solo_operator_auto` で保存。FAIL 残存時のみ findings を提示して修正ループへ戻す。
 
 ### Step 5: governance 承認 (phase=governance) + Gate 4
-`prompts/governance-decide.md` (R3) の判定ロジックに従う。`references/governance-params.json` の `solo_operator_mode` を読み、4 条件全充足で自動承認、それ以外は `run-skill-rubric-governance` 起動。
+`prompts/governance-decide.md` (R3) は `workflow-manifest.json` の `auto_approve_conditions` と `references/governance-params.json` を読み、全充足で自動承認。それ以外は `run-skill-rubric-governance` 起動。
 
 ### Step 6: 完了レポート (phase=report)
 ```markdown
@@ -152,12 +163,13 @@ findings 提示。FAIL 残存時は修正方針確認。
 - elegant_review: PASS (or N/A)
 - governance: solo_auto_approved (or manual)
 - output_path: <path>
-- TODO(human): [...]
+- residual_findings: [<未収束 finding 一覧 / 空配列なら全解消>]
+- follow_up_actions: [<AI が自動選定した次アクション>]
 ```
 
 ## Gotchas
 
-1. **Gate skip 禁止**: 「次へ」を自動推測しない。明示確認必須。
+1. **Gate 条件 skip 禁止**: Gate 1 は明示確認必須。Gate 2-4 は manifest 条件の評価証跡なしに進めない。
 2. **同一 context 評価禁止**: evaluator/governance reviewer は必ず context:fork。
 3. **lint 失敗時の自動修正禁止**: 根本原因をユーザー提示。
 4. **mode=update 時の改名**: prompt 名変更は `run-skill-rename` 相当を経由 (本スキル対象外)。

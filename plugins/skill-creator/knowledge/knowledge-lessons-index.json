@@ -1,0 +1,29 @@
+{
+  "category": "lessons-index",
+  "label": "lessons-learned 索引 (失敗ログへのポインタ)",
+  "version": "1.0.0",
+  "created_at": "2026-05-24",
+  "description": "lessons-learned/*.md (失敗・落とし穴ログ) への検索用ポインタ。本文はコピーせず source.file で参照する (SSOT: lessons-learned が正本)。auto-record-lesson.py が新規 lesson を追記したら本索引にもエントリを追加する。",
+  "keywords_global": ["失敗", "落とし穴", "lessons-learned"],
+  "source_note": "本文は lessons-learned/*.md が正本。本索引は検索ヒット用の最小要約のみ持つ。",
+  "items": [
+    {
+      "id": "lessons-index_001",
+      "title": "prefix は内部ディレクトリ構造規約の鍵。ref-*の機械可読リソースは references/ 配下に置く",
+      "intent": "ref-* で rubric.json 等を直下に置く流派と references/ 置きの流派の混在を防ぐこと",
+      "background": "Skill 名 prefix は外部識別子として機能していたが、内部構造が Skill ごとにバラついていた。ref-* で rubric.json の配置が直下/references 配下で混在していた。",
+      "keywords": ["prefix", "内部構造", "references配下", "ref-skill", "rubric配置", "lint一貫性"],
+      "message": "ref-* の機械可読リソースは最初から references/ 配下に置く。直下は単発1ファイル時のみ正当化される。",
+      "source": {"file": "plugins/skill-creator/lessons-learned/2026-05-22-prefix-driven-internal-structure.md", "type": "lesson", "date": "2026-05-22"}
+    },
+    {
+      "id": "lessons-index_002",
+      "title": "PostToolUse:Bash で validator FAIL が出たら rubric強化/validator追加を検討する",
+      "intent": "shell capability の失敗パターンを検出し再発防止に繋げること",
+      "background": "auto-record-lesson.py が PostToolUse:Bash の validator FAIL (rule X, severity high) を自動記録した。根本原因は human triage 待ち。",
+      "keywords": ["PostToolUse", "Bash", "validator FAIL", "shell", "rubric強化", "自動記録"],
+      "message": "失敗検出時は当該 capability の rubric 強化 / validator 追加を検討し、再現条件を issue 化する。",
+      "source": {"file": "plugins/skill-creator/lessons-learned/2026-05-22-posttooluse-bash.md", "type": "lesson", "date": "2026-05-22"}
+    }
+  ]
+}

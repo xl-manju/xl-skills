@@ -11,7 +11,8 @@ user-invocable: true
 effect: local-artifact
 source: plugins/skill-intake
 source-tier: internal
-last-audited: 2026-05-22
+last-audited: 2026-05-24
+prefix: run
 audit-trigger: monthly
 hierarchy_level: L1
 rubric_refs: []
@@ -29,61 +30,76 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-Phase 9 担当。summary.json / purpose.json / options.json / kickoff.json を基に、`run-skill-create` への引き渡しモード (A/B/C/D/E) を **決定論的に**判定する。Phase 1 の暫定 pattern と異なる場合のみユーザー確認を取る。
+Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.json` の 4 入力から、`run-skill-create` への引き渡しモード A/B/C/D/E を **決定論的に**確定し、後続アクション (handoff phase) を確定する単一責務スキル。判定表 (`references/mode-catalog.md`) の引いた行 id を `reason` に必ず残し、Phase 1 暫定 `kickoff.json.pattern` と一致しない場合のみ AskUserQuestion で 1 問追認する。
 
-**入力**: summary.json, purpose.json, options.json, kickoff.json
-**出力**: `output/<hint>/next-action.json`
+**入力**: `output/<hint>/summary.json` / `purpose.json` / `options.json` / `kickoff.json`
+**出力**: `output/<hint>/next-action.json` (`schemas/output.schema.json` 準拠、`additionalProperties:false`)
 
 ```json
 {
   "mode": "A|B|C|D|E",
-  "reason": "...",
+  "reason": "rule_id=R-3 (existing-similarity>=0.8)",
   "multi_skill_suspicion": false,
   "split_candidates": [{"name": "...", "responsibility": "..."}],
+  "confirmed_with_user": false,
   "skill_creator_handoff_phase": "Phase 1 (kickoff)"
 }
 ```
 
-**完了条件**: mode が確定 + reason に判定根拠 + (Phase 1 と異なる場合) ユーザー追認。
+**完了条件**: `mode` 確定 + `reason` に判定表行 id 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
 
 ## Key Rules
 
-1. **決定論判定優先**: ルールは `references/pattern-recognition-rules-pointer.md` (旧 aggregator) に従い、`scripts/decide-mode.py` で機械判定する。
-2. **LLM 判断は補助のみ**: 同点時のタイブレークでのみ LLM が選ぶ。
-3. **Phase 1 との不一致は要追認**: kickoff.json.pattern と異なる場合は AskUserQuestion で確認。
+1. **決定論判定**: `scripts/decide-mode.py` が `references/mode-catalog.md` 判定表から `mode` を導出する。LLM 勘の介在禁止。同点時のみタイブレークで LLM が選び `reason` に記録。
+2. **Phase 1 突合の追認は不一致時のみ**: `kickoff.json.pattern` と一致なら AskUserQuestion 省略、不一致なら 1 問のみ (並列禁止)。
+3. **D 格下げ規則**: `mode=D` で `split_candidates` が空のままなら `mode=E` に格下げし、`reason` に格下げ理由を残す。
+4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
+5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
+6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
+7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開は非担当)。
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: 入力読込
+### ゴール (Goal)
 
-4 つの JSON を Read。
+4 つの intake JSON から `run-skill-create` へ引き渡すモード A/B/C/D/E が決定論的に確定し、`reason` (判定表行 id) と `confirmed_with_user` が機械検証可能な `next-action.json` が schema 準拠で出力された状態になっている。
 
-### Step 2: 機械判定
+### 目的・背景 (Why)
 
-```bash
-python3 plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py \
-  --kickoff output/<hint>/kickoff.json \
-  --purpose output/<hint>/purpose.json \
-  --options output/<hint>/options.json \
-  --summary output/<hint>/summary.json \
-  --out output/<hint>/next-action.json
-```
+モードが曖昧なまま後続 `run-skill-create` が起動すると、責務分割 (D) と生成パス (A/B/C) が破綻する。判定の属人化を `references/mode-catalog.md` 判定表 + `scripts/decide-mode.py` で機構的に防ぎ、Phase 1 の暫定 pattern と乖離した場合のみユーザー追認を取ることで、再現可能性と意図上書き防止を両立する。固定手順では入力欠落・判定表ヒットなし・split 候補欠落など実行時文脈に脆いため、未達条件を都度埋めるゴールシーク方式を採る。
 
-### Step 3: Phase 1 との突合
+### 完了チェックリスト (Checklist)
 
-decide-mode.py の出力 mode と kickoff.json.pattern を比較。一致なら自動承認、不一致なら AskUserQuestion で追認。
+- [ ] `summary.json` / `purpose.json` / `options.json` / `kickoff.json` の 4 入力を Read 済みで、欠落時は exit 3 を返している
+- [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその行 id を文字列で含めている
+- [ ] `kickoff.json.pattern` と `mode` が一致時は AskUserQuestion を発行せず `confirmed_with_user=false` のまま、不一致時は AskUserQuestion 1 問で `confirmed_with_user=true` を埋めている
+- [ ] `mode=D` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空のまま残ったら `mode=E` に格下げし `reason` に格下げ理由を追記している
+- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `Phase 1 (re-intake)` になっている
+- [ ] `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名が転記されていない
+- [ ] `output/<hint>/next-action.json` が `schemas/output.schema.json` で検証 exit 0 (manifest `P4-emit` の `validate-next-action` hook)
+- [ ] 同一入力 4 ファイルで 2 回連続実行した `next-action.json` の `(mode, reason)` が完全一致 (determinism)
 
-### Step 4: multi_skill_suspicion 処理
+### ゴールシークループ
 
-mode=D の場合、split_candidates を提示し分割合意を取る。
+未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake-aggregator`) のループ上限に従う。
 
 ## Gotchas
 
-1. **D (マルチスキル分離疑い) の取り扱い**: split_candidates が空のままなら mode=E に格下げする。
-2. **E (判定不能) は次工程で再判定**: skill_creator_handoff_phase に Phase 1 を指定し再ヒアリング扱い。
+1. **判定表ヒットなしは exit 2**: 黙って `mode=E` にフォールバックしない。`stderr` に欠落条件を出して停止する。
+2. **AskUserQuestion 並列禁止**: 不一致追認は 1 問ずつ。複数項目を 1 回でまとめない。
+3. **schema 違反は exit 3**: `additionalProperties:false` を満たさない追加キーを出力に混ぜない。
+4. **D の split は提案であり強制ではない**: ユーザーが単一スキル維持を選んだ場合は `multi_skill_suspicion=true` のまま `mode` を `A/B/C` に確定し直し、`reason` に上書き理由を残す。
+5. **後続 phase 文言の固定**: `skill_creator_handoff_phase` は `references/mode-catalog.md` の右列文言を逐語コピー (drift 防止)。
+6. **再ヒアリングループ防止**: `mode=E` が 2 回連続で出た場合は親 aggregator に escalate (本スキル単独でループしない)。
 
 ## Additional Resources
 
-- `references/pattern-recognition-rules-pointer.md` — 判定ルールの旧 aggregator 参照ガイド
-- `references/mode-catalog.md` — A/B/C/D/E の意味と判定基準サマリ
-- `scripts/decide-mode.py` — 決定論判定ロジック
+- `workflow-manifest.json` — `P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit` の機械可読定義 (`dependsOn` / `exitHook` / `fatal_exit_codes`)
+- `prompts/main.md` — R1-deterministic-mode-decision 責務プロンプト (7 層構造、`@next-action-advisor` agent)
+- `schemas/output.schema.json` — `next-action.json` 出力契約 (`additionalProperties:false`)
+- `references/mode-catalog.md` — A/B/C/D/E と handoff phase の対応表 (drift 防止の正本)
+- `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
+- `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
+- `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out`)
+- 親スキル: `run-skill-intake-aggregator` (Phase 8→9 委譲元)
+- 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)

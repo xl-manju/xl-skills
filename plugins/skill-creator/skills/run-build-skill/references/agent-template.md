@@ -17,7 +17,7 @@ version: 1.0.0
 | 2 | Purpose | 役割定義 (Layer 1 相当: 不変定義) | ✅ |
 | 3 | Inputs | 前提・参照 reference (Layer 2 相当: ドメイン定義) | ✅ |
 | 4 | Outputs | 成果物パス + JSON 雛形 (Layer 6 相当: 出力契約) | ✅ |
-| 5 | Steps | 思考プロセス (Layer 5/6 相当: 実行仕様) | ✅ |
+| 5 | ゴールシーク実行 (旧 Steps) | 固定手順ではなく Goal+Checklist+Loop で都度手順生成 (Layer 5/6 相当) | ✅ |
 | 6 | Constraints | 制約・禁止事項 (Layer 4 相当: ガードレール) | ✅ |
 | 7 | **Prompt Templates** | ユーザーに投げる実発話例 (Layer 7 相当) | ✅ **NEW** |
 | 8 | **Self-Evaluation** | quality-rubric.md の 5 次元採点 | ✅ **NEW** |
@@ -58,10 +58,19 @@ model: <sonnet|haiku>  # 対話系=sonnet / 決定論系=haiku
 }
 ```
 
-## Steps
+## ゴールシーク実行
+<!-- 固定手順を書かない。Goal+Checklist を宣言し、手順は実行時に都度生成する。詳細: run-build-skill references/goal-seek-paradigm.md -->
 
-1. <思考プロセス番号付きステップ>
-2. <次のステップ>
+### ゴール (Goal)
+<この agent が達成すべき最終状態を 1 文・観測可能な形で>
+
+### 完了チェックリスト (Checklist)
+- [ ] 入力 (`Inputs`) を検証した
+- [ ] <検証可能な達成条件>
+- [ ] 出力 (`Outputs`) が JSON 契約を満たす
+
+### ゴールシークループ
+未達 `[ ]` を特定 → 手順を都度生成 → 実行 → チェックリスト再評価 `[x]` → 全達成まで反復。規定周回で未達なら Handoff せず orchestrator に差し戻す。
 
 ## Constraints
 

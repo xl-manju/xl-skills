@@ -78,22 +78,26 @@
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
-- ref-domain-task-spec-rubric 配下の R1 SubAgent (context fork 推奨)。
+- ref-domain-task-spec-rubric 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
-### 5.2 推論手順 (再現可能)
-1. references/rubric.json をパースし version を取得する。
-2. `task_phase` でフィルタ (該当 phase の axes のみ)。
-3. query に該当する keys を抽出する。
-4. scope に応じて返却を絞る。
-5. 200-400 字で要約 + JSON path を併記する。
-6. 採点時の注意 (axis 間独立性 / 重み合計 = 1.0) を 1-3 件添える。
+### 5.2 ゴール定義
+- **目的**: 呼出元 query に対し task spec rubric の該当 phase axes / weights / thresholds を返す。
+- **背景**: caller は task spec scoring の判断基準のみを必要とし、rubric 改訂は ref-* の責務外。weight 合計や thresholds 段数の崩れは scoring を破壊するため厳守する。
+- **達成ゴール**: query に該当する rubric keys が version + JSON path 付きで引用され、weight 合計と thresholds 段数の不変条件を満たし、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が scoring にそのまま使える状態。
 
-### 5.3 自己検証 checklist
-- [ ] rubric.json の version が応答に明記されているか
-- [ ] matches[] の weight 合計が 1.0 ±0.01 に収まるか
-- [ ] task_phase フィルタが守られているか
-- [ ] thresholds が pass/warn/fail 3 段で揃っているか
-- [ ] summary が 50-800 字に収まっているか
+### 5.3 完了チェックリスト (停止条件)
+- [ ] 全 matches[] が references/rubric.json の実在 key から逐語引用されている
+- [ ] 呼出元責務外の情報 (rubric 改訂 / 実 scoring) を含まない
+- [ ] 出力が 50 行 / 2KB 目安以内に収まる
+- [ ] rubric.json の version が応答に明記されている
+- [ ] task_phase フィルタが守られている
+- [ ] matches[] の weight 合計が 1.0 ±0.01 に収まる
+- [ ] thresholds が pass/warn/fail 3 段で揃っている
+- [ ] summary が 50-800 字に収まり、採点注意 1-3 件が実 rubric 由来
+- [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
+
+### 5.4 実行方式
+固定手順は持たず、完了チェックリストの未充足項目を都度特定 → 解消手順を自ら立案 → 実行 → 自己評価を反復する (上限: Layer 4 最大反復回数)。
 
 ## Layer 6: オーケストレーション層
 

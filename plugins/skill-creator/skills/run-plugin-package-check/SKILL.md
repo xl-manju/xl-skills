@@ -20,6 +20,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-23
+version: 0.1.0
 source: doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md
 source-tier: internal
 last-audited: 2026-05-23
@@ -83,7 +84,33 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
 7. **`dry_run=true` でも計画 JSON は出力**: 副作用なし、stdout に実行予定 PKG ID 列挙
 8. **PKG-013 は単独実行不可**: 必ず 013a/b/c/d 4 件に展開
 
-## End-to-End Flow
+## ゴールシーク実行
+
+固定手順は書かず、ゴール+チェックリストへ向け都度手順を生成・反復する。正本: `../run-build-skill/references/goal-seek-paradigm.md`。
+
+### ゴール (Goal)
+
+対象 plugin の指定 phase に属する全 PKG gate が `pass` / `not_applicable` で確定し、`schemas/run-report.schema.json` 準拠の pkg-summary JSON と verdict markdown が `eval-log/<plugin>/` 配下に保存された状態になっている。
+
+### 目的・背景 (Why)
+
+25章 §runbook Step 5（契約適合）として出荷前に PKG-001〜015 を機械検査し、規範採点や elegance lint と直交した「契約準拠」を保証するため。fail を残したまま下流パイプラインへ流すと不整合 package が出荷される。
+
+### 完了チェックリスト (Checklist)
+
+- [ ] phase に対応する PKG gate を全件評価した（Phase0=001〜009 / Phase1=+010 / Phase2=+011〜015）
+- [ ] PKG-002〜008・014 は `assign-plugin-package-evaluator` へ `context: fork` で委譲済み
+- [ ] PKG-013 を 013a〜d の 4 件へ展開して集約した
+- [ ] 各 PKG ログを `eval-log/<plugin>/pkg-<id>/<date>-<run>.json`（27章 §3.1）へ append-only 保存した
+- [ ] pkg-summary JSON が `schemas/run-report.schema.json` を通過する
+- [ ] `verdict.fail > 0` のとき `pkg_check_failed` を `.claude/logs/` に 1 行だけ emit した
+- [ ] fail が 1 件でもあれば exit 1、全 pass/not_applicable なら exit 0
+
+### ゴールシークループ
+
+正本 5 ステップ（現状評価→手順生成→実行→検証→反復、既定 5 周）に従う。未達チェック項目を埋める最短手順をその場で生成する。下記「局面カタログ」は順序固定ではなく、その周回で未達な gate に応じて都度選ぶ。
+
+## 局面カタログ（順序は都度判断）
 
 ```
 [Step 0] 入力検証 + package_mode 読込

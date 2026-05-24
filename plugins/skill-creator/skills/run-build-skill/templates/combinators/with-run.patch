@@ -1,29 +1,13 @@
 --- a/_base.md
 +++ b/_base.md
-@@ -10,6 +10,7 @@ argument-hint: {{argument_hint | default("")}}
- allowed-tools: {{allowed_tools | default([Read, Write, Edit, Bash(python3 *)])}}
- kind: run
- effect: {{effect | default("local-artifact")}}
+@@ -20,6 +20,8 @@ description: {{description}}
+ kind: {{kind}}                              # ref | run | wrap | assign | delegate （atomic は旧仕様）
++effect: {{effect | default("local-artifact")}}
 +role_suffix: {{role_suffix | default("workflow")}}
+ hierarchy_level: {{hierarchy_level}}        # L0 | L1 | L2
  owner: {{owner}}
  since: {{date}}
- rubric_refs: {{rubric_refs | default([])}}
-@@ -23,6 +24,18 @@ since: {{date}}
- ## Purpose & Output Contract
- {{output_contract}}
-
-+## Steps
-+
-+### Step 1: 入力確認
-+{{step1_input_check}}
-+
-+### Step 2: 主処理
-+{{step2_main_process}}
-+
-+### Step 3: 検証
-+{{step3_validation}}
-+
-+各 Step は副作用と返り値を明示し、失敗時の retry / rollback 条件を `## Gotchas` に記載する。
-+
- ## Boundary
- {{boundary}}
+# 注: run-kind の固有差分は上記 frontmatter のみ。
+# 実行手順は _base.md の `## ゴールシーク実行` 節を継承するため、固定手順 (### Step 1/2/3) は注入しない
+# (goal-seek 原則「固定手順は書かない」と矛盾するため。詳細 references/goal-seek-paradigm.md)。
+# このファイルはレビュー用。実適用は render-combinators.py の apply_semantic_patch("with-run.patch") が行う。

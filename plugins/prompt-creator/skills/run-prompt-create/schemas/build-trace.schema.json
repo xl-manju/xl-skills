@@ -50,7 +50,7 @@
         }
       }
     },
-    "completeness_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "verify_completeness.js の充足率 (0-1)。"},
+    "completeness_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "verify-completeness.py の充足率 (0-1)。"},
     "autonomous_iterations": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Phase 4-C 自律改善ループ回数。"},
     "injected_target": {"type": ["string", "null"], "description": "Edit 注入対象の SubAgent .md パス (なければ null)。"},
     "lint_result": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "lint-agent-prompt-section.py の結果。"}

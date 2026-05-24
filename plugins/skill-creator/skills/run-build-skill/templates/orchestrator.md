@@ -56,41 +56,37 @@ rubric_refs:
 - Phase 間 handoff は JSON ファイル経由（`.claude/handoff/{{name}}-<session>.json`）
 - PreCompact が走ったら PostCompact で handoff を再読込し goal/next を復元
 
-## Steps
+## ゴールシーク実行
+> 固定手順は書かない。Gate を完了チェックリストとし、どの局面をいつ実行するかは AI が都度判断する。詳細は run-build-skill `references/goal-seek-paradigm.md`。
 
-### Step 1: Phase 1 - 要求収集
-```bash
-# {{phase1_skill}} を起動。brief.json が `{{brief_path}}` に出力されるまで blocking。
-```
-**Gate 1**: brief.json が schema validation を通過すること。
+### ゴール (Goal)
+全 Gate が PASS し、成果物が `{{artifact_path}}` に書き出された状態。
 
-### Step 2: Phase 2 - 生成
-```bash
-# {{phase2_generator}} を Task tool 経由で起動。
-# 完了時に P0 lint 全件を実行:
-python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir {{output_dir}}
-python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py {{output_dir}}/SKILL.md
-python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir {{output_dir}}
-```
-**Gate 2**: 全 lint exit 0 + git diff --shortstat が >0 行。
+### 完了チェックリスト (Checklist) — これが Gate 群
+- [ ] **Gate 1**: brief.json が schema validation を通過した
+- [ ] **Gate 2**: 全 P0 lint が exit 0 + git diff --shortstat が >0 行
+- [ ] **Gate 3**: evaluator JSON が SubagentStop hook 検証を通過 + `passed: true`
+- [ ] **Gate 4**: 4条件（矛盾なし / 漏れなし / 整合性 / 依存関係整合）+ ユーザー最終承認
 
-### Step 3: Phase 3 - 評価（fork）
-```yaml
-# Task tool で fork 評価を起動
-subagent_type: {{phase3_evaluator}}
-context: fork
-input: { artifact_path: "{{artifact_path}}", rubric_refs: [...] }
-```
-**Gate 3**: evaluator JSON が SubagentStop hook 検証を通過 + `passed: true`。
+### ゴールシークループ
+1. 未達 Gate を特定 → 2. その Gate を満たす局面（下のカタログ参照）を AI が選んで手順を都度生成 → 3. 実行 → 4. Gate 再判定し `[x]` 更新 → 全 `[x]` まで反復。**最大3周**、超過時は `run-skill-rubric-governance` にエスカレーション。Gate は自然言語の「完了しました」ではなく機械判定する。
 
-### Step 4: Phase 4 - 統合
-- git diff 確認をユーザーに提示
-- 4条件（矛盾なし / 漏れなし / 整合性 / 依存関係整合）を機械的に検証
-**Gate 4**: ユーザー最終承認 → commit。
+### 局面カタログ（順序は都度判断・固定シーケンスではない）
 
-### Step 5: 改善ループ判定
-- Gate 3 fail かつ反復回数 < 3 → Phase 2 へ戻す（findings を context に注入）
-- 反復回数 == 3 → governance へエスカレーション
+- **要求収集**: `{{phase1_skill}}` を起動し `{{brief_path}}` に brief.json を出力（Gate 1）。
+- **生成**: `{{phase2_generator}}` を Task tool 経由で起動。完了時に P0 lint を実行（Gate 2）:
+  ```bash
+  python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir {{output_dir}}
+  python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py {{output_dir}}/SKILL.md
+  python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir {{output_dir}}
+  ```
+- **評価（fork）**: `{{phase3_evaluator}}` を `context: fork` で起動（Gate 3）:
+  ```yaml
+  subagent_type: {{phase3_evaluator}}
+  context: fork
+  input: { artifact_path: "{{artifact_path}}", rubric_refs: [...] }
+  ```
+- **統合**: git diff をユーザーに提示し 4条件を機械検証 → 承認 → commit（Gate 4）。
 
 ## Gotchas
 - **Phase間でcontext共有しない**: forked evaluator に generator の思考過程を渡すと sycophancy が出る

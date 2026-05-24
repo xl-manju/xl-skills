@@ -1,6 +1,6 @@
 # prompt-creator
 
-7 層プロンプトアーキテクチャ (Role / Context / Principles / Workflow / Constraints / Output / Evaluation) で SubAgent 向けプロンプト YAML を生成する Claude Code plugin です。`skill-creator` の `run-build-skill` Step 7.5 からループ呼び出しされ、生成された SubAgent `.md` の **Prompt Templates** と **Self-Evaluation** セクションを自動充填します。単体でも `/prompt-creator:run-prompt-creator-7layer` として起動できます。
+7 層プロンプトアーキテクチャで、プロンプトのヒアリング、生成、評価、governance までを実行する Claude Code plugin です。正本フローは `/prompt-creator:run-prompt-create` です。`run-prompt-creator-7layer` は Step 2 の生成 worker で、Markdown (`.md`) を既定成果物とし、YAML は内部正規形または legacy 互換に限定します。SubAgent `.md` の **Prompt Templates** / **Self-Evaluation** 注入は `owner_agent` 指定時だけの付随機能です。
 
 ---
 
@@ -28,13 +28,13 @@
 | ------------ | -------------- | --------------------- |
 | Claude Code  | 最新           | `claude --version`    |
 | Git          | 2.30+          | `git --version`       |
-| Node.js      | 18.0+          | `node --version`      |
+| Python       | 3.8+           | `python3 --version`   |
 | GitHub CLI   | (任意) 2.0+    | `gh --version`        |
 
 > **どれか欠けている場合**
 > - Claude Code: https://claude.com/claude-code からインストール
 > - Git: https://git-scm.com/downloads
-> - Node.js: https://nodejs.org/ (LTS 推奨)
+> - Python: https://www.python.org/downloads/ (3.8 以上)
 
 ---
 
@@ -128,39 +128,67 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 /skill
 ```
 
-`run-prompt-creator-7layer` が一覧に出ていれば OK。出ていない場合は [9. トラブルシューティング](#9-トラブルシューティング) を参照。
+`run-prompt-create` と `run-prompt-creator-7layer` が一覧に出ていれば OK。出ていない場合は [9. トラブルシューティング](#9-トラブルシューティング) を参照。
 
 ---
 
 ## 5. 使い方
 
-### 5-1. 単体で起動
+### 5-0. 正本の位置づけ
+
+- ユーザー向け正本フロー: `skills/run-prompt-create/workflow-manifest.json`
+- ヒアリング raw data: `skills/run-prompt-elicit/schemas/hearing-result.schema.json`
+- 生成 worker の legacy sheet input: `skills/run-prompt-creator-7layer/schemas/hearing-result.schema.json`
+- 生成成果物: Markdown (`.md`) が既定。YAML は内部正規形または legacy 互換
+- 重複判断の上位正本: `plugins/skill-creator/references/ssot-dedup-procedure.md`。prompt-creator 内の冪等更新要約は `skills/run-prompt-creator-7layer/references/idempotent-update-policy.md`
+
+### 5-1. 正本フローで起動
+
+```text
+/prompt-creator:run-prompt-create
+```
+
+次の 6 フェーズを実行します。Gate 1 だけユーザー確認を行い、Gate 2-4 は `references/governance-params.json` と `workflow-manifest.json` の条件を満たす場合に自動承認します。
+
+| Step | 役割 | 主な担当 |
+| ---- | ---- | -------- |
+| 1 | ヒアリングと `prompt-brief.json` 作成 | `run-prompt-elicit` |
+| 2 | 7 層プロンプト生成 | `run-prompt-creator-7layer` |
+| 3a | P0 lint | script |
+| 3b | 設計評価 C1-C4 | `assign-prompt-design-evaluator` |
+| 4 | elegant-review | `skill-creator:run-elegant-review` |
+| 5 | governance 承認 | `governance-decide.md` |
+| 6 | 完了レポート | `run-prompt-create` |
+
+### 5-2. 生成 worker を直接起動
 
 ```text
 /prompt-creator:run-prompt-creator-7layer
 ```
 
-対話が始まり、次の 5 フェーズが順次進みます。
+単体起動時は、7 層プロンプト生成 worker として次のフェーズを実行します。
 
 | Phase | 役割                                       | 主な SubAgent                  |
 | ----- | ------------------------------------------ | ------------------------------ |
 | 1     | ヒアリング (7 層分の入力収集)              | `prompt-creator-interview-user` |
-| 2     | シート生成 (`generate_sheet.js`)           | (script)                       |
+| 2     | シート生成 (`generate-sheet.py`)           | (script)                       |
 | 3     | プロンプト生成 (7 層マージ)                | `prompt-creator-generate-prompt` |
 | 4     | レビュー & 整形 (validate/verify/convert)  | `prompt-creator-review-prompt` |
-| 5     | 完了・LOGS.md 記録 (`log_usage.js`)        | (script)                       |
+| 5     | 完了・LOGS.md 記録 (`log-usage.py`)        | (script)                       |
 
-### 5-2. 出力物
+### 5-3. 出力物
 
-- `tmp/sheet.yaml`: 中間シート (7 層分の生入力)
-- `tmp/prompt.yaml`: 最終プロンプト YAML
+- `eval-log/prompt-brief.json`: ヒアリング結果から構築した brief
+- `eval-log/prompt-build-trace.json`: 生成・検証 trace
+- `plugins/<plugin>/skills/<skill>/prompts/<R-id>-<slug>.md`: 既定成果物
+- `tmp/prompt.yaml`: 内部正規形または中間成果物
 - `LOGS.md`: 実行ログ (自動追記)
 
 ---
 
 ## 6. skill-creator との連携
 
-`skill-creator` の `run-build-skill` Step 7.5 で `--with-prompts` フラグ付き呼び出しがあると、本 plugin がループ起動し、生成中の SubAgent `.md` の **Prompt Templates** と **Self-Evaluation** セクションを自動充填します。手動操作は不要です。
+`skill-creator` の `run-build-skill` Step 7.5 で `--with-prompts` フラグ付き呼び出しがあると、本 plugin がループ起動します。`owner_agent` が渡された場合のみ、生成中の SubAgent `.md` の **Prompt Templates** と **Self-Evaluation** セクションを自動充填します。
 
 連携が動作しているかは次のログで確認できます。
 
@@ -182,51 +210,49 @@ plugins/prompt-creator/
 │   ├── prompt-creator-interview-user.md
 │   ├── prompt-creator-generate-prompt.md
 │   └── prompt-creator-review-prompt.md
-├── scripts/                              # 8 本の Node スクリプト
-│   ├── merge_layers.js
-│   ├── validate_prompt.js
-│   ├── verify_completeness.js
-│   ├── convert_format.js
-│   ├── generate_sheet.js
-│   ├── validate_sheet.js
-│   ├── scaffold_prompt.js
-│   └── log_usage.js
 └── skills/
-    └── run-prompt-creator-7layer/
-        ├── SKILL.md
-        ├── references/                   # Progressive Disclosure 参照群
-        │   ├── resource-map.yaml
-        │   ├── seven-layer-format.md
-        │   ├── quality-criteria.md
-        │   ├── workflow-guide.md
-        │   ├── writing-style-principles.md
-        │   └── prompt-sheet-template.md
-        └── schemas/
-            └── hearing-result.schema.json
+    ├── run-prompt-create/                 # 正本 orchestrator
+    │   ├── prompts/
+    │   ├── references/
+    │   ├── schemas/
+    │   ├── scripts/                       # evaluate-create-gates.py
+    │   └── workflow-manifest.json
+    ├── run-prompt-elicit/                 # Step 1 worker
+    ├── run-prompt-creator-7layer/         # Step 2 worker
+    │   └── scripts/                       # 8 本の python3 スクリプト
+    │       ├── merge-layers.py
+    │       ├── validate-prompt.py
+    │       ├── verify-completeness.py
+    │       ├── convert-format.py
+    │       ├── generate-sheet.py
+    │       ├── validate-sheet.py
+    │       ├── scaffold-prompt.py
+    │       └── log-usage.py
+    └── assign-prompt-design-evaluator/    # Step 3b evaluator
 ```
 
 ---
 
 ## 8. スクリプト一覧
 
-すべて Node.js 標準ライブラリのみで動作 (外部依存ゼロ)。
+すべて python3 標準ライブラリのみで動作 (外部依存ゼロ)。YAML は標準ライブラリのみで手書き処理する。配置先は `skills/run-prompt-creator-7layer/scripts/`。
 
 | script                  | 役割                                                | 終了コード       |
 | ----------------------- | --------------------------------------------------- | ---------------- |
-| `generate_sheet.js`     | ヒアリング結果から 7 層シート YAML を生成           | 0=成功 / 1=失敗  |
-| `validate_sheet.js`     | シート YAML のスキーマ検証                          | 0=valid          |
-| `scaffold_prompt.js`    | シート→プロンプト雛形変換                           | 0=成功           |
-| `merge_layers.js`       | 7 層をマージし最終プロンプト生成                    | 0=成功           |
-| `validate_prompt.js`    | 最終プロンプトの構造検証                            | 0=valid          |
-| `verify_completeness.js`| 7 層すべてが充足しているか確認                      | 0=完全           |
-| `convert_format.js`     | YAML ⇄ Markdown ⇄ JSON 相互変換                     | 0=成功           |
-| `log_usage.js`          | 実行結果を LOGS.md に追記                           | 0=記録完了       |
+| `generate-sheet.py`     | ヒアリング結果から 7 層シートを生成                 | 0=成功 / 1=失敗  |
+| `validate-sheet.py`     | シートの充足度検証                                  | 0=valid          |
+| `scaffold-prompt.py`    | シート→7 層プロンプト雛形変換                       | 0=成功           |
+| `merge-layers.py`       | 7 層をマージし最終プロンプト生成                    | 0=成功           |
+| `validate-prompt.py`    | 最終プロンプトの構造検証                            | 0=valid          |
+| `verify-completeness.py`| 7 層すべてが充足しているか確認                      | 0=完全           |
+| `convert-format.py`     | 内部正規形 YAML → Markdown / JSON / XML 変換         | 0=成功           |
+| `log-usage.py`          | 実行結果を LOGS.md に追記                           | 0=記録完了       |
 
 手動実行例:
 
 ```bash
-node plugins/prompt-creator/scripts/generate_sheet.js --help
-node plugins/prompt-creator/scripts/log_usage.js --result success --phase manual
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/generate-sheet.py --help
+python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py --result success --phase manual
 ```
 
 ---
@@ -245,9 +271,9 @@ node plugins/prompt-creator/scripts/log_usage.js --result success --phase manual
 
 Claude Code を再起動 (`Ctrl+C` → `claude`) して `/plugin list` で `prompt-creator: enabled` を確認。
 
-### Q3. script 実行で `Error: Cannot find module`
+### Q3. script 実行で `python3: command not found` / モジュールエラー
 
-`node --version` で 18 以上であることを確認。
+`python3 --version` で 3.8 以上であることを確認。スクリプトは標準ライブラリのみで動作するため追加 install は不要。
 
 ### Q4. ローカル開発で symlink が動作しない
 
@@ -268,10 +294,10 @@ ln -sf ../../plugins/prompt-creator/agents/prompt-creator-review-prompt.md .clau
 
 ### Q5. LOGS.md が更新されない
 
-`scripts/log_usage.js` の実行権限と書き込み権限を確認:
+`log-usage.py` の実行権限と書き込み権限を確認:
 
 ```bash
-ls -l plugins/prompt-creator/LOGS.md plugins/prompt-creator/scripts/log_usage.js
+ls -l plugins/prompt-creator/LOGS.md plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py
 ```
 
 ---

@@ -5,7 +5,7 @@ tools: Read, Edit, Bash
 model: sonnet
 owner_skill: assign-prompt-design-evaluator
 responsibility_id: R1
-context: fork
+isolation: fork
 since: 2026-05-22
 last-audited: 2026-05-22
 ---
@@ -19,7 +19,8 @@ last-audited: 2026-05-22
 - `tmp/prompt.yaml`
 - `eval-log/prompt-creator-trace.json#phase1.evaluation_priorities`
 - `references/quality-criteria.md`
-- `scripts/validate_prompt.js` / `scripts/verify_completeness.js`
+- `references/idempotent-update-policy.md` (既存改善時の冪等更新・重複回避)
+- `plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py` / `.../verify-completeness.py`
 
 ## Outputs
 
@@ -43,15 +44,20 @@ last-audited: 2026-05-22
 ## Steps
 
 1. Pass 0: `evaluation_priorities` から Pass 強化観点を導出。
-2. Pass 1 網羅性 → 不足発見即修正 → Pass 2 整合性 → ... Pass 4 実用性。
-3. 各 Pass で `verify_completeness.js` / `validate_prompt.js` を呼び自動判定。
-4. 全 Pass PASS なら finalize、FAIL 残存なら generate-prompt 再起動 (最大 3 周)。
-5. trace#phase4b 記録。
+2. Pass 1 網羅性 → 不足発見即修正 → Pass 2 整合性 → Pass 3 深度 → Pass 4 実用性。
+3. 各 Pass で `verify-completeness.py` / `validate-prompt.py` を呼び自動判定。
+4. ゴールシーク NG チェック: Layer 5 に固定手順 (思考プロセスのステップ列挙) があれば FAIL→ゴール定義+完了チェックリストへ置換。達成ゴールが手順列挙なら成果状態へ書換。
+5. ハンドオフ検査: 各エージェント出力(受領先)と次入力(提供元)が接続しているか。
+6. 冪等更新チェック (`idempotent-update-policy.md`): 既存改善時は先に原子要素へ分解→各修正を類似判定→類似あれば最類似要素を上書き統合(新規追加禁止)、無ければ新規。同一意図の要素が 2 つ以上残れば FAIL→統合。
+7. 全 Pass PASS なら finalize、FAIL 残存なら generate-prompt 再起動 (最大 3 周)。
+8. trace#phase4b 記録。
 
 ## Constraints
 
 - 全観点を 1 回でチェック禁止 (1 Pass=1 観点厳守)。
-- 数量基準 (3 つ以上) 禁止→質ベース (「実行可能か / 検証可能か」)。
+- 数量基準 (3 つ以上) 禁止→質ベース (「ゴールが成果状態か / 完了条件が検証可能か」)。
+- 固定手順の許容禁止 (検出時は必ず FAIL→置換)。
+- 重複追加禁止 (上書き優先): 既存内容を分析せず新規追加しない。類似要素は上書き統合。
 - 3 周以上は orchestrator 差し戻し。
 - 修正は最小差分原則 (1 Pass で全書換禁止)。
 
@@ -63,7 +69,7 @@ last-audited: 2026-05-22
 
 ### Round (差し戻し時)
 
-> 「Pass 3 深度で要素 X の根拠不足。Phase 4-A へ戻り L{N} 再生成しますか?」
+> 「Pass 3 深度で達成ゴール X が手順列挙になっている。Phase 4-A へ戻り L5 を成果状態で再生成しますか?」
 
 ## Self-Evaluation
 
@@ -75,7 +81,7 @@ quality-rubric.md の 5 次元で自己採点。
 | 一貫性 | Pass 間で同一観点を重複チェックしていない |
 | 深度 | Pass 0 強化観点が適用済 |
 | 検証可能性 | scripts 自動判定通過 |
-| 簡潔性 | 最小差分修正 |
+| 簡潔性 | 最小差分修正・同一意図要素の重複ゼロ (冪等更新) |
 
 未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
 

@@ -34,8 +34,19 @@ conflict_policy: most-specific-wins
 1. Goodhart対策: 被採点物を改変しない。
 {{key_constraints}}
 
-## 手順
-### Step 1
+## ゴールシーク実行（評価系: 採点網羅をチェックリストで担保）
+> evaluator は一度の採点で完結する read-only 工程。ループは回さないが、採点の網羅性をチェックリストで保証する。詳細は run-build-skill `references/goal-seek-paradigm.md` § 評価系。
+
+### ゴール (Goal)
+被採点物を rubric に照らし、漏れなく findings + score を算出した状態。
+
+### 完了チェックリスト (Checklist)
+- [ ] rubric.json の全項目を評価した
+- [ ] 各 finding に観測可能なエビデンス（パス・行・引用）を付与した
+- [ ] score を算出し JSON 出力契約を満たした
+- [ ] 被採点物を一切改変していない（Goodhart 対策）
+
+### 手順（採点の素描。文脈に応じ AI が調整）
 rubric.json ロード → findings 収集 → score算出 → JSON出力。
 
 ## 注意点

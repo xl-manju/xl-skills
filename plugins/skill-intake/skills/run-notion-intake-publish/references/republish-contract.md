@@ -27,17 +27,28 @@
 3. トークンを環境変数や CLI 引数に **載せない**。Keychain helper 経由のみ。
 4. 失敗時も `notion-log.json` は書き出す (silent-fail 禁止)。
 
-## TODO(human): 再公開拒否ルールの追加
+## 再公開拒否ルール
 
-下記に「再公開を拒否すべきケース」を 3〜5 条件で列挙してください。
-書式: `- <条件> → exit <code> (<理由>)`。
+Notion API は冪等な page update を提供する一方、誤った状態での再公開は外部リンク
+破壊・差分逆流・rate-limit 違反を引き起こす。本 skill は以下 3 条件のいずれかに
+該当した場合、publish に進まず即停止する (update mode 既定: `page_id` 不変前提)。
 
-例えば canonical-page-snapshot 更新後で fidelity-guard が pass していない、
-manifest と intake の updated_at が逆転している、前回 publish から N 分以内、
-など運用で踏みやすい事故ケースを想定してください。
+- `fidelity-guard verdict != pass` → exit 2 (canonical-page-snapshot 更新後に
+  構造粒度ガードが未通過なら view を上書きすると canonical との差分が逆流するため、
+  hard-fail で再ヒアリングを促す)
+- `intake.json.updated_at < notion-manifest.json.updated_at` → exit 2
+  (manifest が intake より新しい状態は手動編集または前回 publish 中断の痕跡で、
+  そのまま update すると古い canonical を Notion へ再書込みするため hard-fail)
+- `now - notion-publish-result.json.published_at < 60s` → exit 1
+  (前回 publish から 60 秒未満の連続起動は Notion API rate-limit / 二重発火事故の
+  典型パターン。safe-skip で warn ログのみ残し、人間判断に委ねる)
 
-<!-- TODO(human): start -->
-- 
-- 
-- 
-<!-- TODO(human): end -->
+## 不変条件の補足: 冪等性と page_id
+
+1. 本 skill は **常に update mode** で起動する。新規ページ作成は aggregator phase11
+   の責務であり、本 skill は `notion-manifest.json.page_id` を再利用する。
+2. `page_id` は canonical key であり、再公開で変えてはならない。変えた場合は
+   外部参照リンクが全て無効化されるため exit 2。
+3. 同一 intake/manifest での再起動は **冪等** であること (Notion 側 page の内容が
+   等価収束する)。pipeline 内 render 出力がバイト一致しない場合でも、ブロック構造の
+   論理等価性が保たれていれば合格とする。

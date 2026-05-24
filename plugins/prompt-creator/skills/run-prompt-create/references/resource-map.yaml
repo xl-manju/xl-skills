@@ -1,63 +1,41 @@
-# run-prompt-create resource map (Progressive Disclosure)
-# Phase 開始時に必要なファイルだけ open する。一括ロード禁止 (CD-005)。
-machine_readable:
-  manifest: workflow-manifest.json
-  schemas:
-    prompt_brief: schemas/prompt-brief.schema.json
-    build_trace: schemas/build-trace.schema.json
-    findings: schemas/findings.schema.json
-    handoff: schemas/handoff.schema.json
-  scripts:
-    evaluate_gates: scripts/evaluate-create-gates.py
-
-prompts:
-  R1_elicit: prompts/elicit.md
-  R2_gate_review: prompts/gate-review.md
-  R3_governance_decide: prompts/governance-decide.md
-
-phase_resources:
-  elicit:
-    must_read: [schemas/prompt-brief.schema.json, prompts/elicit.md]
-    optional: [../run-prompt-creator-7layer/SKILL.md]
-  build:
-    must_read: [schemas/prompt-brief.schema.json, schemas/build-trace.schema.json]
-    delegate: ../run-prompt-creator-7layer/SKILL.md
-  p0-lint:
-    must_read: [schemas/findings.schema.json]
-    lint_scripts:
-      - plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py
-      - plugins/skill-governance-lint/scripts/validate-frontmatter.py
-      - plugins/skill-governance-lint/scripts/lint-skill-name.py
-      - plugins/skill-governance-lint/scripts/lint-skill-description.py
-      - plugins/skill-governance-lint/scripts/lint-dependency-direction.py
-      - plugins/skill-governance-lint/scripts/lint-manifest-contents.py
-      - plugins/prompt-creator/scripts/verify_completeness.js
-      - plugins/prompt-creator/scripts/validate_prompt.js
-  design-evaluate:
-    must_read: [schemas/findings.schema.json]
-    delegate: ../assign-prompt-design-evaluator/SKILL.md
-    context: fork
-  elegant-review:
-    must_read: [schemas/findings.schema.json, prompts/gate-review.md]
-    delegate: plugins/skill-creator/skills/run-elegant-review/SKILL.md
-    decision_script: scripts/evaluate-create-gates.py
-    context: fork
-  governance:
-    must_read: [prompts/governance-decide.md, prompts/gate-review.md, schemas/handoff.schema.json]
-    delegate: plugins/skill-creator/skills/run-skill-rubric-governance/SKILL.md
-    params: references/governance-params.json
-  report:
-    must_read: [schemas/handoff.schema.json]
-
-eval_log_artifacts:
-  brief: eval-log/prompt-brief.json
-  build_trace: eval-log/prompt-build-trace.json
-  findings: eval-log/findings.json
-  handoffs:
-    - eval-log/handoff-after_prompt_elicit.json
-    - eval-log/handoff-after_prompt_build.json
-    - eval-log/handoff-after_prompt_lint.json
-    - eval-log/handoff-after_prompt_evaluator.json
-    - eval-log/handoff-after_prompt_elegant.json
-    - eval-log/handoff-after_prompt_governance.json
-    - eval-log/handoff-prompt_done.json
+# resource-map.yaml — 設計書06 第13条スキーマ準拠
+# run-prompt-create (orchestrator) の Progressive Disclosure 索引。
+# 上位 (workflow-manifest, schemas, prompts) は機械可読 contract。references/* は人間向け補助資料。
+# 一括ロード禁止 (CD-005)。各 Phase 開始時に必要なファイルだけ open する。
+resources:
+  - file: ../workflow-manifest.json
+    topic: Step/Gate/Phase 依存と委譲先 Skill の機械可読定義
+    read_when: フェーズ遷移・条件分岐・委譲先を確認するとき (最初に読む)
+  - file: ../schemas/prompt-brief.schema.json
+    topic: Step1(elicit)→Step2(build) 渡しの prompt-brief.json 正本スキーマ
+    read_when: brief の必須フィールドや型を検証するとき
+  - file: ../schemas/build-trace.schema.json
+    topic: run-prompt-creator-7layer が emit する prompt-build-trace.json の Layer 別 coverage 検査
+    read_when: Step 2 後に Gate 2 前提を確認するとき
+  - file: ../schemas/findings.schema.json
+    topic: evaluator / elegant-review が返す findings 共通形式 (C1-C4 verdict)
+    read_when: Step 3b/4 出力を検証・集約するとき
+  - file: ../schemas/handoff.schema.json
+    topic: Gate 通過時の handoff JSON 共通スキーマ
+    read_when: eval-log/handoff-<step>.json を生成・検証するとき
+  - file: ../prompts/elicit.md
+    topic: Step 1 ヒアリング委譲プロンプト (R1)
+    read_when: run-prompt-elicit へ渡す context を組み立てるとき
+  - file: ../prompts/gate-review.md
+    topic: Gate 1-4 共通 AskUserQuestion テンプレ (R2)
+    read_when: ゲート前にユーザー承認を取るとき
+  - file: ../prompts/governance-decide.md
+    topic: Step 5 solo_operator_mode 自動承認判定プロンプト (R3)
+    read_when: governance 承認条件を機械評価するとき
+  - file: governance-params.json
+    topic: governance 自動承認しきい値パラメーター
+    read_when: governance 承認条件を機械評価するとき
+  - file: ../scripts/evaluate-create-gates.py
+    topic: elegant-review 起動可否 / --fast skip 判定
+    read_when: Step 4 (elegant-review) の起動可否を判定するとき
+  - file: ../../run-prompt-creator-7layer/scripts/verify-completeness.py
+    topic: Layer 充足検証 (Step 3a P0 lint で実行)
+    read_when: p0-lint で生成物の充足度を確認するとき
+  - file: ../../run-prompt-creator-7layer/scripts/validate-prompt.py
+    topic: schema/構造検証 (Step 3a P0 lint で prompt / trace 検証)
+    read_when: p0-lint で prompt 本文と prompt-build-trace.json を検証するとき

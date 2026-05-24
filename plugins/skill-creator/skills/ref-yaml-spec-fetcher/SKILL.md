@@ -9,6 +9,7 @@ prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-18
+version: 0.1.0
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal

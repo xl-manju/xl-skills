@@ -8,6 +8,7 @@ prefix: ref
 effect: none
 owner: team-platform
 since: 2026-05-19
+version: 0.1.0
 merge_strategy: deep-merge
 conflict_policy: most-specific-wins
 source: doc/ClaudeCodeスキルの設計書/29-multi-project-rubric-composition.md
