@@ -112,7 +112,8 @@ def main() -> int:
 
     desc = fm.get("description", "") or f"Subagent derived from {args.skill_name}"
     tools = map_tools(fm.get("allowed-tools", []))
-    steps = extract_section(body, "## Steps")
+    # goal-seek format を優先抽出し、legacy "## Steps" にフォールバックする
+    steps = extract_section(body, "## ゴールシーク実行") or extract_section(body, "## Steps")
     purpose = extract_section(body, "## Purpose & Output Contract")
 
     out_dir = Path(args.output_dir)

@@ -2,7 +2,12 @@
 description: Capability (Skill/Agent/Hook/Command/Composition/Prompt/Workflow) を新規作成または更新する統一入口。run-build-skill Skill を起動し、kind に応じた scaffold とリソースを生成する。
 argument-hint: "<kind> <name> [options]  例: skill run-foo / agent reviewer-bar / hook on-save / command deploy"
 allowed-tools: Read, Write, Edit, Bash
+name: capability-build
 kind: command
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
+entrypoint: run-build-skill
 ---
 
 # /skill-creator:capability-build

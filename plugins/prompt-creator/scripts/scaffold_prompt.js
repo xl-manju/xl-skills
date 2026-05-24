@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Source: doc/prompt-creator/scripts/scaffold_prompt.js
 // scaffold_prompt.js - ヒアリングJSONから7層構造プロンプトの骨格を決定論的に生成
+// Layer 5 はゴールシーク型（固定手順を持たず、ゴール定義+完了チェックリスト+実行方式）。
 // Usage: node scripts/scaffold_prompt.js <hearing-result.json> --format yaml|markdown|json|xml [--agents <N>] [--output <path>]
 // Exit: 0=成功, 1=エラー, 2=引数エラー, 3=ファイル不在
 
@@ -14,6 +15,7 @@ function getArg(name) {
 
 // 7層マッピングテーブル（generate-prompt.md 4.2 を決定論的に実装）
 // Prompt作成シート項目 → 7層構造の配置先
+// ゴールシーク化: steps（固定手順）は廃止し、goal/checklist（ゴール・完了条件）を配置する。
 const LAYER_MAPPING = {
   prompt_name:      { layer: 1, path: "基本定義.メタ情報.プロジェクトID" },
   target_user:      { layer: 1, path: "基本定義.プロジェクト概要.想定利用者" },
@@ -22,18 +24,56 @@ const LAYER_MAPPING = {
   success_criteria:  { layer: 1, path: "基本定義.プロジェクト概要.成功基準" },
   // Layer 2: ドメイン定義 - steps内の専門用語・ルールから抽出（LLM判断必要）
   challenges:        { layer: 2, path: "ドメイン定義.ビジネスルール.課題" },
-  // Layer 3: インフラストラクチャ - ツール情報から抽出（LLM判断必要）
+  // Layer 4: 共通ポリシー
   constraints:       { layer: 4, path: "共通ポリシー.セキュリティ/品質" },
-  steps:             { layer: 5, path: "エージェント定義.エージェント.実行仕様.思考プロセス" },
-  // steps.output_format → Layer 5 出力テンプレート
-  // 全体フロー → Layer 6 オーケストレーション
+  // Layer 5: エージェントの達成ゴール・完了チェックリスト（固定手順ではない）
+  goal:              { layer: 5, path: "エージェント定義.エージェント.ゴール定義.達成ゴール" },
+  checklist:         { layer: 5, path: "エージェント定義.エージェント.完了チェックリスト" },
+  // Layer 7
   test_cases:        { layer: 7, path: "ユーザーインタラクション" },
   required_info:     { layer: 7, path: "ユーザーインタラクション.初回質問の設計材料" },
 };
 
+// ヒアリング由来の「達成ゴール候補」を取り出す。
+// 後方互換: 旧 steps があれば、その説明を達成ゴールのヒントとして流用する（手順としては展開しない）。
+function goalHintsFor(data, idx, total) {
+  if (Array.isArray(data.goals) && data.goals.length > 0) {
+    const slice = total === 1
+      ? data.goals
+      : data.goals.slice(
+          Math.floor(idx * data.goals.length / total),
+          Math.floor((idx + 1) * data.goals.length / total)
+        );
+    return slice.map(g => (typeof g === "string" ? g : g.description || "")).filter(Boolean);
+  }
+  if (Array.isArray(data.steps) && data.steps.length > 0) {
+    const slice = total === 1
+      ? data.steps
+      : data.steps.slice(
+          Math.floor(idx * data.steps.length / total),
+          Math.floor((idx + 1) * data.steps.length / total)
+        );
+    return slice.map(s => s.description || "").filter(Boolean);
+  }
+  return [];
+}
+
+// ヒアリング由来の「完了チェックリスト候補」を取り出す。
+function checklistHintsFor(data, idx, total) {
+  if (Array.isArray(data.checklist) && data.checklist.length > 0) {
+    const slice = total === 1
+      ? data.checklist
+      : data.checklist.slice(
+          Math.floor(idx * data.checklist.length / total),
+          Math.floor((idx + 1) * data.checklist.length / total)
+        );
+    return slice.map(c => (typeof c === "string" ? c : c.item || "")).filter(Boolean);
+  }
+  return [];
+}
+
 // === YAML骨格生成 ===
 function scaffoldYAML(data, agentCount) {
-  const steps = data.steps || [];
   const constraints = data.constraints || [];
   const challenges = data.challenges || [];
   const requiredInfo = data.required_info || [];
@@ -49,23 +89,20 @@ function scaffoldYAML(data, agentCount) {
     .map((c, i) => `      - ID: "CHAL_${String(i + 1).padStart(3, "0")}"\n        内容: "${c}"`)
     .join("\n");
 
-  // Layer 5 エージェントブロック生成
+  // Layer 5 エージェントブロック生成（ゴールシーク型）
   const agentBlocks = [];
   for (let i = 0; i < agentCount; i++) {
-    const stepSlice = agentCount === 1
-      ? steps
-      : steps.slice(
-          Math.floor(i * steps.length / agentCount),
-          Math.floor((i + 1) * steps.length / agentCount)
-        );
+    const goalHints = goalHintsFor(data, i, agentCount);
+    const checklistHints = checklistHintsFor(data, i, agentCount);
 
-    const thoughtSteps = stepSlice
-      .map((s, j) => `          - ステップ${j + 1}: "${s.description || "{{LLM_FILL}}"}"`)
-      .join("\n");
+    const goalText = goalHints.length > 0
+      ? goalHints.join(" / ")
+      : "{{LLM_FILL: 何が出来上がれば到達か。成果状態で記述、手順では書かない}}";
 
-    const outputTemplates = stepSlice
-      .filter(s => s.output_format)
-      .map((s, j) => `          - 成果物名: "Step${j + 1}出力"\n            出力テンプレート: |\n              ${(s.output_format || "{{LLM_FILL}}").replace(/\n/g, "\n              ")}`)
+    const checklistLines = (checklistHints.length > 0
+      ? checklistHints
+      : ["{{LLM_FILL: 検証可能な達成条件}}"])
+      .map(item => `          - 項目: "${item}"\n            判定: "{{LLM_FILL: 第三者がYES/NOを判定できる基準}}"`)
       .join("\n");
 
     agentBlocks.push(`    - 番号: ${i + 1}
@@ -74,39 +111,50 @@ function scaffoldYAML(data, agentCount) {
       プロフィール:
         背景: |
           {{LLM_FILL: なぜこの人物が適しているか}}
-        目的: |
-          {{LLM_FILL: 達成すべき具体的なゴール}}
-        責務: |
-          {{LLM_FILL: 責任範囲と成果物}}
 
       知識ベース:
         参考文献:
           - 書籍: "{{LLM_FILL: 書籍名1}}"
             適用方法: |
-              {{LLM_FILL: 適用方法}}
+              {{LLM_FILL: この知識をゴール達成にどう用いるか}}
 
-      実行仕様:
-        思考プロセス:
-${thoughtSteps}
+      ゴール定義:
+        目的: |
+          {{LLM_FILL: このエージェントが存在する目的}}
+        背景: |
+          {{LLM_FILL: その目的が必要になった背景・前提}}
+        達成ゴール: |
+          ${goalText}
 
-        チェックリスト:
-          - 項目: "出力検証: すべての必須項目が含まれているか"
-            基準: "{{LLM_FILL: 必須フィールドをリスト化}}"
+      完了チェックリスト:
+${checklistLines}
           - 項目: "事実確認: 推測を事実として述べていないか"
-            基準: "不確実な情報には限定詞を使用"
+            判定: "不確実な情報に限定詞が使われている"
 
-        ビジネスルール:
-${constraintLines || '          - ID: "CONST_001"\n            内容: "{{LLM_FILL}}"'}
+      実行方式:
+        方針: |
+          固定手順を持たない。ゴール定義と完了チェックリストを唯一の指針とし、
+          入力・状況に応じて必要な手順をその都度自ら設計して実行する。
+        ループ:
+          - "完了チェックリストの未充足項目を特定する"
+          - "未充足を解消する手順をその場で立案する"
+          - "立案した手順を実行し、成果物を更新する"
+          - "完了チェックリストで自己評価する"
+          - "全項目充足まで反復する（上限: Layer 4 最大反復回数）"
+        逸脱時: |
+          {{LLM_FILL: 上限到達・解消不能時の対応}}
 
       インターフェース:
         入力:
           - データ名: "{{LLM_FILL}}"
-            提供元: "${i === 0 ? '外部' : '{{LLM_FILL: 前エージェント名}}'}"
+            提供元: "${i === 0 ? '外部/ユーザー' : '{{LLM_FILL: 前エージェント名}}'}"
             検証ルール: |
               {{LLM_FILL}}
-
         出力:
-${outputTemplates || '          - 成果物名: "{{LLM_FILL}}"\n            出力テンプレート: "{{LLM_FILL}}"'}
+          - 成果物名: "{{LLM_FILL}}"
+            受領先: "${i === agentCount - 1 ? 'ユーザー' : '{{LLM_FILL: 後続エージェント名（並列含む）}}'}"
+            引き渡し形式: |
+              {{LLM_FILL: 受け手がそのまま入力として実行できる形式・粒度}}
 
       依存関係:
         前提エージェント:
@@ -126,9 +174,7 @@ ${outputTemplates || '          - 成果物名: "{{LLM_FILL}}"\n            出�
 
   // Layer 7 テストケース
   const testCaseLines = testCases.length > 0
-    ? testCases.map((tc, i) =>
-        `      - "${tc.input || "{{LLM_FILL}}"}"`
-      ).join("\n")
+    ? testCases.map((tc) => `      - "${tc.input || "{{LLM_FILL}}"}"`).join("\n")
     : '      - "{{LLM_FILL: ユーザー入力例}}"';
 
   const requiredInfoLines = requiredInfo.length > 0
@@ -204,7 +250,7 @@ ${challengeLines || '      - ID: "CHAL_001"\n        内容: "{{LLM_FILL}}"'}
 共通ポリシー:
   システム設定:
     信頼度スコア閾値: 0.8
-    最大リトライ回数: 3
+    最大反復回数: 5
 
   セキュリティ:
     許可アクション:
@@ -223,12 +269,16 @@ ${challengeLines || '      - ID: "CHAL_001"\n        内容: "{{LLM_FILL}}"'}
       - "{{LLM_FILL}}"
     通知先: "ユーザー"
 
-# Layer 5: エージェント定義層（実行単位の定義）
+# Layer 5: エージェント定義層（ゴール駆動の自律実行単位）
+# 固定手順（ステップ列挙）は持たせない。
+# 目的・背景・達成ゴール・完了チェックリストを宣言し、手順は実行方式に委ねる。
 エージェント定義:
   共通構造:
     - プロフィール
     - 知識ベース
-    - 実行仕様
+    - ゴール定義
+    - 完了チェックリスト
+    - 実行方式
     - インターフェース
     - 依存関係
     - ツール利用
@@ -237,28 +287,35 @@ ${challengeLines || '      - ID: "CHAL_001"\n        内容: "{{LLM_FILL}}"'}
   エージェント:
 ${agentBlocks.join("\n\n")}
 
-# Layer 6: オーケストレーション層（自律的動的実行制御）
+# Layer 6: オーケストレーション層（ゴールシーク制御）
 オーケストレーション:
   実行原則: |
-    AIは入力・状況・目的に基づき、Layer 5のエージェント群から
-    最適な組み合わせを自律的に選択・実行・評価し、
-    Layer 1の成功基準達成まで反復する。
+    各エージェントは自分の完了チェックリストを唯一の停止条件とし、
+    ゴール到達まで手順を自律生成・実行・自己評価する。
+    オーケストレーターは固定実行順を持たず、依存関係と現状から
+    次に動かすエージェント（直列/並列）を都度決定する。
 
   選択基準:
-    参照元: "Layer 5 各エージェントの「目的」「責務」"
-    判断方式: "現在の課題との適合度が最も高いエージェントを選択"
-    実行形態: "依存関係に応じて順次/並列/反復を自動決定"
+    参照元: "Layer 5 各エージェントのゴール定義（目的・達成ゴール）"
+    判断方式: "現在未達のゴールに最も寄与するエージェントを選択"
+    実行形態: "依存関係に応じて 直列/並列/反復 を都度決定。固定順序を書かない"
 
-  制約:
-    参照元: "Layer 4 共通ポリシー"
-    追加制約:
-      最大反復回数: 5
-      必須経由: "{{LLM_FILL: 必須エージェント}}"
+  ハンドオフ:
+    直列: "前エージェントの出力(受領先)を後続の入力(提供元)に接続"
+    並列: "独立ゴールを持つエージェントへ配布し結果を統合"
+    統合: "{{LLM_FILL: 並列結果のマージ・コンフリクト解決}}"
+
+  ゴールシークループ:
+    - "全体ゴール（Layer 1 成功基準）の未達分を特定"
+    - "担当エージェントへ委譲（チェックリスト充足まで）"
+    - "出力を後続/並列エージェントへハンドオフ"
+    - "成功基準で再評価 → 未達なら再選択"
+    上限: "Layer 4 最大反復回数"
 
   完了判定:
-    参照元: "Layer 1 成功基準"
-    判定方式: "成功基準の全項目を満たした時点で完了"
-    未達時: "不足要素を特定し、該当エージェントを再選択"
+    参照元: "Layer 1 成功基準 + 全エージェントの完了チェックリスト"
+    判定方式: "全エージェントのチェックリスト充足 かつ 成功基準の全項目達成で完了"
+    未達時: "不足要素を特定し、担当エージェントを再選択"
 
 # Layer 7: ユーザーインタラクション層（初回入力の取得）
 ユーザーインタラクション:
@@ -272,12 +329,41 @@ ${requiredInfoLines}
     回答例:
       - |
         {{LLM_FILL: 回答例}}
-`;
+${testCases.length > 0 ? testCaseLines + "\n" : ""}`;
 }
 
 // === Markdown骨格生成 ===
 function scaffoldMarkdown(data, agentCount) {
-  // YAML生成してからMarkdownに変換指示を付加
+  const agentSections = Array.from({ length: agentCount }, (_, i) => {
+    const goalHints = goalHintsFor(data, i, agentCount);
+    const checklistHints = checklistHintsFor(data, i, agentCount);
+    const goalText = goalHints.length > 0
+      ? goalHints.join(" / ")
+      : "{{LLM_FILL: 成果状態で記述。手順では書かない}}";
+    const checklistLines = (checklistHints.length > 0 ? checklistHints : ["{{LLM_FILL: 検証可能な達成条件}}"])
+      .map(item => `- [ ] ${item} — 判定: {{LLM_FILL}}`)
+      .join("\n");
+    return `### エージェント${i + 1}: {{LLM_FILL: 名前}}
+
+**プロフィール**: {{LLM_FILL}}
+
+**ゴール定義**
+- 目的: {{LLM_FILL}}
+- 背景: {{LLM_FILL}}
+- 達成ゴール: ${goalText}
+
+**完了チェックリスト**（ゴール到達の停止条件）
+${checklistLines}
+- [ ] 事実確認: 不確実な情報に限定詞を使用
+
+**実行方式**: 固定手順を持たない。未充足項目を特定→手順を都度立案→実行→チェックリストで自己評価→全項目充足まで反復（上限: 最大反復回数）。
+
+**ハンドオフ**
+- 入力(提供元): ${i === 0 ? "外部/ユーザー" : "{{LLM_FILL: 前エージェント}}"}
+- 出力(受領先): ${i === agentCount - 1 ? "ユーザー" : "{{LLM_FILL: 後続エージェント（並列含む）}}"}
+`;
+  }).join("\n");
+
   return `<!-- scaffold_prompt.js auto-generated: Markdown format -->
 <!-- LLM_FILL マーカーの箇所をLLMが埋めてください -->
 
@@ -324,34 +410,20 @@ ${(data.challenges || []).map((c, i) => `- CHAL_${String(i+1).padStart(3,"0")}: 
 ### 品質基準
 - 事実確認ルール: {{LLM_FILL}}
 
-## Layer 5: エージェント定義層
+### システム設定
+- 最大反復回数: 5
 
-${Array.from({length: agentCount}, (_, i) => {
-  const stepSlice = agentCount === 1
-    ? (data.steps || [])
-    : (data.steps || []).slice(
-        Math.floor(i * (data.steps || []).length / agentCount),
-        Math.floor((i + 1) * (data.steps || []).length / agentCount)
-      );
-  return `### エージェント${i+1}: {{LLM_FILL: 名前}}
+## Layer 5: エージェント定義層（ゴール駆動）
+> 固定手順は書かない。ゴール定義・完了チェックリストを宣言し、手順は実行方式に委ねる。
 
-**プロフィール**: {{LLM_FILL}}
+${agentSections}
 
-**思考プロセス**:
-${stepSlice.map((s, j) => `${j+1}. ${s.description || "{{LLM_FILL}}"}`).join("\n")}
+## Layer 6: オーケストレーション層（ゴールシーク制御）
 
-**出力テンプレート**:
-\`\`\`
-${stepSlice.filter(s => s.output_format).map(s => s.output_format).join("\n---\n") || "{{LLM_FILL}}"}
-\`\`\`
-`;
-}).join("\n")}
-
-## Layer 6: オーケストレーション層
-
-- **実行原則**: 自律的選択・実行・評価
-- **選択基準**: Layer 5エージェントの目的・責務との適合度
-- **完了判定**: Layer 1成功基準の全項目充足
+- **実行原則**: 各エージェントは完了チェックリストを停止条件に、ゴール到達まで手順を自律生成・実行・自己評価
+- **選択基準**: 未達ゴールに最も寄与するエージェントを都度選択（固定順序なし）
+- **ハンドオフ**: 直列=出力→次の入力に接続 / 並列=配布して結果統合
+- **完了判定**: 全エージェントのチェックリスト充足 かつ Layer 1成功基準の全項目達成
 
 ## Layer 7: ユーザーインタラクション層
 
@@ -395,19 +467,40 @@ function scaffoldJSON(data, agentCount) {
     layer4_共通ポリシー: {
       セキュリティ: { 許可アクション: ["{{LLM_FILL}}"], 禁止アクション: ["{{LLM_FILL}}"] },
       品質基準: { 事実確認: "{{LLM_FILL}}" },
+      システム設定: { 最大反復回数: 5 },
     },
     layer5_エージェント定義: {
-      エージェント: Array.from({ length: agentCount }, (_, i) => ({
-        番号: i + 1,
-        名前: "{{LLM_FILL}}",
-        プロフィール: "{{LLM_FILL}}",
-        思考プロセス: (data.steps || []).map(s => s.description || "{{LLM_FILL}}"),
-        出力テンプレート: "{{LLM_FILL}}",
-      })),
+      エージェント: Array.from({ length: agentCount }, (_, i) => {
+        const goalHints = goalHintsFor(data, i, agentCount);
+        const checklistHints = checklistHintsFor(data, i, agentCount);
+        return {
+          番号: i + 1,
+          名前: "{{LLM_FILL}}",
+          プロフィール: "{{LLM_FILL}}",
+          ゴール定義: {
+            目的: "{{LLM_FILL}}",
+            背景: "{{LLM_FILL}}",
+            達成ゴール: goalHints.length > 0 ? goalHints.join(" / ") : "{{LLM_FILL: 成果状態で記述}}",
+          },
+          完了チェックリスト: (checklistHints.length > 0 ? checklistHints : ["{{LLM_FILL}}"]).map(item => ({
+            項目: item,
+            判定: "{{LLM_FILL}}",
+          })),
+          実行方式: {
+            方針: "固定手順を持たない。ゴールとチェックリストを指針に手順を都度生成・実行・自己評価",
+            ループ: ["未充足項目を特定", "手順を立案", "実行", "自己評価", "全項目充足まで反復"],
+          },
+          インターフェース: {
+            入力: [{ 提供元: i === 0 ? "外部/ユーザー" : "{{LLM_FILL}}" }],
+            出力: [{ 受領先: i === agentCount - 1 ? "ユーザー" : "{{LLM_FILL}}", 引き渡し形式: "{{LLM_FILL}}" }],
+          },
+        };
+      }),
     },
     layer6_オーケストレーション: {
-      実行原則: "自律的選択・実行・評価",
-      完了判定: "Layer 1成功基準の全項目充足",
+      実行原則: "各エージェントはチェックリストを停止条件にゴール到達まで手順を自律生成・実行・自己評価",
+      ハンドオフ: { 直列: "出力→次の入力に接続", 並列: "配布して結果統合" },
+      完了判定: "全エージェントのチェックリスト充足 かつ Layer 1成功基準の全項目達成",
     },
     layer7_ユーザーインタラクション: {
       初回質問: data.required_info || ["{{LLM_FILL}}"],
@@ -420,7 +513,6 @@ function scaffoldJSON(data, agentCount) {
 // === XML骨格生成 ===
 function scaffoldXML(data, agentCount) {
   const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const steps = data.steps || [];
   const constraints = data.constraints || [];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -469,21 +561,39 @@ ${(data.challenges || []).map((c, i) => `      <challenge id="CHAL_${String(i+1)
     <quality>
       <fact-check><![CDATA[{{LLM_FILL}}]]></fact-check>
     </quality>
+    <system><max-iterations>5</max-iterations></system>
   </layer4>
 
   <layer5 name="エージェント定義層">
-${Array.from({length: agentCount}, (_, i) => `    <agent number="${i+1}" name="{{LLM_FILL}}">
+${Array.from({length: agentCount}, (_, i) => {
+  const goalHints = goalHintsFor(data, i, agentCount);
+  const checklistHints = checklistHintsFor(data, i, agentCount);
+  const goalText = goalHints.length > 0 ? goalHints.join(" / ") : "{{LLM_FILL: 成果状態で記述}}";
+  const checklistXml = (checklistHints.length > 0 ? checklistHints : ["{{LLM_FILL}}"])
+    .map(item => `        <item judgement="{{LLM_FILL}}"><![CDATA[${esc(item)}]]></item>`).join("\n");
+  return `    <agent number="${i+1}" name="{{LLM_FILL}}">
       <profile><![CDATA[{{LLM_FILL}}]]></profile>
-      <thought-process>
-${steps.map((s, j) => `        <step number="${j+1}"><![CDATA[${esc(s.description || "{{LLM_FILL}}")}]]></step>`).join("\n")}
-      </thought-process>
-      <output-template><![CDATA[{{LLM_FILL}}]]></output-template>
-    </agent>`).join("\n")}
+      <goal>
+        <purpose><![CDATA[{{LLM_FILL}}]]></purpose>
+        <background><![CDATA[{{LLM_FILL}}]]></background>
+        <target-state><![CDATA[${esc(goalText)}]]></target-state>
+      </goal>
+      <completion-checklist>
+${checklistXml}
+      </completion-checklist>
+      <execution-mode><![CDATA[固定手順なし。未充足項目を特定→手順を都度立案→実行→自己評価→全項目充足まで反復]]></execution-mode>
+      <handoff>
+        <input from="${i === 0 ? '外部/ユーザー' : '{{LLM_FILL}}'}"/>
+        <output to="${i === agentCount - 1 ? 'ユーザー' : '{{LLM_FILL}}'}"/>
+      </handoff>
+    </agent>`;
+}).join("\n")}
   </layer5>
 
   <layer6 name="オーケストレーション層">
-    <execution-principle><![CDATA[自律的選択・実行・評価]]></execution-principle>
-    <completion-criteria><![CDATA[Layer 1成功基準の全項目充足]]></completion-criteria>
+    <execution-principle><![CDATA[各エージェントはチェックリストを停止条件にゴール到達まで手順を自律生成・実行・自己評価]]></execution-principle>
+    <handoff serial="出力→次の入力に接続" parallel="配布して結果統合"/>
+    <completion-criteria><![CDATA[全エージェントのチェックリスト充足 かつ Layer 1成功基準の全項目達成]]></completion-criteria>
   </layer6>
 
   <layer7 name="ユーザーインタラクション層">
@@ -509,7 +619,8 @@ const SCAFFOLDERS = {
 function main() {
   if (process.argv.length < 3 || process.argv[2] === "-h" || process.argv[2] === "--help") {
     console.log("Usage: node scaffold_prompt.js <hearing-result.json> --format yaml|markdown|json|xml [--agents N] [--output path]");
-    console.log("  Generates 7-layer prompt scaffold from hearing result JSON.");
+    console.log("  Generates 7-layer (goal-seek) prompt scaffold from hearing result JSON.");
+    console.log("  Layer 5 agents declare goal + checklist (no fixed steps).");
     console.log("  {{LLM_FILL}} markers indicate sections requiring LLM creative input.");
     console.log("  Exit codes: 0=OK, 1=error, 2=args error, 3=file not found");
     process.exit(process.argv[2] === "-h" || process.argv[2] === "--help" ? 0 : 2);

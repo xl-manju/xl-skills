@@ -2,7 +2,12 @@
 description: 既存 Capability に対し run-elegant-review を起動する。多視点 agent 並列レビュー → 集約 → ゲート判定までを一括実行する薄いラッパ。
 argument-hint: "<target-path> [scope]  例: plugins/skill-creator/skills/run-build-skill / agents/elegant-reset-observer.md full"
 allowed-tools: Read, Bash
+name: capability-review
 kind: command
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
+entrypoint: run-elegant-review
 ---
 
 # /skill-creator:capability-review

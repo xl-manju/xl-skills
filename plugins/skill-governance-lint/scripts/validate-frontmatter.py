@@ -39,6 +39,21 @@ SOURCE_TIER_VALUES = {
 }
 KIND_VALUES = {"run", "ref", "assign", "wrap", "delegate", "workflow", "reference",
                "evaluator", "generator"}
+# CapabilityManifest (capability-manifest.schema.json) の非 skill kind。
+# SKILL.md 以外の Capability ファイル (agents/ commands/ hooks/ ...) で使う。
+NON_SKILL_KINDS = {"agent", "hook", "command", "plugin-composition", "prompt", "workflow"}
+# commonCore: 全 Capability kind 共通必須 (capability-manifest.schema.json#/definitions/commonCore)。
+COMMON_CORE_REQUIRED = ("name", "description", "kind", "version", "owner")
+# kind 固有の必須フィールド (同 schema の kind<Kind>.required)。
+KIND_SPECIFIC_REQUIRED = {
+    "agent": ("tools", "isolation"),
+    "command": ("argument-hint", "allowed-tools"),
+    "hook": ("event", "command"),
+    "plugin-composition": ("capabilities",),
+    "prompt": ("layers",),
+    "workflow": ("phases",),
+}
+SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 EFFECT_VALUES = {"none", "conversation-output", "local-artifact", "external-mutation"}
 MERGE_STRATEGY_VALUES = {"deep-merge", "strict", "override", "layered"}
 CONFLICT_POLICY_VALUES = {"most-specific-wins", "error", "warn-and-merge"}
@@ -127,7 +142,7 @@ def check_refs_exist(fm: dict, skill_path: Path) -> list[str]:
             if not entry:
                 continue
             if re.match(r"^(ref|run|assign|wrap|delegate)-[a-z0-9-]+$", entry):
-                cand1 = repo / "creator-kit" / "skills" / entry
+                cand1 = repo / "plugins" / "skill-creator" / "skills" / entry
                 cand2 = repo / ".claude" / "skills" / entry
                 if not (cand1.exists() or cand2.exists()):
                     errs.append(
@@ -181,18 +196,68 @@ def _check_source_tier_demotion(
     return None
 
 
+def validate_capability(p: Path, fm: dict, text: str) -> tuple[str, list[str]]:
+    """SKILL.md 以外の Capability (agent/command/hook/...) を commonCore + kind 固有で検証する。
+
+    CapabilityManifest (capability-manifest.schema.json) に整合。skill 専用ルール
+    (trigger count==2 / assign fork / source-tier skill enum) は適用しない。
+    """
+    errs: list[str] = []
+    kind = fm.get("kind", "").split("#", 1)[0].strip()
+    name = fm.get("name", "")
+
+    # commonCore 必須
+    for field in COMMON_CORE_REQUIRED:
+        if field not in fm or not fm[field]:
+            errs.append(f"commonCore: missing required field '{field}' for kind={kind} "
+                        "(capability-manifest.schema.json#/definitions/commonCore)")
+    # version は SemVer
+    ver = fm.get("version", "")
+    if ver and not SEMVER_RE.match(str(ver).split("#", 1)[0].strip()):
+        errs.append(f"version '{ver}' must be SemVer (X.Y.Z)")
+    # name は kebab-case
+    if name and not re.match(r"^[a-z][a-z0-9-]*$", name):
+        errs.append(f"name '{name}' must be kebab-case (^[a-z][a-z0-9-]*$)")
+    # kind 固有の必須フィールド
+    for field in KIND_SPECIFIC_REQUIRED.get(kind, ()):  # noqa: B007
+        if field not in fm or fm[field] in (None, "", []):
+            errs.append(f"kind={kind}: missing required field '{field}' "
+                        f"(capability-manifest.schema.json#/definitions/kind{kind.title().replace('-', '')})")
+    # 未展開テンプレート変数
+    _unresolved_re = re.compile(r"\{\{[^}]+\}\}")
+    for _k, _v in fm.items():
+        if isinstance(_v, str) and _unresolved_re.search(_v):
+            errs.append(f"unresolved template variable in '{_k}': {_v}")
+    return name or p.stem, errs
+
+
 def validate_file(p: Path) -> tuple[str, list[str]]:
     if not p.exists():
         return str(p), [f"not found: {p}"]
 
     text = p.read_text(encoding="utf-8")
     fm = parse_fm(text)
+
+    # SKILL.md 以外で非 skill kind を宣言する Capability は専用検証へ分岐
+    if p.name != "SKILL.md" and fm.get("kind", "").split("#", 1)[0].strip() in NON_SKILL_KINDS:
+        return validate_capability(p, fm, text)
+
     errs: list[str] = []
 
     # required
     for r in REQUIRED:
         if r not in fm or not fm[r]:
             errs.append(f"missing required field: {r}")
+
+    # version: 存在必須 + SemVer 形式 (X.Y.Z)。
+    # kind enum は KIND_VALUES (L40) で別途評価し、commonCore の kind enum は強制しない。
+    # owner/since は現状維持 (必須化しない=移行リスク回避)。
+    ver = fm.get("version", "")
+    ver_norm = str(ver).split("#", 1)[0].strip()
+    if not ver_norm:
+        errs.append("missing required field: version")
+    elif not SEMVER_RE.match(ver_norm):
+        errs.append(f"version '{ver_norm}' must be SemVer (X.Y.Z)")
 
     # description quality: 日本語トリガー句 (〜とき/〜場合/〜際/〜時) または
     # 英語の "Use when" / "Read when" のいずれかを含むこと。

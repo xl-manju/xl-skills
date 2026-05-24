@@ -9,6 +9,7 @@ kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-19
+version: 0.1.0
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/20-migration-path.md
 source-tier: internal
@@ -70,56 +71,49 @@ Hook/CI/CLI 化候補を JSON で出力する。
 3. **抽象化レベル**: 入力中の具体的なプロジェクト名 / ドメイン語は `{{var}}` 化して提案する
 4. 分類根拠を 1 行以内で明示する（後段 evaluator が judge できるよう）
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: 入力棚卸し
-```bash
-python3 plugins/skill-governance-migration/scripts/migrate/audit.py \
-  --input <CLAUDE.md path> \
-  --output .claude/handoff/migrate-audit-$(date +%s).json
-```
+### ゴール (Goal)
 
-### Step 2: 分類結果のレビュー
-ユーザーに JSON を提示し、誤分類があれば手動修正。
+入力 CLAUDE.md/prompt 群が doc/20 の 8 区分へ分類され、各候補の移行先 Skill 名・根拠を含む分類 JSON と空 SKILL.md スケルトン提案が出力され、依存関係 lint（5 条件含む）と評価器採点を通過した brief だけが `run-build-skill` 引き渡し可能な状態。
 
-### Step 3: SKILL.md スケルトン生成提案
-分類結果から `run-build-skill` 起動 brief を生成:
-```bash
-python3 plugins/skill-governance-migration/scripts/migrate/to-brief.py \
-  --audit-json .claude/handoff/migrate-audit-<session>.json
-```
+### 目的・背景 (Why)
 
-### Step 4: Hook/CI 昇格候補の抽出
-Gotchas 累積閾値超え → `frontmatter lint -> Hook -> CI -> CLI` の昇格パスを示す。
+肥大化した prompt/docs の棚卸し分類を機械化し、横展開可能な抽象化された Skill 候補へ落とすため。入力構造（章立て・ドメイン語密度）に依存し固定手順では誤分類耐性が低いので、到達状態（分類 JSON + lint/採点通過 brief）をゴールに据える。実際の SKILL.md 生成は責務外（run-build-skill へ委譲）。
 
-### Step 5: 移行後 lint
-```bash
-python3 plugins/skill-governance-lint/scripts/lint-dependency-direction.py --skills-dir .claude/skills/
-```
+### 完了チェックリスト (Checklist)
 
-### Step 6: 評価器による品質判定（doc/20 Step 6）
-`pair:` 宣言済みの `assign-skill-design-evaluator` を fork 起動し、生成された
-brief 群を rubric で採点する。スコアが閾値未満の brief は run-build-skill
-への引き渡しを止め、再分類を促す。
-```bash
-# Skill ツール経由で fork 起動（assign-* は user-invocable: false）
-# 例: Skill("assign-skill-design-evaluator", brief_path=...)
-```
-出力例: `.claude/handoff/eval-<session>.json`（rubric score / high-severity findings）。
+- [ ] 入力棚卸し (`migrate/audit.py --input <path> --output .claude/handoff/migrate-audit-<session>.json`) を実施し、各 section が 8 区分（always-on/ref/run/wrap/assign/delegate/hook/docs）のいずれかに分類済み
+- [ ] 各分類に 1 行以内の根拠（後段 evaluator が judge 可能）が付与されている
+- [ ] 具体プロジェクト名 / ドメイン語が `{{var}}` へ抽象化された suggested_skill_name になっている
+- [ ] 分類結果がユーザーへ提示され、誤分類は手動修正済み
+- [ ] `migrate/to-brief.py --audit-json ...` で run-build-skill 起動 brief を生成済み
+- [ ] Gotchas 累積閾値超えの section に `frontmatter lint -> Hook -> CI -> CLI` 昇格パスが示されている
+- [ ] `lint-dependency-direction.py --skills-dir .claude/skills/` が通過している
+- [ ] `pair:` 宣言済み `assign-skill-design-evaluator` を fork 起動し brief 群を採点、閾値未満 brief は run-build-skill 引き渡しを止め再分類を促した（出力 `.claude/handoff/eval-<session>.json`）
+- [ ] `lint-skill-dep-step7.py --skills-dir .claude/skills/` の 5 条件（wrap に base / evaluator に pair / pair 相手の存在 / dangerous run に DMI=true / ref が到達不能でない）が全 PASS
+- [ ] 入力ファイルを物理削除していない（思考リセット≠削除）
+- [ ] `kept_in_claude_md` が 0 でない（repo identity 等は CLAUDE.md に最低限残す）
 
-### Step 7: 依存関係 lint（doc/20 Step 7 の 5 条件）
-brief から生成予定の Skill 群について、以下 5 条件を機械検証する。
-```bash
-python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir .claude/skills/
-```
-検査:
-1. `wrap-*` に `base:` フィールドがある
-2. `assign-*-evaluator` に `pair:` フィールドがある
-3. `pair:` の相手スキルが存在する
-4. dangerous `run-*`（`danger: true` または `effect: external-mutation`）に
-   `disable-model-invocation: true` がある
-5. `ref-*` が到達不能設定（DMI=true かつ user-invocable=false かつ
-   他スキルから参照されていない）になっていない
+### ゴールシークループ
+
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+
+- 対象ファイル: 入力 CLAUDE.md/prompt（複数可・read-only / 物理削除禁止）、出力 `.claude/handoff/migrate-audit-<session>.json` と `eval-<session>.json`
+- 子 skill: `assign-skill-design-evaluator`（`pair:`、fork 起動・user-invocable:false）、引き渡し先 `run-build-skill`
+- 固定パス/閾値: doc/20 の 8 区分以外を作らない、step7 の 5 条件は全 PASS 必須、評価器スコア閾値未満は再分類
+- 中間状態（部分完了）で lint を fail させない（`--allow-partial`）。決定論的検査は `## 検証`/lint へ寄せ `[x]` 判定する
+- 規定周回を超えても未達なら残項目を `open_issues` として記録し上位 orchestrator へ差し戻す
+
+### 局面カタログ (順序は都度判断)
+
+- 入力棚卸し: `python3 plugins/skill-governance-migration/scripts/migrate/audit.py --input <CLAUDE.md path> --output .claude/handoff/migrate-audit-$(date +%s).json`
+- レビュー: 分類 JSON をユーザー提示し誤分類を手動修正
+- brief 生成: `python3 plugins/skill-governance-migration/scripts/migrate/to-brief.py --audit-json .claude/handoff/migrate-audit-<session>.json`
+- 昇格候補抽出: Gotchas 累積閾値超え → `frontmatter lint -> Hook -> CI -> CLI`
+- 移行後 lint: `python3 plugins/skill-governance-lint/scripts/lint-dependency-direction.py --skills-dir .claude/skills/`
+- 品質判定: `Skill("assign-skill-design-evaluator", brief_path=...)` を fork 起動（出力 `.claude/handoff/eval-<session>.json`）
+- 依存 lint(5条件): `python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir .claude/skills/`
 
 ## Gotchas
 - 中間状態（Step1〜4 部分完了）で lint を fail させない（`--allow-partial` モード）

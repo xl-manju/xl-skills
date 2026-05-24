@@ -50,10 +50,19 @@ responsibility_refs: []
 - {{TRIGGER_1}}
 - {{TRIGGER_2}}
 
-## Steps
-1. 入力 (`interface.input`) を検証する
-2. {{CORE_STEP}}
-3. 出力 (`interface.output`) を JSON で返す
+## ゴールシーク実行
+> 固定手順は書かない。毎周「ゴール・チェックリスト」を読み、未達項目を埋める手順をその場で生成して実行する。詳細は run-build-skill `references/goal-seek-paradigm.md`。
+
+### ゴール (Goal)
+{{GOAL}}
+
+### 完了チェックリスト (Checklist)
+- [ ] 入力 (`interface.input`) を検証した
+- [ ] {{CHECKLIST_CORE}}
+- [ ] 出力 (`interface.output`) が JSON 契約を満たす
+
+### ゴールシークループ
+1. 未達 `[ ]` を特定 → 2. 手順を都度生成 → 3. 実行 → 4. チェックリスト再評価し `[x]` 更新 → 全 `[x]` まで反復。規定周回で未達なら orchestrator に差し戻す。
 
 ## Output Contract
 ```json

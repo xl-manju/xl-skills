@@ -51,7 +51,8 @@
       "commands": [
         "python3 plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py ${TARGET_AGENT_OR_SKILL}",
         "node plugins/prompt-creator/scripts/verify_completeness.js --input ${PROMPT_OUTPUT}",
-        "node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_OUTPUT}",
+        "node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_OUTPUT} --phase prompt",
+        "node plugins/prompt-creator/scripts/validate_prompt.js --input eval-log/prompt-build-trace.json --phase trace --schema plugins/prompt-creator/skills/run-prompt-create/schemas/build-trace.schema.json",
         "python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir ${SKILLS_DIR}",
@@ -143,8 +144,17 @@
     }
   ],
   "fast_mode": {
-    "description": "軽微更新 (1 prompt, <=30 行, inject_sections のみ) は design-evaluate / elegant-review を skip。",
+    "description": "軽微更新 (1 prompt, <=30 行, inject_sections のみ) は design-evaluate / elegant-review を skip し、p0-lint から governance へ進む。",
     "skip_phases": ["design-evaluate", "elegant-review"],
+    "dependency_override": {
+      "governance.dependsOn": ["p0-lint"]
+    },
+    "required_evidence": [
+      "p0-lint PASS",
+      "prompt-build-trace schema PASS",
+      "diff_lines <= 30",
+      "new_prompt == false"
+    ],
     "decision_command": "python3 plugins/prompt-creator/skills/run-prompt-create/scripts/evaluate-create-gates.py --prompt-name ${PROMPT_NAME} --brief eval-log/prompt-brief.json --fast"
   }
 }

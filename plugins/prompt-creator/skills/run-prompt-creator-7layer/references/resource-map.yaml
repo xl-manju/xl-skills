@@ -16,10 +16,20 @@ references:
   prompt-sheet-template.md:
     read_when: Phase 2 (シート生成)
     purpose: シート項目定義
+  idempotent-update-policy.md:
+    read_when: Phase 4-B / 4-C (既存プロンプト改善・ゴールシーク反復時)
+    purpose: 重複回避・上書き優先の冪等更新 + セッション分離
 
 schemas:
   hearing-result.schema.json:
-    read_when: Phase 1 ヒアリング完了時 (validate_prompt.js)
+    read_when: legacy sheet/scaffold 入力を直接扱う時
+    purpose: prompt-sheet input schema (legacy 互換)。raw hearing の正本は ../run-prompt-elicit/schemas/hearing-result.schema.json。
+  ../run-prompt-elicit/schemas/hearing-result.schema.json:
+    read_when: Phase 1 ヒアリング完了時 (validate_prompt.js --phase hearing)
+    purpose: raw hearing result schema (canonical)
+  ../run-prompt-create/schemas/build-trace.schema.json:
+    read_when: orchestrator handoff 直前 (validate_prompt.js --phase trace)
+    purpose: eval-log/prompt-build-trace.json schema (canonical)
 
 scripts:
   # plugin-level scripts/ に配置 (skill-creator 第10条準拠: skill 内 scripts/ は .py/.sh のみ)
@@ -28,7 +38,7 @@ scripts:
     invoked_at: Phase 4-A 終了時
   validate_prompt.js:
     path: plugins/prompt-creator/scripts/validate_prompt.js
-    invoked_at: Phase 2 / Phase 4-B
+    invoked_at: Phase 2 (hearing/sheet) / Phase 4-B (prompt) / handoff (trace)
   verify_completeness.js:
     path: plugins/prompt-creator/scripts/verify_completeness.js
     invoked_at: Phase 4-C

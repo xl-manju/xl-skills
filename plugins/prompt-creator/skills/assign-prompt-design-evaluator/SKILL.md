@@ -84,7 +84,7 @@ doc/prompt-creator/references/quality-criteria.md 由来:
 ### Step 1: 客観検証 (script)
 ```bash
 node plugins/prompt-creator/scripts/verify_completeness.js --input ${PROMPT_PATH}
-node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_PATH}
+node plugins/prompt-creator/scripts/validate_prompt.js --input ${PROMPT_PATH} --phase prompt
 ```
 
 ### Step 2: C1-C4 機械評価

@@ -9,7 +9,7 @@
 |---|---|
 | name | gate-review |
 | skill | run-prompt-create |
-| responsibility | R2 (Gate 1-4 共通 AskUserQuestion テンプレ) |
+| responsibility | R2 (Gate 1 AskUserQuestion + Gate 2-4 auto-gate handoff) |
 | layers_covered | [L4, L5, L6] |
 | output_schema | schemas/handoff.schema.json |
 | reproducible | true (承認結果が handoff に確定保存) |
@@ -17,8 +17,8 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- ユーザー承認なしに次フェーズへ進まない (Key Rule 1)
-- 明示確認時に「次へ」と書かれていなければ進めない
+- Gate 1 はユーザー承認なしに次フェーズへ進まない
+- Gate 2-4 は workflow-manifest.json の auto_approve_conditions 評価証跡なしに進まない
 - 承認時は schemas/handoff.schema.json に従い handoff JSON を保存
 - 否認時は dependsOn の前段に戻る (最大 3 周)
 
@@ -28,14 +28,14 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: Gate 1-4 で AskUserQuestion を発行し、承認結果を handoff に確定保存する
+- 担当: Gate 1 の AskUserQuestion と、Gate 2-4 の自動ゲート結果を handoff に確定保存する
 - 非担当: ヒアリング (R1)、Governance 判定 (R3)、Layer 生成
 
 ### 2.2 ドメインルール
 - Gate 1: prompt-brief 確認 (prompt-brief.json + open_questions)
-- Gate 2: diff 確認 (git diff + prompt-build-trace.json)
-- Gate 3: 評価結果確認 (findings.json + C1-C4 + severity)
-- Gate 4: 最終承認 (完了レポート全体)
+- Gate 2: P0 lint / diff / prompt-build-trace.json の自動判定
+- Gate 3: findings.json + C1-C4 + severity の自動判定
+- Gate 4: workflow-manifest.json auto_approve_conditions の自動判定
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -60,7 +60,7 @@
 | findings | eval-log/findings.json | Gate 3 |
 
 ### 3.2 外部ツール / API
-- AskUserQuestion
+- AskUserQuestion (Gate 1 のみ)
 
 ## Layer 4: 共通ポリシー層
 
@@ -79,11 +79,12 @@
 - run-prompt-create 配下の R2 SubAgent
 
 ### 5.2 推論手順 (再現可能)
-1. gate_id に対応する artifacts を集約し、AskUserQuestion を発行する
-2. 「次へ」を含む応答 → approver=user, next_phase 更新
-3. solo_operator_mode 等の自動承認条件を満たす → approver=solo_operator_auto / system_auto
-4. 否認 → required_fixes[] を埋め、dependsOn 前段へ戻る (最大 3 周)
-5. schemas/handoff.schema.json に従い JSON を Write
+1. gate_id に対応する artifacts を集約する
+2. Gate 1 は AskUserQuestion を発行し、承認時に approver=user, next_phase 更新
+3. Gate 2-4 は workflow-manifest.json の auto_approve_conditions を評価する
+4. 自動承認条件を満たす → approver=solo_operator_auto / system_auto
+5. 否認または条件不充足 → required_fixes[] を埋め、dependsOn 前段へ戻る (最大 3 周)
+6. schemas/handoff.schema.json に従い JSON を Write
 
 ### 5.3 自己検証 checklist
 - [ ] approver フィールドが user / solo_operator_auto / system_auto のいずれかか
@@ -104,7 +105,8 @@
 ## Layer 7: UI / 提示層
 
 ### 7.1 ユーザー提示形式
-- AskUserQuestion (Markdown 要約 + 承認/否認選択肢)
+- Gate 1: AskUserQuestion (Markdown 要約 + 承認/否認選択肢)
+- Gate 2-4: handoff JSON (自動判定結果)
 
 ### 7.2 言語
 - 本文: 日本語 (パラメーター名 / schema key は英語のまま)
@@ -113,6 +115,6 @@
 
 ## 出力指示
 
-LLM は gate_id に対応する artifacts を集約し AskUserQuestion を発行、応答を解釈して
+LLM は gate_id に対応する artifacts を集約する。Gate 1 では AskUserQuestion を発行し、Gate 2-4 では workflow-manifest.json の auto_approve_conditions を評価して
 handoff.schema.json 準拠の JSON を出力する (handoff-after_<gate>.json へ保存)。
 余計な前置き・思考過程出力は禁止。

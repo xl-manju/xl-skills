@@ -1,6 +1,6 @@
 ---
 name: run-prompt-creator-7layer
-description: SubAgent向け7層プロンプトを生成・更新するとき、Prompt Templates/Self-Evaluation を充填するときに使う。
+description: 7層プロンプトを生成・更新するとき、または owner_agent 指定時に Prompt Templates/Self-Evaluation を充填するときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[--responsibility-id <R-id>] [--output <path>] [--target-agent <path>] [--skill-brief <path>] [--format yaml|md|json|xml] [--inject-sections <list>]"
@@ -34,6 +34,7 @@ reference_refs:
   - references/workflow-guide.md
   - references/writing-style-principles.md
   - references/prompt-sheet-template.md
+  - references/idempotent-update-policy.md
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
 source: doc/prompt-creator/  # 4 scripts (generate_sheet/validate_sheet/scaffold_prompt/log_usage) + LOGS.md を含めて再取り込み済み
 source-tier: internal
@@ -53,15 +54,20 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-skill-brief またはユーザー要求から **7 層プロンプト** (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) を生成し、SubAgent .md の Prompt Templates / Self-Evaluation を自動充填。
+ユーザー要求またはヒアリング結果から、**成果物としての 7 層構造プロンプト** を生成する。
+7 層: L1 基本定義 / L2 ドメイン定義 / L3 インフラストラクチャ / L4 共通ポリシー / L5 エージェント定義 / L6 オーケストレーション / L7 ユーザーインタラクション。
+Layer 5 はゴールシーク型 (達成ゴール+完了チェックリスト+実行方式)。固定手順は書かず、手順はエージェントが実行時に自律生成する。
 
-**入力**: `--responsibility-id <R-id>` (skill-local-v1 既定で必須、`brief.responsibilities[].id` と 1:1) / `--output <path>` (省略時は規約パス自動解決) / `--target-agent` (任意、owner_agent がある場合のみ注入) / `--skill-brief` / `--format` (yaml 既定) / `--inject-sections` (既定: "Prompt Templates,Self-Evaluation")
+本スキルの責務は **エンドユーザー向け成果物プロンプトの生成** に純化する。SubAgent .md の Prompt Templates / Self-Evaluation への注入は、owner_agent 指定時のみ行う付随機能 (legacy) であり、本スキルの主目的ではない。
+
+**入力**: `--responsibility-id <R-id>` (skill-local-v1 既定で必須、`brief.responsibilities[].id` と 1:1) / `--output <path>` (省略時は規約パス自動解決) / `--target-agent` (任意、owner_agent がある場合のみ注入) / `--skill-brief` / `--format` (md 既定、yaml は内部正規形または legacy 互換) / `--inject-sections` (既定: "Prompt Templates,Self-Evaluation")
 
 **出力 (path_convention で切替)**:
-- `skill-local-v1` (既定): `plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml` — `references/prompt-placement-convention.md` (skill-creator 側) 準拠、`validate-build-trace.py` が正規表現と sha256 で機械検証
+- `skill-local-v1` (既定): `plugins/<plugin>/skills/<skill>/prompts/<R-id>-<slug>.md` — `references/prompt-placement-convention.md` (skill-creator 側) 準拠、`validate-build-trace.py` が正規表現と sha256 で機械検証
 - `agents-legacy` (`--responsibility-id` 省略時のみ): `plugins/<plugin>/agents/prompts/<role>.yaml` — 後方互換、brief.responsibilities[] が空の ref/wrap/delegate 用
 - 対象 SubAgent .md への自動注入 (Edit、owner_agent がある場合のみ)
-- `eval-log/prompt-creator-trace.json` (必須フィールド: `path_convention`, `responsibility_id`, `layer_yaml_path`, `sha256`)
+- `eval-log/prompt-build-trace.json` (`run-prompt-create/schemas/build-trace.schema.json` 互換)
+- `eval-log/prompt-creator-trace.json` (worker-local trace。必須フィールド: `path_convention`, `responsibility_id`, `layer_artifact_path`, `sha256`)
 
 **完了条件**: `verify_completeness.js` PASS + `validate_prompt.js` PASS + `lint-agent-prompt-section.py` PASS。
 
@@ -75,7 +81,10 @@ skill-brief またはユーザー要求から **7 層プロンプト** (Role/Con
 6. **300 行制約**: SKILL.md / SubAgent 各 300 行以下。
 7. **ループ整合性**: run-build-skill 呼出時は `lint-agent-prompt-section.py` 通過必須。FAIL 時最大 3 回自律修正→未達なら orchestrator 差戻。
 8. **責務境界**: 担当は Prompt Templates / Self-Evaluation の 2 セクションのみ。9 セクション骨格は run-build-skill 責務。
-9. **Markdown 既定**: prompt 出力は **Markdown 形式 (`.md`) を既定**とし、骨格は `references/seven-layer-markdown-template.md` を写経する (`.yaml` は legacy フォールバックのみ許容、新規作成禁止)。
+9. **Markdown 既定**: prompt 出力は **Markdown 形式 (`.md`) を既定**とする。論理構造の正本は `references/seven-layer-format.md`。内部正規形は YAML (scaffold/merge/verify の前提) とし、最終成果物は `convert_format.js` で Markdown へ変換する。`references/seven-layer-markdown-template.md` は提示形式の補助テンプレ。
+10. **ゴールシーク**: Layer 5 に固定手順 (思考プロセスのステップ列挙) を書かない。達成ゴール+完了チェックリストを宣言し、手順は実行時にエージェントが自律生成する。`verify_completeness.js` が固定手順を検出したら FAIL。
+11. **冪等更新 (重複回避・上書き優先)**: 既存プロンプトを改善するときは闇雲に追加せず、先に既存を原子要素へ分解・分析し、類似要素があれば上書き統合・無ければ新規追加する。同一意図の要素が 2 つ以上残ったら FAIL。正本 `references/idempotent-update-policy.md`。
+12. **セッション分離**: ゴールシーク反復は SubAgent / エージェントチームで分離 context で実行する。中間探索情報を親 context に流さず、親へは最終差分と完了判定のみ返す (現セッション汚染防止)。
 
 ## End-to-End Flow
 
@@ -110,14 +119,14 @@ brief 既知部分は重複質問せず差分のみ。出力: `eval-log/prompt-c
 ### Phase 2: シート生成
 
 ```bash
-node scripts/validate_prompt.js --input eval-log/prompt-creator-trace.json --phase hearing
+node scripts/validate_prompt.js --input eval-log/hearing-result.json --phase hearing --schema plugins/prompt-creator/skills/run-prompt-elicit/schemas/hearing-result.schema.json
 ```
 
 AI 推定は導出確認→ユーザー承認。
 
 ### Phase 3: フォーマット選択
 
-ループ呼出時 `--format yaml` 既定で skip。それ以外は AskUserQuestion。
+ループ呼出時 `--format md` 既定で skip。それ以外は AskUserQuestion。YAML は内部正規形または legacy 互換に限定する。
 
 ### Phase 4-A: Layer 単位生成
 
@@ -125,17 +134,17 @@ SubAgent: `prompt-creator-generate-prompt`
 
 Layer 役割 (Clean Architecture / DDD):
 
-| Layer | 役割 | DDD |
+| Layer | 役割 | Clean Arch / DDD |
 |---|---|---|
-| L1 Role | Enterprise Rules | Value Objects |
-| L2 Context | Entities | ユビキタス言語 |
-| L3 Principles | Frameworks | ACL |
-| L4 Workflow | App Rules | 横断的関心事 |
-| L5 Constraints | Use Cases | 境界 Context |
-| L6 Output | Controllers | Saga |
-| L7 Evaluation | Adapters | App Service |
+| L1 基本定義 | 最上位の不変原則・倫理ガード | Enterprise Rules / Value Objects |
+| L2 ドメイン定義 | 本質ロジック・用語集・ビジネスルール | Entities / ユビキタス言語 |
+| L3 インフラストラクチャ | 外部ツール・API 接続 | Frameworks / ACL |
+| L4 共通ポリシー | 横断的関心事 (失敗時挙動・観測・セキュリティ) | App Rules / 横断的関心事 |
+| L5 エージェント定義 | ゴール駆動の実行主体 (ゴール定義+完了チェックリスト) | Use Cases / 境界 Context |
+| L6 オーケストレーション | ゴールシーク制御・ハンドオフ | Controllers / Saga |
+| L7 ユーザーインタラクション | 初回入力・提示形式 | Adapters / App Service |
 
-依存方向: L7→L6→...→L1。詳細: `references/seven-layer-format.md`。
+依存方向: L7→L6→...→L1。Layer 5 は固定手順を持たず、ゴールと完了チェックリストで宣言する。詳細: `references/seven-layer-format.md`。
 
 合算: `node scripts/merge_layers.js --layers tmp/prompt-layers/ --output tmp/prompt.yaml`
 
@@ -149,9 +158,10 @@ Pass 0 (動的基準生成) → Pass 1 網羅性 → Pass 2 整合性 → Pass 3
 
 ```bash
 node scripts/verify_completeness.js --input tmp/prompt.yaml
+node scripts/validate_prompt.js --input tmp/prompt.yaml --phase prompt
 ```
 
-未充足あれば generate-prompt 再起動 (最大 3 回)。
+未充足あれば generate-prompt 再起動 (最大 3 回)。既存改善時は冪等更新 (`idempotent-update-policy.md`): 分解→類似は上書き統合・無ければ新規。反復は SubAgent/チームで分離 context で回し、親へは最終差分のみ返す。
 
 ### Phase 4-D: 変換+注入
 
@@ -180,12 +190,17 @@ exit 0 でループ完了。FAIL は Phase 4-A 再起動 (最大 3 周)。
 5. doc/prompt-creator/ は deprecated、正本は plugins/。
 6. 自律修正 3 回上限、超過時 orchestrator 差戻。
 7. 9 セクション骨格生成禁止 (run-build-skill 責務)。
+8. Layer 5 固定手順禁止 (思考プロセスのステップ列挙)。ゴール定義+完了チェックリストで宣言。
+9. ヒアリングで固定手順を収集しない (goals/checklist を収集、steps は廃止)。
+10. 既存改善時の重複追加禁止 (分析せず追加で肥大化させない)。類似は上書き統合。
+11. ゴールシークを現セッション直書きで回さない (SubAgent/チームで分離、中間情報を親に漏らさない)。
 
 ## Additional Resources
 
 - `references/seven-layer-format.md` — 7 層 YAML 正本テンプレ (Phase 4-A 直前読込)
 - `references/workflow-guide.md` — Phase 1-4 詳細
-- `references/quality-criteria.md` — 4 パス評価基準
+- `references/quality-criteria.md` — 4 パス評価基準 + §8 冪等更新基準
+- `references/idempotent-update-policy.md` — 既存改善時の重複回避・上書き優先・セッション分離 (Phase 4-B/4-C 直前読込)
 - `references/writing-style-principles.md` — 記述スタイル
 - `references/prompt-sheet-template.md` — シート項目
 - `schemas/hearing-result.schema.json` — Phase 1 スキーマ

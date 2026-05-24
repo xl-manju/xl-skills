@@ -12,6 +12,7 @@ effect: conversation-output
 role_suffix: evaluator
 owner: team-platform
 since: 2026-05-17
+version: 0.1.0
 rubric_refs:
   - ref-skill-design-rubric              # L0: 共通 (固定)
   # L1: ドメイン rubric は CLI --rubric-refs で append される (rubric-registry.json 経由)
@@ -20,7 +21,7 @@ reference_refs:
   - references/evaluator-contract.md
 script_refs:
   - scripts/render-findings-score.py
-  - ../../scripts/compose-rubrics.py
+  - ../../../skill-governance-automation/scripts/compose-rubrics.py
 merge_strategy: deep-merge
 conflict_policy: most-specific-wins
 # auto-backfilled by backfill-source-tier.py (doc/21)
@@ -75,69 +76,62 @@ forkコンテキストで動き、生成本体（run-build-skill）と context �
 4. **severity weights固定**: high -20 / medium -10 / low -3、初期 100。負値は 0 にクランプ。
 5. **rubric_hash必須**: 出力JSONに rubric.json の sha256 を載せる（再現性、27章）。
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: rubric ロード
+evaluator は一度の採点で完結する read-only 工程。**ループは回さず**、採点の網羅性を完了チェックリストで担保する（正本 `run-build-skill/references/goal-seek-paradigm.md` 「評価系 (assign-*-evaluator) の扱い」）。
 
-```bash
-# self-relative: SKILL.md と同階層の scripts/ / references/ を解決。
-# CLAUDE_SKILL_DIR が未設定なら creator-kit / .claude 両配置を fallback で探索。
-SKILL_DIR="${CLAUDE_SKILL_DIR:-}"
-if [ -z "$SKILL_DIR" ]; then
-  if [ -f "plugins/skill-creator/skills/assign-skill-design-evaluator/scripts/render-findings-score.py" ]; then
-    SKILL_DIR="plugins/skill-creator/skills/assign-skill-design-evaluator"
-  elif [ -f ".claude/skills/assign-skill-design-evaluator/scripts/render-findings-score.py" ]; then
-    SKILL_DIR=".claude/skills/assign-skill-design-evaluator"
-  else
-    SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+### ゴール (Goal)
+
+全 rubric 項目を採点し、各 findings にエビデンス（loc）と severity を付与し、最終 score を算出した JSON 1 オブジェクトが STDOUT に出力され、eval-log へ append 済みになっている。
+
+### 目的・背景 (Why)
+
+生成本体（`run-build-skill`）と context を共有しない fork で被採点物を改変せず採点することで、Goodhart/Sycophancy を避け再現可能な品質ゲートを成立させる。
+
+### 完了チェックリスト (Checklist)
+
+- [ ] 全 rubric 項目（FM/BD/NM/PD/RG 系）を評価し終えている
+- [ ] 各 finding に loc エビデンスと severity (high/medium/low) が付いている
+- [ ] severity weight (high -20 / medium -10 / low -3、初期 100、負値は 0 クランプ) で score を算出済み
+- [ ] 出力 JSON が `schemas/evaluator-output.schema.json` / `references/evaluator-contract.md` に準拠し rubric_hash を含む
+- [ ] STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/skill-build-trace.jsonl` へ append 済み
+
+### 採点フロー（局面カタログ・順序は都度判断）
+
+- **rubric ロード**: self-relative で scripts/references を解決し、`render-findings-score.py` を L0→L1→L2 の順で合成して呼ぶ。
+
+  ```bash
+  SKILL_DIR="${CLAUDE_SKILL_DIR:-}"
+  if [ -z "$SKILL_DIR" ]; then
+    if [ -f "plugins/skill-creator/skills/assign-skill-design-evaluator/scripts/render-findings-score.py" ]; then
+      SKILL_DIR="plugins/skill-creator/skills/assign-skill-design-evaluator"
+    elif [ -f ".claude/skills/assign-skill-design-evaluator/scripts/render-findings-score.py" ]; then
+      SKILL_DIR=".claude/skills/assign-skill-design-evaluator"
+    else
+      SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+    fi
   fi
-fi
-UPSTREAM="${SKILL_DESIGN_RUBRIC:-plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json}"
-# L1: DOMAIN_RUBRIC_REFS は run-build-skill が brief.domain から rubric-registry.json 経由で解決し、空白区切りで渡す。
-# 未設定なら L0 + L2 のみで合成される (L1 スキップ)。
-L1_REFS="${DOMAIN_RUBRIC_REFS:-}"
-python3 "$SKILL_DIR/scripts/render-findings-score.py" \
-  --rubric-refs "$UPSTREAM" $L1_REFS "$SKILL_DIR/references/rubric.json" \
-  --target "$TARGET" --emit-hash
-```
+  UPSTREAM="${SKILL_DESIGN_RUBRIC:-plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json}"
+  # L1: DOMAIN_RUBRIC_REFS は run-build-skill が brief.domain から rubric-registry.json 経由で空白区切りで渡す。未設定なら L0 + L2 のみ。
+  L1_REFS="${DOMAIN_RUBRIC_REFS:-}"
+  python3 "$SKILL_DIR/scripts/render-findings-score.py" \
+    --rubric-refs "$UPSTREAM" $L1_REFS "$SKILL_DIR/references/rubric.json" \
+    --target "$TARGET" --emit-hash
+  ```
 
-合成順序は **L0 → L1 → L2** (リスト末尾が最 specific)。`merge_strategy: deep-merge` + `conflict_policy: most-specific-wins` により末尾が優先される。別ドメインを追加する場合も evaluator 本体は変えず、`plugins/skill-governance-config/config/rubric-registry.json` に L1 を登録するだけで済む（設計書29 §7.1）。
+  合成順序は **L0 → L1 → L2** (末尾が最 specific)。`deep-merge` + `most-specific-wins` で末尾優先。別ドメイン追加時も本体は変えず `rubric-registry.json` に L1 登録するだけ（設計書29 §7.1）。
+- **静的検査**: Read / Grep / lint-* で findings 収集 — FM-001..005 (`validate-frontmatter.py`)、BD-001..004 (Output contract / Gotchas / 行数 / BD-004=TODO(human))、NM-001..003 (`lint-skill-name.py`, `lint-skill-tree.py`)、PD-001 (本文100行超なら references/ 必須)、RG-001 (rubric_hash 埋め込み)。
+- **スコア計算**: `render-findings-score.py` に findings を渡し severity weight で減点。
+- **JSON 出力**: `references/evaluator-contract.md` のスキーマ通り STDOUT 1 行で出す。threshold 未達は `passed=false`。run-build-skill が `findings[*].message` を元に再生成する。
+- **eval-log 永続化 (必須・F1 規約)**: STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/skill-build-trace.jsonl` へ append。自己進化ループ（設計書23章）の入力ストックを確保する唯一の書き込み経路。
 
-### Step 2: 静的検査の実行
+  ```bash
+  python3 "$SKILL_DIR/scripts/render-findings-score.py" ... \
+    | tee /dev/tty \
+    | python3 plugins/skill-governance-automation/scripts/write-eval-log.py
+  ```
 
-各ルールについて Read / Grep / lint-* スクリプト で findings を集める:
-
-- FM-001..005: frontmatter検査（`validate-frontmatter.py`）
-- BD-001..004: 本文検査（Output contract / Gotchas / 行数 / BD-004=TODO(human)）
-- NM-001..003: 命名/構造（`lint-skill-name.py`, `lint-skill-tree.py`）
-- PD-001: Progressive Disclosure（本文100行超なら references/ 必須）
-- RG-001: rubric_hash の埋め込み
-
-### Step 3: スコア計算
-
-`render-findings-score.py` に findings リストを渡し、severity weight で減点。
-
-### Step 4: JSON出力
-
-`references/evaluator-contract.md` のスキーマ通りに STDOUT 1行で出す。
-threshold 未達なら `passed=false`。run-build-skill が `findings[*].message` を元に再生成する。
-
-### Step 5: eval-log への永続化（必須・F1 規約）
-
-評価完了後、STDOUTのJSONを `plugins/skill-governance-automation/scripts/write-eval-log.py` 経由で
-`eval-log/skill-build-trace.jsonl` へ append する。自己進化ループ（設計書23章）の
-**入力ストック** を確保するための唯一の書き込み経路。
-
-```bash
-# STDOUT を直接パイプ
-python3 "$SKILL_DIR/scripts/render-findings-score.py" ... \
-  | tee /dev/tty \
-  | python3 plugins/skill-governance-automation/scripts/write-eval-log.py
-```
-
-`write-eval-log.py` は schema 検証・`recorded_at`/`schema_version` 自動付与を行う。
-書き込み失敗（exit != 0）の場合は本Skill全体を非ゼロ exit で終え、上位 runbook に
-報告する。**直接 `echo >> jsonl` 追記は禁止**（スキーマ事故防止）。
+  `write-eval-log.py` は schema 検証・`recorded_at`/`schema_version` 自動付与を行う。書き込み失敗 (exit != 0) なら本 Skill 全体を非ゼロ exit で終え上位 runbook に報告する。**直接 `echo >> jsonl` 追記は禁止**（スキーマ事故防止）。
 
 ## Gotchas
 

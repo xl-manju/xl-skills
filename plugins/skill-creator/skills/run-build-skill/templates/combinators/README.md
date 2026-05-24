@@ -23,7 +23,7 @@
 
 | kind | combinator | 補足 |
 |---|---|---|
-| `run` | `with-run.patch` | `## Steps` セクション骨格を注入 |
+| `run` | `with-run.patch` | `## ゴールシーク実行` (Goal+Checklist+Loop) を注入 |
 | `ref` | `with-ref.patch` | `## 参照内容` セクション、`disable-model-invocation: true` を frontmatter に注入 |
 | `assign` + `role_suffix: generator` | `with-assign-generator.patch` | `## 生成契約` セクション、`pair:` 必須を注入 |
 | `assign` + `role_suffix: evaluator` | `with-assign-evaluator.patch` | `## Evaluator Contract` + `context: fork` + `user-invocable: false` を注入 |

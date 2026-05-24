@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// convert_format.js — YAML → md/json/xml 変換 (Node 標準のみ、簡易 YAML パーサ実装)
-// 7 層 YAML は構造が単純 (Layer 見出し + key: value / list) なので簡易パーサで対応。
+// convert_format.js — 7層正規形YAML → md/json/xml/yaml 変換 (Node 標準のみ)
+// 設計方針: 日本語7層・ゴールシーク構造を「構造保存」で変換する。
+//   YAML 本文（key: value / リスト / - [ ] チェックリスト / 達成ゴール 等）を捨てず保持し、
+//   Layer 見出しのみ提示形式に合わせて書き換える。これにより可逆で、ゴールシーク要素を落とさない。
+// マーカーは scaffold_prompt.js / merge_layers.js が出力する「# Layer N: <title>」に一致させる。
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -15,75 +18,43 @@ function parseArgs(argv) {
   return args;
 }
 
-// 簡易 YAML パーサ: # === LN === でセクション分割、key: value と "- item" を抽出
-function parseYaml(text) {
-  const layers = {};
-  const sectionRe = /#\s*===\s*(L[1-7])\s*===([\s\S]*?)(?=#\s*===|$)/g;
-  let m;
-  while ((m = sectionRe.exec(text)) !== null) {
-    const [, name, body] = m;
-    const obj = {};
-    let currentKey = null;
-    for (const rawLine of body.split("\n")) {
-      const line = rawLine.replace(/\s+$/, "");
-      if (!line.trim() || line.trim().startsWith("#")) continue;
-      const kv = line.match(/^(\s*)([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
-      const li = line.match(/^\s*-\s+(.+)$/);
-      if (kv) {
-        currentKey = kv[2];
-        const val = kv[3].trim();
-        obj[currentKey] = val === "" ? [] : val;
-      } else if (li && currentKey && Array.isArray(obj[currentKey])) {
-        obj[currentKey].push(li[1].trim());
-      } else if (li && currentKey && typeof obj[currentKey] === "string" && obj[currentKey] === "") {
-        obj[currentKey] = [li[1].trim()];
-      }
+// 「# Layer N: <title>」マーカーで本文を 7 層に分割し、本文を verbatim 保持する。
+function parseLayers(text) {
+  const layers = [];
+  for (let n = 1; n <= 7; n++) {
+    const re = new RegExp(
+      `#+\\s*Layer\\s*${n}\\s*[:：]\\s*([^\\n]*)\\n([\\s\\S]*?)(?=#+\\s*Layer\\s*${n + 1}\\s*[:：]|$)`
+    );
+    const m = text.match(re);
+    if (m) {
+      layers.push({ n, title: m[1].trim(), body: m[2].replace(/\s+$/g, "") });
     }
-    layers[name] = obj;
   }
   return layers;
 }
 
 function toMd(layers) {
-  const names = { L1: "Role", L2: "Context", L3: "Principles", L4: "Workflow",
-                  L5: "Constraints", L6: "Output", L7: "Evaluation" };
-  const out = ["# 7-Layer Structured Prompt", ""];
-  for (const L of ["L1","L2","L3","L4","L5","L6","L7"]) {
-    out.push(`## ${L}: ${names[L]}`);
-    const obj = layers[L] || {};
-    for (const k of Object.keys(obj)) {
-      const v = obj[k];
-      if (Array.isArray(v)) {
-        out.push(`- **${k}**:`);
-        for (const it of v) out.push(`  - ${it}`);
-      } else {
-        out.push(`- **${k}**: ${v}`);
-      }
-    }
-    out.push("");
+  const out = ["# 7層構造プロンプト", ""];
+  for (const { n, title, body } of layers) {
+    out.push(`## Layer ${n}: ${title}`, "");
+    if (body.trim()) out.push(body.trimEnd(), "");
   }
   return out.join("\n");
 }
 
-function toJson(layers) { return JSON.stringify(layers, null, 2); }
+function toJson(layers) {
+  return JSON.stringify(
+    layers.map(({ n, title, body }) => ({ layer: n, title, body: body.trim() })),
+    null,
+    2
+  );
+}
 
 function toXml(layers) {
-  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const parts = ['<?xml version="1.0" encoding="UTF-8"?>', "<prompt>"];
-  for (const L of ["L1","L2","L3","L4","L5","L6","L7"]) {
-    parts.push(`  <layer name="${L}">`);
-    const obj = layers[L] || {};
-    for (const k of Object.keys(obj)) {
-      const v = obj[k];
-      if (Array.isArray(v)) {
-        parts.push(`    <${k}>`);
-        for (const it of v) parts.push(`      <item>${esc(it)}</item>`);
-        parts.push(`    </${k}>`);
-      } else {
-        parts.push(`    <${k}>${esc(v)}</${k}>`);
-      }
-    }
-    parts.push(`  </layer>`);
+  for (const { n, title, body } of layers) {
+    parts.push(`  <layer n="${n}" title="${esc(title)}"><![CDATA[\n${body}\n]]></layer>`);
   }
   parts.push("</prompt>");
   return parts.join("\n");
@@ -92,17 +63,24 @@ function toXml(layers) {
 function main() {
   const { input, format, output } = parseArgs(process.argv);
   if (!input || !output) {
-    console.error("usage: convert_format.js --input <yaml> --format md|json|xml --output <file>");
+    console.error("usage: convert_format.js --input <yaml> --format md|json|xml|yaml --output <file>");
     process.exit(2);
   }
   const text = fs.readFileSync(input, "utf8");
-  const layers = parseYaml(text);
   let out;
-  if (format === "md") out = toMd(layers);
-  else if (format === "json") out = toJson(layers);
-  else if (format === "xml") out = toXml(layers);
-  else if (format === "yaml") out = text;
-  else { console.error(`unknown format: ${format}`); process.exit(2); }
+  if (format === "yaml") {
+    out = text;
+  } else {
+    const layers = parseLayers(text);
+    if (layers.length === 0) {
+      console.error("[ERROR] Layer マーカー (# Layer N:) が見つかりません。正規形YAMLか確認してください。");
+      process.exit(1);
+    }
+    if (format === "md") out = toMd(layers);
+    else if (format === "json") out = toJson(layers);
+    else if (format === "xml") out = toXml(layers);
+    else { console.error(`unknown format: ${format}`); process.exit(2); }
+  }
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, out);
   console.log(`converted → ${output} (${format})`);

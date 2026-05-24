@@ -1,12 +1,18 @@
 # run-skill-elicit / main.yaml
-# 曖昧な skill 要望を brief.json (5 項目) へ構造化する 7 層プロンプト。
+# 曖昧な skill 要望を skill-brief.json へ構造化する 7 層プロンプト (要件抽出の推論リファレンス)。
+#
+# !! 正本従属 !!
+#   出力フィールドの正本は ../run-skill-create/schemas/skill-brief.schema.json (13 必須フィールド) ただ 1 つ。
+#   聞き取りフロー (5 prefix 判定 / hierarchy / boundary / goal-checklist 抽出) の正本は SKILL.md ## Steps。
+#   本 YAML は Wiegers 流の要件抽出推論を補助するリファレンスであり、契約 (schema) を再定義しない。
+#   (legacy: かつての 5 項目 topic/purpose/trigger/io 設計は廃止。schema は上記正本へ一本化済み)
 #
 # 元 top-level (保持メタ):
 #   responsibility: R1
 #   layers: [L2, L4, L5, L6]
 #   skill: run-skill-elicit
 #   inputs:  topic (optional)
-#   outputs: eval-log/skill-brief.json (schemas/output.schema.json)
+#   outputs: eval-log/skill-brief.json (正本: ../run-skill-create/schemas/skill-brief.schema.json)
 
 # Layer 1: 基本定義層
 基本定義:
@@ -22,7 +28,7 @@
       ユーザの skill 化要望は自然言語で曖昧。
       5 項目テンプレに沿って最小対話で構造化する必要がある。
     期待される成果: |
-      schemas/output.schema.json 準拠の skill-brief.json (purpose / trigger / inputs / outputs / constraints)。
+      正本スキーマ (../run-skill-create/schemas/skill-brief.schema.json) 準拠の skill-brief.json。フィールド集合と必須条件はスキーマ正本に従う (SKILL.md ## Steps が聞き取り順の正本)。
     成功基準: |
       対話 5 ターン以内で schema PASS + trigger_phrases >= 2 件の brief を生成。
     スコープ:
@@ -70,7 +76,7 @@
     出力制約:
       ID: "OUTPUT_CONST"
       内容: |
-        eval-log/skill-brief.json を schemas/output.schema.json 準拠で書く。
+        eval-log/skill-brief.json を正本スキーマ (../run-skill-create/schemas/skill-brief.schema.json) 準拠で書く。
 
 # Layer 3: インフラストラクチャ定義層
 インフラストラクチャ:
@@ -129,7 +135,7 @@
     評価優先度: ["schema_conformance", "trigger_count>=2"]
     評価項目:
       - 項目名: "schema_conformance"
-        観点: "output.schema.json 準拠"
+        観点: "skill-brief.schema.json (正本) 準拠"
         合格条件: "validator PASS"
         不合格時アクション: "elicit を再実行"
       - 項目名: "trigger_count"
@@ -235,7 +241,7 @@
 
         ビジネスルール:
           - ID: "CONST_001"
-            内容: "TODO(human): 各項目の追従質問テンプレを brief-template.md に整備する。"
+            内容: "各項目の追従質問は SKILL.md ## Steps を正本とする (brief-template.md は正本スキーマへのポインタ)。"
           - ID: "CONST_002"
             内容: "対話は 5 ターン以内目安。"
 

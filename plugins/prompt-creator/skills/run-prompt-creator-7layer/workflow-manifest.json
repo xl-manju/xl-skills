@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-prompt-creator-7layer",
   "skill": "run-prompt-creator-7layer",
-  "description": "skill-brief または対話入力から 7 層プロンプト (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) を Layer 単位で生成し SubAgent .md に注入する。",
+  "description": "skill-brief または対話入力から 7 層プロンプト (L1 基本定義 / L2 ドメイン / L3 インフラ / L4 共通ポリシー / L5 エージェント / L6 オーケストレーション / L7 ユーザーインタラクション) を Layer 単位で生成する。SubAgent .md 注入は owner_agent ありの場合のみ行う。",
   "phases": [
     {
       "id": "P1-hearing",
@@ -19,7 +19,7 @@
     {
       "id": "P2-scaffold",
       "step": 2,
-      "title": "scaffold_prompt.js で Layer 別 yaml 雛形を生成",
+      "title": "scaffold_prompt.js で Layer 別内部正規形 YAML 雛形を生成",
       "gate": "C2",
       "dependsOn": ["P1-hearing"],
       "entryHook": null,
@@ -41,7 +41,7 @@
     {
       "id": "P4-merge",
       "step": 4,
-      "title": "merge_layers.js で 7 Layer を 1 prompt yaml に統合",
+      "title": "merge_layers.js で 7 Layer を内部正規形 YAML に統合し、指定 format へ変換",
       "gate": "C4",
       "dependsOn": ["P3-layer-emit"],
       "entryHook": null,

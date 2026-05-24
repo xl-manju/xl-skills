@@ -2,12 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/plugins/skill-creator/run-skill-create/schemas/skill-brief.schema.json",
   "title": "Skill Brief (machine-readable)",
-  "description": "run-skill-elicit → run-build-skill / run-skill-create に渡される skill-brief.json の正本スキーマ。詳細プロパティ定義は references/skill-brief-schema.json を参照 (内容同期)。本ファイルは workflow-manifest.json から resourceId として参照される機械可読版。",
+  "description": "run-skill-elicit → run-build-skill / run-skill-create に渡される skill-brief.json の**単一正本スキーマ** (機械可読・workflow-manifest.json の resourceId)。プロパティ・条件付き必須ルール (allOf)・検証ポリシーを全てここに集約する。references/skill-brief-schema.json は本ファイルへの薄いリダイレクト (再掲しない)。",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "skill_name",
     "prefix",
+    "kind",
     "hierarchy_level",
     "trigger_conditions",
     "output_contract",
@@ -29,6 +30,9 @@
     "trigger_conditions": {"type": "array", "items": {"type": "string", "maxLength": 80}, "minItems": 2, "maxItems": 3},
     "output_contract": {"type": "string"},
     "key_constraints": {"type": "array", "items": {"type": "string"}},
+    "goal": {"type": "string", "description": "ゴールシーク用。達成すべき最終状態を観測可能な完了形1文で。実行系kindで推奨。未指定時はoutput_contractの完了条件から導出。"},
+    "purpose_background": {"type": "string", "description": "ゴールシーク用。なぜこのゴールか (目的・背景)。手順生成時の優先順位の根拠。"},
+    "checklist": {"type": "array", "items": {"type": "string"}, "description": "ゴールシーク用。ゴール達成の受入基準 (二値判定可能)。実行系kindで推奨。未指定時はoutput_contract/key_constraintsから導出。"},
     "boundary": {"type": "string", "minLength": 1, "maxLength": 200},
     "deterministic_checks": {"type": "array", "items": {"type": "string"}},
     "external_systems": {"type": "array", "items": {"type": "string"}},
@@ -64,5 +68,71 @@
     "responsibilities": {"type": "array", "items": {"type": "object"}},
     "prompt_creator_policy": {"type": "string", "enum": ["required", "optional", "skip", "auto"]},
     "additional_resources": {"type": "array", "items": {"type": "object"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"prefix": {"const": "wrap"}}},
+      "then": {"required": ["base_skill"], "properties": {"base_skill": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "delegate"}}},
+      "then": {"required": ["delegate_agent"], "properties": {"delegate_agent": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"hierarchy_level": {"const": "L2"}}},
+      "then": {"required": ["rubric_refs"], "properties": {"rubric_refs": {"type": "array", "minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"enum": ["run", "wrap", "assign", "delegate"]}}, "required": ["prefix"]},
+      "then": {
+        "required": ["goal", "purpose_background", "checklist"],
+        "properties": {"checklist": {"type": "array", "minItems": 1}}
+      }
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "ref"}}, "required": ["prefix"]},
+      "then": {"properties": {"kind": {"const": "ref"}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "run"}}, "required": ["prefix"]},
+      "then": {"properties": {"kind": {"const": "run"}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "wrap"}}, "required": ["prefix"]},
+      "then": {"properties": {"kind": {"const": "wrap"}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "assign"}}, "required": ["prefix"]},
+      "then": {"properties": {"kind": {"const": "assign"}}}
+    },
+    {
+      "if": {"properties": {"prefix": {"const": "delegate"}}, "required": ["prefix"]},
+      "then": {"properties": {"kind": {"const": "delegate"}}}
+    },
+    {
+      "if": {"properties": {"kind": {"enum": ["run", "assign"]}}, "required": ["kind"]},
+      "then": {
+        "required": ["responsibilities"],
+        "properties": {
+          "responsibilities": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {"type": "object", "properties": {"prompt_required": {"const": true}}, "required": ["prompt_required"]}
+          }
+        }
+      }
+    }
+  ],
+  "x-validation-policy": {
+    "comment": "緩め方針: 構造的必須 (prefix/wrap/delegate/L2分岐・kind→responsibilities) のみ allOf で強制。文字数・個数は上限のみ。ソフト推奨 (role_suffix=evaluator → pair 推奨等) は lint レイヤーで警告に留める。詳細根拠は doc/06・01a・29 章。",
+    "policy_decisions": {
+      "skill_name_max": "60 (緩め)",
+      "trigger_item_max_chars": "80 (緩め)",
+      "boundary_max_chars": "200 (緩め)",
+      "open_questions_max": "10 (緩め、超過は警告のみ)",
+      "L0_rubric_refs": "空配列許容 (L0 は被参照のみ、29章原則)",
+      "responsibilities_required_when": "kind ∈ {run, assign} で minItems=1 + prompt_required=true を含む (contains)。ref/wrap/delegate は空配列許容。",
+      "prompt_creator_policy_resolution": "auto → kind 別 default (run/assign=required, ref/wrap=optional, delegate=skip)。validate-build-trace.py が trace と突合。"
+    }
   }
 }

@@ -1,7 +1,12 @@
 ---
 description: xl-skills の plugin bundle を 1 コマンドで一括 install する。Claude Code 公式に依存解決機構がないため、bundles.json の定義に従って関連 plugin を順次 install する。
 argument-hint: "<bundle-name>  例: xl-skills-full / xl-skills-minimal / xl-skills-intake"
+allowed-tools: Read, Bash
+name: install-bundle
 kind: command
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # /skill-creator:install-bundle

@@ -12,12 +12,12 @@
 | responsibility | R3 (Step 5 governance 承認判定) |
 | layers_covered | [L5, L6, L7] |
 | output_schema | schemas/handoff.schema.json |
-| reproducible | true (4 条件機械評価) |
+| reproducible | true (workflow-manifest.json の auto_approve_conditions 機械評価) |
 
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- 4 条件を機械的に評価する (LLM 判断で甘くしない)
+- workflow-manifest.json の auto_approve_conditions を機械的に評価する (LLM 判断で甘くしない)
 - solo_operator_mode=false なら必ず手動承認フロー
 - 判定結果は handoff-after_prompt_governance.json に書き出す
 
@@ -31,11 +31,7 @@
 - 非担当: ヒアリング (R1)、Gate 確認 (R2)、Layer 生成
 
 ### 2.2 ドメインルール
-自動承認条件 (全て満たす場合のみ solo_auto_approved):
-1. solo_operator_mode == true
-2. 安定版凍結済み (stable_frozen == true)
-3. newly_failing == 0
-4. LLM-reviewer pass (findings の verdicts 全て PASS or N/A)
+自動承認条件: `workflow-manifest.json` の governance phase にある `auto_approve_conditions` を SSOT とする。`references/governance-params.json` は `solo_operator_mode` などの評価パラメーターを提供する。
 
 いずれか欠ければ run-skill-rubric-governance を起動し通常 governance フローへ遷移する。
 
@@ -82,13 +78,14 @@
 
 ### 5.2 推論手順 (再現可能)
 1. references/governance-params.json を Read し solo_operator_mode を取得
-2. eval-log/findings.json と evaluator_result を Read し 4 条件を機械評価
-3. 4 条件全充足 → approver=solo_operator_auto で handoff 出力
-4. いずれか不充足 → Skill(run-skill-rubric-governance) を起動し approver=user で handoff 出力
-5. handoff-after_prompt_governance.json に書き出す
+2. workflow-manifest.json の governance.auto_approve_conditions を Read
+3. eval-log/findings.json と evaluator_result を Read し全条件を機械評価
+4. 全条件充足 → approver=solo_operator_auto で handoff 出力
+5. いずれか不充足 → Skill(run-skill-rubric-governance) を起動し approver=user で handoff 出力
+6. handoff-after_prompt_governance.json に書き出す
 
 ### 5.3 自己検証 checklist
-- [ ] 4 条件を機械的に評価したか (LLM 判断で甘くしていないか)
+- [ ] workflow-manifest.json の auto_approve_conditions を機械的に評価したか
 - [ ] solo_operator_mode=false なら必ず手動承認フローに回したか
 - [ ] 否認時の required_fixes[] が後続 Step に再投入可能な形か
 - [ ] approver フィールドが正しく solo_operator_auto / user のどちらかか
@@ -115,6 +112,6 @@
 
 ## 出力指示
 
-LLM は governance-params.json + findings + evaluator_result から 4 条件を機械評価し、
+LLM は workflow-manifest.json + governance-params.json + findings + evaluator_result から auto_approve_conditions を機械評価し、
 approver=solo_operator_auto / user を確定して handoff-after_prompt_governance.json を出力する。
 出力は schemas/handoff.schema.json 準拠の JSON のみ。余計な前置き・思考過程出力は禁止。

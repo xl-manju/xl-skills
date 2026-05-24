@@ -14,7 +14,8 @@ const REQUIRED_FIELDS = [
   { key: "purpose", label: "目的", priority: "必須" },
   { key: "background", label: "背景", priority: "必須" },
   { key: "success_criteria", label: "完了条件", priority: "必須" },
-  { key: "steps", label: "手順", priority: "必須", isArray: true, minLength: 3 },
+  { key: "goals", label: "達成ゴール", priority: "必須", isArray: true, minLength: 1 },
+  { key: "checklist", label: "完了チェックリスト", priority: "推奨", isArray: true, minLength: 1 },
   { key: "challenges", label: "課題", priority: "必須", isArray: true, minLength: 1 },
   { key: "required_info", label: "必要情報", priority: "推奨", isArray: true, minLength: 1 },
   { key: "constraints", label: "制約条件", priority: "推奨", isArray: true, minLength: 1 },
@@ -22,26 +23,24 @@ const REQUIRED_FIELDS = [
   { key: "test_cases", label: "テストケース", priority: "オプション", isArray: true, minLength: 1 },
 ];
 
-// ステップの出力フォーマット検証
-function validateSteps(steps) {
+// 達成ゴールの検証（ゴールシーク型: 成果状態で記述され、手順列挙でないこと）
+function validateGoals(goals) {
   const issues = [];
-  if (!Array.isArray(steps)) {
-    issues.push({ field: "steps", message: "配列ではありません" });
+  if (!Array.isArray(goals)) {
+    issues.push({ field: "goals", message: "配列ではありません" });
     return issues;
   }
-  steps.forEach((step, i) => {
-    if (!step.description || step.description.trim() === "") {
-      issues.push({ field: `steps[${i}].description`, message: `Step${i + 1}の説明が空` });
-    }
-    if (!step.output_format || step.output_format.trim() === "") {
-      issues.push({ field: `steps[${i}].output_format`, message: `Step${i + 1}の出力フォーマットが未定義` });
+  goals.forEach((goal, i) => {
+    const desc = typeof goal === "string" ? goal : (goal && goal.description) || "";
+    if (!desc || desc.trim() === "") {
+      issues.push({ field: `goals[${i}]`, message: `ゴール${i + 1}の記述が空` });
     }
   });
   return issues;
 }
 
 function validate(data) {
-  const results = { filled: [], missing: [], warnings: [], stepIssues: [] };
+  const results = { filled: [], missing: [], warnings: [], goalIssues: [] };
 
   for (const field of REQUIRED_FIELDS) {
     const value = data[field.key];
@@ -70,9 +69,9 @@ function validate(data) {
     results.filled.push({ field: field.key, label: field.label });
   }
 
-  // ステップ詳細検証
-  if (data.steps && Array.isArray(data.steps)) {
-    results.stepIssues = validateSteps(data.steps);
+  // 達成ゴール詳細検証
+  if (data.goals && Array.isArray(data.goals)) {
+    results.goalIssues = validateGoals(data.goals);
   }
 
   return results;
@@ -108,7 +107,7 @@ function main() {
   console.log(`充足: ${results.filled.length}/${REQUIRED_FIELDS.length}`);
   console.log(`未充足: ${results.missing.length}`);
   console.log(`警告: ${results.warnings.length}`);
-  console.log(`ステップ問題: ${results.stepIssues.length}\n`);
+  console.log(`ゴール問題: ${results.goalIssues.length}\n`);
 
   if (results.missing.length > 0) {
     console.log("--- 未充足フィールド ---");
@@ -126,9 +125,9 @@ function main() {
     console.log();
   }
 
-  if (results.stepIssues.length > 0) {
-    console.log("--- ステップ詳細問題 ---");
-    results.stepIssues.forEach((s) => {
+  if (results.goalIssues.length > 0) {
+    console.log("--- ゴール詳細問題 ---");
+    results.goalIssues.forEach((s) => {
       console.log(`  ${s.field}: ${s.message}`);
     });
     console.log();
@@ -140,7 +139,7 @@ function main() {
 
   // 必須フィールドが全て埋まっているかで終了コード決定
   const requiredMissing = results.missing.filter((m) => m.priority === "必須");
-  process.exit(requiredMissing.length > 0 || results.stepIssues.length > 0 ? 4 : 0);
+  process.exit(requiredMissing.length > 0 || results.goalIssues.length > 0 ? 4 : 0);
 }
 
 main();

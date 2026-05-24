@@ -15,6 +15,7 @@ kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-18
+version: 0.1.0
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
 source-tier: internal
@@ -52,77 +53,42 @@ manifest: workflow-manifest.json
 4. **参照元更新**: `pair:` / `Skill()` の旧名参照を新名に更新する。
 5. **gitの履歴保持**: `git mv` を使い、ファイル移動の履歴を残す。
 
-## Steps
+## ゴールシーク実行
 
-### Step 0: 出力先解決
+### ゴール (Goal)
 
-```bash
-python3 plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py \
-  --skill-name "$OLD_NAME" \
-  --skill-dir-name run-skill-rename \
-  > eval-log/skill-dirs.json
-```
+旧名スキルが `$OUT_BASE/<new-name>/` へ git 履歴を保ったまま改名され、frontmatter.name・aliases・CHANGELOG・全参照元 (`pair:`/`Skill()`) が新名で整合し、lint-skill-name.py / lint-skill-tree.py が exit 0 の状態になっている。
 
-### Step 1: 事前検証
+### 目的・背景 (Why)
 
-```bash
-# 旧名の存在確認
-ls "$OUT_BASE/$OLD_NAME/SKILL.md"
+ディレクトリ名・frontmatter.name・参照は同時に一致させないと参照切れを生む (第8条)。部分更新で不整合が起きやすいため、固定手順ではなく「全箇所が新名で整合した状態」へ向けて未達箇所を都度埋める。
 
-# 新名の重複確認
-ls "$OUT_BASE/$NEW_NAME" 2>/dev/null && echo "ERROR: new name already exists" && exit 1
+### 完了チェックリスト (Checklist)
 
-# 新名の命名検証
-python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --name "$NEW_NAME"
-```
+- [ ] `resolve-skill-dirs.py` で `$OUT_BASE` (eval-log/skill-dirs.json) が解決済み
+- [ ] 旧名 `$OUT_BASE/$OLD_NAME/SKILL.md` の存在を確認済み、新名 `$OUT_BASE/$NEW_NAME` は未存在 (重複なし)
+- [ ] 新名が `lint-skill-name.py --name "$NEW_NAME"` の命名規約を通過
+- [ ] ディレクトリが `git mv` で改名され git 履歴が保持されている (rm+mkdir 禁止)
+- [ ] 新 SKILL.md frontmatter の `name:` が `$NEW_NAME` に更新され、`aliases:` に `$OLD_NAME` が登録されている (第6条、参照切れ防止)
+- [ ] `references/CHANGELOG.md` に改名エントリ (date / 旧→新 / Reason / aliases) が追記されている (第6条)
+- [ ] `pair:` / `Skill()` の旧名参照を `$OUT_BASE/` 配下 SKILL.md 全体から grep し、ヒット各所が新名へ更新されている
+- [ ] `lint-skill-name.py`・`lint-skill-tree.py`・`validate-frontmatter.py` (新 SKILL.md) が全て exit 0
 
-### Step 2: ディレクトリ改名
+### ゴールシークループ
 
-```bash
-git mv "$OUT_BASE/$OLD_NAME" "$OUT_BASE/$NEW_NAME"
-```
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
 
-### Step 3: frontmatter 更新
-
-`$OUT_BASE/$NEW_NAME/SKILL.md` を Edit:
-- `name: $OLD_NAME` → `name: $NEW_NAME`
-- `aliases:` に `$OLD_NAME` を追加（なければ新規追加）
-
-### Step 4: CHANGELOG 更新
-
-`$OUT_BASE/$NEW_NAME/references/CHANGELOG.md` に追記:
-```markdown
-## <date> rename
-
-- Renamed from `$OLD_NAME` to `$NEW_NAME`
-- Reason: <ユーザー指定の理由>
-- aliases: [$OLD_NAME]
-```
-
-### Step 5: 参照元更新
-
-```bash
-# pair: / Skill() の旧名参照を検索
-grep -r "$OLD_NAME" "$OUT_BASE/" --include="SKILL.md" -l
-```
-ヒットした各ファイルを Edit で新名に更新。
-
-### Step 6: Lint 検証
-
-```bash
-python3 plugins/skill-governance-lint/scripts/lint-skill-name.py "$OUT_BASE/$NEW_NAME/SKILL.md"
-python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py "$OUT_BASE/$NEW_NAME"
-python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE/$NEW_NAME/SKILL.md"
-```
-
-すべて exit 0 でなければ Step 3 へ戻る。
+- **対象パス**: `$OUT_BASE` は `resolve-skill-dirs.py` 出力。入出力は `$OUT_BASE/$OLD_NAME` → `$OUT_BASE/$NEW_NAME`。
+- **不可分セット**: ディレクトリ改名・frontmatter.name・aliases は必ずひとまとめで満たす (どれか欠けると参照不整合)。
+- **検証コマンド**: `lint-skill-name.py "$OUT_BASE/$NEW_NAME/SKILL.md"` / `lint-skill-tree.py "$OUT_BASE/$NEW_NAME"` / `validate-frontmatter.py`。いずれか非 0 なら frontmatter/参照更新へ差し戻す。
+- 参照元検索: `grep -r "$OLD_NAME" "$OUT_BASE/" --include="SKILL.md" -l`。
 
 ## Gotchas
 
 - **git mv 省略禁止**: `rm` + `mkdir` で移動すると git 履歴が途切れる。
 - **alias 追加忘れ**: alias なしで旧名参照があると呼び出し先が消える。
 - **CHANGELOG 省略禁止**: 第6条違反。CI で検出される。
-- **部分更新**: ディレクトリ名だけ or frontmatter だけの更新は不整合を生む。Step3とStep1は必ずセット。
+- **部分更新**: ディレクトリ名だけ or frontmatter だけの更新は不整合を生む。改名・frontmatter.name・aliases は必ずセットで満たす。
 
 ## Additional Resources
 

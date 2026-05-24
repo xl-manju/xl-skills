@@ -3,9 +3,13 @@ name: elegant-reset-observer
 description: elegant-reviewで分析前に先入観なしの俯瞰確認が必要なとき、read-onlyで対象を観察したいときに使う。
 tools: Read, Glob, Grep
 model: inherit
+isolation: fork
 owner_skill: run-elegant-review
 phase_id: phase1-reset
 kind: agent
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
 ---
 
 # 役割

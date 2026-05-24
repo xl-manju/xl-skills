@@ -8,6 +8,7 @@ kind: run
 prefix: run
 owner: team-platform
 since: 2026-05-21
+version: 0.1.0
 source: internal
 source-tier: internal
 last-audited: 2026-05-21
@@ -57,37 +58,44 @@ settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge 
 - **R2 notification-formatting**: 差分時の 1 行通知整形 (出力規約は `references/output-format.md`)
 - **R3 graceful-degradation-guard**: 例外を握りつぶし no-op に倒す保護層
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: cache 鮮度確認
+### ゴール (Goal)
 
-```bash
-python3 scripts/notifier-check.py --mode cache-status
-```
-- 出力: `fresh` / `stale` / `absent`。`fresh` なら Step 2 を skip。
+cache 比較が完了し（差分有無を問わず）、`tool_name == "Skill"` 末尾に最新版有無の 1 行通知を出力する、または no-op を決定した状態（既存 manifest は不変・graceful degradation を維持）。
 
-### Step 2: plugin scan と cache 更新
+### 目的・背景 (Why)
 
-```bash
-python3 scripts/notifier-check.py --mode refresh --plugins-root plugins/
-```
-- 各 `plugins/*/CHANGELOG.md` から最新 version を抽出 (semver 一致なくとも文字列保持)。
-- `~/.cache/xl-skills/version-snapshot.json` に書き出す (atomic rename)。
-- 例外時は no-op (exit 0)。
+ユーザーが意識せず最新版の存在に気づける仕組みを、Skill 実行を妨げず非破壊で提供するため。cache 鮮度・CHANGELOG 有無・オフライン・抑制フラグなど分岐が多く、固定手順では graceful 維持が脆い。到達状態（通知 or no-op の決定）をゴールに据える。
 
-### Step 3: 通知文字列生成
+### 完了チェックリスト (Checklist)
 
-```bash
-python3 scripts/notifier-check.py --mode notify --plugin "$PLUGIN_NAME"
-```
-- installed (= plugin.json) vs latest (= cache) を比較。
-- 一致 / cache 未提供 / installed 未取得 → 空文字列。
-- 差分あり → `(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)` を stdout。
-- `XL_SKILLS_NOTIFY=off` のとき強制 no-op。
+- [ ] cache 鮮度判定（`notifier-check.py --mode cache-status` → `fresh`/`stale`/`absent`）を実施済み（`fresh` なら scan を省略）
+- [ ] `stale`/`absent` 時は `--mode refresh --plugins-root plugins/` で各 `plugins/*/CHANGELOG.md` の最新 version を抽出し `~/.cache/xl-skills/version-snapshot.json` へ atomic rename で書き出し済み
+- [ ] 通知文字列を `--mode notify --plugin $PLUGIN_NAME` で生成し、installed(plugin.json) vs latest(cache) を比較済み
+- [ ] 一致 / cache 未提供 / installed 未取得 / `XL_SKILLS_NOTIFY=off` のいずれかは空文字列（no-op）になっている
+- [ ] 差分ありのみ `(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)` を出力している
+- [ ] `PostToolUse` hook (`hook-notify-skill-end.py`) が `tool_name == "Skill"` のときだけ末尾に付記し、Read/Bash 末尾には付かない
+- [ ] 1 セッション内で同一 plugin の通知が重複しない（cache に `last_notified_at` 記録）
+- [ ] CHANGELOG 不在 / オフライン / cache 不在 / 権限不足のいずれも例外を握りつぶし exit 0 の no-op に倒れている
+- [ ] 既存 manifest（plugin.json / marketplace.json / bundles.json / skill-intake-self-updater）を一切変更していない（read-only）
+- [ ] ネットワーク取得を行わず Python stdlib のみで完結している（24h TTL 鮮度判定）
 
-### Step 4: PostToolUse hook 連携
+### ゴールシークループ
 
-`hook-notify-skill-end.py` が `tool_name == "Skill"` を判定し、Step 3 の出力を Skill 実行末尾に付記。1 セッション内で同一 plugin の通知は重複させない (cache に `last_notified_at` を記録)。
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+
+- 対象ファイル: `~/.cache/xl-skills/version-snapshot.json`（書込対象はこれのみ）、各 `plugins/*/CHANGELOG.md`（read-only）
+- 固定パス/閾値: cache 鮮度 24h TTL（時刻欠落時は `stale` 扱い）、通知書式 `(installed: ... / latest: ... — /skill-update で更新)`、抑制 `XL_SKILLS_NOTIFY=off`
+- Hook 連携は `references/hook-wiring.md` の配線案に従い、settings.json の自動 merge はしない（人間承認）
+- いずれの分岐でも Skill 実行を止めない（exit 0 固定 / graceful no-op）。未達があれば原因（cache/CHANGELOG/権限）を特定して no-op か通知かを再決定する
+
+### 局面カタログ (順序は都度判断)
+
+- 鮮度確認: `python3 scripts/notifier-check.py --mode cache-status`（`fresh` なら scan skip）
+- scan/更新: `python3 scripts/notifier-check.py --mode refresh --plugins-root plugins/`
+- 通知生成: `python3 scripts/notifier-check.py --mode notify --plugin "$PLUGIN_NAME"`
+- hook 付記: `hook-notify-skill-end.py` が `tool_name == "Skill"` を判定し通知出力を末尾に付記（重複抑止: `last_notified_at`）
 
 ## Constraints
 

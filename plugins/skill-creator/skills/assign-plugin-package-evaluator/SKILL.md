@@ -12,6 +12,7 @@ effect: conversation-output
 role_suffix: evaluator
 owner: team-platform
 since: 2026-05-23
+version: 0.1.0
 source: doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md
 source-tier: internal
 last-audited: 2026-05-23
@@ -55,6 +56,31 @@ options:
 5. **eval-log パスは 27章 §3.1**: 本 skill で再定義しない
 6. **schema 違反は exit 2**: validator スクリプト自体の入力 schema 違反は P0 として即停止
 7. **context: fork 必須**: 親 context の sycophancy 排除（assign-skill-design-evaluator と同じポリシー）
+
+## ゴールシーク実行
+
+evaluator は一度の採点で完結する read-only 工程。ループは回さず、**採点の網羅性をチェックリストで担保**する。正本: `../run-build-skill/references/goal-seek-paradigm.md`（§評価系の扱い）。
+
+### ゴール (Goal)
+
+指定された全 PKG ID（既定 PKG-002〜008）を採点し、各 finding にエビデンスと severity を付与、全件の `status ∈ {pass, fail, skip, not_applicable}` が確定して `schemas/findings.schema.json` 準拠の findings JSON + verdict サマリが eval-log に返された状態になっている。
+
+### 目的・背景 (Why)
+
+契約適合（PKG check）の中核 7 件を静的検査する worker。採点漏れがあると親 orchestrator の verdict が偽陽性 PASS になるため、規範採点や思考法レビューと直交した「全 rubric 項目の網羅採点」が要る。`context: fork` で親 context の sycophancy を排除する。
+
+### 完了チェックリスト (Checklist)
+
+- [ ] 入力 `pkg_ids` の全項目を採点した（未採点 ID が 0 件）
+- [ ] `package_mode=skill-only` の場合 PKG-003/005/006/007/008 を `not_applicable` 判定にした
+- [ ] 各 finding に `location` と `evidence`（観測根拠）と `severity` が付与されている
+- [ ] 全 PKG ID で `status` が確定し、verdict カウント（total/pass/fail/skip/not_applicable）が算出済み
+- [ ] 出力が `schemas/findings.schema.json` に準拠する（schema 違反は exit 2）
+- [ ] `exit_code != 0` でも findings JSON は stdout へ必ず出力した
+
+### 採点フロー
+
+`Step N:` の固定連番は使わない。チェックリストの未充足項目に応じ、`scripts/validate-plugin-package.py --check pkg-<id> --plugin <name>` を必要な PKG ID 分だけ実行し findings を集約、最後に verdict を算出して schema 検証で締める。
 
 ## PKG-002〜008 sub-check 詳細
 

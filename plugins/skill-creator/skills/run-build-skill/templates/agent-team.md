@@ -47,24 +47,29 @@ role_suffix: orchestrator
 - `Task` tool 呼び出し時は file_ownership を JSON で渡す（TaskCreated hook が検査）
 - 別 teammate の領域に踏み込む変更は手前で **task を分割** する
 
-## Steps
+## ゴールシーク実行
+> 固定手順は書かない。Gate を完了チェックリストとし、局面の選択と手順は AI が都度判断する。詳細は run-build-skill `references/goal-seek-paradigm.md`。
 
-### Step 1: Task 生成（並列）
-```python
-# 3 teammate を同一メッセージで起動 (parallel)
-Task(subagent_type="{{role1_subagent}}", file_ownership=[{{role1_files}}], ...)
-Task(subagent_type="{{role2_subagent}}", file_ownership=[{{role2_files}}], ...)
-Task(subagent_type="{{role3_subagent}}", file_ownership=[{{role3_files}}], ...)
-```
-**Gate**: TaskCreated hook が exit 0 を返すこと（ownership 衝突なし）。
+### ゴール (Goal)
+全 teammate の artifact が揃い、evaluator の score >= threshold を満たした状態。
 
-### Step 2: 完了待機 + artifact 検証
-- 各 teammate の output_file を読む
-- TaskCompleted hook が evaluator JSON 契約を検証
+### 完了チェックリスト (Checklist)
+- [ ] TaskCreated hook が exit 0（file ownership 衝突なし）
+- [ ] 各 teammate の output_file が生成され、TaskCompleted hook の JSON 契約を通過
+- [ ] evaluator (`context: fork`) の score >= threshold
 
-### Step 3: 統合フェーズ（直列）
-- evaluator (`context: fork`) が全 artifact を読んで採点
-- score >= threshold で完了、未達なら teammate 単位で改善ループ
+### ゴールシークループ
+1. 未達 `[ ]` を特定 → 2. 局面（下カタログ）を選び手順を都度生成 → 3. 実行 → 4. チェックリスト再評価 → 全 `[x]` まで反復。未達は teammate 単位で改善ループ。
+
+### 局面カタログ（順序は都度判断）
+- **並列起動**: 独立 teammate は**同一メッセージ**で起動（context efficiency）。
+  ```python
+  Task(subagent_type="{{role1_subagent}}", file_ownership=[{{role1_files}}], ...)
+  Task(subagent_type="{{role2_subagent}}", file_ownership=[{{role2_files}}], ...)
+  Task(subagent_type="{{role3_subagent}}", file_ownership=[{{role3_files}}], ...)
+  ```
+- **artifact 検証**: 各 teammate の output_file を読み、TaskCompleted hook で契約検証。
+- **統合（直列・最後）**: evaluator を `context: fork` で起動し全 artifact を採点。
 
 ## Gotchas
 - **same-file edit 衝突**: Agent Team の最大の罠。file_ownership 宣言と TaskCreated hook 両方が必要

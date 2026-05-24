@@ -90,13 +90,15 @@
 ### 5.2 推論手順 (再現可能)
 1. `eval-log/skill-brief.json` を Read し `{{SKILL_NAME}} / {{KIND}} / {{OUT_BASE}}` を抽出
 2. `schemas/template-selection.schema.json#/selection_rules` から該当 template の骨格を取得
-3. frontmatter (`responsibility_refs` / `manifest`) と本文見出し (Purpose / Key Rules / Steps) を変数化形式で生成
+3. frontmatter (`responsibility_refs` / `manifest`) と本文見出し (Purpose / Key Rules / **ゴールシーク実行**) を変数化形式で生成。実行系 kind は固定手順を書かず `## ゴールシーク実行` (Goal+Checklist+Loop) とし、`{{goal}}` / `{{purpose_background}}` / `{{generated_checklist}}` を brief の `goal` / `purpose_background` / `checklist` (無ければ `output_contract` の完了条件と `key_constraints` から導出) で埋める。`ref-*` は対象外。詳細は `references/goal-seek-paradigm.md`。
 4. `variable_contract.source_trace` に brief フィールド由来を記録
 
 ### 5.3 自己検証 checklist
 - [ ] SKILL.md 行数が 170 行以下
 - [ ] frontmatter に responsibility_refs と manifest を含む
 - [ ] kind→template 対応表が schemas/ へ外出し済 (本文は 1 行参照のみ)
+- [ ] 実行系 kind は `## ゴールシーク実行` を持ち固定 `### Step N:` を羅列していない (`ref-*` 除く)
+- [ ] `{{goal}}` / `{{generated_checklist}}` が brief 由来で埋まりリテラル未残存
 - [ ] 具体値が変数化済 (source_trace あり)
 - [ ] 依存方向 L7→L1 単方向 (逆参照 0)
 - [ ] 同 brief 再実行で出力 sha256 一致 (validate-build-trace.py)

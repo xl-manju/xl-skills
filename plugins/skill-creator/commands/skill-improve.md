@@ -2,7 +2,12 @@
 description: 既存 Skill/Capability を読み、run-elegant-review → 改善実行 (elegant-improvement-executor) を自動チェインする。レビューと修正を 1 コマンドで完結させる入口。
 argument-hint: "<capability-path>  例: plugins/skill-creator/skills/run-build-skill / agents/elegant-reset-observer.md"
 allowed-tools: Read, Write, Edit, Bash
+name: skill-improve
 kind: command
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
+entrypoint: run-elegant-review
 ---
 
 # /skill-creator:skill-improve

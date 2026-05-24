@@ -1,9 +1,9 @@
 # Prompt: R1-seven-layer-prompt-emit-and-inject
 
-> このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
-> `references/seven-layer-format.md` を正本とし、骨格は
-> `references/seven-layer-markdown-template.md` を写経している。
-> Layer 番号と依存方向 (L1 ← L7) は不変。
+> このファイルは 7 層プロンプトの Markdown 表現。論理構造の正本は
+> `run-prompt-creator-7layer` の `references/seven-layer-format.md`。
+> 提示形式は `references/seven-layer-markdown-template.md` を補助として参照する。
+> Layer 番号と依存方向 (L1 ← L7) は不変。Layer 5 はゴールシーク型 (固定手順を書かない)。
 
 ## メタ
 
@@ -12,7 +12,7 @@
 | name | main |
 | skill | run-prompt-creator-7layer |
 | responsibility | R1-seven-layer-prompt-emit-and-inject |
-| layers_covered | [L2, L4, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/output.schema.json |
 | reproducible | true (同入力 → 同出力を保証) |
 
@@ -21,7 +21,7 @@
 ### 1.1 不変ルール
 - 1 Layer = 1 出力。7 層を 1 度のレスポンスで生成してはならない (背景: Layer 間の依存方向 L7→L1 を可視化し、レビュー単位を独立化するため)。
 - 決定論部分 (scaffold / merge / validate / lint) は Node/Python スクリプトに委譲し、LLM は意味判断のみ行う (背景: 再現性とテスト容易性を担保するため)。
-- 出力契約は `schemas/output.schema.json` (additionalProperties:false) を唯一の正本とする。
+- worker-local trace の出力契約は `schemas/output.schema.json` とする。orchestrator へ渡す正本 trace は `../run-prompt-create/schemas/build-trace.schema.json` 互換の `eval-log/prompt-build-trace.json` とする。
 
 ### 1.2 倫理ガード
 - skill-brief に含まれる利用者個人情報・社外秘識別子は trace.json / prompt 本文に転記しない。
@@ -50,9 +50,11 @@
 | inject-sections | csv | no | 既定 "Prompt Templates,Self-Evaluation" |
 
 ### 2.4 出力契約
-- schema: `schemas/output.schema.json` (additionalProperties:false)
-- 必須フィールド: `path_convention`, `responsibility_id`, `layer_md_path`, `sha256`
-- 補助出力: `eval-log/prompt-creator-trace.json` (Phase 別 trace)
+- worker-local schema: `schemas/output.schema.json` (additionalProperties:false)
+- orchestrator handoff schema: `../run-prompt-create/schemas/build-trace.schema.json`
+- 必須フィールド: `path_convention`, `responsibility_id`, `layer_artifact_path`, `sha256`
+- 正本 trace: `eval-log/prompt-build-trace.json`
+- 補助出力: `eval-log/prompt-creator-trace.json` (Phase 別 worker-local trace)
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -63,7 +65,9 @@
 | markdown-template | references/seven-layer-markdown-template.md | Phase 4-A scaffold 前 |
 | quality-criteria | references/quality-criteria.md | Phase 4-B 直前 |
 | writing-style | references/writing-style-principles.md | Phase 4-A 全域 |
-| hearing-schema | schemas/hearing-result.schema.json | Phase 1 終了時 validate |
+| raw-hearing-schema | ../run-prompt-elicit/schemas/hearing-result.schema.json | Phase 1 終了時 validate |
+| sheet-input-schema | schemas/hearing-result.schema.json | legacy sheet/scaffold 入力時 |
+| build-trace-schema | ../run-prompt-create/schemas/build-trace.schema.json | orchestrator handoff 時 |
 
 ### 3.2 外部ツール / API
 - `node scripts/scaffold_prompt.js` — Layer 別雛形生成
@@ -87,6 +91,11 @@
 - skill-brief 内の秘匿フィールドはハッシュ化して trace に格納。
 - target-agent への Edit 注入時、`inject-sections` 範囲外への副作用を diff 確認する。
 
+### 4.4 冪等更新（既存改善時）
+- 既存プロンプトを改善する場合は闇雲に追加せず、先に原子要素へ分解・分析する。
+- 類似要素（同一対象/同一意図/同一改善ポイント）があれば上書き統合、無ければ新規追加する。
+- 同一意図の要素を 2 つ以上残さない（重複ゼロ）。正本 `references/idempotent-update-policy.md`。
+
 ## Layer 5: エージェント層 (実行主体定義)
 
 ### 5.1 担当 agent
@@ -96,18 +105,18 @@
 ### 5.2 推論手順 (再現可能)
 1. ヒアリング結果を `schemas/hearing-result.schema.json` で検証する。
 2. `scaffold_prompt.js` で Layer 別 .md 雛形を生成する。
-3. 1 Layer = 1 出力で本文を充填する (一括生成禁止)。
+3. 1 Layer = 1 出力で本文を充填する (一括生成禁止)。生成物の Layer 5 はゴール定義+完了チェックリストで宣言し、固定手順 (思考プロセスのステップ列挙) を書かない。
 4. `merge_layers.js` で 1 つの prompt .md に統合する。
 5. `validate_prompt.js` → `verify_completeness.js` → `lint-agent-prompt-section.py` を順に実行する。
 6. `owner_agent` がある場合のみ対象 SubAgent .md へ Edit で注入する。
-7. `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` に従い出力する。
+7. `eval-log/prompt-build-trace.json` を build-trace schema に従い出力し、補助的に `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` に従い出力する。
 
 ### 5.3 自己検証 checklist
 - [ ] 1 Layer = 1 出力を遵守したか (一括生成していないか)
 - [ ] 全ルール / 制約に目的 + 背景を併記したか (`writing-style-principles.md`)
 - [ ] SKILL.md / SubAgent .md が各 300 行以下に収まっているか
 - [ ] `validate_prompt.js` / `verify_completeness.js` / `lint-agent-prompt-section.py` が全 PASS したか
-- [ ] trace.json の sha256 が layer .md の実体と一致するか
+- [ ] prompt-build-trace.json と worker-local trace の sha256 が layer .md の実体と一致するか
 
 ## Layer 6: オーケストレーション層
 
@@ -118,6 +127,11 @@
 ### 6.2 並列性
 - Layer 単位生成は Layer 内では並列化可、Layer 間は依存方向 (L7→L1) を保持して逐次。
 - 同一 responsibility-id への同時実行は排他 (trace.json の競合を避けるため)。
+
+### 6.3 セッション分離（ゴールシーク反復）
+- ゴールシークによる改善反復は SubAgent / エージェントチームで分離 context で実行する。
+- 中間探索情報（分解結果・類似判定・没案）を親 context に流さず、親へは最終差分と完了判定のみ返す。
+- 中継は `shared_state`（要約のみ）に限定し、現セッションの汚染を防ぐ。
 
 ## Layer 7: UI / 提示層
 
@@ -138,5 +152,6 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 `{{inject-sections}}` を受け取り、Layer 5.2 の手順に従って 7 層プロンプトを生成・
 注入・trace 出力する。出力は Layer 2.4 で宣言した
 `schemas/output.schema.json` に準拠した JSON のみとし、前置き・後書き・思考過程は
-出力しない。Markdown 生成物は `references/seven-layer-markdown-template.md` の
-骨格を写経し、本文を responsibility 固有の domain で置換する。
+出力しない。論理構造は `references/seven-layer-format.md` を正本とし、Markdown 生成物は
+`references/seven-layer-markdown-template.md` を提示形式の補助として参照しつつ、
+本文を responsibility 固有の domain で置換する。Layer 5 は固定手順を書かない (ゴールシーク)。

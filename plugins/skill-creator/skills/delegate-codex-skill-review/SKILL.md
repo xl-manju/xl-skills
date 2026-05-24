@@ -13,6 +13,7 @@ effect: none
 delegate_agent: codex-cli
 owner: team-platform
 since: 2026-05-18
+version: 0.1.0
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
 source-tier: internal
@@ -61,30 +62,46 @@ script_refs:
 3. **結果はユーザー管理**: codex 実行はユーザーが明示的に行い、返答を eval-log/ に保存する。
 4. **任意拡張**: Node / npm / shell script / codex CLI を標準依存にしない。存在確認は Python 標準ライブラリで行う。
 
-## Steps
+## ゴールシーク実行
 
-### Step 0: codex 存在確認 (決定論)
+外部 `codex` CLI へレビューを委譲する実行系。固定手順ではなくゴール・チェックリストへ向けて反復する（正本 `run-build-skill/references/goal-seek-paradigm.md`）。
 
-```bash
-python3 plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py
-```
-exit 2 が返ったら BLOCK。標準フローではなく任意拡張であることを案内して停止。
+### ゴール (Goal)
 
-### Step 1: target 検証
+codex CLI を標準フローの必須依存にしないまま、任意実行用の入力 `eval-log/delegate-codex-request.json` とコマンド例が提示され、自セッションでは採点していない状態になっている。
 
-`target_skill_path` が存在し SKILL.md であることを確認。
+### 目的・背景 (Why)
 
-### Step 2: 任意実行コマンドの提示
+自己採点の Sycophancy を避けるため、採点は第三者 LLM (codex) に委ね、本 Skill は入力準備と結果提示に徹する（opt-in cross-check）。
 
-```bash
-codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
-  > eval-log/delegate-codex-review.json
-```
-このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
+### 完了チェックリスト (Checklist)
 
-### Step 3: 結果提示
+- [ ] `check-codex-installed.py` が exit 0、または未導入 (exit 2) なら任意拡張と案内し BLOCK している
+- [ ] `target_skill_path` が存在し SKILL.md であることを検証済み
+- [ ] io-contract (`schemas/io-contract.schema.json`) 準拠の `eval-log/delegate-codex-request.json` と任意実行コマンド例を提示済み
+- [ ] 自セッションでスコアを付けていない（codex 実行・結果保存はユーザー管理）
 
-書き出した JSON のサマリをユーザーに返す。修正判断は委ねる。
+### ゴールシークループ
+
+正本の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。固有差分: codex 実行自体はループ外（ユーザーが任意で行う）。本 Skill のループは「入力準備が io-contract を満たす」まで回し、委譲結果を自セッションで再評価しない。
+
+### 局面カタログ（順序は都度判断）
+
+- **codex 存在確認 (決定論)**:
+
+  ```bash
+  python3 plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py
+  ```
+  exit 2 が返ったら BLOCK。標準フローではなく任意拡張であることを案内して停止。
+- **target 検証**: `target_skill_path` が存在し SKILL.md であることを確認。
+- **任意実行コマンドの提示**:
+
+  ```bash
+  codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
+    > eval-log/delegate-codex-review.json
+  ```
+  このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
+- **結果提示**: 書き出した JSON のサマリをユーザーに返す。修正判断は委ねる。
 
 ## Gotchas
 

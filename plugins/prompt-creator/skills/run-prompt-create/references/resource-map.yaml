@@ -43,7 +43,7 @@ phase_resources:
     decision_script: scripts/evaluate-create-gates.py
     context: fork
   governance:
-    must_read: [prompts/governance-decide.md, prompts/gate-review.md, schemas/handoff.schema.json]
+    must_read: [workflow-manifest.json, prompts/governance-decide.md, prompts/gate-review.md, schemas/handoff.schema.json]
     delegate: plugins/skill-creator/skills/run-skill-rubric-governance/SKILL.md
     params: references/governance-params.json
   report:

@@ -12,18 +12,18 @@
  ## Purpose & Output Contract
  {{output_contract}}
 
-+## Steps
++## ゴールシーク実行
++> 固定手順は書かない。ゴール+チェックリストへ向かい手順を都度生成する。
++> 詳細: run-build-skill references/goal-seek-paradigm.md
 +
-+### Step 1: 入力確認
-+{{step1_input_check}}
++### ゴール (Goal)
++{{goal}}
 +
-+### Step 2: 主処理
-+{{step2_main_process}}
++### 完了チェックリスト (Checklist)
++{{generated_checklist}}
 +
-+### Step 3: 検証
-+{{step3_validation}}
-+
-+各 Step は副作用と返り値を明示し、失敗時の retry / rollback 条件を `## Gotchas` に記載する。
++### ゴールシークループ
++未達 `[ ]` を特定 → 手順を都度生成 → 実行 → チェックリスト再評価 → 全達成まで反復。
 +
  ## Boundary
  {{boundary}}

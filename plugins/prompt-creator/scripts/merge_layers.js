@@ -20,18 +20,27 @@ function main() {
     console.error("usage: merge_layers.js --layers <dir> --output <file>");
     process.exit(2);
   }
-  const layers = ["L1","L2","L3","L4","L5","L6","L7"];
+  // 正準マーカー「# Layer N:」を採用 (verify_completeness.js / convert_format.js と一致)。
+  // per-layer ファイルが自前の「# Layer N: title」見出しを持つ場合は重複付与を避ける。
+  const layerTitles = {
+    1: "基本定義層", 2: "ドメイン定義層", 3: "インフラストラクチャ定義層",
+    4: "共通ポリシー層", 5: "エージェント定義層", 6: "オーケストレーション層",
+    7: "ユーザーインタラクション層",
+  };
   const parts = [];
-  for (const L of layers) {
-    const p = path.join(layersDir, `${L}.yaml`);
+  for (let n = 1; n <= 7; n++) {
+    const p = path.join(layersDir, `L${n}.yaml`);
     if (!fs.existsSync(p)) {
       console.error(`missing layer: ${p}`);
       process.exit(1);
     }
-    parts.push(`# === ${L} ===`);
-    parts.push(fs.readFileSync(p, "utf8").trimEnd());
+    const body = fs.readFileSync(p, "utf8").trimEnd();
+    const hasHeader = new RegExp(`#+\\s*Layer\\s*${n}\\s*[:：]`).test(body);
+    if (!hasHeader) parts.push(`# Layer ${n}: ${layerTitles[n]}`);
+    parts.push(body);
     parts.push("");
   }
+  const layers = [1, 2, 3, 4, 5, 6, 7];
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, parts.join("\n") + "\n");
   console.log(`merged ${layers.length} layers → ${output}`);

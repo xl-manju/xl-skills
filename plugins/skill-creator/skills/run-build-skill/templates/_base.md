@@ -42,8 +42,21 @@ audit-trigger: {{audit_trigger | default("quarterly")}}
 ## 主要ルール
 {{key_constraints}}
 
-## 手順
-{{generated_steps}}
+## ゴールシーク実行
+> 固定手順は書かない。毎周「ゴール・目的/背景・チェックリスト」を読み、その時点で最適な手順を AI が生成・実行する。詳細は run-build-skill `references/goal-seek-paradigm.md`。
+> ループを多周回す／重い試行錯誤を伴う場合は、親セッションを汚さないよう SubAgent（`Agent`）または Agent Team に fork して実行し、親へは最終成果物と要約のみ返す（同 references「コンテキスト分離」）。
+
+### ゴール (Goal)
+{{goal}}
+
+### 目的・背景 (Why)
+{{purpose_background}}
+
+### 完了チェックリスト (Checklist)
+{{generated_checklist}}
+
+### ゴールシークループ
+1. 未達 `[ ]` を特定 → 2. 手順を都度生成（固定化禁止）→ 3. 実行 → 4. チェックリスト再評価し `[x]` 更新 → 全 `[x]` まで反復。規定周回で未達なら open_issues に差し戻す。
 
 ## 検証
 {{generated_checks}}

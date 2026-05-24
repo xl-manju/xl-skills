@@ -13,15 +13,24 @@ function getArg(name) {
 }
 
 function generateSheet(data) {
-  const steps = (data.steps || [])
-    .map((s, i) => `${i + 1}. ${s.description || "未定義"}`)
+  // ゴールシーク型: 固定手順ではなく達成ゴール（成果状態）を列挙する。
+  const goals = (data.goals || [])
+    .map((g, i) => `${i + 1}. ${typeof g === "string" ? g : g.description || "未定義"}`)
     .join("\n");
 
-  const outputFormats = (data.steps || [])
-    .map(
-      (s, i) =>
-        `## Step${i + 1}\n\`\`\`\n${s.output_format || "未定義"}\n\`\`\``
-    )
+  // 完了チェックリスト（ゴール到達の停止条件）
+  const checklist = (data.checklist || [])
+    .map((c) => {
+      const item = typeof c === "string" ? c : c.item || "未定義";
+      const judge = typeof c === "object" && c.judgement ? ` — 判定: ${c.judgement}` : "";
+      return `- [ ] ${item}${judge}`;
+    })
+    .join("\n");
+
+  // 成果物フォーマット（ゴールに紐づく場合のみ）
+  const outputFormats = (data.goals || [])
+    .filter((g) => typeof g === "object" && g.output_format)
+    .map((g, i) => `## ゴール${i + 1}の成果物\n\`\`\`\n${g.output_format}\n\`\`\``)
     .join("\n\n");
 
   const challenges = (data.challenges || [])
@@ -69,14 +78,18 @@ function generateSheet(data) {
 > どのような状態になれば「このプロンプトは完成した」と判断できるか
 - ${data.success_criteria || "未定義"}
 
-# 目的達成のための手順
-> プロンプトを使用する際の大まかな流れやステップ
-${steps || "1. 未定義"}
+# 達成ゴール（成果状態）
+> 何が出来上がれば到達か。手順ではなく成果状態で記述する。手順は実行時にAIが自律生成する。
+${goals || "1. 未定義"}
 
-# 出力フォーマット
-> 成果物として、出力してほしい形式
+# 完了チェックリスト（ゴール到達の停止条件）
+> 第三者がYES/NOで判定できる達成条件。これが満たされるまでAIはゴールに向け反復する。
+${checklist || "- [ ] 未定義"}
 
-${outputFormats || "## Step1\n```\n未定義\n```"}
+# 成果物フォーマット
+> ゴール達成時に出力してほしい形式
+
+${outputFormats || "```\n未定義\n```"}
 
 # 解決すべき課題
 > プロンプトが解消するべき問題点や現状の不便

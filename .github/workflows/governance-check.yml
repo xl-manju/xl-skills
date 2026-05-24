@@ -50,3 +50,12 @@ jobs:
             jq -e '.name and .version and .description' "$manifest" >/dev/null
           done
         continue-on-error: false
+      - name: lint SSOT duplication (skill-creator 一本化強制)
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict
+        continue-on-error: false
+      - name: lint goal-seek conformance (実行系の固定手順禁止)
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/skill-creator/skills
+        continue-on-error: false
+      - name: lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-creator/skills
+        continue-on-error: false

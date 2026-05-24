@@ -78,11 +78,13 @@ contract:
 - {{CONSTRAINT_1}}
 - {{CONSTRAINT_2}}
 
-## Layer 5: Steps
-<!-- TODO: 手順を番号付きで -->
-1. {{STEP_1}}
-2. {{STEP_2}}
-3. {{STEP_3}}
+## Layer 5: Steps（ゴールシーク）
+<!-- 固定手順を番号で羅列しない。ゴール+チェックリストを置き、手順は実行時に都度生成する。詳細: run-build-skill references/goal-seek-paradigm.md -->
+- **ゴール**: {{GOAL}}
+- **完了チェックリスト**:
+  - [ ] {{CHECK_1}}
+  - [ ] {{CHECK_2}}
+- **ループ**: 未達項目を特定 → 手順を都度生成 → 実行 → チェックリスト再評価 → 全達成まで反復。
 
 ## Layer 6: Output
 <!-- TODO: 出力形式 (JSON schema / markdown 構造 / 文字数等) -->

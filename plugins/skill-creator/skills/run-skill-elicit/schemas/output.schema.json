@@ -1,27 +1,7 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://xl-skills/run-skill-elicit/output.schema.json",
-  "title": "run-skill-elicit brief output",
-  "type": "object",
-  "required": ["topic", "purpose", "trigger_phrases", "io_contract"],
-  "additionalProperties": false,
-  "properties": {
-    "topic": {"type": "string"},
-    "purpose": {"type": "string"},
-    "trigger_phrases": {
-      "type": "array",
-      "items": {"type": "string"},
-      "minItems": 1
-    },
-    "io_contract": {
-      "type": "object",
-      "required": ["inputs", "outputs"],
-      "properties": {
-        "inputs": {"type": "array"},
-        "outputs": {"type": "array"}
-      }
-    },
-    "constraints": {"type": "array", "items": {"type": "string"}},
-    "owner": {"type": "string"}
-  }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "run-skill-elicit brief output (redirect)",
+  "x-canonical-redirect": "../../run-skill-create/schemas/skill-brief.schema.json",
+  "x-redirect-note": "正本は run-skill-create/schemas/skill-brief.schema.json (13必須フィールドの skill-brief)。本ファイルは旧 5 項目スキーマ (topic/purpose/trigger_phrases/io_contract) を廃し、正本へ委譲する薄いリダイレクトに置換した。プロパティは再掲しない (SSOT)。検証は正本スキーマで行うこと。",
+  "$ref": "../../run-skill-create/schemas/skill-brief.schema.json"
 }

@@ -2,7 +2,12 @@
 description: plugin-composition.yaml を編集または新規生成する。capabilities[] / dependencies を対話的に組み立て、ref-skill-design-rubric の構成評価に通る最小構成を出力する。
 argument-hint: "<plugin-name>  例: skill-creator / skill-intake / prompt-creator"
 allowed-tools: Read, Write, Edit
+name: plugin-compose
 kind: command
+version: 0.1.0
+owner: team-platform
+since: 2026-05-24
+entrypoint: plugin-compose
 ---
 
 # /skill-creator:plugin-compose

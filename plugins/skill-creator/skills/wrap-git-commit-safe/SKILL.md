@@ -15,6 +15,7 @@ effect: local-artifact  # wrap-* は base: run-build-skill の effect を継承
 base: run-build-skill
 owner: team-platform
 since: 2026-05-18
+version: 0.1.0
 # doc/21 source-traceability
 source: doc/ClaudeCodeスキルの設計書/06-classification-and-naming.md
 source-tier: internal
@@ -46,24 +47,41 @@ base Skill (`run-build-skill`) の commit ステップを wrap し、機密フ�
 3. **機密ファイル検出**: `.env`, `credentials.json`, `*.pem` を git add 対象に含めない。
 4. **force-push 禁止**: main/master への `git push --force` は常に BLOCK。
 
-## Steps
+## ゴールシーク実行
 
-### Step 1: 機密ファイル検出 (決定論スキャン)
+base Skill (`run-build-skill`) の commit ステップを wrap する実行系。固定手順ではなく、下記ゴール・チェックリストへ向けて反復する（正本 `run-build-skill/references/goal-seek-paradigm.md`）。
 
-```bash
-python3 plugins/skill-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py \
-  --repo-root "$(git rev-parse --show-toplevel)" \
-  --commit-args "$@"
-```
-exit 2 で BLOCK。LLM の文字列マッチに依存しない決定論的検査。
+### ゴール (Goal)
 
-### Step 2: hook bypass 検出
+機密ファイル混入・hook bypass・force-push のいずれもないことが決定論的に確認されたうえで `git commit` が成功している、または BLOCK 理由が提示されている。
 
-ユーザー指示や script に `--no-verify` / `--no-gpg-sign` が含まれていないか確認。検出時は BLOCK。
+### 目的・背景 (Why)
 
-### Step 3: base の commit 実行
+base の commit を上書きせず前後に安全フックを被せ、LLM の文字列マッチに頼らない決定論検査で危険な commit/push を未然に止めるため。
 
-base (`run-build-skill`) の commit 手順を呼ぶ。
+### 完了チェックリスト (Checklist)
+
+- [ ] `pre-commit-secret-scan.py` が exit 0（`.env` / `credentials.json` / `*.pem` 等が add 対象に含まれない）
+- [ ] commit_args / script に `--no-verify` / `--no-gpg-sign` が含まれない
+- [ ] main/master への `git push --force` が発生していない
+- [ ] base (`run-build-skill`) の commit が成功、または上記いずれか不合格時に BLOCK 理由を提示している
+
+### ゴールシークループ
+
+正本の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。固有差分は下記局面で未達チェックを埋める。決定論検査は script に寄せ、検査不合格は即 BLOCK（再試行で握り潰さない）。
+
+### 局面カタログ（順序は都度判断）
+
+- **機密ファイル検出 (決定論スキャン)**:
+
+  ```bash
+  python3 plugins/skill-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py \
+    --repo-root "$(git rev-parse --show-toplevel)" \
+    --commit-args "$@"
+  ```
+  exit 2 で BLOCK。LLM の文字列マッチに依存しない決定論的検査。
+- **hook bypass 検出**: ユーザー指示や script に `--no-verify` / `--no-gpg-sign` が含まれていないか確認。検出時は BLOCK。
+- **base の commit 実行**: base (`run-build-skill`) の commit 手順を呼ぶ。
 
 ## Gotchas
 
