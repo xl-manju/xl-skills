@@ -94,7 +94,7 @@ audit-trigger: quarterly
 14. ch15/ch16 公式参照確認は必須 (Step 1 冒頭)。
 15. 26/27/28 章 / 29-35 章ゲートは N/A 理由つきで省略可、未記入は不可。
 16. **prompt 形式**: 新規 prompt は **Markdown (`.md`) を既定**とし、`prompts/<R-id>-<slug>.md` で生成する。骨格は `plugins/prompt-creator/skills/run-prompt-creator-7layer/references/seven-layer-markdown-template.md` を写経。YAML (`.yaml`) は既存資産のみ許容し、新規作成は禁止 (warn を発する)。
-17. **Capability 7 kind 統一**: skill / agent / hook / command / plugin-composition / prompt / workflow の全 kind で `CapabilityManifest commonCore` (`name` / `kind` / `version` / `owner` / `since` / `source-tier`) を必須とする。kind 別追加フィールドは `references/capability-manifest.schema.json` の `$defs/<kind>` を参照。`commonCore` 欠落は lint で exit 1。
+17. **Capability 7 kind 統一**: skill / agent / hook / command / plugin-composition / prompt / workflow の全 kind で `CapabilityManifest commonCore` を必須とする。**必須項目集合の正本は `references/capability-manifest.schema.json#/definitions/commonCore.required` 唯一**（本文に再掲しない＝SSOT。現行は `name` / `description` / `kind` / `version` / `owner` の5項目。`since` / `source-tier` 等は任意）。kind 別追加フィールドは同 schema の `definitions/<kind>` を参照。`commonCore` 欠落は `validate-frontmatter.py` が exit 1（同 lint は必須集合を schema から動的ロードし、`--self-test` で正本との drift を検出）。
 
 18. **ゴールシーク必須 (固定手順禁止)**: 実行系 kind (run / assign / wrap / delegate / orchestrator / agent / agent-team / hook-integrated) は達成手順を固定列挙せず、`## ゴールシーク実行` (**Goal + 目的/背景 + 完了チェックリスト + ゴールシークループ**) で構成する。手順は実行時に AI がチェックリストの未達項目から都度生成する。`ref-*` (read-only) は対象外で `## 手順` は「参照用。手順なし。」のまま。正本定義は `references/goal-seek-paradigm.md`。lint は `lint-goal-seek.py` (固定 `### Step N:` の連番羅列を実行系本文で検出したら warn/violation)。
 
@@ -111,7 +111,7 @@ audit-trigger: quarterly
 量産対象は kind・ドメイン・出力先が多様で、固定手順は前提が崩れると破綻する。ゴール (= 全ゲート PASS) とチェックリストを到達点に固定し、手順は未達項目から都度導出することで、多様な Capability を同一基盤で再現性高く構築できる。
 
 ### 完了チェックリスト (Checklist)
-- [ ] kind を 7 種から確定し、commonCore (`name`/`kind`/`version`/`owner`/`since`/`source-tier`) frontmatter を生成した
+- [ ] kind を 7 種から確定し、commonCore frontmatter (必須集合の正本 = `references/capability-manifest.schema.json#/definitions/commonCore.required`: `name`/`description`/`kind`/`version`/`owner`) を生成した
 - [ ] 本文 300 行以下・description は発動条件のみ・trigger 2-3 個 (08章)
 - [ ] kind 別必須サポート資産 (prompts/references/schemas/scripts) を実在・共有正本参照・`completeness_exempt` 理由付き宣言のいずれかで満たした (`lint-skill-completeness.py` exit0)
 - [ ] P0 lint 群 + `lint-goal-seek.py` + `lint-skill-completeness.py` + `lint-ssot-duplication.py` + `validate-build-trace.py` が exit 0
@@ -146,7 +146,7 @@ audit-trigger: quarterly
    | prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` |
    | workflow | `templates/workflow-skeleton.md` | `plugins/<plugin>/workflows/<name>.md` |
 
-3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`$defs/skill`, `$defs/agent` …) も同 schema で検証する。
+3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
 4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint は warn 出力に留め、Hook/CI で再実行する。
 
 > 既存「Skill のみ作る」呼び出し (`kind=run|ref|assign|wrap|delegate`) は **kind=skill 配下のサブ種別** として後方互換維持。引数なしまたは `kind` が 5 択のいずれかなら従来通り Step 1 以降の skill 専用フローへ直行する。
@@ -232,5 +232,5 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 - `references/{design-docs-index.md, resource-map.yaml, build-steps.md, reproducibility-trace-schema.md, prompt-placement-convention.md, skill-factory-reproducibility.md, agent-template.md}` — 設計書索引と詳細手順
 - `templates/`, `examples/` — kind 別雛形と完成例
 - `scripts/` — render-frontmatter / validate-naming / validate-build-trace / build-subagent 他
-- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest 定義 (commonCore + kind 別 `$defs`)
+- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest 定義 (commonCore + kind 別 `definitions/kind*`)。**commonCore 必須集合の正本**であり validate-frontmatter.py が動的ロードする
 - `templates/agent-skeleton.md` / `templates/hook-skeleton.md` / `templates/command-skeleton.md` / `templates/plugin-composition-skeleton.yaml` / `templates/prompt-skeleton.md` / `templates/workflow-skeleton.md` — 新 6 kind の骨格

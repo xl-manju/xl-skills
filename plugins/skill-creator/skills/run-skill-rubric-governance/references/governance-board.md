@@ -41,4 +41,4 @@ solo_operator_mode 有効中の制約:
 - governance log に `solo_operator: true` と3条件 evidence を必ず記録
 - 兼任なしの reviewer が確保できた時点で `solo_operator_mode: false` に戻すことを推奨
 
-TODO(human): 組織メンバー追加時は solo_operator_mode を無効化し、通常の4ロールに戻すこと。
+**運用注記 (固定 TODO(human) ではなく機械検出可能な復帰条件)**: 組織メンバーが追加されたら `solo_operator_mode` を `false` に戻し通常の4ロールへ復帰する (自己承認許可を撤回)。復帰要否は `governance-params.json` のメンバー数変化を契機に判定できるため、人間の記憶に依存させず lint/通知で発火させる。

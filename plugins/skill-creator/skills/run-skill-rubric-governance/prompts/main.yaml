@@ -267,7 +267,7 @@
 
         ビジネスルール:
           - ID: "CONST_001"
-            内容: "TODO(human): board メンバの最終決定者を確定する。"
+            内容: "最終決定者は governance-params.json の approver roster / solo_operator_mode から決定する (固定 TODO(human) で凍結しない)。roster 欠落時のみ human escalation。"
           - ID: "CONST_002"
             内容: "自己承認禁止。"
 
