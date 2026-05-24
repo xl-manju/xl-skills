@@ -59,3 +59,6 @@ jobs:
       - name: lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-creator/skills
         continue-on-error: false
+      - name: validate frontmatter (commonCore必須 + SemVer version 再発防止)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+        continue-on-error: false
