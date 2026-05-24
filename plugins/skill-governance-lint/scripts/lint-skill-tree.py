@@ -177,6 +177,9 @@ def lint_one(root: Path) -> list[str]:
         if "__pycache__" in p.parts or p.suffix == ".pyc":
             continue
         rel = p.relative_to(root)
+        # templates/ 配下は雛形なので skill 規約検査を skip (生成後の skill 側で検査)
+        if rel.parts and rel.parts[0] == "templates" and len(rel.parts) > 1:
+            continue
         if p.is_dir():
             if len(rel.parts) > 1:
                 if tuple(rel.parts) not in ALLOWED_NESTED_DIRS:
