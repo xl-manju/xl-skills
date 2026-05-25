@@ -16,7 +16,7 @@ rubric_refs: []
 owner: team-platform
 since: 2026-05-22
 responsibility_refs:
-  - prompts/search-summarize.md
+  - prompts/R1-search-summarize.md
 ---
 
 # ref-intake-option-catalog

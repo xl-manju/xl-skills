@@ -25,7 +25,7 @@ reference_refs:
   - ref-skill-naming-convention
   - ref-cross-platform-runtime
 responsibility_refs:
-  - prompts/main.yaml
+  - prompts/R1-audit.md
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json

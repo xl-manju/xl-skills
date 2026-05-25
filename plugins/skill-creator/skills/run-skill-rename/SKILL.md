@@ -23,7 +23,7 @@ last-audited: 2026-05-19
 audit-trigger: source-update
 effect: local-artifact
 responsibility_refs:
-  - prompts/main.yaml
+  - prompts/R1-rename.md
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json

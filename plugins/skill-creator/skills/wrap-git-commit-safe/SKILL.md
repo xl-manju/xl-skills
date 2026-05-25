@@ -23,10 +23,13 @@ last-audited: 2026-05-19
 audit-trigger: source-update
 hierarchy_level: L1
 # wrap-* prefix の最小実例。base Skill (run-build-skill) の commit 前後を安全側で被せる。
-responsibility_refs:
-  - prompts/wrap.yaml
 schema_refs:
   - schemas/wrap-io.schema.json
+script_refs:
+  - scripts/pre-commit-secret-scan.py
+  - scripts/preflight-git-commit.py
+reference_refs:
+  - references/resource-map.yaml
 ---
 
 # wrap-git-commit-safe

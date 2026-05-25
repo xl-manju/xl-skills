@@ -53,7 +53,7 @@ source-tier: internal
 last-audited: 2026-05-24
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/main.md
+  - prompts/R1-main.md
 schema_refs:
   - schemas/output.schema.json
   - schemas/hearing-result.schema.json

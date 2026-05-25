@@ -20,7 +20,7 @@ role_suffix: null
 owner: team-platform
 since: 2026-05-22
 responsibility_refs:
-  - prompts/main.md
+  - prompts/R1-main.md
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json

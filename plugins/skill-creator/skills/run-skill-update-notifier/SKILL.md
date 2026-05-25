@@ -15,7 +15,7 @@ last-audited: 2026-05-21
 audit-trigger: quarterly
 role_suffix: none
 responsibility_refs:
-  - prompts/main.yaml
+  - prompts/R1-notify.md
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json

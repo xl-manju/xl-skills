@@ -19,7 +19,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
-responsibility_refs: [prompts/search-summarize.md]
+responsibility_refs: [prompts/R1-search-summarize.md]
 ---
 
 # ref-output-routing

@@ -44,10 +44,10 @@ since: 2026-05-17
 version: 0.2.0 # Capability 7 kind 対応 (skill/agent/hook/command/plugin-composition/prompt/workflow)
 manifest: workflow-manifest.json
 responsibility_refs:
-  - prompts/scaffold.md
-  - prompts/responsibility-emit.md
-  - prompts/template-select.md
-  - prompts/trace-write.md
+  - prompts/R1-scaffold.md
+  - prompts/R2-responsibility-emit.md
+  - prompts/R3-template-select.md
+  - prompts/R4-trace-write.md
 template_refs:
   - templates/agent-skeleton.md
   - templates/hook-skeleton.md
@@ -190,7 +190,7 @@ audit-trigger: quarterly
 
 ### Step 2: テンプレ展開 / 既存読込 (phase: scaffold)
 
-kind → template 選択は `prompts/template-select.md` (R3) と `schemas/template-selection.schema.json` に従う。骨格生成は `prompts/scaffold.md` (R1)。`COMPOSER_MODE=atomic` の場合は combinator を kind → flag 順で適用。
+kind → template 選択は `prompts/R3-template-select.md` (R3) と `schemas/template-selection.schema.json` に従う。骨格生成は `prompts/R1-scaffold.md` (R1)。`COMPOSER_MODE=atomic` の場合は combinator を kind → flag 順で適用。
 
 ### Step 3: 補助 references / 生成 (phase: references)
 
@@ -198,7 +198,7 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 ### Step 3.5: 再現性トレース生成 (phase: trace-write)
 
-`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/trace-write.md` (R4) に従って章別記入。
+`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/R4-trace-write.md` (R4) に従って章別記入。
 
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
@@ -233,7 +233,7 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 
 ### Step 7.5: prompt-creator ループ (phase: prompts-emit, `--with-prompts` or `brief.use_prompt_creator`)
 
-`brief.responsibilities[]` の **R-id 単位** でループ。詳細は `prompts/responsibility-emit.md` (R2) と `references/prompt-placement-convention.md`。
+`brief.responsibilities[]` の **R-id 単位** でループ。詳細は `prompts/R2-responsibility-emit.md` (R2) と `references/prompt-placement-convention.md`。
 
 ### Step 8: evaluator ペア生成 (phase: evaluator-emit, `--with-evaluator` or `brief.generate_pair_evaluator`)
 
@@ -265,9 +265,25 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 4. token は keychain `notion-api-key` (macOS) または `$NOTION_TOKEN` (CI)。両方無ければ phase は error 終了せず警告ログのみで skip。
 5. 整合性は CI 側 `scripts/lint-notion-relations.py` が 1:1 / N:1 不変条件を検証(プラグイン名重複・ヒアリング多重紐付け・改善要望の対象未設定を検出)。
 
-正本スクリプト: `scripts/notion-upsert-plugin.py` / スキーマ SSOT: `doc/notion-schema/skill-list.schema.json`。
+正本スクリプト: `scripts/notion-upsert-plugin.py` / スキーマ SSOT: `doc/notion-schema/skill-list.schema.json` (含む `feedback_protocol` SSOT)。
 
-> **改善要望のループバック**: 利用者から「こう直してほしい」という要望が出たら `run-skill-feedback` を起動し、`scripts/notion-submit-improvement.py` 経由で 改善要望 DB に N:1 relation 付きで投入する。スキル一覧の `未対応要望数` rollup がそのまま着手優先度シグナルになる。
+### Step 11.5: 量産時の改善要望ループ default 同梱 (再現性の核)
+
+新規プラグインを skill-creator で量産する際は **以下を default にして再現性を保証する**:
+
+1. **`run-skill-feedback` の参照同梱**: 新規プラグインの `plugin.json` `description` または README に「`/run-skill-feedback <plugin-name>` で改善要望を投入できる」旨を必ず記載 (発火経路の周知)。
+2. **`--notion-register` を default ON**: brief で明示的に opt-out (`notion_register: false`) しない限り Step 11 を実行する。これにより新規プラグインも自動的にスキル一覧 DB に登録され、`run-skill-feedback` の `verify-plugin` phase が成立する。
+3. **発火条件 SSOT の参照**: 各プラグインの「改善要望」節 (Notion ページ本文 §7) は `scripts/notion-upsert-plugin.py` の `_load_feedback_protocol()` 経由で `doc/notion-schema/skill-list.schema.json#feedback_protocol` から自動描画される。スキル個別に文言を書かない (drift 防止)。
+4. **lint で機械強制**: `scripts/lint-feedback-protocol.py` が schema / `run-skill-feedback/SKILL.md` / `notion-upsert-plugin.py` の三者整合を CI で検査 (offline、NOTION_TOKEN 不要)。違反時は merge ブロック。
+
+> **改善要望のループバック (発火 → 提出 → 集計 → 対応 → 完了)**: schema `feedback_protocol` が以下のループを 1 箇所で定義する。
+> - **発火条件** (`firing_conditions`): 「分かりにくい」「直してほしい」「バグでは」「新機能欲しい」を感じた瞬間
+> - **提出**: `/run-skill-feedback <plugin>` → `scripts/notion-submit-improvement.py` → 改善要望 DB に N:1 投入
+> - **集計**: スキル一覧の `未対応要望数` rollup (open_statuses ∈ {未着手,計画中,対応中})
+> - **対応**: ステータス遷移 `未着手 → 計画中 → 対応中 → 完了/見送り` (`status_lifecycle`)
+> - **約束** (`promise_to_reporter`): 完了時には `関連PR/コミット` に PR URL が記入される
+>
+> この 5 段を量産プラグイン全てで同一形にするため、発火条件文言はプラグイン側で再定義せず schema を引く。
 
 ## 配置先
 

@@ -18,13 +18,15 @@ source-tier: internal
 last-audited: 2026-05-23
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/run-pkg-check.md
+  - prompts/R1-run-pkg-check.md
 schema_refs:
   - schemas/findings.schema.json
   - ../ref-pkg-contract/schemas/package-contract.schema.json
 script_refs:
   - scripts/validate-plugin-package.py
   - scripts/render-pkg-findings.py
+reference_refs:
+  - references/evaluator-contract.md
 rubric_refs:
   - ref-pkg-contract
 ---
@@ -147,6 +149,6 @@ evaluator は一度の採点で完結する read-only 工程。ループは回�
 - `scripts/validate-plugin-package.py` — PKG-002〜008 sub-command 実装
 - `scripts/render-pkg-findings.py` — findings JSON → 人間可読 markdown レポート
 - `schemas/findings.schema.json` — findings JSON 出力 schema
-- `prompts/run-pkg-check.md` — R1 単発検査時の応答テンプレ
+- `prompts/R1-run-pkg-check.md` — R1 単発検査時の応答テンプレ
 - `ref-pkg-contract` — PKG ID 表・package-contract schema の正本参照
 - 設計書: 36章（正本）、34a §4（PKG-003 共有名前空間）、03章（PKG-004 frontmatter 必須キー）

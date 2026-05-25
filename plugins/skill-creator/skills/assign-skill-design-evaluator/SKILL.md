@@ -30,7 +30,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/evaluate.yaml
+  - prompts/R1-evaluate.md
 schema_refs:
   - schemas/evaluator-output.schema.json
 ---

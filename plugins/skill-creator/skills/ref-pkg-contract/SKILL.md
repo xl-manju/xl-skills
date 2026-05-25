@@ -3,6 +3,7 @@ name: ref-pkg-contract
 description: 36章 PKG-001〜017 と package-contract.json schema を参照するとき、PKG ID の意味・適用 package_mode・eval-log 保存先を判断するときに読む。
 disable-model-invocation: true
 user-invocable: false
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 effect: none
@@ -14,7 +15,7 @@ source-tier: internal
 last-audited: 2026-05-23
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/lookup-pkg.md
+  - prompts/R1-lookup-pkg.md
 schema_refs:
   - schemas/package-contract.schema.json
 ---
@@ -93,5 +94,5 @@ PKG fail は 35章 `pkg_check_failed` failure_mode として observable 集約�
 
 - `schemas/package-contract.schema.json` — `package-contract.json` の正本 JSON Schema
 - `references/pkg-id-catalog.yaml` — PKG ID メタデータ（severity、適用 phase、依存スクリプト）の機械可読版
-- `prompts/lookup-pkg.md` — PKG ID 単発参照時の応答テンプレ（R1）
+- `prompts/R1-lookup-pkg.md` — PKG ID 単発参照時の応答テンプレ（R1）
 - 設計書: 36章（正本）、27章 §3.1/§4.1、34章 Phase 0/1/2、35章 observables

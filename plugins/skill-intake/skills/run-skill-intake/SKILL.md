@@ -25,7 +25,7 @@ since: 2026-05-22
 version: 0.2.0
 manifest: workflow-manifest.json
 responsibility_refs:
-  - prompts/main.md
+  - prompts/R1-main.md
 schema_refs:
   - schemas/output.schema.json
 reference_refs:

@@ -173,6 +173,15 @@ _PLUGIN_OVERVIEWS = {
 }
 
 
+def _load_feedback_protocol():
+    """skill-list.schema.json#feedback_protocol を SSOT として読む。triggers/SKILL.md/upsert が分散しないようここに一本化。"""
+    sc = json.loads((SCHEMA_DIR / "skill-list.schema.json").read_text())
+    fp = sc.get("feedback_protocol")
+    if not fp:
+        print("[ERR] skill-list.schema.json に feedback_protocol が欠落"); sys.exit(2)
+    return fp
+
+
 def _kind_label(k):
     return {"run":"実行系(コマンド)","ref":"参照系(資料)","assign":"評価系",
             "wrap":"ラップ系(既存に追加)","delegate":"委譲系(外部実行)"}.get(k, k or "未設定")
@@ -281,23 +290,22 @@ def build_page_children(plugin_name, info):
     else:
         blocks.append(p("(個別スキル追加後にここへシナリオが入ります)"))
 
-    # ── ⑦ 改善要望の出し方 (フィードバックループ) ──
+    # ── ⑦ 改善要望の出し方 (フィードバックループ / schema feedback_protocol が SSOT) ──
+    fb = _load_feedback_protocol()
     blocks.append(h2("🔁 改善要望の出し方"))
-    blocks.append(callout("✉️",
-        "このプラグインを使って『ここが分かりにくい』『こう直してほしい』と感じたら、下記コマンドで Notion の改善要望 DB に直接プッシュできます。プラグイン名と要望を入力するだけ。",
-        "yellow_background"))
-    blocks.append(code(f"/run-skill-feedback {plugin_name}"))
-    blocks.append(p("入力する内容(対話で順に聞かれます):"))
-    for label, desc in [
-        ("要望タイトル","30字くらいで『何を直したいか』を一行で"),
-        ("要望種別","バグ / 機能追加 / プロンプト改善 / ドキュメント / 挙動変更 から選ぶ"),
-        ("やってほしいこと","こう直してほしい、を一段落で具体的に"),
-        ("背景・困っていること","なぜそれが必要か(任意)"),
-        ("優先度","高 / 中 / 低 (デフォルト中)"),
-        ("重要度","高 / 中 / 低 (デフォルト中)"),
-    ]:
-        blocks.append(bullet(rt(label, bold=True), f": {desc}"))
-    blocks.append(p("投入された要望は、このプラグインの『未対応要望数』プロパティに自動カウントされます。"))
+    blocks.append(callout("✉️", fb["callout_summary"], "yellow_background"))
+    blocks.append(p(rt("発火条件 (どんなときに使うか):", bold=True)))
+    for cond in fb["firing_conditions"]:
+        blocks.append(bullet(cond))
+    blocks.append(p(rt("コマンド:", bold=True)))
+    blocks.append(code(fb["command"].replace("<plugin-name>", plugin_name)))
+    blocks.append(p(rt("入力する内容 (対話で順に聞かれます):", bold=True)))
+    for f in fb["intake_fields"]:
+        suffix = "" if f.get("required") else " (任意)"
+        blocks.append(bullet(rt(f["name"], bold=True), f"{suffix}: {f['hint']}"))
+    blocks.append(p(rt("投入後の流れ (約束):", bold=True)))
+    blocks.append(p(fb["promise_to_reporter"]))
+    blocks.append(p(rt("対応ステータスの遷移:", bold=True), " → ".join(fb["status_lifecycle"])))
 
     # ── ⑧ 困ったときは ──
     blocks.append(h2("❓ 困ったときは"))

@@ -29,6 +29,10 @@ def parse_proposal(p: Path) -> dict:
 
 
 def main() -> int:
+    # Hook mode: when invoked by PostToolUse:Edit without CLI args,
+    # exit 0 silently. Proposal-context invocation requires explicit CLI args.
+    if "--proposal" not in sys.argv:
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("--proposal", required=True)
     ap.add_argument("--logs", required=True)

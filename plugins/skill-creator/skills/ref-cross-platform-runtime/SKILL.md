@@ -4,6 +4,7 @@ description: 他Skillが host OS で分岐するとき、OS判定に失敗した
 effect: none
 disable-model-invocation: false
 user-invocable: false
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 owner: team-platform
@@ -15,7 +16,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: source-update
 hierarchy_level: L0
-responsibility_refs: [prompts/search-summarize.md]
+responsibility_refs: [prompts/R1-search-summarize.md]
 ---
 
 # ref-cross-platform-runtime

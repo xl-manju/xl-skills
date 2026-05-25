@@ -3,6 +3,7 @@ name: ref-skill-naming-convention
 description: Skillを命名するとき、改名するときに読む。
 disable-model-invocation: true
 user-invocable: false
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 effect: none
@@ -14,7 +15,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
-responsibility_refs: [prompts/search-summarize.md]
+responsibility_refs: [prompts/R1-search-summarize.md]
 ---
 
 # ref-skill-naming-convention

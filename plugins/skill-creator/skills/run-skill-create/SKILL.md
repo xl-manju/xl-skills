@@ -23,9 +23,9 @@ version: 0.1.0
 pair: assign-skill-design-evaluator
 manifest: workflow-manifest.json
 responsibility_refs:
-  - prompts/elicit.md
-  - prompts/gate-review.md
-  - prompts/governance-decide.md
+  - prompts/R1-elicit.md
+  - prompts/R2-gate-review.md
+  - prompts/R3-governance-decide.md
 rubric_refs:
   - ref-skill-design-rubric
 reference_refs:
@@ -71,7 +71,7 @@ audit-trigger: quarterly
 
 ## Key Rules
 
-1. **ゲート前で必ず止まる**: ユーザー承認なしに次フェーズへ進まない。全ゲートは AskUserQuestion 経由 (`prompts/gate-review.md`)。
+1. **ゲート前で必ず止まる**: ユーザー承認なしに次フェーズへ進まない。全ゲートは AskUserQuestion 経由 (`prompts/R2-gate-review.md`)。
 2. **子スキルへの委譲**: 各フェーズは独立 Skill を Skill tool で起動 (`workflow-manifest.json` の `delegateSkill`)。本スキルは制御のみ。
 3. **失敗時の停止**: P0 lint fail または evaluator FAIL なら停止し findings 提示。
 4. **context:fork**: evaluator/governance reviewer は必ず context:fork で起動 (Sycophancy 防止)。
@@ -116,15 +116,15 @@ audit-trigger: quarterly
 - [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み
 - [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし
 - [ ] 新規 or >30 行変更時、`run-elegant-review` (context:fork) で C1-C4 全 PASS。PASS 時 `eval-log/pattern-feedback.json` に pattern_ref_candidates/new_patterns/mass_production_risk を提案保存
-- [ ] governance 承認済み: `references/governance-params.json` の 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) 全充足で自動、不充足なら `run-skill-rubric-governance` 経由 (`prompts/governance-decide.md` R3)。Gate 4 承認済み
+- [ ] governance 承認済み: `references/governance-params.json` の 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) 全充足で自動、不充足なら `run-skill-rubric-governance` 経由 (`prompts/R3-governance-decide.md` R3)。Gate 4 承認済み
 - [ ] 各ゲート通過時に `eval-log/handoff-<step>.json` が `schemas/handoff.schema.json` 準拠で保存されている
-- [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/TODO(human)) が日本語本文で提示されている (パラメーター名のみ英語)
+- [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/open_questions) が日本語本文で提示されている (パラメーター名のみ英語)
 
 ### ゴールシークループ
 
 正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
 
-- **未達評価の単位はゲート**: Gate 1→2→2.5→3→4 を順に「未承認」とみなして都度埋める。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/gate-review.md`)。
+- **未達評価の単位はゲート**: Gate 1→2→2.5→3→4 を順に「未承認」とみなして都度埋める。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/R2-gate-review.md`)。
 - **委譲先 (子 Skill)**: `run-skill-elicit` / `run-build-skill` / `assign-skill-design-evaluator` / `run-elegant-review` / `run-skill-rubric-governance`。本スキルは制御のみ、各子が自設計書を参照。
 - **context:fork 必須**: evaluator / elegant-review / governance reviewer は必ず fork で起動 (Sycophancy 防止)。
 - **差し戻し**: P0 lint fail または evaluator/elegant FAIL なら `run-build-skill` 再実行へ戻す (最大 3 周)。`--fast` 判定・elegant 起動判定は `scripts/evaluate-create-gates.py` で機械決定 (条件不一致は黙って通常フロー)。
@@ -155,7 +155,7 @@ audit-trigger: quarterly
 - `schemas/findings.schema.json` — evaluator/elegant-review 出力形式 (C1-C4)
 - `schemas/build-trace.schema.json` — Step 2 emit する章別 coverage 形式
 - `schemas/rubric-merge.schema.json` — L0/L1/L2 rubric deep-merge 物質化形式
-- `prompts/elicit.md` / `prompts/gate-review.md` / `prompts/governance-decide.md` — R1/R2/R3 責務別プロンプト
+- `prompts/R1-elicit.md` / `prompts/R2-gate-review.md` / `prompts/R3-governance-decide.md` — R1/R2/R3 責務別プロンプト
 - `references/gate-templates.md` — Gate 確認質問テンプレ (人間向け詳細手順)
 - 子スキル: `run-skill-elicit`, `run-build-skill`, `assign-skill-design-evaluator`, `run-elegant-review`, `run-skill-rubric-governance`, `run-skill-rename`
 - 設計書: 05/06/07/11/13/23/25 章

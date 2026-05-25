@@ -71,6 +71,38 @@
       "items": { "type": "string" },
       "description": "max_loops 到達でも未達/blocked の項目と理由。人間 or 上位 orchestrator への差し戻し対象。"
     },
+    "original_goal_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "intermediate_artifacts[0].original_goal の SHA-256 (hex 64桁)。全周回不変性の機械保証用 — 各 intermediate_artifacts[i].original_goal はこのハッシュと照合する。F-MD-012(W4) 対策。"
+    },
+    "last_consumed_intermediate_iteration": {
+      "type": "integer",
+      "minimum": -1,
+      "description": "次周回 Step2 が直前 intermediate を消費した最終 iteration (未消費は -1)。Step2 envelope の必須入力読込を観測可能にし、crash recovery にも使う (F-MD-006 / F-MD-011)。"
+    },
+    "intermediate_artifacts": {
+      "type": "array",
+      "description": "各周回末に追記する中間成果物アンカー。original_goal は不変、current_goal_snapshot/delta/merged_directive_for_next を周回ごとに更新し、次周回 Step2 (手順生成) の必須入力にする。集約化ドリフト圧縮機構 (references/goal-seek-paradigm.md「中間成果物」)。",
+      "items": {
+        "type": "object",
+        "required": ["iteration", "original_goal", "current_goal_snapshot", "delta_from_original", "merged_directive_for_next", "drift_signal"],
+        "additionalProperties": true,
+        "x-extensions-note": "items は前方互換のため additionalProperties:true。将来 evidence_paths / semantic_diff / token_diff / consumed_by_next_step 等を任意追加可能 (elegant-review F-LS-006/F-SS-009/F-MD-007)。",
+        "properties": {
+          "iteration": { "type": "integer", "minimum": 0, "description": "周回番号 (progress.iteration と対応)。" },
+          "original_goal": { "type": "string", "description": "初期確定 (or 推定) のユーザーゴール。**全周回で不変** — 周回をまたいで書き換えない。不変性は progress.json トップの original_goal_hash (SHA-256) で機械保証する。" },
+          "current_goal_snapshot": { "type": "string", "description": "今周回で AI が向かっている到達点を 1 文で明示。" },
+          "delta_from_original": { "type": "string", "description": "original_goal と current_goal_snapshot の差分 (抽象化しすぎ / 論点ズレ / 粒度ズレを言語化)。差分なしなら空文字。" },
+          "merged_directive_for_next": { "type": "string", "description": "差分を埋めるため次周回 Step2 へ渡す指示。「original_goal の具体性を保ったまま delta を圧縮せよ」型。" },
+          "drift_signal": {
+            "type": "string",
+            "enum": ["initial", "aligned", "compressing", "stagnant", "widening", "oscillating"],
+            "description": "前周回との比較。initial=iteration0で前周回無し / aligned=差分ゼロ / compressing=縮んでいる / stagnant=2周連続で変化なし (要アプローチ転換) / widening=広がっている (差し戻し検討) / oscillating=2周連続で正負反転 (打ち切り検討)。判定主体: ループ実行SubAgent (fork内自己評価)、判定タイミング: Step4検証後・Step5反復判定前。"
+          }
+        }
+      }
+    },
     "handoff": {
       "type": "string",
       "description": "達成後に出力した handoff-*.json のパス (任意)。後続 Capability への受け渡し。"
