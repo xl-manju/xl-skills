@@ -137,6 +137,12 @@ PENDING_RENAME_PATHS = {
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/generate-sheet.py",
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/convert-format.py",
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py",
+    # PR #16: notion 3DB schema-as-code / skill-creator 連動 (notion-/sync- verb pending allowed-list extension)
+    "scripts/notion-submit-improvement.py",
+    "scripts/notion-upsert-plugin.py",
+    "scripts/sync-notion-schema.py",
+    # PR #16: build-trace SSOT shim (Python import がハイフン不可のため underscore 許容、§4.3 例外)
+    "plugins/skill-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")
