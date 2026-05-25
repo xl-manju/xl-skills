@@ -277,6 +277,15 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 > **改善要望ループバック** (発火→提出→集計→対応→完了): schema `feedback_protocol` (firing_conditions / submit / rollup / status_lifecycle / promise_to_reporter) が SSOT。量産プラグイン全てで同一形を保つため、発火条件文言はプラグイン側で再定義せず schema を引く。
 
+### Step 11.6: feedback-loop 配備 (default-ON, with-feedback-loop combinator)
+
+量産先 `plugins/<plugin>/skills/run-skill-feedback` を **skill-creator 正本への相対 symlink** で配備する (実体は `plugins/skill-creator/skills/run-skill-feedback` のみ、SSOT)。**`workflow-manifest.json` の phase `feedback-deploy` (`default_on: true`) として登録済み。`--no-feedback-loop` 明示時のみ skip**。
+
+1. 配備 (default-ON, 自動実行): `python3 plugins/skill-creator/skills/run-build-skill/scripts/render-combinators.py --deploy-feedback-loop plugins/<plugin>` を build 完了直後に呼ぶ。combinator が `../../skill-creator/skills/run-skill-feedback` への symlink を冪等に張る (既存なら no-op)。skill-creator 自身は対象外。
+2. 検査: `scripts/lint-feedback-protocol.py --strict` の **R7** が配備の存在を機械検査し、不在は exit 1 (CI で merge ブロック)。
+3. opt-out: `brief.no_feedback_loop: true` または CLI `--no-feedback-loop` 指定時のみ skip (drift リスクを引き受ける明示的判断、trace に理由記録必須)。
+4. 物理コピー禁止: 配備先は symlink のみ。実体を複製すると `feedback_protocol` 文言の drift が発生し、R3/R4 lint が即時 fail する。
+
 ## 配置先
 
 | 用途               | 出力先                                          | 正本                            |

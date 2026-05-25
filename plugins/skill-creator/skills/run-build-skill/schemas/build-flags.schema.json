@@ -48,6 +48,11 @@
         "auto_merge_settings_json": {"type": "boolean", "const": false}
       }
     },
+    "no_feedback_loop": {
+      "type": "boolean",
+      "default": false,
+      "description": "Step 11.6 feedback-deploy phase を skip する opt-out フラグ (default-ON のため明示指定時のみ false→true)。drift リスクを引き受ける場合に限り使用し、trace.layer_decisions に理由記録必須。skill-creator 自身は自動除外のため本フラグ不要。"
+    },
     "with_knowledge": {
       "type": "object",
       "description": "生成スキルに knowledge/ 蓄積・3段階検索・§12フィードバックループを注入する横断 combinator。正本仕様は ref-knowledge-loop。",
