@@ -1,0 +1,64 @@
+{
+  "db_id": "36b07a0c-d18c-8073-b106-e70552e13308",
+  "title": "Skill一覧",
+  "title_property": "プラグイン名",
+  "row_unit": "plugin",
+  "managed_properties": {
+    "プラグイン名": {"type": "title"},
+    "バージョン": {"type": "rich_text"},
+    "公開ステータス": {
+      "type": "select",
+      "options": [
+        {"name": "開発中", "color": "yellow"},
+        {"name": "公開中", "color": "green"},
+        {"name": "非推奨", "color": "orange"},
+        {"name": "廃止", "color": "red"}
+      ]
+    },
+    "カテゴリ": {
+      "type": "multi_select",
+      "options": [
+        {"name": "生成", "color": "blue"},
+        {"name": "改善", "color": "purple"},
+        {"name": "評価", "color": "pink"},
+        {"name": "連携", "color": "green"},
+        {"name": "運用", "color": "gray"}
+      ]
+    },
+    "担当者": {"type": "people"},
+    "概要": {"type": "rich_text"},
+    "インストールコマンド": {"type": "rich_text"},
+    "リポジトリパス": {"type": "url"},
+    "最終更新日": {"type": "last_edited_time"},
+    "紐づくヒアリングシート": {
+      "type": "relation",
+      "target_db": "hearing-sheet",
+      "dual": true,
+      "synced_property_on_target": "紐づくプラグイン"
+    },
+    "改善要望": {
+      "type": "relation",
+      "target_db": "improvement-request",
+      "dual": true,
+      "synced_property_on_target": "対象プラグイン"
+    },
+    "未対応要望数": {
+      "type": "rollup",
+      "relation_property_name": "改善要望",
+      "rollup_property_name": "対応ステータス",
+      "function": "count",
+      "view_filter_hint": "Notion View 側で 対応ステータス ∈ {未着手,計画中,対応中} に絞る"
+    }
+  },
+  "page_body_template": [
+    "## インストール方法",
+    "（インストールコマンド・前提・初期設定）",
+    "",
+    "## 含まれるスキル",
+    "- run-xxx — 用途",
+    "- ref-yyy — 用途",
+    "",
+    "## 使い方",
+    "..."
+  ]
+}

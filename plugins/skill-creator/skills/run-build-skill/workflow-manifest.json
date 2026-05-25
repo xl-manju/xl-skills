@@ -86,6 +86,17 @@
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "resourceIds": ["schema-skill-build-trace", "prompt-trace-write"],
       "output_artifact": "eval-log/skill-build-trace.json"
+    },
+    {
+      "id": "notion-register",
+      "step": 10,
+      "title": "Notion スキル一覧 DB へプラグイン情報を upsert (1:1 でヒアリングシート紐付け)",
+      "dependsOn": ["trace-write"],
+      "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
+      "flag_required": "--notion-register",
+      "resourceIds": [],
+      "output_artifact": "scripts/notion-upsert-plugin.py --plugin <plugin> [--hearing-sheet-id <id>]",
+      "note": "実体は top-level scripts/notion-upsert-plugin.py。冪等。token は keychain notion-api-key または $NOTION_TOKEN。"
     }
   ],
   "resources": [
