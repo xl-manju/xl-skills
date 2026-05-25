@@ -17,7 +17,7 @@ allowed-tools:
   - Bash(security *)
 kind: run
 prefix: run
-effect: external-write
+effect: external-mutation
 owner: team-platform
 since: 2026-05-25
 version: 0.1.0
