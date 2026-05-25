@@ -22,9 +22,9 @@ version: 0.1.0
 manifest: workflow-manifest.json
 spec_version: "2.0"
 responsibility_refs:
-  - prompts/phase1-reset.md
-  - prompts/phase2-parallel.md
-  - prompts/phase3-execute.md
+  - prompts/R1-phase1-reset.md
+  - prompts/R2-phase2-parallel.md
+  - prompts/R3-phase3-execute.md
 subagent_refs:
   - elegant-reset-observer
   - elegant-logical-structural-analyst

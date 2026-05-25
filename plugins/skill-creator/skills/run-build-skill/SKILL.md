@@ -1,11 +1,32 @@
 ---
 name: run-build-skill
 description: Capability 7 kind を新規作成・更新するとき、CapabilityManifest と plugin-composition.yaml を整備するときに使う。
-triggers: ["skill作成", "skill更新", "agent作成", "hook配線", "slashcommand作成", "plugin-composition編集", "prompt生成", "workflow定義"]
+triggers:
+  [
+    'skill作成',
+    'skill更新',
+    'agent作成',
+    'hook配線',
+    'slashcommand作成',
+    'plugin-composition編集',
+    'prompt生成',
+    'workflow定義',
+  ]
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-prompts] [--with-evaluator] [--with-hooks] [--with-knowledge index-search|router-registry] [--model opus|sonnet]"
-arguments: [skill_name, kind, mode, with_subagent, with_prompts, with_evaluator, with_hooks, with_knowledge, model]
+argument-hint: '[skill-name] [kind?] [--mode create|update] [--with-subagent] [--with-prompts] [--with-evaluator] [--with-hooks] [--with-knowledge index-search|router-registry] [--model opus|sonnet]'
+arguments:
+  [
+    skill_name,
+    kind,
+    mode,
+    with_subagent,
+    with_prompts,
+    with_evaluator,
+    with_hooks,
+    with_knowledge,
+    model,
+  ]
 allowed-tools:
   - Read
   - Write
@@ -20,21 +41,23 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-17
-version: 0.2.0  # Capability 7 kind 対応 (skill/agent/hook/command/plugin-composition/prompt/workflow)
+version: 0.2.0 # Capability 7 kind 対応 (skill/agent/hook/command/plugin-composition/prompt/workflow)
 manifest: workflow-manifest.json
 responsibility_refs:
-  - R1: prompts/scaffold.md
-  - R2: prompts/responsibility-emit.md
-  - R3: prompts/template-select.md
-  - R4: prompts/trace-write.md
-  - R5: references/capability-manifest.schema.json
-  - R6: templates/agent-skeleton.md
-  - R7: templates/hook-skeleton.md
-  - R8: templates/command-skeleton.md
-  - R9: templates/plugin-composition-skeleton.yaml
-  - R10: templates/prompt-skeleton.md
-  - R11: templates/workflow-skeleton.md
-prompt_format: markdown  # 既定: Markdown (.md)。YAML (.yaml) は legacy 許容、新規禁止
+  - prompts/R1-scaffold.md
+  - prompts/R2-responsibility-emit.md
+  - prompts/R3-template-select.md
+  - prompts/R4-trace-write.md
+template_refs:
+  - templates/agent-skeleton.md
+  - templates/hook-skeleton.md
+  - templates/command-skeleton.md
+  - templates/plugin-composition-skeleton.yaml
+  - templates/prompt-skeleton.md
+  - templates/workflow-skeleton.md
+schema_refs:
+  - references/capability-manifest.schema.json
+prompt_format: markdown # 既定: Markdown (.md)。YAML (.yaml) は legacy 許容、新規禁止
 script_refs:
   - scripts/render-combinators.py
   - scripts/render-frontmatter.py
@@ -107,12 +130,15 @@ audit-trigger: quarterly
 > 本 Skill は固定手順ではなく、下記ゴールへ向けて完了チェックリストの未達項目を埋める手順を都度生成して反復する。下記「局面カタログ」は順序固定の手順ではなく、未達項目に応じてループが選ぶ局面メニュー。正本: `references/goal-seek-paradigm.md`。
 
 ### ゴール (Goal)
+
 対象 Capability (7 kind) が、全ゲート (命名/構造 lint・frontmatter・goal-seek/completeness lint・trace exit0・score>=80 かつ high=0) を満たす再利用可能な成果物として `$OUT_BASE/<name>/` に生成・更新され、`eval-log/skill-build-trace.json` が同一 brief→同一判断順序の再現性を証跡化している状態。
 
 ### 目的・背景 (Why)
+
 量産対象は kind・ドメイン・出力先が多様で、固定手順は前提が崩れると破綻する。ゴール (= 全ゲート PASS) とチェックリストを到達点に固定し、手順は未達項目から都度導出することで、多様な Capability を同一基盤で再現性高く構築できる。
 
 ### 完了チェックリスト (Checklist)
+
 - [ ] kind を 7 種から確定し、commonCore frontmatter (必須集合の正本 = `references/capability-manifest.schema.json#/definitions/commonCore.required`: `name`/`description`/`kind`/`version`/`owner`) を生成した
 - [ ] 本文 300 行以下・description は発動条件のみ・trigger 2-3 個 (08章)
 - [ ] kind 別必須サポート資産 (prompts/references/schemas/scripts) を実在・共有正本参照・`completeness_exempt` 理由付き宣言のいずれかで満たした (`lint-skill-completeness.py` exit0)
@@ -123,7 +149,9 @@ audit-trigger: quarterly
 - [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007)
 
 ### ゴールシークループ
+
 正本 `references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本 Skill 固有の差分:
+
 - 現状評価は上記チェックリストの未達項目を対象にし、それを埋める局面を下記「局面カタログ」から選ぶ (順序固定なし)。
 - 検証は決定論検査 (lint/trace/score) を優先し、`### 局面: 命名・構造 Lint` / `### 局面: フォーク評価` のコマンド群で機械判定する。
 - ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
@@ -139,15 +167,15 @@ audit-trigger: quarterly
 1. **kind 確認**: 引数 `kind` または `brief.kind` を確定。既定は `skill`。未指定なら Step 1 のヒアリングで決める。7 kind 以外は exit 1。
 2. **対応 skeleton 選択**: kind → skeleton ファイルの対応は下表 (`schemas/template-selection.schema.json#/selection_rules` の `capability_kind_map` を正本)。
 
-   | kind | skeleton | 主出力先 |
-   |---|---|---|
-   | skill | `templates/run.md` / `templates/ref.md` / `templates/assign-*.md` / `templates/wrap.md` / `templates/delegate.md` | `plugins/<plugin>/skills/<name>/SKILL.md` |
-   | agent | `templates/agent-skeleton.md` | `plugins/<plugin>/agents/<name>.md` |
-   | hook | `templates/hook-skeleton.md` | `plugins/<plugin>/hooks/<name>.{py,md}` |
-   | command | `templates/command-skeleton.md` | `plugins/<plugin>/commands/<name>.md` |
-   | plugin-composition | `templates/plugin-composition-skeleton.yaml` | `plugins/<plugin>/plugin-composition.yaml` |
-   | prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` |
-   | workflow | `templates/workflow-skeleton.md` | `plugins/<plugin>/workflows/<name>.md` |
+   | kind               | skeleton                                                                                                          | 主出力先                                   |
+   | ------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+   | skill              | `templates/run.md` / `templates/ref.md` / `templates/assign-*.md` / `templates/wrap.md` / `templates/delegate.md` | `plugins/<plugin>/skills/<name>/SKILL.md`  |
+   | agent              | `templates/agent-skeleton.md`                                                                                     | `plugins/<plugin>/agents/<name>.md`        |
+   | hook               | `templates/hook-skeleton.md`                                                                                      | `plugins/<plugin>/hooks/<name>.{py,md}`    |
+   | command            | `templates/command-skeleton.md`                                                                                   | `plugins/<plugin>/commands/<name>.md`      |
+   | plugin-composition | `templates/plugin-composition-skeleton.yaml`                                                                      | `plugins/<plugin>/plugin-composition.yaml` |
+   | prompt             | `templates/prompt-skeleton.md`                                                                                    | `plugins/<plugin>/prompts/<name>.md`       |
+   | workflow           | `templates/workflow-skeleton.md`                                                                                  | `plugins/<plugin>/workflows/<name>.md`     |
 
 3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
 4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint は warn 出力に留め、Hook/CI で再実行する。
@@ -162,7 +190,7 @@ audit-trigger: quarterly
 
 ### Step 2: テンプレ展開 / 既存読込 (phase: scaffold)
 
-kind → template 選択は `prompts/template-select.md` (R3) と `schemas/template-selection.schema.json` に従う。骨格生成は `prompts/scaffold.md` (R1)。`COMPOSER_MODE=atomic` の場合は combinator を kind → flag 順で適用。
+kind → template 選択は `prompts/R3-template-select.md` (R3) と `schemas/template-selection.schema.json` に従う。骨格生成は `prompts/R1-scaffold.md` (R1)。`COMPOSER_MODE=atomic` の場合は combinator を kind → flag 順で適用。
 
 ### Step 3: 補助 references / 生成 (phase: references)
 
@@ -170,7 +198,7 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 ### Step 3.5: 再現性トレース生成 (phase: trace-write)
 
-`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/trace-write.md` (R4) に従って章別記入。
+`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/R4-trace-write.md` (R4) に従って章別記入。
 
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
@@ -205,7 +233,7 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 
 ### Step 7.5: prompt-creator ループ (phase: prompts-emit, `--with-prompts` or `brief.use_prompt_creator`)
 
-`brief.responsibilities[]` の **R-id 単位** でループ。詳細は `prompts/responsibility-emit.md` (R2) と `references/prompt-placement-convention.md`。
+`brief.responsibilities[]` の **R-id 単位** でループ。詳細は `prompts/R2-responsibility-emit.md` (R2) と `references/prompt-placement-convention.md`。
 
 ### Step 8: evaluator ペア生成 (phase: evaluator-emit, `--with-evaluator` or `brief.generate_pair_evaluator`)
 
@@ -223,30 +251,50 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 2. `templates/knowledge-skeleton/<pattern>/` を `$OUT_BASE/$SKILL_NAME/knowledge/` へ展開し、`scripts/{search_knowledge,build_index,record_usage,add_entry}.py` を `scripts/` へコピー(注入される `## ナレッジループ` 節が参照する4スクリプトと一致させる)。
 3. `render-combinators.py --with-knowledge` で SKILL.md に `## ナレッジループ` 節と frontmatter `knowledge_loop` ブロックを決定論注入(検索・追加・§12活用ログ・分割閾値・`consult_at` を記載)。注入本文は同梱 `scripts/` のみ参照し skill-creator 内部へ依存しない(配布スキル自己完結)。
 4. frontmatter `knowledge_loop` 記述子に `consult_at: ["runtime"]` が入る(`references/capability-manifest.schema.json#/definitions/commonCore.properties.knowledge_loop`)。Loop A は必ず runtime。
-5. Step 4 の `lint-knowledge-loop.py` で KL-001..007 を検査(KL-006=add_entry.py存在/warn、KL-007=ストア位置↔consult_at一致/error)。`assign-skill-design-evaluator` も KL-* を採点。
+5. Step 4 の `lint-knowledge-loop.py` で KL-001..007 を検査(KL-006=add_entry.py存在/warn、KL-007=ストア位置↔consult_at一致/error)。`assign-skill-design-evaluator` も KL-\* を採点。
 
 > **Loop B (skill-creator 自己適用)**: skill-creator 自身も `plugins/skill-creator/knowledge/` を持ち、`consult_at: [build-time]` で過去ビルド知見を作成時に検索する。生成物側(Loop A)と同一機構を dogfooding する(SSOT)。
 
+### Step 11: Notion スキル一覧 DB へ upsert (phase: notion-register, `--notion-register`)
+
+build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) に冪等登録する。**プラグイン単位 1 行**で、配下の個別 Skill はページ本文に列挙される(`scripts/notion-upsert-plugin.py` が `plugins/<plugin>/skills/` を走査)。手順:
+
+1. `--notion-register` または `brief.notion_register=true` 未指定なら phase skip。
+2. `python3 scripts/notion-upsert-plugin.py --plugin <plugin>` 実行 (TITLE 検索→PATCH/POST 冪等)。ヒアリングシート由来なら `--hearing-sheet-id <notion-page-id>` で 1:1 relation を埋める。
+3. token は keychain `notion-api-key` (macOS) または `$NOTION_TOKEN` (CI)。不在なら警告のみで skip。
+4. 整合性は `scripts/lint-notion-relations.py` が 1:1 / N:1 不変条件 (プラグイン名重複・ヒアリング多重紐付け・改善要望の対象未設定) を CI で検証。
+
+正本スクリプト: `scripts/notion-upsert-plugin.py` / スキーマ SSOT: `doc/notion-schema/skill-list.schema.json` (含む `feedback_protocol` SSOT)。
+
+### Step 11.5: 量産時の改善要望ループ default 同梱 (再現性の核)
+
+新規プラグインを skill-creator で量産する際は **以下を default にして再現性を保証する**:
+
+1. **`run-skill-feedback` の参照同梱**: 新規プラグインの `plugin.json` `description` または README に「`/run-skill-feedback <plugin-name>` で改善要望を投入できる」旨を必ず記載 (発火経路の周知)。
+2. **`--notion-register` を default ON**: brief で明示的に opt-out (`notion_register: false`) しない限り Step 11 を実行する。これにより新規プラグインも自動的にスキル一覧 DB に登録され、`run-skill-feedback` の `verify-plugin` phase が成立する。
+3. **発火条件 SSOT の参照**: 各プラグインの「改善要望」節 (Notion ページ本文 §7) は `scripts/notion-upsert-plugin.py` の `_load_feedback_protocol()` 経由で `doc/notion-schema/skill-list.schema.json#feedback_protocol` から自動描画される。スキル個別に文言を書かない (drift 防止)。
+4. **lint で機械強制**: `scripts/lint-feedback-protocol.py` が schema / `run-skill-feedback/SKILL.md` / `notion-upsert-plugin.py` の三者整合を CI で検査 (offline、NOTION_TOKEN 不要)。違反時は merge ブロック。
+
+> **改善要望ループバック** (発火→提出→集計→対応→完了): schema `feedback_protocol` (firing_conditions / submit / rollup / status_lifecycle / promise_to_reporter) が SSOT。量産プラグイン全てで同一形を保つため、発火条件文言はプラグイン側で再定義せず schema を引く。
+
 ## 配置先
 
-| 用途 | 出力先 | 正本 |
-|---|---|---|
+| 用途               | 出力先                                          | 正本                            |
+| ------------------ | ----------------------------------------------- | ------------------------------- |
 | Skill Creator 基盤 | `plugins/skill-creator/skills/<skill>/SKILL.md` | `plugins/skill-creator/skills/` |
-| 他 plugin 所属 | `plugins/<plugin>/skills/<skill>/SKILL.md` | `plugins/<plugin>/` |
+| 他 plugin 所属     | `plugins/<plugin>/skills/<skill>/SKILL.md`      | `plugins/<plugin>/`             |
 
 `.claude/skills/<skill>/` は symlink 派生 (直接書き込まない)。詳細: 34章 § plugin 物理レイアウトと symlink 戦略。
 
 ## Gotchas
 
-- frontmatter 順序事故 / description 長文化 / ref-* body 肥大 / scripts 内 yaml import / fork 評価の自己採点 / update 全書き換え / 全章一括ロード / `.js` `.sh` 新規生成、いずれも禁止。詳細は `references/build-steps.md`。
+- frontmatter 順序事故 / description 長文化 / ref-\* body 肥大 / scripts 内 yaml import / fork 評価の自己採点 / update 全書き換え / 全章一括ロード / `.js` `.sh` 新規生成、いずれも禁止。詳細は `references/build-steps.md`。
 
 ## Additional Resources
 
 - `workflow-manifest.json` — phase / dependsOn / kind_filter / resourceIds の宣言
 - `schemas/{skill-build-trace, template-selection, responsibility-slot, build-flags}.schema.json` — 機械検証用 schema
-- `prompts/{scaffold, responsibility-emit, template-select, trace-write}.md` — R-id 別プロンプト
-- `references/{design-docs-index.md, resource-map.yaml, build-steps.md, reproducibility-trace-schema.md, prompt-placement-convention.md, skill-factory-reproducibility.md, agent-template.md}` — 設計書索引と詳細手順
+- `prompts/R{1-4}-{scaffold,responsibility-emit,template-select,trace-write}.md` — R-id 別プロンプト / `references/{design-docs-index, resource-map.yaml, build-steps, reproducibility-trace-schema, prompt-placement-convention, skill-factory-reproducibility, agent-template, goal-seek-paradigm}` — 設計書索引と詳細手順
 - `templates/`, `examples/` — kind 別雛形と完成例
 - `scripts/` — render-frontmatter / validate-naming / validate-build-trace / build-subagent 他
-- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest 定義 (commonCore + kind 別 `definitions/kind*`)。**commonCore 必須集合の正本**であり validate-frontmatter.py が動的ロードする
-- `templates/agent-skeleton.md` / `templates/hook-skeleton.md` / `templates/command-skeleton.md` / `templates/plugin-composition-skeleton.yaml` / `templates/prompt-skeleton.md` / `templates/workflow-skeleton.md` — 新 6 kind の骨格
+- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest (commonCore + 各 `definitions/kind*`) 正本。validate-frontmatter.py が動的ロード。新 6 kind 骨格は `templates/{agent,hook,command,plugin-composition,prompt,workflow}-skeleton.{md,yaml}`

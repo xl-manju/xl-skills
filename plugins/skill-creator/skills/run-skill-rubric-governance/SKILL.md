@@ -18,7 +18,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/main.yaml
+  - prompts/R1-govern.md
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json

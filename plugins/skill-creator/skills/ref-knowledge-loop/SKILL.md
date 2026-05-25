@@ -13,10 +13,17 @@ source: doc/knowledge-loop/
 source-tier: internal
 allowed-tools: [Read, Grep]
 responsibility_refs:
-  - prompts/search-summarize.md
+  - prompts/R1-search-summarize.md
 ---
 
 # ref-knowledge-loop
+
+## Purpose & Output Contract
+
+生成スキルに `knowledge/` を追加する際の設計参照。構築編 (パターン選択・構造・フィールド・品質ルーブリック) と運用編 (検索・ライフサイクル・フィードバック) の 2 リファレンスを提供し、Loop A (生成物側) と Loop B (メタ側) を同一機構 SSOT で配線する。
+
+**入力**: なし (Read-only 参照型)
+**出力**: `references/knowledge-construction.md` / `references/knowledge-search-lifecycle.md` の該当節と、生成スキルへ展開する 4 スクリプト雛形のパス
 
 ## 参照内容
 

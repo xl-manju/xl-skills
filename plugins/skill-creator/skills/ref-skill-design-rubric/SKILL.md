@@ -3,6 +3,7 @@ name: ref-skill-design-rubric
 description: SKILL.mdを評価するとき、新規Skillを設計するときに読む。
 disable-model-invocation: true
 user-invocable: false
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 effect: none
@@ -15,7 +16,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/search-summarize.md
+  - prompts/R1-search-summarize.md
 ---
 
 # ref-skill-design-rubric

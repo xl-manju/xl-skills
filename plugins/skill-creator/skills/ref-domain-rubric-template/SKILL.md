@@ -3,6 +3,7 @@ name: ref-domain-rubric-template
 description: 新規ドメイン用L1 rubricを作成したいとき、ドメイン特化評価基準を雛形から派生させたいときに使う。
 user-invocable: false
 disable-model-invocation: true
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 effect: none
@@ -16,7 +17,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/search-summarize.md
+  - prompts/R1-search-summarize.md
 ---
 
 # ref-domain-rubric-template

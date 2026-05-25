@@ -41,6 +41,7 @@ completeness_exempt:
 - **出力**:
   - 各タスク固有の成果物（goal で定義された最終状態）
   - `eval-log/goal-seek-progress.json` — 各周回のチェックリスト状態と生成手順の記録
+  - `eval-log/run-goal-seek-intermediate.jsonl` — 各周回末の中間成果物アンカー (`original_goal`/`current_goal_snapshot`/`delta_from_original`/`merged_directive_for_next`/`drift_signal`)。次周回 Step2 への必須入力。集約化ドリフト圧縮機構 (`../run-build-skill/references/goal-seek-paradigm.md`「中間成果物」)。命名規約: `eval-log/<skill>-intermediate.jsonl` の `<skill>` は本スキル名 `run-goal-seek` を採る
   - `eval-log/handoff-goal-seek.json` — 成果物パスと達成チェックリスト（後続 skill が拾う汎用ハンドオフ）
 - **完了条件**: `goal-spec.checklist` が全項目 `done:true`。または `max_loops` 到達で残項目を `open_issues` に記録して停止。
 
@@ -57,6 +58,7 @@ completeness_exempt:
 5. **ハンドオフ**: 完了後、`handoff_targets` があれば各 skill へ成果物を渡す。無くても汎用 `handoff-goal-seek.json` を必ず出す。
 6. **コンテキスト分離（必須）**: ループは親セッションで直接回さず、`Agent` ツールで専用 SubAgent に fork して実行する。複数ゴールを並列で回すなら Agent Team に分離する。親に返すのは最終成果物パスと `handoff-goal-seek.json` 要約のみで、周回の中間情報（生成手順・試行錯誤）は fork 内に留める。詳細は `../run-build-skill/references/goal-seek-paradigm.md` の「コンテキスト分離」。
 7. **質問しない自走**: 不足情報は最尤仮説で補い、仮定を `goal-spec.constraints` / `goal-seek-progress.json.open_issues` に残す。
+8. **中間成果物アンカー（必須）**: 各周回末 (Anchor Step) に `eval-log/run-goal-seek-intermediate.jsonl` へ `{iteration, original_goal, current_goal_snapshot, delta_from_original, merged_directive_for_next, drift_signal}` を 1 行追記する。`original_goal` は全周回で**不変** (SHA-256 を `progress.original_goal_hash` に固定し毎周回照合)。次周回 Step2（手順生成）は直前の `merged_directive_for_next` と `original_goal` を**必須入力**として読み、AI が単独で再導出してはならない。`drift_signal` は schema 必須 (`initial`/`aligned`/`compressing`/`stagnant`/`widening`/`oscillating`)。これにより固定手順なしの自由度を保ちつつ、確率的最尤の抽象解へ集約化していくドリフトをアンカーで毎周回押し戻す。
 
 ## ゴールシーク実行
 > 固定手順は書かない。毎周「ゴール・目的/背景・チェックリスト」を読み、その時点で最適な手順を AI が生成・実行する。詳細は `../run-build-skill/references/goal-seek-paradigm.md`。
@@ -74,23 +76,53 @@ completeness_exempt:
 - [ ] `eval-log/handoff-goal-seek.json` を出力し、`handoff_targets` があれば各 skill へ渡した
 
 ### ゴールシークループ
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。本スキル固有の差分のみ記す:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step (中間成果物追記)→反復/差し戻し）に従う。本スキル固有の差分のみ記す:
 - 現状評価は `goal-spec.checklist` の `done:false` 項目を対象にする。
 - `goal-spec` 不在時は、会話履歴・`topic`・関連ファイル・直近 diff を根拠に `purpose/background/goal/checklist` を生成してから開始する。
+- 手順生成 (Step 2) は直前周回 intermediate の `merged_directive_for_next` と `original_goal` を**必須入力**として読む (AI 単独再導出禁止)。1 周目は paradigm.md「iteration=0 初期化規定」に従う。
 - 手順生成で必要なら子 Skill を `Skill()` で起動する。
 - 検証で `verify_by` 判定後、周回記録を `goal-seek-progress.json` に追記する。
-- `max_loops` 超過時は残項目を `open_issues` に記録して停止する。
+- Anchor Step (Step 5) で `eval-log/run-goal-seek-intermediate.jsonl` へ 1 行 append、初回は `progress.original_goal_hash` に SHA-256 を固定し以降全周回で照合する。
+- `max_loops` 超過時、または `drift_signal` が `stagnant`/`widening`/`oscillating` で 2 周連続停滞時は、残項目と差分を `open_issues` に記録して停止する。
 
 ## 検証
 
 ```bash
 # 完了判定: 全 checklist が done:true か、open_issues が記録されているか
-python3 - "$PWD/eval-log/goal-spec.json" "$PWD/eval-log/goal-seek-progress.json" <<'PY'
-import json, sys, os
+# + 中間成果物アンカー機構 (Anchor Step) の機械検査 (存在/行数/必須キー/不変性)
+# engine 本体 (引数 3: spec/progress/intermediate)。量産スキル inline 版は引数 2 (progress/intermediate) で
+# render-combinators.py GOAL_SEEK_WIRING_SECTION と同型のアンカー検査ロジックを共有する (SSOT は lint-goal-seek --self-test)。
+python3 - "$PWD/eval-log/goal-spec.json" "$PWD/eval-log/goal-seek-progress.json" "$PWD/eval-log/run-goal-seek-intermediate.jsonl" <<'PY'
+import json, sys, os, hashlib
 spec = json.load(open(sys.argv[1], encoding="utf-8"))
 undone = [c["id"] for c in spec["checklist"] if not c.get("done")]
-prog_path = sys.argv[2]
+prog_path, inter_path = sys.argv[2], sys.argv[3]
 prog = json.load(open(prog_path, encoding="utf-8")) if os.path.exists(prog_path) else {}
+
+# 中間成果物アンカー機構の機械検査 (paradigm.md「中間成果物」)
+required_keys = {"iteration","original_goal","current_goal_snapshot","delta_from_original","merged_directive_for_next","drift_signal"}
+if not os.path.exists(inter_path):
+    iters_fallback = prog.get("iteration", 0)
+    assert iters_fallback == 0, f"intermediate.jsonl 不在だが progress.iteration={iters_fallback} (周回実行済みなら anchor jsonl 必須)"
+    print("intermediate.jsonl 未生成 (ループ未実行)")
+else:
+    lines = [l for l in open(inter_path, encoding="utf-8").read().splitlines() if l.strip()]
+    assert lines, "intermediate.jsonl が空"
+    iters = prog.get("iteration", len(lines) - 1)
+    assert len(lines) == iters + 1, f"intermediate 行数 {len(lines)} != progress.iteration+1 ({iters+1})"
+    first_anchor = None
+    for i, line in enumerate(lines):
+        entry = json.loads(line)
+        missing = required_keys - entry.keys()
+        assert not missing, f"intermediate[{i}] 必須キー不足: {missing}"
+        if i == 0:
+            first_anchor = entry["original_goal"]
+            expected_hash = hashlib.sha256(first_anchor.encode()).hexdigest()
+            actual_hash = prog.get("original_goal_hash")
+            assert actual_hash is None or actual_hash == expected_hash, f"original_goal_hash drift: progress={actual_hash} vs sha256(intermediate[0])={expected_hash}"
+        assert entry["original_goal"] == first_anchor, f"intermediate[{i}] anchor 不変性違反: {entry['original_goal']!r} != {first_anchor!r}"
+    print(f"intermediate 検査 OK: {len(lines)} 行 / anchor 不変 / hash 一致")
+
 if undone:
     assert prog.get("open_issues"), f"未達 {undone} があるが open_issues 未記録"
     print(f"停止: open_issues に {len(undone)} 件記録済み")

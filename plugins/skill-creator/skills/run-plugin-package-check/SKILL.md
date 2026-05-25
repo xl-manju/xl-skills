@@ -28,8 +28,8 @@ audit-trigger: quarterly
 pair: assign-plugin-package-evaluator
 manifest: workflow-manifest.json
 responsibility_refs:
-  - prompts/orchestrate.md
-  - prompts/gate-decide.md
+  - prompts/R1-orchestrate.md
+  - prompts/R2-gate-decide.md
 rubric_refs:
   - ref-pkg-contract
 schema_refs:
@@ -170,8 +170,8 @@ Phase 別の実行 Step は `workflow-manifest.json phases[].id` 参照。
 
 ## Additional Resources
 
-- `prompts/orchestrate.md` — Step 0〜10 の制御プロンプト（R1）
-- `prompts/gate-decide.md` — phase 別完了判定（R2）
+- `prompts/R1-orchestrate.md` — Step 0〜10 の制御プロンプト（R1）
+- `prompts/R2-gate-decide.md` — phase 別完了判定（R2）
 - `schemas/run-report.schema.json` — run 全体集約 JSON
 - `scripts/run-plugin-validate-strict.sh` — PKG-001 公式 CLI ラッパー
 - `scripts/smoke-plugin-install.sh` — PKG-010 install smoke

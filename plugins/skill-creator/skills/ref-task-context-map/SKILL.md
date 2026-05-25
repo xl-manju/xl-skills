@@ -3,6 +3,7 @@ name: ref-task-context-map
 description: タスク文脈に応じた設計書章番号を調べるとき、動的ロードするべき章を特定するときに読む。
 disable-model-invocation: true
 user-invocable: false
+allowed-tools: [Read]
 kind: ref
 prefix: ref
 effect: none
@@ -14,7 +15,7 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
-responsibility_refs: [prompts/search-summarize.md]
+responsibility_refs: [prompts/R1-search-summarize.md]
 ---
 
 # ref-task-context-map

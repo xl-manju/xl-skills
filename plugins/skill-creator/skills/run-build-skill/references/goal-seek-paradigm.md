@@ -36,7 +36,7 @@ source-tier: internal
 | **ゴール (Goal)** | 達成すべき最終状態を 1 文 | 「〜が〜の状態になっている」完了形・観測可能 |
 | **目的・背景 (Why)** | なぜそのゴールか（判断のよりどころ） | 1〜3 文。手順生成時の優先順位の根拠になる |
 | **完了チェックリスト (Checklist)** | ゴール達成の受入基準 | `- [ ]` 形式の**検証可能**な項目。各項目は YES/NO で判定できること |
-| **ゴールシークループ (Loop)** | 反復の規約 | 下記 5 ステップ固定（これは手順ではなく**メタ手順**＝反復の枠組み） |
+| **ゴールシークループ (Loop)** | 反復の規約 | 下記 6 ステップ固定 (現状評価/手順生成/実行/検証/Anchor Step/反復)。これは手順ではなく**メタ手順**＝反復の枠組み |
 
 ## ゴールシークループ（メタ手順・固定）
 
@@ -44,7 +44,8 @@ source-tier: internal
 2. **手順生成**: 未達項目を満たすための手順を、その時点の文脈から**その場で立てる**（事前固定しない）。不足情報はユーザーへ聞かず、仮定を明示して進める。
 3. **実行**: 立てた手順を実行する。
 4. **検証**: チェックリストを再評価し、満たした項目を `[x]` に更新する。決定論的に検査できる項目は `## 検証` の script/lint へ寄せる。
-5. **反復 / 差し戻し**: 全 `[x]` まで 1→4 を繰り返す。規定周回（既定 5 周）を超えても未達なら、残項目を `open_issues` として記録し人間 or 上位 orchestrator に差し戻す。
+5. **中間成果物スナップショット (必須・Anchor Step)**: 周回末に「中間成果物」を `eval-log/<skill>-intermediate.jsonl` へ追記する (詳細は下節「中間成果物」)。`original_goal`/`current_goal_snapshot`/`delta_from_original`/`merged_directive_for_next`/`drift_signal` を含める。Step 2 はこの直前周回の `merged_directive_for_next` と `original_goal` を**必須入力**として読む。
+6. **反復 / 差し戻し**: 全 `[x]` まで 1→5 を繰り返す。規定周回（既定 5 周）を超えても未達、または `drift_signal` が `stagnant`/`widening`/`oscillating` で 2 周連続停滞した場合は、残項目と差分を `open_issues` として記録し人間 or 上位 orchestrator に差し戻す。
 
 > ループ自体は固定で良い（これは「どう反復するか」の枠であり、「何をするか」の手順ではない）。固定してはいけないのは Step 2 の**中身**。
 
@@ -74,6 +75,53 @@ source-tier: internal
 - **lint 強制**: `lint-goal-seek.py` が loop 実行系に対し、(1) 二値チェックリスト項目（`- [ ]`/`- [x]`）の存在、(2) 曖昧語（「丁寧」「品質を高める」等）の不在を **violation (exit 1)** で検査し、(3) `### ゴールシーク配線` の不在を **warning** で助言する（既存スキルは次回更新時に combinator で注入）。CI は `governance-check.yml` が全生成スキルへ実行する。
 
 > この二層（散文で意図を示し、combinator + schema + lint で機構を強制する）により、再現性は仕組みで担保しつつ、ループ Step 2 の「何をするか」は AI の自由度に委ねる。
+
+## 中間成果物（ドリフト圧縮アンカー）
+
+固定手順を持たないループは、放置すると AI が確率的に最尤＝**一般的に集約化された解**へ流れ、初期ユーザーゴール（具体寄りの要望）からドリフトする。これを防ぐため、**各周回の末で「中間成果物」を必ずスナップショットし、次周回の入力に必ず混ぜる**。これがアンカーとなり、初期ゴールから離れた瞬間に踏み直せる。
+
+### 中間成果物の役割
+- **アンカー**: 「最初にユーザーが求めたゴール」を不変保持し、毎周回そこへ視線を戻す。
+- **差分検知**: 今周回の手順生成が向かっている「現在ゴール」と「初期ゴール」の差分を観測可能にする。
+- **掛け合わせ入力**: 次周回の Step 2（手順生成）には *初期ゴール × 現在ゴール × 差分要約* を必ず入力として与える。AI が単独で再導出させない。
+
+### 周回ごとに残す 5 要素 (+ drift_signal)
+| キー | 内容 | Writer | Timing | Source |
+|---|---|---|---|---|
+| `original_goal` | 初期に確定した（or 推定した）ユーザーゴール。**全周回で不変**。SHA-256 を `progress.original_goal_hash` に固定し毎周回照合する。 | iteration=0 で確定 | 初回 Anchor Step | `goal-spec.json.goal` or AI推定 |
+| `current_goal_snapshot` | 今周回で AI が向かっている到達点を 1 文で明示。 | ループ実行 SubAgent | Anchor Step (Step 4 検証後) | Step 2 で立てた手順の意図 |
+| `delta_from_original` | `original_goal` と `current_goal_snapshot` の差分（抽象化しすぎ／論点ズレ／粒度ズレを言語化）。差分なしなら空文字。 | ループ実行 SubAgent | Anchor Step | 両ゴールの自然言語比較 |
+| `merged_directive_for_next` | 差分を埋めるため次周回 Step 2 に渡す指示。「`original_goal` の具体性を保ったまま `delta` を圧縮せよ」型。 | ループ実行 SubAgent | Anchor Step | delta + original_goal |
+| `drift_signal` | `initial`/`aligned`/`compressing`/`stagnant`/`widening`/`oscillating` の 6 enum。schema 必須。 | ループ実行 SubAgent (自己評価) | Anchor Step (Step 5 反復判定前) | 前周回 delta との比較 |
+
+### 最小サンプル (intermediate.jsonl の 2 行)
+
+```jsonl
+{"iteration":0,"original_goal":"ユーザーAが特定ファイルXのバグYを修正したコミットを得る","current_goal_snapshot":"file Xの当該関数の null チェック追加","delta_from_original":"","merged_directive_for_next":"original_goal の具体性 (ユーザーA・X・Y) を全て保ったまま手順を立てよ","drift_signal":"initial"}
+{"iteration":1,"original_goal":"ユーザーAが特定ファイルXのバグYを修正したコミットを得る","current_goal_snapshot":"汎用的な null 安全パターンの導入","delta_from_original":"X→汎用化 / Y→null安全パターン全般。具体性が薄れ集約化ドリフトが発生","merged_directive_for_next":"file X 限定・バグ Y のみを対象に絞り、汎用化提案は別 issue へ分離せよ","drift_signal":"widening"}
+```
+
+### iteration=0 (初期化規定)
+
+1 周目は前周回が存在しないため特例:
+- `original_goal`: `goal-spec.json.goal` をそのまま転記。無ければ AI 推定値を採用し `goal-spec.constraints` に「inferred」と記録。
+- `current_goal_snapshot`: Step 2 で立てた初回手順の意図を 1 文化。
+- `delta_from_original`: 空文字 (比較対象が無いため)。
+- `merged_directive_for_next`: 「`original_goal` の具体性を全て保ったまま手順を立てよ」固定文。
+- `drift_signal`: `initial` 固定 (前周回比較不能を明示)。
+- `original_goal_hash`: SHA-256(`original_goal`) を `progress.json` トップに 1 度だけ書き、以降全周回で照合。改竄検知時は `open_issues` に `anchor_mutation` を記録して停止。
+
+### 配線契約
+- 各周回末に `eval-log/<skill>-intermediate.jsonl` へ 1 行追記（append-only ログ）。schema は `schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]`。
+- 次周回 Step 2 の手順生成プロンプトは、直前の `merged_directive_for_next` と `original_goal` を**必須入力**として読み込む。読まずに新手順を立てるのは違反。
+- `delta_from_original` が 2 周連続で縮まらない、または `original_goal` から逸れる方向に拡大した場合、Step 5（反復/差し戻し）でアプローチを切り替える。
+
+### 集約化ドリフトの典型
+- 「具体名 X を扱う」が「汎用パターン Y を扱う」へ抽象化されて初期意図が消える。
+- ユーザー固有の制約・例外がループ内で「一般化されて」削ぎ落とされる。
+- チェックリスト項目が無意識に緩和される（達成しやすい言葉に書き換わる）。
+
+中間成果物がアンカーになる限り、上記の集約化は周回ごとに `delta_from_original` として可視化され、`merged_directive_for_next` で押し戻される。
 
 ## チェックリストの良し悪し
 

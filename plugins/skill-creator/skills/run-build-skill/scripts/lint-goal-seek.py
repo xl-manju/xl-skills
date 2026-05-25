@@ -52,6 +52,19 @@ VAGUE_TERMS = ("丁寧", "品質を高める", "適切に", "きちんと", "し
 # 行頭の実見出しのみ一致 (本文に見出し名を引用しただけでは満たさない)。
 WIRING_HEADING = "### ゴールシーク配線"
 WIRING_HEADING_RE = re.compile(r"^###\s*ゴールシーク配線", re.MULTILINE)
+# 中間成果物アンカー (ドリフト圧縮機構) の配線存在検査。
+# AND マッチで「配線実体」を保証する。1 トークン欠落でも warning (F-LS-002 / F-MD-010 / F-SS-004)。
+# (1) jsonl パス, (2) 不変アンカー original_goal, (3) 次周回必須入力 merged_directive_for_next の 3 トークン全部が
+# `### ゴールシーク配線` セクション内に出現することを要件化する。
+INTERMEDIATE_REQUIRED_TOKENS = ("intermediate.jsonl", "original_goal", "merged_directive_for_next")
+# 量産スキルが中間成果物の機械検証 bash を埋め込んでいるかの token 検査 (run-goal-seek/SKILL.md と同型)。
+VERIFICATION_REQUIRED_TOKENS = ("required_keys", "original_goal_hash", "hashlib.sha256")
+# `### ゴールシーク配線` + 直後に並置される `### ゴールシーク検証` 両方を scope 内に取り込む。
+# 停止条件を ## level に緩めることで、中間成果物トークンと検証 bash トークンを同一 wiring_text で AND 検査可能になる
+# (F-MD-003 / F-SS-006 / F-LS-002 解消: body 全体 scope の偽陰性/偽陽性両方を回避)。
+WIRING_SECTION_RE = re.compile(
+    r"^###\s*ゴールシーク配線.*?(?=^##\s|\Z)", re.MULTILINE | re.DOTALL
+)
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -154,11 +167,33 @@ def lint_file(path: Path) -> tuple[list[str], list[str]]:
                         f"{path}: チェックリスト項目に曖昧語 {hit} があり YES/NO 判定不能: "
                         f"'{item.strip()}' (観測可能な条件へ書き換えること)"
                     )
-        # 実行配線サブセクションは助言 (既存スキルは次回更新時に combinator で注入)。
-        if not WIRING_HEADING_RE.search(body):
+        # 実行配線サブセクション + 中間成果物アンカーの 2 検査を独立 if で分離する (F-LS-007 / F-SS-014)。
+        # 配線サブセクション不在は warning (既存スキル grace)。中間成果物トークン欠落は scope 限定 AND 検査。
+        wiring_match = WIRING_SECTION_RE.search(body)
+        if not wiring_match:
             warnings.append(
                 f"{path}: '{WIRING_HEADING}' が無い "
                 "(with-goal-seek combinator で goal-spec/progress JSON/fork 委譲を配線推奨)"
+            )
+        # 中間成果物トークンは「配線サブセクション内に AND で全 3 トークン揃う」ことを要件化する。
+        # 配線サブが無くても (上記 warning とは別系統で) 中間成果物欠落を独立に警告する。
+        wiring_text = wiring_match.group(0) if wiring_match else body
+        missing_tokens = [t for t in INTERMEDIATE_REQUIRED_TOKENS if t not in wiring_text]
+        if missing_tokens:
+            warnings.append(
+                f"{path}: ゴールシーク配線に中間成果物アンカー必須トークン {missing_tokens} "
+                "が不在 (3 トークン AND 必須: intermediate.jsonl + original_goal + "
+                "merged_directive_for_next。with-goal-seek combinator 再適用で注入)"
+            )
+        # 量産スキルにも機械検証 bash が注入されているか検査 (run-goal-seek/SKILL.md と同型 SSOT)。
+        # WIRING_SECTION_RE が ## level まで拡張されたため `### ゴールシーク検証` も同 scope に含まれる。
+        # wiring_text 限定 AND 検査により body 全体 scope の偽陰性/偽陽性を排除する。
+        missing_verify = [t for t in VERIFICATION_REQUIRED_TOKENS if t not in wiring_text]
+        if missing_verify:
+            warnings.append(
+                f"{path}: ゴールシーク配線に機械検証 bash 必須トークン {missing_verify} "
+                "が不在 (3 トークン AND 必須: required_keys + original_goal_hash + hashlib.sha256。"
+                "with-goal-seek combinator 再適用で注入。run-goal-seek/SKILL.md と同型機械検査)"
             )
 
     return findings, warnings
@@ -175,6 +210,8 @@ _LOOP_SCHEMA = Path(__file__).resolve().parents[1] / "schemas" / "goal-seek-loop
 _ENGINE_RE = re.compile(r"goal_seek\.engine \| default\(\\?\"([\w-]+)\\?\"\)")
 _FORK_RE = re.compile(r"goal_seek\.fork \| default\(\\?\"([\w-]+)\\?\"\)")
 _MAXLOOPS_RE = re.compile(r"goal_seek\.max_loops \| default\((\d+)\)")
+# 中間成果物ログファイル名の SSOT 検証 (render定数 / patch / schema description で同名であること)。
+_INTERMEDIATE_PATH_RE = re.compile(r"eval-log/\{\{skill_name\}\}-intermediate\.jsonl")
 
 
 def _extract_defaults(text: str) -> dict[str, str | None]:
@@ -240,6 +277,83 @@ def check_default_drift() -> list[str]:
         findings.append(
             f"self-test: max_loops 既定 drift — render({rml}) vs goal-seek-loop.schema({ls_maxloops})"
         )
+
+    # 中間成果物アンカー: render定数 / patch / schema の三者一致を検査する。
+    # ファイル名 (eval-log/<skill>-intermediate.jsonl) は patch と render に必ず登場し、
+    # schema 側は intermediate_artifacts プロパティと description 内 jsonl 言及を持つ。
+    render_text = _RENDER.read_text(encoding="utf-8")
+    patch_text = _PATCH.read_text(encoding="utf-8")
+    render_has_intermediate = bool(_INTERMEDIATE_PATH_RE.search(render_text))
+    patch_has_intermediate = bool(_INTERMEDIATE_PATH_RE.search(patch_text))
+    schema_has_intermediate = "intermediate_artifacts" in loop_schema.get("properties", {})
+    if not render_has_intermediate:
+        findings.append(
+            "self-test: render-combinators.py から intermediate.jsonl 配線が欠落"
+        )
+    if not patch_has_intermediate:
+        findings.append(
+            "self-test: with-goal-seek.patch から intermediate.jsonl 配線が欠落"
+        )
+    if not schema_has_intermediate:
+        findings.append(
+            "self-test: goal-seek-loop.schema.json に intermediate_artifacts プロパティが欠落"
+        )
+    # 必須キーの一致 (schema が要求する全キーが render/patch 説明文に出現すること)。
+    if schema_has_intermediate:
+        items_schema = loop_schema["properties"]["intermediate_artifacts"]["items"]
+        required_keys = set(items_schema.get("required", []))
+        for key in required_keys:
+            if key not in render_text:
+                findings.append(
+                    f"self-test: intermediate_artifacts.{key} が render-combinators.py 配線テキストに不在"
+                )
+            if key not in patch_text:
+                findings.append(
+                    f"self-test: intermediate_artifacts.{key} が with-goal-seek.patch 配線テキストに不在"
+                )
+        # drift_signal の enum 値集合が schema と render/patch (描画される文書) で一致するか検査
+        # (F-LS-003 / F-MD-002)。schema が真の SSOT。render/patch には description で enum 値が列挙されている。
+        drift_enum = set(
+            items_schema.get("properties", {}).get("drift_signal", {}).get("enum", [])
+        )
+        for value in drift_enum:
+            # 各 enum 値が render/patch のどちらかに最低 1 回出現していること。
+            # patch は短いので render のみで OK としても良いが SSOT 透明性のため両方検査。
+            if value not in render_text and value not in patch_text:
+                findings.append(
+                    f"self-test: drift_signal enum '{value}' が render/patch どちらにも出現しない "
+                    "(schema と配線テキストの enum drift)"
+                )
+
+    # 機械検証 bash の SSOT 三者一致 (render定数 ↔ patch ↔ run-goal-seek/SKILL.md)。
+    # 量産スキルへの自動注入 (render経由) と patch経由配信 と engine 本体 bash の三者全部に
+    # 同型機構が存在することを保証する (F-LS-001 / F-SS-002 / F-MD-001 解消: patch 経路 drift 防止)。
+    run_goal_seek = (
+        Path(__file__).resolve().parents[2] / "run-goal-seek" / "SKILL.md"
+    )
+    if not run_goal_seek.exists():
+        findings.append(
+            "self-test: run-goal-seek/SKILL.md が不在で engine 本体側 bash の SSOT 照合不能 "
+            "(F-SS-009: silent skip ではなく error 化。skill-creator deploy に run-goal-seek 必須)"
+        )
+    else:
+        rgs_text = run_goal_seek.read_text(encoding="utf-8")
+        for token in VERIFICATION_REQUIRED_TOKENS:
+            if token not in render_text:
+                findings.append(
+                    f"self-test: 機械検証 bash トークン '{token}' が render-combinators.py に不在 "
+                    "(量産スキルへの自動注入が機能しない)"
+                )
+            if token not in patch_text:
+                findings.append(
+                    f"self-test: 機械検証 bash トークン '{token}' が with-goal-seek.patch に不在 "
+                    "(patch 経路 apply 時に検証 bash が欠落し集約化ドリフト検出が無効化される)"
+                )
+            if token not in rgs_text:
+                findings.append(
+                    f"self-test: 機械検証 bash トークン '{token}' が run-goal-seek/SKILL.md に不在 "
+                    "(engine 本体側の bash が同型でない)"
+                )
     return findings
 
 

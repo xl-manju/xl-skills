@@ -1,0 +1,85 @@
+{
+  "db_id": "36b07a0c-d18c-8073-b106-e70552e13308",
+  "title": "Skill一覧",
+  "title_property": "プラグイン名",
+  "row_unit": "plugin",
+  "managed_properties": {
+    "プラグイン名": {"type": "title"},
+    "バージョン": {"type": "rich_text"},
+    "公開ステータス": {
+      "type": "select",
+      "options": [
+        {"name": "開発中", "color": "yellow"},
+        {"name": "公開中", "color": "green"},
+        {"name": "非推奨", "color": "orange"},
+        {"name": "廃止", "color": "red"}
+      ]
+    },
+    "カテゴリ": {
+      "type": "multi_select",
+      "options": [
+        {"name": "生成", "color": "blue"},
+        {"name": "改善", "color": "purple"},
+        {"name": "評価", "color": "pink"},
+        {"name": "連携", "color": "green"},
+        {"name": "運用", "color": "gray"}
+      ]
+    },
+    "担当者": {"type": "people"},
+    "概要": {"type": "rich_text"},
+    "インストールコマンド": {"type": "rich_text"},
+    "リポジトリパス": {"type": "url"},
+    "最終更新日": {"type": "last_edited_time"},
+    "紐づくヒアリングシート": {
+      "type": "relation",
+      "target_db": "hearing-sheet",
+      "dual": true,
+      "synced_property_on_target": "紐づくプラグイン"
+    },
+    "改善要望": {
+      "type": "relation",
+      "target_db": "improvement-request",
+      "dual": true,
+      "synced_property_on_target": "対象プラグイン"
+    },
+    "未対応要望数": {
+      "type": "rollup",
+      "relation_property_name": "改善要望",
+      "rollup_property_name": "対応ステータス",
+      "function": "count",
+      "view_filter_hint": "Notion View 側で 対応ステータス ∈ {未着手,計画中,対応中} に絞る"
+    }
+  },
+  "page_body_sections": [
+    {"id": "overview",     "required": true,  "title": "📘 概要 (callout)"},
+    {"id": "capabilities", "required": true,  "title": "🎯 このプラグインで何ができる？"},
+    {"id": "when_to_use",  "required": true,  "title": "💡 こんなときに使う (発火条件 = 各スキル triggers の集約)"},
+    {"id": "install",      "required": true,  "title": "🚀 インストール方法"},
+    {"id": "skills",       "required": true,  "title": "📦 含まれるスキル一覧 (toggle)"},
+    {"id": "flow",         "required": true,  "title": "📖 使い方の流れ"},
+    {"id": "feedback",     "required": true,  "title": "🔁 改善要望の出し方", "renderer_ref": "feedback_protocol"},
+    {"id": "help",         "required": true,  "title": "❓ 困ったときは"}
+  ],
+  "feedback_protocol": {
+    "__doc__": "改善要望ループの SSOT。triggers/SKILL.md/upsert/lint がここを唯一の正本として参照する。",
+    "command": "/run-skill-feedback <plugin-name>",
+    "firing_conditions": [
+      "プラグインを使って『ここが分かりにくい』と感じた",
+      "『こう直してほしい』『この挙動はバグでは』と思った",
+      "プロンプトの出力品質に不満がある / ドキュメントの誤記を見つけた",
+      "新機能や挙動変更の要望が浮かんだ"
+    ],
+    "intake_fields": [
+      {"name": "要望タイトル",         "required": true,  "hint": "30字程度で『何を直したいか』を一行"},
+      {"name": "要望種別",             "required": true,  "hint": "バグ / 機能追加 / プロンプト改善 / ドキュメント / 挙動変更"},
+      {"name": "やってほしいこと",     "required": true,  "hint": "具体的にどう直してほしいか一段落"},
+      {"name": "背景・困っていること", "required": false, "hint": "なぜそれが必要か"},
+      {"name": "優先度",               "required": false, "hint": "高 / 中 / 低 (default 中)"},
+      {"name": "重要度",               "required": false, "hint": "高 / 中 / 低 (default 中)"}
+    ],
+    "status_lifecycle": ["未着手", "計画中", "対応中", "完了", "見送り"],
+    "open_statuses": ["未着手", "計画中", "対応中"],
+    "promise_to_reporter": "投入された要望は『改善要望 DB』に N:1 で紐付き、本プラグインの『未対応要望数』に自動カウントされる。対応ステータスは Notion 側で随時更新され、完了時には『関連PR/コミット』に PR URL が記入される。",
+    "callout_summary": "このプラグインを使って『ここが分かりにくい』『こう直してほしい』と感じたら、下記コマンドで改善要望 DB に直接プッシュできます。プラグイン名と要望を入力するだけ。"
+  }
+}

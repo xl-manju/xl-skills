@@ -36,7 +36,7 @@ source-tier: internal
 last-audited: 2026-05-22
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/interview.md
+  - prompts/R1-interview.md
 schema_refs:
   - ../run-prompt-create/schemas/prompt-brief.schema.json
   - schemas/hearing-result.schema.json

@@ -21,7 +21,7 @@ source-tier: internal
 last-audited: 2026-05-19
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/main.yaml
+  - prompts/R1-elicit.md
 schema_refs:
   - ../run-skill-create/schemas/skill-brief.schema.json
 manifest: workflow-manifest.json
@@ -60,7 +60,7 @@ placement_candidates: [Skill|Subagent|Agent Team|Hook|MCP|CLI|API|script]
 base_skill        : null | <wrap対象のbase Skill名>          # prefix=wrap時必須
 delegate_agent    : null | <委譲先agent ID>                  # prefix=delegate時必須
 rubric_refs       : [L0/L1の参照rubric Skill名]              # L2時必須
-open_questions    : [TODO(human)としてユーザーに返す未確定事項]
+open_questions    : [OPEN_QUESTION(escalate)としてユーザーに返す未確定事項]
 cross_platform    : true|false                              # Mac/Windows両対応か (11章・14章 cross-platform run-* 雛形)
 os_preamble_required: true|false                           # OSプリアンブル (!`uname -s 2>/dev/null || ver`) 要否
 knowledge_loop    : null | {pattern, categories, source_kind} # Loop A: 生成スキルにナレッジ蓄積/検索/§12機構を組み込むか (with-knowledge combinator)
@@ -74,7 +74,7 @@ consult_build_knowledge: true|false                         # Loop B: 作成時�
 1. **質問は最大5個まで**: 対話は5問以内で brief を完成させる。超過分は open_questions として残す。
 2. **kind 確定チェック**: 辞書型(ref)か手順型(run/assign)かを最初に確認する。
 3. **trigger 2〜3個**: description の Use when 句候補を2〜3個に絞る。
-4. **open_questions**: 設計判断が分かれる細部は TODO(human) として明示して残す。
+4. **open_questions**: 設計判断が分かれる細部は OPEN_QUESTION(escalate) として明示して残す (TODO(human) ラベル使用は禁止)。
 5. **handoff**: 完成した brief は `run-build-skill` の入力として引き渡す。
 
 ## ゴールシーク実行
@@ -97,7 +97,7 @@ build へ渡る brief の品質が後工程全体の質を決める。曖昧さ�
 - [ ] placement_candidates と決定論的 hint (Subagent→needs_independent_context/with_subagent_hint、Agent Team→agent_team_required、Hook→with_hooks/needs_lifecycle_enforcement) が設定されている
 - [ ] cross_platform / os_preamble_required が確認済み
 - [ ] ナレッジループ要否を判定済み (ref-knowledge-loop の5条件に1つ以上該当→`knowledge_loop.pattern` 設定、非該当→null)。`consult_build_knowledge` (既定true) の場合は蓄積知見を参照し設計へ反映している
-- [ ] 対話は 5 問以内に収め、超過・判断分岐する細部は open_questions (TODO(human)) に記録されている
+- [ ] 対話は 5 問以内に収め、超過・判断分岐する細部は open_questions (OPEN_QUESTION(escalate) ラベル) に記録されている
 
 ### ゴールシークループ
 

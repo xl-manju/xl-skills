@@ -42,7 +42,7 @@ source-tier: internal
 last-audited: 2026-05-22
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/evaluate.md
+  - prompts/R1-evaluate.md
 schema_refs:
   - ../run-prompt-create/schemas/findings.schema.json
 responsibilities:

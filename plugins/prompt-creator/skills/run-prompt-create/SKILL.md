@@ -43,9 +43,9 @@ source-tier: internal
 last-audited: 2026-05-22
 audit-trigger: quarterly
 responsibility_refs:
-  - prompts/elicit.md
-  - prompts/gate-review.md
-  - prompts/governance-decide.md
+  - prompts/R1-elicit.md
+  - prompts/R2-gate-review.md
+  - prompts/R3-governance-decide.md
 schema_refs:
   - schemas/prompt-brief.schema.json
   - schemas/build-trace.schema.json

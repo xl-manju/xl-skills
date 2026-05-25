@@ -57,6 +57,10 @@ jobs:
       - name: Lint doc/20 dependency contract
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir plugins/skill-creator/skills
 
+      # prompt-placement-convention.md 準拠を機械検証 (SSOT: validate-build-trace.py LAYER_YAML_PATH_PATTERNS)
+      - name: Lint prompt placement (skill-local-v1 regex)
+        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-prompt-placement.py
+
       # G-D1: 既存skill群の回帰smoke test (現状 warn-only、ベースライン整備後に blocking 化)
       - name: Skill fixture runner (regression smoke)
         run: python3 scripts/skill-fixture-runner.py || true

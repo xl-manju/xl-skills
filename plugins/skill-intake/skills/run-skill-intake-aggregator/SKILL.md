@@ -34,7 +34,7 @@ role_suffix: aggregator
 owner: team-platform
 since: 2026-05-20
 responsibility_refs:
-  - prompts/main.md
+  - prompts/R2-main.md
   - prompts/R1.md
 schema_refs:
   - schemas/intake-final.schema.json
@@ -168,7 +168,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 - **All-or-Nothing 公開**: PNG 1 枚でも欠けたら `verify_notion_assets.py` で停止。途中まで公開せず asset 再生成へ戻す。
 - **自動修正禁止**: quality_gate / completeness FAIL は根本原因をユーザーに提示し、LLM 判断で内容を勝手に直さない (推測補完禁止)。
 
-各 phase の `id` / `dependsOn` / `resourceIds` / `fatal_exit_codes` は `workflow-manifest.json` 参照。R-phase 詳細責務は `prompts/R<n>.md`、entry orchestration は `prompts/main.md`。
+各 phase の `id` / `dependsOn` / `resourceIds` / `fatal_exit_codes` は `workflow-manifest.json` 参照。R-phase 詳細責務は `prompts/R<n>.md`、entry orchestration は `prompts/R2-main.md`。
 
 ## Slash Commands
 

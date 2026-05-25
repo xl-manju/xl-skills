@@ -44,7 +44,7 @@ run-build-skill Step 3.5 はこの schema に従って各キーを埋めるこ�
         "id": "R1",
         "name": "<brief.responsibilities[].name>",
         "owner_agent": "<agent-file-name or null>",
-        "layer_yaml_path": "plugins/<plugin>/skills/<skill>/prompts/R1.yaml",
+        "layer_yaml_path": "plugins/<plugin>/skills/<skill>/prompts/R1-<slug>.md",
         "path_convention": "skill-local-v1",
         "layers_generated": ["L1","L2","L3","L4","L5","L6","L7"],
         "sha256": "<7層 YAML 全文 sha256>",
@@ -86,7 +86,7 @@ N/A の場合は理由を必ず添えること（空欄禁止）。
 5. `layer_yaml_path` が次の正規表現に一致すること (`references/prompt-placement-convention.md` 準拠):
    - `path_convention == "skill-local-v1"`: `^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$`
    - `path_convention == "agents-legacy"` (deprecated, 後方互換): `^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$`
-6. `layer_yaml_path` のファイル名 (拡張子を除く) が `per_responsibility[].id` と一致すること (例: `R1.yaml` ↔ id=R1)。
+6. `layer_yaml_path` のファイル名先頭 (`R<N>` 部) が `per_responsibility[].id` と一致すること (例: `R1.yaml` / `R1-elicit.md` ↔ id=R1)。拡張子は `.yaml` / `.md` の両者を受理する。
 
 ## path_convention deprecation policy
 

@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaVersion": 1,
+  "workflowId": "run-skill-feedback",
+  "skill": "run-skill-feedback",
+  "description": "利用者発端の改善要望を Notion 改善要望 DB へ N:1 relation 付きで投入する。",
+  "phases": [
+    {
+      "id": "collect",
+      "step": 1,
+      "title": "要望の対話収集 (タイトル/種別/内容/背景/優先度/重要度)",
+      "kind_filter": ["run"],
+      "output_artifact": "(in-memory feedback record)"
+    },
+    {
+      "id": "verify-plugin",
+      "step": 2,
+      "title": "対象プラグインがスキル一覧 DB に存在することを確認",
+      "dependsOn": ["collect"],
+      "kind_filter": ["run"],
+      "output_artifact": "(stdout: plugin page id)"
+    },
+    {
+      "id": "submit",
+      "step": 3,
+      "title": "scripts/notion-submit-improvement.py で 改善要望 DB に POST",
+      "dependsOn": ["verify-plugin"],
+      "kind_filter": ["run"],
+      "output_artifact": "Notion page URL"
+    }
+  ],
+  "resources": []
+}
