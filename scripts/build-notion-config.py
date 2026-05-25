@@ -2,9 +2,9 @@
 """新規 repo (symlink先含む) で .notion-config.json を repo-slug namespacing 付きで生成する。
 
 Usage:
-  python3 scripts/init-notion-config.py            # 対話モード (デフォルト)
-  python3 scripts/init-notion-config.py --slug xl-skills --non-interactive --force
-  python3 scripts/init-notion-config.py --print-keychain-cmd   # Keychain 登録コマンドのみ表示
+  python3 scripts/build-notion-config.py            # 対話モード (デフォルト)
+  python3 scripts/build-notion-config.py --slug xl-skills --non-interactive --force
+  python3 scripts/build-notion-config.py --print-keychain-cmd   # Keychain 登録コマンドのみ表示
 
 ゴール: setup を「手で書く 3 ファイル」から「1 コマンド」に圧縮し、
 Keychain service/account 名に repo slug を必ず含めることで `notion-api-key` グローバル衝突を物理的に防ぐ。
@@ -70,9 +70,9 @@ def main() -> int:
         return 2
 
     if not args.non_interactive:
-        print(f"[init-notion-config] repo slug: {slug}")
-        print(f"[init-notion-config] keychain_service: {service}")
-        print(f"[init-notion-config] keychain_account: {account}")
+        print(f"[build-notion-config] repo slug: {slug}")
+        print(f"[build-notion-config] keychain_service: {service}")
+        print(f"[build-notion-config] keychain_account: {account}")
         ans = input("Continue? [Y/n]: ").strip().lower()
         if ans and ans != "y":
             print("aborted.")
@@ -87,7 +87,7 @@ def main() -> int:
     template["databases"]["improvement-request"]["db_id"] = args.improvement_request_db or "<your-improvement-request-db-id>"
 
     CONFIG.write_text(json.dumps(template, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"[init-notion-config] wrote {CONFIG}")
+    print(f"[build-notion-config] wrote {CONFIG}")
     print()
     print("Next steps:")
     print(f"  1. Edit {CONFIG.name} and fill in 3 Notion DB IDs (replace <your-*-db-id>).")

@@ -58,7 +58,7 @@ def main() -> int:
 
     if not CONFIG.exists():
         print(f"[lint-notion-config] WARN: {CONFIG} not found. "
-              f"Run `python3 scripts/init-notion-config.py` to create it.", file=sys.stderr)
+              f"Run `python3 scripts/build-notion-config.py` to create it.", file=sys.stderr)
         return 0  # warn-and-skip (config 未配置 repo は対象外)
 
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
@@ -103,7 +103,7 @@ def main() -> int:
         if not check_keychain(service, account):
             errors.append(
                 f"L5: Keychain entry 未登録 (service={service}, account={account})。"
-                f" `python3 scripts/init-notion-config.py --print-keychain-cmd` で登録コマンドを表示"
+                f" `python3 scripts/build-notion-config.py --print-keychain-cmd` で登録コマンドを表示"
             )
 
     for w in warnings:

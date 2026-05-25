@@ -16,7 +16,7 @@ DB ID / API key 解決のみ per-repo に分離する **shape vs identity** の�
 ### 1.1 設定ファイル生成 (init script)
 
 ```bash
-python3 scripts/init-notion-config.py
+python3 scripts/build-notion-config.py
 ```
 
 これにより `.notion-config.json` が **repo-slug namespacing 付き** で生成される
