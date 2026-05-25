@@ -7,7 +7,7 @@ triggers:
   - "skill feedback"
   - "こう直してほしい"
   - "改善提案"
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 argument-hint: "[plugin] [skill-name?]"
 arguments: [plugin, skill_name]
