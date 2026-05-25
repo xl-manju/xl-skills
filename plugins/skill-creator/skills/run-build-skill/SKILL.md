@@ -259,11 +259,10 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 
 build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) に冪等登録する。**プラグイン単位 1 行**で、配下の個別 Skill はページ本文に列挙される(`scripts/notion-upsert-plugin.py` が `plugins/<plugin>/skills/` を走査)。手順:
 
-1. `--notion-register` フラグまたは `brief.notion_register=true` が立っているか確認。立っていなければ phase 全体を skip。
-2. `python3 scripts/notion-upsert-plugin.py --plugin <plugin_name>` を実行。プラグイン名 TITLE で検索→存在すれば PATCH、無ければ POST(冪等)。
-3. ヒアリングシート由来のビルドなら `--hearing-sheet-id <notion-page-id>` も渡し、`紐づくヒアリングシート` relation を埋める(1:1 を物理的に保証)。
-4. token は keychain `notion-api-key` (macOS) または `$NOTION_TOKEN` (CI)。両方無ければ phase は error 終了せず警告ログのみで skip。
-5. 整合性は CI 側 `scripts/lint-notion-relations.py` が 1:1 / N:1 不変条件を検証(プラグイン名重複・ヒアリング多重紐付け・改善要望の対象未設定を検出)。
+1. `--notion-register` または `brief.notion_register=true` 未指定なら phase skip。
+2. `python3 scripts/notion-upsert-plugin.py --plugin <plugin>` 実行 (TITLE 検索→PATCH/POST 冪等)。ヒアリングシート由来なら `--hearing-sheet-id <notion-page-id>` で 1:1 relation を埋める。
+3. token は keychain `notion-api-key` (macOS) または `$NOTION_TOKEN` (CI)。不在なら警告のみで skip。
+4. 整合性は `scripts/lint-notion-relations.py` が 1:1 / N:1 不変条件 (プラグイン名重複・ヒアリング多重紐付け・改善要望の対象未設定) を CI で検証。
 
 正本スクリプト: `scripts/notion-upsert-plugin.py` / スキーマ SSOT: `doc/notion-schema/skill-list.schema.json` (含む `feedback_protocol` SSOT)。
 
@@ -276,14 +275,7 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 3. **発火条件 SSOT の参照**: 各プラグインの「改善要望」節 (Notion ページ本文 §7) は `scripts/notion-upsert-plugin.py` の `_load_feedback_protocol()` 経由で `doc/notion-schema/skill-list.schema.json#feedback_protocol` から自動描画される。スキル個別に文言を書かない (drift 防止)。
 4. **lint で機械強制**: `scripts/lint-feedback-protocol.py` が schema / `run-skill-feedback/SKILL.md` / `notion-upsert-plugin.py` の三者整合を CI で検査 (offline、NOTION_TOKEN 不要)。違反時は merge ブロック。
 
-> **改善要望のループバック (発火 → 提出 → 集計 → 対応 → 完了)**: schema `feedback_protocol` が以下のループを 1 箇所で定義する。
-> - **発火条件** (`firing_conditions`): 「分かりにくい」「直してほしい」「バグでは」「新機能欲しい」を感じた瞬間
-> - **提出**: `/run-skill-feedback <plugin>` → `scripts/notion-submit-improvement.py` → 改善要望 DB に N:1 投入
-> - **集計**: スキル一覧の `未対応要望数` rollup (open_statuses ∈ {未着手,計画中,対応中})
-> - **対応**: ステータス遷移 `未着手 → 計画中 → 対応中 → 完了/見送り` (`status_lifecycle`)
-> - **約束** (`promise_to_reporter`): 完了時には `関連PR/コミット` に PR URL が記入される
->
-> この 5 段を量産プラグイン全てで同一形にするため、発火条件文言はプラグイン側で再定義せず schema を引く。
+> **改善要望ループバック** (発火→提出→集計→対応→完了): schema `feedback_protocol` (firing_conditions / submit / rollup / status_lifecycle / promise_to_reporter) が SSOT。量産プラグイン全てで同一形を保つため、発火条件文言はプラグイン側で再定義せず schema を引く。
 
 ## 配置先
 
@@ -302,9 +294,7 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 - `workflow-manifest.json` — phase / dependsOn / kind_filter / resourceIds の宣言
 - `schemas/{skill-build-trace, template-selection, responsibility-slot, build-flags}.schema.json` — 機械検証用 schema
-- `prompts/{scaffold, responsibility-emit, template-select, trace-write}.md` — R-id 別プロンプト
-- `references/{design-docs-index.md, resource-map.yaml, build-steps.md, reproducibility-trace-schema.md, prompt-placement-convention.md, skill-factory-reproducibility.md, agent-template.md}` — 設計書索引と詳細手順
+- `prompts/R{1-4}-{scaffold,responsibility-emit,template-select,trace-write}.md` — R-id 別プロンプト / `references/{design-docs-index, resource-map.yaml, build-steps, reproducibility-trace-schema, prompt-placement-convention, skill-factory-reproducibility, agent-template, goal-seek-paradigm}` — 設計書索引と詳細手順
 - `templates/`, `examples/` — kind 別雛形と完成例
 - `scripts/` — render-frontmatter / validate-naming / validate-build-trace / build-subagent 他
-- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest 定義 (commonCore + kind 別 `definitions/kind*`)。**commonCore 必須集合の正本**であり validate-frontmatter.py が動的ロードする
-- `templates/agent-skeleton.md` / `templates/hook-skeleton.md` / `templates/command-skeleton.md` / `templates/plugin-composition-skeleton.yaml` / `templates/prompt-skeleton.md` / `templates/workflow-skeleton.md` — 新 6 kind の骨格
+- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest (commonCore + 各 `definitions/kind*`) 正本。validate-frontmatter.py が動的ロード。新 6 kind 骨格は `templates/{agent,hook,command,plugin-composition,prompt,workflow}-skeleton.{md,yaml}`

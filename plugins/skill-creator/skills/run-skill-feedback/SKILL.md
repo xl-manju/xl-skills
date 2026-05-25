@@ -26,6 +26,8 @@ source-tier: internal
 last-audited: 2026-05-25
 audit-trigger: on-change
 manifest: workflow-manifest.json
+completeness_exempt:
+  - "prompts: 対話手順 SSOT は doc/notion-schema/skill-list.schema.json#feedback_protocol (Notion §7 と同一正本)。本 SKILL.md は schema を参照し scripts/notion-submit-improvement.py へ橋渡しするのみ。prompt-creator の R-id 単位 7 層プロンプトは適用外 (二重定義禁止 [[project_ssot_dedup_mechanism]])。"
 ---
 
 # run-skill-feedback
