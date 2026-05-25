@@ -12,15 +12,10 @@ import json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+import notion_config  # noqa: E402
+
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"
-
-
-def token():
-    if os.environ.get("NOTION_TOKEN"):
-        return os.environ["NOTION_TOKEN"]
-    return subprocess.check_output(
-        ["security", "find-generic-password", "-s", "notion-api-key", "-w"]
-    ).decode().strip()
 
 
 def curl(method, url, tk, body=None):
@@ -55,19 +50,25 @@ def query_all(db_id, tk):
 
 
 def main():
-    tk = token()
-    schemas = {k: json.loads((SCHEMA_DIR / f"{k}.schema.json").read_text())
-               for k in ["hearing-sheet", "skill-list", "improvement-request"]}
+    cfg, tk = notion_config.require_or_skip()
+    if not cfg:
+        return 0
+    db_ids = {k: notion_config.get_db_id(k)
+              for k in ["hearing-sheet", "skill-list", "improvement-request"]}
+    missing = [k for k, v in db_ids.items() if not v]
+    if missing:
+        print(f"[SKIP] missing db_id in .notion-config.json: {missing}")
+        return 0
     violations = []
 
     # Rule 1: ヒアリングシート.紐づくプラグイン ≤ 1
-    for p in query_all(schemas["hearing-sheet"]["db_id"], tk):
+    for p in query_all(db_ids["hearing-sheet"], tk):
         rel = p["properties"].get("紐づくプラグイン", {}).get("relation", [])
         if len(rel) > 1:
             violations.append(f"hearing-sheet {p['id']}: 紐づくプラグインが {len(rel)} 件 (max 1)")
 
     # Rule 2: 改善要望.対象プラグイン == 1
-    for p in query_all(schemas["improvement-request"]["db_id"], tk):
+    for p in query_all(db_ids["improvement-request"], tk):
         rel = p["properties"].get("対象プラグイン", {}).get("relation", [])
         if len(rel) != 1:
             title = "".join(t.get("plain_text","") for t in
@@ -76,7 +77,7 @@ def main():
 
     # Rule 3: スキル一覧.プラグイン名 重複なし
     names = {}
-    for p in query_all(schemas["skill-list"]["db_id"], tk):
+    for p in query_all(db_ids["skill-list"], tk):
         title = "".join(t.get("plain_text","") for t in
                         p["properties"].get("プラグイン名",{}).get("title",[]))
         if not title: continue

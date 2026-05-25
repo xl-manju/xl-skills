@@ -143,6 +143,10 @@ PENDING_RENAME_PATHS = {
     "scripts/sync-notion-schema.py",
     # PR #16: build-trace SSOT shim (Python import がハイフン不可のため underscore 許容、§4.3 例外)
     "plugins/skill-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
+    # PR #17: per-repo Notion config SSOT loader (Python import 必須、§4.3 例外。
+    # skill-intake 側は skill-creator 側への symlink で SSOT 維持)
+    "plugins/skill-creator/scripts/notion_config.py",
+    "plugins/skill-intake/scripts/notion_config.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

@@ -1,15 +1,35 @@
 #!/usr/bin/env python3
-"""Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を1箇所に閉じ込める。"""
+"""Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を1箇所に閉じ込める。
+
+token 解決順: 引数 > NOTION_TOKEN env > notion_config (per-repo .notion-config.json の
+keychain_service/account 尊重) > keychain_get_secret 既定。
+"""
 
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
-from keychain_get_secret import get_secret
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import notion_config  # SSOT loader (symlink to skill-creator/scripts/notion_config.py)
+from keychain_get_secret import get_secret, KeychainError
 
 NOTION_VERSION = os.environ.get('INTAKE_NOTION_VERSION', '2022-06-28')
 BASE = 'https://api.notion.com/v1'
+
+
+def _resolve_token():
+    """env NOTION_TOKEN > per-repo config (Keychain via cfg.keychain_service/account) > legacy."""
+    if os.environ.get('NOTION_TOKEN'):
+        return os.environ['NOTION_TOKEN']
+    cfg = notion_config.load_config()
+    if cfg:
+        tok = notion_config.get_token(cfg)
+        if tok:
+            return tok
+    return get_secret()
 
 
 class NotionHttpError(Exception):
@@ -20,7 +40,7 @@ class NotionHttpError(Exception):
 
 
 def notion_fetch(path, method='GET', body=None, token=None):
-    t = token or get_secret()
+    t = token or _resolve_token()
     headers = {
         'Authorization': f'Bearer {t}',
         'Notion-Version': NOTION_VERSION,

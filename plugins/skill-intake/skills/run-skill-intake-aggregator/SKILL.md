@@ -125,7 +125,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 |--|--|--|
 | service | `notion-api-key` | `INTAKE_KEYCHAIN_SERVICE` |
 | account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
-| Notion DB ID | `references/notion-db-schema.json` の `database_id_default` (正本) | `INTAKE_NOTION_DATABASE_ID` (CI override 限定) |
+| Notion DB ID | per-repo: `<repo-root>/.notion-config.json#databases.hearing-sheet.db_id` (gitignore対象) | `--database-id` CLI > `INTAKE_NOTION_DATABASE_ID` env > config > schema default(null)。setup: `plugins/skill-creator/references/notion-per-repo-setup.md` |
 | Notion-Version | `2022-06-28` | `INTAKE_NOTION_VERSION` |
 
 初回セットアップは `references/keychain-setup.md`。

@@ -28,9 +28,14 @@ references/governance-params.json
 .env.*
 !.env.example
 
+# Per-repo Notion config (DB IDs / keychain service identity) - see plugins/skill-creator/references/notion-per-repo-setup.md
+.notion-config.json
+!.notion-config.example.json
+
 # Session-local artifacts
 output/
 .claude/handoff/
+.worktrees/
 # .claude/{agents,skills,commands} は build-claude-symlinks.py が
 # plugins/ から生成する symlink を含むため tracked。ignore しない。
 

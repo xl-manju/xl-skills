@@ -1,0 +1,11 @@
+{
+  "_comment": "Per-repo Notion config. Run `python3 scripts/build-notion-config.py` to generate .notion-config.json (gitignored) with repo-slug namespacing, OR copy this file to .notion-config.json and replace <REPLACE_WITH_REPO_SLUG> manually. See plugins/skill-creator/references/notion-per-repo-setup.md",
+  "keychain_service": "notion-api-key.<REPLACE_WITH_REPO_SLUG>",
+  "keychain_account": "<REPLACE_WITH_REPO_SLUG>",
+  "databases": {
+    "skill-list":          {"db_id": "<your-skill-list-db-id>"},
+    "hearing-sheet":       {"db_id": "<your-hearing-sheet-db-id>"},
+    "improvement-request": {"db_id": "<your-improvement-request-db-id>"}
+  },
+  "schema_dir": "doc/notion-schema"
+}

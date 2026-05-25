@@ -1,0 +1,1 @@
+../../skill-creator/scripts/notion_config.py
