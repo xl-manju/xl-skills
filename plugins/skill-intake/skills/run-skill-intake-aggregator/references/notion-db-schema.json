@@ -5,8 +5,11 @@
   "schema_version": "2.0.0",
   "supersedes": "1.0",
   "canonical_source_for_values": "intake-final-schema.json#/properties/notion_db_properties",
-  "database_id_default": "36607a0cd18c80bf9effc74aa736645c",
+  "database_id_default": null,
   "database_id_env": "INTAKE_NOTION_DATABASE_ID",
+  "database_id_config_key": "hearing-sheet",
+  "database_id_config_path": "<repo-root>/.notion-config.json",
+  "database_id_setup_doc": "plugins/skill-creator/references/notion-per-repo-setup.md",
   "properties": {
     "名前": {
       "type": "title",

@@ -6,8 +6,24 @@ import os
 import subprocess
 import sys
 
-SERVICE = os.environ.get('INTAKE_KEYCHAIN_SERVICE', 'notion-api-key')
-ACCOUNT = os.environ.get('INTAKE_KEYCHAIN_ACCOUNT', 'skill-intake')
+DEFAULT_SERVICE = 'notion-api-key'
+DEFAULT_ACCOUNT = 'skill-intake'
+
+
+def _default_service():
+    """毎呼出 env を再評価 (module-level 定数だと同一プロセスでの repo 切替に追随できない)。
+    config 経由の差し替えは notion_http._resolve_token() → notion_config.get_token() を使うこと。
+    """
+    return os.environ.get('INTAKE_KEYCHAIN_SERVICE', DEFAULT_SERVICE)
+
+
+def _default_account():
+    return os.environ.get('INTAKE_KEYCHAIN_ACCOUNT', DEFAULT_ACCOUNT)
+
+
+# 後方互換 alias (module 読み込み時の env を反映、後から変更する場合は _default_* を直接呼ぶこと)
+SERVICE = _default_service()
+ACCOUNT = _default_account()
 
 
 class KeychainError(Exception):
@@ -17,8 +33,8 @@ class KeychainError(Exception):
 
 
 def get_secret(service=None, account=None):
-    service = service or SERVICE
-    account = account or ACCOUNT
+    service = service or _default_service()
+    account = account or _default_account()
     if sys.platform != 'darwin':
         raise KeychainError(f'unsupported platform: {sys.platform} (macOS only)')
     res = subprocess.run(

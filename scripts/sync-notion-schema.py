@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-"""Notion 3DB スキーマ同期: doc/notion-schema/*.json を SSOT として差分検知・適用。
+"""Notion 3DB スキーマ同期: doc/notion-schema/*.schema.json を SSOT として差分検知・適用。
 
 Usage:
   python3 scripts/sync-notion-schema.py --check   # 差分のみ表示 (CI向け、非ゼロ終了で乖離検知)
   python3 scripts/sync-notion-schema.py --apply   # Notion へ差分適用
 
-API キー: macOS Keychain `notion-api-key` から取得 (security find-generic-password)。
+Per-repo 設定: <repo-root>/.notion-config.json (gitignore対象)
+  詳細: plugins/skill-creator/references/notion-per-repo-setup.md
 """
 import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+import notion_config  # noqa: E402
+
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"
 FILES = ["hearing-sheet", "skill-list", "improvement-request"]
-
-
-def keychain_token():
-    if os.environ.get("NOTION_TOKEN"):
-        return os.environ["NOTION_TOKEN"]
-    return subprocess.check_output(
-        ["security", "find-generic-password", "-s", "notion-api-key", "-w"]
-    ).decode().strip()
 
 
 def curl(method, url, token, body=None):
@@ -85,13 +81,29 @@ def main():
     g.add_argument("--apply", action="store_true")
     args = ap.parse_args()
 
-    token = keychain_token()
+    cfg, token = notion_config.require_or_skip()
+    if not cfg:
+        return 0
+
     schemas = load_schemas()
-    db_id_lookup = {k: v["db_id"] for k, v in schemas.items()}
+    db_id_lookup = {}
+    for key in FILES:
+        db_id = notion_config.get_db_id(key)
+        if not db_id:
+            print(f"[SKIP] {key}: databases.{key}.db_id missing in {cfg['__path__']}")
+            continue
+        db_id_lookup[key] = db_id
+
+    if not db_id_lookup:
+        print("[SKIP] no databases configured")
+        return 0
 
     drift = False
     for key, sc in schemas.items():
-        code, payload = curl("GET", f"https://api.notion.com/v1/databases/{sc['db_id']}", token)
+        if key not in db_id_lookup:
+            continue
+        db_id = db_id_lookup[key]
+        code, payload = curl("GET", f"https://api.notion.com/v1/databases/{db_id}", token)
         if code >= 300:
             print(f"[ERR] GET {key}: {code} {payload[:200]}"); sys.exit(2)
         remote = json.loads(payload)
@@ -102,7 +114,7 @@ def main():
         print(f"[DRIFT] {key}: +{len(additions)} props -> {list(additions.keys())}")
         if args.apply:
             code, payload = curl("PATCH",
-                f"https://api.notion.com/v1/databases/{sc['db_id']}",
+                f"https://api.notion.com/v1/databases/{db_id}",
                 token, {"properties": additions})
             if code >= 300:
                 print(f"  [ERR] apply: {code} {payload[:300]}"); sys.exit(2)

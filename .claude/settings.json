@@ -1,8 +1,4 @@
 {
-  "_build_claude_settings": {
-    "managed_hooks": [],
-    "managed_permissions": []
-  },
   "permissions": {
     "deny": [
       "Write(.claude/skills/ref-skill-design-rubric/**)",
@@ -106,5 +102,13 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "skill-creator@xl-skills": true,
+    "skill-intake@xl-skills": true
+  },
+  "_build_claude_settings": {
+    "managed_hooks": [],
+    "managed_permissions": []
   }
 }

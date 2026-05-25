@@ -8,16 +8,18 @@ skill-creator の前段ヒアリングを **非技術者にも開く** Claude Co
 
 ## Non-Secrets（漏洩可情報）
 
-以下は **スキル内・コード・README に直書きしてよい** 情報です。毎回ユーザーに問い合わせるのを回避するため、`schema.json` や設定ファイルに同梱されています。万一漏洩しても単体では不正利用できません。
+このプラグインは **複数 repository に symlink で共有される前提** のため、リポジトリ固有の Notion DB ID は
+プラグイン内に直書きせず **`<repo-root>/.notion-config.json` (gitignore対象)** に分離している。
+セットアップ手順は **[references/notion-per-repo-setup.md](references/notion-per-repo-setup.md)** 参照（symlink で skill-creator/references/ と共有）。
 
 | 項目 | 値 | 格納場所 | 漏洩可否 |
 |---|---|---|---|
-| Notion Database ID | `36607a0cd18c80bf9effc74aa736645c` | `schema.json` の `database_id_default` | OK |
-| Keychain service 名（既定） | `notion-api-key` | `scripts/keychain_get_secret.py` 既定値 / env `INTAKE_KEYCHAIN_SERVICE` で上書き可 | OK |
-| Keychain account 名（既定） | `skill-intake` | `scripts/keychain_get_secret.py` 既定値 / env `INTAKE_KEYCHAIN_ACCOUNT` で上書き可 | OK |
+| Notion Database ID | per-repo 設定 | `<repo-root>/.notion-config.json#databases.hearing-sheet.db_id` (gitignore) | OK |
+| Keychain service 名（既定） | `notion-api-key` | `.notion-config.json#keychain_service` / env `INTAKE_KEYCHAIN_SERVICE` で上書き可 | OK |
+| Keychain account 名（既定） | `skill-intake` | `.notion-config.json#keychain_account` / env `INTAKE_KEYCHAIN_ACCOUNT` で上書き可 | OK |
 | Notion-Version ヘッダ | `2022-06-28` | `scripts/notion_http.py` / env `INTAKE_NOTION_VERSION` で上書き可 | OK |
 
-**これらはスキル内に直書きしてよい。毎回の問い合わせを回避するため。**
+DB ID 解決順: `--database-id` CLI > env `INTAKE_NOTION_DATABASE_ID` > `<repo-root>/.notion-config.json` > schema `database_id_default` (= null)。
 
 ### 機密情報（Keychain のみ）との対比
 

@@ -22,18 +22,13 @@ import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+import notion_config  # noqa: E402
+
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"
 
 REQ_TYPES = ["バグ","機能追加","プロンプト改善","ドキュメント","挙動変更"]
 PRIORITY  = ["高","中","低"]
-
-
-def get_token():
-    if os.environ.get("NOTION_TOKEN"):
-        return os.environ["NOTION_TOKEN"]
-    return subprocess.check_output(
-        ["security","find-generic-password","-s","notion-api-key","-w"]
-    ).decode().strip()
 
 
 def curl(method, url, token, body=None):
@@ -75,14 +70,18 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    req_schema = json.loads((SCHEMA_DIR / "improvement-request.schema.json").read_text())
-    list_schema = json.loads((SCHEMA_DIR / "skill-list.schema.json").read_text())
-
     if args.dry_run:
         print(json.dumps(vars(args), ensure_ascii=False, indent=2)); return
 
-    token = get_token()
-    plugin_page_id = find_plugin_page(list_schema["db_id"], args.plugin, token)
+    cfg, token = notion_config.require_or_skip("improvement-request")
+    if not cfg:
+        return 0
+    skill_list_db = notion_config.get_db_id("skill-list")
+    req_db = notion_config.get_db_id("improvement-request")
+    if not (skill_list_db and req_db):
+        print("[SKIP] skill-list / improvement-request db_id missing in .notion-config.json")
+        return 0
+    plugin_page_id = find_plugin_page(skill_list_db, args.plugin, token)
     if not plugin_page_id:
         print(f"[ERR] スキル一覧に '{args.plugin}' が存在しません。先に notion-upsert-plugin.py で登録してください")
         sys.exit(2)
@@ -102,7 +101,7 @@ def main():
         props["関連PR/コミット"] = {"url": args.pr_url}
 
     code, data = curl("POST","https://api.notion.com/v1/pages", token,
-                      {"parent":{"database_id":req_schema["db_id"]},"properties":props})
+                      {"parent":{"database_id":req_db},"properties":props})
     if code >= 300:
         print(f"[ERR] create: {code} {data}"); sys.exit(2)
     print(f"[CREATED] 改善要望: '{args.title}' -> {data['id']}")

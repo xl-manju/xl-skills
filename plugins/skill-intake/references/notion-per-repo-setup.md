@@ -1,0 +1,1 @@
+../../skill-creator/references/notion-per-repo-setup.md

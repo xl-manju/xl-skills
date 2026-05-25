@@ -59,17 +59,26 @@ def main():
 
     with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
         schema = json.load(f)
-    # 3段 fallback: --database-id > env > schema.database_id_default
+    # 4段 fallback: --database-id > env > .notion-config.json > schema.database_id_default
+    repo_cfg_db_id = None
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import notion_config as _nc  # noqa
+        repo_cfg_db_id = _nc.get_db_id('hearing-sheet')
+    except Exception:
+        pass
     if args.database_id:
         database_id, db_id_source = args.database_id, 'arg'
     elif os.environ.get('INTAKE_NOTION_DATABASE_ID'):
         database_id, db_id_source = os.environ['INTAKE_NOTION_DATABASE_ID'], 'env'
+    elif repo_cfg_db_id:
+        database_id, db_id_source = repo_cfg_db_id, 'repo_config'
     elif schema.get('database_id_default'):
         database_id, db_id_source = schema['database_id_default'], 'schema_default'
     else:
         database_id, db_id_source = None, None
     if not database_id:
-        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, or schema database_id_default)', file=sys.stderr)
+        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, <repo-root>/.notion-config.json#databases.hearing-sheet, or schema database_id_default). See plugins/skill-creator/references/notion-per-repo-setup.md', file=sys.stderr)
         return 2
     try:
         eval_log_dir = Path('eval-log')

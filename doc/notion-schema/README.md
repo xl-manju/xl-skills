@@ -1,14 +1,18 @@
 # Notion スキーマ SSOT
 
 xl-skills のプラグイン量産フローを Notion 上の 3 DB と連動させるための schema-as-code 定義。
+**スキーマ構造（properties 定義）は本 repo の SSOT、DB ID は per-repo 設定 (`.notion-config.json`) に分離**。
 
 ## 構成
 
-| ファイル | 対応 Notion DB | DB ID |
+| ファイル | 対応 Notion DB | config key |
 |---|---|---|
-| `hearing-sheet.schema.json` | Skillヒアリングシート | `36607a0c-d18c-80bf-9eff-c74aa736645c` |
-| `skill-list.schema.json` | Skill一覧（プラグイン単位） | `36b07a0c-d18c-8073-b106-e70552e13308` |
-| `improvement-request.schema.json` | Skill改善要望 | `36b07a0c-d18c-80db-aae0-d713838cd6f4` |
+| `hearing-sheet.schema.json` | Skillヒアリングシート | `hearing-sheet` |
+| `skill-list.schema.json` | Skill一覧（プラグイン単位） | `skill-list` |
+| `improvement-request.schema.json` | Skill改善要望 | `improvement-request` |
+
+実 DB ID は `<repo-root>/.notion-config.json#databases.<key>.db_id` で解決される。
+他リポジトリへの導入手順は **[plugins/skill-creator/references/notion-per-repo-setup.md](../../plugins/skill-creator/references/notion-per-repo-setup.md)** を参照。
 
 ## リレーション
 
@@ -31,7 +35,8 @@ python3 scripts/sync-notion-schema.py --check
 python3 scripts/sync-notion-schema.py --apply
 ```
 
-Notion API キーは macOS Keychain (`security find-generic-password -s notion-api-key -w`) から取得。
+`.notion-config.json` が未配置の repo では `[notion_config] WARN: ... not found` を出して exit 0 (skip)。
+Notion API トークンは env `NOTION_TOKEN` → macOS Keychain (config の `keychain_service`/`keychain_account`) の順で解決。
 
 ## 制約メモ
 

@@ -17,25 +17,17 @@ Usage:
 
 冪等性: TITLE が一意キー。lint-notion-relations.py が重複検知。
 
-環境: macOS Keychain `notion-api-key` から token 取得。CI など keychain 無い環境では NOTION_TOKEN 環境変数を fallback として読む。
+Per-repo 設定: <repo-root>/.notion-config.json (gitignore対象)
+  詳細: plugins/skill-creator/references/notion-per-repo-setup.md
 """
 import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+import notion_config  # noqa: E402
+
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"
-
-
-def get_token():
-    if os.environ.get("NOTION_TOKEN"):
-        return os.environ["NOTION_TOKEN"]
-    try:
-        return subprocess.check_output(
-            ["security","find-generic-password","-s","notion-api-key","-w"],
-            stderr=subprocess.DEVNULL).decode().strip()
-    except Exception:
-        print("[ERR] Notion token not found (keychain 'notion-api-key' or $NOTION_TOKEN)")
-        sys.exit(2)
 
 
 def curl(method, url, token, body=None):
@@ -350,9 +342,6 @@ def main():
     if not plugin_dir.is_dir():
         print(f"[ERR] plugin dir not found: {plugin_dir}"); sys.exit(2)
 
-    skill_list_schema = json.loads((SCHEMA_DIR / "skill-list.schema.json").read_text())
-    db_id = skill_list_schema["db_id"]
-
     info = scan_plugin(plugin_dir)
     props = build_properties(args.plugin, info, args.hearing_sheet_id)
     children = build_page_children(args.plugin, info)
@@ -363,7 +352,10 @@ def main():
                           "children_count": len(children)}, ensure_ascii=False, indent=2))
         return
 
-    token = get_token()
+    cfg, token = notion_config.require_or_skip("skill-list")
+    if not cfg:
+        return 0
+    db_id = notion_config.get_db_id("skill-list")
     existing = find_existing(db_id, args.plugin, token)
 
     if existing:
