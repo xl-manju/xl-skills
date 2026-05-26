@@ -11,84 +11,12 @@
   },
   "plugins": [
     {
-      "name": "skill-creator",
-      "source": "./plugins/skill-creator",
-      "description": "Claude Code Skill を作る、評価する、承認する、出力先にルーティングするためのメタスキル群。",
-      "version": "1.0.1",
-      "category": "productivity",
-      "tags": ["skills", "generation", "evaluation", "governance"]
-    },
-    {
       "name": "skill-intake",
       "source": "./plugins/skill-intake",
       "description": "skill-creator の前段ヒアリングを非技術者にも開く plugin。Markdown/JSON/Notion ページを Keychain 経由で一括生成。図解マスト + 5 軸ヒアリング (出力先/情報源/共有相手/真の課題/ナレッジ資産) を機械検証。",
       "version": "0.1.0",
       "category": "productivity",
       "tags": ["skills", "intake", "elicitation", "notion", "non-tech"]
-    },
-    {
-      "name": "skill-governance-config",
-      "source": "./plugins/skill-governance-config",
-      "description": "Skill governance shared configuration payloads.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "config"]
-    },
-    {
-      "name": "skill-governance-lint",
-      "source": "./plugins/skill-governance-lint",
-      "description": "Skill governance lint and validation scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "lint", "validation"]
-    },
-    {
-      "name": "skill-governance-hooks",
-      "source": "./plugins/skill-governance-hooks",
-      "description": "Skill governance hook scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "hooks"]
-    },
-    {
-      "name": "skill-governance-automation",
-      "source": "./plugins/skill-governance-automation",
-      "description": "Skill governance automation scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "automation"]
-    },
-    {
-      "name": "skill-governance-adapters",
-      "source": "./plugins/skill-governance-adapters",
-      "description": "Skill governance output routing adapter scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "adapters", "routing"]
-    },
-    {
-      "name": "skill-governance-migration",
-      "source": "./plugins/skill-governance-migration",
-      "description": "Skill migration helper scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "migration"]
-    },
-    {
-      "name": "skill-governance-secrets",
-      "source": "./plugins/skill-governance-secrets",
-      "description": "Skill governance secret helper scripts.",
-      "version": "0.1.0",
-      "category": "productivity",
-      "tags": ["skills", "governance", "secrets"]
-    },
-    {
-      "name": "prompt-creator",
-      "source": "./plugins/prompt-creator",
-      "description": "7 層プロンプトアーキテクチャ (Role/Context/Principles/Workflow/Constraints/Output/Evaluation) で SubAgent 向けプロンプト YAML を生成する skill 群。skill-creator (run-build-skill Step 7.5) からループ呼び出しされ、生成された SubAgent .md の Prompt Templates / Self-Evaluation セクションを自動充填する。",
-      "version": "1.0.0",
-      "category": "productivity",
-      "tags": ["skills", "prompt", "generation", "7layer", "subagent"]
     }
   ]
 }
