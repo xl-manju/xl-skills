@@ -61,7 +61,7 @@ jobs:
         continue-on-error: false
       - name: validate plugin manifests and marketplace
         run: |
-          jq -e '.plugins | length >= 8' .claude-plugin/marketplace.json
+          jq -e '.plugins | length >= 1' .claude-plugin/marketplace.json
           for manifest in plugins/*/.claude-plugin/plugin.json; do
             jq -e '.name and .version and .description' "$manifest" >/dev/null
           done

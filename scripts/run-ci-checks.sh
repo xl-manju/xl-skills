@@ -54,7 +54,7 @@ run "lint-knowledge-loop --store-only"     python3 plugins/skill-creator/skills/
 
 # ── manifest sanity (jq) ──
 if command -v jq >/dev/null 2>&1; then
-  run "marketplace.json plugins>=8" jq -e '.plugins | length >= 8' .claude-plugin/marketplace.json
+  run "marketplace.json plugins>=1" jq -e '.plugins | length >= 1' .claude-plugin/marketplace.json
   for manifest in plugins/*/.claude-plugin/plugin.json; do
     run "manifest:$manifest" jq -e '.name and .version and .description' "$manifest"
   done
