@@ -37,6 +37,8 @@ run "lint-goal-seek --self-test"           python3 plugins/skill-creator/skills/
 run "lint-goal-seek conformance"           python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/skill-creator/skills
 
 # ── completeness / frontmatter (skill-creator + prompt-creator) ──
+run "lint-skill-tree (skill-creator)"      python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/skill-creator/skills
+run "lint-skill-tree (prompt-creator)"     python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-completeness (skill-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-creator/skills
 run "validate-frontmatter --self-test"     python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --self-test
 run "validate-frontmatter (skill-creator)" python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
