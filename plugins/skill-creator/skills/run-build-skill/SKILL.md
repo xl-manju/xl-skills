@@ -276,6 +276,10 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 - **lint**: `scripts/lint-feedback-protocol.py --strict` が R1-R7 (schema/SKILL.md/upsert 三者整合 + R6 周知 + R7 配備存在) を CI で検査。違反時 merge ブロック。
 - **opt-out**: `brief.no_feedback_loop: true` または CLI `--no-feedback-loop` のみ。trace.layer_decisions に理由必須。skill-creator 自身は自動除外。
 
+### Step 12: 内容 adequacy LLM 評価 (content-review, default-ON / ハーネスの核)
+
+機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。詳細: `references/content-review-protocol.md`。要点: ローカル build 完了時に `run-elegant-review` + `assign-skill-design-evaluator` を必須起動し verdict json を `eval-log/<plugin>/<skill>/content-review/` に保存。CI/pre-push は `scripts/lint-content-review.py --changed-only` で成果物存在 + verdict=PASS のみ機械検査 (LLM はリモートで実行しない)。`--skip-content-review` 明示時のみ skip / trace 必須。verdict=FAIL は SKILL.md 改善→再評価を max_iter=3 まで反復。
+
 ## 配置先
 
 | 用途               | 出力先                                          | 正本                            |
@@ -291,9 +295,5 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 ## Additional Resources
 
-- `workflow-manifest.json` — phase / dependsOn / kind_filter / resourceIds の宣言
-- `schemas/{skill-build-trace, template-selection, responsibility-slot, build-flags}.schema.json` — 機械検証用 schema
-- `prompts/R{1-4}-{scaffold,responsibility-emit,template-select,trace-write}.md` — R-id 別プロンプト / `references/{design-docs-index, resource-map.yaml, build-steps, reproducibility-trace-schema, prompt-placement-convention, skill-factory-reproducibility, agent-template, goal-seek-paradigm}` — 設計書索引と詳細手順
-- `templates/`, `examples/` — kind 別雛形と完成例
-- `scripts/` — render-frontmatter / validate-naming / validate-build-trace / build-subagent 他
-- `references/capability-manifest.schema.json` — Capability 7 kind 統一 Manifest (commonCore + 各 `definitions/kind*`) 正本。validate-frontmatter.py が動的ロード。新 6 kind 骨格は `templates/{agent,hook,command,plugin-composition,prompt,workflow}-skeleton.{md,yaml}`
+- `workflow-manifest.json` / `schemas/` / `prompts/R{1-4}-*.md` / `templates/` / `examples/` / `scripts/` — phase 宣言・機械検証 schema・R-id プロンプト・kind 別雛形・完成例・lint/render スクリプト
+- `references/{design-docs-index, resource-map.yaml, build-steps, reproducibility-trace-schema, prompt-placement-convention, skill-factory-reproducibility, agent-template, goal-seek-paradigm, feedback-loop-deployment, content-review-protocol, capability-manifest.schema.json}` — 設計書索引・詳細手順・Capability 7 kind 統一 Manifest 正本
