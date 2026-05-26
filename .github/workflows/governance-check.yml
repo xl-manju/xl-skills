@@ -26,7 +26,7 @@ jobs:
         run: python3 scripts/lint-dependency-direction.py --skills-dir plugins/skill-creator/skills
         continue-on-error: false
       - name: lint feedback_protocol SSOT (schema/SKILL.md/upsert 整合 - offline)
-        run: python3 scripts/lint-feedback-protocol.py
+        run: python3 scripts/lint-feedback-protocol.py --strict
         continue-on-error: false
       - name: notion schema drift check (3DB SSOT vs Notion)
         if: ${{ env.NOTION_TOKEN != '' }}

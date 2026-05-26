@@ -60,7 +60,7 @@ completeness_exempt:
 
 1. **SSOT 厳守**: 発火条件・対話項目は `doc/notion-schema/skill-list.schema.json` の `feedback_protocol` を唯一の正本とし、本 SKILL.md / スクリプト / Notion 本文の三者は派生のみ。
 2. **対象プラグイン存在確認必須**: スキル一覧 DB に未登録なら `run-build-skill --notion-register` を案内して中断 (孤児レコード防止)。
-3. **token は Keychain 経由のみ**: `notion-api-key` または `NOTION_TOKEN` env から取得。コンテキストに乗せない。
+3. **token / DB ID は notion-config SSOT 経由**: `plugins/skill-creator/scripts/notion_config.py` の `require_or_skip()` が解決順 (CLI 引数 > env `NOTION_TOKEN` / `NOTION_*_DATABASE_ID` > per-repo `.notion-config.json` > macOS Keychain slug-namespaced key) を一元管理。`scripts/notion-submit-improvement.py` は同 loader を import 済み。symlink 共有された他 repo (`.notion-config.json` 分離) でも DB ID 解決が動作する。token / DB ID をコンテキストに乗せない。
 4. **重複除去は人手**: 時系列ログ性質を保つため AI は重複判定せず投入する。
 5. **people 型は UI で人手追加**: API 経由でメール宛指定不可のため起票者/担当者は完了通知時に案内。
 
@@ -83,7 +83,7 @@ completeness_exempt:
 - [ ] Notion 改善要望 DB に 1 ページが新規作成され URL が取得できている
 - [ ] スキル一覧 DB との N:1 relation が貼られ `未対応要望数` rollup が増分している
 - [ ] 完了通知に「起票者・担当者は Notion UI で人手追加」案内が含まれている
-- [ ] token は Keychain `notion-api-key` または `NOTION_TOKEN` env から取得しており context に露出していない
+- [ ] token / DB ID は `notion_config.require_or_skip()` 経由 (CLI > env > per-repo `.notion-config.json` > Keychain slug-namespaced key の解決順) で取得しており context に露出していない
 
 ### ゴールシークループ
 
@@ -124,7 +124,7 @@ python3 scripts/notion-submit-improvement.py \
   --pr-url "<pr-url>"
 ```
 
-token は macOS Keychain `notion-api-key` または環境変数 `NOTION_TOKEN` から取得 (スクリプト内で自動)。
+token / DB ID は `notion_config.require_or_skip()` 経由 (CLI > env > per-repo `.notion-config.json` > Keychain slug-namespaced key の解決順)。`notion-submit-improvement.py` 内で自動解決され、unresolvable なら skip + 利用者通知。
 
 ### 完了通知
 
@@ -133,7 +133,7 @@ token は macOS Keychain `notion-api-key` または環境変数 `NOTION_TOKEN` �
 ## Gotchas
 
 1. **孤児レコード禁止**: 対象プラグインがスキル一覧 DB 未登録のまま要望だけ投入しない。必ず `--dry-run` で先に存在確認。
-2. **token を context に乗せない**: スクリプト内で Keychain/env から取得し、Claude の応答や log に出力しない。
+2. **token / DB ID を context に乗せない**: スクリプト内で `notion_config.require_or_skip()` (CLI > env > `.notion-config.json` > Keychain) 経由で取得し、Claude の応答や log に出力しない。
 3. **重複除去を AI 判定しない**: 似た要望でも別レコードとして投入する (時系列ログ性質を破壊しない)。
 4. **people 型を API で埋めない**: 起票者・担当者は UI 側案内のみ。API でメール宛指定はサポート外。
 5. **発火条件追加は schema 経由**: `feedback_protocol.firing_conditions` 直接編集 → lint 通過 → 派生物同期の順。SKILL.md / triggers の先行編集禁止。

@@ -206,6 +206,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--trace", action="store_true", help="print applied patch names to stderr")
+    # with-feedback-loop combinator (default-ON, opt-out で外す)。
+    # SKILL.md 合成とは独立に target plugin への symlink 配備を行う副作用付きアクション。
+    parser.add_argument(
+        "--deploy-feedback-loop",
+        type=Path,
+        default=None,
+        help="量産先 plugin ディレクトリに skills/run-skill-feedback を skill-creator 正本の相対 symlink で配備 (default-ON 想定、--no-feedback-loop で opt-out)",
+    )
+    parser.add_argument(
+        "--no-feedback-loop",
+        action="store_true",
+        help="--deploy-feedback-loop を無効化 (feedback-loop 配備の opt-out)",
+    )
     return parser.parse_args(argv)
 
 
@@ -461,8 +474,37 @@ def apply_patch_file(content: str, patch_path: Path) -> str:
         return apply_semantic_patch(content, patch_path.name)
 
 
+def apply_feedback_loop(target_plugin_dir: Path) -> Path:
+    """量産先 plugin ディレクトリに skills/run-skill-feedback を相対 symlink で配備する。
+
+    SSOT は plugins/skill-creator/skills/run-skill-feedback のみ。配備先は symlink で参照し
+    drift を防止する (R7 lint がこの存在を検査)。冪等: 既に link/実体があれば no-op。
+    """
+    target_plugin_dir = target_plugin_dir.resolve()
+    if target_plugin_dir.name == "skill-creator":
+        return target_plugin_dir / "skills" / "run-skill-feedback"
+    skills_dir = target_plugin_dir / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    link = skills_dir / "run-skill-feedback"
+    if link.exists() or link.is_symlink():
+        return link
+    # plugins/<plugin>/skills/ から plugins/skill-creator/skills/run-skill-feedback への相対
+    rel = Path("../..") / "skill-creator" / "skills" / "run-skill-feedback"
+    link.symlink_to(rel)
+    return link
+
+
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    # 副作用アクション: feedback-loop 配備のみのモード (SKILL.md 合成は skip 可能)。
+    if args.deploy_feedback_loop and not args.no_feedback_loop:
+        try:
+            link = apply_feedback_loop(args.deploy_feedback_loop)
+            if args.trace:
+                print(f"deployed feedback-loop: {link}", file=sys.stderr)
+        except OSError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     base_path = args.templates_dir / "_base.md"
     combinator_dir = args.templates_dir / "combinators"
     try:

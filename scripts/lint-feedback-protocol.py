@@ -7,8 +7,15 @@
   R3. run-skill-feedback/SKILL.md が schema を SSOT として参照している
   R4. run-skill-feedback/SKILL.md の triggers が firing_conditions を包含する近似 (各 firing_condition の主要キーワードが triggers のいずれかに含まれる)
   R5. notion-upsert-plugin.py が _load_feedback_protocol() を経由している
+  R6. 量産プラグイン (plugins/*/plugin.json 保持) の README/plugin.json/commands/agents に run-skill-feedback 発火経路が周知されている
+      (default warn / --strict で exit 1)
+  R7. 量産プラグイン (skill-creator 自身を除く) の skills/run-skill-feedback/ が symlink/実体で配備されている
+      (default warn / --strict で exit 1)
+
+Usage:
+  python3 scripts/lint-feedback-protocol.py [--strict]
 """
-import json, re, sys
+import argparse, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,7 +24,79 @@ SKILL_MD = ROOT / "plugins" / "skill-creator" / "skills" / "run-skill-feedback" 
 UPSERT = ROOT / "scripts" / "notion-upsert-plugin.py"
 
 
+PLUGINS_DIR = ROOT / "plugins"
+FEEDBACK_KEYWORD = "run-skill-feedback"
+
+
+def _target_plugins():
+    """検査対象 plugin (manifest を持ち、skill-creator 自身は除外)。"""
+    if not PLUGINS_DIR.exists():
+        return []
+    out = []
+    for plugin_dir in sorted(PLUGINS_DIR.iterdir()):
+        if not plugin_dir.is_dir():
+            continue
+        if plugin_dir.name == "skill-creator":
+            continue
+        manifests = [
+            plugin_dir / ".claude-plugin" / "plugin.json",
+            plugin_dir / "plugin.json",
+            plugin_dir / "plugin-composition.yaml",
+        ]
+        if not any(p.exists() for p in manifests):
+            continue
+        out.append(plugin_dir)
+    return out
+
+
+def check_plugin_awareness():
+    """R6: 量産プラグイン側に発火経路 (run-skill-feedback) の周知文言があるか。
+
+    haystack: manifest (plugin.json / .claude-plugin/plugin.json / plugin-composition.yaml)
+              + README.md + commands/*.md + agents/*.md
+    """
+    warnings = []
+    for plugin_dir in _target_plugins():
+        haystack = ""
+        candidates = [
+            plugin_dir / ".claude-plugin" / "plugin.json",
+            plugin_dir / "plugin.json",
+            plugin_dir / "plugin-composition.yaml",
+            plugin_dir / "README.md",
+        ]
+        for sub in ("commands", "agents"):
+            d = plugin_dir / sub
+            if d.is_dir():
+                candidates.extend(sorted(d.glob("*.md")))
+        for p in candidates:
+            if p.exists():
+                try:
+                    haystack += p.read_text()
+                except Exception:
+                    pass
+        if FEEDBACK_KEYWORD not in haystack:
+            warnings.append(f"R6: {plugin_dir.name} に '{FEEDBACK_KEYWORD}' 発火経路の周知記載が無い (manifest/README/commands/agents)")
+    return warnings
+
+
+def check_plugin_deployment():
+    """R7: 量産プラグインに skills/run-skill-feedback/ が symlink/実体で配備されているか。"""
+    warnings = []
+    for plugin_dir in _target_plugins():
+        target = plugin_dir / "skills" / "run-skill-feedback"
+        # symlink でも実体でも存在すれば OK (broken symlink は exists() が False)
+        if not (target.exists() or target.is_symlink()):
+            warnings.append(f"R7: {plugin_dir.name} に skills/run-skill-feedback/ 配備なし")
+            continue
+        if target.is_symlink() and not target.exists():
+            warnings.append(f"R7: {plugin_dir.name}/skills/run-skill-feedback/ が broken symlink")
+    return warnings
+
+
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--strict", action="store_true", help="R6/R7 を fail (exit 1) として扱う")
+    args = ap.parse_args()
     violations = []
     sc = json.loads(SCHEMA.read_text())
 
@@ -64,6 +143,22 @@ def main():
         for v in violations:
             print(f"  - {v}")
         sys.exit(1)
+
+    r6_warnings = check_plugin_awareness()
+    r7_warnings = check_plugin_deployment()
+    has_warn = bool(r6_warnings or r7_warnings)
+    label = "FAIL" if args.strict else "WARN"
+    if r6_warnings:
+        print(f"[{label}] R6 周知 lint: {len(r6_warnings)} 件")
+        for w in r6_warnings:
+            print(f"  - {w}")
+    if r7_warnings:
+        print(f"[{label}] R7 配備 lint: {len(r7_warnings)} 件")
+        for w in r7_warnings:
+            print(f"  - {w}")
+    if has_warn and args.strict:
+        sys.exit(1)
+
     print("[OK] feedback_protocol SSOT lint: all checks passed")
 
 

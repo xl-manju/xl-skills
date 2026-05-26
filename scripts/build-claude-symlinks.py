@@ -100,7 +100,7 @@ def read_skill_frontmatter_name(skill_dir):
 
 
 def desired_entries(plugins_dir, target_dir, kinds):
-    entries = []
+    raw_entries = []
     identifiers = {}
     conflicts = set()
 
@@ -109,7 +109,7 @@ def desired_entries(plugins_dir, target_dir, kinds):
             for item in discover_items(plugin, kind):
                 dst = target_dir / kind / item.name
                 entry = {"kind": kind, "src": item, "dst": dst}
-                entries.append(entry)
+                raw_entries.append(entry)
                 names = [item.name]
                 if kind == "skills":
                     frontmatter_name = read_skill_frontmatter_name(item)
@@ -119,9 +119,40 @@ def desired_entries(plugins_dir, target_dir, kinds):
                     key = (kind, name)
                     identifiers.setdefault(key, set()).add(item)
 
+    # SSOT alias 解決: 複数 plugin の source が同一 realpath を指す場合 (symlink alias) は単一エントリ化する。
+    # realpath が複数あれば本物の名前衝突として conflict にする。
+    entries = []
+    seen_dst = {}
+    for entry in raw_entries:
+        dst = entry["dst"]
+        if dst not in seen_dst:
+            seen_dst[dst] = []
+        seen_dst[dst].append(entry)
+
+    for dst, group in seen_dst.items():
+        if len(group) == 1:
+            entries.append(group[0])
+            continue
+        realpaths = {e["src"].resolve(strict=False) for e in group}
+        if len(realpaths) == 1:
+            canonical_real = next(iter(realpaths))
+            canonical = next(
+                (e for e in group if e["src"].resolve(strict=False) == e["src"].absolute() and not e["src"].is_symlink()),
+                None,
+            )
+            if canonical is None:
+                canonical = next((e for e in group if e["src"] == canonical_real), group[0])
+            entries.append(canonical)
+        else:
+            for e in group:
+                entries.append(e)
+                conflicts.add(e["src"])
+
     for sources in identifiers.values():
         if len(sources) > 1:
-            conflicts.update(sources)
+            realpaths = {Path(s).resolve(strict=False) for s in sources}
+            if len(realpaths) > 1:
+                conflicts.update(sources)
 
     return entries, conflicts
 

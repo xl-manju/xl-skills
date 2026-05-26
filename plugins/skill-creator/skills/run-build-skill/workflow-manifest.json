@@ -97,6 +97,19 @@
       "resourceIds": [],
       "output_artifact": "scripts/notion-upsert-plugin.py --plugin <plugin> [--hearing-sheet-id <id>]",
       "note": "実体は top-level scripts/notion-upsert-plugin.py。冪等。token は keychain notion-api-key または $NOTION_TOKEN。"
+    },
+    {
+      "id": "feedback-deploy",
+      "step": 11,
+      "title": "量産先プラグインに run-skill-feedback を symlink 配備 (default-ON, with-feedback-loop combinator)",
+      "dependsOn": ["trace-write"],
+      "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
+      "default_on": true,
+      "opt_out_flag": "--no-feedback-loop",
+      "resourceIds": [],
+      "output_artifact": "plugins/<plugin>/skills/run-skill-feedback (-> ../../skill-creator/skills/run-skill-feedback)",
+      "verifier": "scripts/lint-feedback-protocol.py --strict (R7)",
+      "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存 symlink は再作成しない)。実装は scripts/render-combinators.py apply_feedback_loop()。"
     }
   ],
   "resources": [
