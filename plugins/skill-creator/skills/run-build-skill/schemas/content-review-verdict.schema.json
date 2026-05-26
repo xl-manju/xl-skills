@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-build-skill/schemas/content-review-verdict.schema.json",
+  "title": "Content Review Verdict",
+  "description": "ローカル LLM 評価 (elegance / rubric) の verdict 成果物。CI/pre-push は本 schema 準拠ファイルの存在と verdict=PASS を機械検査する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target", "review_kind", "verdict", "reviewer", "reviewed_at"],
+  "properties": {
+    "target": {
+      "type": "object",
+      "required": ["plugin", "skill"],
+      "properties": {
+        "plugin": {"type": "string"},
+        "skill": {"type": "string"},
+        "skill_md_sha256": {"type": "string", "description": "評価時の SKILL.md ハッシュ。SKILL.md 変更後の verdict 期限切れ判定に使う。"}
+      }
+    },
+    "review_kind": {
+      "type": "string",
+      "enum": ["elegance", "rubric"],
+      "description": "elegance=run-elegant-review 30思考法×4条件 / rubric=assign-skill-design-evaluator 規範採点"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "INCOMPLETE"],
+      "description": "PASS=内容 adequacy 担保 / FAIL=改善必要 / INCOMPLETE=max_iter 到達で human_review"
+    },
+    "findings_summary": {
+      "type": "object",
+      "properties": {
+        "contradiction": {"type": "integer", "minimum": 0},
+        "omission": {"type": "integer", "minimum": 0},
+        "inconsistency": {"type": "integer", "minimum": 0},
+        "dependency_break": {"type": "integer", "minimum": 0},
+        "smell": {"type": "integer", "minimum": 0}
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "実行 SubAgent 名 (例: elegant-improvement-executor / assign-skill-design-evaluator)"
+    },
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "iterations": {"type": "integer", "minimum": 1},
+    "human_review_required": {"type": "boolean", "default": false},
+    "notes": {"type": "string", "description": "FAIL/INCOMPLETE 時の要約 (任意)"}
+  }
+}

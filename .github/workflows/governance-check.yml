@@ -28,6 +28,9 @@ jobs:
       - name: lint feedback_protocol SSOT (schema/SKILL.md/upsert 整合 - offline)
         run: python3 scripts/lint-feedback-protocol.py --strict
         continue-on-error: false
+      - name: lint content-review verdict 成果物存在 (LLM 評価のローカル実行証跡)
+        run: python3 scripts/lint-content-review.py --changed-only --base origin/main
+        continue-on-error: false
       - name: notion schema drift check (3DB SSOT vs Notion)
         if: ${{ env.NOTION_TOKEN != '' }}
         env:

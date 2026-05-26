@@ -30,6 +30,7 @@ run "lint-external-refs"                   python3 scripts/lint-external-refs.py
 
 # ── SSOT / drift ──
 run "lint-feedback-protocol --strict"      python3 scripts/lint-feedback-protocol.py --strict
+run "lint-content-review (changed-only)"   python3 scripts/lint-content-review.py --changed-only --base origin/main
 run "check-scripts-drift"                  bash scripts/check-scripts-drift.sh
 run "build-claude-symlinks --check"        python3 scripts/build-claude-symlinks.py --check
 run "lint-ssot-duplication --strict"       python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict

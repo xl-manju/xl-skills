@@ -110,6 +110,20 @@
       "output_artifact": "plugins/<plugin>/skills/run-skill-feedback (-> ../../skill-creator/skills/run-skill-feedback)",
       "verifier": "scripts/lint-feedback-protocol.py --strict (R7)",
       "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存 symlink は再作成しない)。実装は scripts/render-combinators.py apply_feedback_loop()。"
+    },
+    {
+      "id": "content-review",
+      "step": 12,
+      "title": "内容 adequacy LLM 評価 (elegance + rubric) default-ON",
+      "dependsOn": ["trace-write", "feedback-deploy"],
+      "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
+      "default_on": true,
+      "opt_out_flag": "--skip-content-review",
+      "resourceIds": [],
+      "output_artifact": "eval-log/<plugin>/<skill>/content-review/{elegance-verdict.json, rubric-verdict.json}",
+      "verifier": "scripts/lint-content-review.py --changed-only --base origin/main",
+      "execution": "local-llm-only",
+      "note": "ローカル Claude Code で run-elegant-review + assign-skill-design-evaluator を SubAgent 起動し verdict json を保存する。LLM はリモート CI では実行せず、CI/pre-push は成果物の存在のみ機械検査 (cost/API課金回避)。skip 時は trace.layer_decisions に理由必須。実装手順は references/content-review-protocol.md。"
     }
   ],
   "resources": [
