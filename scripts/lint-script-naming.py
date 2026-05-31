@@ -147,6 +147,12 @@ PENDING_RENAME_PATHS = {
     # skill-intake 側は skill-creator 側への symlink で SSOT 維持)
     "plugins/skill-creator/scripts/notion_config.py",
     "plugins/skill-intake/scripts/notion_config.py",
+    # contract-generator 初回投入: 各 run-* スキルの実体スクリプト。
+    # 旧 v1 由来の名詞名 (draft/finalize/sync) を SKILL.md/prompts/README 参照と
+    # 同時にリネームする後続 Change Governance PR まで PENDING 扱い。
+    "plugins/contract-generator/skills/run-contract-generate/scripts/draft.py",
+    "plugins/contract-generator/skills/run-contract-finalize/scripts/finalize.py",
+    "plugins/contract-generator/skills/run-template-sync/scripts/sync.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

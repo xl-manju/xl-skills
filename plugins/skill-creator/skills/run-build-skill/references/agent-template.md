@@ -137,6 +137,7 @@ run-build-skill Step 7.5 は `brief.prompt_creator_policy` の resolved 値で�
 
 - **skill-creator 側責務** (本テンプレ): 9 セクション骨格生成、responsibility anchor (`<!-- responsibility: <id> -->`) 配置、brief.responsibilities[] の id 集合を SubAgent.md に転写。
 - **prompt-creator 側責務** (`plugins/prompt-creator/skills/run-prompt-creator-7layer/SKILL.md` Key Rule 8): Prompt Templates / Self-Evaluation の 2 セクション内、各 responsibility anchor 配下の本文を 7 層プロンプトで充填。anchor は触らない。
+- **正本の向き (逆転禁止)**: 7 層本文の SSOT 正本は `prompts/<R-id>.md` 側。`agents/*.md` を 7 層本文の正本にし `prompts/<R-id>.md` を `moved_to` リダイレクトで空殻化する逆転 (旧「SSOT 統合方針 A」型) は禁止。`prompt-placement-convention.md#正本の向き-canonical-direction-と禁止アンチパターン` を正本とし、canonical な `scripts/lint-prompt-placement.py`(run-build-skill 配下)が `PROMPT-REDIRECT-INVERSION` として機械検出する。
 
 ### 起動と戻り検証
 

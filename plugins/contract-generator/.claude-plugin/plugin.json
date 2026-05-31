@@ -1,0 +1,55 @@
+{
+  "name": "contract-generator",
+  "version": "0.1.0",
+  "description": "XLOCAL業務委託契約書を台帳×Driveひな形から黄色維持で半自動量産 (draft/finalize/sync の3 skill構成)",
+  "author": {
+    "name": "xl-skills maintainers"
+  },
+  "skills": [
+    {
+      "name": "run-contract-generate",
+      "path": "skills/run-contract-generate",
+      "kind": "run"
+    },
+    {
+      "name": "run-contract-finalize",
+      "path": "skills/run-contract-finalize",
+      "kind": "run"
+    },
+    {
+      "name": "run-template-sync",
+      "path": "skills/run-template-sync",
+      "kind": "run"
+    }
+  ],
+  "agents": [
+    {
+      "name": "contract-draft-agent",
+      "path": "agents/contract-draft-agent.md",
+      "skill": "run-contract-generate"
+    },
+    {
+      "name": "contract-finalize-agent",
+      "path": "agents/contract-finalize-agent.md",
+      "skill": "run-contract-finalize"
+    },
+    {
+      "name": "template-sync-agent",
+      "path": "agents/template-sync-agent.md",
+      "skill": "run-template-sync"
+    }
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-secret.py"
+          }
+        ]
+      }
+    ]
+  }
+}

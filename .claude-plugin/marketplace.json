@@ -17,6 +17,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "tags": ["skills", "intake", "elicitation", "notion", "non-tech"]
+    },
+    {
+      "name": "contract-generator",
+      "source": "./plugins/contract-generator",
+      "description": "株式会社XLOCALの業務委託契約書を、Drive上の.docxひな形(個人/法人)と管理台帳(Google Sheets)を照合して半自動量産。python-docxで黄色ハイライト差込・法人別紙生成、Slack承認2フェーズ(下書きDocs→承認→PDF)、ひな形変更追従。認証はService Account+Slack Bot Token(Keychain保管)。PreToolUse hookで機密保護。",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["contract", "docx", "google-drive", "google-sheets", "slack", "automation"]
     }
   ]
 }
