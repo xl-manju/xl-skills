@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "contract-generator",
+    "skill": "run-template-sync",
+    "skill_md_sha256": "718552e7286ccaa58f7b049a4079388d125f9ce50c803d99592f609a915c0138"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-01T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "ref-skill-design-rubric L0 を canonical scorer (render-findings-score.py, --rubric-refs upstream ref-skill-design-rubric/rubric.json + assign-skill-design-evaluator/rubric.json) で採点。score=97 / threshold=80 / passed=true。findings=[FM-005:low (-3)] のみ(high/medium なし)。passed 規約 = score>=threshold AND NOT any(high finding) を充足。前回 FAIL(score 70, BD-001 high / BD-002 medium)の原因は日本語見出し『## 目的と出力契約』『## 注意点』が rubric の literal 検査(英語『## Purpose & Output Contract』『## Gotchas』)に不一致だった点。今回 repo 多数派規範に揃え見出しを英語 literal へ改名(意味保持: Purpose & Output Contract=目的と出力契約 / Gotchas=注意点)。BD-001/BD-002 解消で high/medium finding 消失。残 FM-005(low): description 冒頭が名詞句『契約書のひな形』で動詞トークン始まりでなく -3。low かつ閾値余裕(97>=80)で PASS 阻害せず。force_pass 不使用。PASS 内訳: FM-001(name prefix/kebab/<=60), FM-002(trigger『〜とき』句点終止), FM-003(trigger 2個=2..3), FM-004(内部動作語なし), BD-001(『## Purpose & Output Contract』存在), BD-002(『## Gotchas』存在), BD-003(body 約81行<=300), BD-004(description trigger↔body 手順整合), NM-001(dir名==name), NM-002/003(命名/tree 整合・scripts は .py のみ), PD-001(参照は run-contract-generate/references を共有)。SSOT dedup(正負シグナル表を prompts/R1-diagnose-and-resync.md Layer4.4 へ一本化)は反映済みで重複・矛盾なし。見出し改名のみで意味内容は不変、他軸への副作用なし。"
+}

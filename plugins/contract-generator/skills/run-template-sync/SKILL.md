@@ -25,7 +25,7 @@ audit-trigger: on-change
 
 # run-template-sync
 
-## 目的と出力契約
+## Purpose & Output Contract
 ユーザーが「ひな形が変わった/テンプレートが更新された」と**明示した時のみ**発火する独立スキル。自社のひな形フォルダに置き換えられた `.docx` を `scan_template` で診断し、黄色run/プレースホルダの差分(MISSING=差込位置消失/UNMAPPED=新規プレースホルダ)を検知。`--apply` で `template-mapping.json`・台帳列の更新を促し、`completed` 行に**再生成フラグ**を立てて `未作成` へ差し戻す→次回 `run-contract-generate(--phase draft)` で作り直される。実体は `scripts/sync.py`(共有 `../../lib/scan_template.py` を使用)。
 
 ## 境界
@@ -70,17 +70,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-template-sync
 
 各周回末に `lib/feedback_loop.py` の `record_positive()` / `record_negative()` を呼び、シグナルを `eval-log/run-template-sync-feedback.jsonl` に追記。次周回開始時に `derive_next_directive("run-template-sync", round)` を参照し、戻り値を `merged_directive_for_next` の先頭に prepend する。
 
-### 正負シグナル定義表 (run-template-sync)
-
-| 種別 | シグナル | 検出元 |
-|---|---|---|
-| positive | `scan_template` diff=0 で完了 | scan_template.py exit 0 |
-| positive | MAPPING_DRIFT 解消 | template-mapping.json と scan_template の整合 |
-| negative | MAPPING_DRIFT 再発 | scan_template.py exit 5 連続 |
-| negative | UNMAPPED 列残存 | ledger.HEADERS 未追加列の検出 |
-| negative | completed 行差し戻し過剰 | --apply で対象外行(draft/approved)誤巻戻し |
-
-反映タイミング: 周回末 `record_*` → 次周回開始時 `derive_next_directive` → merged_directive に prepend。
+正負シグナル定義表は `prompts/R1-diagnose-and-resync.md` の Layer 4.4 を正本(SSOT)とする(本 SKILL.md には再掲しない)。反映タイミング: 周回末 `record_*` → 次周回開始時 `derive_next_directive` → merged_directive に prepend。
 
 ## 検証
 - `scan_template --type {individual,corporate}` が exit 0(整合)/5(drift)
@@ -88,7 +78,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-template-sync
 - `--dry-run` で台帳書込を抑止可能
 - 実装: `scripts/sync.py`(薄い shim)/ `$CLAUDE_PLUGIN_ROOT/lib/scan_template.py`
 
-## 注意点
+## Gotchas
 - `read_file_content`(MCP)ではハイライト属性が取れない。黄色run確認は `scan_template`(標準ライブラリ `docx_lib`)で行う。
 - ひな形の構造を大改訂した場合は `template-mapping.json` の `anchor`/`conditionals` の手修正が必要(`run-contract-generate/references/template-change-runbook.md`)。
 

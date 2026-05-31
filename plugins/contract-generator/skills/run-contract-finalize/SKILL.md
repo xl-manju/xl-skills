@@ -25,7 +25,7 @@ audit-trigger: on-change
 
 # run-contract-finalize
 
-## 目的と出力契約
+## Purpose & Output Contract
 `run-contract-generate` が作った下書き(台帳 `draft`)を、**黄色除去PDF(提出用)** として個人/法人フォルダへ保存→Slackスレッドに**再共有**→台帳を `completed` 化する。**発火条件はただ一つ「Claude Code 上で finalize を実行(=ユーザーが確定を指示)」**(pull 型)。実体は共有エンジン `../../lib/engine.py --phase finalize`(`draft` 行を直接PDF化→completed)を `scripts/finalize.py` が呼ぶ。**Slack の ✅/OK は発火条件ではない**(Slack通知は単なるお知らせで承認ゲートとして要求しない)。ユーザーが内容を確認して Claude Code で実行する行為そのものが人間のゲート。常駐サーバー不要。自動ポーリング(/loop・cron)は **任意**(LLM を回す /loop はトークン費用が嵩むため、自動化する場合も純 Python の `scripts/finalize.py` を cron で回す。詳細は「運用」)。
 
 ## 境界
@@ -90,7 +90,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-contract-finalize
 - `--dry-run` で Drive/Sheets/Slack 副作用を抑止可能
 - 実装: `scripts/finalize.py`(薄い shim, finalize 単独)/ `$CLAUDE_PLUGIN_ROOT/lib/engine.py`(process_row phase分岐)
 
-## 注意点
+## Gotchas
 - **発火条件は Claude Code 実行のみ(pull型)**: PDF確定はユーザーが Claude Code で「確定して/PDF発行して」と指示し finalize を実行したときに 1 回だけ走る。**Slackの ✅/OK は発火条件ではない**(Slack通知は単なるお知らせ)。内容確認のうえ実行する行為そのものが人間のゲート。
 - 自動化が要る場合は純Pythonの `scripts/finalize.py` を cron で回す(Google/Slack APIは無料枠・呼出課金なし=費用は実質ゼロ)。**/loop はLLMを毎周回すためトークン費用が嵩むので非推奨**。真のイベント駆動(承認の瞬間発火)は Slack Events API の webhook 常駐が必要で本スキルは不採用。
 - 任意で二者承認(Slack✅→確定)したい場合のみ `--phase poll` を挟む。その際の承認メッセージは `run-contract-generate` がdraft時に送った通知スレッドであること(TS突合)。

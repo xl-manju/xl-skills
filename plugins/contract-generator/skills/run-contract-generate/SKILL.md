@@ -26,7 +26,7 @@ audit-trigger: on-change
 
 # run-contract-generate
 
-## 目的と出力契約
+## Purpose & Output Contract
 管理台帳(Google Sheets)の「作成指示◯ かつ 未作成」行ごとに、契約タイプ(個人/法人)に応じた Drive 上の `.docx` ひな形を差込・条項分岐し、**AI記入箇所を黄色化した Google Docs 版(下書き・要確認)** を個人/法人フォルダへ保存→**Slackに通知**→台帳を `draft` 化(ファイル名/契約書URL/Slack TS/日時)。承認後の提出用PDFは `run-contract-finalize` が担う(責務分離)。実体は共有エンジン `../../lib/engine.py --phase draft`。法務承認済の条文は改変しない。概念は `references/concept.md`、差込仕様は `references/injection-mapping.md`、設定は plugin直下 `README.md`。
 
 ## 境界
@@ -93,7 +93,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-contract-generate
 - 生成後に未置換プレースホルダ(`●`/`XXXX`)残存なし
 - 実装は `$CLAUDE_PLUGIN_ROOT/lib/validate.py`(差込前)+ `$CLAUDE_PLUGIN_ROOT/lib/docx_fill.py` 末尾の残存チェック(差込後)
 
-## 注意点
+## Gotchas
 - `read_file_content` 系ではハイライト属性を取得できない。差込アンカーは `$CLAUDE_PLUGIN_ROOT/lib/docx_fill.py` が `run.font.highlight_color==WD_COLOR_INDEX.YELLOW` を機械抽出して特定する。
 - PDF は Drive 上で Google Docs 変換→`export(application/pdf)` で生成する(LibreOffice 不要)。
 - 機微情報(住所/代表者/口座)を扱うため、台帳・出力フォルダの共有範囲を最小化する。

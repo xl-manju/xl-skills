@@ -16,9 +16,9 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- 承認(✅/OK)が確認できた draft 行のみ PDF を生成する。未承認行を確定しない。
+- 発火条件は Claude Code 実行のみ(pull 型)。ユーザーが内容確認のうえ finalize を実行した行だけを確定し、未実行行は確定しない。Slack ✅/OK は発火条件ではない(通知のみ・任意で承認記録)。
 - PDF は黄色除去版(提出用)。Docs の条文・書式は改変しない。
-- 状態遷移は台帳が唯一の真実源。draft→approved→completed の順序を飛ばさない。
+- 状態遷移は台帳が唯一の真実源。既定は `draft→completed`(finalize で直接確定)。任意で Slack 承認記録を挟む場合のみ `draft→approved→completed` の順序を飛ばさない(approved を作るのは任意の poll のみ)。
 
 ### 1.2 倫理ガード
 - 承認者(Slack user)を記録するが、機微情報(乙住所・乙代表者・銀行口座)は Slack 本文・ログに復唱しない。
@@ -27,9 +27,9 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 用語・状態遷移
-- 状態: `draft` → `approved` → `completed`(順序厳守、飛ばし禁止)。未承認は `waiting` で持ち越し(確定しない)。
-- 承認シグナル = ✅リアクション(white_check_mark/+1/ok/heavy_check_mark) または 返信本文に「OK/承認/approve/了解」。
-- poll 対象 = ステータス=draft。finalize 対象 = ステータス=approved。
+- 状態: 既定は `draft` → `completed`(finalize がユーザー実行行を直接確定)。任意の Slack 承認記録を使う場合のみ `draft` → `approved` → `completed`(この経路では順序厳守、飛ばし禁止)。未実行/未承認は持ち越し(確定しない)。
+- 承認シグナル(任意の poll 使用時) = ✅リアクション(white_check_mark/+1/ok/heavy_check_mark) または 返信本文に「OK/承認/approve/了解」。
+- finalize 対象 = ステータス=draft(既定)および後方互換の approved。poll(任意)対象 = ステータス=draft。
 
 ### 2.2 責務 (Single Responsibility)
 - 担当: poll(draft 行の承認検知→approved 化) と finalize(approved 行の PDF生成→Slack再共有→completed 化)。

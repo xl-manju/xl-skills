@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "contract-generator",
+    "skill": "run-template-sync",
+    "skill_md_sha256": "718552e7286ccaa58f7b049a4079388d125f9ce50c803d99592f609a915c0138"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "elegant-improvement-executor",
+  "reviewed_at": "2026-06-01T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "notes": "30思考法×4条件(完全性/一貫性/深度/簡潔性)で検証。完全性: Goal/Why/Checklist/入出力契約/検証が整合し欠落なし。一貫性: frontmatter allowed-tools・CLI(--apply/--dry-run/--docx)・sync.py 実装・prompt L3 が相互整合。矛盾なし。深度: 具体値(folder ID/spreadsheet_id)は google-config.json、差込アンカーは template-mapping.json へ外部化済みで直書きリークなし。簡潔性: 唯一の smell として『正負シグナル定義表』が SKILL.md と prompts/R1 の L4.4 に二重定義(SSOT 違反)。最小差分で SKILL.md 側を prompt SSOT への参照1行に置換し dedup。改善後 PASS。"
+}
