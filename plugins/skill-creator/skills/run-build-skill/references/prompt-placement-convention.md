@@ -77,6 +77,25 @@ plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.md
   - skill 内部の責務 prompt は **skill 単位の成果物** であり、skill ディレクトリ配下に隔離するのが SRP に適う
   - `templates/` (kind 別正本) と区別: templates は生成入力、prompts は生成出力
 
+## 正本の向き (canonical direction) と禁止アンチパターン
+
+責務単位 7 層プロンプトの **SSOT 正本は常に `prompts/<R-id>.md` 側**に置く。`agents/*.md` は 9 セクション骨格 + `<!-- responsibility: <id> -->` anchor を持つ **実行アダプタ**であり、本文は prompts/ の anchor 配下に充填/参照する(`agent-template.md#prompt-creator-連携` の双方向責務契約)。向きを一意に固定する:
+
+| 役割 | 置くもの | 置かないもの |
+|---|---|---|
+| `prompts/<R-id>.md` | 7 層本文の SSOT 正本(生成出力) | リダイレクトのみの空殻 |
+| `agents/<role>.md` | frontmatter / 9 セクション骨格 / anchor / 起動指示 | 7 層本文の正本(prompts の重複コピー) |
+
+### 禁止アンチパターン: PROMPT-REDIRECT-INVERSION
+
+`prompts/<R-id>.md` を `moved_to:` 等のリダイレクトで**空殻化**し、7 層本文を `agents/*.md` 側へ**正本として移送**する構成(過去の「SSOT 統合方針 A」型)は **禁止**。理由:
+
+- 規約の SRP 根拠(本節冒頭・命名規則の根拠 L76-78「prompts=生成出力」)と**向きが逆転**する。
+- 再現性検証(同 brief → 同パス → 同 sha256、anchor coverage)の対象である prompts/ が空になり、`validate-build-trace.py` / `lint-agent-prompt-section.py --strict-coverage` が**無意味化**する。
+- DRY を理由に統合する場合でも、prompts(責務契約=WHAT/WHY)と agents(実行アダプタ=WHERE/WHO)は**別レイヤーで重複ではない**ため、統合の動機自体が誤り。dedup は同一 reuse_surface 内(prompts 同士 / agents 同士)に限る。
+
+**機械検査**: `scripts/lint-prompt-placement.py`(本 references と同一 skill 配下、canonical。ファイル名 regex は `validate_build_trace_shim` 経由で SSOT 共有)が kind ∈ {run, assign} の `prompts/<R-id>.md` について (a) リダイレクト空殻でない(7 層本文を持つ)、(b) ファイル名が `R[0-9]+...` regex 適合、を検査し、違反を `PROMPT-REDIRECT-INVERSION` / `PROMPT-FILENAME-FORMAT` として exit 1 で弾く。`creator-kit-ci.yml` が全 PR で全プラグインを走査する。
+
 ## SKILL.md との関係
 
 - **SKILL.md には prompts/ ディレクトリの内容を直接転記しない** (ユーザー要件)

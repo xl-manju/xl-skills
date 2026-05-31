@@ -27,6 +27,7 @@ references/governance-params.json
 .env
 .env.*
 !.env.example
+.google-config.json
 
 # Per-repo Notion config (DB IDs / keychain service identity) - see plugins/skill-creator/references/notion-per-repo-setup.md
 .notion-config.json
@@ -50,3 +51,6 @@ eval-log/notion-conflicts.json
 plugins/skill-intake/output/
 plugins/skill-intake/.claude/
 plugins/prompt-creator/LOGS.md
+
+# GitHub 100MB file-size limit: this local tarball cannot be pushed
+google-cloud-cli-darwin-arm.tar.gz

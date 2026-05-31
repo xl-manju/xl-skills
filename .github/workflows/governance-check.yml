@@ -113,3 +113,5 @@ jobs:
       - name: lint-knowledge-loop Loop B store (--store-only --strict)
         run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/skill-creator --store-only --strict
         continue-on-error: false
+      # prompt-placement(正本の向き: prompts=7層SSOT / agents=骨格。逆転禁止)は
+      # creator-kit-ci.yml が canonical lint で全PR・全プラグインを走査するため本workflowでは重複させない。
