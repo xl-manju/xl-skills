@@ -75,7 +75,7 @@ rm -P /tmp/xl-contract-sa.json
 登録できたか確認(トークンはマスク表示):
 
 ```bash
-python3 lib/keychain_get_secret.py \
+CLAUDE_HOOK_INVOKED=1 python3 lib/keychain_get_secret.py \
   --service xl-skills-gdrive \
   --account "contract-generate/service-account-json" --check
 # => OK {"ty... (len=...)

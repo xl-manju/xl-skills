@@ -105,7 +105,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-contract-finalize
 - `prompts/R1-approve-and-finalize.md` — 承認検知・PDF確定・台帳completedの責務単位7層プロンプト(SSOT正本)。`../../agents/contract-finalize-agent.md` は本プロンプトを参照する薄い実行アダプタ(本文を持たない)。
 - 追加リソースは plugin 直下 `lib/` ディレクトリ全体を参照。各ファイルは PEP723 風メタブロックで purpose を記載。
 - 本 skill が強く依存する lib: `slack_poll.py`(承認検知) / `render.py`(PDF 生成) / `engine.py`(--phase poll/finalize 委譲先) / `ledger.py`(approved/completed 書戻し) / `slack_notify.py`(再共有)
-- `scripts/finalize.py` — 薄い shim(`lib/engine.py --phase poll → --phase finalize` 順次委譲のみ)
+- `scripts/finalize.py` — 薄い shim(`lib/engine.py --phase finalize` 委譲のみ。任意で二者承認フローを挟む場合は先に `lib/engine.py --phase poll` を別途実行)
 
 ## 運用(既定=明示指示駆動 / 常駐デプロイ不要)
 ```bash
