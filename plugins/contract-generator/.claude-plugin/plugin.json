@@ -5,6 +5,9 @@
   "author": {
     "name": "xl-skills maintainers"
   },
+  "bundles": [
+    "xl-skills-full"
+  ],
   "skills": [
     {
       "name": "run-contract-generate",

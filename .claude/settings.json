@@ -105,7 +105,8 @@
   },
   "enabledPlugins": {
     "skill-creator@xl-skills": true,
-    "skill-intake@xl-skills": true
+    "skill-intake@xl-skills": true,
+    "contract-generator@xl-skills": true
   },
   "_build_claude_settings": {
     "managed_hooks": [],

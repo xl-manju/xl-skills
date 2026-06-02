@@ -9,6 +9,7 @@
         "skill-creator",
         "prompt-creator",
         "skill-intake",
+        "contract-generator",
         "skill-governance-config",
         "skill-governance-lint",
         "skill-governance-hooks",
