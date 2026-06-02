@@ -40,7 +40,7 @@
 
 ---
 
-## セットアップ手順(ターミナルで行う作業)
+## セットアップ手順
 
 ### ターミナルとは
 
@@ -50,6 +50,27 @@
 
 コマンドは一行ずつコピーして貼り付け(`Command + V`)、Enter で実行します。  
 コマンドの実行中は待ちます。次の行が表示されたら完了です。
+
+---
+
+### Step 0. プラグインを有効化する(Claude Code で行う)
+
+このステップは **Claude Code のチャット画面** で入力します。ターミナルではありません。
+
+Claude Code のチャットに以下を **一行ずつ** 入力・実行します:
+
+```
+/plugin marketplace add https://github.com/xl-manju/xl-skills
+```
+
+続けて:
+```
+/plugin install contract-generator@xl-skills
+```
+
+**✅ 完了確認:** Claude Code で `/plugin` と入力したとき、一覧に `contract-generator` が `enabled` で表示されれば成功です。
+
+> ⚠️ **よくあるミス:** URL の後ろに余分な文字や日本語が入っているとエラーになります。上の URL だけをそのままコピーして貼り付けてください。
 
 ---
 

@@ -8,40 +8,6 @@
   "bundles": [
     "xl-skills-full"
   ],
-  "skills": [
-    {
-      "name": "run-contract-generate",
-      "path": "skills/run-contract-generate",
-      "kind": "run"
-    },
-    {
-      "name": "run-contract-finalize",
-      "path": "skills/run-contract-finalize",
-      "kind": "run"
-    },
-    {
-      "name": "run-template-sync",
-      "path": "skills/run-template-sync",
-      "kind": "run"
-    }
-  ],
-  "agents": [
-    {
-      "name": "contract-draft-agent",
-      "path": "agents/contract-draft-agent.md",
-      "skill": "run-contract-generate"
-    },
-    {
-      "name": "contract-finalize-agent",
-      "path": "agents/contract-finalize-agent.md",
-      "skill": "run-contract-finalize"
-    },
-    {
-      "name": "template-sync-agent",
-      "path": "agents/template-sync-agent.md",
-      "skill": "run-template-sync"
-    }
-  ],
   "hooks": {
     "PreToolUse": [
       {
