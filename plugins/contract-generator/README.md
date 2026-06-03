@@ -1,8 +1,11 @@
 # contract-generator セットアップ手順書
 
-> **このドキュメントについて**  
-> このプラグインを動かすために**あなたが一度だけ行う設定**を、上から順にこなすだけで完了するようまとめています。  
-> 難しい知識は不要です。コマンドをコピー&ペーストして進めてください。  
+> **このドキュメントについて**
+>
+> このプラグインを動かすために**あなたが一度だけ行う設定**を、上から順にこなすだけで完了するようまとめています。
+>
+> 難しい知識は不要です。コマンドをコピー&ペーストして進めてください。
+>
 > 機密(API鍵・トークン)は全て macOS Keychain に保管します(平文ファイルに残しません)。
 
 ---
@@ -28,7 +31,8 @@
 
 ## セットアップの前提(ブラウザで完了済みの設定)
 
-以下はすでに完了しているものとして進めます。  
+以下はすでに完了しているものとして進めます。
+
 もし未完了のものがあれば、先にブラウザで実施してください。
 
 - ✅ Google Cloud でプロジェクトを作成し、Drive API / Sheets API を有効化済み
@@ -40,7 +44,7 @@
 
 ---
 
-## セットアップ手順
+## セットアップ手順(ターミナルで行う作業)
 
 ### ターミナルとは
 
@@ -48,7 +52,8 @@
 
 **開き方:** `Command + スペース` → `terminal` と入力 → Enter
 
-コマンドは一行ずつコピーして貼り付け(`Command + V`)、Enter で実行します。  
+コマンドは一行ずつコピーして貼り付け(`Command + V`)、Enter で実行します。
+
 コマンドの実行中は待ちます。次の行が表示されたら完了です。
 
 ---
@@ -63,7 +68,8 @@ Claude Code のチャットに以下を **一行ずつ** 入力・実行しま�
 /plugin marketplace add https://github.com/xl-manju/xl-skills
 ```
 
-続けて:
+Claude Code を再起動して、下記のコマンドを実行します:
+
 ```
 /plugin install contract-generator@xl-skills
 ```
@@ -106,10 +112,52 @@ gcloud --version
 
 `command not found` と表示された場合はインストールが必要です:
 
-1. ブラウザで https://cloud.google.com/sdk/docs/install を開く
-2. **「macOS」** のタブを選択し、手順通りにインストールする
-3. インストール後、ターミナルを一度閉じて開き直す
-4. 再度 `gcloud --version` を実行して確認する
+**① ターミナルでインストール先フォルダへ移動する**
+
+ホームディレクトリ直下にインストールします（変えたい場合はパスを書き換えてください）:
+
+```bash
+cd ~
+```
+
+**② ダウンロードして展開する**
+
+Apple シリコン（M1/M2/M3）の Mac の場合:
+
+```bash
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
+tar -xf google-cloud-cli-darwin-arm.tar.gz
+```
+
+Intel Mac の場合:
+
+```bash
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-x86_64.tar.gz
+tar -xf google-cloud-cli-darwin-x86_64.tar.gz
+```
+
+> 💡 **どちらかわからない場合:** 画面左上のリンゴマーク →「このMacについて」→「チップ」に `Apple M1` などと書いてあれば Apple シリコン、`Intel` と書いてあれば Intel Mac です。
+
+**③ インストールして設定を反映する**
+
+```bash
+./google-cloud-sdk/install.sh
+source ~/.zshrc
+```
+
+途中で `Do you want to help improve the Google Cloud CLI? (Y/n)?` などと聞かれたら、`n` を入力して Enter で進めて構いません。
+
+**④ ターミナルを一度閉じて開き直す**
+
+その後、以下で確認します:
+
+```bash
+gcloud --version
+```
+
+`Google Cloud SDK` のバージョン番号が表示されれば成功です。
+
+---
 
 #### 2-2. Google アカウントでログインする
 
@@ -117,17 +165,17 @@ gcloud --version
 gcloud auth login
 ```
 
-ブラウザが自動で開き、Google ログイン画面が表示されます。  
-使用するアカウントを選択して「許可」をクリックしてください。  
+ブラウザが自動で開き、Google ログイン画面が表示されます。
+
+使用するアカウントを選択して「許可」をクリックしてください。
+
 ターミナルに戻り `You are now logged in as [your-email]` のように表示されれば完了です。
 
 続けて、Google Cloud プロジェクトを指定します:
 
 ```bash
-gcloud config set project <あなたのPROJECT_ID>
+gcloud config set project xl-claude-code-497706
 ```
-
-`<あなたのPROJECT_ID>` は Google Cloud コンソールの上部に表示されているプロジェクトIDです(例: `my-project-123456`)。
 
 **✅ 完了確認:**
 
@@ -141,15 +189,17 @@ gcloud auth list
 
 ### Step 3. SA鍵を Keychain に登録する
 
-SA鍵(Service Account の鍵)を macOS Keychain に安全に保管します。  
+SA鍵(Service Account の鍵)を macOS Keychain に安全に保管します。（`xl-claude-code-497706-5ab614076f89.json` のファイルを担当者より受け取ってください）
+
 **Keychain** とは macOS に組み込まれたパスワード管理の仕組みで、鍵を暗号化して保管します。
 
-> ⚠️ SA鍵の内容(`private_key` など)は、チャット・Slack・メール・書類に貼り付けないでください。  
+> ⚠️ SA鍵の内容(`private_key` など)は、チャット・Slack・メール・書類に貼り付けないでください。
+>
 > この手順では **ファイルの場所(パス)** だけをターミナルに入力します。
 
 #### 3-1. SA鍵JSONファイルのパスを確認する
 
-Finder で SA鍵JSONファイルを探します(例: `xl-contract-sa.json`)。
+Finder で SA鍵JSONファイル(`xl-claude-code-497706-5ab614076f89.json`)を探します。
 
 1. Finder でファイルを **右クリック**
 2. `option` キーを押したまま
@@ -161,10 +211,10 @@ Finder で SA鍵JSONファイルを探します(例: `xl-contract-sa.json`)。
 SA_KEY_JSON="/ここにコピーしたパスを貼り付け"
 ```
 
-**例:** パスが `/Users/taro/Downloads/xl-contract-sa.json` の場合
+**例:** パスが `/Users/taro/Downloads/xl-claude-code-497706-5ab614076f89.json` の場合
 
 ```bash
-SA_KEY_JSON="/Users/taro/Downloads/xl-contract-sa.json"
+SA_KEY_JSON="/Users/taro/Downloads/xl-claude-code-497706-5ab614076f89.json"
 ```
 
 ファイルが正しく見つかるか確認します:
@@ -173,7 +223,8 @@ SA_KEY_JSON="/Users/taro/Downloads/xl-contract-sa.json"
 ls -la "$SA_KEY_JSON"
 ```
 
-**✅ ファイル名とサイズが表示されれば成功です。**  
+**✅ ファイル名とサイズが表示されれば成功です。**
+
 `No such file or directory` と表示された場合は、パスが違うので 3-1 からやり直してください。
 
 #### 3-2. プラグインフォルダへ移動する
@@ -189,7 +240,8 @@ else
 fi
 ```
 
-**✅** `.../contract-generator/lib/keychain_get_secret.py` のようなパスが表示されれば成功です。  
+**✅** `.../contract-generator/lib/keychain_get_secret.py` のようなパスが表示されれば成功です。
+
 見つからないメッセージが出た場合は、担当者に contract-generator のセットアップ状況を確認してください。
 
 続けて、作業フォルダへ移動します:
@@ -202,7 +254,8 @@ pwd
 
 **✅** `pwd` の出力の末尾が `contract-generator` になっていれば成功です。
 
-> ⚠️ **この後の `python3 lib/...` コマンドは全てこのフォルダで実行します。**  
+> ⚠️ **この後の `python3 lib/...` コマンドは全てこのフォルダで実行します。**
+>
 > ターミナルを閉じて開き直した場合は、3-2 の手順から再度実行してください。
 
 #### 3-3. Keychain に登録して元ファイルを削除する
@@ -223,15 +276,6 @@ CLAUDE_HOOK_INVOKED=1 python3 lib/keychain_get_secret.py \
 ```
 
 **✅** `OK {...マスク...}` のように表示されれば成功です。
-
-元ファイルを削除します(平文のまま残さないため):
-
-```bash
-shred -u "$SA_KEY_JSON" 2>/dev/null || rm -P "$SA_KEY_JSON"
-test ! -e "$SA_KEY_JSON" && echo "SA鍵JSONは削除済みです"
-```
-
-**✅ 完了確認:** `OK {...マスク...}` と `SA鍵JSONは削除済みです` の両方が表示されれば完了です。
 
 > **もし登録がうまくいかない場合:**
 > - `Could not read json file ... Extra data` → Keychain にJSONの一部だけが入っています。3-1 から正しいファイルパスで登録し直してください
@@ -266,7 +310,8 @@ CLAUDE_HOOK_INVOKED=1 python3 lib/keychain_get_secret.py \
 
 ### Step 5. 設定ファイルを作成する
 
-このプラグインの設定ファイル(`google-config.json`)を作成します。  
+このプラグインの設定ファイル(`google-config.json`)を作成します。
+
 一度作ればプラグインを更新しても消えません。
 
 まず、設定フォルダを用意してサンプルファイルをコピーします:
@@ -284,24 +329,23 @@ echo "作成しました: $CONFIG_DIR/google-config.json"
 open -e "${XDG_CONFIG_HOME:-$HOME/.config}/contract-generator/google-config.json"
 ```
 
-ファイルが開いたら `"slack_channel": "C0XXXXXXXXX"` の部分を、  
-Slack チャンネルのID(`C` で始まる文字列)に書き換えて保存してください。
+ファイルが開いたら、下記の内容に**丸ごと書き換えて**保存してください:
 
 ```json
 {
-  "spreadsheet_id": "1_24Bh1vRx4d9nMgS9InWIt1TlYwNyJh4Eu8j5SYfLms",
-  "templates_folder_id": "1kgD_H1aVOKWZTg-cgkQACzGb9M73N0Bu",
-  "individual_folder_id": "1uVsw6_jyIKcDBMYaW4btHWC9jOu4EJ9w",
-  "corporate_folder_id": "1I2xWORsX-8IbDQEG6iMCRvoIlKV1sDqG",
+  "spreadsheet_id": "1ag3ri-E05M3-6vCXidZ0AixVunJ54YqwaLVWejO3Sxc",
+  "templates_folder_id": "1IDlIAXuGoG587ZRlYfJBm5RaD0aqE-bK",
+  "individual_folder_id": "1jjPKwtHGIGL4FaqqCzLUpTQE4Rek24oe",
+  "corporate_folder_id": "1VIpEKbVqwtyvMGSZ23OMux02__3VauX_",
   "keychain_service": "xl-skills-gdrive",
   "keychain_account": "contract-generate/service-account-json",
-  "slack_channel": "ここを自分のチャンネルIDに変更する",
+  "slack_channel": "C0XXXXXXXXX",
   "slack_keychain_service": "xl-skills-slack",
   "slack_keychain_account": "contract-generate/bot-token"
 }
 ```
 
-> 💡 **チャンネルID の確認方法:** Slack でチャンネル名をクリック → 画面一番下に `チャンネルID: C0XXXXXXXXX` が表示されます。
+> 💡 **チャンネルID の確認方法:** Slack でチャンネル名をクリック → 画面一番下に `チャンネルID: C0XXXXXXXXX` が表示されます。`slack_channel` の `C0XXXXXXXXX` をその値に書き換えてください。
 
 **✅ 完了確認:**
 
@@ -323,7 +367,8 @@ python3 lib/setup_doctor.py
 
 **✅ 完了確認:** `✅ セットアップは整っています(draft 実行可能)。` と表示されれば全て完了です。
 
-`要対応: Task N` と表示された場合は、該当のステップに戻って対処し、再度実行してください。  
+`要対応: Step N` と表示された場合は、該当のステップに戻って対処し、再度実行してください。
+
 個別に確認したいときは `python3 lib/config_auth.py --check` も使えます。
 
 ---
@@ -401,3 +446,11 @@ python3 lib/engine.py --phase finalize --type all
 | 生成Docに `●`/`XXXX` が残る | 台帳の対応列が空欄。入力して再実行する |
 | ひな形が変わって差込位置がズレた | 「ひな形が変わりました」と Claude Code に伝えて追従を実行する |
 
+---
+
+## Keychain に保存する機密の一覧(命名規約)
+
+| 用途 | service | account | 登録Step |
+|---|---|---|---|
+| Google Drive/Sheets SA鍵 | `xl-skills-gdrive` | `contract-generate/service-account-json` | Step 3 |
+| Slack Bot Token | `xl-skills-slack` | `contract-generate/bot-token` | Step 4 |
