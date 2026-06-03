@@ -260,12 +260,23 @@ pwd
 
 #### 3-3. Keychain に登録して元ファイルを削除する
 
+`$(< file)` でそのまま渡すと JSON 内の改行によりバイナリ扱いになり、Keychain が hex エンコードして保存します。Python で1行に圧縮（minify）してから登録してください:
+
 ```bash
-security add-generic-password \
-  -s xl-skills-gdrive \
-  -a "contract-generate/service-account-json" \
-  -w "$(< "$SA_KEY_JSON")" \
-  -U
+python3 -c "
+import json, subprocess
+with open('$SA_KEY_JSON') as f:
+    data = json.load(f)
+minified = json.dumps(data, separators=(',', ':'))
+result = subprocess.run(
+    ['security', 'add-generic-password',
+     '-s', 'xl-skills-gdrive',
+     '-a', 'contract-generate/service-account-json',
+     '-w', minified, '-U'],
+    capture_output=True, text=True
+)
+print('OK' if result.returncode == 0 else result.stderr)
+"
 ```
 
 登録できたか確認します:
@@ -278,8 +289,8 @@ CLAUDE_HOOK_INVOKED=1 python3 lib/keychain_get_secret.py \
 **✅** `OK {...マスク...}` のように表示されれば成功です。
 
 > **もし登録がうまくいかない場合:**
-> - `Could not read json file ... Extra data` → Keychain にJSONの一部だけが入っています。3-1 から正しいファイルパスで登録し直してください
-> - `Could not read json file ... Expecting value` → ファイルの中身ではなくパスが登録されています。3-3 の `security add-generic-password` コマンドを再実行してください
+> - `Could not read json file ... Extra data` → JSON に改行が含まれたまま Keychain に保存され、hex エンコードされています。上記の Python コマンドで登録し直してください
+> - `Could not read json file ... Expecting value` → ファイルの中身ではなくパスが登録されています。3-3 の Python コマンドを再実行してください
 
 ---
 
@@ -433,7 +444,7 @@ python3 lib/engine.py --phase finalize --type all
 | 症状 | 対処 |
 |---|---|
 | `Keychain lookup failed` | Step 3 または Step 4 をやり直す |
-| `Could not read json file ... Extra data` | SA鍵JSONの中身ではなく一部の文字列が Keychain に入っている。Step 3 の 3-1 から正しいファイルパスで登録し直す |
+| `Could not read json file ... Extra data` | JSON に改行が含まれたまま Keychain に保存され、hex エンコードされている。Step 3 の 3-3 の Python コマンドで登録し直す |
 | `Could not read json file ... Expecting value` | Keychain にファイルパスが登録されている。Step 3 の 3-3 を再実行する |
 | `Drive ...: SAから見えません` | Google Drive でそのフォルダ/台帳を SA のメールアドレスに「編集者」で共有する |
 | `Drive ...: SAは閲覧できますがファイル追加できません` | 出力先フォルダの SA のアクセス権を「閲覧者」→「編集者」に変更する |
