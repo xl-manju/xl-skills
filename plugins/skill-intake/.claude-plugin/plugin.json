@@ -16,6 +16,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-skillgen.py"
+          },
+          {
+            "type": "command",
             "command": "$CLAUDE_PLUGIN_ROOT/hooks/pre-publish-secret-scrub.sh"
           },
           {

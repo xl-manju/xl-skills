@@ -19,6 +19,13 @@ jobs:
         run: |
           find scripts plugins -type f -name '*.py' -print0 | xargs -0 python3 -m py_compile
 
+      # 機械保証 (hook-guard-skillgen 等) の振る舞いを回帰検証する。
+      # これが無いと tests/ のテストは一度も実行されず保証が無言で腐る (F-HYP-01)。
+      - name: Run behavior tests (pytest)
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest tests/ -q
+
       - name: Verify manifest inventory
         run: |
           python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py

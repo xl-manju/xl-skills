@@ -2,7 +2,8 @@
 # /// script
 # name: hook-guard-skillgen
 # purpose: skill-intake 実行中にスキル生成 (run-skill-create / run-build-skill / capability-build) が
-#          起動されるのをハーネス強制で 100% ブロックする機械バリア。LLM の指示遵守に依存しない。
+#          Skill / Task / Bash 経由で起動されるのをハーネス強制で 100% ブロックする機械バリア。
+#          LLM の指示遵守に依存しない。
 # inputs:
 #   - stdin: hook JSON ({hook_event_name, tool_name, tool_input, cwd, ...})
 # outputs:
@@ -22,12 +23,16 @@
   (制御反転: 信頼するな、仲介点で塞げ)。
 
 lock ライフサイクル (作成も解除もモデル非依存 = hook 駆動):
-  - PreToolUse  / Skill(run-skill-intake)  → lock 作成 (intake 開始)
-  - PreToolUse  / Skill|Task(生成スキル)   → lock 有効なら exit 2 (intake 実行中の生成を遮断)
-  - PostToolUse / Skill(run-skill-intake)  → lock 削除 (intake 正常終了。外側スキルの Post は
+  - PreToolUse  / Skill(run-skill-intake|run-skill-intake-aggregator) → lock 作成 (intake 開始)
+  - PreToolUse  / Skill|Task|Bash(生成スキル) → lock 有効なら exit 2 (intake 実行中の生成を遮断)
+  - PreToolUse  / Bash(lock 削除・移動)     → lock 有効なら exit 2 (lock 改ざんによる遮断回避を封鎖)
+  - PostToolUse / Skill(intake skill)      → lock 削除 (intake 正常終了。外側スキルの Post は
                                               intake 全 phase 完了時に発火するため、lock は
                                               intake 実行中ずっと有効)
-  - Stop / SessionEnd                       → lock 削除 (異常終了の backstop)
+  - SessionEnd                              → lock 削除 (セッション終了 backstop)
+  - Stop                                    → 解除しない。Stop は応答ターン毎に発火しうるため、
+                                              intake が複数ターンに跨ると途中で lock を早期解除し
+                                              以降の生成が素通る fail-open を招く (F-LOOP-01)。
   - TTL 失効                                → 古い lock は無視+削除 (dangling 防止・fail-open)
 
 誤爆ゼロの根拠:
@@ -40,12 +45,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
 
-# intake 実行中フラグ
-INTAKE_SKILL = "run-skill-intake"
+# intake 実行中フラグ。現行 orchestrator と旧 aggregator の両方で lock を立てる。
+INTAKE_SKILLS = {
+    "run-skill-intake",
+    "run-skill-intake-aggregator",
+}
 
 # 遮断対象 (Skill 名 / Task subagent_type を suffix 一致で判定)
 DENY_TARGETS = {
@@ -54,6 +63,17 @@ DENY_TARGETS = {
     "capability-build",
     "run-build-skill-subagent",  # Task 経由の生成 worker
 }
+DENY_COMMAND_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])(?:/)?("
+    + "|".join(re.escape(target) for target in sorted(DENY_TARGETS))
+    + r")(?![A-Za-z0-9_-])"
+)
+
+# lock ファイル自体の削除・移動を Bash 経由で行う回避路を遮断する (paradox attack_path_1)。
+# 例: `rm eval-log/intake-locks/intake-active.lock` を打って lock を消し生成を素通させる。
+LOCK_TAMPER_RE = re.compile(
+    r"\b(?:rm|unlink|mv|rmdir|shred|truncate|trash)\b[^\n]*intake-(?:active\.lock|locks)"
+)
 
 LOCK_RELPATH = Path("eval-log") / "intake-locks" / "intake-active.lock"
 LOCK_TTL_SECONDS = 6 * 60 * 60  # intake はユーザー対話を含み長時間化しうる。失効で dangling を断つ。
@@ -65,6 +85,12 @@ BLOCK_MESSAGE = (
     "  run-skill-create を起動してください (これは意図された独立アクションです)。\n"
 )
 
+LOCK_TAMPER_MESSAGE = (
+    "[hook-guard-skillgen] BLOCKED: skill-intake 実行中に intake lock の削除・移動はできません。\n"
+    "  lock を消すと生成遮断が無効化されます。intake は正常終了 (PostToolUse) /\n"
+    "  セッション終了 / TTL 失効で自動解除されます。手動削除は不要かつ不可です。\n"
+)
+
 
 def _suffix(name: str) -> str:
     """'skill-creator:run-skill-create' / 'run-skill-create' いずれも 'run-skill-create' に正規化。"""
@@ -74,7 +100,9 @@ def _suffix(name: str) -> str:
 
 
 def _lock_path(payload: dict) -> Path:
-    base = payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    # CLAUDE_PROJECT_DIR (プロジェクト固定根) を最優先にする。cwd は SubAgent 起動や
+    # `cd` 後の Bash で揺れ、lock の「書き先」と「読み先」が分裂して fail-open する (F-STRAT-01)。
+    base = os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd") or os.getcwd()
     return Path(base) / LOCK_RELPATH
 
 
@@ -98,14 +126,20 @@ def _create_lock(lock: Path) -> None:
         now = time.time()
         lock.write_text(
             json.dumps({
-                "intake_skill": INTAKE_SKILL,
+                "intake_skill": "run-skill-intake",
+                "intake_skills": sorted(INTAKE_SKILLS),
                 "created_at": now,
                 "expires_at": now + LOCK_TTL_SECONDS,
             }),
             encoding="utf-8",
         )
-    except Exception:
-        pass  # lock 作成失敗でも intake 自体は止めない (graceful)
+    except Exception as exc:
+        # lock 作成失敗でも intake 自体は止めない (可用性優先) が、保証層が無効化された
+        # 事実は黙殺せず警告する。これ以降 intake 実行中でも生成遮断が効かない状態になる。
+        sys.stderr.write(
+            f"[hook-guard-skillgen] WARN: intake lock の作成に失敗しました ({exc}). "
+            "この間スキル生成の機械遮断は効きません。\n"
+        )
 
 
 def _remove_lock(lock: Path) -> None:
@@ -129,28 +163,42 @@ def main() -> int:
     ti = payload.get("tool_input", {}) or {}
     lock = _lock_path(payload)
 
-    # --- cleanup events: intake 異常終了の backstop ---
-    if event in ("Stop", "SessionEnd"):
+    # --- SessionEnd: セッション終了 backstop でのみ解除 ---
+    # Stop は応答ターン毎に発火しうる。intake は AskUserQuestion を挟み複数ターンに跨るため、
+    # Stop で解除すると intake 途中で lock が消え以降の生成が素通る (F-LOOP-01)。Stop では解除しない。
+    if event == "SessionEnd":
         _remove_lock(lock)
+        return 0
+    if event == "Stop":
         return 0
 
     # --- PostToolUse: intake 正常終了で lock 解除 ---
     if event == "PostToolUse":
-        if tool == "Skill" and _suffix(ti.get("skill") or ti.get("skill_name") or "") == INTAKE_SKILL:
+        if tool == "Skill" and _suffix(
+            ti.get("skill") or ti.get("skill_name") or ti.get("name") or ""
+        ) in INTAKE_SKILLS:
             _remove_lock(lock)
         return 0
 
     # --- PreToolUse: lock 作成 / 生成遮断 ---
-    if event == "PreToolUse" or tool in ("Skill", "Task"):
+    if event == "PreToolUse" or tool in ("Skill", "Task", "Bash"):
         if tool == "Skill":
-            target = _suffix(ti.get("skill") or ti.get("skill_name") or "")
+            target = _suffix(ti.get("skill") or ti.get("skill_name") or ti.get("name") or "")
         elif tool == "Task":
             target = _suffix(ti.get("subagent_type") or "")
+        elif tool == "Bash":
+            command = ti.get("command") or ti.get("cmd") or ""
+            # lock 改ざん (削除/移動) による遮断回避を最優先で封鎖する。
+            if LOCK_TAMPER_RE.search(command) and _lock_active(lock):
+                sys.stderr.write(LOCK_TAMPER_MESSAGE)
+                return 2
+            match = DENY_COMMAND_RE.search(command)
+            target = match.group(1) if match else ""
         else:
             return 0
 
         # intake 開始 → lock 作成 (モデル非依存でフラグを立てる)
-        if tool == "Skill" and target == INTAKE_SKILL:
+        if tool == "Skill" and target in INTAKE_SKILLS:
             _create_lock(lock)
             return 0
 
