@@ -26,9 +26,12 @@ vendored-ssot:
 contract-intake:
 	python3 scripts/contract-intake-enum-ssot.py
 
-## plugin-package-check: plugin package completeness check を実行する
+## plugin-package-check: 全 plugin の package completeness (PKG-002〜008) を検査する
+##   実検査器 (assign-plugin-package-evaluator/scripts/validate-plugin-package.py) は単一
+##   plugin 用のため、全 plugin を回す advisory ラッパー経由で呼ぶ。PKG-002/004 は未採用の
+##   将来標準のため現状は非ブロッキング (詳細は scripts/validate-plugin-packages.py)。
 plugin-package-check:
-	python3 scripts/validate-plugin-package.py
+	python3 scripts/validate-plugin-packages.py
 
 ## pytest: tests/ 配下の振る舞いテストを実行する (hook-guard-skillgen 等の機械保証を回帰検証)
 pytest:
