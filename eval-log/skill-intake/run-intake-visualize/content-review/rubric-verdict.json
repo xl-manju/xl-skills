@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-visualize",
+    "skill_md_sha256": "deabf263e157ccabee135300bfa40e420a5de83b1f2fd6ca8ffafae69c8ab48d"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:57:46Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical render-findings-score.py: score=97 threshold=80 passed=true. PASS = score>=threshold AND no high finding (両方充足). findings: 1 low (FM-005 description が動詞始まりでない=skill-intake 共通の '〜したいとき' トリガ記述様式、非blocking、PR膨張回避のため未修正). high/medium=0. FM: name/description/trigger 妥当。BD: 101行、見出し(Purpose/Key Rules/ゴールシーク/Gotchas/Additional Resources)・手順整合 OK。NM: tree/命名(run- prefix, §0-§11)整合。PD: 依存方向 OK — 上流参照 (run-skill-intake-aggregator skill, assets catalog=mtmpl×12+cvis×8, plugins/skill-intake/scripts/render_to_image.py, references SSOT pointer 2件先=mermaid-visualization-guide.md / visualization-mandatory-rules.md) 全て実在を確認、standalone配布PRでの dependency_break なし。R1-main.md 内 'scripts/render_to_image.py' は SKILL.md/Gotcha5 が正本パス (plugins/skill-intake/scripts/) を明示しており実害なしの軽微表記揺れ。"
+}

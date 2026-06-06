@@ -43,7 +43,8 @@ intake セッションの最初の phase。ユーザー初期発話から **3 �
   "skill_name_hint": "<kebab-case>",
   "pain_ranking": [{"task": "...", "frequency_per_week": 3, "minutes_per_run": 30}],
   "initial_utterance": "...",
-  "timestamp": "ISO8601"
+  "timestamp": "ISO8601",
+  "qa_log": [{"question": "...", "answer": "..."}]
 }
 ```
 

@@ -134,6 +134,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - `schemas/output.schema.json` — `intake-trace.json` 形式
 - `references/workflow-sequence.md` — 11 phase の起動順序と前提 JSON 依存図 (人間向け)
 - `references/handoff-contract.md` — 各 phase の handoff JSON schema 一覧
+- `references/keychain-setup.md` — Notion トークンの Keychain 登録手順 (Step 0 exit 44 案内先、単独配布で自己完結するよう本 skill に同梱)
 - `references/resource-map.yaml` — 他 reference を読む前の最小読込先マップ
 - 子 Skill: `run-intake-kickoff` / `run-intake-interview` / `ref-intake-option-catalog` / `run-intake-visualize` / `run-intake-next-action` / `run-intake-finalize` / `run-notion-intake-publish`
 - SubAgent: `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-purpose-excavator` / `skill-intake-summarizer`

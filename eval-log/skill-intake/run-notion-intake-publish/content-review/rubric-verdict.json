@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-notion-intake-publish",
+    "skill_md_sha256": "9514d868e5a53d389bc0453cb36a73a104a9a6c8ddcafb24e964b5a5d1fac23c"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:57:01Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric_version 1.2.0, composed ref-skill-design-rubric + assign-skill-design-evaluator override): score=97, threshold=80, passed=true. findings=1 low (FM-005: description が動詞始まりでなく '既存…' 名詞始まり) — non-blocking, score 97>=80 かつ high finding 無し。high 指摘無しのため SKILL.md は未編集 (PR 肥大化回避)。FM: name=run-notion-intake-publish kebab+prefix OK / description は 'とき' trigger 2 個 (再公開したいとき/Notion 側だけ更新したいとき) で FM-002,FM-003 通過 / 動作詳細混入なし FM-004 OK / FM-005 のみ low。BD: '## Purpose & Output Contract' と '## Gotchas' 在 (BD-001/002) / body 185 行 <=300 (BD-003)。NM: dirname==name (NM-001) / prefix run- (NM-002) / scripts/ 無し (wrapper) で NM-003 非該当。PD: body>100 行だが references/ に republish-contract.md, abstraction-contract.md, resource-map.yaml 在で PD-001 通過。依存検証 (二段確認): rubric_refs / resource-map / SKILL.md 本文が指す sibling 資産 (../run-skill-intake-aggregator/references/{quality-rubric,notion-integration,keychain-setup}.md, run-notion-fidelity-guard/scripts/validate-notion-fidelity.py) は全て実在し dependency_break 無し。SKILL.md の load-bearing 主張 (--revise / exit 51 target-resolution・mismatch / page_id_consistency を quality_gate へ --prev-page-id 伝搬 / fidelity_guard を validate-notion-fidelity.py で必ず実行) は intake_publish_pipeline.py の実装と一致 (contradiction 0)。standalone 配布観点: 委譲先 scripts (intake_publish_pipeline.py 等) は実体ファイルで dangling symlink でない。"
+}

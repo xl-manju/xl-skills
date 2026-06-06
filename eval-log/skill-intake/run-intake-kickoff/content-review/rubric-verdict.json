@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-kickoff",
+    "skill_md_sha256": "a8899ae72dc2960d3040e2bb34f382a933532b4287605b44b742b4e2b775e615"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:10Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric-refs L0 ref-skill-design-rubric + L2 assign-skill-design-evaluator, composition_hash sha256:fc977c84..): score=97 threshold=80 passed=true, required_fixes=[] (high finding なし). FM: FM-001/002/003/004 PASS (name=run-intake-kickoff prefix+kebab, description トリガ 2件「〜とき」, action-detail 漏れなし); FM-005 low smell — description が名詞『intake』始まりで動詞始まりでない (非blocking, 任意改善). BD: BD-001『## Purpose & Output Contract』, BD-002『## Gotchas』present, BD-003 body 106行<=300 PASS; description トリガ↔body 手順 (3軸確定/AskUserQuestion直列) 整合. NM: NM-001 dirname==name, NM-002 prefix, NM-003 scripts/ は .py のみ PASS. PD: references/ 4ファイル充足 (PD-001), 冒頭に Purpose+禁則 (PD-002 ⊃ BD-001) PASS. 依存方向: prompts/R1-main.md=7層SSOT正本・SKILL.md=薄い索引で正方向, 逆転なし (PD-break 0). standalone配布健全性: scripts/validate-kickoff-json.py は symlink なし・stdlib のみ (json/sys/pathlib) で単独install自己完結. inconsistency 1 (非blocking, medium-tier): R1-main.md Layer4.1『validate-kickoff-json.py FAIL → exit 2』および workflow-manifest.json P1-P3 fatal_exit_codes[2]/P4-emit[2,3] が、実スクリプト挙動 (全FAILで return 1, exit 2/3 を出さない) と不一致. ただし SKILL.md の完了条件・ゴールシークチェックリストは『exit 0』のみ参照しており SKILL.md 本体は正確. blocking(high) 指摘ゼロのため最小差分方針に従い SKILL.md/references を編集せず (PR非膨張). 当該 exit-code 整合は本スキルの完了契約を破らないが将来 R1-main.md/manifest 側で追従修正推奨."
+}

@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-interview",
+    "skill_md_sha256": "19af1b06d3bf29418fa5b19896a8fe5f95567e3f9fbd28a144ba2474384ed3d1"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:13Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer (assign-skill-design-evaluator/scripts/render-findings-score.py + ref-skill-design-rubric/references/rubric.json v1.3.0) => score=97 threshold=80 passed=true. findings: 1 low (FM-005: description が動詞始まりでない、冒頭が名詞句『ヒアリングシートの』)。high finding ゼロにつき PASS。FM: name=run-intake-interview は prefix/kebab/<=60 合致 (FM-001 OK)、description に trigger 『〜とき』2 件 (FM-002/003 OK)、action detail 無し (FM-004 OK)、FM-005 のみ low。BD: '## Purpose & Output Contract' / '## Gotchas' 共に存在 (BD-001/002 OK)、body 80 行で <=300/<=100 (BD-003 OK / PD-001 references/ 充実)。NM: dirname==name (NM-001 OK)、prefix run- (NM-002 OK)、scripts/ は .py のみ (NM-003 OK)。PD: body<=100 だが references/ 5 ファイル存在で進行的開示成立。依存方向: question-bank-pointer.md→run-skill-intake-aggregator/references は実在確認済 (dependency_break なし)。FM-005 は low かつ非ブロッキングのため PR 肥大化回避目的で未修正。"
+}

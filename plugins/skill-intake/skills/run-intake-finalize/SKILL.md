@@ -63,27 +63,24 @@ LLM 推論を混入させると同入力で差分が出て、後段 (`run-notion
 - [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
 - [ ] `intake.json.validation` サマリ書き戻し済み (render / quality_gate / cross_check 各 enum)
 
-未充足項目を特定 → 必要 script (`build-intake-final-context.py` / `render-intake-final.py` / `quality_gate.py` / `cross_check.py`) を該当ステップから起動 → validation 更新 → 再度チェックリストで自己評価、を反復する。固定手順は持たない。
+未充足項目を特定 → 必要 script (`render-intake-final.py` / `convert_md_to_json.py` / `quality_gate.py` / `cross_check.py`) を該当ステップから起動 → validation 更新 → 再度チェックリストで自己評価、を反復する。固定手順は持たない。
 
 ### 参考: 主要 script 起動例
 
 ```bash
-# context 集約
-python3 plugins/skill-intake/scripts/build-intake-final-context.py \
-  --out-dir output/<hint>/ \
-  --context-out output/<hint>/intake-final-context.json
+# render: output/<hint>/ 直下の per-phase JSON (無ければ context.json) を集約し
+# Jinja2 で intake-final.md を生成する (引数は output_dir 1 つ)。
+python3 plugins/skill-intake/scripts/render-intake-final.py output/<hint>/
+cp output/<hint>/intake-final.md output/<hint>/intake.md
 
-# render
-python3 plugins/skill-intake/scripts/render-intake-final.py \
-  --context output/<hint>/intake-final-context.json \
-  --template plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl \
-  --schema   plugins/skill-intake/skills/run-skill-intake-aggregator/references/intake-final-schema.json \
-  --md-out   output/<hint>/intake.md \
-  --json-out output/<hint>/intake.json
+# intake.md → intake.json (front-matter + sections を JSON 化)
+python3 plugins/skill-intake/scripts/convert_md_to_json.py \
+  output/<hint>/intake.md output/<hint>/intake.json
 
-# 検証 2 段 (順序固定)
+# 検証 2 段 (順序固定): quality_gate → cross_check
+# cross_check の引数順は <intake.md> <intake.json> (md が先)。
 python3 plugins/skill-intake/scripts/quality_gate.py output/<hint>/intake.json
-python3 plugins/skill-intake/scripts/cross_check.py  output/<hint>/intake.json output/<hint>/intake.md
+python3 plugins/skill-intake/scripts/cross_check.py  output/<hint>/intake.md output/<hint>/intake.json
 ```
 
 Step/Gate の機械可読定義は `workflow-manifest.json` (P1-collect / P2-render / P3-quality-gate / P4-cross-check) を参照。

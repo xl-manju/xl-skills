@@ -178,6 +178,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 |--|--|
 | `/intake [topic]` | 本スキルを起動 (= 11 phase / 12 SubAgent 全実行。interviewer ⇄ excavator はペア稼働で 1 phase) |
 | `/intake-publish <hint>` | 既存 intake を Notion 再公開のみ |
+| `/intake-revise <hint> [--dry-run]` | 既存 intake へ追加要望を聞き取り、同一 Notion ページを update mode で PATCH 上書き (create fallback 禁止) |
 | `/intake-status <hint>` | 進行中ヒアリングの状況確認 |
 
 定義は plugin ルートの `commands/` 配下。
@@ -199,7 +200,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 
 ## Additional Resources
 
-### references/ (本スキル直下、31 個)
+### references/ (本スキル直下。実体が正本、以下は主要分の抜粋)
 
 | 用途 | ファイル |
 |--|--|
@@ -229,9 +230,9 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 
 `skill-intake-kickoff` / `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-interviewer` / `skill-intake-purpose-excavator` / `skill-intake-option-presenter` / `skill-intake-visualizer` / `skill-intake-summarizer` / `skill-intake-next-action-advisor` / `skill-intake-handoff` / `skill-intake-notion-publisher` / `skill-intake-self-updater`
 
-### Scripts (合計 37 本 = plugin 直下 `scripts/` 34 本 + `skills/<name>/scripts/` 配下 3 本)
+### Scripts (plugin 直下 `scripts/`。本数・分類の正本は `scripts/README.md`)
 
-`keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py` (Notion×Keychain 系 新規 7 本) + 既存 27 本 (slack-notifier SubAgent と compose_slack_message.py は廃止、必要時は hook 層 `hooks/post-publish-notify.sh` で opt-in 通知)。一覧は `scripts/README.md`。
+決定論処理は plugin 直下 `scripts/` に集約する (本スキル直下に `scripts/` は持たない)。Notion×Keychain 系の主要分は `keychain_get_secret.py` / `create_notion_database.py` / `verify_notion_schema.py` / `notion_http.py` / `render_notion_page.py` / `verify_notion_assets.py` / `publish_notion_page.py`。slack-notifier SubAgent と compose_slack_message.py は廃止し、通知は hook 層 `hooks/post-publish-notify.sh` で opt-in。スクリプト本数・カテゴリ別内訳は `scripts/README.md` を唯一の正本とする。
 
 ### Assets (本スキル直下 `assets/`)
 

@@ -60,7 +60,8 @@ since: 2026-05-20
 3. **All-or-Nothing**: `verify_notion_assets.py` 通過必須。PNG 1 枚でも欠ければ停止。
 4. **Secret-Out-of-Repo**: トークンは Keychain からのみ取得。環境変数・CLI 引数禁止。
 5. **読み取り専用 (入力側)**: `intake.json` / `notion-manifest.json` を書き換えない。
-6. **Progressive Disclosure**: 詳細ルールは `references/` に分割。SKILL.md は 200 行以下。
+6. **Progressive Disclosure**: 詳細ルールは `references/` に分割し、SKILL.md 本体は
+   起動契約 (入出力 / Steps / ゴールシーク) に絞る。
 
 ## Responsibilities (1 layer / wrapper)
 
