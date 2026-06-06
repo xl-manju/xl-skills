@@ -153,6 +153,15 @@ PENDING_RENAME_PATHS = {
     "plugins/contract-generator/skills/run-contract-generate/scripts/draft.py",
     "plugins/contract-generator/skills/run-contract-finalize/scripts/finalize.py",
     "plugins/contract-generator/skills/run-template-sync/scripts/sync.py",
+    # PR #27: skill-intake 単独配布の自己完結化 (vendoring / 同梱 SSOT)
+    # _vendor.py / _jsonschema_compat.py は render-intake-final.py 等から import される
+    # private module で Python import 上ハイフン不可のため underscore 許容 (§4.3 恒久例外)。
+    "plugins/skill-intake/scripts/_vendor.py",
+    "plugins/skill-intake/scripts/_jsonschema_compat.py",
+    # contract-intake-enum-ssot.py (verb 'contract') / smoke_notion_publish.py (underscore) は
+    # SKILL.md/Makefile/README/test 参照と同時にリネームする後続 Change Governance PR まで PENDING。
+    "scripts/contract-intake-enum-ssot.py",
+    "plugins/skill-intake/scripts/smoke_notion_publish.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

@@ -37,6 +37,8 @@ references/governance-params.json
 output/
 .claude/handoff/
 .worktrees/
+# run-* スキルの transient 作業ディレクトリ (skill-tree 第13条 nested dir 禁止)
+.run/
 # .claude/{agents,skills,commands} は build-claude-symlinks.py が
 # plugins/ から生成する symlink を含むため tracked。ignore しない。
 
