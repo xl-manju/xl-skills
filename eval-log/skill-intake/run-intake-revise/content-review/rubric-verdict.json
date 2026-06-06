@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-revise",
+    "skill_md_sha256": "8d67cd0fafb157a0c392e511af5b9d3ba3b0db70d40b9418086d0a58c78dbde9"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:13Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "Canonical scorer render-findings-score.py (rubric ref-skill-design-rubric v1.3.0) -> score=97 threshold=80 passed=true. findings: 1x low FM-005 ('既存' first phrase flagged as non-verb). Assessed as false positive / smell-only: description has valid JP triggers ('〜したいとき' x2) satisfying FM-002/FM-003; the noun-initial form is idiomatic Japanese and FM-005's verb-list is EN-biased. NOT a high finding, no force_pass needed. Manual cross-checks: FM ok (name=dir, run- prefix, valid description+triggers). BD ok (## Purpose & Output Contract + ## Gotchas present; body 92 lines < 300). NM ok (dirname==name run-intake-revise, scripts/* all .py). PD ok (body 92 lines < 100 yet references/ non-empty: resource-map.yaml). Dependency integrity verified by reading targets: analyze_user_intent.py / render-intake-final.py / intake_publish_pipeline.py / update_question_bank.py / keychain_get_secret.py all exist; intake_publish_pipeline.py genuinely supports --intake/--manifest/--revise/--page-id/--dry-run as the SKILL.md example invokes; agents/skill-intake-self-updater.md exists and wires question-bank via update_question_bank.py; commands/intake-revise.md wrapper exists. schema_refs/manifest/responsibility_refs all resolve and exit-code table (0/2/44/51/60/61) is consistent across SKILL.md, prompts/R1-main.md and workflow-manifest.json fatal_exit_codes. No contradiction/omission/dependency_break. SKILL.md edited: false (no blocking finding)."
+}

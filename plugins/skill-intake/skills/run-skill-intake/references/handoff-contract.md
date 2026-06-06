@@ -50,16 +50,16 @@
 {"five_axes":{"output_target":"...","info_source":"...","share_target":"...","true_problem":"...","knowledge_assets":{"needed":true,"existing_sources":["..."]}},"approval_status":"approved|revision_requested","user_feedback":"..."}
 ```
 
-## Phase 9: next-action.json
+## Phase 9: intake.json
+
+旧 aggregator `references/handoff-contract.md` の `intake-final-schema.json` に準拠。
+
+## Phase 10: notion-url.txt
+
+Notion ページ URL を 1 行で記録。
+
+## Phase 11: next-action.json
 
 ```json
 {"mode":"A|B|C|D|E","reason":"...","multi_skill_suspicion":false,"split_candidates":[{"name":"...","responsibility":"..."}],"skill_creator_handoff_phase":"Phase 1 (kickoff)"}
 ```
-
-## Phase 10: intake.json
-
-旧 aggregator `references/handoff-contract.md` の `intake-final-schema.json` に準拠。
-
-## Phase 11: notion-url.txt
-
-Notion ページ URL を 1 行で記録。

@@ -3,7 +3,7 @@
   "generated_at": "2026-05-22T10:06:46+09:00",
   "canonical_page_id": "35195d6503b781788e31f59b4e05e705",
   "derived_from": {
-    "path": "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260522-015249-wt-3/plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json",
+    "path": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json",
     "sha256": "49382285eccf142e4c6ec8d308ffad23ce2097621c3d1d9da8615c4f6c807a0b"
   },
   "sections": [

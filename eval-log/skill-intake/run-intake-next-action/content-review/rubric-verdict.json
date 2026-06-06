@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-next-action",
+    "skill_md_sha256": "6659e7d00bacf7c815e14017607d3596d06bdfcfd80acc01601223ae22736ad7"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:10Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric-refs: ref-skill-design-rubric L0 + assign-skill-design-evaluator override) score=97 threshold=80 passed=true. findings: FM-005(low) のみ ('description first phrase skill-creator is not a verb')。これは scorer heuristic の偽陽性: (1) re.split(r'[。\\.]') が 'summary.json' のドット手前で head_jp を打ち切るため後続の動詞表現 '判定したい'/'確定したい' に届かない、(2) jp_verb_markers に '判定'/'確定'/'したい' 系が無い。description は実質 verb-led かつ trigger 2 件 (とき×2) で適切。low は PASS をブロックしないため (score>=threshold AND not any(high)) 編集なし (PR 不膨張)。二段確認: FM(name=dir, run- prefix, len OK), BD(Purpose & Output Contract / Gotchas 節あり, 行数<300), NM(dirname==name, scripts/ は .py のみ), PD(body>100行 & references/ 非空) 全て充足。内容整合: SKILL.md の precondition gate(exit2: notion-publish-result.json + notion-log.json.status=='published' + page_id)が decide-mode.py check_publish_precondition と一致、入力欠落 exit3 が load_json_required と一致、output.schema.json の additionalProperties:false/required が一致、workflow-manifest.json P1-P4 + validate-next-action exitHook が一致、mode-catalog.md の handoff phase 文言が script の handoff dict と一致。contradiction/omission/inconsistency/dependency_break/smell いずれも検出なし。"
+}

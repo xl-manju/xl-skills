@@ -2,7 +2,7 @@
 """Create a Notion DB under a parent page, or sync an existing DB to the expected schema.
 
 Usage:
-  python3 create_notion_database.py --mode=create --parent-page <PAGE_ID> [--title "skillインタビュー"]
+  python3 create_notion_database.py --mode=create [--parent-page <PAGE_ID>|--parent-page-url <URL>] [--title "skillインタビュー"] [--dry-run]
   python3 create_notion_database.py --mode=sync --database-id <DB_ID> [--dry-run]
 
 Exit codes: 0=OK, 1=API error, 2=INPUT_ERROR, 44=KEYCHAIN_ERROR
@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import notion_config
 from notion_http import NotionHttpError, notion_fetch
 
 SCHEMA_PATH = (
@@ -64,6 +65,9 @@ def parse_args(argv: list[str]) -> dict[str, Any]:
         elif a == '--parent-page':
             i += 1
             out['parentPage'] = argv[i]
+        elif a == '--parent-page-url':
+            i += 1
+            out['parentPageUrl'] = argv[i]
         elif a == '--database-id':
             i += 1
             out['databaseId'] = argv[i]
@@ -76,15 +80,37 @@ def parse_args(argv: list[str]) -> dict[str, Any]:
     return out
 
 
-def create_db(parent_page: str | None, title: str | None, schema: dict[str, Any]) -> dict[str, Any]:
+def resolve_parent_page(args: dict[str, Any]) -> str | None:
+    return (
+        notion_config.canonical_notion_id(args.get('parentPage'))
+        or notion_config.canonical_notion_id(args.get('parentPageUrl'))
+        or notion_config.get_parent_page_id()
+    )
+
+
+def create_db(parent_page: str | None, title: str | None, schema: dict[str, Any], dry_run: bool) -> dict[str, Any] | None:
     if not parent_page:
-        sys.stderr.write('--parent-page is required for --mode=create\n')
+        sys.stderr.write(
+            '--parent-page, --parent-page-url, INTAKE_NOTION_PARENT_PAGE_ID, '
+            'or .notion-config.json#parent_page is required for --mode=create\n'
+        )
         sys.exit(2)
     body = {
         'parent': {'type': 'page_id', 'page_id': parent_page},
         'title': [{'type': 'text', 'text': {'content': title or 'skillインタビュー'}}],
         'properties': build_properties(schema),
     }
+    if dry_run:
+        print(json.dumps({
+            'tool': 'create_notion_database',
+            'mode': 'create',
+            'dry_run': True,
+            'parent_page_id': parent_page,
+            'title': title or 'skillインタビュー',
+            'property_count': len(body['properties']),
+            'body': body,
+        }, ensure_ascii=False, indent=2))
+        return None
     res = notion_fetch('/databases', method='POST', body=body)
     print(f"created database id={res.get('id')}")
     print(f"url={res.get('url')}")
@@ -138,7 +164,7 @@ def main(argv: list[str]) -> int:
     schema = json.loads(SCHEMA_PATH.read_text(encoding='utf-8'))
     try:
         if args.get('mode') == 'create':
-            create_db(args.get('parentPage'), args.get('title'), schema)
+            create_db(resolve_parent_page(args), args.get('title'), schema, bool(args.get('dryRun')))
         elif args.get('mode') == 'sync':
             sync_db(args.get('databaseId'), schema, bool(args.get('dryRun')))
         else:

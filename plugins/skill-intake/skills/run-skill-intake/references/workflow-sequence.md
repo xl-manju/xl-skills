@@ -12,9 +12,9 @@
 | 6 | Skill | ref-intake-option-catalog | purpose.json | options.json | Phase 5 |
 | 7 | Skill | run-intake-visualize | sheet.md, purpose.json | visuals.json + PNG 群 | Phase 6 |
 | 8 | SubAgent | skill-intake-summarizer | 全 JSON | summary.{md,json} + Gate A 承認 | Phase 4 (再ヒアリング) |
-| 9 | Skill | run-intake-next-action | summary.json | next-action.json | Phase 8 |
-| 10 | Skill | run-intake-finalize | 全 JSON | intake.{md,json} | (各 JSON 不整合時は当該 phase へ) |
-| 11 | Skill | run-notion-intake-publish | intake.json | notion-url.txt | (Notion 側のみ、再公開可能) |
+| 9 | Skill | run-intake-finalize | 全 JSON | intake.{md,json} | (各 JSON 不整合時は当該 phase へ) |
+| 10 | Skill | run-notion-intake-publish | intake.json | notion-url.txt | (Notion 側のみ、再公開可能) |
+| 11 | Skill | run-intake-next-action | summary.json + notion-log.json | next-action.json | Phase 10 |
 
 ## SubAgent 化判断基準
 

@@ -18,9 +18,9 @@
 
 ### 1.1 不変ルール
 
-- **CONST_001 (委譲固定)**: 委譲先は `run-skill-elicit` (Skill tool) のみ
-  - **目的**: brief 構築ロジックの単一情報源を確保するため
-  - **背景**: 複数 elicitor を許すと skill_name 規約が drift する
+- **CONST_001 (委譲選択)**: 通常は `run-skill-elicit`、`--page-url` / `--page-id` を含む Notion 指定ありの intake は `skill-intake` 完了証跡を先に検証する
+  - **目的**: 指定 Notion ページへの出力を完了してから skill 生成へ進めるため
+  - **背景**: Notion 指定を無視して brief だけ作ると、ユーザーが指定したページと成果物が分離する
 - **CONST_002 (出力先固定)**: 出力先は `eval-log/skill-brief.json`
   - **目的**: 後続 Step が固定パスから参照可能にするため
   - **背景**: 動的パスはオーケストレーション層の整合性を壊す
@@ -79,6 +79,7 @@
 ### 3.2 外部ツール / API
 
 - `Skill(run-skill-elicit, args=topic)`
+- `python3 plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py --dir output/<hint> [--page-url <url>|--page-id <id>]`
 - `AskUserQuestion` (dialog モード時)
 
 ## Layer 4: 共通ポリシー層
@@ -126,7 +127,7 @@
 ### 5.4 実行方式 (動的手順生成ループ)
 
 1. 未充足チェックリスト項目を特定
-2. 解消手順を立案 (Skill(run-skill-elicit) 起動 / 対話再質問 / schema 整形 / default_decision 確定 のいずれか)
+2. 解消手順を立案 (Notion 指定ありなら publish 完了証跡検証 / Skill(run-skill-elicit) 起動 / 対話再質問 / schema 整形 / default_decision 確定 のいずれか)
 3. 実行し brief を更新
 4. schema 検証で自己評価、全項目充足まで反復
 5. 上限到達 / default_decision 未確定は exit 1 (人間判断保留禁止)
@@ -158,4 +159,4 @@
 
 ## 出力指示
 
-LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`Skill(run-skill-elicit, args={{topic}})` を起点に、ユーザー要望から skill-brief.json を構築する。出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。
+LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`--page-url` / `--page-id` が topic に含まれる場合は、先に `validate-intake-publish-ready.py` で指定 Notion ページへの publish 完了を確認し、未完了なら skill-brief 生成へ進まない。通常時は `Skill(run-skill-elicit, args={{topic}})` を起点に、ユーザー要望から skill-brief.json を構築する。出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。

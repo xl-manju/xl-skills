@@ -12,11 +12,12 @@
       "title": "要求ヒアリング",
       "dependsOn": [],
       "entryHook": null,
-      "exitHook": "validate-brief",
+      "exitHook": "validate-brief-or-intake-publish-ready",
       "resourceIds": [
         "schemas/skill-brief.schema.json",
         "prompts/elicit.md",
-        "prompts/gate-review.md"
+        "prompts/gate-review.md",
+        "scripts/validate-intake-publish-ready.py"
       ],
       "delegateSkill": "run-skill-elicit",
       "fatal_exit_codes": [2],

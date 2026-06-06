@@ -21,8 +21,16 @@ import json
 import sys
 from pathlib import Path
 
-import jsonschema
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from _vendor import activate as _activate_vendor
+_activate_vendor()
+import _jsonschema_compat as jsonschema
+try:
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+except Exception as exc:
+    Environment = FileSystemLoader = StrictUndefined = None
+    _JINJA_IMPORT_ERROR = exc
+else:
+    _JINJA_IMPORT_ERROR = None
 
 REFERENCES = (
     Path(__file__).resolve().parent.parent
@@ -87,6 +95,8 @@ def render(output_dir: Path) -> Path:
     if extra_errors:
         raise ValueError("adopted uniqueness check failed:\n  - " + "\n  - ".join(extra_errors))
 
+    if Environment is None:
+        raise RuntimeError(f"bundled jinja2 unavailable: {_JINJA_IMPORT_ERROR}")
     env = Environment(
         loader=FileSystemLoader(str(REFERENCES)),
         undefined=StrictUndefined,

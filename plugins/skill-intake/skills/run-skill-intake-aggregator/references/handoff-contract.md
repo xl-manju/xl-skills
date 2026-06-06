@@ -35,6 +35,7 @@ Slack ログは本スキルのスコープ外（差別化済み）。
     "user_profile",
     "five_axes",
     "workflow_pattern",
+    "notion_target",
     "completed_sheets",
     "recommended_next"
   ],
@@ -153,7 +154,21 @@ Slack ログは本スキルのスコープ外（差別化済み）。
     },
     "workflow_pattern": {
       "enum": ["A", "B", "C", "D", "E"],
-      "description": "A=対話生成 / B=自動収集配信 / C=対話契約書 / D=分析レポート / E=その他"
+      "description": "スキル種別軸。値の正本ラベルは notion-db-schema.json#/properties/ワークフロー を参照 (A 単体 / B 自動収集配信 / C ナレッジ集約 / D レビュー / E その他)。この A-E は mode 軸 (next-action-advisor のスキル生成方針 A-E) およびパターン軸 (ライフサイクル A-E) とは独立した分類である。二重定義防止のためラベルはここにベタ書きせず正本を単一真実源とする。"
+    },
+    "notion_target": {
+      "type": "object",
+      "required": ["mode"],
+      "description": "Notion 出力先の正本。--page-url / --page-id 指定時は update 専用で page_id 必須。create fallback は禁止し、初回作成は mode=create-explicit + allow_create=true の明示時だけ許可。",
+      "properties": {
+        "mode": { "enum": ["update", "create-explicit"] },
+        "page_id": { "type": "string" },
+        "page_url": { "type": "string" },
+        "database_id": { "type": "string" },
+        "source": { "enum": ["arg", "url", "result_file", "explicit_create"] },
+        "require_update": { "type": "boolean" },
+        "allow_create": { "type": "boolean" }
+      }
     },
     "completed_sheets": {
       "type": "array",
@@ -253,7 +268,7 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 
 ## skill-creator 入力契約マッピング
 
-`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として **ビルドフロー** を駆動し、最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
+`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として **ビルドフロー** を駆動する。ただし Notion 指定ありの intake は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` が `notion_target` と一致するまで Step 2 build へ進めない。最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
 
 ### 軸 A: SubAgent 9 セクション正本 (agent-template.md) ← intake.json 派生元
 

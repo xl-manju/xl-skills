@@ -16,16 +16,31 @@ def hash_file(file_path):
 
 
 def verify(manifest_path):
-    with open(manifest_path, 'r', encoding='utf-8') as f:
-        manifest = json.load(f)
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            manifest = json.load(f)
+    except Exception as e:
+        return {'ok': False, 'invalid_manifest': str(e), 'missing': [], 'corrupted': [], 'total': 0}
+    if not isinstance(manifest, dict):
+        return {'ok': False, 'invalid_manifest': 'manifest root must be an object', 'missing': [], 'corrupted': [], 'total': 0}
     base_dir = manifest.get('dest') or os.path.dirname(manifest_path)
     missing = []
     corrupted = []
-    items = manifest.get('items') or []
+    if 'items' not in manifest:
+        return {'ok': False, 'invalid_manifest': 'manifest.items is required', 'missing': [], 'corrupted': [], 'total': 0}
+    items = manifest.get('items')
+    if not isinstance(items, list):
+        return {'ok': False, 'invalid_manifest': 'manifest.items must be an array', 'missing': [], 'corrupted': [], 'total': 0}
+    if len(items) == 0:
+        return {'ok': False, 'invalid_manifest': 'manifest.items must not be empty', 'missing': [], 'corrupted': [], 'total': 0}
     for item in items:
+        if not isinstance(item, dict):
+            corrupted.append({'path': '', 'reason': 'manifest item must be an object'})
+            continue
+        rel_path = item.get('path') or item.get('absolute') or ''
         abs_path = item.get('absolute') or os.path.join(base_dir, item.get('path', ''))
         if not os.path.exists(abs_path):
-            missing.append(item.get('path'))
+            missing.append(rel_path)
             continue
         if item.get('sha256_16'):
             h = hash_file(abs_path)
@@ -45,6 +60,8 @@ def main(argv):
         return 2
     r = verify(os.path.abspath(manifest_file))
     sys.stdout.write(json.dumps(r, ensure_ascii=False, indent=2) + '\n')
+    if r.get('invalid_manifest'):
+        return 2
     return 0 if r['ok'] else 1
 
 

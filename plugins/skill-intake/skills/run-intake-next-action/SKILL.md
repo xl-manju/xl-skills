@@ -30,7 +30,7 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.json` の 4 入力から、`run-skill-create` への引き渡しモード A/B/C/D/E を **決定論的に**確定し、後続アクション (handoff phase) を確定する単一責務スキル。判定表 (`references/mode-catalog.md`) の引いた行 id を `reason` に必ず残し、Phase 1 暫定 `kickoff.json.pattern` と一致しない場合のみ AskUserQuestion で 1 問追認する。
+Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.json` と Notion 公開ログから、`run-skill-create` への引き渡しモード A/B/C/D/E を **決定論的に**確定し、後続アクション (handoff phase) を確定する単一責務スキル。判定表 (`references/mode-catalog.md`) で引いた mode と判定条件を `reason` に必ず残し、Phase 1 暫定 `kickoff.json.pattern` と一致しない場合のみ AskUserQuestion で 1 問追認する。
 
 **入力**: `output/<hint>/summary.json` / `purpose.json` / `options.json` / `kickoff.json`
 **出力**: `output/<hint>/next-action.json` (`schemas/output.schema.json` 準拠、`additionalProperties:false`)
@@ -38,7 +38,7 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 ```json
 {
   "mode": "A|B|C|D|E",
-  "reason": "rule_id=R-3 (existing-similarity>=0.8)",
+  "reason": "kickoff.pattern=B を採用 (mode-catalog B 行: 既存類似 80%+)",
   "multi_skill_suspicion": false,
   "split_candidates": [{"name": "...", "responsibility": "..."}],
   "confirmed_with_user": false,
@@ -46,7 +46,9 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 }
 ```
 
-**完了条件**: `mode` 確定 + `reason` に判定表行 id 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
+**完了条件**: `mode` 確定 + `reason` に判定根拠 (引いた mode / 判定条件) 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
+
+**必須前提 (precondition gate)**: skill 生成 (`run-skill-create`) へ進む handoff を確定する前に、**Notion 公開完了が必須前提**である。`scripts/decide-mode.py` は `output/<hint>/notion-publish-result.json` が存在し `notion-log.json.status=="published"` (かつ `page_id` 有り) であることを assert し、不成立なら **exit 2** で停止して未公開のまま skill 生成へ横流れさせない (逸脱B封鎖)。CI / dry-run のみ `--allow-skip` で緩和可。
 
 ## Key Rules
 
@@ -56,13 +58,14 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
-7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開は非担当)。
+7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開の **実行** は非担当)。ただし Notion 公開「完了」は skill 生成へ進む必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
+8. **Notion 公開完了の precondition 検証**: `decide-mode.py` は handoff 確定前に `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有りを assert する。不成立なら exit 2 で停止 (逸脱B封鎖)。CI/dry-run のみ `--allow-skip` で緩和。
 
 ## ゴールシーク実行
 
 ### ゴール (Goal)
 
-4 つの intake JSON から `run-skill-create` へ引き渡すモード A/B/C/D/E が決定論的に確定し、`reason` (判定表行 id) と `confirmed_with_user` が機械検証可能な `next-action.json` が schema 準拠で出力された状態になっている。
+4 つの intake JSON から `run-skill-create` へ引き渡すモード A/B/C/D/E が決定論的に確定し、`reason` (引いた mode / 判定条件) と `confirmed_with_user` が機械検証可能な `next-action.json` が schema 準拠で出力された状態になっている。
 
 ### 目的・背景 (Why)
 
@@ -70,8 +73,9 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 
 ### 完了チェックリスト (Checklist)
 
+- [ ] **Notion 公開完了 precondition を充足**: `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有り。不成立なら exit 2 で停止し skill 生成へ進めていない (CI/dry-run のみ `--allow-skip` 緩和)
 - [ ] `summary.json` / `purpose.json` / `options.json` / `kickoff.json` の 4 入力を Read 済みで、欠落時は exit 3 を返している
-- [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその行 id を文字列で含めている
+- [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその引いた mode / 判定条件を文字列で含めている
 - [ ] `kickoff.json.pattern` と `mode` が一致時は AskUserQuestion を発行せず `confirmed_with_user=false` のまま、不一致時は AskUserQuestion 1 問で `confirmed_with_user=true` を埋めている
 - [ ] `mode=D` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空のまま残ったら `mode=E` に格下げし `reason` に格下げ理由を追記している
 - [ ] `mode=E` のとき `skill_creator_handoff_phase` が `Phase 1 (re-intake)` になっている
@@ -81,7 +85,7 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 
 ### ゴールシークループ
 
-未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake-aggregator`) のループ上限に従う。
+未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake-aggregator`) のループ上限に従う。
 
 ## Gotchas
 
@@ -95,11 +99,11 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
 ## Additional Resources
 
 - `workflow-manifest.json` — `P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit` の機械可読定義 (`dependsOn` / `exitHook` / `fatal_exit_codes`)
-- `prompts/main.md` — R1-deterministic-mode-decision 責務プロンプト (7 層構造、`@next-action-advisor` agent)
+- `prompts/R1-main.md` — R1-deterministic-mode-decision 責務プロンプト (7 層構造、`@next-action-advisor` agent)
 - `schemas/output.schema.json` — `next-action.json` 出力契約 (`additionalProperties:false`)
 - `references/mode-catalog.md` — A/B/C/D/E と handoff phase の対応表 (drift 防止の正本)
 - `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
 - `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
-- `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out`)
+- `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out` / `--allow-skip`)。冒頭で Notion 公開完了 precondition gate を実行 (不成立=exit 2)
 - 親スキル: `run-skill-intake-aggregator` (Phase 8→9 委譲元)
 - 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)

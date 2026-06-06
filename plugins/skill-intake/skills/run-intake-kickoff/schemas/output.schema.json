@@ -5,7 +5,7 @@
   "description": "Phase 1 出力。pattern / depth / skill_name_hint / pain_ranking の 4 項目を確定する。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["pattern", "depth", "skill_name_hint", "pain_ranking", "initial_utterance"],
+  "required": ["pattern", "depth", "skill_name_hint", "pain_ranking", "initial_utterance", "timestamp"],
   "properties": {
     "pattern": {"type": "string", "enum": ["A", "B", "C", "D", "E"]},
     "depth": {"type": "string", "enum": ["quick", "standard", "detailed"]},
@@ -24,6 +24,19 @@
         }
       }
     },
-    "initial_utterance": {"type": "string"}
+    "initial_utterance": {"type": "string"},
+    "timestamp": {"type": "string", "minLength": 1},
+    "qa_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer"],
+        "properties": {
+          "question": {"type": "string"},
+          "answer": {"type": "string"}
+        }
+      }
+    }
   }
 }

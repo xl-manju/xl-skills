@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-finalize",
+    "skill_md_sha256": "e95b7fef9c1a3ddc00a8c7f6453e5d9bf94af875370873bd7f6b0caf4db2b242"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:10Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric skill-design v1.3.0, rubric_hash sha256:1c152bcd...): score=97, threshold=80, passed=true. findings: 1 low (FM-005 description が動詞語で始まらず 'intake' 名詞始まり) のみ、high finding 0。PASS 判定 = score>=threshold AND NOT any(high). FM: name=run-intake-finalize が dir basename 一致・kebab+prefix 適合 (FM-001 PASS)、description に trigger 2 個 (〜したいとき×2) で 。終端 (FM-002/003 PASS)、内部動作語なし (FM-004 PASS)。BD: '## Purpose & Output Contract' / '## Gotchas' 存在 (BD-001/002 PASS)、body 77 行 <=300 (BD-003 PASS)、description trigger と body 手順が 1:1 対応 (BD-004 充足)。NM: dir==name (NM-001 PASS)、references/schemas tree 整形。PD: references/ 配下にファイル有 (PD-001 PASS)、冒頭30行に Purpose+禁則 (PD-002 PASS)、依存方向健全。二段検証(実装文脈での手動確認): 本 PR の diff は存在しない build-intake-final-context.py と誤った CLI 署名を、実在 script 契約 (render-intake-final.py <output_dir> は md のみ出力 → convert_md_to_json.py で json 化 → cross_check.py は md 先) に修正する真正な dependency-break 修復であり退行ではない。参照 4 script (render-intake-final.py/convert_md_to_json.py/quality_gate.py/cross_check.py) 全て実在、cross-skill 参照 (run-skill-intake-aggregator references 正本, run-notion-intake-publish) も全て解決。symlink dangling 無し (単独配布の自己完結性に問題なし)。修正不要のため SKILL.md 無編集。"
+}

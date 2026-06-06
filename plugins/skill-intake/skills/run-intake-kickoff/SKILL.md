@@ -43,7 +43,8 @@ intake セッションの最初の phase。ユーザー初期発話から **3 �
   "skill_name_hint": "<kebab-case>",
   "pain_ranking": [{"task": "...", "frequency_per_week": 3, "minutes_per_run": 30}],
   "initial_utterance": "...",
-  "timestamp": "ISO8601"
+  "timestamp": "ISO8601",
+  "qa_log": [{"question": "...", "answer": "..."}]
 }
 ```
 
@@ -81,7 +82,7 @@ intake セッションの最初の phase。ユーザー初期発話から **3 �
 
 ### ゴールシークループ
 
-固定手順ではなく、上記チェックリストを唯一の停止条件とする。未充足軸を特定 → 次に出すべき AskUserQuestion (3 択 + 自由入力) を立案 → 回答取得 → `qa_log[]` 追記 → checklist 自己評価、を反復する (上限は `prompts/main.md` Layer 4 反復回数)。`workflow-manifest.json` の phase 順 P1-pattern → P2-depth → P3-pain → P4-emit に従い、各 phase の `fatal_exit_codes` 検出時は即停止して未充足項目を stderr に列挙する。
+固定手順ではなく、上記チェックリストを唯一の停止条件とする。未充足軸を特定 → 次に出すべき AskUserQuestion (3 択 + 自由入力) を立案 → 回答取得 → `qa_log[]` 追記 → checklist 自己評価、を反復する (上限は `prompts/R1-main.md` Layer 4 反復回数)。`workflow-manifest.json` の phase 順 P1-pattern → P2-depth → P3-pain → P4-emit に従い、各 phase の `fatal_exit_codes` 検出時は即停止して未充足項目を stderr に列挙する。
 
 ## Gotchas
 
@@ -94,7 +95,7 @@ intake セッションの最初の phase。ユーザー初期発話から **3 �
 ## Additional Resources
 
 - `workflow-manifest.json` — P1-P4 phase 定義・dependsOn・entryHook/exitHook・fatal_exit_codes
-- `prompts/main.md` — R1-pattern-depth-pain-confirm 7 層プロンプト (Layer 1-7)
+- `prompts/R1-main.md` — R1-pattern-depth-pain-confirm 7 層プロンプト (Layer 1-7)
 - `schemas/output.schema.json` — kickoff.json 正本スキーマ
 - `references/pattern-catalog.md` — pattern A-E の選択肢と判定基準
 - `references/depth-criteria.md` — quick / standard / detailed の判断基準

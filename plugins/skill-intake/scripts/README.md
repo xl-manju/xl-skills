@@ -1,8 +1,8 @@
 # skill-intake scripts
 
-本ディレクトリの責務: `run-skill-intake-aggregator` および sibling skill `run-notion-intake-publish` から呼ばれる**決定論処理を担う Python 3 スクリプト集**。LLM 判断に依存せず、入力に対して常に同じ出力を返すロジックのみを置く (Script First 原則)。macOS 標準 `/usr/bin/python3` で動作し、外部 pip パッケージ不要。
+本ディレクトリの責務: `run-skill-intake-aggregator` および sibling skill `run-notion-intake-publish` から呼ばれる**決定論処理を担う Python 3 スクリプト集**。LLM 判断に依存せず、入力に対して常に同じ出力を返すロジックのみを置く (Script First 原則)。macOS 標準 `/usr/bin/python3` で動作する。最終 Markdown レンダリング用の `jinja2` は plugin 配下 `vendor/python` に同梱し、JSON Schema 検証は `scripts/_jsonschema_compat.py` の標準ライブラリ fallback を使う。
 
-**スクリプト数: 計 37 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **34 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **3 本** (`run-intake-next-action/scripts/decide-mode.py` / `run-intake-visualize/scripts/verify-visuals.py` / `run-intake-interview/scripts/check-five-axes-coverage.py`)。Python 3 標準ライブラリのみ、外部 pip パッケージ禁止。データファイル `notion_limits.json` は本数に含めない。
+**スクリプト数: 計 38 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **35 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **3 本** (`run-intake-next-action/scripts/decide-mode.py` / `run-intake-visualize/scripts/verify-visuals.py` / `run-intake-interview/scripts/check-five-axes-coverage.py`)。データファイル `notion_limits.json` は本数に含めない。
 
 ## カテゴリ別一覧
 
@@ -12,17 +12,18 @@
 |---|---|
 | `keychain_get_secret.py` | macOS Keychain から Notion トークンを取得する唯一の経路。exit 44 で未登録を表現。 |
 
-### Notion 系 (7 本)
+### Notion 系 (8 本)
 
 | スクリプト | サマリ |
 |---|---|
 | `notion_http.py` | Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を 1 箇所に閉じ込める。 |
-| `create_notion_database.py` | `--mode=create|sync` で DB を作成または既存 DB を期待スキーマへ寄せる。 |
+| `create_notion_database.py` | `--mode=create|sync` で DB を作成または既存 DB を期待スキーマへ寄せる。create は `--parent-page` / `.notion-config.json#parent_page` を必須解決し、`--dry-run` で非 mutation 検証可能。 |
 | `verify_notion_schema.py` | 期待スキーマと現状 DB を突き合わせ、過不足を `eval-log/notion-conflicts.json` に出力。 |
 | `prepare_notion_assets.py` | `visuals/` を走査し SHA-256 付き `notion-manifest.json` を生成。 |
 | `verify_notion_assets.py` | PNG 欠損・空ファイル・hash 不一致を MUST ゲート検証 (All-or-Nothing)。 |
 | `render_notion_page.py` | `intake.json` から Notion ブロック JSON (`notion-blocks.json`) を組み立てる。 |
 | `publish_notion_page.py` | Notion REST `POST /v1/pages` を実発火し、URL を返す。 |
+| `smoke_notion_publish.py` | 検証用 Notion ページへの実接続 publish smoke を安全に準備/実行する。既定は非 mutation、`--execute` 時のみ更新。 |
 
 ### 品質ゲート系 (11 本)
 
@@ -80,6 +81,6 @@
 
 ## 依存
 
-- **Python 3 標準ライブラリのみ** (macOS 標準 `/usr/bin/python3`、3.9 以上)
-- **外部 pip パッケージ禁止** (`requirements.txt` / `pyproject.toml` を本ディレクトリに置かない)
+- **Python 3.9 以上** (macOS 標準 `/usr/bin/python3` 可)
+- **Python package**: `jinja2` は `vendor/python` に同梱済み。通常利用者の手動 `pip install` は不要。
 - 認証情報は必ず `keychain_get_secret.py` 経由で取得。環境変数・`.env`・コミット履歴に平文を残さない。

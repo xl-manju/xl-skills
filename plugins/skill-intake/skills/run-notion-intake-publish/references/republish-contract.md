@@ -19,6 +19,12 @@
 | 0 | publish 成功 | `notion-url.txt` を読み次工程へ |
 | 1 | safe-skip (schema 差分など軽微) | warn ログ残し、人間に判断委譲 |
 | 2 | hard-fail | 即停止。retry せず原因解析 |
+| 51 | target 解決不能 / page_id mismatch (update 専用契約違反) | 即停止。`--page-id`/`--page-url` を付すか、別ページ化け (orphan) を解消してから再実行 |
+
+> exit 51 は `--revise` (再公開 = update 専用) 契約に固有。update 先 `page_id` を
+> `--page-id` / `--page-url` / 既存 `notion-publish-result.json` のいずれからも解決できない、
+> または既存 result の `page_id` が要求値と食い違う (orphan 化) 場合に発火し、
+> 新規ページ量産・別ページ上書きを publish 前に構造的に封鎖する。
 
 ## 不変条件 (invariants)
 

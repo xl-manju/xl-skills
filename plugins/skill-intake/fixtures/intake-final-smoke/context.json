@@ -468,6 +468,13 @@
       }
     ]
   },
+  "section_diagrams": {},
+  "notion_target": {
+    "mode": "create-explicit",
+    "source": "explicit_create",
+    "require_update": false,
+    "allow_create": true
+  },
   "notion_db_properties": {
     "名前": "info-collector-agent",
     "ステータス": "Gate A承認済み",

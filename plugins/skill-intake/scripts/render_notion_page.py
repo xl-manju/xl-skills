@@ -20,7 +20,7 @@ import os
 import sys
 from pathlib import Path
 
-import jsonschema
+import _jsonschema_compat as jsonschema
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 with open(SCRIPT_DIR / 'notion_limits.json', 'r', encoding='utf-8') as f:
@@ -371,11 +371,33 @@ def render(ctx):
 
 
 def main(argv):
-    if len(argv) < 2:
-        sys.stderr.write('usage: render_notion_page.py <intake-final-context.json> [out.json]\n')
+    """render エントリ。
+
+    呼び出し規約 (argparse 化 / 位置引数も後方互換維持):
+      render_notion_page.py <ctx.json> [out.json]
+      render_notion_page.py --ctx <ctx.json> --out <blocks.json> [--manifest <manifest.json>]
+
+    pipeline は `--ctx <intake> --out <blocks> [--manifest <manifest>]` を渡す。
+    `--manifest` は描画の参考入力 (アセット情報) であり、レンダ結果 (blocks) の出力先は
+    必ず `--out`。manifest を blocks で上書き破壊しないことが本シグネチャの不変条件。
+    """
+    import argparse
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument('ctx_pos', nargs='?', help='intake-final-context.json (位置引数, 後方互換)')
+    parser.add_argument('out_pos', nargs='?', help='out blocks.json (位置引数, 後方互換)')
+    parser.add_argument('--ctx', dest='ctx_opt')
+    parser.add_argument('--out', dest='out_opt')
+    parser.add_argument('--manifest', dest='manifest')
+    ns = parser.parse_args(argv[1:])
+
+    ctx_file = ns.ctx_opt or ns.ctx_pos
+    out_file = ns.out_opt or ns.out_pos
+    if not ctx_file:
+        sys.stderr.write('usage: render_notion_page.py <ctx.json> [out.json] | --ctx C --out O [--manifest M]\n')
         return 2
-    ctx_file = argv[1]
-    out_file = argv[2] if len(argv) > 2 else None
+    if ns.manifest and not os.path.exists(ns.manifest):
+        sys.stderr.write(f'--manifest not found: {ns.manifest}\n')
+        return 2
     try:
         with open(ctx_file, 'r', encoding='utf-8') as f:
             ctx = json.load(f)

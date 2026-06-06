@@ -18,8 +18,13 @@ import os
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_PATH = PROJECT_ROOT / "plugins" / "skill-intake" / "skills" / "run-skill-intake-aggregator" / "references" / "intake.schema.json"
+import _jsonschema_compat as jsonschema
+
+# 単独 install でも解決できるよう plugin-root 起点で算出する ($CLAUDE_PLUGIN_ROOT 優先、
+# 無ければ本ファイルの parents[1] = plugins/skill-intake/)。hook pre-publish-schema-validate.py
+# と同一の root 解決規約に統一し、repo-root レイアウト (parents[3]) への依存を撤去。
+PLUGIN_ROOT = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or Path(__file__).resolve().parents[1])
+SCHEMA_PATH = PLUGIN_ROOT / "skills" / "run-skill-intake-aggregator" / "references" / "intake.schema.json"
 
 
 def _resolve_dotted(obj, dotted: str):
@@ -80,12 +85,6 @@ def main(argv: list[str]) -> int:
     if not target.exists():
         print(f"ERROR: intake.json not found: {target}", file=sys.stderr)
         return 2
-
-    try:
-        import jsonschema
-    except ImportError:
-        print("ERROR: jsonschema package required. install with: pip install jsonschema", file=sys.stderr)
-        return 3
 
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     instance = json.loads(target.read_text(encoding="utf-8"))
