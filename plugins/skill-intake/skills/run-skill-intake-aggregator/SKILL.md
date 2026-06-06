@@ -87,6 +87,7 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
 6. **Secret-Out-of-Repo**: API シークレットはコード/`.env`/環境変数に置かず macOS Keychain から都度取得。`scripts/keychain_get_secret.py` 経由のみ。
 7. **5 軸必須**: 出力先・情報源・共有相手・真の課題・ナレッジ資産。1 軸でも欠けたら `scripts/check_completeness.py` で FAIL。
 8. **All-or-Nothing 公開**: Notion 公開は PNG 1 枚でも欠けたら停止 (`scripts/verify_notion_assets.py`)。
+9. **スキル生成を絶対に実行しない (hard stop / 機械強制)**: 本スキルはヒアリング成果物と Notion 公開、next-action 推奨までで完結する。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成を Skill / Task / Bash いずれでも起動しない。`hooks/hook-guard-skillgen.py` が `run-skill-intake-aggregator` 実行中にも lock を立て、生成起動を exit 2 でブロックする。実際の作成は、intake 完了後にユーザーが別途明示的に開始する独立アクションである。
 
 ## 責務分担: challenger × excavator
 
@@ -166,7 +167,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 - **context:fork**: 12 SubAgent は分離 context で起動し、親へは差分と exit code のみ返却 (中間ログを親に流さない)。
 - **単一発火点**: Notion 公開は `intake_publish_pipeline.py` のみを発火点とし、SubAgent `skill-intake-notion-publisher` と sibling `run-notion-intake-publish` から二重に render/publish を直叩きしない。指定 page がある場合、`--page-id` / `--page-url` を最優先で渡し、page_id 解決不能時は exit 51 で停止する。
 - **Notion target 正本化**: `--page-url` / `--page-id` / `--database-id` は `notion_target` として intake.json / intake-final-context.json に保持する。update mode では `notion_target.page_id` と publish result の page_id 一致を必須とし、create fallback を禁止する。
-- **skill-creator 引き渡しゲート**: `run-skill-create` 等の skill 本体生成へ進む判断は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` を確認した後に限る。Notion 未公開のまま skill を作り始めない。
+- **skill-creator 引き渡しゲート**: `notion-log.json.status=="published"` と `notion-publish-result.json.page_id` を確認した後に限り、next-action として skill-creator へ渡せる状態かを**推奨情報として判定**する。本スキル自身は `run-skill-create` 等の skill 本体生成へ進まない。Notion 未公開のまま推奨を確定せず、公開後も作成実行はユーザーの別アクションに委ねる。
 - **All-or-Nothing 公開**: PNG 1 枚でも欠けたら `verify_notion_assets.py` で停止。途中まで公開せず asset 再生成へ戻す。
 - **自動修正禁止**: quality_gate / completeness FAIL は根本原因をユーザーに提示し、LLM 判断で内容を勝手に直さない (推測補完禁止)。
 
@@ -245,4 +246,4 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 
 - `run-notion-intake-publish` — Notion 再公開専用 sibling skill (kind=run, 非冪等処理あり)
 - `run-skill-elicit` — 技術者向け簡易 brief 生成 (本スキルと併存)
-- `run-skill-create` — Step 1 から本スキルを呼ぶオーケストレーター
+- `run-skill-create` — Step 1 から本スキルを呼ぶ上位オーケストレーター。本スキル単体からは起動しない。

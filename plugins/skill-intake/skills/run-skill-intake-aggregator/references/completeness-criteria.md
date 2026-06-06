@@ -142,4 +142,4 @@ function isComplete(intake) {
 | recommended_next | fast-track |
 | open_questions | 0 件 |
 
-→ 完了。`run-skill-create` を fast-track で起動可。
+→ 完了。`run-skill-create` の fast-track 推奨を提示して停止する。実行はユーザーが別途明示的に開始する。

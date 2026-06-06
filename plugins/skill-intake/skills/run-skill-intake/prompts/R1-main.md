@@ -19,7 +19,7 @@
 ### 1.1 不変ルール
 - 業務ロジックは orchestrator 内に書かない (各 phase の delegateSkill に委譲)。
 - 任意 phase の FAIL でパイプライン全体を中断する (silent-fail 禁止)。
-- **スキル生成を起動しない (hard stop)**: intake は Phase 11 (next-action 推奨) で完結する。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを Skill / Task で起動しない。`next-action.json` の `mode` は推奨情報であり実行しない。Phase 11 完了後は完了レポートを提示して**停止**する。
+- **スキル生成を起動しない (hard stop)**: intake は Phase 11 (next-action 推奨) で完結する。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを Skill / Task / Bash で起動しない。`next-action.json` の `mode` は推奨情報であり実行しない。Phase 11 完了後は完了レポートを提示して**停止**する。
 
 ### 1.2 倫理ガード
 - ユーザー入力は phase 1 でのみ取得。orchestrator が後付けで意図推測しない。

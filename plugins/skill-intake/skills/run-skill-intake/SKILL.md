@@ -70,8 +70,8 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 6. **Secret-Out-of-Repo**: Notion トークンは Keychain から都度取得 (`scripts/keychain_get_secret.py`)。リポジトリへ書き込まない。
 7. **Gate A (Phase 8) で停止可能**: summary 否認時は Phase 4 へ戻り再ヒアリング (最大 2 周)。
 8. **lint 自動修正禁止**: P0 lint fail は根本原因をユーザー提示し AI 判断で勝手に修正しない。
-9. **スキル生成を絶対に実行しない (hard stop / 機械強制)**: 本スキルは **ヒアリング〜Notion 公開〜Phase 11 next-action 推奨**までで完結し、`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **Skill / Task いずれでも起動しない**。Phase 11 の `next-action.json` の `mode` は**推奨情報**に過ぎず、本スキルがそれを実行に移すことはない。Phase 11 完了 = ワークフロー終了であり、完了レポート提示後は必ず停止する。スキル生成はユーザーが別途明示的に開始する**独立アクション**である (intake が `run-skill-create` の Step 1 として呼ばれた場合のみ上位が後続を駆動する。intake 自身は駆動しない)。
-   - **この禁止は自然言語の指示だけに依存しない (100% 機械保証)**: `hooks/hook-guard-skillgen.py` (PreToolUse: Skill|Task) が、`run-skill-intake` 実行中フラグ (lock) を hook 駆動で立て、intake 実行中に生成スキルが起動されると **exit 2 でツール呼び出し自体をハーネスがブロック**する。lock の作成・遮断・解除は全て hook が行いモデル挙動に依存しない。本 Key Rule (プロンプト層) は「なぜ止まるか」の意図説明であり、保証の主体は hook 層である。配線は `.claude-plugin/plugin.json`、実証は `tests/test_skill_intake_guard_skillgen.py`。
+9. **スキル生成を絶対に実行しない (hard stop / 機械強制)**: 本スキルは **ヒアリング〜Notion 公開〜Phase 11 next-action 推奨**までで完結し、`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **Skill / Task / Bash いずれでも起動しない**。Phase 11 の `next-action.json` の `mode` は**推奨情報**に過ぎず、本スキルがそれを実行に移すことはない。Phase 11 完了 = ワークフロー終了であり、完了レポート提示後は必ず停止する。スキル生成はユーザーが別途明示的に開始する**独立アクション**である (intake が `run-skill-create` の Step 1 として呼ばれた場合のみ上位が後続を駆動する。intake 自身は駆動しない)。
+   - **この禁止は自然言語の指示だけに依存しない (100% 機械保証)**: `hooks/hook-guard-skillgen.py` (PreToolUse: Skill|Task|Bash) が、`run-skill-intake` 実行中フラグ (lock) を hook 駆動で立て、intake 実行中に生成スキルが起動されると **exit 2 でツール呼び出し自体をハーネスがブロック**する。lock の作成・遮断・解除は全て hook が行いモデル挙動に依存しない。本 Key Rule (プロンプト層) は「なぜ止まるか」の意図説明であり、保証の主体は hook 層である。配線は `.claude-plugin/plugin.json`、実証は `tests/test_skill_intake_guard_skillgen.py`。
 
 ## ゴールシーク実行
 

@@ -268,7 +268,7 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 
 ## skill-creator 入力契約マッピング
 
-`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は本 intake.json を入力として **ビルドフロー** を駆動する。ただし Notion 指定ありの intake は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` が `notion_target` と一致するまで Step 2 build へ進めない。最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
+`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は、ユーザーが intake 完了後に別途明示起動した場合に限り、本 intake.json を入力として **ビルドフロー** を駆動する。ただし Notion 指定ありの intake は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` が `notion_target` と一致するまで Step 2 build へ進めない。intake 側は next-action 推奨を出して停止し、`run-skill-create` / `run-build-skill` を起動しない。最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
 
 ### 軸 A: SubAgent 9 セクション正本 (agent-template.md) ← intake.json 派生元
 
