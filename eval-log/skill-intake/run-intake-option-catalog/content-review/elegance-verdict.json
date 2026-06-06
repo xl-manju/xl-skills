@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-option-catalog",
+    "skill_md_sha256": "5c0ca3644cc394184b7b3e7c2349bb7987bac6d1f0d4f7a35ffee33393c7f156"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "run-elegant-review",
+  "reviewed_at": "2026-06-07T08:20:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "20260607-conformance elegant-review (30思考法×3 analyst 独立分析) の対象として run-intake-option-catalog を検証。本 PR での変更点: (1) references/integration-catalog-pointer.md の正本参照を旧 run-skill-intake-aggregator/references/ から plugin 直下 references/ (移設後 SSOT) へ rewrite、(2) frontmatter に user-invocable: true を追加し命名規約 第4条 (run-* は user-invocable 必須) 違反を解消、(3) aliases に ref-intake-option-catalog を保持し ref→run 改名の後方互換を維持。4条件: 矛盾なし=pointer と移設先 references/integration-catalog.md が一致 (実在確認)。漏れなし=Purpose/Gotchas 見出し 2 件存在、78 行 (<=300)。整合性=description 動詞語尾 OK・dir==name OK・kind:run と user-invocable:true が第4条整合。依存関係整合=移設後の references/ への参照のみで deprecated dir 依存ゼロ (grep 確認)。残リスク無し。"
+}

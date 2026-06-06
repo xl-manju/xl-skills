@@ -8,6 +8,7 @@ allowed-tools:
   - Write
 kind: run
 prefix: run
+user-invocable: true
 disable-model-invocation: false
 effect: local-artifact
 source: plugins/skill-intake
