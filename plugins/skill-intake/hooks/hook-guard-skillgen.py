@@ -23,7 +23,7 @@
   (制御反転: 信頼するな、仲介点で塞げ)。
 
 lock ライフサイクル (作成も解除もモデル非依存 = hook 駆動):
-  - PreToolUse  / Skill(run-skill-intake|run-skill-intake-aggregator) → lock 作成 (intake 開始)
+  - PreToolUse  / Skill(run-skill-intake) → lock 作成 (intake 開始)
   - PreToolUse  / Skill|Task|Bash(生成スキル) → lock 有効なら exit 2 (intake 実行中の生成を遮断)
   - PreToolUse  / Bash(lock 削除・移動)     → lock 有効なら exit 2 (lock 改ざんによる遮断回避を封鎖)
   - PostToolUse / Skill(intake skill)      → lock 削除 (intake 正常終了。外側スキルの Post は
@@ -50,10 +50,9 @@ import sys
 import time
 from pathlib import Path
 
-# intake 実行中フラグ。現行 orchestrator と旧 aggregator の両方で lock を立てる。
+# intake 実行中フラグ。現行 orchestrator で lock を立てる。
 INTAKE_SKILLS = {
     "run-skill-intake",
-    "run-skill-intake-aggregator",
 }
 
 # 遮断対象 (Skill 名 / Task subagent_type を suffix 一致で判定)

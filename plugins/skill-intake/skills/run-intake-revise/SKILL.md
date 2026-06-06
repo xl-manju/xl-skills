@@ -76,13 +76,13 @@ Notion ページの新規作成は URL 変更とリンク断絶を招くため�
 
 ```bash
 # 内部解析再実行
-python3 plugins/skill-intake/scripts/analyze_user_intent.py output/<hint>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/analyze_user_intent.py output/<hint>
 
 # 正本再生成
-python3 plugins/skill-intake/scripts/render-intake-final.py output/<hint>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/render-intake-final.py output/<hint>
 
 # Notion PATCH 更新 (同一ページ ID)
-python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/intake_publish_pipeline.py \
   --intake   output/<hint>/intake.json \
   --manifest output/<hint>/notion-manifest.json \
   --revise \

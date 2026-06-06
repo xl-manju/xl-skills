@@ -145,7 +145,7 @@ audit-trigger: quarterly
 
 ## 品質ゲート: Elegant Review Protocol
 
-新規/更新/プロンプト改善時は `plugins/skill-intake/skills/run-skill-intake-aggregator/references/elegant-review-protocol.md` を適用 (3 フェーズで C1-C4 全 PASS を確認、大規模設計は必須、軽微修正は `--fast` と整合可)。結果は Step 5 findings に紐付け `eval-log/` に残す。
+新規/更新/プロンプト改善時は `plugins/skill-intake/references/elegant-review-protocol.md` を適用 (3 フェーズで C1-C4 全 PASS を確認、大規模設計は必須、軽微修正は `--fast` と整合可)。結果は Step 5 findings に紐付け `eval-log/` に残す。
 
 ## Additional Resources
 

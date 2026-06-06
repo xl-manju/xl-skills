@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract canonical-page-snapshot.json from section_canonical_map.json (DRY).
 
-run-skill-intake-aggregator/references/section_canonical_map.json (v2) を派生元
+references/section_canonical_map.json (v2) を派生元
 として、本スキルが fidelity 比較に用いる snapshot を決定論的に生成する。
 
 Usage:
@@ -19,11 +19,10 @@ import json
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
-DEFAULT_SOURCE = (
-    REPO_ROOT
-    / "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json"
-)
+# plugin-root (= .../plugins/skill-intake) を __file__ 相対で解決し、marketplace install 後も
+# cwd / repo レイアウトに依存せず canonical map を見つける (parents[3] = plugin root)。
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_SOURCE = PLUGIN_ROOT / "references/section_canonical_map.json"
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "references/canonical-page-snapshot.json"
 DEFAULT_PAGE_ID = "35195d6503b781788e31f59b4e05e705"
 

@@ -183,7 +183,7 @@ security add-generic-password \
 登録後の検証:
 
 ```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
   --service slack-incoming-webhook --account skill-intake --check
 ```
 

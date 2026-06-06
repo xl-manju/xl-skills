@@ -30,10 +30,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 INTAKE = REPO / "plugins" / "skill-intake"
-SCHEMA = INTAKE / "skills" / "run-skill-intake-aggregator" / "references" / "notion-db-schema.json"
+SCHEMA = INTAKE / "references" / "notion-db-schema.json"
 RENDER = INTAKE / "scripts" / "render_notion_page.py"
-HANDOFF = INTAKE / "skills" / "run-skill-intake-aggregator" / "references" / "handoff-contract.md"
-ADVISOR = INTAKE / "agents" / "skill-intake-next-action-advisor.md"
+HANDOFF = INTAKE / "references" / "handoff-contract.md"
+# next-action の mode 軸定義は run-intake-next-action skill へ移行済 (旧 advisor agent は廃止)。
+ADVISOR = INTAKE / "skills" / "run-intake-next-action" / "references" / "mode-catalog.md"
 
 # 正本以外で「ワークフロー enum ラベルのベタ書き」を禁止する reference 群。
 # fixtures は人間記述の自然文 (主従表記) を含むため対象外 (誤検知回避)。

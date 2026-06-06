@@ -1,10 +1,13 @@
 ---
-name: ref-intake-option-catalog
+name: run-intake-option-catalog
+aliases:
+  - ref-intake-option-catalog
 description: 外部連携カタログから候補を引いて選択肢化したいとき、purpose.json を基に options.json を生成したいときに使う。
 allowed-tools:
   - Read
   - Write
-kind: ref
+kind: run
+prefix: run
 disable-model-invocation: false
 effect: local-artifact
 source: plugins/skill-intake
@@ -19,16 +22,16 @@ responsibility_refs:
   - prompts/R1-search-summarize.md
 ---
 
-# ref-intake-option-catalog
+# run-intake-option-catalog
 
 ## Purpose & Output Contract
 
-Phase 6 担当の **静的カタログ参照 ref skill**。他 skill (主に run-skill-intake-aggregator) から参照され、`purpose.json` の `true_purpose.verb_object` を起点に外部連携候補 (Slack / Notion / Gmail / Drive / Linear 等) を引き当て、ユーザー選択を経て `options.json` を生成するための判断材料を提供する。
+Phase 6 担当の **連携選択肢生成 run skill**。orchestrator (`run-skill-intake`) から Skill tool で委譲され、`purpose.json` の `true_purpose.verb_object` を起点に外部連携候補 (Slack / Notion / Gmail / Drive / Linear 等) を静的カタログから引き当て、ユーザー選択を経て `options.json` を生成する。カタログ自体は読み取り専用で、本 skill の write は `options.json` 生成に限る。
 
 **入力**: `purpose.json`, `references/integration-catalog-pointer.md` 経由の integration カタログ
 **出力**: `output/<hint>/options.json` (`selected_integrations` / `rejected` 配列)
 **完了条件**: tier=required の連携が全て選択または除外 (reason 付き) で確定し、ユーザーが選択肢確認に応答済み。
-**性質**: ref kind のため prompts/schemas/workflow-manifest は持たず、参照ロジックは `references/` 配下に閉じる。
+**性質**: run kind。責務プロンプトは `prompts/R1-search-summarize.md`、参照カタログは `references/` 配下に閉じる。カタログの書き換えは行わない (write は `options.json` のみ)。
 
 ## Key Rules
 
@@ -67,7 +70,7 @@ Phase 6 担当の **静的カタログ参照 ref skill**。他 skill (主に run
 1. **tier=required も除外可、ただし reason 必須**: 必須連携は提示するが、ユーザーが明示的に除外する場合は理由を残し下流 skill に判断材料を渡す。
 2. **カタログ外候補の誘惑**: verb_object に近い連携がカタログに無い場合でも本 skill では補完せず、aggregator 側で skill 拡張要求として上げる。
 3. **pointer 経由の参照**: `integration-catalog.md` は aggregator 側にあるため必ず `integration-catalog-pointer.md` を経由し、直接ハードコード参照しない。
-4. **ref kind の自己抑制**: prompts/schemas/workflow-manifest を持ち込まない。動的判断ロジックが必要になったら run-/wrap- kind への昇格を検討する。
+4. **責務の最小化**: カタログ参照と `options.json` 生成のみを担い、連携の実行・認証・公開は他 phase に委譲する (write は `options.json` に限定)。
 
 ## Additional Resources
 

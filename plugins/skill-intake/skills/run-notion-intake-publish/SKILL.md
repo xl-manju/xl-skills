@@ -15,7 +15,7 @@ last-audited: 2026-05-22
 audit-trigger: monthly
 hierarchy_level: L1
 rubric_refs:
-  - ../run-skill-intake-aggregator/references/quality-rubric.md
+  - ../../references/quality-rubric.md
   - references/republish-contract.md
 role_suffix: publish
 owner: team-platform
@@ -26,7 +26,7 @@ since: 2026-05-20
 
 ## Purpose & Output Contract
 
-`run-skill-intake-aggregator` が生成済みの `output/<hint>/` 一式を、ヒアリングを
+`run-skill-intake` が生成済みの `output/<hint>/` 一式を、ヒアリングを
 やり直さず **Notion 側だけ** 再公開するための薄い wrapper skill。
 実体は `plugins/skill-intake/scripts/intake_publish_pipeline.py` (単一発火点) を
 1 回呼ぶだけで、render / quality_gate / publish の重複実装は禁止する。
@@ -48,14 +48,14 @@ since: 2026-05-20
 
 | Skill / Script | 責務 | 本スキルとの境界 |
 |---|---|---|
-| `run-skill-intake-aggregator` | ヒアリング・5 軸抽出・図解・初回 publish | 初回は aggregator phase11、本 skill は **再公開専用** |
+| `run-skill-intake` | ヒアリング・5 軸抽出・図解・初回 publish | 初回は run-skill-intake phase11、本 skill は **再公開専用** |
 | `run-notion-fidelity-guard` | 公開直前の構造粒度検証 | 本 skill は呼び出し元として fidelity-guard `verdict=pass` を前提 |
 | `intake_publish_pipeline.py` | render → quality_gate → publish の単一発火点 | 本 skill は引数を整え 1 回呼ぶだけ |
 
 ## Key Rules
 
 1. **単一発火点**: publish パイプは `intake_publish_pipeline.py` のみ。本 skill から
-   `render_notion_page.py` / `publish_notion_page.py` を直接呼ばない。単一発火点の SSOT 定義は `../run-skill-intake-aggregator/SKILL.md` 「単一発火点」項 (ゴールシークループ内) を参照。
+   `render_notion_page.py` / `publish_notion_page.py` を直接呼ばない。単一発火点の SSOT 定義は `../run-skill-intake/SKILL.md` 「単一発火点」項 (ゴールシークループ内) を参照。
 2. **再公開専用**: ヒアリング・図解生成・JSON 整形はやらない (aggregator の責務)。
 3. **All-or-Nothing**: `verify_notion_assets.py` 通過必須。PNG 1 枚でも欠ければ停止。
 4. **Secret-Out-of-Repo**: トークンは Keychain からのみ取得。環境変数・CLI 引数禁止。
@@ -184,7 +184,7 @@ intake 成果物は canonical source として `output/<hint>/` 配下で管理�
 
 ## Gotchas
 
-1. **初回 publish には使わない**: 初回は aggregator phase11 を通す
+1. **初回 publish には使わない**: 初回は run-skill-intake phase11 を通す
    (図解生成・JSON 整形を伴うため)。本 skill は manifest 確定後の **再** 公開専用。
 2. **fidelity-guard を skip しない**: pipeline 内で fidelity-guard を必ず実行し、
    `verdict=pass` 以外は Notion API mutation へ進まない。
@@ -198,11 +198,11 @@ intake 成果物は canonical source として `output/<hint>/` 配下で管理�
 |---|---|---|
 | 入力前提と exit 規約 | `references/republish-contract.md` | 起動前の前提条件 / exit code を確認するとき |
 | 量産差し替え点 | `references/abstraction-contract.md` | 別 sink (Confluence 等) に流用するとき |
-| Notion API 正本 | `../run-skill-intake-aggregator/references/notion-integration.md` | Notion property 名 / 認可フローを確認するとき |
-| Keychain セットアップ | `../run-skill-intake-aggregator/references/keychain-setup.md` | トークン登録手順を確認するとき |
+| Notion API 正本 | `../../references/notion-integration.md` | Notion property 名 / 認可フローを確認するとき |
+| Keychain セットアップ | `../../references/keychain-setup.md` | トークン登録手順を確認するとき |
 | 読み順マップ | `references/resource-map.yaml` | references 全体の Progressive Disclosure 地図 |
 
 ## 関連スキル
 
-- `run-skill-intake-aggregator` — 初回 publish 担当 (phase11 で同 pipeline を呼ぶ正本)
+- `run-skill-intake` — 初回 publish 担当 (phase11 で同 pipeline を呼ぶ正本)
 - `run-notion-fidelity-guard` — 公開直前の構造粒度ガード (本 skill 起動前に pass 必須)

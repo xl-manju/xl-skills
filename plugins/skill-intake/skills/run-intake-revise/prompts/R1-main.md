@@ -70,6 +70,10 @@
 - exit 44: Keychain Notion トークン取得失敗
 - exit 51: Notion ページ ID 不一致 (PATCH 続行禁止)
 - exit 60: revision 回数上限超過 (>5)
+- exit 61: self-updater 失敗 (revision-log 追記失敗 / question-bank 更新失敗) → `revision-log.jsonl` を確認し手動修復
+
+### 4.1a 最大反復回数
+- 同一 hint の revision 上限: **5 回** (超過時 exit 60)。対話反復 (re-revise ループ) の上限も 5 回に統一。
 
 ### 4.2 観測 / ロギング
 - `output/<hint>/revision-log.jsonl` に 1 行追記。
@@ -123,6 +127,21 @@
 
 ### 7.2 言語
 - 本文 / user_request / applied_changes: 日本語。schema key / CLI 引数 / page-id: 英語。
+
+---
+
+## Self-Evaluation
+
+revision-log.jsonl 追記後に以下を自己確認する。未達があれば対応 exit code を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| PATCH 限定 | Notion への操作が PATCH のみ（新規ページ作成ゼロ） | PASS/FAIL |
+| Gate R 取得 | Gate R (apply/re-revise/cancel) を必ず AskUserQuestion で取得している | PASS/FAIL |
+| 非開示保持 | internal-analysis.json をユーザーに直接表示していない | PASS/FAIL |
+| All-or-Nothing | PNG/mermaid 欠落時に旧版維持 + rollback JSON を保存している | PASS/FAIL |
+| 回数上限 | revision_no が 5 以下（超過時は exit 60） | PASS/FAIL |
+| log 追記 | revision-log.jsonl に schemas/output.schema.json 準拠の 1 行が追記されている | PASS/FAIL |
 
 ---
 

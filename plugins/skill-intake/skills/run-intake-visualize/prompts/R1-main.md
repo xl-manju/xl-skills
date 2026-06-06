@@ -56,7 +56,7 @@
 | viz-mandatory | references/visualization-mandatory-pointer.md | 必須ルール確認 |
 
 ### 3.2 外部ツール / API
-- `scripts/render_to_image.py` (SVG → PNG)
+- `plugins/skill-intake/scripts/render_to_image.py` (SVG → PNG、aggregator 共有正本)
 - `scripts/verify-visuals.py` (網羅性検証)
 
 ## Layer 4: 共通ポリシー層
@@ -67,6 +67,9 @@
 
 ### 4.2 観測 / ロギング
 - visuals.json に各 section の figure_id と png_path を残す (後追い再現用)。
+
+### 4.4 最大反復回数
+- チェックリスト充足ループ上限: **3 回** (カタログ照合 → PNG 化 → verify の最大往復数)。上限到達で verify FAIL の場合は exit 2 で中断。
 
 ### 4.3 セキュリティ
 - アセットファイルパスは workspace root 起点の相対パスで記録 (絶対 PATH 漏出回避)。
@@ -82,12 +85,14 @@
 - 達成ゴール: visuals.json (output.schema.json 準拠) と `output/<hint>/visuals/*.png` が揃い、verify-visuals.py が PASS する状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] 全 12 セクション (§0-§11) に 1-3 図が配置 (1 セクション 4 図以上なし)
+- [ ] `visuals.json` が `schemas/output.schema.json` に validate (additionalProperties:false 含む)
+- [ ] 全 12 セクション (§0-§11) に 1-3 図が配置 (4 図以上ゼロ、ゼロ図ゼロ)
 - [ ] SVG が全て PNG 化されて Notion 互換 (拡張子 `.png`、参照パスは workspace 相対)
 - [ ] visuals.json の figure_id が Mermaid 12 + SVG 8 アセットカタログの id 集合に包含 (新規創作ゼロ)
 - [ ] verify-visuals.py が PASS (網羅性 / 整合性)
 - [ ] 同 sheet + purpose で 2 回連続実行し visuals.json の (section → figure_id) が完全一致 (determinism)
 - [ ] sheet.md にない事実が図へ注入されていない (倫理ガード)
+- [ ] `references/section-figure-mapping.md` の §×図種対応表に基づく配置で、逸脱は理由付き
 
 ### 5.4 実行方式
 - 固定手順を持たない。未充足チェック項目を特定→解消手順を都度立案 (カタログ照合 / PNG 化 / verify 起動など)→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
@@ -96,7 +101,7 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake` / aggregator の Phase 6
+- 呼び出し元: `run-skill-intake` の Phase 7
 - 後続 phase: `run-intake-finalize` (visuals.json を template に注入)
 
 ### 6.2 並列性
@@ -109,6 +114,20 @@
 
 ### 7.2 言語
 - 本文: 日本語 (figure_id / type は英語のまま)
+
+---
+
+## Self-Evaluation
+
+visuals.json 生成後に以下を自己確認する。未達があれば対応 exit code を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| 網羅性 | 全 12 セクション (§0-§11) に 1-3 図が配置されている | PASS/FAIL |
+| カタログ遵守 | 全 figure_id が Mermaid 12 + SVG 8 カタログの id 集合に包含されている | PASS/FAIL |
+| PNG 化完了 | 全 SVG が PNG 化され Notion 互換パスで記録されている | PASS/FAIL |
+| verify 通過 | verify-visuals.py が PASS | PASS/FAIL |
+| 事実注入なし | sheet.md にない事実を図に注入していない | PASS/FAIL |
 
 ---
 

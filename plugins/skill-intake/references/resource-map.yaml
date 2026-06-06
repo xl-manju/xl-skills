@@ -1,10 +1,10 @@
 # Progressive Disclosure リソースマップ
-# run-skill-intake-aggregator が references/ を必要時のみロードするためのインデックス。
+# run-skill-intake が references/ を必要時のみロードするためのインデックス。
 # 各エントリは「いつ読むか (read_when)」と「何のために読むか (purpose)」を明示する。
 # SubAgent / orchestrator は対応 read_when 条件が満たされたタイミングだけファイルを読み込む。
 
 version: 1
-skill: run-skill-intake-aggregator
+skill: run-skill-intake
 
 references:
   elicitation-techniques:

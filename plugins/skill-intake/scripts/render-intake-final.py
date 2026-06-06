@@ -34,8 +34,6 @@ else:
 
 REFERENCES = (
     Path(__file__).resolve().parent.parent
-    / "skills"
-    / "run-skill-intake-aggregator"
     / "references"
 )
 TEMPLATE_NAME = "intake-final-template.md.tmpl"

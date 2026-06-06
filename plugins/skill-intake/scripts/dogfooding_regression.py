@@ -20,7 +20,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-CONFIG_PATH = PROJECT_ROOT / "plugins" / "skill-intake" / "skills" / "run-skill-intake-aggregator" / "references" / "runtime-config.json"
+CONFIG_PATH = PROJECT_ROOT / "plugins" / "skill-intake" / "references" / "runtime-config.json"
 
 LEXICAL_KEYS = ("section_key", "required_fields", "axes.axis_id", "figures.kind", "figures.index")
 SEMANTIC_KEYS = ("purpose_slots", "axes.answer", "figures.one_liner", "true_purpose", "underlying_motivation")

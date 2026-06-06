@@ -24,7 +24,7 @@ import _jsonschema_compat as jsonschema
 # 無ければ本ファイルの parents[1] = plugins/skill-intake/)。hook pre-publish-schema-validate.py
 # と同一の root 解決規約に統一し、repo-root レイアウト (parents[3]) への依存を撤去。
 PLUGIN_ROOT = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or Path(__file__).resolve().parents[1])
-SCHEMA_PATH = PLUGIN_ROOT / "skills" / "run-skill-intake-aggregator" / "references" / "intake.schema.json"
+SCHEMA_PATH = PLUGIN_ROOT / "references" / "intake.schema.json"
 
 
 def _resolve_dotted(obj, dotted: str):

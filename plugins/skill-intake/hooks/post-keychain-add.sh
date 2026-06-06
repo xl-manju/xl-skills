@@ -28,7 +28,7 @@ if [[ -z "$TOKEN" ]]; then
 FAIL: Keychain にトークンが登録されていません、もしくは取得できません。
   service=$SERVICE
   account=$ACCOUNT
-plugins/skill-intake/skills/run-skill-intake-aggregator/references/keychain-setup.md の手順で登録してください。
+plugins/skill-intake/references/keychain-setup.md の手順で登録してください。
 EOF
   exit 1
 fi

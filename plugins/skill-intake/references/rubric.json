@@ -86,7 +86,7 @@
       "applies_to": "phase-output",
       "description": "eval-log/handoff-*.json が handoff.schema.json に準拠",
       "verifier": "jsonschema",
-      "schema": "plugins/skill-intake/skills/run-skill-intake-aggregator/schemas/handoff.schema.json"
+      "schema": "plugins/skill-intake/schemas/handoff.schema.json"
     },
     {
       "rule_id": "SE-context-fork-justified",

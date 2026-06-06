@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://xl-skills/run-skill-intake-aggregator/intake-final.schema.json",
+  "$id": "https://xl-skills/run-skill-intake/intake-final.schema.json",
   "title": "intake-final.json",
   "description": "aggregator 最終出力。詳細フィールドは references/intake-final-schema.json (旧正本) を Phase C で本ファイルへ統合予定。本スタブは contract 表面のみ宣言する。",
   "type": "object",

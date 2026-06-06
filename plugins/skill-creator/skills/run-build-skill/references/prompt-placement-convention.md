@@ -48,8 +48,8 @@ plugins/<plugin-name>/skills/<skill-name>/prompts/<responsibility-id>.md
 例 (`.md` 既定。`.yaml` は legacy 後方互換):
 
 ```
-plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R1.md
-plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/R2.md
+plugins/skill-intake/skills/run-intake-interview/prompts/R1-main.md
+plugins/skill-intake/skills/run-intake-finalize/prompts/R1-main.md
 plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.md
 ```
 
@@ -126,7 +126,7 @@ plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.md
 
 ```bash
 # 配置確認
-ls plugins/skill-intake/skills/run-skill-intake-aggregator/prompts/
+ls plugins/skill-intake/skills/run-intake-interview/prompts/
 
 # 再現性ハッシュ確認
 sha256sum plugins/*/skills/*/prompts/*.yaml

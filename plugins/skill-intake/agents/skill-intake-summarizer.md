@@ -78,9 +78,9 @@ model: sonnet
 
 | id | path | when_to_read |
 |---|---|---|
-| completeness | plugins/skill-intake/skills/run-skill-intake-aggregator/references/completeness-criteria.md | 5 軸充足判定時 |
-| rubric | plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md | self-eval 時 |
-| section-rules | plugins/skill-intake/skills/run-skill-intake-aggregator/references/section-completeness-rules.md | 自然文構成時 |
+| completeness | plugins/skill-intake/references/completeness-criteria.md | 5 軸充足判定時 |
+| rubric | plugins/skill-intake/references/quality-rubric.md | self-eval 時 |
+| section-rules | plugins/skill-intake/references/section-completeness-rules.md | 自然文構成時 |
 
 ### 3.2 外部ツール / Script
 - AskUserQuestion (Gate A 承認確認のみ)
@@ -115,7 +115,7 @@ model: sonnet
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake-aggregator` Phase 8 (summarize)
+- 呼び出し元: `run-skill-intake` Phase 8 (summarize)
 - 後続:
   - approved → R9 `skill-intake-next-action-advisor` (Phase 9)
   - revision_requested → R4 `run-intake-interview` (Phase 4) へ戻す (最大 2 周)
@@ -135,7 +135,7 @@ model: sonnet
 
 ## 起動条件
 
-- `run-skill-intake-aggregator` Phase 8 として呼ばれる
+- `run-skill-intake` Phase 8 として呼ばれる
 - Phase 1-7 の成果物が全て揃っている
 
 ## やらないこと
@@ -190,6 +190,14 @@ model: sonnet
 - [ ] **言語遵守**: 本文日本語 / JSON key 英語
 
 未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
+
+## Context Boundary (AG-002)
+
+- 親スレッド (orchestrator) の context を読み書きしない。入力は Phase 1-7 の確定成果物 (kickoff/assumption/profile/sheet/purpose/options/visuals) を読むのみ、出力は `summary.md` + `summary.json` (および handoff JSON) のみで、入力 JSON を改変しない。
+- Notion API 認証情報 (Keychain token) を一切扱わない。Notion 公開は Phase 11 (`run-notion-intake-publish`) / scripts の責務。
+- スキル生成 (`run-skill-create` 等) を起動しない。intake は summary 確定までで完結し、skill-creator への引き渡しは next-action-advisor / orchestrator が担う。
+- 本 agent は 5 軸の抽出・要約のみで、入力に無い新規事実を創作しない。根拠不足の軸は推測で埋めず revision_requested で Phase 4 に戻す。
+- 追加質問 (Phase 4) / 深掘り (Phase 5) / 次アクション判定 (Phase 9) には踏み込まない。
 
 ## Handoff
 

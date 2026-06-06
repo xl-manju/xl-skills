@@ -61,11 +61,6 @@ def test_intake_start_creates_lock(tmp_path):
     assert lock_file(tmp_path).is_file()
 
 
-def test_legacy_aggregator_start_creates_lock(tmp_path):
-    assert run_hook(pre_skill(tmp_path, "run-skill-intake-aggregator")) == 0
-    assert lock_file(tmp_path).is_file()
-
-
 def test_generation_blocked_while_intake_active(tmp_path):
     run_hook(pre_skill(tmp_path, "run-skill-intake"))  # lock 作成
     # 生成スキルは bare / plugin-prefix いずれも遮断
@@ -105,14 +100,6 @@ def test_lock_released_on_intake_post(tmp_path):
     run_hook(post_skill(tmp_path, "run-skill-intake"))             # intake 終了
     assert not lock_file(tmp_path).is_file()
     assert run_hook(pre_skill(tmp_path, "run-skill-create")) == 0  # 終了後は許可
-
-
-def test_lock_released_on_legacy_aggregator_post(tmp_path):
-    run_hook(pre_skill(tmp_path, "run-skill-intake-aggregator"))
-    assert run_hook(pre_skill(tmp_path, "run-skill-create")) == 2
-    run_hook(post_skill(tmp_path, "run-skill-intake-aggregator"))
-    assert not lock_file(tmp_path).is_file()
-    assert run_hook(pre_skill(tmp_path, "run-skill-create")) == 0
 
 
 def test_stale_lock_fails_open(tmp_path):

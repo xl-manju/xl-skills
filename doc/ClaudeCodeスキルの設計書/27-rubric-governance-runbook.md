@@ -344,7 +344,7 @@ CHANGELOG.md にも同 release エントリを追加する。
 
 ### 8.4 quality-rubric.md 自動再生成 governance-log (DLOOP-001)
 
-`plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md` のような **rubric の派生 markdown** は、`rubric.json` 改訂時に CI で自動再生成する。再生成イベントは `eval-log/<plugin>/rubric-governance-log.jsonl` に 1 行 append し、以下フィールドを必須化する:
+`plugins/skill-intake/references/quality-rubric.md` のような **rubric の派生 markdown** は、`rubric.json` 改訂時に CI で自動再生成する。再生成イベントは `eval-log/<plugin>/rubric-governance-log.jsonl` に 1 行 append し、以下フィールドを必須化する:
 
 | field | 内容 |
 |---|---|

@@ -27,7 +27,7 @@
 
 ### 2.1 責務 (Single Responsibility)
 - 担当: sheet.md の 5 軸空欄を AskUserQuestion で 1 問ずつ充足する。
-- 非担当: 深掘り、pattern 判定、Notion 公開。
+- 非担当: 深掘り (Phase 5)、3 軸確定 (run-intake-kickoff)、仮説検証 (Phase 2)、要約 (Phase 8)。
 
 ### 2.2 ドメインルール
 - 抽象的回答に対しては `needs_excavation=true` を立てるのみ (再質問しない)。
@@ -58,16 +58,21 @@
 | abstract-patterns | references/abstract-answer-patterns.md | 回答後の判定 |
 
 ### 3.2 外部ツール / API
-- AskUserQuestion (1 問ずつ)
+- AskUserQuestion
+- `scripts/validate-interview-json.py`
 - `scripts/check-five-axes-coverage.py`
 
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
+- validate-interview-json.py FAIL → exit 2、スキーマ不整合項目を stderr に列挙。LLM 自動補完禁止。
 - check-five-axes-coverage.py FAIL → exit 1、不足軸を stderr に列挙し再起動を促す。
 
 ### 4.2 観測 / ロギング
 - 抽象的回答は `abstract_answers[]` (各要素 `{axis, answer, reason}`) に追記し `needs_excavation=true` を立てる。未解消空欄は `unresolved[]` に列挙する。
+
+### 4.4 最大反復回数
+- AskUserQuestion 反復上限: **15 問** (5 軸 × 最大 3 問まで掘り下げを想定)。上限到達で five_axes_complete=false の場合は exit 1 で中断。
 
 ### 4.3 セキュリティ
 - 個人情報は interview.json 本文に転記せず変数化。
@@ -84,6 +89,8 @@
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] five_axes_complete=true になっている
+- [ ] validate-interview-json.py が PASS している
+- [ ] check-five-axes-coverage.py が PASS している
 - [ ] vocabulary_tier をセッション中に変更していない
 - [ ] 抽象的回答に対し深掘り質問をしていない (Phase 5 越境禁止、needs_excavation を立てるのみ)
 - [ ] AskUserQuestion を並列で出していない (1 問ずつ、最大 3 択 + 自由入力)
@@ -111,6 +118,20 @@
 
 ### 7.2 言語
 - 本文: 日本語。vocabulary_tier に従い語彙難易度を session 固定。
+
+---
+
+## Self-Evaluation
+
+interview.json 生成後に以下を自己確認する。未達があれば該当 exit code を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| 5軸完全性 | five_axes_complete=true / validate + coverage 双方 PASS | PASS/FAIL |
+| 越境禁止 | 抽象回答に深掘り質問をしていない (needs_excavation を立てるのみ) | PASS/FAIL |
+| 直列保証 | AskUserQuestion を並列で出していない、3択+自由入力以内 | PASS/FAIL |
+| tier 固定 | vocabulary_tier をセッション中に変更していない | PASS/FAIL |
+| 個人情報管理 | 個人情報を変数化し interview.json 本文に転記していない | PASS/FAIL |
 
 ---
 

@@ -85,7 +85,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 
 ### ゴールシークループ
 
-未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake-aggregator`) のループ上限に従う。
+未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake`) のループ上限に従う。
 
 ## Gotchas
 
@@ -105,5 +105,5 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
 - `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
 - `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out` / `--allow-skip`)。冒頭で Notion 公開完了 precondition gate を実行 (不成立=exit 2)
-- 親スキル: `run-skill-intake-aggregator` (Phase 8→9 委譲元)
+- 親スキル: `run-skill-intake` (Phase 8→9 委譲元)
 - 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)

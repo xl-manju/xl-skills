@@ -45,7 +45,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json`
-- 必須フィールド: `pattern`, `depth`, `skill_name_hint`, `pain_ranking[]`
+- 必須フィールド: `pattern`, `depth`, `skill_name_hint`, `pain_ranking[]`, `initial_utterance`, `timestamp`, `qa_log[]`
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -58,7 +58,7 @@
 | pain-template | references/pain-ranking-template.md | Q3-N を出す前 |
 
 ### 3.2 外部ツール / API
-- AskUserQuestion (1 問ずつ)
+- AskUserQuestion
 - `scripts/validate-kickoff-json.py`
 
 ## Layer 4: 共通ポリシー層
@@ -68,6 +68,9 @@
 
 ### 4.2 観測 / ロギング
 - 質問・回答ペアを kickoff.json の `qa_log[]` に時系列で保存。
+
+### 4.4 最大反復回数
+- AskUserQuestion 反復上限: **10 問** (Q1 pattern / Q2 depth / Q3-N pain_ranking 合算)。上限到達で未確定軸がある場合は exit 2 で中断。
 
 ### 4.3 セキュリティ
 - 個人名は kickoff.json に直書きせず変数化 (variable_abstraction)。
@@ -89,6 +92,7 @@
 - [ ] validate-kickoff-json.py が PASS している
 - [ ] 同 qa_log で生成される skill_name_hint と pattern が一致する (determinism, sha256 一致)
 - [ ] ユーザー回答を変更・要約せず生回答を qa_log に保存している
+- [ ] qa_log[] に質問・回答ペアが時系列で保存され、timestamp が ISO8601 形式
 
 ### 5.4 実行方式
 - 固定手順を持たない。完了チェックリストを唯一の停止条件とし、未充足軸を特定→次に出すべき AskUserQuestion (3 択+自由入力) を都度立案→回答取得→qa_log 追記→checklist で自己評価を反復する (上限: Layer 4 最大反復回数)。
@@ -111,6 +115,20 @@
 
 ### 7.2 言語
 - 本文: 日本語 (pattern コード A-E / depth 値は英語)
+
+---
+
+## Self-Evaluation
+
+kickoff.json 生成後に以下を自己確認する。未達があれば validate-kickoff-json.py 結果と合わせて exit 2 を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| 出力完全性 | pattern / depth / skill_name_hint / pain_ranking が全て埋まり schema 準拠 | PASS/FAIL |
+| 直列保証 | AskUserQuestion を並列で出していない | PASS/FAIL |
+| 固有名詞排除 | skill_name_hint に社名 / 個人名を直書きしていない | PASS/FAIL |
+| validate 通過 | validate-kickoff-json.py が PASS | PASS/FAIL |
+| 原文保全 | ユーザー回答を変更・要約せず qa_log に生回答を保存している | PASS/FAIL |
 
 ---
 

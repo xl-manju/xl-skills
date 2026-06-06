@@ -22,7 +22,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_CONFIG = PLUGIN_ROOT / "skills" / "run-skill-intake-aggregator" / "references" / "runtime-config.json"
+RUNTIME_CONFIG = PLUGIN_ROOT / "references" / "runtime-config.json"
 
 # 検索対象から除外するパス (本 reverse-index 自身 / canonical map / runtime-config / migration plan / trace 記録)
 EXCLUDE_PATH_FRAGMENTS = (

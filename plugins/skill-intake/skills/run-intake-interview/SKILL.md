@@ -74,8 +74,8 @@ intake セッションの Phase 4 担当。ヒアリングシート `sheet.md` �
 - [ ] `references/abstract-answer-patterns.md` 該当回答は `abstract_answers[]` に `{axis, answer, reason}` で追記し `needs_excavation=true`
 - [ ] 5 軸すべて非空となり `five_axes_complete=true`、未解消があれば `unresolved[]` に列挙
 - [ ] `output/<hint>/interview.json` が `schemas/output.schema.json` 準拠 (`filled_ratio` / `five_axes_complete` / `unresolved` / `needs_excavation` / `abstract_answers` 全充足)
-- [ ] `python3 plugins/skill-intake/skills/run-intake-interview/scripts/validate-interview-json.py output/<hint>/interview.json` exit 0
-- [ ] `python3 plugins/skill-intake/skills/run-intake-interview/scripts/check-five-axes-coverage.py output/<hint>/sheet.md` exit 0
+- [ ] `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-intake-interview/scripts/validate-interview-json.py output/<hint>/interview.json` exit 0
+- [ ] `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-intake-interview/scripts/check-five-axes-coverage.py output/<hint>/sheet.md` exit 0
 - [ ] 個人情報を `interview.json` 本文に直書きせず変数化済み
 - [ ] 責務外 (深掘り再質問・仮説検証・要約・3 軸確定) に踏み込んでいない
 

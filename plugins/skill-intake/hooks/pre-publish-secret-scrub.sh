@@ -56,7 +56,7 @@ if [[ $found -ne 0 ]]; then
   cat >&2 <<EOF
 [skill-intake] PRE-PUBLISH SECRET SCRUB FAILED.
 公開を停止しました。検知された行を修正してから再実行してください。
-詳細: plugins/skill-intake/skills/run-skill-intake-aggregator/references/keychain-setup.md
+詳細: plugins/skill-intake/references/keychain-setup.md
 EOF
   exit 2
 fi

@@ -154,6 +154,6 @@ type: reference
 
 1. `value_realized_score` の直前2回連続低下 → `status: halted_score_decline`
 2. `references/question-bank.md` 行数上限 3000 行超過 → `status: halted_capacity`
-3. halt 時は `output/<hint>/question-bank.snapshot.md` を保持し、`python3 plugins/skill-intake/scripts/update_question_bank.py --rollback <hint>` で復元可能
+3. halt 時は `output/<hint>/question-bank.snapshot.md` を保持し、`python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/update_question_bank.py --rollback <hint>` で復元可能
 
 `measure_value_realized.py --history <self-update.json>` で `previous_scores` と `declining` フラグを返し、self-updater がこの判定に使う。

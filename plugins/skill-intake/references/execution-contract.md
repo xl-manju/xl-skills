@@ -7,7 +7,7 @@ type: reference
 # 実行環境契約 (Execution Contract)
 
 `plugins/skill-intake/scripts/*.py` は以下 4 経路で**同一コマンド・同一引数・同一終了コード**で動く。
-SubAgent から `python3 plugins/skill-intake/scripts/<name>.py ...` と書かれている箇所はすべてこの契約に従う。
+SubAgent から `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/<name>.py ...` と書かれている箇所はすべてこの契約に従う。
 
 ## 前提条件
 
@@ -24,8 +24,8 @@ SubAgent から `python3 plugins/skill-intake/scripts/<name>.py ...` と書か�
 | 経路 | 起動方法 | コマンド例 |
 |---|---|---|
 | Claude Code (Bash ツール) | agent の `allowed-tools: Bash` から | `python3 "$CLAUDE_PLUGIN_ROOT/scripts/quality_gate.py" output/foo/intake.json` |
-| Claude Code (`!` プレフィックス) | ユーザーがチャット欄に `!` を付ける | `!python3 plugins/skill-intake/scripts/keychain_get_secret.py --check` |
-| Codex (自然文 / exec) | shell ツール / `codex exec "..."` | `codex exec "python3 plugins/skill-intake/scripts/verify_notion_schema.py"` |
+| Claude Code (`!` プレフィックス) | ユーザーがチャット欄に `!` を付ける | `!python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check` |
+| Codex (自然文 / exec) | shell ツール / `codex exec "..."` | `codex exec "python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/verify_notion_schema.py"` |
 | 手動 CLI | ターミナル直叩き (shebang あり) | `./plugins/skill-intake/scripts/cross_check.py intake.json intake.md` |
 | Bash hook (`PreToolUse`) | `plugin.json` で配線 | `pre-publish-secret-scrub.sh` が `output/` を走査 |
 
