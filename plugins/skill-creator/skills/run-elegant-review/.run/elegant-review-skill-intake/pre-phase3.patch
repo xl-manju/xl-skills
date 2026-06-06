@@ -1,0 +1,1065 @@
+diff --git a/Makefile b/Makefile
+index 6acdf1d..b3db94e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -2,7 +2,7 @@
+ # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
+ # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
+ 
+-.PHONY: sync sync-check lint plugin-package-check test help
++.PHONY: sync sync-check lint plugin-package-check contract-intake test help
+ 
+ ## sync: creator-kit/skills/ を .claude/skills/ に同期する（--apply）
+ sync:
+@@ -12,17 +12,21 @@ sync:
+ sync-check:
+ 	bash scripts/sync-skills-to-claude.sh --check
+ 
+-## lint: スキル lint 一式を実行する
+-lint:
++## lint: スキル lint 一式 + skill-intake contract test を実行する
++lint: contract-intake
+ 	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
+ 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
+ 	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+ 
++## contract-intake: skill-intake の enum SSOT / 軸分離 / 二重定義検出 contract test
++contract-intake:
++	python3 scripts/contract-intake-enum-ssot.py
++
+ ## plugin-package-check: plugin package completeness check を実行する
+ plugin-package-check:
+ 	python3 scripts/validate-plugin-package.py
+ 
+-## test: sync-check + lint + plugin-package-check + gate-phase0 を順に実行する
++## test: sync-check + lint (contract-intake 含む) + plugin-package-check + gate-phase0 を順に実行する
+ test: sync-check lint plugin-package-check
+ 	python3 scripts/gate-phase0.py
+ 
+diff --git a/plugins/skill-creator/scripts/notion_config.py b/plugins/skill-creator/scripts/notion_config.py
+index 463922a..3472c12 100644
+--- a/plugins/skill-creator/scripts/notion_config.py
++++ b/plugins/skill-creator/scripts/notion_config.py
+@@ -118,22 +118,35 @@ def warn_missing(stream=sys.stderr) -> None:
+     )
+ 
+ 
+-def require_or_skip(key: str = "") -> tuple[Optional[dict], Optional[str]]:
+-    """便利関数: (cfg, token) を返す。どちらか欠ければ警告して (None, None)。
++def require_or_skip(key: str = "", allow_skip: bool = False) -> tuple[Optional[dict], Optional[str]]:
++    """便利関数: (cfg, token) を返す。
+ 
+-    呼び出し側は `if not cfg: return 0` で exit 0 スキップする。
++    fail-closed (デフォルト): config / token / db_id のいずれかが欠ければ stderr に理由を出し
++    **exit 2 で停止**する (silent-skip 禁止 / 「出力しない条件を厳格化」)。これにより未設定のまま
++    publish が黙ってスキップされ、ヒアリング→skill 生成へ横流れする逸脱を封じる。
++
++    fail-open (明示緩和): `allow_skip=True` (CI smoke / 開発者の dry-run 用) の時のみ、欠落時に
++    警告して (None, None) を返す。呼び出し側は緩和時のみ `if not cfg: return 0` でスキップする。
+     """
++    def _missing(reason: str) -> tuple[Optional[dict], Optional[str]]:
++        if allow_skip:
++            sys.stderr.write(f"[notion_config] WARN (allow-skip): {reason}. Skipped.\n")
++            return None, None
++        sys.stderr.write(
++            f"[notion_config] FATAL: {reason}. "
++            f"必須 Notion 設定が不在のため停止します (緩和には allow_skip=True が必要)。\n"
++        )
++        sys.exit(2)
++
+     cfg = load_config()
+     if not cfg:
+         warn_missing()
+-        return None, None
++        return _missing(f"{CONFIG_FILENAME} not found under repo-root")
+     tok = get_token(cfg)
+     if not tok:
+-        sys.stderr.write("[notion_config] WARN: Notion token unavailable (env NOTION_TOKEN or Keychain). Skipped.\n")
+-        return None, None
++        return _missing("Notion token unavailable (env NOTION_TOKEN or Keychain)")
+     if key and not get_db_id(key):
+-        sys.stderr.write(f"[notion_config] WARN: databases.{key}.db_id missing in {cfg['__path__']}. Skipped.\n")
+-        return None, None
++        return _missing(f"databases.{key}.db_id missing in {cfg['__path__']}")
+     return cfg, tok
+ 
+ 
+diff --git a/plugins/skill-intake/agents/skill-intake-next-action-advisor.md b/plugins/skill-intake/agents/skill-intake-next-action-advisor.md
+index 4d3569a..0fca21f 100644
+--- a/plugins/skill-intake/agents/skill-intake-next-action-advisor.md
++++ b/plugins/skill-intake/agents/skill-intake-next-action-advisor.md
+@@ -36,7 +36,7 @@ model: sonnet
+ - 非担当: ヒアリング (Phase 4) / 5 軸要約 (R8) / Markdown 正本生成と JSON 副本作成 (R10 handoff) / Notion 公開 (R11)。
+ 
+ ### 2.2 ドメインルール
+-- パターン定義: A=完全新規 / B=既存類似 80%+ / C=プロンプト改善のみ / D=マルチスキル分離疑い / E=判定不能。
++- mode 定義 (スキル生成方針軸): A=完全新規 / B=既存類似 80%+ / C=プロンプト改善のみ / D=マルチスキル分離疑い / E=判定不能。この A-E は notion-db-schema.json のパターン軸 (ライフサイクル) およびワークフロー軸 (種別) とは独立した分類である。
+ - D 判定時の split_candidates は最大 3 件。
+ - 判定ロジックは pattern-recognition-rules.md のルール群に従う。
+ 
+diff --git a/plugins/skill-intake/commands/intake-publish.md b/plugins/skill-intake/commands/intake-publish.md
+index 79969f5..dea6884 100644
+--- a/plugins/skill-intake/commands/intake-publish.md
++++ b/plugins/skill-intake/commands/intake-publish.md
+@@ -12,7 +12,7 @@ argument-hint: "<skill-name-hint>"
+ 
+ 1. `Skill(run-notion-intake-publish, args="$ARGUMENTS")` を呼ぶ。
+ 2. Keychain → トークン取得 → DB スキーマ検証 → PNG 検証 → REST API ページ作成 → URL 保存。
+-3. 既存ページがある場合は追記モード (PATCH children)。新規作成は `--mode=new` を明示。
++3. create/update は冪等 upsert で自動判定する: `notion-publish-result.json` に page_id があれば update mode (同一ページを PATCH、再公開で新規ページを増やさない)、無ければ create mode (POST /pages → page_id を result に書き戻し永続化)。`--mode` 引数は廃止済みで手動指定は不要。
+ 
+ ## 用途
+ 
+diff --git a/plugins/skill-intake/commands/intake.md b/plugins/skill-intake/commands/intake.md
+index b54011d..9aa65d5 100644
+--- a/plugins/skill-intake/commands/intake.md
++++ b/plugins/skill-intake/commands/intake.md
+@@ -11,7 +11,7 @@ argument-hint: "[topic]"
+ ## 振る舞い
+ 
+ 1. `Skill(run-skill-intake-aggregator, args="$ARGUMENTS")` を呼ぶ。
+-2. スキル側の 11 phase / 12 SubAgent (skill-intake-kickoff → … → skill-intake-self-updater。Phase 4 は interviewer ⇄ purpose-excavator のペア稼働) が順次起動する。
++2. スキル側の 11 phase / 12 SubAgent (skill-intake-kickoff → … → skill-intake-self-updater。handoff-contract.md の DAG が正本: interviewer=Phase 1 / purpose-excavator=Phase 2 で、Phase 1→2 へ sheet.md を介して連鎖する) が順次起動する。
+ 3. Gate A (summarizer) でユーザー承認を得てから Notion 公開に進む。
+ 4. 完了後、Markdown 正本 / JSON 副本 / Notion URL のパスを返す。
+ 
+diff --git a/plugins/skill-intake/fixtures/intake-final-smoke/context.json b/plugins/skill-intake/fixtures/intake-final-smoke/context.json
+index 8f491d5..413f3a6 100644
+--- a/plugins/skill-intake/fixtures/intake-final-smoke/context.json
++++ b/plugins/skill-intake/fixtures/intake-final-smoke/context.json
+@@ -468,6 +468,7 @@
+       }
+     ]
+   },
++  "section_diagrams": {},
+   "notion_db_properties": {
+     "名前": "info-collector-agent",
+     "ステータス": "Gate A承認済み",
+diff --git a/plugins/skill-intake/hooks/pre-publish-schema-validate.py b/plugins/skill-intake/hooks/pre-publish-schema-validate.py
+index 004dc80..d2d6215 100644
+--- a/plugins/skill-intake/hooks/pre-publish-schema-validate.py
++++ b/plugins/skill-intake/hooks/pre-publish-schema-validate.py
+@@ -60,17 +60,32 @@ def main() -> int:
+     if not any(t in command for t in TARGET_COMMANDS):
+         return 0
+ 
++    # publish 経路の本体 (publish_notion_page.py / pipeline) は intake.json を --intake で必須に取る。
++    # render_notion_page.py は --ctx で context を取り intake.json 検証対象でないため、
++    # --intake フラグの有無で「検証対象か」を判別する (無関係な Bash を巻き込まない配慮)。
++    declares_intake = re.search(r"--intake(?:-file)?[= ]", command) is not None
++
+     intake_path_str = _extract_intake_path(command)
+     if not intake_path_str:
+-        return 0  # publish_notion_page.py が引数経由でない場合は pass-through
++        if declares_intake:
++            # 検証対象 (--intake 宣言あり) なのにパスを抽出できない = fail-open 化を防ぐため block。
++            print(
++                "BLOCK: --intake declared but intake.json path not extractable; "
++                "schema validation cannot be skipped silently.",
++                file=sys.stderr,
++            )
++            return 2
++        return 0  # --intake を取らない経路 (render --ctx 等) は検証対象外で pass-through
+ 
+     intake_path = Path(intake_path_str)
+     if not intake_path.is_absolute():
+         intake_path = (PROJECT_ROOT / intake_path).resolve()
+ 
+     if not intake_path.exists():
+-        print(f"WARN: intake.json not found at {intake_path} (skip)", file=sys.stderr)
+-        return 0
++        # 検証対象として明示されたファイルが存在しない = 素通りさせず block (fail-closed)。
++        print(f"BLOCK: intake.json declared for publish but not found at {intake_path}",
++              file=sys.stderr)
++        return 2
+ 
+     if not VALIDATOR.exists():
+         print(f"ERROR: validator missing at {VALIDATOR}", file=sys.stderr)
+diff --git a/plugins/skill-intake/scripts/check_completeness.py b/plugins/skill-intake/scripts/check_completeness.py
+index 3fc155b..cb68e35 100755
+--- a/plugins/skill-intake/scripts/check_completeness.py
++++ b/plugins/skill-intake/scripts/check_completeness.py
+@@ -7,6 +7,14 @@ import sys
+ 
+ AXES = ['output_target', 'info_source', 'share_target', 'true_problem', 'knowledge_assets']
+ AXIS_FALLBACK = {'output_target': 'output_destination'}
++# v2 five_axes.rows[] の日本語 name → 内部 key (validate_intake / convert_v1_to_v2_context と一致)。
++AXIS_JA_TO_KEY = {
++    '出力先': 'output_target',
++    '情報源': 'info_source',
++    '共有相手': 'share_target',
++    '真の課題': 'true_problem',
++    'ナレッジ資産': 'knowledge_assets',
++}
+ PLACEHOLDER_PATTERNS = [
+     re.compile(r'\bTBD\b', re.IGNORECASE),
+     re.compile(r'未定'),
+@@ -24,9 +32,28 @@ def axis_value_text(v):
+         return v
+     if isinstance(v, dict) and isinstance(v.get('answer'), str):
+         return v['answer']
++    if isinstance(v, dict) and isinstance(v.get('content'), str):
++        return v['content']
+     return None
+ 
+ 
++def normalize_axes(intake):
++    """v1 flat (5_axes.output_target) と v2 (five_axes.rows[]) を {key: text} に正規化。"""
++    raw = (intake.get('5_axes') if isinstance(intake, dict) else None) or \
++        (intake.get('five_axes') if isinstance(intake, dict) else None) or {}
++    rows = raw.get('rows') if isinstance(raw, dict) else None
++    if isinstance(rows, list):
++        flat = {}
++        for row in rows:
++            if not isinstance(row, dict):
++                continue
++            key = AXIS_JA_TO_KEY.get(str(row.get('name', '')).strip())
++            if key:
++                flat[key] = axis_value_text(row)
++        return flat
++    return raw if isinstance(raw, dict) else {}
++
++
+ def is_placeholder(s):
+     if not isinstance(s, str):
+         return True
+@@ -37,8 +64,7 @@ def is_placeholder(s):
+ 
+ 
+ def check(intake):
+-    axes = (intake.get('5_axes') if isinstance(intake, dict) else None) or \
+-        (intake.get('five_axes') if isinstance(intake, dict) else None) or {}
++    axes = normalize_axes(intake)
+     filled = {}
+     placeholders = []
+     count = 0
+diff --git a/plugins/skill-intake/scripts/intake_publish_pipeline.py b/plugins/skill-intake/scripts/intake_publish_pipeline.py
+index ac5720f..5585d2e 100755
+--- a/plugins/skill-intake/scripts/intake_publish_pipeline.py
++++ b/plugins/skill-intake/scripts/intake_publish_pipeline.py
+@@ -2,9 +2,11 @@
+ """render → quality_gate → publish を単一 entry に統合する orchestrator。"""
+ 
+ import argparse
++import json
+ import os
+ import subprocess
+ import sys
++import time
+ from pathlib import Path
+ 
+ SCRIPT_DIR = Path(__file__).resolve().parent
+@@ -52,18 +54,23 @@ def main():
+     gate_path = os.path.abspath(args.gate_out) if args.gate_out else None
+ 
+     # Step 1: render
++    # render の出力先は常に --out (= blocks_path)。manifest は参考入力であり、
++    # blocks で上書き破壊しない (確定バグ: 旧コードは位置引数3つを渡し manifest を破壊していた)。
+     render_script = SCRIPT_DIR / 'render_notion_page.py'
++    render_argv = ['--ctx', intake_path, '--out', blocks_path]
+     if args.manifest:
+-        manifest_path = os.path.abspath(args.manifest)
+-        render_status = run('render', render_script, [intake_path, manifest_path, blocks_path])
+-    else:
+-        render_status = run('render', render_script, [intake_path], capture_stdout_to=blocks_path)
++        render_argv += ['--manifest', os.path.abspath(args.manifest)]
++    render_status = run('render', render_script, render_argv)
+     if render_status != 0:
+         sys.stderr.write(f'[pipeline] render failed (exit {render_status})\n')
+         return render_status
+ 
+     # Step 2: quality_gate
++    # --database-id を gate にも渡し、指定 DB と解決 DB の一致を publish 前に検査する
++    # (db_match。渡さないと check_db_match が skip され別DB出力を検出できない)。
+     gate_argv = ['--intake', intake_path, '--blocks', blocks_path]
++    if args.database_id:
++        gate_argv += ['--database-id', args.database_id]
+     if gate_path:
+         gate_argv += ['--out', gate_path]
+     gate_status = run('quality_gate', SCRIPT_DIR / 'quality_gate.py', gate_argv)
+@@ -71,13 +78,49 @@ def main():
+         sys.stderr.write(f'[pipeline] quality_gate failed (exit {gate_status})\n')
+         return gate_status
+ 
+-    # Step 3: publish
+-    pub_argv = ['--intake', intake_path, '--blocks', blocks_path]
++    # Step 3: publish (stdout に publish 結果 JSON を出すので捕捉して result ファイルへ書き戻す)
++    result_path = os.path.join(out_dir, 'notion-publish-result.json')
++    url_path = os.path.join(out_dir, 'notion-url.txt')
++    log_path = os.path.join(out_dir, 'notion-log.json')
++
++    pub_argv = ['--intake', intake_path, '--blocks', blocks_path,
++                '--result-out', result_path]
+     if args.database_id:
+         pub_argv += ['--database-id', args.database_id]
+     if args.dry_run:
+         pub_argv.append('--dry-run')
+-    pub_status = run('publish', SCRIPT_DIR / 'publish_notion_page.py', pub_argv)
++    cmd = [sys.executable, str(SCRIPT_DIR / 'publish_notion_page.py'), *pub_argv]
++    sys.stderr.write(f'[pipeline] publish: python3 publish_notion_page.py {" ".join(pub_argv)}\n')
++    proc = subprocess.run(cmd, stdout=subprocess.PIPE)
++    pub_status = proc.returncode if proc.returncode is not None else 1
++    stdout_text = proc.stdout.decode('utf-8', errors='replace') if proc.stdout else ''
++    sys.stderr.write(stdout_text)
++
++    # silent-fail 禁止: 成否に関わらず notion-log.json / notion-url.txt を書く
++    # (republish-contract.md 不変条件 4 / SKILL.md 完了チェック #2,#3)。
++    result = {}
++    try:
++        result = json.loads(stdout_text) if stdout_text.strip() else {}
++    except Exception:
++        result = {}
++    page_url = result.get('url') or ''
++    status = 'published' if (pub_status == 0 and page_url) else 'failed'
++    if not args.dry_run:
++        try:
++            with open(url_path, 'w', encoding='utf-8') as f:
++                f.write((page_url + '\n') if page_url else '')
++            with open(log_path, 'w', encoding='utf-8') as f:
++                json.dump({
++                    'status': status,
++                    'exit_code': pub_status,
++                    'page_id': result.get('id'),
++                    'url': page_url,
++                    'mode': result.get('mode'),
++                    'logged_at': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
++                }, f, ensure_ascii=False, indent=2)
++        except Exception as e:
++            sys.stderr.write(f'[pipeline] notion-url/log write error: {e}\n')
++
+     if pub_status != 0:
+         sys.stderr.write(f'[pipeline] publish failed (exit {pub_status})\n')
+         return pub_status
+diff --git a/plugins/skill-intake/scripts/publish_notion_page.py b/plugins/skill-intake/scripts/publish_notion_page.py
+index e617cd9..54cac73 100755
+--- a/plugins/skill-intake/scripts/publish_notion_page.py
++++ b/plugins/skill-intake/scripts/publish_notion_page.py
+@@ -68,79 +68,33 @@ def derive_ja_title(intake):
+ 
+ 
+ def build_properties(intake, args):
+-    """実際の Notion DB スキーマに合わせたプロパティ送信。
+-    DB プロパティ (2026-05-23 実測):
+-      名前(title), ステータス(select), パターン(select), 真の課題(rich_text),
+-      ナレッジ資産(rich_text), 出力先(rich_text), 情報源(rich_text), 共有相手(rich_text),
+-      ユーザープロファイル(rich_text), 未解決事項(rich_text),
+-      外部連携(multi_select), 図解枚数(number), 価値実現スコア(number),
+-      スキル作成完了(checkbox),
+-      作成日時(created_time - 自動), 更新日時(last_edited_time - 自動), 担当者(people - 省略)
++    """Notion へ送る DB プロパティ集合。
++
++    SSOT: render_notion_page.project_db_properties を唯一の projection 経路として再利用する。
++    これにより「render が出すプロパティ集合 = publish が送る集合 = notion-db-schema.json の定義」
++    が構造的に一致する (三系統分裂の封じ込め)。値の正本は intake (= context) の
++    notion_db_properties (intake-final-schema.json#/properties/notion_db_properties)。
++
++    render と同経路を通すため、ここでは context をそのまま渡す。derive_ja_title 等の
++    旧フォールバックは notion_db_properties.名前 が未設定の場合のみ補完する。
+     """
+-    axes = intake.get('five_axes') or intake.get('5_axes') or {}
+-    true_problem_short = truncate(axis_text(axes.get('true_problem')), MAX_TRUE_PROBLEM_LEN)
+-
+-    # meta / notion_db_properties からデータ取得
+-    meta = intake.get('meta', {})
+-    ndp = intake.get('notion_db_properties', {})
+-    # 日本語タイトル優先（一目で何のスキルか分かるように）。なければ英語スラッグへフォールバック。
+-    skill_name = (
+-        derive_ja_title(intake)
+-        or meta.get('skill_name_hint')
+-        or ndp.get('名前')
+-        or intake.get('skill_name_hint')
+-        or 'untitled'
+-    )
+-    status = ndp.get('ステータス') or intake.get('status') or '下書き'
+-    pattern_val = meta.get('pattern_code') or ndp.get('パターン') or intake.get('pattern') or 'A'
+-
+-    # 5軸テキスト
+-    output_dest = axis_text(axes.get('output_target') or axes.get('output_destination'))
+-    info_source = axis_text(axes.get('info_source'))
+-    share_target = axis_text(axes.get('share_target'))
+-
+-    # ナレッジ資産
+-    knowledge_assets = axis_text(axes.get('knowledge_assets'))
+-
+-    # ユーザープロファイル
+-    up = intake.get('user_profile')
+-    up_text = up if isinstance(up, str) else (json.dumps(up, ensure_ascii=False) if up else '')
+-
+-    # 未解決事項
+-    oq = intake.get('open_questions') or []
+-    oq_items = []
+-    for q in oq:
+-        if isinstance(q, dict):
+-            oq_items.append(q.get('question', str(q)))
+-        else:
+-            oq_items.append(str(q))
+-    oq_text = truncate('; '.join(oq_items), MAX_RT)
+-
+-    # 図解枚数
+-    figs = intake.get('figures', {})
+-    viz_count = len(figs.get('entries', [])) if isinstance(figs, dict) else 0
+-
+-    # 価値実現スコア
+-    score = meta.get('value_realized_score') or ndp.get('value_realized_score') or 0
+-
+-    props = {
+-        '名前': {'title': rt(skill_name)},
+-        'ステータス': {'select': {'name': status}},
+-        'パターン': {'select': {'name': pattern_val}},
+-        '真の課題': {'rich_text': rt(true_problem_short)},
+-        'ナレッジ資産': {'rich_text': rt(truncate(knowledge_assets, MAX_RT))},
+-        '出力先': {'rich_text': rt(truncate(output_dest, MAX_RT))},
+-        '情報源': {'rich_text': rt(truncate(info_source, MAX_RT))},
+-        '共有相手': {'rich_text': rt(truncate(share_target, MAX_RT))},
+-        '図解枚数': {'number': viz_count} if viz_count > 0 else {'number': None},
+-        '価値実現スコア': {'number': int(score)} if score else {'number': None},
+-    }
+-    if up_text.strip():
+-        props['ユーザープロファイル'] = {'rich_text': rt(truncate(up_text, MAX_RT))}
+-    if oq_text.strip():
+-        props['未解決事項'] = {'rich_text': rt(oq_text)}
+-    # 作成日時/更新日時 は Notion 自動。担当者は people 型で省略。
+-    return props
++    from render_notion_page import project_db_properties
++
++    ndp = intake.get('notion_db_properties')
++    if not isinstance(ndp, dict):
++        ndp = {}
++    # 名前が空なら日本語タイトル導出 → skill_name_hint へフォールバック (空 title 禁止)。
++    if not str(ndp.get('名前') or '').strip():
++        ndp = dict(ndp)
++        ndp['名前'] = (
++            derive_ja_title(intake)
++            or (intake.get('meta', {}) or {}).get('skill_name_hint')
++            or intake.get('skill_name_hint')
++            or 'untitled'
++        )
++        intake = dict(intake)
++        intake['notion_db_properties'] = ndp
++    return project_db_properties(intake)
+ 
+ 
+ def _rt_block(kind, text):
+@@ -201,11 +155,72 @@ def build_extra_body_blocks(intake, args):
+     return out
+ 
+ 
++def _read_existing_page_id(result_path):
++    """notion-publish-result.json から既存 page_id を読む。無ければ None (= 新規作成)。"""
++    if not result_path:
++        return None
++    p = Path(result_path)
++    if not p.exists():
++        return None
++    try:
++        with open(p, 'r', encoding='utf-8') as f:
++            data = json.load(f)
++        pid = data.get('page_id') or data.get('id')
++        return pid or None
++    except Exception as e:
++        # 読めない result は破損とみなし fail-closed せず create に倒すが、可視化はする。
++        print(f'[publish_notion_page] result read warn ({result_path}): {e}', file=sys.stderr)
++        return None
++
++
++def _write_result(result_path, page_id, page_url, mode, database_id):
++    """page_id を idempotency-key として永続化。後続 gate が参照する確定スキーマ。"""
++    if not result_path:
++        return
++    import time
++    payload = {
++        'page_id': page_id,
++        'url': page_url,
++        'database_id': database_id,
++        'mode': mode,
++        'published_at': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
++    }
++    try:
++        Path(result_path).parent.mkdir(parents=True, exist_ok=True)
++        with open(result_path, 'w', encoding='utf-8') as f:
++            json.dump(payload, f, ensure_ascii=False, indent=2)
++    except Exception as e:
++        print(f'[publish_notion_page] result write failed ({result_path}): {e}', file=sys.stderr)
++
++
++def _clear_children(notion_fetch, page_id):
++    """既存ページの直下 children を全 archive (差し替え前のクリア)。
++    Notion API は一括置換を持たないため、ページング取得しつつ個別 delete する。"""
++    cursor = None
++    block_ids = []
++    while True:
++        path = f'/blocks/{page_id}/children?page_size=100'
++        if cursor:
++            path += f'&start_cursor={cursor}'
++        res = notion_fetch(path, method='GET')
++        for b in res.get('results', []):
++            if b.get('id'):
++                block_ids.append(b['id'])
++        if res.get('has_more') and res.get('next_cursor'):
++            cursor = res['next_cursor']
++        else:
++            break
++    for bid in block_ids:
++        notion_fetch(f'/blocks/{bid}', method='DELETE')
++
++
+ def main():
+     parser = argparse.ArgumentParser()
+     parser.add_argument('--intake', required=False)
+     parser.add_argument('--blocks', required=False)
+     parser.add_argument('--database-id', dest='database_id')
++    parser.add_argument('--result-out', dest='result_out',
++                        help='page_id を冪等に保存/参照する notion-publish-result.json のパス')
+     parser.add_argument('--dry-run', dest='dry_run', action='store_true')
+     args = parser.parse_args()
+ 
+@@ -226,42 +241,38 @@ def main():
+         print('--blocks must contain a non-empty children array', file=sys.stderr)
+         return 2
+ 
+-    schema_path = SCRIPT_DIR.parent / 'skills' / 'run-skill-intake-aggregator' / 'references' / 'notion-db-schema.json'
+-    schema_default = None
+-    if schema_path.exists():
+-        try:
+-            with open(schema_path, 'r', encoding='utf-8') as f:
+-                schema_default = json.load(f).get('database_id_default')
+-        except Exception:
+-            schema_default = None
+-    # 4段 fallback: --database-id > env > .notion-config.json > schema.database_id_default
+-    repo_cfg_db_id = None
++    # ===== DB ID 解決の単一経路 (SSOT) =====
++    # 解決順: --database-id (明示最優先) → notion_config.get_db_id('hearing-sheet')。
++    # notion_config が env (INTAKE_NOTION_DATABASE_ID) と <repo-root>/.notion-config.json を
++    # 一元解決する唯一の経路。import 失敗は silent にせず可視化して fail-closed (exit 2)。
++    # 旧 4 段 fallback / schema.database_id_default は廃止 (分裂源だったため)。
++    sys.path.insert(0, str(SCRIPT_DIR))
+     try:
+-        sys.path.insert(0, str(SCRIPT_DIR))
+-        import notion_config as _nc  # noqa
+-        repo_cfg_db_id = _nc.get_db_id('hearing-sheet')
+-    except Exception:
+-        pass
++        import notion_config as _nc
++    except Exception as e:
++        print(f'[publish_notion_page] notion_config import failed: {e}. '
++              f'symlink plugins/skill-intake/scripts/notion_config.py -> skill-creator/scripts/notion_config.py '
++              f'を確認してください。', file=sys.stderr)
++        return 2
++
+     if args.database_id:
+         database_id, db_id_source = args.database_id, 'arg'
+-    elif os.environ.get('INTAKE_NOTION_DATABASE_ID'):
+-        database_id, db_id_source = os.environ['INTAKE_NOTION_DATABASE_ID'], 'env'
+-    elif repo_cfg_db_id:
+-        database_id, db_id_source = repo_cfg_db_id, 'repo_config'
+-    elif schema_default:
+-        database_id, db_id_source = schema_default, 'schema_default'
+     else:
+-        database_id, db_id_source = None, None
++        database_id = _nc.get_db_id('hearing-sheet')
++        db_id_source = 'notion_config' if database_id else None
+     if not database_id:
+-        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, <repo-root>/.notion-config.json#databases.hearing-sheet, or schema database_id_default). See plugins/skill-creator/references/notion-per-repo-setup.md', file=sys.stderr)
++        print('database_id is required (--database-id, or INTAKE_NOTION_DATABASE_ID / '
++              '<repo-root>/.notion-config.json#databases.hearing-sheet via notion_config). '
++              'See plugins/skill-creator/references/notion-per-repo-setup.md', file=sys.stderr)
+         return 2
+     try:
+         eval_log_dir = Path('eval-log')
+         eval_log_dir.mkdir(parents=True, exist_ok=True)
+         with open(eval_log_dir / 'db-id-resolution.json', 'w', encoding='utf-8') as f:
+             json.dump({'tool': 'publish_notion_page', 'source': db_id_source, 'database_id': database_id}, f, ensure_ascii=False, indent=2)
+-    except Exception:
+-        pass
++    except Exception as e:
++        # silent 禁止: 書込失敗は stderr へ (記録欠落を可視化)。
++        print(f'[publish_notion_page] db-id-resolution.json write failed: {e}', file=sys.stderr)
+ 
+     with open(args.intake, 'r', encoding='utf-8') as f:
+         intake = json.load(f)
+@@ -271,9 +282,16 @@ def main():
+         'properties': build_properties(intake, args),
+         'children': extra_blocks + block_children,
+     }
++
++    # 既存 page_id を解決 (冪等 upsert)。--result-out があればそこから読む。
++    existing_page_id = _read_existing_page_id(args.result_out)
++    mode = 'update' if existing_page_id else 'create'
++
+     if args.dry_run:
+         out = {
+             'dry_run': True,
++            'mode': mode,
++            'page_id': existing_page_id,
+             'parent': body['parent'],
+             'prop_count': len(body['properties']),
+             'children_count': len(body['children']),
+@@ -284,19 +302,36 @@ def main():
+     from notion_http import notion_fetch, NotionHttpError
+     MAX_FIRST = _LIMITS.get('MAX_BLOCKS_PER_APPEND', 100)
+     all_children = body['children']
+-    # Notion API: POST /pages children limit = MAX_FIRST
+-    body['children'] = all_children[:MAX_FIRST]
+-    remaining = all_children[MAX_FIRST:]
+     try:
+-        res = notion_fetch('/pages', method='POST', body=body)
+-        page_id = res.get('id')
+-        page_url = res.get('url')
+-        # Append remaining blocks in chunks
+-        chunk_size = MAX_FIRST
+-        for i in range(0, len(remaining), chunk_size):
+-            chunk = remaining[i:i + chunk_size]
+-            notion_fetch(f'/blocks/{page_id}/children', method='PATCH', body={'children': chunk})
+-        out = {'id': page_id, 'url': page_url, 'created_time': res.get('created_time')}
++        if existing_page_id:
++            # ===== update mode: page_id 不変で PATCH (再公開で新規ページを増やさない) =====
++            page_id = existing_page_id
++            # 1) プロパティ更新
++            notion_fetch(f'/pages/{page_id}', method='PATCH', body={'properties': body['properties']})
++            # 2) 既存 children を全削除 → 新 children を再投入 (差し替え)。
++            #    Notion API は children の一括置換を持たないため archive 個別削除で代替。
++            _clear_children(notion_fetch, page_id)
++            for i in range(0, len(all_children), MAX_FIRST):
++                chunk = all_children[i:i + MAX_FIRST]
++                notion_fetch(f'/blocks/{page_id}/children', method='PATCH', body={'children': chunk})
++            res = notion_fetch(f'/pages/{page_id}', method='GET')
++            page_url = res.get('url')
++            out = {'id': page_id, 'url': page_url, 'mode': 'update',
++                   'last_edited_time': res.get('last_edited_time')}
++        else:
++            # ===== create mode: POST /pages → page_id を result へ書き戻し永続化 =====
++            body['children'] = all_children[:MAX_FIRST]
++            remaining = all_children[MAX_FIRST:]
++            res = notion_fetch('/pages', method='POST', body=body)
++            page_id = res.get('id')
++            page_url = res.get('url')
++            for i in range(0, len(remaining), MAX_FIRST):
++                chunk = remaining[i:i + MAX_FIRST]
++                notion_fetch(f'/blocks/{page_id}/children', method='PATCH', body={'children': chunk})
++            out = {'id': page_id, 'url': page_url, 'mode': 'create',
++                   'created_time': res.get('created_time')}
++        # page_id を idempotency-key として永続化 (次回 update mode の入力)。
++        _write_result(args.result_out, page_id, page_url, out.get('mode'), database_id)
+         print(json.dumps(out, ensure_ascii=False, indent=2))
+         return 0
+     except NotionHttpError as e:
+diff --git a/plugins/skill-intake/scripts/quality_gate.py b/plugins/skill-intake/scripts/quality_gate.py
+index 2820938..3b78005 100755
+--- a/plugins/skill-intake/scripts/quality_gate.py
++++ b/plugins/skill-intake/scripts/quality_gate.py
+@@ -2,12 +2,99 @@
+ """validate / completeness / contradictions + blocks coverage を統合する quality gate。"""
+ 
+ import json
++import os
+ import sys
++from pathlib import Path
+ 
+ from validate_intake import validate
+ from check_completeness import check
+ from detect_contradictions import detect
+ 
++SCRIPT_DIR = Path(__file__).resolve().parent
++# notion-db-schema.json (required プロパティの正本)。aggregator skill 配下。
++SCHEMA_PATH = (
++    SCRIPT_DIR.parent
++    / 'skills' / 'run-skill-intake-aggregator' / 'references' / 'notion-db-schema.json'
++)
++
++
++def _load_required_props():
++    """notion-db-schema.json から required==true のプロパティ名集合を返す。
++    Notion 自動付与 (created_time) は publish が送らないため required から除外。"""
++    try:
++        with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
++            schema = json.load(f)
++    except Exception:
++        return None
++    props = schema.get('properties', {})
++    req = set()
++    for name, spec in props.items():
++        if not (isinstance(spec, dict) and spec.get('required')):
++            continue
++        # created_time は Notion 側が自動付与。publish のプロパティ集合には含まれない。
++        if spec.get('type') == 'created_time':
++            continue
++        req.add(name)
++    return req
++
++
++def check_db_match(intake, requested_db_id):
++    """出力先一致: intake が解決する database_id と指定 (requested) が一致するか。
++    requested が無ければ検査スキップ (ok)。"""
++    if not requested_db_id:
++        return {'ok': True, 'skipped': True, 'reason': 'no requested database_id'}
++    # intake (context) 側が DB を直接持つことは無いため、解決経路 (notion_config) を参照。
++    resolved = None
++    try:
++        sys.path.insert(0, str(SCRIPT_DIR))
++        import notion_config as _nc
++        resolved = _nc.get_db_id('hearing-sheet')
++    except Exception as e:
++        return {'ok': False, 'reason': f'db resolution failed: {e}'}
++    if resolved is None:
++        # 解決不能は検査不能 → fail-closed (出力先未確定で publish させない)。
++        return {'ok': False, 'reason': 'database_id unresolved (config/env missing)',
++                'requested': requested_db_id}
++    ok = (resolved == requested_db_id)
++    return {'ok': ok, 'requested': requested_db_id, 'resolved': resolved,
++            'reason': '' if ok else 'resolved database_id != requested'}
++
++
++def check_property_completeness(intake):
++    """プロパティ完全性: publish が送るプロパティ集合 ⊇ schema.required。
++    送る集合の正本は render_notion_page.project_db_properties (publish と同経路)。"""
++    required = _load_required_props()
++    if required is None:
++        return {'ok': False, 'reason': f'notion-db-schema.json unreadable at {SCHEMA_PATH}'}
++    try:
++        sys.path.insert(0, str(SCRIPT_DIR))
++        from render_notion_page import project_db_properties
++        sent = set(project_db_properties(intake).keys())
++    except Exception as e:
++        return {'ok': False, 'reason': f'project_db_properties failed: {e}'}
++    missing = sorted(required - sent)
++    return {'ok': len(missing) == 0, 'required': sorted(required),
++            'missing': missing,
++            'reason': '' if not missing else f'sent properties missing required: {missing}'}
++
++
++def check_page_id_consistency(result_path, prev_page_id):
++    """page_id 一致 (再公開時): notion-publish-result.json.page_id が前回値と一致。
++    prev_page_id 未指定 (初回 create) は検査スキップ。"""
++    if not prev_page_id:
++        return {'ok': True, 'skipped': True, 'reason': 'initial create (no previous page_id)'}
++    if not result_path or not os.path.exists(result_path):
++        return {'ok': False, 'reason': f'previous page_id given but result file missing: {result_path}'}
++    try:
++        with open(result_path, 'r', encoding='utf-8') as f:
++            data = json.load(f)
++    except Exception as e:
++        return {'ok': False, 'reason': f'result read error: {e}'}
++    cur = data.get('page_id') or data.get('id')
++    ok = (cur == prev_page_id)
++    return {'ok': ok, 'previous': prev_page_id, 'current': cur,
++            'reason': '' if ok else 'page_id changed between publishes (would orphan page)'}
++
+ 
+ def check_blocks(blocks):
+     if isinstance(blocks, dict) and 'children' in blocks:
+@@ -36,16 +123,22 @@ def check_blocks(blocks):
+     return {'ok': len(reasons) == 0, 'total': total, 'mermaid': mermaid, 'h2': h2, 'reasons': reasons}
+ 
+ 
+-def gate(intake):
++def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
+     v = validate(intake)
+     c = check(intake)
+     d = detect(intake)
++    pc = check_property_completeness(intake)
++    dbm = check_db_match(intake, requested_db_id)
++    pid = check_page_id_consistency(result_path, prev_page_id)
+     checks = {
+         'validate_intake': {'ok': v['ok'], 'errors': v['errors']},
+         'check_completeness': {'ok': c['ok'], 'placeholders': c['placeholders'], 'filled_axes': c['filled_axes']},
+         'detect_contradictions': {'ok': d['ok'], 'count': d['count']},
++        'property_completeness': pc,
++        'db_match': dbm,
++        'page_id_consistency': pid,
+     }
+-    ok = v['ok'] and c['ok'] and d['ok']
++    ok = v['ok'] and c['ok'] and d['ok'] and pc['ok'] and dbm['ok'] and pid['ok']
+     return {'status': 'PASS' if ok else 'FAIL', 'checks': checks}
+ 
+ 
+@@ -63,6 +156,9 @@ def parse_flag_args(argv):
+         elif a == '--out':
+             i += 1
+             out['out_file'] = argv[i]
++        elif a == '--database-id':
++            i += 1
++            out['database_id'] = argv[i]
+         else:
+             out['positional'].append(a)
+         i += 1
+@@ -82,7 +178,9 @@ def main(argv):
+     except Exception as e:
+         sys.stderr.write(f'input error: {e}\n')
+         return 2
+-    r = gate(data)
++    # --database-id 指定時は出力先一致 (check_db_match) を発火させ、指定 DB と
++    # 解決 DB の不一致を publish 前に FAIL させる (逸脱A: 別DB出力の防波堤)。
++    r = gate(data, requested_db_id=args.get('database_id'))
+ 
+     blocks_failed = False
+     if args.get('blocks'):
+diff --git a/plugins/skill-intake/scripts/render_notion_page.py b/plugins/skill-intake/scripts/render_notion_page.py
+index e6033da..5fb795c 100755
+--- a/plugins/skill-intake/scripts/render_notion_page.py
++++ b/plugins/skill-intake/scripts/render_notion_page.py
+@@ -371,11 +371,33 @@ def render(ctx):
+ 
+ 
+ def main(argv):
+-    if len(argv) < 2:
+-        sys.stderr.write('usage: render_notion_page.py <intake-final-context.json> [out.json]\n')
++    """render エントリ。
++
++    呼び出し規約 (argparse 化 / 位置引数も後方互換維持):
++      render_notion_page.py <ctx.json> [out.json]
++      render_notion_page.py --ctx <ctx.json> --out <blocks.json> [--manifest <manifest.json>]
++
++    pipeline は `--ctx <intake> --out <blocks> [--manifest <manifest>]` を渡す。
++    `--manifest` は描画の参考入力 (アセット情報) であり、レンダ結果 (blocks) の出力先は
++    必ず `--out`。manifest を blocks で上書き破壊しないことが本シグネチャの不変条件。
++    """
++    import argparse
++    parser = argparse.ArgumentParser(add_help=True)
++    parser.add_argument('ctx_pos', nargs='?', help='intake-final-context.json (位置引数, 後方互換)')
++    parser.add_argument('out_pos', nargs='?', help='out blocks.json (位置引数, 後方互換)')
++    parser.add_argument('--ctx', dest='ctx_opt')
++    parser.add_argument('--out', dest='out_opt')
++    parser.add_argument('--manifest', dest='manifest')
++    ns = parser.parse_args(argv[1:])
++
++    ctx_file = ns.ctx_opt or ns.ctx_pos
++    out_file = ns.out_opt or ns.out_pos
++    if not ctx_file:
++        sys.stderr.write('usage: render_notion_page.py <ctx.json> [out.json] | --ctx C --out O [--manifest M]\n')
++        return 2
++    if ns.manifest and not os.path.exists(ns.manifest):
++        sys.stderr.write(f'--manifest not found: {ns.manifest}\n')
+         return 2
+-    ctx_file = argv[1]
+-    out_file = argv[2] if len(argv) > 2 else None
+     try:
+         with open(ctx_file, 'r', encoding='utf-8') as f:
+             ctx = json.load(f)
+diff --git a/plugins/skill-intake/scripts/validate_intake.py b/plugins/skill-intake/scripts/validate_intake.py
+index bcbf3ae..0dc9071 100755
+--- a/plugins/skill-intake/scripts/validate_intake.py
++++ b/plugins/skill-intake/scripts/validate_intake.py
+@@ -7,6 +7,17 @@ import sys
+ REQUIRED_AXES = ['output_target', 'info_source', 'share_target', 'true_problem', 'knowledge_assets']
+ AXIS_FALLBACK = {'output_target': 'output_destination'}
+ 
++# v2 構造 (render_notion_page context / convert_v1_to_v2_context の出力) では
++# five_axes.rows[] が日本語 name + content を持つ。v1 の flat dict (5_axes.output_target)
++# と相互変換するための JA name → 内部 key マッピング (convert_v1_to_v2_context と一致)。
++AXIS_JA_TO_KEY = {
++    '出力先': 'output_target',
++    '情報源': 'info_source',
++    '共有相手': 'share_target',
++    '真の課題': 'true_problem',
++    'ナレッジ資産': 'knowledge_assets',
++}
++
+ 
+ def axis_value_text(v):
+     if v is None:
+@@ -15,20 +26,51 @@ def axis_value_text(v):
+         return v
+     if isinstance(v, dict) and isinstance(v.get('answer'), str):
+         return v['answer']
++    if isinstance(v, dict) and isinstance(v.get('content'), str):
++        return v['content']
+     return None
+ 
+ 
++def normalize_axes(intake):
++    """v1 flat (5_axes.output_target=...) と v2 (five_axes.rows[]) を共通の
++    {key: text} dict に正規化する。後方互換: v1 構造はそのまま通す。"""
++    raw = intake.get('5_axes') or intake.get('five_axes')
++    if not isinstance(raw, dict):
++        return None
++    # v2: rows[] を持つ場合は JA name → key へ畳み込む
++    rows = raw.get('rows')
++    if isinstance(rows, list):
++        flat = {}
++        for row in rows:
++            if not isinstance(row, dict):
++                continue
++            key = AXIS_JA_TO_KEY.get(str(row.get('name', '')).strip())
++            if key:
++                flat[key] = axis_value_text(row)
++        return flat
++    # v1: そのまま (output_target などのキーを持つ flat dict)
++    return raw
++
++
++def has_user_profile(intake):
++    """v1 user_profile / v2 profile(.dimensions) のどちらかが存在すれば真。"""
++    if 'user_profile' in intake:
++        return True
++    prof = intake.get('profile')
++    return isinstance(prof, dict) and bool(prof.get('dimensions') or prof)
++
++
+ def validate(intake):
+     errors = []
+     if not isinstance(intake, dict):
+         return {'ok': False, 'errors': ['intake is not an object']}
+     if '5_axes' not in intake and 'five_axes' not in intake:
+         errors.append('missing top-level key: 5_axes (or five_axes)')
+-    if 'user_profile' not in intake:
+-        errors.append('missing top-level key: user_profile')
+-    axes = intake.get('5_axes') or intake.get('five_axes')
+-    if not isinstance(axes, dict):
+-        errors.append('5_axes missing or not an object')
++    if not has_user_profile(intake):
++        errors.append('missing top-level key: user_profile (or profile)')
++    axes = normalize_axes(intake)
++    if axes is None:
++        errors.append('5_axes/five_axes missing or not an object')
+     else:
+         for k in REQUIRED_AXES:
+             fb = AXIS_FALLBACK.get(k)
+diff --git a/plugins/skill-intake/skills/run-intake-next-action/SKILL.md b/plugins/skill-intake/skills/run-intake-next-action/SKILL.md
+index cb91781..5e3a898 100644
+--- a/plugins/skill-intake/skills/run-intake-next-action/SKILL.md
++++ b/plugins/skill-intake/skills/run-intake-next-action/SKILL.md
+@@ -48,6 +48,8 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
+ 
+ **完了条件**: `mode` 確定 + `reason` に判定表行 id 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
+ 
++**必須前提 (precondition gate)**: skill 生成 (`run-skill-create`) へ進む handoff を確定する前に、**Notion 公開完了が必須前提**である。`scripts/decide-mode.py` は `output/<hint>/notion-publish-result.json` が存在し `notion-log.json.status=="published"` (かつ `page_id` 有り) であることを assert し、不成立なら **exit 2** で停止して未公開のまま skill 生成へ横流れさせない (逸脱B封鎖)。CI / dry-run のみ `--allow-skip` で緩和可。
++
+ ## Key Rules
+ 
+ 1. **決定論判定**: `scripts/decide-mode.py` が `references/mode-catalog.md` 判定表から `mode` を導出する。LLM 勘の介在禁止。同点時のみタイブレークで LLM が選び `reason` に記録。
+@@ -56,7 +58,8 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
+ 4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
+ 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
+ 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
+-7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開は非担当)。
++7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開の **実行** は非担当)。ただし Notion 公開「完了」は skill 生成へ進む必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
++8. **Notion 公開完了の precondition 検証**: `decide-mode.py` は handoff 確定前に `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有りを assert する。不成立なら exit 2 で停止 (逸脱B封鎖)。CI/dry-run のみ `--allow-skip` で緩和。
+ 
+ ## ゴールシーク実行
+ 
+@@ -70,6 +73,7 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
+ 
+ ### 完了チェックリスト (Checklist)
+ 
++- [ ] **Notion 公開完了 precondition を充足**: `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有り。不成立なら exit 2 で停止し skill 生成へ進めていない (CI/dry-run のみ `--allow-skip` 緩和)
+ - [ ] `summary.json` / `purpose.json` / `options.json` / `kickoff.json` の 4 入力を Read 済みで、欠落時は exit 3 を返している
+ - [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその行 id を文字列で含めている
+ - [ ] `kickoff.json.pattern` と `mode` が一致時は AskUserQuestion を発行せず `confirmed_with_user=false` のまま、不一致時は AskUserQuestion 1 問で `confirmed_with_user=true` を埋めている
+@@ -100,6 +104,6 @@ Phase 9 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.jso
+ - `references/mode-catalog.md` — A/B/C/D/E と handoff phase の対応表 (drift 防止の正本)
+ - `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
+ - `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
+-- `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out`)
++- `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out` / `--allow-skip`)。冒頭で Notion 公開完了 precondition gate を実行 (不成立=exit 2)
+ - 親スキル: `run-skill-intake-aggregator` (Phase 8→9 委譲元)
+ - 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)
+diff --git a/plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py b/plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py
+index b9bcd24..975fd63 100755
+--- a/plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py
++++ b/plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py
+@@ -1,9 +1,45 @@
+ #!/usr/bin/env python3
+-"""kickoff/purpose/options/summary から mode を機械判定。LLM は呼ばない。"""
+-import argparse, json
++"""kickoff/purpose/options/summary から mode を機械判定。LLM は呼ばない。
++
++precondition gate (逸脱B封鎖): skill 生成 (run-skill-create) へ進む handoff を確定する前に、
++Notion 公開完了を必須前提として検証する。`output/<hint>/notion-publish-result.json` が存在し、
++かつ `notion-log.json.status == "published"` でなければ exit 2 で停止し、未公開のまま skill
++生成へ横流れさせない。CI / dry-run 用に `--allow-skip` 明示時のみ gate を緩和する。
++"""
++import argparse, json, sys
+ from pathlib import Path
+ 
+ 
++PUBLISH_RESULT_NAME = "notion-publish-result.json"
++NOTION_LOG_NAME = "notion-log.json"
++
++
++def check_publish_precondition(out_path: Path):
++    """skill 生成へ進む前提として Notion 公開完了を検証。
++    返り値: (ok: bool, reason: str)。out_path の親 (= output/<hint>/) を SSOT 位置とみなす。"""
++    out_dir = out_path.resolve().parent
++    result_path = out_dir / PUBLISH_RESULT_NAME
++    log_path = out_dir / NOTION_LOG_NAME
++    if not result_path.exists():
++        return False, f"{result_path} が存在しない (Notion 未公開のまま skill 生成へ進めない)"
++    if not log_path.exists():
++        return False, f"{log_path} が存在しない (publish ログ未生成)"
++    try:
++        log = json.loads(log_path.read_text(encoding="utf-8"))
++    except Exception as e:
++        return False, f"{log_path} 読込失敗: {e}"
++    status = log.get("status")
++    if status != "published":
++        return False, f"notion-log.json.status={status!r} (期待: 'published')"
++    try:
++        result = json.loads(result_path.read_text(encoding="utf-8"))
++    except Exception as e:
++        return False, f"{result_path} 読込失敗: {e}"
++    if not (result.get("page_id") or result.get("id")):
++        return False, f"{result_path} に page_id が無い (公開未確定)"
++    return True, "Notion 公開完了を確認 (status=published, page_id 有り)"
++
++
+ def main():
+     p = argparse.ArgumentParser()
+     p.add_argument("--kickoff", required=True)
+@@ -11,7 +47,24 @@ def main():
+     p.add_argument("--options", required=True)
+     p.add_argument("--summary", required=True)
+     p.add_argument("--out", required=True)
++    p.add_argument("--allow-skip", action="store_true",
++                   help="CI/dry-run 用: Notion 公開 precondition gate を緩和 (本番では使わない)")
+     a = p.parse_args()
++
++    # precondition gate: Notion 公開完了が skill 生成の必須前提 (逸脱B封鎖)。
++    ok, reason = check_publish_precondition(Path(a.out))
++    if not ok:
++        if a.allow_skip:
++            sys.stderr.write(
++                f"[decide-mode] WARN: publish precondition 未充足だが --allow-skip により続行: {reason}\n"
++            )
++        else:
++            sys.stderr.write(
++                f"[decide-mode] BLOCK: Notion 公開完了が skill 生成の必須前提です。{reason}\n"
++                f"  先に intake_publish_pipeline.py で Notion 公開を完了させてください。\n"
++                f"  (CI/dry-run のみ --allow-skip で緩和可)\n"
++            )
++            sys.exit(2)
+     kick = json.loads(Path(a.kickoff).read_text(encoding="utf-8"))
+     purp = json.loads(Path(a.purpose).read_text(encoding="utf-8"))
+     summ = json.loads(Path(a.summary).read_text(encoding="utf-8"))
+diff --git a/plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md b/plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md
+index af97e44..c21bb5f 100644
+--- a/plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md
++++ b/plugins/skill-intake/skills/run-skill-intake-aggregator/references/handoff-contract.md
+@@ -153,7 +153,7 @@ Slack ログは本スキルのスコープ外（差別化済み）。
+     },
+     "workflow_pattern": {
+       "enum": ["A", "B", "C", "D", "E"],
+-      "description": "A=対話生成 / B=自動収集配信 / C=対話契約書 / D=分析レポート / E=その他"
++      "description": "スキル種別軸。値の正本ラベルは notion-db-schema.json#/properties/ワークフロー を参照 (A 単体 / B 自動収集配信 / C ナレッジ集約 / D レビュー / E その他)。この A-E は mode 軸 (next-action-advisor のスキル生成方針 A-E) およびパターン軸 (ライフサイクル A-E) とは独立した分類である。二重定義防止のためラベルはここにベタ書きせず正本を単一真実源とする。"
+     },
+     "completed_sheets": {
+       "type": "array",
+diff --git a/plugins/skill-intake/skills/run-skill-intake-aggregator/references/notion-db-schema.json b/plugins/skill-intake/skills/run-skill-intake-aggregator/references/notion-db-schema.json
+index 9090b07..0f88da4 100644
+--- a/plugins/skill-intake/skills/run-skill-intake-aggregator/references/notion-db-schema.json
++++ b/plugins/skill-intake/skills/run-skill-intake-aggregator/references/notion-db-schema.json
+@@ -28,13 +28,14 @@
+       "type": "select",
+       "required": true,
+       "options": ["A", "B", "C", "D", "E"],
+-      "description": "A=新規 / B=改修 / C=統廃合 / D=廃止 / E=分割",
++      "description": "ライフサイクル軸。A=新規 / B=改修 / C=統廃合 / D=廃止 / E=分割。この A-E は mode 軸 (スキル生成方針) およびワークフロー軸 (種別) とは独立した分類である。",
+       "source": "notion_db_properties.パターン"
+     },
+     "ワークフロー": {
+       "type": "select",
+       "required": true,
+       "options": ["A 単体", "B 自動収集配信", "C ナレッジ集約", "D レビュー", "E その他"],
++      "description": "スキル種別軸。これらの値ラベルが正本 (canonical) であり、handoff-contract.md の workflow_pattern enum 説明はここを参照する。この A-E は mode 軸 (スキル生成方針) およびパターン軸 (ライフサイクル) とは独立した分類である。",
+       "source": "notion_db_properties.ワークフロー"
+     },
+     "深度": {

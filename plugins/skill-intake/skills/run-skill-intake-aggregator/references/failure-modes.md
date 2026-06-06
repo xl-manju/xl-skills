@@ -55,7 +55,7 @@ type: reference
 | 項目 | 内容 |
 |------|------|
 | 検出シグナル | フェーズ反復が上限超過、ユーザー疲労兆候 |
-| 対処 | `recommended_next.mode = "verify-only"` に切替。残りは `run-skill-create` で埋める |
+| 対処 | `recommended_next.mode = "verify-only"` に切替。ただし Notion 指定ありの場合は未公開・未一致のまま `run-skill-create` へ渡さず停止する |
 
 ## 5. マジックナンバー欠如
 
@@ -117,7 +117,7 @@ type: reference
 
 ## 反復上限の理由
 
-ユーザー疲労を避けるため、各 SubAgent 内 3 回・フェーズ全体 2 回を上限とする。それでも完了しない場合は **部分完了で `run-skill-create` に渡す**。skill-creator 側でフォロー質問可能。
+ユーザー疲労を避けるため、各 SubAgent 内 3 回・フェーズ全体 2 回を上限とする。それでも完了しない場合は停止して不足項目を提示する。Notion 指定ありの場合、部分完了で `run-skill-create` に渡してはならない。`notion-log.json.status=="published"` と `notion_target.page_id` 一致が確認できるまで skill-creator 側へ進めない。
 
 ## サンプル: 表層要望受領の検出と修正
 

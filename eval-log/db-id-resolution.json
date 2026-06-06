@@ -1,5 +1,5 @@
 {
   "tool": "publish_notion_page",
-  "source": "arg",
-  "database_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"
+  "source": "notion_config",
+  "database_id": "22222222222222222222222222222222"
 }

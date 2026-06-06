@@ -1,0 +1,20 @@
+{
+  "keychain_service": "notion-api-key",
+  "keychain_account": "skill-intake",
+  "parent_page": {
+    "page_id": "<your-parent-page-id>",
+    "page_url": "<your-parent-page-url>"
+  },
+  "databases": {
+    "hearing-sheet": {
+      "db_id": "<your-notion-database-id>"
+    },
+    "skill-list": {
+      "db_id": ""
+    },
+    "improvement-request": {
+      "db_id": ""
+    }
+  },
+  "schema_dir": "plugins/skill-intake/skills/run-skill-intake-aggregator/references"
+}

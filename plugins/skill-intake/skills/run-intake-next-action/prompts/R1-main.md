@@ -26,7 +26,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を確定する。
+- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を確定する。
 - 非担当: skill 本体生成、ヒアリング深掘り、Notion 公開。
 
 ### 2.2 ドメインルール
@@ -77,11 +77,12 @@
 - `@next-action-advisor` (非対話バッチ、確認時のみ AskUserQuestion を 1 回起動、context-fork 不要)
 
 ### 5.2 ゴール定義
-- 目的: 4 入力 (summary / purpose / options / kickoff) から skill-creator 引き渡しモード (A-E) を再現可能に確定する。
+- 目的: Notion 公開完了後に、4 入力 (summary / purpose / options / kickoff) から skill-creator 引き渡しモード (A-E) を再現可能に確定する。
 - 背景: mode が曖昧だと後続 skill-creator が誤起動し、責務分割や生成パスが破綻する。判定の属人化を機構で防ぐ必要がある。
 - 達成ゴール: next-action.json (output.schema.json 準拠) が決定論的に確定し、判定根拠 (reason) とユーザー確認状態 (confirmed_with_user) が機械検証可能な状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] `notion-log.json.status=="published"` かつ `notion-publish-result.json` に page_id があることを確認した。未公開なら exit 2 で停止し、skill-creator へ進めていない
 - [ ] mode が mode-catalog.md 判定表のいずれか 1 行から決定論的に導出されている (LLM 勘の介在ゼロ)
 - [ ] reason に判定表の引いた行 id / 条件が文字列として含まれている
 - [ ] pattern と mode が一致時は確認を省略、不一致時のみ AskUserQuestion 1 問で `confirmed_with_user` を埋めている
@@ -96,8 +97,8 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake` / `run-skill-intake-aggregator` の Phase 8
-- 後続 phase: `run-intake-finalize` (mode 確定後の render)
+- 呼び出し元: `run-skill-intake` / `run-skill-intake-aggregator` の Notion 公開完了後 phase
+- 後続 phase: skill-creator 引き渡し (必要な場合のみ)
 
 ### 6.2 並列性
 - AskUserQuestion は 1 問ずつ。並列起動禁止。
@@ -116,4 +117,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`{{summary_json_path}}`, `{{purpose_json_path}}`, `{{options_json_path}}`, `{{kickoff_json_path}}` を読み、mode-catalog.md の判定表から mode と reason を導出せよ。pattern と mode が不一致の場合のみ AskUserQuestion を 1 問発行し、確認結果を `confirmed_with_user` に記録せよ。出力は `schemas/output.schema.json` 準拠の JSON のみとし、前置き・後書きを含めないこと。
+`{{summary_json_path}}`, `{{purpose_json_path}}`, `{{options_json_path}}`, `{{kickoff_json_path}}` を読み、最初に `notion-log.json.status=="published"` と `notion-publish-result.json.page_id` を検証せよ。未充足なら exit 2 で停止し、skill-creator 引き渡しを確定しない。公開済みなら mode-catalog.md の判定表から mode と reason を導出せよ。pattern と mode が不一致の場合のみ AskUserQuestion を 1 問発行し、確認結果を `confirmed_with_user` に記録せよ。出力は `schemas/output.schema.json` 準拠の JSON のみとし、前置き・後書きを含めないこと。

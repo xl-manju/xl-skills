@@ -105,7 +105,7 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-load / P2-hear /
 
 - `workflow-manifest.json` — Phase (P1-P8) / Gate (C1-C8) / resource の機械可読定義
 - `schemas/output.schema.json` — revision-log.jsonl の 1 行スキーマ
-- `prompts/main.md` — R1 責務プロンプト (7 層 Markdown、ヒアリング+PATCH 制御)
+- `prompts/R1-main.md` — R1 責務プロンプト (7 層 Markdown、ヒアリング+PATCH 制御)
 - `references/resource-map.yaml` — リソース一覧 (machine-readable)
 
 ## エラー処理 (exit code)

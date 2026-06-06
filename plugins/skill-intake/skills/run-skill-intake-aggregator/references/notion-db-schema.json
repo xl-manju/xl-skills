@@ -9,7 +9,7 @@
   "database_id_env": "INTAKE_NOTION_DATABASE_ID",
   "database_id_config_key": "hearing-sheet",
   "database_id_config_path": "<repo-root>/.notion-config.json",
-  "database_id_setup_doc": "plugins/skill-creator/references/notion-per-repo-setup.md",
+  "database_id_setup_doc": "plugins/skill-intake/references/notion-per-repo-setup.md",
   "properties": {
     "名前": {
       "type": "title",
@@ -28,13 +28,14 @@
       "type": "select",
       "required": true,
       "options": ["A", "B", "C", "D", "E"],
-      "description": "A=新規 / B=改修 / C=統廃合 / D=廃止 / E=分割",
+      "description": "ライフサイクル軸。A=新規 / B=改修 / C=統廃合 / D=廃止 / E=分割。この A-E は mode 軸 (スキル生成方針) およびワークフロー軸 (種別) とは独立した分類である。",
       "source": "notion_db_properties.パターン"
     },
     "ワークフロー": {
       "type": "select",
       "required": true,
       "options": ["A 単体", "B 自動収集配信", "C ナレッジ集約", "D レビュー", "E その他"],
+      "description": "スキル種別軸。これらの値ラベルが正本 (canonical) であり、handoff-contract.md の workflow_pattern enum 説明はここを参照する。この A-E は mode 軸 (スキル生成方針) およびパターン軸 (ライフサイクル) とは独立した分類である。",
       "source": "notion_db_properties.ワークフロー"
     },
     "深度": {

@@ -7,6 +7,14 @@ import sys
 
 AXES = ['output_target', 'info_source', 'share_target', 'true_problem', 'knowledge_assets']
 AXIS_FALLBACK = {'output_target': 'output_destination'}
+# v2 five_axes.rows[] の日本語 name → 内部 key (validate_intake / convert_v1_to_v2_context と一致)。
+AXIS_JA_TO_KEY = {
+    '出力先': 'output_target',
+    '情報源': 'info_source',
+    '共有相手': 'share_target',
+    '真の課題': 'true_problem',
+    'ナレッジ資産': 'knowledge_assets',
+}
 PLACEHOLDER_PATTERNS = [
     re.compile(r'\bTBD\b', re.IGNORECASE),
     re.compile(r'未定'),
@@ -24,7 +32,26 @@ def axis_value_text(v):
         return v
     if isinstance(v, dict) and isinstance(v.get('answer'), str):
         return v['answer']
+    if isinstance(v, dict) and isinstance(v.get('content'), str):
+        return v['content']
     return None
+
+
+def normalize_axes(intake):
+    """v1 flat (5_axes.output_target) と v2 (five_axes.rows[]) を {key: text} に正規化。"""
+    raw = (intake.get('5_axes') if isinstance(intake, dict) else None) or \
+        (intake.get('five_axes') if isinstance(intake, dict) else None) or {}
+    rows = raw.get('rows') if isinstance(raw, dict) else None
+    if isinstance(rows, list):
+        flat = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            key = AXIS_JA_TO_KEY.get(str(row.get('name', '')).strip())
+            if key:
+                flat[key] = axis_value_text(row)
+        return flat
+    return raw if isinstance(raw, dict) else {}
 
 
 def is_placeholder(s):
@@ -37,8 +64,7 @@ def is_placeholder(s):
 
 
 def check(intake):
-    axes = (intake.get('5_axes') if isinstance(intake, dict) else None) or \
-        (intake.get('five_axes') if isinstance(intake, dict) else None) or {}
+    axes = normalize_axes(intake)
     filled = {}
     placeholders = []
     count = 0

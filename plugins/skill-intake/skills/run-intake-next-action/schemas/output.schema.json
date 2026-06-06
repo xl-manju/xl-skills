@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-intake-next-action/next-action.schema.json",
   "title": "next-action.json",
-  "description": "Phase 9 出力。skill-creator への引き渡しモード A-E と split 候補を保持する。",
+  "description": "Phase 11 出力。Notion 公開完了後の skill-creator 引き渡しモード A-E と split 候補を保持する。",
   "type": "object",
   "additionalProperties": false,
   "required": ["mode", "reason", "multi_skill_suspicion", "confirmed_with_user", "skill_creator_handoff_phase"],

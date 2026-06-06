@@ -25,7 +25,6 @@ import sys
 from pathlib import Path
 
 PLUGIN_ROOT = Path(os.environ.get("CLAUDE_PLUGIN_ROOT", Path(__file__).resolve().parent.parent))
-PROJECT_ROOT = PLUGIN_ROOT.parent.parent
 VALIDATOR = PLUGIN_ROOT / "scripts" / "validate_intake_schema.py"
 
 TARGET_COMMANDS = (
@@ -57,20 +56,36 @@ def main() -> int:
         return 0  # 不明 payload は pass-through (hook 自体の故障防止)
 
     command = payload.get("tool_input", {}).get("command", "")
+    cwd = Path(payload.get("cwd") or os.getcwd()).resolve()
     if not any(t in command for t in TARGET_COMMANDS):
         return 0
 
+    # publish 経路の本体 (publish_notion_page.py / pipeline) は intake.json を --intake で必須に取る。
+    # render_notion_page.py は --ctx で context を取り intake.json 検証対象でないため、
+    # --intake フラグの有無で「検証対象か」を判別する (無関係な Bash を巻き込まない配慮)。
+    declares_intake = re.search(r"--intake(?:-file)?[= ]", command) is not None
+
     intake_path_str = _extract_intake_path(command)
     if not intake_path_str:
-        return 0  # publish_notion_page.py が引数経由でない場合は pass-through
+        if declares_intake:
+            # 検証対象 (--intake 宣言あり) なのにパスを抽出できない = fail-open 化を防ぐため block。
+            print(
+                "BLOCK: --intake declared but intake.json path not extractable; "
+                "schema validation cannot be skipped silently.",
+                file=sys.stderr,
+            )
+            return 2
+        return 0  # --intake を取らない経路 (render --ctx 等) は検証対象外で pass-through
 
     intake_path = Path(intake_path_str)
     if not intake_path.is_absolute():
-        intake_path = (PROJECT_ROOT / intake_path).resolve()
+        intake_path = (cwd / intake_path).resolve()
 
     if not intake_path.exists():
-        print(f"WARN: intake.json not found at {intake_path} (skip)", file=sys.stderr)
-        return 0
+        # 検証対象として明示されたファイルが存在しない = 素通りさせず block (fail-closed)。
+        print(f"BLOCK: intake.json declared for publish but not found at {intake_path}",
+              file=sys.stderr)
+        return 2
 
     if not VALIDATOR.exists():
         print(f"ERROR: validator missing at {VALIDATOR}", file=sys.stderr)

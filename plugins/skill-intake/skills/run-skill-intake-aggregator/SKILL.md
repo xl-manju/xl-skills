@@ -47,7 +47,7 @@ manifest: workflow-manifest.json
 
 skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術者向けに拡張するメタスキル。完全非技術者を含む不特定多数から、本人も言語化できていない真の課題を引き出し、3 つの成果物を一括生成する。
 
-**入力**: ユーザーの「スキルを作りたい」要望 (topic 引数任意)
+**入力**: ユーザーの「スキルを作りたい」要望 (topic 引数任意) + 任意の Notion 明示指定 (`--page-url` / `--page-id` / `--database-id`)。Notion 明示指定は Phase 11 の `intake_publish_pipeline.py` までそのまま伝搬し、指定 page がある場合は update 専用で create へフォールバックしない。
 
 **成果物 (5 種類)**:
 
@@ -108,9 +108,9 @@ skill-creator (`run-skill-create`) の Step 1 (`run-skill-elicit`) を非技術�
   ↓ skill-intake-option-presenter 外部連携カタログ提示
   ↓ skill-intake-visualizer       1〜3 図/セクション配置
   ↓ skill-intake-summarizer       Gate A サマリ → ユーザー承認
-  ↓ skill-intake-next-action-advisor  skill-creator 引き渡しモード判定
   ↓ skill-intake-handoff          Markdown 正本 + JSON 副本生成
-  ↓ skill-intake-notion-publisher Keychain→Notion REST API でページ作成
+  ↓ skill-intake-notion-publisher Keychain→Notion REST API で指定 page へ公開
+  ↓ skill-intake-next-action-advisor  Notion 公開完了後に skill-creator 引き渡しモード判定
   ↓ skill-intake-self-updater     question-bank に不足質問を追記
 [完了]
 ```
@@ -125,7 +125,7 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 |--|--|--|
 | service | `notion-api-key` | `INTAKE_KEYCHAIN_SERVICE` |
 | account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
-| Notion DB ID | per-repo: `<repo-root>/.notion-config.json#databases.hearing-sheet.db_id` (gitignore対象) | `--database-id` CLI > `INTAKE_NOTION_DATABASE_ID` env > config > schema default(null)。setup: `plugins/skill-creator/references/notion-per-repo-setup.md` |
+| Notion DB ID | per-repo: `<repo-root>/.notion-config.json#databases.hearing-sheet.db_id` (gitignore対象) | `--database-id` CLI > `INTAKE_NOTION_DATABASE_ID` env > config > schema default(null)。setup: `plugins/skill-intake/references/notion-per-repo-setup.md` |
 | Notion-Version | `2022-06-28` | `INTAKE_NOTION_VERSION` |
 
 初回セットアップは `references/keychain-setup.md`。
@@ -151,20 +151,22 @@ Notion トークンは Keychain から都度取得。コード・コミット履
 - [ ] `python3 plugins/skill-intake/scripts/cross_check.py output/<hint>/intake.json output/<hint>/intake.md` PASS (md/json 整合)
 - [ ] `python3 plugins/skill-intake/scripts/verify_notion_assets.py output/<hint>/notion-manifest.json` で PNG/Mermaid 12 + SVG 8 のうち使用分が全て生成済み (All-or-Nothing)
 - [ ] `python3 plugins/skill-intake/scripts/keychain_get_secret.py --check` exit 0、Notion トークンは平文で成果物・ログに残置なし
-- [ ] `python3 plugins/skill-intake/scripts/intake_publish_pipeline.py --intake … --manifest …` が単一発火点として render→quality_gate→publish を完走し Notion URL 取得済み
+- [ ] `python3 plugins/skill-intake/scripts/intake_publish_pipeline.py --intake … --manifest …` が単一発火点として render→quality_gate→publish を完走し Notion URL 取得済み。`--page-url` / `--page-id` が入力に含まれる場合は `--revise` と共に渡され、指定 page 以外へ出力していない
 - [ ] 12 SubAgent (kickoff / assumption-challenger / user-profiler / interviewer ⇄ purpose-excavator / option-presenter / visualizer / summarizer / next-action-advisor / handoff / notion-publisher / self-updater) 各々の出力 handoff が `schemas/handoff.schema.json` 準拠で残されている
 - [ ] orchestrator-trace.json に各 phase の入出力パス・exit code・所要時間が記録され、再実行で順序一致 (determinism)
 - [ ] 固有名詞 (個人名 / 社名 / 固定 page_id) を成果物に直書きしていない (variable_abstraction)
 
 ### ゴールシークループ
 
-正本 `plugins/skill-creator/skills/run-skill-create/SKILL.md` の「ゴールシーク実行」章 (5 ステップ: 現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+本スキル内の完了チェックリストと `workflow-manifest.json` を正本として、現状評価→手順生成→実行→検証→反復/差し戻しを行う。skill-creator が未インストールの単独 install でも、intake→Notion publish のコアフローは本 plugin 内の契約だけで完結する。本スキル固有の差分:
 
 - **未達評価の単位は phase**: `workflow-manifest.json` の `phases[]` を SSOT とし、checklist 未充足項目 → 対応 phase (R1-R11) を特定 → 起動 → exit code と handoff を trace へ追記 → 自己評価を反復。
 - **fatal_exit_codes**: 各 phase の `fatal_exit_codes: [2, 3]` を受けたら即中断し `orchestrator-trace.json` に error を残す。schema 違反は 3 回まで自己修正後 `skill-intake-handoff` へ escalate。
 - **差し戻しパス**: R8 (completeness) FAIL → R4 (elicitation) 再実行 / R9 (quality) 閾値未達 → R7 (visualize) または R4 へ / R11 (publish) FAIL → R10 (render) または asset 再生成へ。
 - **context:fork**: 12 SubAgent は分離 context で起動し、親へは差分と exit code のみ返却 (中間ログを親に流さない)。
-- **単一発火点**: Notion 公開は `intake_publish_pipeline.py` のみを発火点とし、SubAgent `skill-intake-notion-publisher` と sibling `run-notion-intake-publish` から二重に render/publish を直叩きしない。
+- **単一発火点**: Notion 公開は `intake_publish_pipeline.py` のみを発火点とし、SubAgent `skill-intake-notion-publisher` と sibling `run-notion-intake-publish` から二重に render/publish を直叩きしない。指定 page がある場合、`--page-id` / `--page-url` を最優先で渡し、page_id 解決不能時は exit 51 で停止する。
+- **Notion target 正本化**: `--page-url` / `--page-id` / `--database-id` は `notion_target` として intake.json / intake-final-context.json に保持する。update mode では `notion_target.page_id` と publish result の page_id 一致を必須とし、create fallback を禁止する。
+- **skill-creator 引き渡しゲート**: `run-skill-create` 等の skill 本体生成へ進む判断は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` を確認した後に限る。Notion 未公開のまま skill を作り始めない。
 - **All-or-Nothing 公開**: PNG 1 枚でも欠けたら `verify_notion_assets.py` で停止。途中まで公開せず asset 再生成へ戻す。
 - **自動修正禁止**: quality_gate / completeness FAIL は根本原因をユーザーに提示し、LLM 判断で内容を勝手に直さない (推測補完禁止)。
 

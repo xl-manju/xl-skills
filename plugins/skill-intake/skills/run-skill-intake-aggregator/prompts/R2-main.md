@@ -39,7 +39,7 @@
 
 | variable | type | required | 説明 |
 |---|---|---|---|
-| `initial_utterance` | string (user utterance) | yes | ユーザーの初期発話 (slash command 引数または対話入力)。R1 phase の起点となる。 |
+| `initial_utterance` | string (user utterance) | yes | ユーザーの初期発話 (slash command 引数または対話入力)。R1 phase の起点となる。`--page-url` / `--page-id` / `--database-id` が含まれる場合は Notion publish の明示指定として Phase 11 まで保持する。 |
 
 #### 静的参照リソース
 
@@ -106,12 +106,12 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `/intake` slash command / `run-skill-create` Step 1
-- 後続 phase: skill-creator (`run-build-skill`) または `run-notion-intake-publish`
+- 後続 phase: `run-notion-intake-publish` を完了した後、必要な場合のみ skill-creator (`run-build-skill`)
 
 ### 6.2 ハンドオフ / 並列性
 - 直列: 各 R-phase の出力 (受領先 = 次 phase) を後続 phase の入力 (提供元 = 前 phase) に workflow-manifest.json 経由で接続。
 - 並列: 既定は R1→…→R11 の直列。dependsOn が独立な phase に限り並列起動を検討 (atomic write 競合がない場合のみ)。
-- 後続接続: 全 phase PASS 後、`run-build-skill` または `run-notion-intake-publish` に intake.json パスをハンドオフ。
+- 後続接続: intake.json 生成後は必ず `run-notion-intake-publish` にハンドオフし、Notion publish 成功 (`notion-log.json.status=="published"`) を確認してから `run-build-skill` など skill-creator 側へ渡す。
 
 ## Layer 7: UI / 提示層
 

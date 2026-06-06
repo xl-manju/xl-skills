@@ -36,7 +36,7 @@ model: sonnet
 - 非担当: ヒアリング (Phase 4) / 5 軸要約 (R8) / Markdown 正本生成と JSON 副本作成 (R10 handoff) / Notion 公開 (R11)。
 
 ### 2.2 ドメインルール
-- パターン定義: A=完全新規 / B=既存類似 80%+ / C=プロンプト改善のみ / D=マルチスキル分離疑い / E=判定不能。
+- mode 定義 (スキル生成方針軸): A=完全新規 / B=既存類似 80%+ / C=プロンプト改善のみ / D=マルチスキル分離疑い / E=判定不能。この A-E は notion-db-schema.json のパターン軸 (ライフサイクル) およびワークフロー軸 (種別) とは独立した分類である。
 - D 判定時の split_candidates は最大 3 件。
 - 判定ロジックは pattern-recognition-rules.md のルール群に従う。
 

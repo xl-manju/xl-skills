@@ -28,7 +28,7 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-Phase 7 (intake aggregator) 担当。`sheet.md` + `purpose.json` + `options.json` を読み、Mermaid 12 種 + SVG 8 種のカタログから §0〜§11 の各セクションへ 1〜3 図を**決定論的に**配置し、SVG を Notion 互換 PNG に変換する。各 Phase の機械可読定義は `workflow-manifest.json`、責務別プロンプトは `prompts/main.md` (R1-deterministic-figure-placement)、データ契約は `schemas/output.schema.json` を参照。
+Phase 7 (intake aggregator) 担当。`sheet.md` + `purpose.json` + `options.json` を読み、Mermaid 12 種 + SVG 8 種のカタログから §0〜§11 の各セクションへ 1〜3 図を**決定論的に**配置し、SVG を Notion 互換 PNG に変換する。各 Phase の機械可読定義は `workflow-manifest.json`、責務別プロンプトは `prompts/R1-main.md` (R1-deterministic-figure-placement)、データ契約は `schemas/output.schema.json` を参照。
 
 **入力**: `sheet.md`, `purpose.json`, `options.json`, アセットカタログ (`plugins/skill-intake/skills/run-skill-intake-aggregator/assets/`)
 **出力**:
@@ -71,7 +71,7 @@ intake aggregator は最終 Notion 公開前に「全セクション 1 図以上
 
 1. **現状評価**: `visuals.json` 既存内容と `verify-visuals.py` 出力を読み、Checklist の未達項目を列挙。
 2. **手順生成**: 未達項目ごとに解消手順を立案 (例: §5 図ゼロ → mapping 表参照 → カタログから該当 figure_id を選択 / SVG エントリに PNG なし → `render_to_image.py` 起動)。
-3. **実行**: prompts/main.md R1 に従い決定論的にカタログ照合→`visuals.json` 更新→`render_to_image.py` で PNG 化。
+3. **実行**: prompts/R1-main.md R1 に従い決定論的にカタログ照合→`visuals.json` 更新→`render_to_image.py` で PNG 化。
 4. **検証**: `verify-visuals.py` 起動 + schema validate + 2 回連続実行 diff で determinism 確認。
 5. **反復**: 全 Checklist 充足まで戻る。カタログに該当図が無い場合は Key Rule 1 に従い exit 2 で停止しエスカレーション (LLM が勝手にカタログ拡張しない)。
 
@@ -79,7 +79,7 @@ intake aggregator は最終 Notion 公開前に「全セクション 1 図以上
 
 ## Gotchas
 
-1. **PNG 1 枚欠落で全体停止**: 後続 Phase 11 (Notion 公開) が All-or-Nothing で fail する。本スキル内で全 PNG 生成を保証してから完了とする。
+1. **PNG 1 枚欠落で全体停止**: 後続 Phase 10 (Notion 公開) が All-or-Nothing で fail する。本スキル内で全 PNG 生成を保証してから完了とする。
 2. **カタログ拡張は別 phase**: 新規図種が必要な場合は本スキルで創作せず TODO 起票し aggregator/設計側へ差し戻し (Key Rule 1)。
 3. **並列書込み衝突**: セクション単位で並列化可能だが PNG 書込みパスの衝突回避必須 (Layer 6.2)。`output/<hint>/visuals/<section>-<figure_id>.png` のように一意化。
 4. **絶対パス漏出**: `png_path` は workspace 起点の相対パスで記録 (Layer 4.3)。
@@ -91,7 +91,7 @@ intake aggregator は最終 Notion 公開前に「全セクション 1 図以上
 `references/resource-map.yaml` を最初に読む (機械可読 read_when 一覧)。主要参照:
 
 - `workflow-manifest.json` — P1-section-scan / P2-select / P3-render / P4-emit の機械可読定義
-- `prompts/main.md` — R1-deterministic-figure-placement (7 層プロンプト、Layer 1-7)
+- `prompts/R1-main.md` — R1-deterministic-figure-placement (7 層プロンプト、Layer 1-7)
 - `schemas/output.schema.json` — `visuals.json` の正本スキーマ (additionalProperties:false, items 1-3)
 - `references/section-figure-mapping.md` — §0〜§11 と Mermaid/SVG 図種の対応表 (aggregator guide.md への pointer)
 - `references/visualization-mandatory-pointer.md` — 図解マスト 8 ルールへの参照ガイド

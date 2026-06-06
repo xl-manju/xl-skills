@@ -59,26 +59,25 @@ def main():
 
     with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
         schema = json.load(f)
-    # 4段 fallback: --database-id > env > .notion-config.json > schema.database_id_default
-    repo_cfg_db_id = None
+    # DB ID 解決は notion_config を SSOT とする。明示 NOTION_CONFIG_PATH が壊れている場合は
+    # 別 config / schema default へフォールバックせず fail-closed。
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import notion_config as _nc  # noqa
+        import notion_config as _nc
         repo_cfg_db_id = _nc.get_db_id('hearing-sheet')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'[verify_notion_schema] notion_config failed: {e}', file=sys.stderr)
+        return 2
     if args.database_id:
         database_id, db_id_source = args.database_id, 'arg'
-    elif os.environ.get('INTAKE_NOTION_DATABASE_ID'):
-        database_id, db_id_source = os.environ['INTAKE_NOTION_DATABASE_ID'], 'env'
     elif repo_cfg_db_id:
-        database_id, db_id_source = repo_cfg_db_id, 'repo_config'
-    elif schema.get('database_id_default'):
-        database_id, db_id_source = schema['database_id_default'], 'schema_default'
+        database_id, db_id_source = repo_cfg_db_id, 'notion_config'
     else:
         database_id, db_id_source = None, None
     if not database_id:
-        print('database_id is required (--database-id, INTAKE_NOTION_DATABASE_ID, <repo-root>/.notion-config.json#databases.hearing-sheet, or schema database_id_default). See plugins/skill-creator/references/notion-per-repo-setup.md', file=sys.stderr)
+        print('database_id is required (--database-id, or INTAKE_NOTION_DATABASE_ID / '
+              '.notion-config.json#databases.hearing-sheet via notion_config). '
+              'See references/notion-per-repo-setup.md', file=sys.stderr)
         return 2
     try:
         eval_log_dir = Path('eval-log')

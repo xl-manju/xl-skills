@@ -28,9 +28,9 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-Phase 10 担当。Phase 1-9 で生成された全 JSON / sheet.md / visuals.json を統合し、最終成果物 `intake.md` (人間向け) と `intake.json` (skill-creator 入力) を **決定論的に**生成する。`render-intake-final.py` (Jinja2) と `quality_gate.py` / `cross_check.py` を順に exec する。
+Phase 9 担当。Phase 1-8 で生成された全 JSON / sheet.md / visuals.json を統合し、最終成果物 `intake.md` (人間向け) と `intake.json` (skill-creator 入力) を **決定論的に**生成する。`render-intake-final.py` (Jinja2) と `quality_gate.py` / `cross_check.py` を順に exec する。skill-creator 引き渡し用の `next-action.json` は Notion 公開後の Phase 11 で生成する。
 
-**入力**: Phase 1-9 の全成果物 + `intake-final-template.md.tmpl` + `intake-final-schema.json`
+**入力**: Phase 1-8 の全成果物 + `intake-final-template.md.tmpl` + `intake-final-schema.json`
 **出力**:
 - `output/<hint>/intake.md`
 - `output/<hint>/intake.json` (`schemas/output.schema.json` 準拠、`validation` field 必須)
@@ -48,18 +48,18 @@ Phase 10 担当。Phase 1-9 で生成された全 JSON / sheet.md / visuals.json
 ## ゴールシーク実行
 
 ### Goal
-Phase 1-9 の全成果物を決定論的に統合し、`schemas/output.schema.json` 準拠の `intake.md` / `intake.json` を bit-identical な再現性で生成、`validation.render` / `validation.quality_gate` / `validation.cross_check` が全 PASS、または FAIL 時に `failures[].retry_phase` が必ず埋まり intake.json に validation サマリが書き戻されている状態。
+Phase 1-8 の全成果物を決定論的に統合し、`schemas/output.schema.json` 準拠の `intake.md` / `intake.json` を bit-identical な再現性で生成、`validation.render` / `validation.quality_gate` / `validation.cross_check` が全 PASS、または FAIL 時に `failures[].retry_phase` が必ず埋まり intake.json に validation サマリが書き戻されている状態。
 
 ### Why
 LLM 推論を混入させると同入力で差分が出て、後段 (`run-notion-intake-publish` 公開・diff 監査) が破綻する。検証 2 段 (quality_gate → cross_check) は順序固定でなければ偽陽性/偽陰性が混入する。固定手順を辿るのではなく、**チェックリスト未充足を起点に必要 script をその都度起動して反復**することで、入力欠落や中間生成物破損にも頑健になる。
 
 ### 完了チェックリスト (停止条件)
-- [ ] Phase 1-9 全成果物 (JSON / sheet.md / visuals.json) の存在と schema 適合を確認した
+- [ ] Phase 1-8 全成果物 (JSON / sheet.md / visuals.json) の存在と schema 適合を確認した
 - [ ] LLM 推論を呼ばずに Jinja2 / script のみで完了している
 - [ ] `intake.json` が `schemas/output.schema.json` に適合している
 - [ ] `quality_gate.py` と `cross_check.py` を順序通り (順序入替禁止) 実行した
 - [ ] FAIL 時に `validation.failures[]` の各項目に `where` / `reason` / `retry_phase` が明示されている
-- [ ] 同一 Phase 1-9 入力で `intake.md` / `intake.json` が bit-identical (determinism)
+- [ ] 同一 Phase 1-8 入力で `intake.md` / `intake.json` が bit-identical (determinism)
 - [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
 - [ ] `intake.json.validation` サマリ書き戻し済み (render / quality_gate / cross_check 各 enum)
 
@@ -99,7 +99,7 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-collect / P2-ren
 
 - `workflow-manifest.json` — Phase (P1-P4) / Gate (C1-C4) / resource の機械可読定義
 - `schemas/output.schema.json` — intake.json 出力契約 (validation field 必須)
-- `prompts/main.md` — R1 責務プロンプト (7 層 Markdown、決定論実行指示)
+- `prompts/R1-main.md` — R1 責務プロンプト (7 層 Markdown、決定論実行指示)
 - `references/template-pointer.md` — Jinja2 テンプレ / schema の正本パス案内
 - `references/validation-flow.md` — render → quality_gate → cross_check の順序と失敗戻り先表
 - `references/resource-map.yaml` — リソース一覧 (machine-readable)

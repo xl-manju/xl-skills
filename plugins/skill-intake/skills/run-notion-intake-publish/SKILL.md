@@ -36,7 +36,7 @@ since: 2026-05-20
 上位 skill) が **Bash script 経由** で直接 dispatch する。LLM 判断面は持たないため
 `prompts/` および `schemas/` は意図的に保持しない (R1 は pure script orchestration)。
 
-- 入力: `<skill-name-hint>` (前提: `output/<hint>/intake.json` と
+- 入力: `<skill-name-hint> [--page-url <url>|--page-id <id>] [--database-id <db_id>]` (前提: `output/<hint>/intake.json` と
   `output/<hint>/notion-manifest.json` が既に存在)
 - 出力: pipeline が `output/<hint>/` 配下に書き出す
   `notion-blocks.json` / `notion-publish-result.json` / `notion-url.txt` /
@@ -72,10 +72,29 @@ wrapper skill のため `prompts/` は持たない。判断は全て script の 
 
 ## Steps
 
+### Step 0: 引数正規化
+
+```bash
+HINT=""
+PAGE_ID=""
+PAGE_URL=""
+DATABASE_ID=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --page-id) shift; PAGE_ID="${1:-}" ;;
+    --page-url) shift; PAGE_URL="${1:-}" ;;
+    --database-id) shift; DATABASE_ID="${1:-}" ;;
+    --*) echo "unknown option: $1" >&2; exit 2 ;;
+    *) if [ -z "$HINT" ]; then HINT="$1"; else echo "unexpected arg: $1" >&2; exit 2; fi ;;
+  esac
+  shift
+done
+test -n "$HINT" || { echo "skill-name-hint is required"; exit 2; }
+```
+
 ### Step 1: precondition 検査
 
 ```bash
-HINT="$1"
 test -f "output/$HINT/intake.json"          || { echo "intake.json not found";          exit 2; }
 test -f "output/$HINT/notion-manifest.json" || { echo "notion-manifest.json not found"; exit 2; }
 ```
@@ -83,9 +102,10 @@ test -f "output/$HINT/notion-manifest.json" || { echo "notion-manifest.json not 
 ### Step 2: 副作用前検査 (Keychain / Schema / Assets)
 
 ```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
-python3 plugins/skill-intake/scripts/verify_notion_schema.py --on-conflict skip-warn
-python3 plugins/skill-intake/scripts/verify_notion_assets.py "output/$HINT/notion-manifest.json"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}"
+python3 "$PLUGIN_ROOT/scripts/keychain_get_secret.py" --check
+python3 "$PLUGIN_ROOT/scripts/verify_notion_schema.py" --on-conflict skip-warn ${DATABASE_ID:+--database-id "$DATABASE_ID"}
+python3 "$PLUGIN_ROOT/scripts/verify_notion_assets.py" "output/$HINT/notion-manifest.json"
 ```
 
 いずれか exit !=0 ならその時点で停止。詳細な exit 規約は
@@ -94,13 +114,27 @@ python3 plugins/skill-intake/scripts/verify_notion_assets.py "output/$HINT/notio
 ### Step 3: pipeline 起動 (唯一の publish 発火点)
 
 ```bash
-python3 plugins/skill-intake/scripts/intake_publish_pipeline.py \
+# 再公開は update 専用。明示 URL が無い場合だけ既存 notion-url.txt を使い、--revise で create を禁止する
+# (page_id 解決不能なら pipeline が exit 51。新規ページ量産を構造的に封鎖)。
+if [ -z "$PAGE_URL" ]; then
+  PAGE_URL="$(cat "output/$HINT/notion-url.txt" 2>/dev/null || true)"
+fi
+EXTRA_ARGS=()
+[ -n "$DATABASE_ID" ] && EXTRA_ARGS+=(--database-id "$DATABASE_ID")
+[ -n "$PAGE_ID" ] && EXTRA_ARGS+=(--page-id "$PAGE_ID")
+[ -n "$PAGE_URL" ] && EXTRA_ARGS+=(--page-url "$PAGE_URL")
+python3 "$PLUGIN_ROOT/scripts/intake_publish_pipeline.py" \
   --intake   "output/$HINT/intake.json" \
-  --manifest "output/$HINT/notion-manifest.json"
+  --manifest "output/$HINT/notion-manifest.json" \
+  --revise \
+  "${EXTRA_ARGS[@]}"
 ```
 
 pipeline 内部で render → quality_gate → publish を順 exec し、いずれか
 exit !=0 で停止。トークンは `notion_http.py` が Keychain から都度取得 (環境変数渡し禁止)。
+publish 前に `run-notion-fidelity-guard/scripts/validate-notion-fidelity.py` を必ず実行し、`verdict=pass` 以外は Notion API mutation へ進まない。
+`--revise` により既存 `notion-publish-result.json` の page_id が期待値 (notion-url.txt) と
+一致するか quality_gate で検査され (page_id_consistency)、別ページへの化け (orphan) を publish 前に FAIL させる。
 
 ## Abstraction Variables (量産時の差し替え点)
 
@@ -151,8 +185,8 @@ intake 成果物は canonical source として `output/<hint>/` 配下で管理�
 
 1. **初回 publish には使わない**: 初回は aggregator phase11 を通す
    (図解生成・JSON 整形を伴うため)。本 skill は manifest 確定後の **再** 公開専用。
-2. **fidelity-guard を skip しない**: canonical 更新後は fidelity-guard `verdict=pass`
-   を確認してから本 skill を呼ぶ。pipeline 側ではガードしない契約。
+2. **fidelity-guard を skip しない**: pipeline 内で fidelity-guard を必ず実行し、
+   `verdict=pass` 以外は Notion API mutation へ進まない。
 3. **トークンは Keychain のみ**: `.env` / CLI 引数 / shell history へ載せない。
    うっかり `NOTION_TOKEN=xxx python3 ...` と打つと監査で落ちる。
 4. **silent-fail 禁止**: pipeline は失敗時も `notion-log.json` を書く。読まずに retry しない。

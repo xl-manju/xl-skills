@@ -1,4 +1,4 @@
-# Validation Flow (Phase 10)
+# Validation Flow (Phase 9)
 
 順序: render → quality_gate → cross_check
 

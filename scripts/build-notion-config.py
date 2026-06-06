@@ -47,6 +47,8 @@ def main() -> int:
     ap.add_argument("--force", action="store_true", help="既存 .notion-config.json を上書き")
     ap.add_argument("--print-keychain-cmd", action="store_true",
                     help="Keychain 登録コマンドのみ stdout に出す (config は書かない)")
+    ap.add_argument("--parent-page-id", default="")
+    ap.add_argument("--parent-page-url", default="")
     ap.add_argument("--skill-list-db", default="")
     ap.add_argument("--hearing-sheet-db", default="")
     ap.add_argument("--improvement-request-db", default="")
@@ -82,6 +84,9 @@ def main() -> int:
     template.pop("_comment", None)
     template["keychain_service"] = service
     template["keychain_account"] = account
+    template.setdefault("parent_page", {})
+    template["parent_page"]["page_id"] = args.parent_page_id or "<your-parent-page-id>"
+    template["parent_page"]["page_url"] = args.parent_page_url or "<your-parent-page-url>"
     template["databases"]["skill-list"]["db_id"] = args.skill_list_db or "<your-skill-list-db-id>"
     template["databases"]["hearing-sheet"]["db_id"] = args.hearing_sheet_db or "<your-hearing-sheet-db-id>"
     template["databases"]["improvement-request"]["db_id"] = args.improvement_request_db or "<your-improvement-request-db-id>"
@@ -90,7 +95,7 @@ def main() -> int:
     print(f"[build-notion-config] wrote {CONFIG}")
     print()
     print("Next steps:")
-    print(f"  1. Edit {CONFIG.name} and fill in 3 Notion DB IDs (replace <your-*-db-id>).")
+    print(f"  1. Edit {CONFIG.name} and fill in parent page + 3 Notion DB IDs (replace <your-*> placeholders).")
     print(f"  2. Register your Notion API token to Keychain:")
     print(f"       {keychain_cmd}")
     print(f"     (replace secret_xxxx with your actual integration token)")

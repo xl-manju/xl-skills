@@ -37,13 +37,14 @@
 
 | field | type | required | 説明 |
 |---|---|---|---|
-| initial-utterance | resource://user | yes | ユーザー初期発話 |
+| initial-utterance | resource://user | yes | ユーザー初期発話。`--page-url` / `--page-id` / `--database-id` が含まれる場合は `notion_target` として抽出し、Phase 10 publish まで保持する。 |
 | handoff-contract | resource://run-skill-intake/references/handoff-contract.md | yes | phase 間 schema |
 | workflow-sequence | resource://run-skill-intake/references/workflow-sequence.md | yes | 順序仕様 |
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json`
 - 必須フィールド: `orchestrator_trace`, `artifacts.intake_md`, `artifacts.intake_json`, `artifacts.notion_url`
+- Notion 指定ありの場合は `artifacts.intake_json.notion_target` と `notion-publish-result.json.page_id` の一致を必須とする。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -85,6 +86,7 @@
 - [ ] 各 phase の出力が handoff-contract.md の次 phase 入力 schema に適合
 - [ ] 任意 phase FAIL を観測した時点でパイプライン中断し、orchestrator-trace.json に error 行 (phase id / exit code / stderr 要約) を残している
 - [ ] 11 phase 全 PASS のときのみ artifacts.intake_md / intake_json / notion_url が埋まり、部分成果物が漏出していない
+- [ ] Notion 指定ありの場合、intake.json の `notion_target` と `notion-publish-result.json.page_id` が一致している
 - [ ] secret / Notion トークンが orchestrator のログに残っていない (Layer 4.3)
 - [ ] ユーザー入力取得は phase 1 のみ (orchestrator が後付けで意図推測していない)
 
@@ -96,7 +98,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `/intake` slash command または `run-skill-create` Step 1
-- 後続 phase: `run-notion-intake-publish` (公開) または skill-creator 引き渡し
+- 後続 phase: `run-notion-intake-publish` (公開) を必ず完了してから skill-creator 引き渡し
 
 ### 6.2 並列性
 - 既定は直列。並列実行可能 phase (例: P6 visualize と P7 quality) は dependsOn 整理後に検討。

@@ -81,7 +81,7 @@ intake セッションの Phase 4 担当。ヒアリングシート `sheet.md` �
 
 ### ゴールシークループ
 
-固定手順ではなく、上記チェックリストを唯一の停止条件とする。未充足軸を `five-axes-priority.md` 順で特定 → `question-bank-pointer.md` から該当軸の質問雛形を引き `vocabulary_tier` に整形 → `AskUserQuestion` で 1 問発行 → 回答を `sheet.md` に反映 → `abstract-answer-patterns.md` で抽象判定 → checklist 自己評価、を反復する (上限は `prompts/main.md` Layer 4 の反復回数)。`workflow-manifest.json` の phase 順 P1-load-sheet → P2-fill-by-axis → P3-flag-abstract → P4-emit に従い、各 phase の `fatal_exit_codes` 検出時は即停止して未充足軸を stderr に列挙する。`run-intake-kickoff` で確定済の 3 軸 (pattern/depth/pain) は前提として読み取るのみ、再確定しない。
+固定手順ではなく、上記チェックリストを唯一の停止条件とする。未充足軸を `five-axes-priority.md` 順で特定 → `question-bank-pointer.md` から該当軸の質問雛形を引き `vocabulary_tier` に整形 → `AskUserQuestion` で 1 問発行 → 回答を `sheet.md` に反映 → `abstract-answer-patterns.md` で抽象判定 → checklist 自己評価、を反復する (上限は `prompts/R1-main.md` Layer 4 の反復回数)。`workflow-manifest.json` の phase 順 P1-load-sheet → P2-fill-by-axis → P3-flag-abstract → P4-emit に従い、各 phase の `fatal_exit_codes` 検出時は即停止して未充足軸を stderr に列挙する。`run-intake-kickoff` で確定済の 3 軸 (pattern/depth/pain) は前提として読み取るのみ、再確定しない。
 
 ## Gotchas
 
@@ -95,7 +95,7 @@ intake セッションの Phase 4 担当。ヒアリングシート `sheet.md` �
 ## Additional Resources
 
 - `workflow-manifest.json` — P1-load-sheet → P2-fill-by-axis → P3-flag-abstract → P4-emit phase 定義・dependsOn・entryHook/exitHook・fatal_exit_codes
-- `prompts/main.md` — R1-five-axes-sheet-fill 7 層プロンプト (Layer 1-7)
+- `prompts/R1-main.md` — R1-five-axes-sheet-fill 7 層プロンプト (Layer 1-7)
 - `schemas/output.schema.json` — `interview.json` 正本スキーマ (`filled_ratio` / `five_axes_complete` / `unresolved` / `needs_excavation` / `abstract_answers`)
 - `references/five-axes-priority.md` — 5 軸の処理順序とスキップ条件
 - `references/abstract-answer-patterns.md` — `needs_excavation` を立てる判定基準

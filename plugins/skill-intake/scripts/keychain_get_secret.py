@@ -5,25 +5,42 @@ import argparse
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 DEFAULT_SERVICE = 'notion-api-key'
 DEFAULT_ACCOUNT = 'skill-intake'
 
 
+def _load_config_if_available():
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import notion_config
+    return notion_config.load_config()
+
+
 def _default_service():
     """毎呼出 env を再評価 (module-level 定数だと同一プロセスでの repo 切替に追随できない)。
-    config 経由の差し替えは notion_http._resolve_token() → notion_config.get_token() を使うこと。
+    .notion-config.json がある場合は keychain_service を尊重する。
     """
-    return os.environ.get('INTAKE_KEYCHAIN_SERVICE', DEFAULT_SERVICE)
+    if os.environ.get('INTAKE_KEYCHAIN_SERVICE'):
+        return os.environ['INTAKE_KEYCHAIN_SERVICE']
+    cfg = _load_config_if_available()
+    if cfg and cfg.get('keychain_service'):
+        return cfg['keychain_service']
+    return DEFAULT_SERVICE
 
 
 def _default_account():
+    if os.environ.get('INTAKE_KEYCHAIN_ACCOUNT'):
+        return os.environ['INTAKE_KEYCHAIN_ACCOUNT']
+    cfg = _load_config_if_available()
+    if cfg and cfg.get('keychain_account'):
+        return cfg['keychain_account']
     return os.environ.get('INTAKE_KEYCHAIN_ACCOUNT', DEFAULT_ACCOUNT)
 
 
-# 後方互換 alias (module 読み込み時の env を反映、後から変更する場合は _default_* を直接呼ぶこと)
-SERVICE = _default_service()
-ACCOUNT = _default_account()
+# 後方互換 alias。実行時解決は _default_* を使う。
+SERVICE = DEFAULT_SERVICE
+ACCOUNT = DEFAULT_ACCOUNT
 
 
 class KeychainError(Exception):
@@ -67,8 +84,12 @@ def main():
     parser.add_argument('--print-unsafe', action='store_true')
     args = parser.parse_args()
 
-    service = args.service or SERVICE
-    account = args.account or ACCOUNT
+    try:
+        service = args.service or _default_service()
+        account = args.account or _default_account()
+    except Exception as e:
+        sys.stderr.write(f'[keychain_get_secret] config error: {e}\n')
+        return 2
     try:
         t = get_secret(service=service, account=account)
     except KeychainError as e:

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を1箇所に閉じ込める。
 
-token 解決順: 引数 > NOTION_TOKEN env > notion_config (per-repo .notion-config.json の
+token 解決順: 引数 > notion_config (per-repo .notion-config.json の
 keychain_service/account 尊重) > keychain_get_secret 既定。
+CI / dry-run で `INTAKE_ALLOW_ENV_TOKEN=1` を明示した場合のみ `NOTION_TOKEN` env を許容。
 """
 
 import json
@@ -13,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import notion_config  # SSOT loader (symlink to skill-creator/scripts/notion_config.py)
+import notion_config  # config/token SSOT loader (本 plugin に同梱。skill-creator 版と byte 一致を lint 検証)
 from keychain_get_secret import get_secret, KeychainError
 
 NOTION_VERSION = os.environ.get('INTAKE_NOTION_VERSION', '2022-06-28')
@@ -21,8 +22,8 @@ BASE = 'https://api.notion.com/v1'
 
 
 def _resolve_token():
-    """env NOTION_TOKEN > per-repo config (Keychain via cfg.keychain_service/account) > legacy."""
-    if os.environ.get('NOTION_TOKEN'):
+    """per-repo config (Keychain via cfg.keychain_service/account) > legacy; env token only by opt-in."""
+    if os.environ.get('NOTION_TOKEN') and os.environ.get('INTAKE_ALLOW_ENV_TOKEN') == '1':
         return os.environ['NOTION_TOKEN']
     cfg = notion_config.load_config()
     if cfg:

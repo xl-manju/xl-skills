@@ -145,5 +145,5 @@ type: reference
 3 回の自己修正後も閾値未達の場合:
 
 1. ユーザーに「ここが詰まっています」と提示
-2. 部分完了で `run-skill-create` に渡す
+2. Notion 指定なしの通常 intake では不足項目を明示してユーザー判断に戻す。Notion 指定ありの場合、部分完了で `run-skill-create` に渡してはならない
 3. open_questions に未解決項目を明記

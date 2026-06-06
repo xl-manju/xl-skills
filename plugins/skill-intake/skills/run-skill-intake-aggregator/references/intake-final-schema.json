@@ -19,6 +19,7 @@
     "self_update",
     "artifacts",
     "section_diagrams",
+    "notion_target",
     "notion_db_properties"
   ],
   "properties": {
@@ -346,6 +347,32 @@
           }
         }
       }
+    },
+
+    "notion_target": {
+      "type": "object",
+      "x-source": "runtime input + publish result",
+      "description": "Notion 出力先の正本。ユーザーが --page-url / --page-id を指定した場合、この object を Phase 10 publish まで保持し、指定 page 以外への出力を禁止する。",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["update", "create-explicit"]},
+        "page_id": {"type": "string", "pattern": "^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$"},
+        "page_url": {"type": "string"},
+        "database_id": {"type": "string"},
+        "source": {"type": "string", "enum": ["arg", "url", "result_file", "explicit_create"]},
+        "require_update": {"type": "boolean", "default": true},
+        "allow_create": {"type": "boolean", "default": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "update"}}},
+          "then": {"required": ["page_id"]}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "create-explicit"}}},
+          "then": {"properties": {"allow_create": {"const": true}}}
+        }
+      ]
     },
 
     "notion_db_properties": {

@@ -12,7 +12,7 @@ model: sonnet
 |---|---|
 | responsibility_id | R11-notion-publish |
 | phase | phase-11-notion-publish |
-| input_schema | output/<hint>/intake.md + intake.json + visuals/*.svg + summary.md + next-action.json |
+| input_schema | output/<hint>/intake.md + intake.json + visuals/*.svg + summary.md + optional page_id/page_url/database_id |
 | output_schema | plugins/skill-intake/skills/run-notion-fidelity-guard/schemas/output.schema.json |
 | context_fork | false (理由: 自動実行・対話なし。Keychain と script で決定論的に処理) |
 | reproducible | true |
@@ -45,7 +45,7 @@ model: sonnet
 | intake_md | file | yes | output/<hint>/intake.md | R10 出力 |
 | intake_json | file | yes | output/<hint>/intake.json | R10 出力 |
 | summary_md | file | yes | output/<hint>/summary.md | summarizer 出力 |
-| next_action_json | file | yes | output/<hint>/next-action.json | next-action-advisor 出力 |
+| page_id / page_url | string | no | `/intake` or `/intake-publish` args | 指定 Notion ページへ PATCH 更新するための明示出力先 |
 | visuals | dir | yes | output/<hint>/visuals/*.svg | visualizer 出力 |
 
 ### 2.4 出力契約
@@ -157,7 +157,7 @@ model: sonnet
 
 ```
 前提: ${INTAKE_NOTION_DATABASE_ID} 設定済 / Keychain にトークン保存済 (keychain-setup.md 準拠)
-入力: output/{{hint}}/{intake.md, intake.json, summary.md, next-action.json, visuals/*.svg}
+入力: output/{{hint}}/{intake.md, intake.json, summary.md, visuals/*.svg} + optional {{page_id/page_url/database_id}}
 出力: output/{{hint}}/{notion-url.txt, notion-blocks.json, notion-manifest.json}
 公開ゲート (全 PASS 必須):
   - keychain_get_secret.py --check ≠ exit 44
@@ -165,6 +165,7 @@ model: sonnet
   - 全 SVG → PNG 生成 (All-or-Nothing)
   - verify_notion_assets.py PASS (欠損/空/hash 不一致なし)
   - intake_publish_pipeline.py (render → quality_gate → publish) 全 PASS
+  - page_id/page_url 指定時は --revise 付きで PATCH 更新し、create へフォールバックしない
 必須セクション: 5 軸 3 軸以上 + true_problem + 図解 1 枚以上
 quality_gate 下限: blocks 数 / mermaid / heading_2 すべて充足
 ハンドオフ: next_agent={{skill-intake-self-updater}}

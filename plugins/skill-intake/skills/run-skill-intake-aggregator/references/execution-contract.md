@@ -15,15 +15,15 @@ SubAgent から `python3 plugins/skill-intake/scripts/<name>.py ...` と書か�
 |---|---|
 | Python 3 | macOS 標準 `/usr/bin/python3` (3.9 以上) で動作 |
 | OS | macOS (Keychain 経由のため; 他 OS は `keychain_get_secret.py` 差し替え必須) |
-| cwd | リポジトリルート (`plugins/skill-intake/` ではなく `.../xl-skills/`) |
-| 依存 | 外部 pip パッケージ無し。Python 3 標準ライブラリのみ (`urllib` / `json` / `hashlib` / `subprocess` / `pathlib`) |
+| cwd | repo 配置ではリポジトリルート、単独 install では plugin root。スクリプトは `$CLAUDE_PLUGIN_ROOT` / 相対パス解決に対応する |
+| 依存 | Python 3.9 以上 + `jsonschema` / `jinja2` |
 | トークン | macOS Keychain (service=`notion-api-key`, account=`skill-intake`) のみ。`.env` / 環境変数経由禁止 |
 
 ## 実行経路マトリクス
 
 | 経路 | 起動方法 | コマンド例 |
 |---|---|---|
-| Claude Code (Bash ツール) | agent の `allowed-tools: Bash` から | `python3 plugins/skill-intake/scripts/quality_gate.py output/foo/intake.json` |
+| Claude Code (Bash ツール) | agent の `allowed-tools: Bash` から | `python3 "$CLAUDE_PLUGIN_ROOT/scripts/quality_gate.py" output/foo/intake.json` |
 | Claude Code (`!` プレフィックス) | ユーザーがチャット欄に `!` を付ける | `!python3 plugins/skill-intake/scripts/keychain_get_secret.py --check` |
 | Codex (自然文 / exec) | shell ツール / `codex exec "..."` | `codex exec "python3 plugins/skill-intake/scripts/verify_notion_schema.py"` |
 | 手動 CLI | ターミナル直叩き (shebang あり) | `./plugins/skill-intake/scripts/cross_check.py intake.json intake.md` |

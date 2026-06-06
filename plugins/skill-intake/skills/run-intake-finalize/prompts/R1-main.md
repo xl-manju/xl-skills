@@ -26,7 +26,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: Phase 1-9 全成果物を template で render し、quality_gate と cross_check を通して intake.md / intake.json を生成。
+- 担当: Phase 1-8 全成果物を template で render し、quality_gate と cross_check を通して intake.md / intake.json を生成。
 - 非担当: ヒアリング、Notion 公開、図解生成。
 
 ### 2.2 ドメインルール
@@ -37,7 +37,7 @@
 
 | field | type | required | 説明 |
 |---|---|---|---|
-| all-phase-outputs | resource://intake | yes | Phase 1-9 の全 JSON / sheet.md / visuals.json |
+| all-phase-outputs | resource://intake | yes | Phase 1-8 の全 JSON / sheet.md / visuals.json |
 | template-pointer | resource://run-intake-finalize/references/template-pointer.md | yes | Jinja2 template の場所 |
 | validation-flow | resource://run-intake-finalize/references/validation-flow.md | yes | 検証順序仕様 |
 
@@ -76,7 +76,7 @@
 - `@finalize-renderer` (非対話バッチ、LLM 推論呼び出し禁止、Jinja2 / script のみ)
 
 ### 5.2 ゴール定義
-- 目的: Phase 1-9 の全成果物を決定論的に統合し、人間可読 intake.md と機械可読 intake.json を bit-identical な再現性で生成すること。
+- 目的: Phase 1-8 の全成果物を決定論的に統合し、人間可読 intake.md と機械可読 intake.json を bit-identical な再現性で生成すること。
 - 背景: LLM 推論を含むと再実行で差分が出て、後段の Notion 公開・diff 監査が破綻する。検証 2 段 (quality_gate → cross_check) は順序固定でなければ偽陽性/偽陰性が混入する。
 - 達成ゴール: schemas/output.schema.json 準拠の intake.md / intake.json が生成され、quality_gate と cross_check が PASS、または FAIL 時に failures[].retry_phase が埋まり validation サマリが intake.json に書き戻されている状態。
 
@@ -85,7 +85,7 @@
 - [ ] intake.json が schemas/output.schema.json に適合している
 - [ ] quality_gate.py と cross_check.py を順序通り (順序入替禁止) 実行した
 - [ ] FAIL 時に failures[] の各項目に retry_phase が明示されている
-- [ ] 同一 Phase 1-9 入力で intake.md / intake.json が bit-identical (determinism)
+- [ ] 同一 Phase 1-8 入力で intake.md / intake.json が bit-identical (determinism)
 - [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
 
 ### 5.4 実行方式
@@ -96,7 +96,7 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake` の Phase 10 (render)
+- 呼び出し元: `run-skill-intake` の Phase 9 (render)
 - 後続 phase: `run-notion-intake-publish` (Notion 公開)
 
 ### 6.2 ハンドオフ / 並列性
