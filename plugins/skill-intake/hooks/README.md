@@ -4,6 +4,7 @@
 
 | ファイル | 種別 | 目的 |
 |---|---|---|
+| `hook-guard-skillgen.py` | PreToolUse(Skill\|Task) / PostToolUse(Skill) / Stop / SessionEnd hook | **skill-intake 実行中にスキル生成 (`run-skill-create` / `run-build-skill` / `capability-build`) が起動されるのを 100% 機械ブロック**。`run-skill-intake` 開始時に lock を立て (PreToolUse:Skill)、intake 実行中に生成スキル呼び出しを検知すると exit 2 → ハーネスがツール実行を拒否。lock は intake 終了 (PostToolUse:Skill) / Stop / SessionEnd / TTL 失効で解除 (fail-open)。LLM の指示遵守に依存しない保証層。実証: `tests/test_skill_intake_guard_skillgen.py`。 |
 | `pre-publish-secret-scrub.sh` | PreToolUse hook | Notion 公開前に `output/` 配下に Notion PAT / Internal Integration Secret / 汎用 Bearer / `.env` 形式キーが混入していないかを走査。検知で exit 2 → Claude Code が公開をブロック。 |
 | `post-publish-notify.sh` | PostToolUse hook | Notion 公開成功後に Slack incoming webhook へ最小ペイロード (`intake published: <hint> -> <url>`) を送信。Webhook 未登録時は silent skip。Webhook 取得は `scripts/keychain_get_secret.py` 経由 (security 直叩き禁止)。 |
 | `post-keychain-add.sh` | 手動実行 | Keychain 登録直後に `security find-generic-password` で取得可否を検証。本体は表示せず長さと prefix のみ出力。 |

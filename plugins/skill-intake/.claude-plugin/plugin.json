@@ -23,6 +23,15 @@
             "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/pre-publish-schema-validate.py"
           }
         ]
+      },
+      {
+        "matcher": "Skill|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-skillgen.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -32,6 +41,37 @@
           {
             "type": "command",
             "command": "$CLAUDE_PLUGIN_ROOT/hooks/post-publish-notify.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-skillgen.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-skillgen.py"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-guard-skillgen.py"
           }
         ]
       }
