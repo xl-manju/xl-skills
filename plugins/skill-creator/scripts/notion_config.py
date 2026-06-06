@@ -6,7 +6,7 @@ Notion DB ID / API キー指定を解決するための唯一の経路。単独 
 でも repo-root 非依存で動くよう plugin-root 起点のフォールバック探索を持つ。
 
 解決順 (find_config_path):
-  1. env `NOTION_CONFIG_PATH` が指すファイル (最優先・明示)
+  1. env `NOTION_CONFIG_PATH` が指すファイル (最優先・明示。不在なら fail-closed)
   2. repo-root (`.git` AND xl-skills marker を持つ親) 直下の `.notion-config.json`
      (monorepo / 複数 repo 共有時)
   3. plugin-root (`$CLAUDE_PLUGIN_ROOT`、無ければ本ファイルの parents[1]) 直下の
@@ -31,7 +31,8 @@ config schema (JSON):
   "schema_dir": "doc/notion-schema"
 }
 
-トークン本体は Keychain or env (NOTION_TOKEN) のまま。config には載せない。
+トークン本体は Keychain を正とする。CI / dry-run で `INTAKE_ALLOW_ENV_TOKEN=1`
+を明示した場合のみ env `NOTION_TOKEN` を許可する。config には載せない。
 """
 from __future__ import annotations
 
@@ -75,8 +76,14 @@ def plugin_root() -> Path:
 def find_config_path(start: Optional[Path] = None) -> Optional[Path]:
     # 1. 明示 env (最優先)
     env = os.environ.get("NOTION_CONFIG_PATH")
-    if env and Path(env).exists():
-        return Path(env)
+    if env:
+        p = Path(env)
+        if p.exists():
+            return p
+        raise FileNotFoundError(
+            f"NOTION_CONFIG_PATH is set but file does not exist: {p}. "
+            "Refusing to fall back to another config."
+        )
     # 2. repo-root 直下 (monorepo / 複数 repo 共有時)
     root = find_repo_root(start)
     if root and (root / CONFIG_FILENAME).exists():
@@ -175,8 +182,8 @@ def get_parent_page_id(start: Optional[Path] = None) -> Optional[str]:
 
 
 def get_token(cfg: Optional[dict] = None) -> Optional[str]:
-    """Token 解決: env NOTION_TOKEN → Keychain (config.keychain_service)."""
-    tok = os.environ.get("NOTION_TOKEN")
+    """Token 解決: Keychain → 明示許可された env NOTION_TOKEN."""
+    tok = os.environ.get("NOTION_TOKEN") if os.environ.get("INTAKE_ALLOW_ENV_TOKEN") == "1" else None
     if tok:
         return tok
     service = (cfg or {}).get("keychain_service", "notion-api-key")
@@ -196,7 +203,7 @@ def warn_missing(stream=sys.stderr) -> None:
         f"[notion_config] WARN: {CONFIG_FILENAME} not found "
         f"(searched: env NOTION_CONFIG_PATH / repo-root / plugin-root={plugin_root()} / "
         f"bundled {BUNDLED_CONFIG_FILENAME}). "
-        f"Notion sync skipped. 単独 install 時は env NOTION_CONFIG_PATH を指すか "
+        f"Notion sync cannot proceed. 単独 install 時は env NOTION_CONFIG_PATH を指すか "
         f"plugin-root 直下に {CONFIG_FILENAME} または {BUNDLED_CONFIG_FILENAME} を用意してください。"
         f"詳細は {SETUP_DOC_REL}。\n"
     )
@@ -231,7 +238,7 @@ def require_or_skip(key: str = "", allow_skip: bool = False) -> tuple[Optional[d
         )
     tok = get_token(cfg)
     if not tok:
-        return _missing("Notion token unavailable (env NOTION_TOKEN or Keychain)")
+        return _missing("Notion token unavailable (Keychain, or env NOTION_TOKEN with INTAKE_ALLOW_ENV_TOKEN=1)")
     if key and not get_db_id(key):
         return _missing(f"databases.{key}.db_id missing in {cfg['__path__']}")
     return cfg, tok
