@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # macos-latest の system python3 は PEP 668 で externally-managed のため
+      # 素の `pip install` が exit 1 で落ちる (CI が pytest install 段階で腐る)。
+      # setup-python で分離された解釈系を用意し pip install を健全化する。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Compile migrated Python scripts
         run: |
           find scripts plugins -type f -name '*.py' -print0 | xargs -0 python3 -m py_compile
@@ -25,6 +32,15 @@ jobs:
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest tests/ -q
+
+      # skill-intake コアフローの契約・SSOT・パッケージ整合を CI で保証する。
+      # references/assets/schemas を plugin 直下へ移設した後の参照整合 (enum SSOT /
+      # vendored byte 一致 / PKG 契約) が無言で腐るのを防ぐ (ローカル make test と整合)。
+      - name: Verify skill-intake contracts (enum SSOT / vendored SSOT / plugin packages)
+        run: |
+          python3 scripts/contract-intake-enum-ssot.py
+          python3 scripts/lint-intake-vendored-ssot.py
+          python3 scripts/validate-plugin-packages.py
 
       - name: Verify manifest inventory
         run: |
