@@ -19,6 +19,7 @@
 ### 1.1 不変ルール
 - 業務ロジックは orchestrator 内に書かない (各 phase の delegateSkill に委譲)。
 - 任意 phase の FAIL でパイプライン全体を中断する (silent-fail 禁止)。
+- **スキル生成を起動しない (hard stop)**: intake は Phase 11 (next-action 推奨) で完結する。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを Skill / Task で起動しない。`next-action.json` の `mode` は推奨情報であり実行しない。Phase 11 完了後は完了レポートを提示して**停止**する。
 
 ### 1.2 倫理ガード
 - ユーザー入力は phase 1 でのみ取得。orchestrator が後付けで意図推測しない。
@@ -98,7 +99,8 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `/intake` slash command または `run-skill-create` Step 1
-- 後続 phase: `run-notion-intake-publish` (公開) を必ず完了してから skill-creator 引き渡し
+- 内部 phase の終端: `run-notion-intake-publish` (公開) 完了後に Phase 11 `run-intake-next-action` で **skill-creator 引き渡しモードを「判定」**し `next-action.json` を出力して**停止**する。
+- **引き渡しの「実行」は本スキルの責務外**: intake 自身は `run-skill-create` を起動しない。intake が `run-skill-create` の Step 1 として呼ばれている場合のみ、後続の生成は呼び出し元 (`run-skill-create`) が駆動する。`/intake` 単体起動時は next-action 推奨の提示で終了する。
 
 ### 6.2 並列性
 - 既定は直列。並列実行可能 phase (例: P6 visualize と P7 quality) は dependsOn 整理後に検討。
@@ -118,3 +120,5 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 `{{initial_utterance}}` を起点に `workflow-manifest.json` の phases を順次起動し、各 phase の出力パスを次 phase の入力に handoff せよ。FAIL を観測したら直ちに中断し、`orchestrator-trace.json` に error を記録すること。全 phase PASS の場合のみ artifacts を埋めて schemas/output.schema.json 準拠の JSON を出力せよ。前置き・後書き禁止。
+
+**Phase 11 (next-action) 完了でワークフローは終了する。`next-action.json` の `mode` を推奨として提示したら停止し、`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成を続けて起動してはならない (Layer 1.1 hard stop)。**

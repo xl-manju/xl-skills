@@ -70,6 +70,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 6. **Secret-Out-of-Repo**: Notion トークンは Keychain から都度取得 (`scripts/keychain_get_secret.py`)。リポジトリへ書き込まない。
 7. **Gate A (Phase 8) で停止可能**: summary 否認時は Phase 4 へ戻り再ヒアリング (最大 2 周)。
 8. **lint 自動修正禁止**: P0 lint fail は根本原因をユーザー提示し AI 判断で勝手に修正しない。
+9. **スキル生成を絶対に実行しない (hard stop)**: 本スキルは **ヒアリング〜Notion 公開〜Phase 11 next-action 推奨**までで完結し、`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **Skill / Task いずれでも起動しない**。Phase 11 の `next-action.json` の `mode` は「次にこうすると良い」という**推奨情報**に過ぎず、本スキルがそれを実行に移すことはない。Phase 11 完了 = ワークフロー終了であり、完了レポート提示後は必ず停止する。スキル生成はユーザーが別途明示的に開始する**独立アクション**である (intake が `run-skill-create` の Step 1 として呼ばれた場合のみ、上位の `run-skill-create` 側が後続を駆動する。intake 自身は駆動しない)。
 
 ## ゴールシーク実行
 
@@ -100,7 +101,8 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - [ ] `quality_gate.py output/<hint>/intake.json` PASS
 - [ ] `cross_check.py output/<hint>/intake.json output/<hint>/intake.md` PASS
 - [ ] `eval-log/intake-trace.json` に全 phase の `{phase, agent, started_at, finished_at, handoff_path, status}` 記録済み
-- [ ] 完了レポート提示済み (項目: hint / phases_succeeded / gate_a_result / skip_reasons / notion_url / next_action_mode、日本語本文・パラメーター名は英語)
+- [ ] 完了レポート提示済み (項目: hint / phases_succeeded / gate_a_result / skip_reasons / notion_url / next_action_mode、日本語本文・パラメーター名は英語)。`next_action_mode` は**推奨として**提示し、「次に `run-skill-create` を起動するとスキル生成に進めます (任意・別アクション)」と案内するに留める
+- [ ] 完了レポート提示後に **`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成を起動していない** (Key Rule 9 / Gotcha 8。intake はここで停止する)
 
 ### ゴールシークループ
 
@@ -126,6 +128,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 5. **Gate A 周回上限**: Phase 8 否認 → Phase 4 戻しは最大 2 周。3 周目は停止。
 6. **Notion トークン**: 環境変数 / リポジトリへ置かず Keychain から都度取得 (`scripts/keychain_get_secret.py`)。
 7. **manifest 二重管理禁止**: phases[] を本 SKILL.md にコピペしない。`lint-manifest-contents.py` を必ず通す。
+8. **next-action を実行と誤読しない (最重要)**: Phase 11 の `next-action.json` / `skill_creator_handoff_phase` / 「skill-creator 引き渡し」という語は **推奨の記述**であって実行指示ではない。完了レポート提示後に `run-skill-create` 等を続けて起動してはならない。「では作成します」と続行せず、`mode` と推奨を提示して停止する (Key Rule 9)。スキル生成が必要ならユーザーが明示的に別途開始する。
 
 ## Additional Resources
 
@@ -138,5 +141,5 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - `references/resource-map.yaml` — 他 reference を読む前の最小読込先マップ
 - 子 Skill: `run-intake-kickoff` / `run-intake-interview` / `ref-intake-option-catalog` / `run-intake-visualize` / `run-intake-next-action` / `run-intake-finalize` / `run-notion-intake-publish`
 - SubAgent: `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-purpose-excavator` / `skill-intake-summarizer`
-- 既存スキルとの関係: `run-skill-intake-aggregator` (前身、deprecate 予定) / `run-skill-elicit` (技術者向け簡易 brief、併存) / `run-skill-create` (上位 orchestrator) / `run-notion-fidelity-guard` (Phase 10 内部起動)
+- 既存スキルとの関係: `run-skill-intake-aggregator` (前身、deprecate 予定) / `run-skill-elicit` (技術者向け簡易 brief、併存) / `run-skill-create` (**上位 orchestrator**。intake を Step 1 として呼ぶ側。intake からは起動しない — Key Rule 9) / `run-notion-fidelity-guard` (Phase 10 内部起動)
 - Slash command の起動正本は本スキル (`run-skill-intake`)。`/intake-publish <hint>` (Notion 再公開) / `/intake-status <hint>` (進行確認) は別 skill が担う。

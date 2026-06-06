@@ -58,7 +58,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
-7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開の **実行** は非担当)。ただし Notion 公開「完了」は skill 生成へ進む必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
+7. **責務単一・生成は起動禁止**: 本スキルは mode 判定と `next-action.json` 生成のみ。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **起動しない (allowed-tools に Skill/Task を持たないので構造的にも不可)**。`mode` / `skill_creator_handoff_phase` は後続への**推奨情報**であり、本スキルや呼び出し元がそれを自動実行することは意図しない (実行はユーザーの明示的な別アクション)。ただし Notion 公開「完了」は推奨を出す必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
 8. **Notion 公開完了の precondition 検証**: `decide-mode.py` は handoff 確定前に `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有りを assert する。不成立なら exit 2 で停止 (逸脱B封鎖)。CI/dry-run のみ `--allow-skip` で緩和。
 
 ## ゴールシーク実行

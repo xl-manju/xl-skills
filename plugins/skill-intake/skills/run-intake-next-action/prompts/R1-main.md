@@ -26,8 +26,8 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を確定する。
-- 非担当: skill 本体生成、ヒアリング深掘り、Notion 公開。
+- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を**判定し推奨として記録する**。
+- 非担当 (起動禁止): skill 本体生成 (`run-skill-create` / `run-build-skill` / `capability-build`)、ヒアリング深掘り、Notion 公開。これらを Skill/Task で起動しない。mode は推奨であり実行に移さない。
 
 ### 2.2 ドメインルール
 - mode は A〜E の 5 値のみ。
@@ -98,7 +98,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `run-skill-intake` / `run-skill-intake-aggregator` の Notion 公開完了後 phase
-- 後続 phase: skill-creator 引き渡し (必要な場合のみ)
+- 後続 phase: skill-creator 引き渡しは **mode の「推奨」を出すのみ**。本スキルも呼び出し元 (intake orchestrator) も `run-skill-create` を自動起動しない。実際のスキル生成はユーザーが別途明示的に開始する独立アクションであり、intake ワークフローはこの推奨提示で完結・停止する。
 
 ### 6.2 並列性
 - AskUserQuestion は 1 問ずつ。並列起動禁止。
