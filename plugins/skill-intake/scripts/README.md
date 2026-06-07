@@ -2,7 +2,7 @@
 
 本ディレクトリの責務: `run-skill-intake` および sibling skill `run-notion-intake-publish` から呼ばれる**決定論処理を担う Python 3 スクリプト集**。LLM 判断に依存せず、入力に対して常に同じ出力を返すロジックのみを置く (Script First 原則)。macOS 標準 `/usr/bin/python3` で動作する。最終 Markdown レンダリング用の `jinja2` は plugin 配下 `vendor/python` に同梱し、JSON Schema 検証は `scripts/_jsonschema_compat.py` の標準ライブラリ fallback を使う。
 
-**スクリプト数: 計 50 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **42 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **8 本**。データファイル `notion_limits.json` は本数に含めない。
+**スクリプト数: 計 51 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **43 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **8 本**。データファイル `notion_limits.json` は本数に含めない。
 
 ## カテゴリ別一覧
 
@@ -12,11 +12,12 @@
 |---|---|
 | `keychain_get_secret.py` | macOS Keychain から Notion トークンを取得する唯一の経路。exit 44 で未登録を表現。 |
 
-### Notion 系 (8 本)
+### Notion 系 (9 本)
 
 | スクリプト | サマリ |
 |---|---|
 | `notion_http.py` | Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を 1 箇所に閉じ込める。 |
+| `check_notion_ready.py` | 固定DB / config / Keychain token / 任意の read-only API 接続を一括確認し、PASS 済みなら API キー再質問を不要にする。 |
 | `create_notion_database.py` | `--mode=create|sync` で DB を作成または既存 DB を期待スキーマへ寄せる。create は `--parent-page` / `.notion-config.json#parent_page` を必須解決し、`--dry-run` で非 mutation 検証可能。 |
 | `verify_notion_schema.py` | 期待スキーマと現状 DB を突き合わせ、過不足を `eval-log/notion-conflicts.json` に出力。 |
 | `prepare_notion_assets.py` | `visuals/` を走査し SHA-256 付き `notion-manifest.json` を生成。 |

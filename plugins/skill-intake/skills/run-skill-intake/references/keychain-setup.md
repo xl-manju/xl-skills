@@ -69,10 +69,14 @@ security delete-generic-password \
 # 登録 — 対話入力モード (パスワードがシェル履歴に残らない)
 # 重要: `-w` を **引数なしで末尾に** 置くこと。
 #       `-w` を省略すると空パスワードで黙って登録される (プロンプトは出ない)。
+# 重要: `-T /usr/bin/security` を付ける。これが無い (`-T ''`) と
+#       skill-intake がトークンを読むたび macOS が承認ダイアログを出し、
+#       「設定済みなのに何度も聞かれる」状態になる (notion_config は
+#       /usr/bin/security 経由で読むため、この CLI を ACL に許可する)。
 security add-generic-password \
   -s notion-api-key.xl-skills \
   -a xl-skills \
-  -T '' \
+  -T /usr/bin/security \
   -U \
   -w
 
@@ -89,18 +93,7 @@ security add-generic-password \
   -s notion-api-key.xl-skills \
   -a xl-skills \
   -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
-  -T '' \
-  -U
-```
-
-または `-w` で直接渡す (シェル履歴に残るため非推奨):
-
-```bash
-security add-generic-password \
-  -s notion-api-key.xl-skills \
-  -a xl-skills \
-  -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
-  -T '' \
+  -T /usr/bin/security \
   -U
 ```
 
@@ -111,9 +104,11 @@ security add-generic-password \
 | `-s` | service 名 (= `notion-api-key.xl-skills`) |
 | `-a` | account 名 (= `xl-skills`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
 | `-w` | パスワード本体 (省略すると対話入力) |
-| `-T ''` | アクセス許可アプリ空 (毎回承認ダイアログ。最も厳格) |
-| `-T /usr/bin/security` | security コマンド自身に許可 (CLI 自動化時のみ) |
+| `-T /usr/bin/security` | **推奨**。security CLI に読取許可。skill-intake はこの CLI 経由でトークンを読むため、一度許可すれば以後ダイアログは出ない |
+| `-T ''` | アクセス許可アプリ空 = **毎回承認ダイアログ**。「設定済みなのに何度も聞かれる」原因。CLI 自動化では使わない |
 | `-U` | 既存があれば更新 |
+
+> 既に `-T ''` で登録済みで毎回聞かれる場合は、4.2 の手順 (delete → `-T /usr/bin/security` 付きで add) で **再登録** すれば解消する。トークン本体の再入力が必要なので、ユーザー自身のローカルターミナルで実行すること。
 
 ## 5. 動作検証 (2 段階)
 
