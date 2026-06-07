@@ -17,8 +17,8 @@ skill-creator の前段ヒアリングを **非技術者にも開く** Claude Co
 |---|---|---|---|
 | Notion Parent Page ID | 固定設定 | `notion-config.fixed.json#parent_page` / 上書きは `.notion-config.json` or env `INTAKE_NOTION_PARENT_PAGE_ID` | OK |
 | Notion Database ID | 固定設定 | `notion-config.fixed.json#databases.hearing-sheet.db_id` / 上書きは `.notion-config.json` or env `INTAKE_NOTION_DATABASE_ID` | OK |
-| Keychain service 名（既定） | `notion-api-key` | `.notion-config.json#keychain_service` / env `INTAKE_KEYCHAIN_SERVICE` で上書き可 | OK |
-| Keychain account 名（既定） | `skill-intake` | `.notion-config.json#keychain_account` / env `INTAKE_KEYCHAIN_ACCOUNT` で上書き可 | OK |
+| Keychain service 名（既定） | `notion-api-key.xl-skills` | `.notion-config.json#keychain_service` / env `INTAKE_KEYCHAIN_SERVICE` で上書き可 | OK |
+| Keychain account 名（既定） | `xl-skills` | `.notion-config.json#keychain_account` / env `INTAKE_KEYCHAIN_ACCOUNT` で上書き可 | OK |
 | Notion-Version ヘッダ | `2022-06-28` | `scripts/notion_http.py` / env `INTAKE_NOTION_VERSION` で上書き可 | OK |
 
 DB ID 解決順: `--database-id` CLI > env `INTAKE_NOTION_DATABASE_ID` > `.notion-config.json`（env `NOTION_CONFIG_PATH` > repo-root 直下 > **plugin-root 直下**）> `notion-config.fixed.json`。
@@ -31,8 +31,8 @@ Parent Page ID 解決順: `--parent-page` / `--parent-page-url` CLI > env `INTAK
 
 | 項目 | 格納場所 | 漏洩可否 |
 |---|---|---|
-| Notion API トークン本体（`secret_xxx...`） | macOS Keychain (service=`notion-api-key`, account=`skill-intake`) | **NG** |
-| Slack Incoming Webhook URL | macOS Keychain (service=`slack-incoming-webhook`, account=`skill-intake`) | **NG** |
+| Notion API トークン本体（`secret_xxx...`） | macOS Keychain (service=`notion-api-key.xl-skills`, account=`xl-skills`) | **NG** |
+| Slack Incoming Webhook URL | macOS Keychain (service=`slack-incoming-webhook`, account=`xl-skills`) | **NG** |
 
 Non-Secrets は「どの DB か」「どの Keychain エントリか」を指す **ポインタ** であり、機密実体は常に Keychain 側にあります。
 
@@ -118,8 +118,8 @@ https://www.notion.so/<workspace>/<32文字の英数字>?v=...
 
 ```bash
 security add-generic-password \
-  -s notion-api-key \
-  -a skill-intake \
+  -s notion-api-key.xl-skills \
+  -a xl-skills \
   -T '' -U
 ```
 
@@ -130,7 +130,7 @@ security add-generic-password \
 ```bash
 security add-generic-password \
   -s slack-incoming-webhook \
-  -a skill-intake \
+  -a xl-skills \
   -T '' -U
 ```
 
@@ -231,7 +231,7 @@ env による override は **CI/staging 限定の用途**:
 ```bash
 # 任意（CI/staging 限定）
 # export INTAKE_NOTION_DATABASE_ID="<別環境の 32文字 Database ID>"
-# export INTAKE_KEYCHAIN_SERVICE="notion-api-key"      # 既定値そのまま
+# export INTAKE_KEYCHAIN_SERVICE="notion-api-key.xl-skills"      # 既定値そのまま
 # export INTAKE_KEYCHAIN_ACCOUNT="skill-intake"        # 既定値そのまま
 # export INTAKE_NOTION_VERSION="2022-06-28"            # 既定値そのまま
 # export INTAKE_ALLOW_ENV_TOKEN=1                      # CI/dry-run で NOTION_TOKEN を許可する場合のみ
@@ -506,7 +506,7 @@ plugins/skill-intake/
 | `INTAKE_NOTION_DATABASE_ID` | `notion-config.fixed.json` | 任意（CI/staging のみ） | Notion DB ID (32文字)。固定ヒアリングシートDBを上書きする場合のみ使用 |
 | `NOTION_CONFIG_PATH` | なし | 任意 | `.notion-config.json` の明示パス。存在しない場合は fail-closed |
 | `INTAKE_ALLOW_ENV_TOKEN` | なし | 任意（CI/dry-run のみ） | `1` のときだけ `NOTION_TOKEN` fallback を許可 |
-| `INTAKE_KEYCHAIN_SERVICE` | `notion-api-key` | 任意 | Keychain service 名 |
+| `INTAKE_KEYCHAIN_SERVICE` | `notion-api-key.xl-skills` | 任意 | Keychain service 名 |
 | `INTAKE_KEYCHAIN_ACCOUNT` | `skill-intake` | 任意 | Keychain account 名 |
 | `INTAKE_NOTION_VERSION` | `2022-06-28` | 任意 | Notion-Version ヘッダ |
 

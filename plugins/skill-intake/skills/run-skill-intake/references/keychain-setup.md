@@ -53,7 +53,7 @@ type: reference
 ### 4.1 既存登録の確認 (任意)
 
 ```bash
-security find-generic-password -s notion-api-key -a skill-intake 2>/dev/null \
+security find-generic-password -s notion-api-key.xl-skills -a xl-skills 2>/dev/null \
   && echo "既存あり (更新になります)" \
   || echo "未登録 (新規登録します)"
 ```
@@ -63,15 +63,15 @@ security find-generic-password -s notion-api-key -a skill-intake 2>/dev/null \
 ```bash
 # 既存があれば削除 (再登録時のみ)
 security delete-generic-password \
-  -s notion-api-key \
-  -a skill-intake 2>/dev/null
+  -s notion-api-key.xl-skills \
+  -a xl-skills 2>/dev/null
 
 # 登録 — 対話入力モード (パスワードがシェル履歴に残らない)
 # 重要: `-w` を **引数なしで末尾に** 置くこと。
 #       `-w` を省略すると空パスワードで黙って登録される (プロンプトは出ない)。
 security add-generic-password \
-  -s notion-api-key \
-  -a skill-intake \
+  -s notion-api-key.xl-skills \
+  -a xl-skills \
   -T '' \
   -U \
   -w
@@ -86,8 +86,8 @@ security add-generic-password \
 ```bash
 # シェル履歴に残るため、対話入力モードが使えない CI/CD などでのみ使う
 security add-generic-password \
-  -s notion-api-key \
-  -a skill-intake \
+  -s notion-api-key.xl-skills \
+  -a xl-skills \
   -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
   -T '' \
   -U
@@ -97,8 +97,8 @@ security add-generic-password \
 
 ```bash
 security add-generic-password \
-  -s notion-api-key \
-  -a skill-intake \
+  -s notion-api-key.xl-skills \
+  -a xl-skills \
   -w 'ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
   -T '' \
   -U
@@ -108,7 +108,7 @@ security add-generic-password \
 
 | オプション | 意味 |
 |---|---|
-| `-s` | service 名 (= `notion-api-key`) |
+| `-s` | service 名 (= `notion-api-key.xl-skills`) |
 | `-a` | account 名 (= `skill-intake`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
 | `-w` | パスワード本体 (省略すると対話入力) |
 | `-T ''` | アクセス許可アプリ空 (毎回承認ダイアログ。最も厳格) |
@@ -125,7 +125,7 @@ bash ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/hooks/post-keychain-add.sh
 
 期待出力:
 ```
-[skill-intake] Keychain 取得テスト: service=notion-api-key, account=skill-intake
+[skill-intake] Keychain 取得テスト: service=notion-api-key.xl-skills, account=xl-skills
 OK: トークン取得成功 (長さ=N, prefix=ntn_...)
     トークン本体は表示しません。
 ```
@@ -133,7 +133,7 @@ OK: トークン取得成功 (長さ=N, prefix=ntn_...)
 ### 5.2 段階 2 — Notion API 接続テスト (whoami + DB アクセス)
 
 ```bash
-TOKEN=$(security find-generic-password -s notion-api-key -a skill-intake -w)
+TOKEN=$(security find-generic-password -s notion-api-key.xl-skills -a xl-skills -w)
 
 # whoami: PAT が API に届くか
 echo "whoami:"; curl -sS https://api.notion.com/v1/users/me \
@@ -158,8 +158,8 @@ PAT 文字列を画面に出してでも確認したい場合のみ:
 
 ```bash
 security find-generic-password \
-  -s notion-api-key \
-  -a skill-intake -w
+  -s notion-api-key.xl-skills \
+  -a xl-skills -w
 ```
 
 ターミナル履歴に残るため、確認後は `clear` 等で画面をクリアすることを推奨。
@@ -183,7 +183,7 @@ security find-generic-password \
 
 ## 6. 環境変数で上書きしたい場合
 
-既定値 (`service=notion-api-key`, `account=skill-intake`) と異なる Keychain entry を使いたいとき (例: staging 環境専用 entry、bot アカウント運用) は環境変数で上書きする。以下は **既定とは別の値を指定する例** であり、初回セットアップでこの値をそのまま使う必要はない。
+既定値 (`service=notion-api-key.xl-skills`, `account=xl-skills`) と異なる Keychain entry を使いたいとき (例: staging 環境専用 entry、bot アカウント運用) は環境変数で上書きする。以下は **既定とは別の値を指定する例** であり、初回セットアップでこの値をそのまま使う必要はない。
 
 ```bash
 # 例: staging 用 service + bot アカウント運用に切り替える
@@ -192,7 +192,7 @@ export INTAKE_KEYCHAIN_ACCOUNT=skill-intake-bot
 export INTAKE_NOTION_DATABASE_ID=ffffffffffffffffffffffffffffffff
 ```
 
-`scripts/keychain_get_secret.py` はこれらを自動参照する。未設定なら既定値 (`account=skill-intake`) にフォールバック。
+`scripts/keychain_get_secret.py` はこれらを自動参照する。未設定なら既定値 (`account=xl-skills`) にフォールバック。
 
 ## 7. ローテーション
 

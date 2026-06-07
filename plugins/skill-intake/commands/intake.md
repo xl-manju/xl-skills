@@ -18,7 +18,7 @@ argument-hint: "[topic] [--page-url <notion-page-url>|--page-id <notion-page-id>
 
 ## 事前条件
 
-- macOS Keychain に Notion トークンが `service=notion-api-key, account=skill-intake` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake/references/keychain-setup.md` を参照。
+- macOS Keychain に Notion トークンが `service=notion-api-key.xl-skills, account=xl-skills` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake/references/keychain-setup.md` を参照。
 - 対象 Notion DB (`--database-id` / `INTAKE_NOTION_DATABASE_ID` / `.notion-config.json#databases.hearing-sheet.db_id` のいずれかで指定) に PAT / Integration が Connections 追加されていること。
 - 既存 Notion ページへ出力する場合は `--page-url` または `--page-id` を指定すること。指定された場合、publish は update 専用になり create へフォールバックしない。
 

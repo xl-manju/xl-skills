@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_SERVICE = 'notion-api-key'
-DEFAULT_ACCOUNT = 'skill-intake'
+DEFAULT_SERVICE = 'notion-api-key.xl-skills'
+DEFAULT_ACCOUNT = 'xl-skills'
 
 
 def _load_config_if_available():

@@ -80,7 +80,7 @@
 - PATCH 失敗時は `output/<hint>/notion-rollback-<rev>.json` を保存。
 
 ### 4.3 セキュリティ
-- Notion トークンは macOS Keychain (`service=notion-api-key, account=skill-intake`) から取得。直書き禁止。
+- Notion トークンは macOS Keychain (`service=notion-api-key.xl-skills, account=xl-skills`) から取得。直書き禁止。
 - `internal-analysis.json` はユーザーに直接表示しない (要約済みテキストのみ提示)。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)

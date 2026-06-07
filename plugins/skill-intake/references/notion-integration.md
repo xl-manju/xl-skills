@@ -27,7 +27,7 @@ intake.md / intake.json 完成
 
 | 項目 | 既定値 | 上書き環境変数 |
 |------|--------|----------------|
-| Keychain service | `notion-api-key` | `INTAKE_KEYCHAIN_SERVICE` |
+| Keychain service | `notion-api-key.xl-skills` | `INTAKE_KEYCHAIN_SERVICE` |
 | Keychain account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
 | Notion DB ID | (必須・既定値なし) | `INTAKE_NOTION_DATABASE_ID` |
 | Notion-Version | `scripts/notion_http.py` の `NOTION_VERSION` 定数を正本とする (現行 `2022-06-28`) | `INTAKE_NOTION_VERSION` |
@@ -175,7 +175,7 @@ Notion 公開成功後、`hooks/post-publish-notify.sh` (PostToolUse hook) が
 ```bash
 security add-generic-password \
   -s slack-incoming-webhook \
-  -a skill-intake \
+  -a xl-skills \
   -w 'https://hooks.slack.com/services/XXX/YYY/ZZZ' \
   -U
 ```

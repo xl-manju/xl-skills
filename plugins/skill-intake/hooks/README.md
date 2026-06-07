@@ -61,7 +61,7 @@ bash ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/hooks/post-keychain-add.sh
 ```bash
 security add-generic-password \
   -s slack-incoming-webhook \
-  -a skill-intake \
+  -a xl-skills \
   -w 'https://hooks.slack.com/services/XXX/YYY/ZZZ' \
   -U
 ```
