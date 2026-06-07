@@ -89,7 +89,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 
 ### 完了チェックリスト (Checklist)
 
-- [ ] `Step 0` 前提検証 PASS (`keychain_get_secret.py --check` exit 0、`verify_notion_schema.py --on-conflict skip-warn` exit 0)。exit 44 なら `references/keychain-setup.md` を案内し停止
+- [ ] `Step 0` 前提検証 PASS (`validate-notion-ready.py --check-api` exit 0)。PASS 済みなら API キー / Notion トークンをユーザーに再質問しない。exit 44 のときだけ `references/keychain-setup.md` を案内し停止
 - [ ] `output/<hint>/` と `eval-log/intake-trace.json` 初期化済み (hint は topic から仮決定)
 - [ ] Phase 1 (`run-intake-kickoff`, Skill) success → `kickoff.json` schema validate PASS
 - [ ] Phase 2 (`skill-intake-assumption-challenger`, SubAgent / context:fork) success → `assumption.json` schema validate PASS

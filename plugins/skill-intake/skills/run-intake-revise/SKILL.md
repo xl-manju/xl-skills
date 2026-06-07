@@ -59,6 +59,7 @@ manifest: workflow-manifest.json
 Notion ページの新規作成は URL 変更とリンク断絶を招くため、PATCH 固定が不可避。LLM 推論を含むヒアリング結果と決定論的 render を分離しないと、検証 (PNG / mermaid 存在) を通らない部分更新がページを汚染する。固定手順を辿るのではなく、**チェックリスト未充足を起点に必要 step をその都度起動して反復**することで、ユーザー意図の取り違えや中間生成物欠落にも頑健になる。
 
 ### 完了チェックリスト (停止条件)
+- [ ] `validate-notion-ready.py --check-api` が exit 0 (config / Keychain トークン / hearing-sheet DB 疎通)。PASS 済みなら API キーを再質問しない。exit 44 のみ `keychain-setup.md` 案内で停止
 - [ ] 既存 4 ファイル (`intake.json` / `intake.md` / `notion-url.txt` / `internal-analysis.json`) をロードし、Notion ページ ID を抽出した
 - [ ] revision 回数を確認し、上限 (5) を超えていない
 - [ ] AskUserQuestion で対象章 (§1〜§11) / 変更内容 / 変更理由を収集した
@@ -97,7 +98,7 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-load / P2-hear /
 ## Gotchas
 
 1. **page-id 不一致は致命**: `notion-url.txt` と Notion DB 上のページが一致しなければ exit 51 で新規 `/intake` を案内 (PATCH 続行禁止)。
-2. **Keychain 取得失敗**: `service=notion-api-key.xl-skills, account=xl-skills` 未登録は exit 44。`keychain-setup.md` を案内。
+2. **Keychain / API キーは再質問しない**: PATCH 前に `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/validate-notion-ready.py --check-api` を 1 度だけ実行する。exit 0 なら API キー / Notion トークンは確認済みとして扱い、ユーザーへ再入力を求めない。exit 44 (`service=notion-api-key.xl-skills, account=xl-skills` 未登録) のときだけ `keychain-setup.md` を案内し停止する。
 3. **回数上限超過**: 5 回を超えたら exit 60 (新規 hint へ移行)。リセットしない。
 4. **cancel は完全巻き戻し**: Gate R cancel で exit 2、既存ページ不変、ローカル中間生成物も巻き戻す。
 5. **rollback JSON**: PATCH 失敗時は `output/<hint>/notion-rollback-<rev>.json` を必ず保存。次回実行で参照する。

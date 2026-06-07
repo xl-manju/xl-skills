@@ -110,13 +110,14 @@ test -f "output/$HINT/notion-manifest.json" || { echo "notion-manifest.json not 
 
 ```bash
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}"
-python3 "$PLUGIN_ROOT/scripts/keychain_get_secret.py" --check
+python3 "$PLUGIN_ROOT/scripts/validate-notion-ready.py" --check-api
 python3 "$PLUGIN_ROOT/scripts/verify_notion_schema.py" --on-conflict skip-warn ${DATABASE_ID:+--database-id "$DATABASE_ID"}
 python3 "$PLUGIN_ROOT/scripts/verify_notion_assets.py" "output/$HINT/notion-manifest.json"
 ```
 
 いずれか exit !=0 ならその時点で停止。詳細な exit 規約は
 `references/republish-contract.md`。
+`validate-notion-ready.py --check-api` が PASS した場合、API キー / Notion トークンは確認済みとして扱い、ユーザーへ再入力を求めない。exit 44 のときだけ Keychain セットアップを案内する。
 
 ### Step 3: pipeline 起動 (唯一の publish 発火点)
 

@@ -144,6 +144,61 @@ def test_notion_config_uses_bundled_fixed_config_when_local_config_missing(tmp_p
             os.environ["INTAKE_NOTION_DATABASE_ID"] = old_db
 
 
+def test_bundled_fixed_config_contains_default_hearing_sheet_target():
+    fixed = json.loads((ROOT / "plugins/skill-intake/notion-config.fixed.json").read_text(encoding="utf-8"))
+    assert fixed["databases"]["hearing-sheet"]["db_id"] == "36607a0c-d18c-80bf-9eff-c74aa736645c"
+    assert fixed["databases"]["hearing-sheet"]["url"].startswith(
+        "https://app.notion.com/p/36607a0cd18c80bf9effc74aa736645c"
+    )
+
+
+def test_check_notion_ready_reports_fixed_target_with_env_token(tmp_path):
+    plugin_root = tmp_path / "skill-intake"
+    plugin_root.mkdir()
+    (plugin_root / "notion-config.fixed.json").write_text(
+        json.dumps({
+            "keychain_service": "notion-api-key.xl-skills",
+            "keychain_account": "xl-skills",
+            "parent_page": {"page_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"},
+            "databases": {"hearing-sheet": {"db_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"}},
+        }),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["CLAUDE_PLUGIN_ROOT"] = str(plugin_root)
+    env.pop("NOTION_CONFIG_PATH", None)
+    env.pop("INTAKE_NOTION_DATABASE_ID", None)
+    env["INTAKE_ALLOW_ENV_TOKEN"] = "1"
+    env["NOTION_TOKEN"] = "secret_test"
+
+    result = run_cmd(
+        "plugins/skill-intake/scripts/validate-notion-ready.py",
+        "--json",
+        env=env,
+    )
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["database_id"] == "36607a0c-d18c-80bf-9eff-c74aa736645c"
+    assert payload["token"] == "available"
+    assert payload["api"] == "not_checked"
+
+
+def test_intake_prompts_do_not_reask_api_key_after_ready_check():
+    skill = (ROOT / "plugins/skill-intake/skills/run-skill-intake/SKILL.md").read_text(encoding="utf-8")
+    prompt = (ROOT / "plugins/skill-intake/skills/run-skill-intake/prompts/R1-main.md").read_text(
+        encoding="utf-8"
+    )
+    publish = (ROOT / "plugins/skill-intake/skills/run-notion-intake-publish/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    revise = (ROOT / "plugins/skill-intake/skills/run-intake-revise/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    for text in (skill, prompt, publish, revise):
+        assert "validate-notion-ready.py --check-api" in text
+        assert "再質問しない" in text or "再入力を求めない" in text
+
+
 def test_smoke_notion_publish_requires_target(tmp_path):
     (tmp_path / "intake.json").write_text("{}", encoding="utf-8")
     (tmp_path / "notion-manifest.json").write_text("{}", encoding="utf-8")

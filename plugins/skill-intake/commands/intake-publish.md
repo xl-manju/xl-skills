@@ -11,7 +11,7 @@ argument-hint: "<skill-name-hint> [--page-url <notion-page-url>|--page-id <notio
 ## 振る舞い
 
 1. `Skill(run-notion-intake-publish, args="$ARGUMENTS")` を呼ぶ。
-2. Keychain → トークン取得 → DB スキーマ検証 → PNG 検証 → REST API PATCH → URL 保存。
+2. `validate-notion-ready.py --check-api` → DB スキーマ検証 → PNG 検証 → REST API PATCH → URL 保存。ready check が PASS した場合、APIキーは再質問しない。
 3. 再公開は update 専用。出力先 page_id 解決順は `--page-id` > `--page-url` > `output/<hint>/notion-url.txt` > `notion-publish-result.json`。いずれでも解決できない場合は exit 51 で停止し、新規ページは作らない。
 
 ## 用途
