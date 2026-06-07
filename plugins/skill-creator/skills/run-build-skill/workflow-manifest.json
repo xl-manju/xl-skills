@@ -96,7 +96,7 @@
       "flag_required": "--notion-register",
       "resourceIds": [],
       "output_artifact": "scripts/notion-upsert-plugin.py --plugin <plugin> [--hearing-sheet-id <id>]",
-      "note": "実体は top-level scripts/notion-upsert-plugin.py。冪等。token は keychain notion-api-key または $NOTION_TOKEN。"
+      "note": "実体は top-level scripts/notion-upsert-plugin.py。冪等。token は .notion-config.json の keychain_service/keychain_account から取得し、CI では INTAKE_ALLOW_ENV_TOKEN=1 明示時のみ $NOTION_TOKEN を許可。"
     },
     {
       "id": "feedback-deploy",
