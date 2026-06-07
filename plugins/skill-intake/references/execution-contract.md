@@ -17,7 +17,7 @@ SubAgent から `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/<na
 | OS | macOS (Keychain 経由のため; 他 OS は `keychain_get_secret.py` 差し替え必須) |
 | cwd | repo 配置ではリポジトリルート、単独 install では plugin root。スクリプトは `$CLAUDE_PLUGIN_ROOT` / 相対パス解決に対応する |
 | 依存 | Python 3.9 以上 + `jsonschema` / `jinja2` |
-| トークン | macOS Keychain (service=`notion-api-key`, account=`skill-intake`) のみ。`.env` / 環境変数経由禁止 |
+| トークン | macOS Keychain (service=`notion-api-key.xl-skills`, account=`xl-skills`) のみ。`.env` / 環境変数経由禁止 |
 
 ## 実行経路マトリクス
 

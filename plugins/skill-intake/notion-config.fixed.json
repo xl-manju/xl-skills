@@ -1,7 +1,7 @@
 {
   "description": "Bundled fixed Notion targets for skill-intake. Tokens are never stored here.",
-  "keychain_service": "notion-api-key",
-  "keychain_account": "skill-intake",
+  "keychain_service": "notion-api-key.xl-skills",
+  "keychain_account": "xl-skills",
   "parent_page": {
     "page_id": "36607a0c-d18c-80bf-9eff-c74aa736645c",
     "page_url": "https://app.notion.com/p/36607a0cd18c80bf9effc74aa736645c?v=36607a0cd18c809fb075000c267faadf"

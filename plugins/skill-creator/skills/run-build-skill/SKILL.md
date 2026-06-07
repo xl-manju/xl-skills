@@ -261,7 +261,7 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 1. `--notion-register` または `brief.notion_register=true` 未指定なら phase skip。
 2. `python3 scripts/notion-upsert-plugin.py --plugin <plugin>` 実行 (TITLE 検索→PATCH/POST 冪等)。ヒアリングシート由来なら `--hearing-sheet-id <notion-page-id>` で 1:1 relation を埋める。
-3. token は keychain `notion-api-key` (macOS) または `$NOTION_TOKEN` (CI)。不在なら警告のみで skip。
+3. token は `.notion-config.json` の `keychain_service` / `keychain_account` (既定: `notion-api-key.xl-skills` / `xl-skills`) から Keychain 経由で取得する。CI では `INTAKE_ALLOW_ENV_TOKEN=1` を明示した場合のみ `$NOTION_TOKEN` を許可する。不在なら警告のみで skip。
 4. 整合性は `scripts/lint-notion-relations.py` が 1:1 / N:1 不変条件 (プラグイン名重複・ヒアリング多重紐付け・改善要望の対象未設定) を CI で検証。
 
 正本スクリプト: `scripts/notion-upsert-plugin.py` / スキーマ SSOT: `doc/notion-schema/skill-list.schema.json` (含む `feedback_protocol` SSOT)。

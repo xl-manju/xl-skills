@@ -61,13 +61,13 @@ bash ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/hooks/post-keychain-add.sh
 ```bash
 security add-generic-password \
   -s slack-incoming-webhook \
-  -a skill-intake \
+  -a xl-skills \
   -w 'https://hooks.slack.com/services/XXX/YYY/ZZZ' \
   -U
 ```
 
 登録後は `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
-  --service slack-incoming-webhook --account skill-intake --check`
+  --service slack-incoming-webhook --account xl-skills --check`
 で取得可否を確認する。
 
 #### no-op 条件

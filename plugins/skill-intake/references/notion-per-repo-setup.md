@@ -46,7 +46,7 @@ env で渡す場合は `.notion-config.json` を作らず
 > `python3 scripts/build-notion-config.py` で **repo-slug namespacing 付き** config を
 > 自動生成できる (`keychain_service: notion-api-key.<slug>` / slug は `git remote` から推定、
 > `--slug foo` で上書き)。**なぜ slug 必須か**: Keychain の `(service, account)` は macOS
-> グローバル名前空間で、複数 repo が同一 `notion-api-key` を使うと共有 skill が**意図しない
+> グローバル名前空間で、複数 repo が同一 service 名を使うと共有 skill が**意図しない
 > repo のトークン**を引くため、slug 名前空間化で物理的に防ぐ。本スクリプトは単独 install **未同梱**。
 
 ### 1.2 API トークン登録 (macOS Keychain)
@@ -54,7 +54,7 @@ env で渡す場合は `.notion-config.json` を作らず
 ```bash
 read -rs NOTION_TOKEN_INPUT
 security add-generic-password \
-  -s notion-api-key -a skill-intake \
+  -s notion-api-key.xl-skills -a xl-skills \
   -w "$NOTION_TOKEN_INPUT" -U
 unset NOTION_TOKEN_INPUT
 ```

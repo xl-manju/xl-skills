@@ -4,6 +4,8 @@
   "description": "ユーザーへのヒアリングからPrompt作成シートを生成し、7層構造プロンプトを自動生成するスキル",
   "scripts": {
     "log": "node scripts/log_usage.js",
+    "typecheck": "node --check scripts/*.js",
+    "lint": "node --check scripts/*.js",
     "validate:sheet": "node scripts/validate_sheet.js",
     "validate:prompt": "node scripts/validate_prompt.js",
     "generate:sheet": "node scripts/generate_sheet.js",

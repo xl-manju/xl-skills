@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_SERVICE = 'notion-api-key'
-DEFAULT_ACCOUNT = 'skill-intake'
+DEFAULT_SERVICE = 'notion-api-key.xl-skills'
+DEFAULT_ACCOUNT = 'xl-skills'
 
 
 def _load_config_if_available():
@@ -35,7 +35,7 @@ def _default_account():
     cfg = _load_config_if_available()
     if cfg and cfg.get('keychain_account'):
         return cfg['keychain_account']
-    return os.environ.get('INTAKE_KEYCHAIN_ACCOUNT', DEFAULT_ACCOUNT)
+    return DEFAULT_ACCOUNT
 
 
 # 後方互換 alias。実行時解決は _default_* を使う。

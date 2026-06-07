@@ -1,6 +1,6 @@
 {
-  "keychain_service": "notion-api-key",
-  "keychain_account": "skill-intake",
+  "keychain_service": "notion-api-key.xl-skills",
+  "keychain_account": "xl-skills",
   "parent_page": {
     "page_id": "<your-parent-page-id>",
     "page_url": "<your-parent-page-url>"

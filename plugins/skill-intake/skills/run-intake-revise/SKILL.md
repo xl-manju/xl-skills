@@ -97,7 +97,7 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-load / P2-hear /
 ## Gotchas
 
 1. **page-id 不一致は致命**: `notion-url.txt` と Notion DB 上のページが一致しなければ exit 51 で新規 `/intake` を案内 (PATCH 続行禁止)。
-2. **Keychain 取得失敗**: `service=notion-api-key, account=skill-intake` 未登録は exit 44。`keychain-setup.md` を案内。
+2. **Keychain 取得失敗**: `service=notion-api-key.xl-skills, account=xl-skills` 未登録は exit 44。`keychain-setup.md` を案内。
 3. **回数上限超過**: 5 回を超えたら exit 60 (新規 hint へ移行)。リセットしない。
 4. **cancel は完全巻き戻し**: Gate R cancel で exit 2、既存ページ不変、ローカル中間生成物も巻き戻す。
 5. **rollback JSON**: PATCH 失敗時は `output/<hint>/notion-rollback-<rev>.json` を必ず保存。次回実行で参照する。

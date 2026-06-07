@@ -56,7 +56,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEYCHAIN_PY="$SCRIPT_DIR/../scripts/keychain_get_secret.py"
 SERVICE="${INTAKE_SLACK_KEYCHAIN_SERVICE:-slack-incoming-webhook}"
-ACCOUNT="${INTAKE_SLACK_KEYCHAIN_ACCOUNT:-skill-intake}"
+ACCOUNT="${INTAKE_SLACK_KEYCHAIN_ACCOUNT:-xl-skills}"
 
 if [[ ! -f "$KEYCHAIN_PY" ]]; then
   echo "[post-publish-notify] WARN: keychain_get_secret.py が見つからない: $KEYCHAIN_PY" >&2

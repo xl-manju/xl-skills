@@ -142,9 +142,9 @@ xl-skills では API キーを **コード・ファイル・環境変数に書�
 
 ```bash
 security add-generic-password \
-  -s "notion-api-key" \
-  -a "skill-intake" \
-  -w "secret_xxxxxxxxxxxxxxxxxxx" \
+  -s "notion-api-key.xl-skills" \
+  -a "xl-skills" \
+  -w "ntn_xxxxxxxxxxxxxxxxxxx" \
   -U
 ```
 
@@ -158,10 +158,10 @@ security add-generic-password \
 ## Step 2: 登録できたか確認
 
 ```bash
-security find-generic-password -s "notion-api-key" -a "skill-intake" -w
+security find-generic-password -s "notion-api-key.xl-skills" -a "xl-skills" >/dev/null
 ```
 
-API キーが表示されれば登録成功。
+終了コードが `0` なら登録成功。API キー本体は表示しません。
 
 ## Step 3: plugin が読みに行くサービス名
 
@@ -169,17 +169,16 @@ API キーが表示されれば登録成功。
 
 | plugin | サービス名 (-s) | アカウント名 (-a) | 用途 |
 |---|---|---|---|
-| `skill-intake` | `notion-api-key` | `skill-intake` | Notion ページ作成 |
+| `skill-intake` | `notion-api-key.xl-skills` | `xl-skills` | Notion ページ作成 |
 
-(他に必要になった場合は plugin の README に追記されます)
+このリポジトリでは `.notion-config.json` の `keychain_service` / `keychain_account` が正本です。
 
 ## 環境変数で上書きしたい場合
 
 CI など Keychain が使えない環境では、以下の環境変数で上書きできます。
 
 ```bash
-export INTAKE_KEYCHAIN_SERVICE="notion-api-key"
-export INTAKE_KEYCHAIN_ACCOUNT="skill-intake"
+export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 ```
 
 通常の利用では上書き不要です。

@@ -17,8 +17,8 @@ Notion DB ID / API キー指定を解決するための唯一の経路。単独 
 
 config schema (JSON):
 {
-  "keychain_service": "notion-api-key",
-  "keychain_account": "skill-intake",
+  "keychain_service": "notion-api-key.xl-skills",
+  "keychain_account": "xl-skills",
   "parent_page": {
     "page_id": "36607a0c-d18c-80bf-9eff-c74aa736645c",
     "page_url": "https://app.notion.com/p/36607a0cd18c80bf9effc74aa736645c"
@@ -186,8 +186,8 @@ def get_token(cfg: Optional[dict] = None) -> Optional[str]:
     tok = os.environ.get("NOTION_TOKEN") if os.environ.get("INTAKE_ALLOW_ENV_TOKEN") == "1" else None
     if tok:
         return tok
-    service = (cfg or {}).get("keychain_service", "notion-api-key")
-    account = (cfg or {}).get("keychain_account")
+    service = (cfg or {}).get("keychain_service", "notion-api-key.xl-skills")
+    account = (cfg or {}).get("keychain_account", "xl-skills")
     cmd = ["security", "find-generic-password", "-s", service, "-w"]
     if account:
         cmd[2:2] = ["-a", account]

@@ -12,8 +12,8 @@
 #   1 = 取得失敗
 set -euo pipefail
 
-SERVICE="${INTAKE_KEYCHAIN_SERVICE:-notion-api-key}"
-ACCOUNT="${INTAKE_KEYCHAIN_ACCOUNT:-skill-intake}"
+SERVICE="${INTAKE_KEYCHAIN_SERVICE:-notion-api-key.xl-skills}"
+ACCOUNT="${INTAKE_KEYCHAIN_ACCOUNT:-xl-skills}"
 
 echo "[skill-intake] Keychain 取得テスト: service=$SERVICE, account=$ACCOUNT"
 

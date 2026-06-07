@@ -6,6 +6,8 @@
   "private": true,
   "scripts": {
     "init": "node scripts/init_skill.js",
+    "typecheck": "node --check scripts/*.js",
+    "lint": "node --check scripts/*.js",
     "validate": "node scripts/validate_all.js",
     "validate:quick": "node scripts/quick_validate.js",
     "validate:schema": "node scripts/validate_schema.js",
