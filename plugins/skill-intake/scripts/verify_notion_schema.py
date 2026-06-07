@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-SCHEMA_PATH = SCRIPT_DIR.parent / 'skills' / 'run-skill-intake-aggregator' / 'references' / 'notion-db-schema.json'
+SCHEMA_PATH = SCRIPT_DIR.parent / 'references' / 'notion-db-schema.json'
 
 
 def normalize_type(t):

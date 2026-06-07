@@ -32,8 +32,8 @@ from pathlib import Path
 from typing import Iterator
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_MAP_PATH = PLUGIN_ROOT / "skills" / "run-skill-intake-aggregator" / "references" / "section_canonical_map.json"
-RUNTIME_CONFIG_PATH = PLUGIN_ROOT / "skills" / "run-skill-intake-aggregator" / "references" / "runtime-config.json"
+CANONICAL_MAP_PATH = PLUGIN_ROOT / "references" / "section_canonical_map.json"
+RUNTIME_CONFIG_PATH = PLUGIN_ROOT / "references" / "runtime-config.json"
 
 
 def load_canonical_map() -> dict:

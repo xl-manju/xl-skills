@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """skill-intake SubAgent の 7-layer 準拠を機械検証する lint。
 
-rubric: plugins/skill-intake/skills/run-skill-intake-aggregator/references/rubric.json
+rubric: plugins/skill-intake/references/rubric.json
 findings: findings.schema.json 準拠で stdout に JSON 出力。exit 1 if any error.
 
 usage:
@@ -12,7 +12,7 @@ from __future__ import annotations
 import sys, re, json, glob, datetime, pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-RUBRIC = REPO / "plugins/skill-intake/skills/run-skill-intake-aggregator/references/rubric.json"
+RUBRIC = REPO / "plugins/skill-intake/references/rubric.json"
 
 LAYER_HEADINGS = [
     "## Layer 1: 基本定義層",

@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-option-catalog",
+    "skill_md_sha256": "5c0ca3644cc394184b7b3e7c2349bb7987bac6d1f0d4f7a35ffee33393c7f156"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-07T08:24:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "rubric lint 実測: lint-skill-name (第1-17条) ok / lint-skill-description VIOLATION=0 / 300行 cap 78<=300 / BD-001(## Purpose & Output Contract) + BD-002(## Gotchas) 存在 / NM-001 dir==name OK。high findings=0 => PASS。smell 1件: validate-frontmatter が version 欠落を指摘するが、これは skill-intake plugin 全 11 skill 共通の状態であり PKG-002/004 (未採用の将来標準) として plugin-package-check で advisory・非ブロッキング扱い。本 skill 単体に version を足すと plugin 内不整合を招くため repo 横断マイグレーションで一括対応する方針 (本 PR では未編集)。allowed-tools (Read/Write) は options.json 生成の責務と整合。"
+}

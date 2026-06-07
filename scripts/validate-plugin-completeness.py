@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shlex
 import sys
 
 
@@ -40,7 +41,7 @@ def collect(plugin_dir: pathlib.Path) -> dict:
         "skills": sorted(p.parent.name for p in plugin_dir.glob("skills/*/SKILL.md")),
         "agents": sorted(p.name for p in plugin_dir.glob("agents/*.md")),
         "commands": sorted(p.name for p in plugin_dir.glob("commands/*.md")),
-        "hooks": sorted(p.name for p in plugin_dir.glob("hooks/*.sh")),
+        "hooks": sorted(p.name for p in plugin_dir.glob("hooks/*") if p.suffix in {".sh", ".py"}),
         "scripts": sorted(p.name for p in plugin_dir.rglob("scripts/**/*.py")),
         "config": sorted(p.name for p in plugin_dir.glob("config/*.json")),
     }
@@ -68,8 +69,13 @@ def validate(plugin_name: str, data: dict, bundle_members: set[str]) -> list[str
         for entry in entries:
             for h in entry.get("hooks", []):
                 cmd = h.get("command", "")
-                if "$CLAUDE_PLUGIN_ROOT/hooks/" in cmd:
-                    declared_hooks.add(cmd.split("/hooks/", 1)[1])
+                try:
+                    tokens = shlex.split(cmd)
+                except ValueError:
+                    tokens = cmd.split()
+                for token in tokens:
+                    if "$CLAUDE_PLUGIN_ROOT/hooks/" in token:
+                        declared_hooks.add(token.split("/hooks/", 1)[1])
     on_disk_hooks = set(data["hooks"])
     missing = declared_hooks - on_disk_hooks
     if missing:

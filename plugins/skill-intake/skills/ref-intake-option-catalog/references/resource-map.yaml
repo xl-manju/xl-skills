@@ -1,6 +1,0 @@
-version: 1
-read_when:
-  - file: references/integration-catalog-pointer.md
-    when: 旧 aggregator integration-catalog.md の参照位置を確認するとき
-  - file: references/tier-criteria.md
-    when: required / optional の判定基準を確認するとき

@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -112,20 +113,28 @@ def check_pkg_002(plugin_dir: Path) -> list[dict]:
 
 def check_pkg_003(plugin_dir: Path) -> list[dict]:
     findings: list[dict] = []
+    target_name = plugin_dir.name
     plugins_root = plugin_dir.parent
     skill_names: dict[str, list[str]] = {}
     agent_names: dict[str, list[str]] = {}
     for plug in plugins_root.iterdir():
         if not plug.is_dir() or not (plug / ".claude-plugin").exists():
             continue
+        # 名前空間の「所有」は実体 (非 symlink) のみ。symlink は他 plugin の単一スキルを
+        # 共有配備したもの (例: run-skill-feedback を全 plugin へ配備) であり、同一スキルの
+        # 参照に過ぎず真の名前衝突ではない。所有者カウントから除外する (PKG-003 偽陽性防止)。
         for sk in (plug / "skills").glob("*/SKILL.md") if (plug / "skills").exists() else []:
+            if sk.parent.is_symlink():
+                continue
             name = sk.parent.name
             skill_names.setdefault(name, []).append(plug.name)
         for ag in (plug / "agents").glob("*.md") if (plug / "agents").exists() else []:
+            if ag.is_symlink():
+                continue
             agent_names.setdefault(ag.stem, []).append(plug.name)
     idx = 1
     for name, owners in skill_names.items():
-        if len(owners) > 1:
+        if len(owners) > 1 and target_name in owners:
             findings.append(make_finding(
                 "PKG-003", idx,
                 f"plugins/{','.join(owners)}/skills/{name}",
@@ -133,7 +142,7 @@ def check_pkg_003(plugin_dir: Path) -> list[dict]:
                 suggested_fix="kebab-case 名を一意化、または domain prefix で名前空間分離"))
             idx += 1
     for name, owners in agent_names.items():
-        if len(owners) > 1:
+        if len(owners) > 1 and target_name in owners:
             findings.append(make_finding(
                 "PKG-003", idx,
                 f"plugins/{','.join(owners)}/agents/{name}.md",
@@ -206,8 +215,33 @@ def check_pkg_006(plugin_dir: Path) -> list[dict]:
     settings_dir = plugin_dir / "settings"
     if not hooks_dir.exists():
         return findings
-    actual_hooks = {p for p in hooks_dir.glob("*") if p.is_file()}
+    actual_hooks = {p for p in hooks_dir.glob("*") if p.is_file() and p.suffix in {".py", ".sh"}}
     registered: set[str] = set()
+    plugin_json = plugin_dir / ".claude-plugin" / "plugin.json"
+    if plugin_json.exists():
+        try:
+            data = json.loads(plugin_json.read_text())
+        except json.JSONDecodeError:
+            data = {}
+        hooks = data.get("hooks", {})
+        if isinstance(hooks, dict):
+            for event_hooks in hooks.values():
+                for entry in event_hooks if isinstance(event_hooks, list) else []:
+                    for h in entry.get("hooks", []) if isinstance(entry, dict) else []:
+                        cmd = h.get("command") if isinstance(h, dict) else None
+                        if cmd:
+                            try:
+                                tokens = shlex.split(cmd)
+                            except ValueError:
+                                tokens = cmd.split()
+                            for token in tokens:
+                                if "/hooks/" in token:
+                                    registered.add(Path(token).name)
+        entry_points = data.get("entry_points", {})
+        if isinstance(entry_points, dict):
+            for hook_name in entry_points.get("hooks", []):
+                if isinstance(hook_name, str):
+                    registered.add(Path(hook_name).name)
     if settings_dir.exists():
         for cfg in settings_dir.glob("*.json"):
             try:
@@ -241,6 +275,8 @@ def check_pkg_007(plugin_dir: Path) -> list[dict]:
     for sc in scripts_dir.glob("*"):
         if not sc.is_file():
             continue
+        if sc.suffix not in {".py", ".sh"}:
+            continue
         text_head = sc.read_text(errors="ignore")[:200] if sc.suffix in {".py", ".sh"} else ""
         if sc.suffix in {".py", ".sh"} and not text_head.startswith("#!"):
             findings.append(make_finding(
@@ -248,7 +284,7 @@ def check_pkg_007(plugin_dir: Path) -> list[dict]:
                 "shebang 欠落",
                 suggested_fix="#!/usr/bin/env python3 または #!/usr/bin/env bash を先頭に追加"))
             idx += 1
-        if not os.access(sc, os.X_OK):
+        if text_head.startswith("#!") and not os.access(sc, os.X_OK):
             findings.append(make_finding(
                 "PKG-007", idx, str(sc),
                 "実行可能ビットなし (+x)",

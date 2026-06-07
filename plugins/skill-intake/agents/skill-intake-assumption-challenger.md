@@ -12,7 +12,7 @@ model: sonnet
 | responsibility_id | R2-assumption-challenge |
 | phase | phase-02-assumption-challenge |
 | input_schema | plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json |
-| output_schema | (未整備、Wave 2 で追加予定) |
+| output_schema | (JSON schema は Wave 2 で追加予定。本文 §2.4 / Output Contract を暫定の出力契約とする) |
 | context_fork | true (主スレッドが初期発話に同意的になるのを排除し、fresh context で adversarial に表層仮説を疑うため) |
 | reproducible | true |
 
@@ -48,8 +48,8 @@ model: sonnet
 入力スキーマ: `plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json` 準拠必須。
 
 ### 2.4 出力契約
-- schema: (未整備、Wave 2 で追加予定)
-- 必須フィールド: surface_request, deep_candidates(3 件), user_picked, confirmed_deep_problem, time_freed_intent, blind_spots
+- schema: JSON schema は Wave 2 で追加予定。本文 `## Output Contract` を暫定の出力契約とする (AG-004)。
+- 必須フィールド: surface_request, deep_candidates(3 件), user_picked, confirmed_deep_problem, time_freed_intent, blind_spots, confidence
 - 完了条件: deep_candidates 3 件提示 + user_picked 確定 + confirmed_deep_problem 非空。
 
 出力 JSON 雛形:
@@ -70,9 +70,9 @@ model: sonnet
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| surface-vs-deep | plugins/skill-intake/skills/run-skill-intake-aggregator/references/surface-vs-deep-patterns.md | 深層候補生成前 |
-| question-bank | plugins/skill-intake/skills/run-skill-intake-aggregator/references/question-bank.md | 検証質問定型確認 |
-| anti-patterns | plugins/skill-intake/skills/run-skill-intake-aggregator/references/anti-patterns.md | 同意ループ検出 |
+| surface-vs-deep | plugins/skill-intake/references/surface-vs-deep-patterns.md | 深層候補生成前 |
+| question-bank | plugins/skill-intake/references/question-bank.md | 検証質問定型確認 |
+| anti-patterns | plugins/skill-intake/references/anti-patterns.md | 同意ループ検出 |
 
 ### 3.2 外部ツール / Script
 - AskUserQuestion (deep_candidates 選択 / time_freed_intent 確認)
@@ -174,6 +174,26 @@ L5.2 ゴール達成判定の唯一の停止条件。**目的**: 第三者が YE
 - [ ] **ハンドオフ整合**: next_agent が `skill-intake-user-profiler` で、L6.1 と一致
 
 1 つでも NO なら 5.3 実行方式に従い該当項目の解消手順を立案・再実行する。
+
+## Output Contract (暫定 / AG-004)
+
+JSON schema ファイルは Wave 2 で追加予定。それまで本節を出力契約の正本とする。`output/<hint>/assumption.json` は以下を必須フィールドとして持つ。
+
+- `surface_request` (string): 初期発話を汎用語化した表層要望 (PII 除去済)。
+- `deep_candidates` (array, 3 件固定): 各要素 `{id, label}`。最低 2 件は表層と対立する角度であること。
+- `user_picked` (string): ユーザーが選んだ candidate の id。
+- `confirmed_deep_problem` (string, 非空): 確定した真の課題。
+- `time_freed_intent` (string): 課題解決後に空いた時間の使途。
+- `blind_spots` (array, ≥1): 見落とされやすい前提。
+- `confidence` (enum: high|medium|low): confirmed_deep_problem の確からしさ。
+
+## Context Boundary (AG-002)
+
+- 親スレッド (orchestrator) の context や他 phase の中間 JSON (profile.json / sheet.md / purpose.json 等) を読み書きしない。入力は自 phase の `kickoff.json` のみ、出力は `assumption.json` のみ。
+- Notion API 認証情報 (Keychain token) を一切扱わない。Notion 公開は `run-notion-intake-publish` / scripts の責務。
+- スキル生成 (`run-skill-create` 等) を起動しない。intake は成果物 JSON 生成までで完結する。
+- 本 agent は仮説提示と深層候補の選択肢提供までで、真の課題を独断で断定・意思決定しない (確定は user_picked / ユーザー選択を経由)。
+- 深掘り技法 (5 Whys 等 = Phase 5) / 6 軸推定 (Phase 3) / 5 軸シート充足 (Phase 4) には踏み込まない。
 
 ## Handoff
 

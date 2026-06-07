@@ -80,9 +80,9 @@ model: sonnet
 
 | id | path | when_to_read |
 |---|---|---|
-| techniques | `plugins/skill-intake/skills/run-skill-intake-aggregator/references/elicitation-techniques.md` | 技法選択時 |
-| criteria | `plugins/skill-intake/skills/run-skill-intake-aggregator/references/value-realization-criteria.md` | 到達判定時 |
-| anti | `plugins/skill-intake/skills/run-skill-intake-aggregator/references/anti-patterns.md` | 同意ループ・抽象語検出時 |
+| techniques | `plugins/skill-intake/references/elicitation-techniques.md` | 技法選択時 |
+| criteria | `plugins/skill-intake/references/value-realization-criteria.md` | 到達判定時 |
+| anti | `plugins/skill-intake/references/anti-patterns.md` | 同意ループ・抽象語検出時 |
 | sheet | `output/<hint>/sheet.md` | 起動直後 |
 | interview | `output/<hint>/interview.json` | 起動直後 |
 
@@ -119,20 +119,14 @@ model: sonnet
 
 ### 5.3 実行方式
 
-固定手順を持たない。8 技法 (5 Whys / JTBD / Magic Wand / Day in the Life / Pain Story / Reverse Brief / Tacit Extraction / Pre-mortem) を完了チェックリストの未充足項目に応じて都度選択・切替する。anti-patterns.md で同意ループ・抽象語を検出したら技法を切替えて fresh context で再評価する。全項目充足まで反復 (上限: Layer 4 最大反復回数 / 本 agent 上限: 5 rounds)。逸脱時は §4.1 失敗時挙動と orchestrator エスカレーションへ。
-
-## 知識・手順の参照先 (補足)
-
-- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/elicitation-techniques.md` (8 技法の使い分け)
-- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/value-realization-criteria.md` (到達判定)
-- `plugins/skill-intake/skills/run-skill-intake-aggregator/references/anti-patterns.md` (同意ループ・抽象語検出)
+固定手順を持たない。8 技法 (5 Whys / JTBD / Magic Wand / Day in the Life / Pain Story / Reverse Brief / Tacit Extraction / Pre-mortem) を完了チェックリストの未充足項目に応じて都度選択・切替する。anti-patterns.md で同意ループ・抽象語を検出したら技法を切替えて fresh context で再評価する (参照リソースは L3.1 を正本)。全項目充足まで反復 (上限: Layer 4 最大反復回数 / 本 agent 上限: 5 rounds)。逸脱時は §4.1 失敗時挙動と orchestrator エスカレーションへ。
 
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
 
-- 呼び出し元: `run-skill-intake-aggregator` Phase 5 (interview.json.needs_excavation=true の場合)。
-- 後続: R6 (ref-intake-option-catalog Skill 経由 → skill-intake-option-presenter)。
+- 呼び出し元: `run-skill-intake` Phase 5 (interview.json.needs_excavation=true の場合)。
+- 後続: R6 (run-intake-option-catalog Skill 経由 → skill-intake-option-presenter)。
 - handoff: `eval-log/handoff-phase-05.json`。
 
 ### 6.2 並列性
@@ -151,7 +145,7 @@ model: sonnet
 
 ## 起動条件
 
-- `run-skill-intake-aggregator` Phase 5 として呼ばれる。
+- `run-skill-intake` Phase 5 として呼ばれる。
 - interview.json.needs_excavation=true (false ならスキップして Phase 6 へ)。
 
 ## やらないこと
@@ -196,7 +190,15 @@ model: sonnet
 - [ ] **責務遵守**: 5 軸シート充足 (R4) / Gate A 判定 (R8) / 連携候補提示 (R6) を本 agent 内で行っていない (目的: SRP 維持)
 - [ ] **言語遵守**: 本文日本語 / JSON key 英語
 
+## Context Boundary (AG-002)
+
+- 親スレッド (orchestrator) の context や他 phase の中間 JSON を読み書きしない。入力は自 phase の `sheet.md` + `interview.json` のみ、出力は `purpose.json` (および handoff JSON) のみ。
+- Notion API 認証情報 (Keychain token) を一切扱わない。Notion 公開は `run-notion-intake-publish` / scripts の責務。
+- スキル生成 (`run-skill-create` 等) を起動しない。intake は成果物 JSON 生成までで完結する。
+- 本 agent は深掘り対話で真の目的を引き出すまでで、ユーザーの動機・結論を独断で断定しない (verb_object はユーザー応答に基づき確定する)。過去発話を歪曲して引用しない。
+- 5 軸シート充足 (Phase 4) / 表層仮説検証 (Phase 2) / 要約・Gate A (Phase 8) / 連携候補提示 (Phase 6) には踏み込まない。
+
 ## Handoff
 
-- 成功時: orchestrator が Phase 6 (`ref-intake-option-catalog` Skill) を起動し、`skill-intake-option-presenter` に purpose.json を渡す。
+- 成功時: orchestrator が Phase 6 (`run-intake-option-catalog` Skill) を起動し、`skill-intake-option-presenter` に purpose.json を渡す。
 - 失敗時: orchestrator に `halt_reason=agreement_loop` または `halt_reason=abstract_only` で返す。

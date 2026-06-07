@@ -7,9 +7,9 @@
     （Markdown 経由ではなく context オブジェクトを正本として参照）
 
 正本:
-  - 構造: skills/run-skill-intake-aggregator/references/intake-final-schema.json
-  - テンプレ: skills/run-skill-intake-aggregator/references/intake-final-template.md.tmpl
-  - DB スキーマ: skills/run-skill-intake-aggregator/references/notion-db-schema.json (v2)
+  - 構造: references/intake-final-schema.json
+  - テンプレ: references/intake-final-template.md.tmpl
+  - DB スキーマ: references/notion-db-schema.json (v2)
 
 v1 ブリッジ (section-templates.json / SECTION_DATA_PATHS) は廃止済み。
 render_v2_adapter.py は v2 経路の section_canonical_map iterator として継続使用 (dry_render_notion.py から import)。
@@ -29,8 +29,6 @@ MAX_RT = _LIMITS['MAX_RT']
 
 SCHEMA_PATH = (
     SCRIPT_DIR.parent
-    / 'skills'
-    / 'run-skill-intake-aggregator'
     / 'references'
     / 'intake-final-schema.json'
 )

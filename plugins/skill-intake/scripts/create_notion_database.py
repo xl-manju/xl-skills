@@ -19,7 +19,7 @@ from notion_http import NotionHttpError, notion_fetch
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
-    / 'skills/run-skill-intake-aggregator/references/notion-db-schema.json'
+    / 'references/notion-db-schema.json'
 )
 
 

@@ -18,13 +18,13 @@ resources:
       などのテンプレ変数を差し替えるとき。
     size_hint: small
 
-  - path: ../run-skill-intake-aggregator/references/notion-integration.md
+  - path: ../../references/notion-integration.md
     when_to_read: |
       Notion API 側のスキーマ / property 名 / 認可フローを確認するとき
       (本スキルは正本を持たず aggregator 配下を参照)。
     size_hint: medium
 
-  - path: ../run-skill-intake-aggregator/references/keychain-setup.md
+  - path: ../../references/keychain-setup.md
     when_to_read: |
       Keychain ラベル / 取得失敗時のフォールバック手順を確認するとき。
     size_hint: small

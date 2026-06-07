@@ -17,6 +17,7 @@ rubric_refs: []
 role_suffix: null
 owner: team-platform
 since: 2026-05-22
+version: 0.1.0
 responsibility_refs:
   - prompts/R1-main.md
 schema_refs:
@@ -70,17 +71,17 @@ LLM 推論を混入させると同入力で差分が出て、後段 (`run-notion
 ```bash
 # render: output/<hint>/ 直下の per-phase JSON (無ければ context.json) を集約し
 # Jinja2 で intake-final.md を生成する (引数は output_dir 1 つ)。
-python3 plugins/skill-intake/scripts/render-intake-final.py output/<hint>/
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/render-intake-final.py output/<hint>/
 cp output/<hint>/intake-final.md output/<hint>/intake.md
 
 # intake.md → intake.json (front-matter + sections を JSON 化)
-python3 plugins/skill-intake/scripts/convert_md_to_json.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/convert_md_to_json.py \
   output/<hint>/intake.md output/<hint>/intake.json
 
 # 検証 2 段 (順序固定): quality_gate → cross_check
 # cross_check の引数順は <intake.md> <intake.json> (md が先)。
-python3 plugins/skill-intake/scripts/quality_gate.py output/<hint>/intake.json
-python3 plugins/skill-intake/scripts/cross_check.py  output/<hint>/intake.md output/<hint>/intake.json
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/quality_gate.py output/<hint>/intake.json
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/cross_check.py  output/<hint>/intake.md output/<hint>/intake.json
 ```
 
 Step/Gate の機械可読定義は `workflow-manifest.json` (P1-collect / P2-render / P3-quality-gate / P4-cross-check) を参照。
@@ -88,7 +89,7 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-collect / P2-ren
 ## Gotchas
 
 1. **template / schema は移管前**: 旧 aggregator references パスを直書きしている。Phase C で本 references 配下へ移管後にパス書き換える。
-2. **render と quality_gate は単一発火点**: 重複呼び出し禁止。orchestrator は本 Skill を 1 回だけ呼ぶ。単一発火点の SSOT 定義は `../run-skill-intake-aggregator/SKILL.md` 「単一発火点」項を参照。
+2. **render と quality_gate は単一発火点**: 重複呼び出し禁止。orchestrator は本 Skill を 1 回だけ呼ぶ。単一発火点の SSOT 定義は `../run-skill-intake/SKILL.md` 「単一発火点」項を参照。
 3. **並列起動禁止**: 検証順序維持と atomic write 保証のため、本 Skill は直列・単発のみ。
 4. **欠落の推測補完禁止**: Phase 1-9 成果物に欠けがある場合は FAIL として `retry_phase` を埋めて返す (補完しない)。
 

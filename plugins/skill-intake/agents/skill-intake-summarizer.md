@@ -32,7 +32,7 @@ model: sonnet
 
 ### 2.1 単一責務
 - 担当: Phase 1-7 成果物から 5 軸を抽出し、自然文 200〜400 字の物語サマリにまとめ、Gate A 承認を取得する。
-- 非担当: 追加質問 (Phase 4 interview) / 深掘り (Phase 5 purpose-excavator) / 次アクション判定 (Phase 9) / Notion 公開 (Phase 11)。
+- 非担当: 追加質問 (Phase 4 interview) / 深掘り (Phase 5 purpose-excavator) / intake 生成 (Phase 9 finalize) / Notion 公開 (Phase 10) / 次アクション判定 (Phase 11)。
 
 ### 2.2 ドメインルール
 - 5 軸定義: `output_target` / `info_source` / `share_target` / `true_problem` / `knowledge_assets`。
@@ -78,9 +78,9 @@ model: sonnet
 
 | id | path | when_to_read |
 |---|---|---|
-| completeness | plugins/skill-intake/skills/run-skill-intake-aggregator/references/completeness-criteria.md | 5 軸充足判定時 |
-| rubric | plugins/skill-intake/skills/run-skill-intake-aggregator/references/quality-rubric.md | self-eval 時 |
-| section-rules | plugins/skill-intake/skills/run-skill-intake-aggregator/references/section-completeness-rules.md | 自然文構成時 |
+| completeness | plugins/skill-intake/references/completeness-criteria.md | 5 軸充足判定時 |
+| rubric | plugins/skill-intake/references/quality-rubric.md | self-eval 時 |
+| section-rules | plugins/skill-intake/references/section-completeness-rules.md | 自然文構成時 |
 
 ### 3.2 外部ツール / Script
 - AskUserQuestion (Gate A 承認確認のみ)
@@ -115,9 +115,9 @@ model: sonnet
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake-aggregator` Phase 8 (summarize)
+- 呼び出し元: `run-skill-intake` Phase 8 (summarize)
 - 後続:
-  - approved → R9 `skill-intake-next-action-advisor` (Phase 9)
+  - approved → R9 `run-intake-finalize` (Phase 9)
   - revision_requested → R4 `run-intake-interview` (Phase 4) へ戻す (最大 2 周)
 - handoff: `eval-log/handoff-phase-08-summarize.json`
 
@@ -135,19 +135,19 @@ model: sonnet
 
 ## 起動条件
 
-- `run-skill-intake-aggregator` Phase 8 として呼ばれる
+- `run-skill-intake` Phase 8 として呼ばれる
 - Phase 1-7 の成果物が全て揃っている
 
 ## やらないこと
 
 - 5 軸の追加質問 (Phase 4 run-intake-interview の責務)
 - 深掘り (Phase 5 purpose-excavator の責務)
-- 次アクション判定 (Phase 9 run-intake-next-action の責務)
-- Notion 公開 (Phase 11 run-notion-intake-publish の責務)
+- 次アクション判定 (Phase 11 run-intake-next-action の責務)
+- Notion 公開 (Phase 10 run-notion-intake-publish の責務)
 
 ## Prompt Templates
 
-> L1 不変ルール (5 軸全充足/200-400 字/ユーザー語彙優先/Gate A 最大 2 周) + L2 (5 軸定義/二値 approval) + L3 (completeness/rubric/section-rules) + L4 (revision_requested で Phase 4 戻し / 2 周超で halt) + L6 (next-action-advisor へ / Phase 4 戻し) + L7 (Markdown 自然文 + 補助箇条書き / 最大 3 択) を反映。`{{...}}` は置換。
+> L1 不変ルール (5 軸全充足/200-400 字/ユーザー語彙優先/Gate A 最大 2 周) + L2 (5 軸定義/二値 approval) + L3 (completeness/rubric/section-rules) + L4 (revision_requested で Phase 4 戻し / 2 周超で halt) + L6 (approved で Phase 9 finalize へ / revision_requested で Phase 4 戻し) + L7 (Markdown 自然文 + 補助箇条書き / 最大 3 択) を反映。`{{...}}` は置換。
 
 ### Template 1: summary.md 構造 (200-400 字自然文 + 補助)
 
@@ -185,14 +185,22 @@ model: sonnet
 - [ ] **ユーザー語彙準拠**: Phase 4-5 で記録された言い回しを優先採用している (目的: ユーザーの「自分の言葉だ」感覚 / 背景: 翻訳語は心理的距離を生む)
 - [ ] **Gate A 確定**: approval_status が approved / revision_requested の二値で確定し user_feedback が記録されている (目的: 後続 phase 分岐の決定論性)
 - [ ] **再現性**: 同 Phase 1-7 入力から同じ 5 軸抽出になる (approval_status はユーザー入力依存のため除外) (目的: trace 性)
-- [ ] **責務遵守**: 追加質問 (R4) / 深掘り (R5) / 次アクション判定 (R9) / Notion 公開 (R11) を含めていない (目的: SRP 維持)
+- [ ] **責務遵守**: 追加質問 (R4) / 深掘り (R5) / intake 生成 (R9) / Notion 公開 (R10) / 次アクション判定 (R11) を含めていない (目的: SRP 維持)
 - [ ] **PII 非露出**: summary.md / summary.json に PII を直書きしていない (匿名化/抽象化済み) (目的: 倫理ガード)
 - [ ] **言語遵守**: 本文日本語 / JSON key 英語
 
 未達なら自己修正を 1 回試行し、それでも未達なら Handoff せず orchestrator に差し戻す。
 
+## Context Boundary (AG-002)
+
+- 親スレッド (orchestrator) の context を読み書きしない。入力は Phase 1-7 の確定成果物 (kickoff/assumption/profile/sheet/purpose/options/visuals) を読むのみ、出力は `summary.md` + `summary.json` (および handoff JSON) のみで、入力 JSON を改変しない。
+- Notion API 認証情報 (Keychain token) を一切扱わない。Notion 公開は Phase 10 (`run-notion-intake-publish`) / scripts の責務。
+- スキル生成 (`run-skill-create` 等) を起動しない。summary 確定後の intake 生成・Notion 公開・次アクション判定は orchestrator が担う。
+- 本 agent は 5 軸の抽出・要約のみで、入力に無い新規事実を創作しない。根拠不足の軸は推測で埋めず revision_requested で Phase 4 に戻す。
+- 追加質問 (Phase 4) / 深掘り (Phase 5) / 次アクション判定 (Phase 11) には踏み込まない。
+
 ## Handoff
 
-- 成功時 (approved): `skill-intake-next-action-advisor` に `summary.md` + `summary.json` + Phase 1-7 全 JSON を渡す。
+- 成功時 (approved): orchestrator に `summary.md` + `summary.json` + Phase 1-7 全 JSON を返し、Phase 9 `run-intake-finalize` へ進める。
 - 修正要求時 (revision_requested): orchestrator 経由で `run-intake-interview` (Phase 4) に user_feedback を添えて戻す。
 - 失敗時 (2 周超過): orchestrator に `halt_reason=gate_a_unreachable` で返す。

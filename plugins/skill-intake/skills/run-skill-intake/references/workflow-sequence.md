@@ -9,7 +9,7 @@
 | 3 | SubAgent | skill-intake-user-profiler | kickoff.json, assumption.json | profile.json | Phase 2 |
 | 4 | Skill | run-intake-interview | profile.json | sheet.md, interview.json | Phase 3 |
 | 5 | SubAgent | skill-intake-purpose-excavator | sheet.md (needs_excavation=true 時のみ) | purpose.json | Phase 4 |
-| 6 | Skill | ref-intake-option-catalog | purpose.json | options.json | Phase 5 |
+| 6 | Skill | run-intake-option-catalog | purpose.json | options.json | Phase 5 |
 | 7 | Skill | run-intake-visualize | sheet.md, purpose.json | visuals.json + PNG 群 | Phase 6 |
 | 8 | SubAgent | skill-intake-summarizer | 全 JSON | summary.{md,json} + Gate A 承認 | Phase 4 (再ヒアリング) |
 | 9 | Skill | run-intake-finalize | 全 JSON | intake.{md,json} | (各 JSON 不整合時は当該 phase へ) |

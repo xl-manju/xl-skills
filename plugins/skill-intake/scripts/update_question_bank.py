@@ -122,7 +122,7 @@ def main(argv: list[str]) -> int:
     bank_file = Path(
         args.get('bank')
         or (args['positional'][0] if args['positional'] else None)
-        or 'plugins/skill-intake/skills/run-skill-intake-aggregator/references/question-bank.md'
+        or 'plugins/skill-intake/references/question-bank.md'
     ).resolve()
 
     if args.get('rollback'):

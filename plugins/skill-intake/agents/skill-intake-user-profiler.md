@@ -72,9 +72,9 @@ model: sonnet
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| profile-dimensions | plugins/skill-intake/skills/run-skill-intake-aggregator/references/user-profile-dimensions.md | 6 軸推定前 |
-| non-tech-vocabulary | plugins/skill-intake/skills/run-skill-intake-aggregator/references/non-tech-vocabulary.md | tier 判定前 |
-| vocabulary-tiers | plugins/skill-intake/skills/run-skill-intake-aggregator/references/vocabulary-tiers.md | tier 確定前 |
+| profile-dimensions | plugins/skill-intake/references/user-profile-dimensions.md | 6 軸推定前 |
+| non-tech-vocabulary | plugins/skill-intake/references/non-tech-vocabulary.md | tier 判定前 |
+| vocabulary-tiers | plugins/skill-intake/references/vocabulary-tiers.md | tier 確定前 |
 
 ### 3.2 外部ツール / Script
 - AskUserQuestion (最大 2 問)
@@ -190,6 +190,14 @@ vocabulary_tier: **{{beginner|intermediate|expert}}** (出力先: `output/<hint>
 - [ ] **再現性**: 同じ kickoff+assumption から同じ vocabulary_tier を返す
 - [ ] **責務遵守**: 5 軸シート充足 (R4) / 表層仮説検証 (R2) / 課題発掘 (R5) に踏み込んでいない (目的: SRP 維持)
 - [ ] **言語遵守**: 本文日本語 / schema key 英語
+
+## Context Boundary (AG-002)
+
+- 親スレッド (orchestrator) の context や他 phase の中間 JSON を読み書きしない。入力は自 phase の `kickoff.json` + `assumption.json` のみ、出力は `profile.json` のみ。
+- Notion API 認証情報 (Keychain token) を一切扱わない。Notion 公開は `run-notion-intake-publish` / scripts の責務。
+- スキル生成 (`run-skill-create` 等) を起動しない。intake は成果物 JSON 生成までで完結する。
+- 本 agent は 6 軸の推定までで、ユーザーを断定的にラベリングしない (level は evidence ベースの推定値 + confidence 付き)。確定した vocabulary_tier はセッション中に変更しない。
+- 5 軸シート充足 (Phase 4) / 表層仮説検証 (Phase 2) / 真の課題発掘 (Phase 5) には踏み込まない。
 
 ## Handoff
 

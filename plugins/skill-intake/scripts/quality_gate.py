@@ -14,7 +14,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # notion-db-schema.json (required プロパティの正本)。aggregator skill 配下。
 SCHEMA_PATH = (
     SCRIPT_DIR.parent
-    / 'skills' / 'run-skill-intake-aggregator' / 'references' / 'notion-db-schema.json'
+    / 'references' / 'notion-db-schema.json'
 )
 
 

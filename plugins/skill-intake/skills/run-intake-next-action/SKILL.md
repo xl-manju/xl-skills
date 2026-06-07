@@ -19,6 +19,7 @@ rubric_refs: []
 role_suffix: null
 owner: team-platform
 since: 2026-05-22
+version: 0.1.0
 responsibility_refs:
   - prompts/R1-main.md
 schema_refs:
@@ -58,7 +59,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
-7. **責務単一**: 本スキルは判定と handoff JSON 生成のみ。skill 生成は `run-skill-create` 側に渡す (skill 本体生成・ヒアリング深掘り・Notion 公開の **実行** は非担当)。ただし Notion 公開「完了」は skill 生成へ進む必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
+7. **責務単一・生成は起動禁止**: 本スキルは mode 判定と `next-action.json` 生成のみ。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **起動しない (allowed-tools に Skill/Task を持たないので構造的にも不可)**。`mode` / `skill_creator_handoff_phase` は後続への**推奨情報**であり、本スキルや呼び出し元がそれを自動実行することは意図しない (実行はユーザーの明示的な別アクション)。ただし Notion 公開「完了」は推奨を出す必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
 8. **Notion 公開完了の precondition 検証**: `decide-mode.py` は handoff 確定前に `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有りを assert する。不成立なら exit 2 で停止 (逸脱B封鎖)。CI/dry-run のみ `--allow-skip` で緩和。
 
 ## ゴールシーク実行
@@ -85,7 +86,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 
 ### ゴールシークループ
 
-未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake-aggregator`) のループ上限に従う。
+未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake`) のループ上限に従う。
 
 ## Gotchas
 
@@ -105,5 +106,5 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
 - `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
 - `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out` / `--allow-skip`)。冒頭で Notion 公開完了 precondition gate を実行 (不成立=exit 2)
-- 親スキル: `run-skill-intake-aggregator` (Phase 8→9 委譲元)
+- 親スキル: `run-skill-intake` (Phase 8→9 委譲元)
 - 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)

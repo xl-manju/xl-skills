@@ -6,6 +6,7 @@ user-invocable: true
 allowed-tools: [Read, Bash(python3 *)]
 kind: run
 prefix: run
+effect: conversation-output
 owner: team-platform
 since: 2026-05-21
 version: 0.1.0

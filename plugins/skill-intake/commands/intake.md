@@ -14,10 +14,11 @@ argument-hint: "[topic] [--page-url <notion-page-url>|--page-id <notion-page-id>
 2. スキル側の 11 phase (kickoff → … → finalize → Notion publish → next-action) が `workflow-manifest.json` 順に起動する。
 3. Gate A (summarizer) でユーザー承認を得てから Notion 公開に進む。
 4. 完了後、Markdown 正本 / JSON 副本 / Notion URL のパスを返す。
+5. **スキル生成は実行しない**: ワークフローは Phase 11 (next-action) の `mode` 推奨提示で**完結・停止**する。`/intake` は `run-skill-create` / `run-build-skill` / `capability-build` 等を自動起動しない。スキルを実際に作成したい場合は、ユーザーが別途明示的に `run-skill-create` を起動する (intake はヒアリング〜Notion 公開〜推奨までを担う独立フロー)。
 
 ## 事前条件
 
-- macOS Keychain に Notion トークンが `service=notion-api-key, account=skill-intake` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake-aggregator/references/keychain-setup.md` を参照。
+- macOS Keychain に Notion トークンが `service=notion-api-key, account=skill-intake` で登録されていること。未登録の場合は `plugins/skill-intake/skills/run-skill-intake/references/keychain-setup.md` を参照。
 - 対象 Notion DB (`--database-id` / `INTAKE_NOTION_DATABASE_ID` / `.notion-config.json#databases.hearing-sheet.db_id` のいずれかで指定) に PAT / Integration が Connections 追加されていること。
 - 既存 Notion ページへ出力する場合は `--page-url` または `--page-id` を指定すること。指定された場合、publish は update 専用になり create へフォールバックしない。
 

@@ -1,1 +1,0 @@
-../../plugins/skill-intake/agents/skill-intake-kickoff.md

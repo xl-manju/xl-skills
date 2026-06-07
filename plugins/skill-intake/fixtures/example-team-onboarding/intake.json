@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0.0",
-  "source_of_truth": "plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json",
+  "source_of_truth": "plugins/skill-intake/references/section_canonical_map.json",
   "skill_name_hint": "info-collector-agent",
   "_baseline_note": "dogfooding_regression.py の baseline fixture。ユーザー提示『info-collector-agent ヒアリング正本完全版』から intake.json 2.0.0 形式へ転記した最小骨格。lexical fingerprint(section_keys / axes_ids / figures.kind+index) と semantic(true_purpose) の回帰検証に使用。本文全文の再現は範囲外で、Notion ペイロード生成と一致させる責務は render_notion_page.py。",
   "sections": {

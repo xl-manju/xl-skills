@@ -14,10 +14,11 @@ source-tier: internal
 last-audited: 2026-05-24
 audit-trigger: template-change
 hierarchy_level: L1
-rubric_refs: [ref-output-routing, run-skill-intake-aggregator]
-role_suffix: fidelity-guard
+rubric_refs: [ref-output-routing]
+role_suffix: null
 owner: team-platform
 since: 2026-05-22
+version: 0.1.0
 responsibility_refs:
   - prompts/R1.md
   - prompts/R2.md
@@ -33,14 +34,14 @@ manifest: workflow-manifest.json
 
 intake-final-context.json を Notion へ描画する**前後**に、`info-collector-agent` (Notion page_id=35195d6503b781788e31f59b4e05e705) と同等の構造粒度・再現性が保たれているかを機械検証する fidelity ガード。Notion API を叩かず、**`references/canonical-page-snapshot.json` との JSON 構造比較のみ**で公開前 (pre-publish) / 公開後 (post-publish 差分) の双方を判定する。
 
-- **入力**: `intake-final-context.json` + `references/canonical-page-snapshot.json` (派生元として `run-skill-intake-aggregator/references/section_canonical_map.json` を参照)
+- **入力**: `intake-final-context.json` + `references/canonical-page-snapshot.json` (派生元として `references/section_canonical_map.json` を参照)
 - **出力**: `output/<hint>/fidelity-report.json` … `sections[].present/granularity_score/missing_slots/excess_slots` と `overall_score`, `verdict ∈ {pass, warn, fail}`
 - **副次出力**: `output/<hint>/fidelity-report.md` (R3 delta-report, 人間可読)
 - **完了条件**: `verdict=pass` のときのみ呼び出し元 (`render_notion_page.py`) が公開を許可する。`fail` は exit 2、`warn` は exit 1、`pass` は exit 0。fail でも JSON/MD は必ず書き出す (fail-fast ≠ silent-fail)。
 
 ## Key Rules
 
-1. **責務単一: 構造粒度のみ**: 公開前/後の fidelity (再現性・差分) 検証に専念。intake 内容妥当性は `run-skill-intake-aggregator` に、スキーマ存在検査は `intake.schema.json` に、Notion API 経由公開は `run-notion-intake-publish` / `render_notion_page.py` に委譲する。
+1. **責務単一: 構造粒度のみ**: 公開前/後の fidelity (再現性・差分) 検証に専念。intake 内容妥当性は `run-skill-intake` に、スキーマ存在検査は `intake.schema.json` に、Notion API 経由公開は `run-notion-intake-publish` / `render_notion_page.py` に委譲する。
 2. **Canonical SoT は section_canonical_map.json**: 12 section の `required_fields / char_bounds / viz_slots` は aggregator 配下を一次正本とし、本スキルは **派生スナップショット** (`references/canonical-page-snapshot.json`) を保持する (DRY)。手で snapshot を書かない。
 3. **Notion API 直接呼び出し禁止**: 検査は JSON 構造比較のみ。API 認証情報は本スキルでは扱わない。
 4. **Fail-fast**: `verdict=fail` で exit 2、呼び出し元は即停止すること。
@@ -76,7 +77,7 @@ Notion 公開パイプラインは API 経由で行われるため、intake-fina
 
 ### ゴールシークループ
 
-正本 `../../run-skill-intake-aggregator/references/elegant-review-protocol.md` の評価観点に従い、未達観点をゲートとみなして都度埋める。本スキル固有の差分:
+`references/fidelity-check-rules.md` と `references/granularity-rubric.md` の評価観点に従い、未達観点をゲートとみなして都度埋める。本スキル固有の差分:
 
 - **未達評価の単位は section**: 12 section 各々で `granularity_score` を算出し、`overall_score` 未達なら不足 section の R3 delta-report を根拠に context.json 側を埋めて再走する。
 - **差し戻し**: `verdict=fail` (exit 2) で呼び出し元を即停止。`warn` (exit 1) は呼び出し元判断に委ねるが、`fidelity-report.md` の改善示唆を必ず提示する。
@@ -88,16 +89,16 @@ Notion 公開パイプラインは API 経由で行われるため、intake-fina
 
 ```bash
 # canonical snapshot 再生成 (template-change trigger 時のみ)
-python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/extract-canonical-snapshot.py \
-  --source plugins/skill-intake/skills/run-skill-intake-aggregator/references/section_canonical_map.json \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/extract-canonical-snapshot.py \
+  --source plugins/skill-intake/references/section_canonical_map.json \
   --out    plugins/skill-intake/skills/run-notion-fidelity-guard/references/canonical-page-snapshot.json
 
 # fidelity check (公開直前フック)
-python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py <intake-final-context.json>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py <intake-final-context.json>
 # exit 0 = pass / 1 = warn / 2 = fail
 
 # 粒度スコア単体取得 (CI メトリクス用)
-python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/extract-granularity-score.py <intake-final-context.json>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/extract-granularity-score.py <intake-final-context.json>
 ```
 
 ## Gotchas
@@ -126,5 +127,5 @@ python3 plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/extract-gr
 
 ### 関連スキル
 
-- `run-skill-intake-aggregator` — canonical SoT (`section_canonical_map.json`) の所有者
+- `run-skill-intake` — canonical SoT (`references/section_canonical_map.json`) の所有者
 - `run-notion-intake-publish` — 本スキルを公開直前フックとして呼ぶ sibling (API 経由公開を担当)

@@ -139,7 +139,7 @@ security add-generic-password \
 ### 3-3. 取得テスト
 
 ```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check
 # → OK: トークン取得成功 が出れば成功（トークン本体は表示されません）
 ```
 
@@ -154,6 +154,8 @@ python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
 > **単独インストールについて**: 本 plugin は `skill-intake` のみを単独 install しても、
 > **ヒアリング → Markdown/JSON 生成 → 指定 Notion ページへの publish というコアフローが
 > 自己完結して動作**します（共有ローダ `notion_config.py` を vendoring 同梱）。
+> Python runtime 依存も plugin 配下 `vendor/` に同梱され、`.claude-plugin/plugin.json`
+> の `package.include` で `vendor/**` を配布対象として明示しています。
 > Notion publish には DB ID と Keychain token が必要です。ヒアリングシート DB ID は
 > `notion-config.fixed.json` に同梱済みで、別DBへ向ける場合だけ plugin-root 直下の
 > `.notion-config.json` か env (`NOTION_CONFIG_PATH` / `INTAKE_NOTION_DATABASE_ID`) で上書きします
@@ -167,6 +169,15 @@ python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
 ### 方式A: GitHub Marketplace から install（推奨）
 
 Claude Code セッション内で:
+
+インストール後の vendor 配布確認:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/smoke_plugin_vendor.py"
+```
+
+期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
+`typing_extensions` と標準ライブラリ schema fallback を、site-packages に頼らず確認します。
 
 ```
 /plugin marketplace add xl-manju/xl-skills
@@ -254,14 +265,14 @@ Keychain への `security` コマンド直叩きを禁止します（Claude が�
 ### 6-1. Keychain 取得
 
 ```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py --check
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check
 ```
 → `OK: トークン取得成功`。`exit 44` ならステップ3に戻る。
 
 ### 6-2. Notion DB スキーマ検証
 
 ```bash
-python3 plugins/skill-intake/scripts/verify_notion_schema.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/verify_notion_schema.py \
   --database-id "<2-3 でメモした 32文字 ID>" \
   --on-conflict skip-warn
 ```
@@ -270,7 +281,7 @@ python3 plugins/skill-intake/scripts/verify_notion_schema.py \
 ### 6-3. Slack hook テスト（任意）
 
 ```bash
-python3 plugins/skill-intake/scripts/keychain_get_secret.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
   --service slack-incoming-webhook --account skill-intake --check
 ```
 → `OK` なら Slack 通知も自動で有効。`exit 44` でも公開フローは silent skip で続行。
@@ -280,7 +291,7 @@ python3 plugins/skill-intake/scripts/keychain_get_secret.py \
 まずは非 mutation で、実行されるコマンドだけを確認します。
 
 ```bash
-python3 plugins/skill-intake/scripts/smoke_notion_publish.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish.py \
   --hint "<output-hint>" \
   --page-url "https://www.notion.so/<検証用ページURL>"
 ```
@@ -288,7 +299,7 @@ python3 plugins/skill-intake/scripts/smoke_notion_publish.py \
 実際に検証用ページへ PATCH 更新する場合だけ `--execute` を付けます。本番ページでは実行しないでください。
 
 ```bash
-python3 plugins/skill-intake/scripts/smoke_notion_publish.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish.py \
   --hint "<output-hint>" \
   --page-url "https://www.notion.so/<検証用ページURL>" \
   --execute
@@ -325,7 +336,7 @@ Claude Code セッション内で:
 | 3 | `skill-intake-user-profiler` | 熟練度・語彙 tier 推定 |
 | 4 | `run-intake-interview` | 5 軸ヒアリング（最大 5 往復） |
 | 5 | `skill-intake-purpose-excavator` | 抽象回答の深掘り |
-| 6 | `ref-intake-option-catalog` | 外部連携カタログ提示 |
+| 6 | `run-intake-option-catalog` | 外部連携カタログ提示 |
 | 7 | `run-intake-visualize` | Mermaid / SVG 図解配置 |
 | 8 | `skill-intake-summarizer` | Gate A サマリ → 承認依頼 |
 | 9 | `run-intake-finalize` | intake.md + intake.json + quality_gate + cross_check |
@@ -394,7 +405,7 @@ Claude Code セッション内で:
 | `/intake-revise` / `/intake-publish` exit 51 | 指定 page_id / notion-url.txt / result file から更新先を解決できない、または不一致 | `--page-url` / `--page-id` を明示して再実行。意図的に新規作成する場合だけ新規 hint で `/intake` |
 | `/intake-revise` exit 60 | revision 5 回超過 | 新規 hint へ移行 |
 
-詳細: [`hooks/README.md`](hooks/README.md) / [`scripts/README.md`](scripts/README.md) / [`skills/run-skill-intake-aggregator/references/failure-modes.md`](skills/run-skill-intake-aggregator/references/failure-modes.md)
+詳細: [`hooks/README.md`](hooks/README.md) / [`scripts/README.md`](scripts/README.md) / [`references/failure-modes.md`](references/failure-modes.md)
 
 ---
 
@@ -411,8 +422,12 @@ plugins/skill-intake/
 │   ├── intake-publish.md              # /intake-publish <hint>
 │   ├── intake-revise.md               # /intake-revise <hint> [--dry-run]
 │   └── intake-status.md               # /intake-status [<hint>]
-├── agents/                            # SubAgent (12個) — skill-intake-*.md
-├── hooks/                             # PreToolUse / PostToolUse / 手動 (4本)
+├── agents/                            # SubAgent (4個) — assumption-challenger / user-profiler / purpose-excavator / summarizer
+├── references/                        # 共有 references (35本) — 旧 aggregator から移設した SSOT 正本
+├── assets/                            # Mermaid 12 + samples 8 + SVG 8 カタログ (28本) — 旧 aggregator から移設
+├── schemas/                           # handoff / findings / intake-final (3本) — 旧 aggregator から移設
+├── hooks/                             # PreToolUse / PostToolUse / Stop / SessionEnd / 手動 (5本 + README)
+│   ├── hook-guard-skillgen.py         # intake 実行中の skill 生成を exit 2 で 100% ブロック
 │   ├── pre-publish-secret-scrub.sh    # 公開前 secret 走査 (exit 2 でブロック)
 │   ├── pre-publish-schema-validate.py # 公開前スキーマ検証
 │   ├── post-publish-notify.sh         # Slack 通知 (任意, silent skip)
@@ -433,35 +448,33 @@ plugins/skill-intake/
 │   ├── ci_dogfooding_retest.py / dogfooding_regression.py
 │   ├── notion_limits.json
 │   └── README.md                      # 全スクリプトの責務一覧
+├── vendor/                            # plugin install に同梱される Python runtime 依存
+│   ├── python/jinja2/
+│   ├── python/markupsafe/
+│   └── python/typing_extensions.py
 ├── fixtures/                          # テスト用例データ (4ディレクトリ)
 │   ├── example-data-quality-survey/   # 例: データ品質調査
 │   ├── example-team-onboarding/       # 例: チームオンボーディング
 │   ├── info-collector-agent/          # SubAgent プロンプト検証用
 │   └── intake-final-smoke/            # 最終版 render の smoke test
-└── skills/                            # スキル (11個)
-    ├── run-skill-intake-aggregator/   # メイン: 12 phase orchestrator
-    │   ├── SKILL.md
-    │   ├── references/                # 24 本 (handoff-contract, intake.schema.json,
-    │   │                              #         mermaid-visualization-guide, failure-modes 等)
-    │   ├── schemas/                   # handoff / findings / intake-final
-    │   └── assets/                    # Mermaid templates 12 + samples 8 + SVG 8
-    ├── run-skill-intake/              # 軽量 orchestrator (11 段階)
+└── skills/                            # スキル (10個)
+    ├── run-skill-intake/              # **メイン orchestrator** (11 phase)
     ├── run-intake-kickoff/            # Phase 1 補助
     ├── run-intake-interview/          # Phase 4 補助
-    ├── run-intake-visualize/          # Phase 6 補助
+    ├── run-intake-option-catalog/     # Phase 6 補助
+    ├── run-intake-visualize/          # Phase 7 補助
     ├── run-intake-finalize/           # Phase 9 補助 (統合 + quality_gate)
     ├── run-intake-next-action/        # Phase 11 決定論 (公開後の引き渡しモード判定)
     ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
     ├── run-notion-fidelity-guard/     # Notion 公開前粒度検証
-    ├── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
-    └── ref-intake-option-catalog/     # 外部連携カタログ参照
+    └── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
 ```
 
 ### コマンド一覧
 
 | コマンド | 用途 | 引数 |
 |---|---|---|
-| `/intake` | 新規ヒアリング起動（11 phase / 12 SubAgent） | `[topic]` |
+| `/intake` | 新規ヒアリング起動（11 phase / 4 SubAgent） | `[topic]` |
 | `/intake-publish` | 既存 intake の再公開（内容変更なし） | `<hint>` |
 | `/intake-revise` | 追加要望を Notion ページに PATCH 反映 | `<hint> [--dry-run]` |
 | `/intake-status` | 進行状況（phase / 5 軸充足 / 図解枚数） | `[<hint>]` |
@@ -470,6 +483,7 @@ plugins/skill-intake/
 
 | イベント | 実行 hook | 役割 |
 |---|---|---|
+| PreToolUse (Skill\|Task\|Bash) / PostToolUse (Skill) / Stop / SessionEnd | `hook-guard-skillgen.py` | intake 実行中の skill 生成 (`run-skill-create` / `run-build-skill` 等) を exit 2 で 100% ブロック。lock は `run-skill-intake` 開始で作成し、正常終了 / SessionEnd / TTL で解除 |
 | PreToolUse (Bash) | `pre-publish-secret-scrub.sh` | `output/` 配下を走査し Notion PAT / Bearer / 汎用キー混入を検知 (exit 2 でブロック) |
 | PreToolUse (Bash) | `pre-publish-schema-validate.py` | intake/notion-blocks の JSON Schema 検証 |
 | PostToolUse (Bash) | `post-publish-notify.sh` | Notion 公開成功後に Slack webhook 送信（opt-in） |
@@ -479,10 +493,10 @@ plugins/skill-intake/
 | Skill | 対象 | 図解 | Notion 公開 |
 |---|---|---|---|
 | `run-skill-elicit` (skill-creator plugin) | 技術者 | ❌ | ❌ |
-| **`run-skill-intake-aggregator`** (本 plugin) | **非技術者対応** | ✅ Mermaid 12+SVG 8 | ✅ Keychain × REST API |
+| **`run-skill-intake`** (本 plugin) | **非技術者対応** | ✅ Mermaid 12+SVG 8 | ✅ Keychain × REST API |
 | `run-skill-create` (skill-creator plugin) | スキル本体生成 | — | — |
 
-`run-skill-create` から Step 1 を呼ぶ際、ヒアリング対象が非技術者なら本 plugin の `run-skill-intake-aggregator` を起動。
+`run-skill-create` から Step 1 を呼ぶ際、ヒアリング対象が非技術者なら本 plugin の `run-skill-intake` を起動。
 
 ### 環境変数一覧
 

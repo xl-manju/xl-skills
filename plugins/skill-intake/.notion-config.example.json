@@ -16,5 +16,5 @@
       "db_id": ""
     }
   },
-  "schema_dir": "plugins/skill-intake/skills/run-skill-intake-aggregator/references"
+  "schema_dir": "plugins/skill-intake/references"
 }

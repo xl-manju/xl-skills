@@ -26,8 +26,8 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を確定する。
-- 非担当: skill 本体生成、ヒアリング深掘り、Notion 公開。
+- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を**判定し推奨として記録する**。
+- 非担当 (起動禁止): skill 本体生成 (`run-skill-create` / `run-build-skill` / `capability-build`)、ヒアリング深掘り、Notion 公開。これらを Skill/Task で起動しない。mode は推奨であり実行に移さない。
 
 ### 2.2 ドメインルール
 - mode は A〜E の 5 値のみ。
@@ -57,6 +57,7 @@
 | pattern-rules | references/pattern-recognition-rules-pointer.md | kickoff の pattern と mode を突合するとき |
 
 ### 3.2 外部ツール / API
+- `scripts/decide-mode.py` (mode 決定論判定・Notion 公開 precondition gate 内包)
 - AskUserQuestion (不一致時のみ 1 問)
 
 ## Layer 4: 共通ポリシー層
@@ -67,6 +68,9 @@
 
 ### 4.2 観測 / ロギング
 - next-action.json に `reason` (判定表のどの行を引いたか) を必ず残す。
+
+### 4.4 最大反復回数
+- チェックリスト充足ループ上限: **3 回** (判定 → 確認取得 → schema 検証の最大往復数)。上限到達で mode 未確定の場合は exit 2 で中断。
 
 ### 4.3 セキュリティ
 - 個人名・社名はそのまま split_candidates に転記しない (variable_abstraction を保つ)。
@@ -86,7 +90,8 @@
 - [ ] mode が mode-catalog.md 判定表のいずれか 1 行から決定論的に導出されている (LLM 勘の介在ゼロ)
 - [ ] reason に判定表の引いた行 id / 条件が文字列として含まれている
 - [ ] pattern と mode が一致時は確認を省略、不一致時のみ AskUserQuestion 1 問で `confirmed_with_user` を埋めている
-- [ ] `multi_skill_suspicion=true` のとき `split_candidates[]` の各要素に responsibility 記述が存在する
+- [ ] `multi_skill_suspicion=true` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空なら `mode=E` に格下げし `reason` に格下げ理由を追記している
+- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `"Phase 1 (re-intake)"` になっている
 - [ ] 同一 (summary, purpose, options, kickoff) 入力で next-action.json の (mode, reason) が 2 回連続実行で完全一致 (determinism)
 - [ ] 個人名・社名が split_candidates に転記されていない (variable_abstraction)
 
@@ -97,8 +102,8 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-skill-intake` / `run-skill-intake-aggregator` の Notion 公開完了後 phase
-- 後続 phase: skill-creator 引き渡し (必要な場合のみ)
+- 呼び出し元: `run-skill-intake` (現行 orchestrator) の Notion 公開完了後 phase (Phase 11)
+- 後続 phase: skill-creator 引き渡しは **mode の「推奨」を出すのみ**。本スキルも呼び出し元 (intake orchestrator) も `run-skill-create` を自動起動しない。実際のスキル生成はユーザーが別途明示的に開始する独立アクションであり、intake ワークフローはこの推奨提示で完結・停止する。
 
 ### 6.2 並列性
 - AskUserQuestion は 1 問ずつ。並列起動禁止。
@@ -110,6 +115,20 @@
 
 ### 7.2 言語
 - 本文: 日本語 (mode コード A-E や schema key は英語のまま)
+
+---
+
+## Self-Evaluation
+
+next-action.json 生成後に以下を自己確認する。未達があれば対応 exit code を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| 公開前提確認 | notion-log.json.status=="published" かつ page_id が存在することを確認した | PASS/FAIL |
+| 判定根拠 | mode が mode-catalog.md の判定表 1 行から導出され reason に行 id が含まれている | PASS/FAIL |
+| 起動禁止遵守 | `run-skill-create` 等のスキル生成 skill を起動していない | PASS/FAIL |
+| 変数化 | 個人名・社名が split_candidates に転記されていない | PASS/FAIL |
+| schema 適合 | next-action.json が output.schema.json (additionalProperties:false) に適合 | PASS/FAIL |
 
 ---
 

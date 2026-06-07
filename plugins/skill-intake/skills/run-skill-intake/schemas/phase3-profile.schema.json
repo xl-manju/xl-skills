@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "skill-intake Phase 3 profile.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dimensions", "vocabulary_tier"],
+  "properties": {
+    "dimensions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "array", "object", "null"]
+      }
+    },
+    "vocabulary_tier": {
+      "type": "string",
+      "enum": ["non_technical", "mixed", "technical"]
+    },
+    "tone_guidelines": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "questions_to_avoid": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}

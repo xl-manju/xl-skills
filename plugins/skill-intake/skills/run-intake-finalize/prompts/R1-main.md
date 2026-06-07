@@ -56,6 +56,7 @@
 
 ### 3.2 外部ツール / API
 - `render-intake-final.py` (Jinja2 render)
+- `convert_md_to_json.py` (intake.md → intake.json 変換)
 - `quality_gate.py`, `cross_check.py` (検証)
 
 ## Layer 4: 共通ポリシー層
@@ -66,6 +67,9 @@
 
 ### 4.2 観測 / ロギング
 - intake.json の `validation` field に各検査結果を書き戻す。
+
+### 4.4 最大反復回数
+- チェックリスト充足ループ上限: **2 回** (render → 検証の往復。LLM 推論なしのため 2 回で十分)。上限到達で FAIL の場合は failures[].retry_phase を埋めて exit 1 で中断。
 
 ### 4.3 セキュリティ
 - 個人情報・社外秘の漏出検査は quality_gate に委譲 (本責務は検証実行のみ)。
@@ -87,6 +91,7 @@
 - [ ] FAIL 時に failures[] の各項目に retry_phase が明示されている
 - [ ] 同一 Phase 1-8 入力で intake.md / intake.json が bit-identical (determinism)
 - [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
+- [ ] `intake.json.validation` に `render` / `quality_gate` / `cross_check` の各 enum 結果が書き戻されている
 
 ### 5.4 実行方式
 - 固定手順を持たない。完了チェックリストを唯一の停止条件とし、未充足項目を特定→必要 script (render / quality_gate / cross_check) をその都度起動→validation 更新→checklist で自己評価を反復する (上限: Layer 4 最大反復回数)。
@@ -113,8 +118,22 @@
 
 ---
 
+## Self-Evaluation
+
+intake.md / intake.json 生成後に以下を自己確認する。未達があれば failures[].retry_phase に明記して exit 1 を返すこと。
+
+| 観点 | 確認内容 | 判定 |
+|---|---|---|
+| 決定論性 | LLM 推論を呼ばず Jinja2 / script のみで完了している | PASS/FAIL |
+| 検証順序 | quality_gate → cross_check の順序を入れ替えていない | PASS/FAIL |
+| FAIL 処理 | FAIL 時に failures[].retry_phase が全項目に明示されている | PASS/FAIL |
+| schema 適合 | intake.json が output.schema.json に適合している | PASS/FAIL |
+| 推測補完なし | 不足成果物を推測補完していない (欠落は FAIL として返している) | PASS/FAIL |
+
+---
+
 ## 出力指示 (LLM 実行時に読む箇所)
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-Phase 1-9 の全成果物を確認し、`render-intake-final.py` で intake.md / intake.json を生成、続けて `quality_gate.py` と `cross_check.py` を順に実行せよ。FAIL があれば `failures[].retry_phase` を埋め、validation サマリを intake.json に書き戻すこと。出力は schemas/output.schema.json 準拠の JSON のみ。
+Phase 1-8 の全成果物を確認し、`render-intake-final.py` で intake.md を生成後 `convert_md_to_json.py` で intake.json に変換し、続けて `quality_gate.py` と `cross_check.py` を順に実行せよ。FAIL があれば `failures[].retry_phase` を埋め、validation サマリを intake.json に書き戻すこと。出力は schemas/output.schema.json 準拠の JSON のみ。
