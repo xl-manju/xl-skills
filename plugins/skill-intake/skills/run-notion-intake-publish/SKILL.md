@@ -17,9 +17,15 @@ hierarchy_level: L1
 rubric_refs:
   - ../../references/quality-rubric.md
   - references/republish-contract.md
-role_suffix: publish
+responsibility_refs:
+  - references/republish-contract.md
+  - references/abstraction-contract.md
+schema_refs: []
+manifest: references/resource-map.yaml
+role_suffix: null
 owner: team-platform
 since: 2026-05-20
+version: 0.1.0
 ---
 
 # run-notion-intake-publish

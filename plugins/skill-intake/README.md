@@ -154,6 +154,8 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.
 > **単独インストールについて**: 本 plugin は `skill-intake` のみを単独 install しても、
 > **ヒアリング → Markdown/JSON 生成 → 指定 Notion ページへの publish というコアフローが
 > 自己完結して動作**します（共有ローダ `notion_config.py` を vendoring 同梱）。
+> Python runtime 依存も plugin 配下 `vendor/` に同梱され、`.claude-plugin/plugin.json`
+> の `package.include` で `vendor/**` を配布対象として明示しています。
 > Notion publish には DB ID と Keychain token が必要です。ヒアリングシート DB ID は
 > `notion-config.fixed.json` に同梱済みで、別DBへ向ける場合だけ plugin-root 直下の
 > `.notion-config.json` か env (`NOTION_CONFIG_PATH` / `INTAKE_NOTION_DATABASE_ID`) で上書きします
@@ -167,6 +169,15 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.
 ### 方式A: GitHub Marketplace から install（推奨）
 
 Claude Code セッション内で:
+
+インストール後の vendor 配布確認:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/smoke_plugin_vendor.py"
+```
+
+期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
+`typing_extensions` と標準ライブラリ schema fallback を、site-packages に頼らず確認します。
 
 ```
 /plugin marketplace add xl-manju/xl-skills
@@ -415,7 +426,7 @@ plugins/skill-intake/
 ├── references/                        # 共有 references (35本) — 旧 aggregator から移設した SSOT 正本
 ├── assets/                            # Mermaid 12 + samples 8 + SVG 8 カタログ (28本) — 旧 aggregator から移設
 ├── schemas/                           # handoff / findings / intake-final (3本) — 旧 aggregator から移設
-├── hooks/                             # PreToolUse / PostToolUse / Stop / SessionEnd / 手動 (5本)
+├── hooks/                             # PreToolUse / PostToolUse / Stop / SessionEnd / 手動 (5本 + README)
 │   ├── hook-guard-skillgen.py         # intake 実行中の skill 生成を exit 2 で 100% ブロック
 │   ├── pre-publish-secret-scrub.sh    # 公開前 secret 走査 (exit 2 でブロック)
 │   ├── pre-publish-schema-validate.py # 公開前スキーマ検証
@@ -437,22 +448,26 @@ plugins/skill-intake/
 │   ├── ci_dogfooding_retest.py / dogfooding_regression.py
 │   ├── notion_limits.json
 │   └── README.md                      # 全スクリプトの責務一覧
+├── vendor/                            # plugin install に同梱される Python runtime 依存
+│   ├── python/jinja2/
+│   ├── python/markupsafe/
+│   └── python/typing_extensions.py
 ├── fixtures/                          # テスト用例データ (4ディレクトリ)
 │   ├── example-data-quality-survey/   # 例: データ品質調査
 │   ├── example-team-onboarding/       # 例: チームオンボーディング
 │   ├── info-collector-agent/          # SubAgent プロンプト検証用
 │   └── intake-final-smoke/            # 最終版 render の smoke test
-└── skills/                            # スキル (11個)
+└── skills/                            # スキル (10個)
     ├── run-skill-intake/              # **メイン orchestrator** (11 phase)
     ├── run-intake-kickoff/            # Phase 1 補助
     ├── run-intake-interview/          # Phase 4 補助
-    ├── run-intake-visualize/          # Phase 6 補助
+    ├── run-intake-option-catalog/     # Phase 6 補助
+    ├── run-intake-visualize/          # Phase 7 補助
     ├── run-intake-finalize/           # Phase 9 補助 (統合 + quality_gate)
     ├── run-intake-next-action/        # Phase 11 決定論 (公開後の引き渡しモード判定)
     ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
     ├── run-notion-fidelity-guard/     # Notion 公開前粒度検証
-    ├── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
-    └── run-intake-option-catalog/     # 外部連携カタログ参照
+    └── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
 ```
 
 ### コマンド一覧

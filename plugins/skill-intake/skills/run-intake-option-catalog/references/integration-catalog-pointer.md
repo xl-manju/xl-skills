@@ -1,5 +1,5 @@
 # Integration Catalog Pointer
 
-正本: `plugins/skill-intake/references/integration-catalog.md`
+正本: `plugins/skill-intake/references/integration-catalog.md` (plugin 共有 references、`${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/references/integration-catalog.md`)
 
-Phase C で aggregator 廃止時に本 references 配下へ物理移管予定。それまでは Read で参照する。
+aggregator 廃止に伴い asset は plugin 直下 `references/` へ移設済み。Read で上記正本を参照する。

@@ -17,7 +17,7 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- 業務ロジックは orchestrator 内に書かない (各 phase の delegateSkill に委譲)。
+- 業務ロジックは orchestrator 内に書かない (各 phase の delegateType / delegateName に委譲)。
 - 任意 phase の FAIL でパイプライン全体を中断する (silent-fail 禁止)。
 - **スキル生成を起動しない (hard stop)**: intake は Phase 11 (next-action 推奨) で完結する。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを Skill / Task / Bash で起動しない。`next-action.json` の `mode` は推奨情報であり実行しない。Phase 11 完了後は完了レポートを提示して**停止**する。
 
@@ -58,7 +58,7 @@
 | manifest | workflow-manifest.json | phase 定義の SoT |
 
 ### 3.2 外部ツール / API
-- SubAgent / delegateSkill 起動 (workflow-manifest.json 駆動)
+- Skill / SubAgent 起動 (workflow-manifest.json の delegateType / delegateName 駆動)
 
 ## Layer 4: 共通ポリシー層
 
@@ -76,7 +76,7 @@
 - `quality_gate.py` / `cross_check.py` fail は根本原因をユーザー提示し、AI 判断で自動修正しない。
 
 ### 4.3 セキュリティ
-- Notion トークン等の secret は orchestrator のログに残さない (delegateSkill 内で扱う)。
+- Notion トークン等の secret は orchestrator のログに残さない (delegate 内で扱う)。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
@@ -99,7 +99,7 @@
 - [ ] ユーザー入力取得は phase 1 のみ (orchestrator が後付けで意図推測していない)
 
 ### 5.4 実行方式
-- 固定手順を持たない。未充足チェック項目を特定→workflow-manifest.json の phases から次に起動すべきものを選定→delegateSkill 実行→trace 記録→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
+- 固定手順を持たない。未充足チェック項目を特定→workflow-manifest.json の phases から次に起動すべきものを選定→delegateType / delegateName に従って実行→trace 記録→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
 - 逸脱時は Layer 4.1 に従い中断。
 
 ## Layer 6: オーケストレーション層

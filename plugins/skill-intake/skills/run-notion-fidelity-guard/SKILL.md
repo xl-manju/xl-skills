@@ -15,9 +15,10 @@ last-audited: 2026-05-24
 audit-trigger: template-change
 hierarchy_level: L1
 rubric_refs: [ref-output-routing]
-role_suffix: fidelity-guard
+role_suffix: null
 owner: team-platform
 since: 2026-05-22
+version: 0.1.0
 responsibility_refs:
   - prompts/R1.md
   - prompts/R2.md

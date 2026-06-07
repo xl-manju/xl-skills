@@ -20,6 +20,7 @@ rubric_refs: []
 role_suffix: null
 owner: team-platform
 since: 2026-05-24
+version: 0.1.0
 responsibility_refs:
   - prompts/R1-main.md
 schema_refs:

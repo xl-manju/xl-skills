@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-skill-intake/orchestrator-trace.schema.json",
   "title": "orchestrator-trace.json",
-  "description": "11 phase 委譲結果のトレース。各 phase の delegateSkill 実行結果と最終成果物 URI を保持する。",
+  "description": "11 phase 委譲結果のトレース。各 phase の delegateType/delegateName 実行結果と最終成果物 URI を保持する。",
   "type": "object",
   "additionalProperties": false,
   "required": ["session_id", "phases", "artifacts"],
@@ -16,11 +16,14 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "status", "delegateSkill"],
+        "required": ["id", "status", "delegateType", "delegateName"],
         "properties": {
           "id": {"type": "string"},
           "status": {"type": "string", "enum": ["PASS", "FAIL", "SKIP"]},
+          "delegateType": {"type": "string", "enum": ["skill", "agent"]},
+          "delegateName": {"type": "string"},
           "delegateSkill": {"type": ["string", "null"]},
+          "output_schema": {"type": "string"},
           "artifact_path": {"type": "string"},
           "error": {"type": "string"}
         }

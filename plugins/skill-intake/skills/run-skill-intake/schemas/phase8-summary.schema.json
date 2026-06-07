@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "skill-intake Phase 8 summary.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["five_axes", "approval_status"],
+  "properties": {
+    "five_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output_target", "info_source", "share_target", "true_problem", "knowledge_assets"],
+      "properties": {
+        "output_target": {"type": "string", "minLength": 1},
+        "info_source": {"type": "string", "minLength": 1},
+        "share_target": {"type": "string", "minLength": 1},
+        "true_problem": {"type": "string", "minLength": 1},
+        "knowledge_assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["approved", "revision_requested"]
+    },
+    "revision_notes": {"type": "string"},
+    "summary_md_path": {"type": "string"},
+    "summary_json_path": {"type": "string"}
+  }
+}

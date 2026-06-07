@@ -5,7 +5,7 @@ PreToolUse Bash hook: intake_publish_pipeline.py / publish_notion_page.py / rend
 の起動コマンドから intake.json を抽出し、intake.schema.json で検証する。
 
 設計方針 (LS-01/LS-10/MD-01/SS-03 対応):
-  - Python stdlib + jsonschema のみ。bash 委譲しない (.sh 廃止)。
+  - Python stdlib のみ。schema 検証は scripts/_jsonschema_compat.py 経由で行い、bash 委譲しない (.sh 廃止)。
   - exit code を契約違反 (1) と環境不備 (3) と pass-through (0) で厳密に分離。
   - regex は --intake / --intake-file / absolute path / output/<hint>/ を網羅。
 
@@ -14,7 +14,7 @@ Exit codes:
   0  pass-through (検証対象外 or PASS)
   1  contract violation (schema FAIL) → PreToolUse は 2 へ昇格させる
   2  block publish (用途別 BLOCK; 本 hook では Wrapper 役)
-  3  environment error (jsonschema 未導入 / schema 不在)
+  3  environment error (validator / schema 不在)
 """
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 
 本ディレクトリの責務: `run-skill-intake` および sibling skill `run-notion-intake-publish` から呼ばれる**決定論処理を担う Python 3 スクリプト集**。LLM 判断に依存せず、入力に対して常に同じ出力を返すロジックのみを置く (Script First 原則)。macOS 標準 `/usr/bin/python3` で動作する。最終 Markdown レンダリング用の `jinja2` は plugin 配下 `vendor/python` に同梱し、JSON Schema 検証は `scripts/_jsonschema_compat.py` の標準ライブラリ fallback を使う。
 
-**スクリプト数: 計 38 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **35 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **3 本** (`run-intake-next-action/scripts/decide-mode.py` / `run-intake-visualize/scripts/verify-visuals.py` / `run-intake-interview/scripts/check-five-axes-coverage.py`)。データファイル `notion_limits.json` は本数に含めない。
+**スクリプト数: 計 50 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **42 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **8 本**。データファイル `notion_limits.json` は本数に含めない。
 
 ## カテゴリ別一覧
 
@@ -83,4 +83,5 @@
 
 - **Python 3.9 以上** (macOS 標準 `/usr/bin/python3` 可)
 - **Python package**: `jinja2` は `vendor/python` に同梱済み。通常利用者の手動 `pip install` は不要。
+- **Vendor smoke**: `python3 scripts/smoke_plugin_vendor.py` が `"ok": true` を返すこと。
 - 認証情報は必ず `keychain_get_secret.py` 経由で取得。環境変数・`.env`・コミット履歴に平文を残さない。

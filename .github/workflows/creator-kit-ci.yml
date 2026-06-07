@@ -42,6 +42,13 @@ jobs:
           python3 scripts/lint-intake-vendored-ssot.py
           python3 scripts/validate-plugin-packages.py
 
+      # marketplace install ポータビリティ不変条件: 任意の install 先 (cwd 非依存) で
+      # vendor/python の jinja2 等が __file__ 相対で import 解決でき、plugin が
+      # 純ソース配布 (.pyc/.so 非同梱) であることを検証する。不特定多数のユーザーが
+      # install しても手動 pip 無しで動く保証を CI でガードする。
+      - name: Verify plugin vendor portability (cwd-independent import + pure-source)
+        run: python3 plugins/skill-intake/scripts/validate-plugin-vendor.py
+
       - name: Verify manifest inventory
         run: |
           python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py

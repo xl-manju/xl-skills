@@ -19,8 +19,11 @@ hierarchy_level: L1
 rubric_refs: []
 owner: team-platform
 since: 2026-05-22
+version: 0.1.0
 responsibility_refs:
   - prompts/R1-search-summarize.md
+schema_refs: []
+manifest: references/resource-map.yaml
 ---
 
 # run-intake-option-catalog
@@ -45,12 +48,12 @@ Phase 6 担当の **連携選択肢生成 run skill**。orchestrator (`run-skill
 
 **Goal**: purpose.json から導出した verb_object に対し、tier=required 連携が全て確定し reason 付きで rejected も埋まった `options.json` を生成する。
 
-**Why**: Phase 6 で連携選択が漏れると後続 phase (実装計画・タスク仕様化) が空中分解し、aggregator が options.json を消費できなくなるため。tier=required を必ず明示・確定させることで、後段の責務分離 (実装 skill / 評価 skill) が崩れない。
+**Why**: Phase 6 で連携選択が漏れると後続 phase (実装計画・タスク仕様化) が空中分解し、orchestrator (`run-skill-intake`) 以降が options.json を消費できなくなるため。tier=required を必ず明示・確定させることで、後段の責務分離 (実装 skill / 評価 skill) が崩れない。
 
 **Checklist** (上から順にチェックし、未充足があればその項目に戻る反復構造):
 
 - [ ] `purpose.json` の `true_purpose.verb_object` と `time_freed_intent` を抽出済み
-- [ ] `references/integration-catalog-pointer.md` 経由で旧 aggregator `references/integration-catalog.md` を読み、verb_object に親和する候補を列挙済み
+- [ ] `references/integration-catalog-pointer.md` 経由で plugin 共有 `references/integration-catalog.md` を読み、verb_object に親和する候補を列挙済み
 - [ ] 各候補に `tier`, `id`, `name` を付与し、tier=required の候補が漏れなく含まれているか確認済み
 - [ ] AskUserQuestion で候補をユーザー提示し、selected / rejected の判断を取得済み
 - [ ] rejected 全項目に空でない `reason` が記録済み (tier=required を除外する場合も理由必須)
@@ -69,11 +72,11 @@ Phase 6 担当の **連携選択肢生成 run skill**。orchestrator (`run-skill
 ## Gotchas
 
 1. **tier=required も除外可、ただし reason 必須**: 必須連携は提示するが、ユーザーが明示的に除外する場合は理由を残し下流 skill に判断材料を渡す。
-2. **カタログ外候補の誘惑**: verb_object に近い連携がカタログに無い場合でも本 skill では補完せず、aggregator 側で skill 拡張要求として上げる。
-3. **pointer 経由の参照**: `integration-catalog.md` は aggregator 側にあるため必ず `integration-catalog-pointer.md` を経由し、直接ハードコード参照しない。
+2. **カタログ外候補の誘惑**: verb_object に近い連携がカタログに無い場合でも本 skill では補完せず、別 phase (skill 拡張要求) として上げる。
+3. **pointer 経由の参照**: `integration-catalog.md` は plugin 共有 `references/` にあるため必ず `integration-catalog-pointer.md` を経由し、直接ハードコード参照しない。
 4. **責務の最小化**: カタログ参照と `options.json` 生成のみを担い、連携の実行・認証・公開は他 phase に委譲する (write は `options.json` に限定)。
 
 ## Additional Resources
 
-- `references/integration-catalog-pointer.md` — 旧 aggregator references への参照ガイド
+- `references/integration-catalog-pointer.md` — plugin 共有 references/integration-catalog.md への参照ガイド
 - `references/tier-criteria.md` — required / optional の判定基準

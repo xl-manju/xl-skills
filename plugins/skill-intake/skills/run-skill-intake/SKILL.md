@@ -19,7 +19,7 @@ last-audited: 2026-05-24
 audit-trigger: monthly
 hierarchy_level: L1
 rubric_refs: []
-role_suffix: orchestrator
+role_suffix: null
 owner: team-platform
 since: 2026-05-22
 version: 0.2.0
@@ -28,6 +28,10 @@ responsibility_refs:
   - prompts/R1-main.md
 schema_refs:
   - schemas/output.schema.json
+  - schemas/phase2-assumption.schema.json
+  - schemas/phase3-profile.schema.json
+  - schemas/phase5-purpose.schema.json
+  - schemas/phase8-summary.schema.json
 reference_refs:
   - ref-workflow-sequence
   - ref-handoff-contract
@@ -62,9 +66,9 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 
 ## Key Rules
 
-1. **manifest を SSOT とする**: 固定 Steps を本文に書かず `workflow-manifest.json` の `phases[]` (id / dependsOn / delegateSkill / fatal_exit_codes) を読み実行順を決める。
+1. **manifest を SSOT とする**: 固定 Steps を本文に書かず `workflow-manifest.json` の `phases[]` (id / dependsOn / delegateType / delegateName / fatal_exit_codes) を読み実行順を決める。
 2. **業務ロジックを持たない**: 質問雛形 / 技法選択 / 採点基準 / Notion blocks 生成は子 Skill / SubAgent / references に閉じる。本スキルは起動順序と handoff JSON の受け渡しのみ。
-3. **handoff JSON 必須**: 各 phase 完了時に対応 JSON ファイルが存在し、`workflow-manifest.json` と各 skill 配下 `schemas/` の契約に通ること。違反時はその phase に戻す。
+3. **handoff JSON 必須**: 各 phase 完了時に対応 JSON ファイルが存在し、`workflow-manifest.json` と各 skill / SubAgent の `schemas/` 契約に通ること。違反時はその phase に戻す。
 4. **SubAgent fresh context (context:fork)**: Phase 2 / 3 / 5 / 8 はバイアス回避・同意ループ防止のため Task tool で SubAgent 起動し主スレッド context を渡さない。Phase 1 / 4 / 6 / 7 / 9 / 10 / 11 は Skill tool で主スレッド起動。
 5. **失敗で停止**: phase が exit != 0 / handoff JSON 検証 fail / fatal_exit_codes hit なら停止し `intake-trace.json` に再開ポイントを記録、ユーザーへ提示。
 6. **Secret-Out-of-Repo**: Notion トークンは Keychain から都度取得 (`scripts/keychain_get_secret.py`)。リポジトリへ書き込まない。
@@ -110,9 +114,9 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 `workflow-manifest.json` の `phases[]` を SSOT として、現状評価 → 次の未達 phase 特定 → 起動 → 検証 → 反復 / 差し戻しを回す。本スキル固有の差分は以下:
 
 - **未達評価の単位は phase**: `intake-trace.json` の最新 status を読み、最初の `status != success` な phase を次のターゲットにする。`dependsOn` 全 success が前提。違反 (依存未満) なら依存元へ戻す。
-- **委譲先**: Skill tool 起動 = `run-intake-kickoff` / `run-intake-interview` / `run-intake-option-catalog` / `run-intake-visualize` / `run-intake-finalize` / `run-notion-intake-publish` / `run-intake-next-action`。Task tool (SubAgent / context:fork) 起動 = `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-purpose-excavator` / `skill-intake-summarizer`。本スキルは制御のみで業務ロジックを持たない。
+- **委譲先**: `workflow-manifest.json` の `delegateType` / `delegateName` を唯一の起動契約とする。`delegateType=skill` は Skill tool、`delegateType=agent` は Task tool (SubAgent / context:fork) で起動する。本スキルは制御のみで業務ロジックを持たない。
 - **context:fork 必須箇所**: Phase 2 / 3 / 5 / 8。主スレッド context を渡さず Task tool で fresh agent 起動 (バイアス回避・同意ループ防止)。
-- **handoff 検証**: 各 phase 完了直後に `workflow-manifest.json` と各 delegate skill の `schemas/` 契約を確認する。fail なら同 phase へ差し戻し (最大 3 周、`fatal_exit_codes=[2,3]`)。
+- **handoff 検証**: 各 phase 完了直後に `workflow-manifest.json` と各 delegate の `schemas/` 契約を確認する。fail なら同 phase へ差し戻し (最大 3 周、`fatal_exit_codes=[2,3]`)。
 - **Gate A (Phase 8) 否認分岐**: `summary.json` 否認時は Phase 4 へ戻り再ヒアリング (最大 2 周)。3 周目突入なら停止しユーザーへ要件再確認を促す。
 - **Phase 5 skip 判定**: `interview.json.needs_excavation=false` なら Phase 5 を skip し Phase 6 へ。skip 理由を `intake-trace.json` へ明示記録 (理由なき skip は禁止)。
 - **lint / quality_gate 自動修正禁止**: `quality_gate.py` / `cross_check.py` fail は根本原因をユーザー提示し AI 判断で勝手に直さない。
@@ -133,7 +137,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 
 ## Additional Resources
 
-- `workflow-manifest.json` — phases[] (id / dependsOn / delegateSkill / fatal_exit_codes / resourceIds) の SSOT
+- `workflow-manifest.json` — phases[] (id / dependsOn / delegateType / delegateName / fatal_exit_codes / resourceIds) の SSOT
 - `prompts/R1-main.md` — orchestrator 責務プロンプト
 - `schemas/output.schema.json` — `intake-trace.json` 形式
 - `references/workflow-sequence.md` — 11 phase の起動順序と前提 JSON 依存図 (人間向け)
