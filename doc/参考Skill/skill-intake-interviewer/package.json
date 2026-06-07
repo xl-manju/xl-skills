@@ -7,6 +7,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
+    "typecheck": "node --check scripts/*.js",
+    "lint": "node --check scripts/*.js",
     "selftest": "node scripts/quality_gate.js --selftest"
   }
 }
