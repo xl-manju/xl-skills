@@ -57,13 +57,15 @@ def main() -> int:
     except Exception as exc:
         checks["import_error"] = str(exc)
 
+    # pycache_count / pyc_count は情報フィールドに留める。これらは runtime 生成の
+    # bytecode で gitignore 対象 (配布されない) であり、CI の先行 py_compile ステップが
+    # 必ず生成するため ok 条件に含めると環境依存で偽陽性になる。配布リスクとなる
+    # native .so (プラットフォーム依存バイナリの混入) のみを ok の閉条件として保持する。
     ok = (
         checks["vendor_exists"]
         and checks["jinja2_init"]
         and checks["markupsafe_init"]
         and checks["typing_extensions"]
-        and checks["pycache_count"] == 0
-        and checks["pyc_count"] == 0
         and checks["native_so_count"] == 0
         and "import_error" not in checks
         and "/vendor/python/" in checks.get("jinja2_file", "")
