@@ -89,7 +89,7 @@
 - 達成ゴール: `eval-log/intake-trace.json` と完成 artifacts が schema 準拠で揃い、いずれかの phase が FAIL したときは artifacts が未充填かつ error が trace に明記された状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] Step 0 前提検証 PASS (`check_notion_ready.py --check-api` exit 0)。PASS 済みなら API キー / Notion トークンをユーザーに再質問しない。exit 44 のときだけ `references/keychain-setup.md` を案内し停止
+- [ ] Step 0 前提検証 PASS (`validate-notion-ready.py --check-api` exit 0)。PASS 済みなら API キー / Notion トークンをユーザーに再質問しない。exit 44 のときだけ `references/keychain-setup.md` を案内し停止
 - [ ] orchestrator 内に業務ロジック (5 軸ヒアリング / 可視化 / Notion 公開等) が混入していない (薄さ維持)
 - [ ] 各 phase の出力が handoff-contract.md の次 phase 入力 schema に適合
 - [ ] 任意 phase FAIL を観測した時点でパイプライン中断し、`eval-log/intake-trace.json` に error 行 (phase id / exit code / stderr 要約) を残している

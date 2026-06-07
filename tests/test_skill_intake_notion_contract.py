@@ -172,7 +172,7 @@ def test_check_notion_ready_reports_fixed_target_with_env_token(tmp_path):
     env["NOTION_TOKEN"] = "secret_test"
 
     result = run_cmd(
-        "plugins/skill-intake/scripts/check_notion_ready.py",
+        "plugins/skill-intake/scripts/validate-notion-ready.py",
         "--json",
         env=env,
     )
@@ -195,7 +195,7 @@ def test_intake_prompts_do_not_reask_api_key_after_ready_check():
         encoding="utf-8"
     )
     for text in (skill, prompt, publish, revise):
-        assert "check_notion_ready.py --check-api" in text
+        assert "validate-notion-ready.py --check-api" in text
         assert "再質問しない" in text or "再入力を求めない" in text
 
 

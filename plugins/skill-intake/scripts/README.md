@@ -17,7 +17,7 @@
 | スクリプト | サマリ |
 |---|---|
 | `notion_http.py` | Notion REST API v1 への薄い wrapper。Notion-Version / Authorization を 1 箇所に閉じ込める。 |
-| `check_notion_ready.py` | 固定DB / config / Keychain token / 任意の read-only API 接続を一括確認し、PASS 済みなら API キー再質問を不要にする。 |
+| `validate-notion-ready.py` | 固定DB / config / Keychain token / 任意の read-only API 接続を一括確認し、PASS 済みなら API キー再質問を不要にする。 |
 | `create_notion_database.py` | `--mode=create|sync` で DB を作成または既存 DB を期待スキーマへ寄せる。create は `--parent-page` / `.notion-config.json#parent_page` を必須解決し、`--dry-run` で非 mutation 検証可能。 |
 | `verify_notion_schema.py` | 期待スキーマと現状 DB を突き合わせ、過不足を `eval-log/notion-conflicts.json` に出力。 |
 | `prepare_notion_assets.py` | `visuals/` を走査し SHA-256 付き `notion-manifest.json` を生成。 |

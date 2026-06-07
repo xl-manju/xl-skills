@@ -18,7 +18,7 @@ argument-hint: "[topic] [--page-url <notion-page-url>|--page-id <notion-page-id>
 
 ## 事前条件
 
-- `plugins/skill-intake/scripts/check_notion_ready.py --check-api` が PASS すること。PASS 済みなら API キー / Notion トークンは再質問しない。
+- `plugins/skill-intake/scripts/validate-notion-ready.py --check-api` が PASS すること。PASS 済みなら API キー / Notion トークンは再質問しない。
 - 対象 Notion DB (`--database-id` / `INTAKE_NOTION_DATABASE_ID` / `.notion-config.json#databases.hearing-sheet.db_id` / `notion-config.fixed.json#databases.hearing-sheet.db_id` のいずれかで指定) に PAT / Integration が Connections 追加されていること。
 - 既存 Notion ページへ出力する場合は `--page-url` または `--page-id` を指定すること。指定された場合、publish は update 専用になり create へフォールバックしない。
 
