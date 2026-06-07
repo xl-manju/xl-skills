@@ -232,7 +232,7 @@ env による override は **CI/staging 限定の用途**:
 # 任意（CI/staging 限定）
 # export INTAKE_NOTION_DATABASE_ID="<別環境の 32文字 Database ID>"
 # export INTAKE_KEYCHAIN_SERVICE="notion-api-key.xl-skills"      # 既定値そのまま
-# export INTAKE_KEYCHAIN_ACCOUNT="skill-intake"        # 既定値そのまま
+# export INTAKE_KEYCHAIN_ACCOUNT="xl-skills"        # 既定値そのまま
 # export INTAKE_NOTION_VERSION="2022-06-28"            # 既定値そのまま
 # export INTAKE_ALLOW_ENV_TOKEN=1                      # CI/dry-run で NOTION_TOKEN を許可する場合のみ
 ```
@@ -282,7 +282,7 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/verify_notion_schema
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
-  --service slack-incoming-webhook --account skill-intake --check
+  --service slack-incoming-webhook --account xl-skills --check
 ```
 → `OK` なら Slack 通知も自動で有効。`exit 44` でも公開フローは silent skip で続行。
 
@@ -507,7 +507,7 @@ plugins/skill-intake/
 | `NOTION_CONFIG_PATH` | なし | 任意 | `.notion-config.json` の明示パス。存在しない場合は fail-closed |
 | `INTAKE_ALLOW_ENV_TOKEN` | なし | 任意（CI/dry-run のみ） | `1` のときだけ `NOTION_TOKEN` fallback を許可 |
 | `INTAKE_KEYCHAIN_SERVICE` | `notion-api-key.xl-skills` | 任意 | Keychain service 名 |
-| `INTAKE_KEYCHAIN_ACCOUNT` | `skill-intake` | 任意 | Keychain account 名 |
+| `INTAKE_KEYCHAIN_ACCOUNT` | `xl-skills` | 任意 | Keychain account 名 |
 | `INTAKE_NOTION_VERSION` | `2022-06-28` | 任意 | Notion-Version ヘッダ |
 
 ### eval-log 集計

@@ -187,7 +187,7 @@ def get_token(cfg: Optional[dict] = None) -> Optional[str]:
     if tok:
         return tok
     service = (cfg or {}).get("keychain_service", "notion-api-key.xl-skills")
-    account = (cfg or {}).get("keychain_account")
+    account = (cfg or {}).get("keychain_account", "xl-skills")
     cmd = ["security", "find-generic-password", "-s", service, "-w"]
     if account:
         cmd[2:2] = ["-a", account]

@@ -28,7 +28,7 @@ intake.md / intake.json 完成
 | 項目 | 既定値 | 上書き環境変数 |
 |------|--------|----------------|
 | Keychain service | `notion-api-key.xl-skills` | `INTAKE_KEYCHAIN_SERVICE` |
-| Keychain account | `skill-intake` | `INTAKE_KEYCHAIN_ACCOUNT` |
+| Keychain account | `xl-skills` | `INTAKE_KEYCHAIN_ACCOUNT` |
 | Notion DB ID | (必須・既定値なし) | `INTAKE_NOTION_DATABASE_ID` |
 | Notion-Version | `scripts/notion_http.py` の `NOTION_VERSION` 定数を正本とする (現行 `2022-06-28`) | `INTAKE_NOTION_VERSION` |
 | 認証種別 | PAT (`ntn_`) または Internal Integration (`secret_`) | — |
@@ -162,7 +162,7 @@ Notion 公開成功後、`hooks/post-publish-notify.sh` (PostToolUse hook) が
 `output/<hint>/notion-url.txt` を読み、Slack incoming webhook へ最小ペイロードを送信する。
 
 - ペイロード: `{"text":"intake published: <hint> -> <notion-url>"}` (1行・サマリ本文は含めない)
-- Webhook 取得経路: `scripts/keychain_get_secret.py --service slack-incoming-webhook --account skill-intake`
+- Webhook 取得経路: `scripts/keychain_get_secret.py --service slack-incoming-webhook --account xl-skills`
   経由のみ。`security find-generic-password` 直叩きは settings.json の `permissions.deny` で禁止する
   (二段防御)。
 - 未設定時の挙動: Keychain に webhook が無ければ silent skip (exit 0)。Slack 連携は opt-in。
@@ -184,7 +184,7 @@ security add-generic-password \
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
-  --service slack-incoming-webhook --account skill-intake --check
+  --service slack-incoming-webhook --account xl-skills --check
 ```
 
 詳細は `plugins/skill-intake/hooks/README.md` を参照。

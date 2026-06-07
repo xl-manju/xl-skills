@@ -109,7 +109,7 @@ security add-generic-password \
 | オプション | 意味 |
 |---|---|
 | `-s` | service 名 (= `notion-api-key.xl-skills`) |
-| `-a` | account 名 (= `skill-intake`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
+| `-a` | account 名 (= `xl-skills`、`INTAKE_KEYCHAIN_ACCOUNT` で上書き可) |
 | `-w` | パスワード本体 (省略すると対話入力) |
 | `-T ''` | アクセス許可アプリ空 (毎回承認ダイアログ。最も厳格) |
 | `-T /usr/bin/security` | security コマンド自身に許可 (CLI 自動化時のみ) |

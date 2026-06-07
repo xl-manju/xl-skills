@@ -67,7 +67,7 @@ security add-generic-password \
 ```
 
 登録後は `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
-  --service slack-incoming-webhook --account skill-intake --check`
+  --service slack-incoming-webhook --account xl-skills --check`
 で取得可否を確認する。
 
 #### no-op 条件
