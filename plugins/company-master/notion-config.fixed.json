@@ -1,0 +1,14 @@
+{
+  "description": "Bundled fixed Notion targets for company-master. Tokens are never stored here (Keychain only).",
+  "_doc": "db_id は単独 install 自己完結のための意図的な既定値・公開可 (token は非含・Keychain のみ)。これは notion_config の解決順で最下位フォールバックであり、上位に env COMPANY_MASTER_NOTION_DATABASE_ID または repo-root/plugin-root の .notion-config.json があればそれで上書きされる。per-repo gitignore 原則 (環境固有 DB ID は git 管理外) との意図的な差分: 本ファイルは単独配布で動かすための公開既定値として敢えて plugin に同梱しコミットする。",
+  "keychain_service": "notion-api-key.xl-skills",
+  "keychain_account": "xl-skills",
+  "databases": {
+    "company-master": {
+      "db_id": "37a07a0c-d18c-8091-b8a7-c7eb85872fb5",
+      "url": "https://www.notion.so/37a07a0cd18c8091b8a7c7eb85872fb5",
+      "role": "fixed-company-master-output"
+    }
+  },
+  "schema_dir": "plugins/company-master/references"
+}
