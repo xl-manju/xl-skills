@@ -24,8 +24,11 @@ def test_plugin_manifest_bundle_contract():
     ]
     assert manifest["entry_points"]["agents"] == ["mfk-gap-verifier"]
     assert manifest["entry_points"]["hooks"] == ["guard-mfk-readonly"]
-    assert manifest["commands"]["run-mf-invoice-check"] == "skills/run-mf-invoice-check"
-    assert manifest["commands"]["run-mf-invoice-db-setup"] == "skills/run-mf-invoice-db-setup"
+    # Claude Code 予約フィールド (skills/agents/commands) はトップレベルに置かない。
+    # entry_points で宣言し、詳細メタは各 SKILL.md / agents/*.md frontmatter が SSOT。
+    assert "skills" not in manifest
+    assert "agents" not in manifest
+    assert "commands" not in manifest
 
 
 def test_manifest_hook_points_to_packaged_file():
