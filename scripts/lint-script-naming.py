@@ -162,6 +162,14 @@ PENDING_RENAME_PATHS = {
     # SKILL.md/Makefile/README/test 参照と同時にリネームする後続 Change Governance PR まで PENDING。
     "scripts/contract-intake-enum-ssot.py",
     "plugins/skill-intake/scripts/smoke_notion_publish.py",
+    # PR #34: mf-kessai-invoice-check 初回投入。check_invoice_gaps.py は
+    # tests/test_check_invoice_gaps.py から `import check_invoice_gaps` される module の
+    # ため §4.3 例外 (ハイフン不可)。verb 'check' の許可動詞化 (diff/extract 等) と
+    # verify/build の kebab 化は SKILL.md/prompts/README/manifest/test 参照と同時に
+    # 実施する後続 Change Governance PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")
