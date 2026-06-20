@@ -2,7 +2,7 @@
   "name": "mf-kessai-invoice-check",
   "version": "0.1.0",
   "package_mode": "bundle",
-  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check の3スキル構成。参照専用hook・二段確認subagent・冪等Notion upsert付き)。",
+  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check の3スキル構成。参照専用hook・二段確認subagent・冪等Notion upsert付き)。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
   "author": {
     "name": "xl-skills maintainers"
   },

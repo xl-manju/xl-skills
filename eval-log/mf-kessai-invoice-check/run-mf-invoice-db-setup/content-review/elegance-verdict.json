@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-db-setup",
+    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "elegant-improvement-executor",
+  "reviewed_at": "2026-06-20T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "4条件検証。完全性=PASS: 2モード(既存DB ensure_schema=database_id既定『請求書チェック_DB』へ不足追加+タイトルrename / 新規作成=parent_page_id配下にPOST+database_id記録)がSKILL.md L33-36・R1 prompt・build_notion_db.py main()/ensure_schema()で三位一致。管理列不可侵=Key Rule3・R1 L1.1/L4.1・ensure_schema『足りないものを足すだけ(既存option消さずmerge_select_property)』で一貫担保。チェックリストMECE=database_id解決/build/事実列15個/管理列4個/verify PASSで漏れ重複なし、SKILL.md L53事実列15個==schema fact_columns 15個、L54管理列4個==managed_columns 4個で完全一致。一貫性=おおむねPASS: build(R1)→verify(R2)の記述がSKILL.md・両prompt・schema・スクリプトで矛盾なし(verify FAIL→R1差し戻し配線も双方向一致)。検証可能性=PASS: verify_db_schema.pyのPASS条件(全期待プロパティ存在)・FAIL(欠落でexit1+欠落列提示)・stop(database_id未設定でexit2)が明示、追加列は警告(失敗扱いせず)もR2 L4.1と実装一致。簡潔性=PASS: body 81行、重複・冗長なし。inconsistency=1(非blocking): R1-build-db.md L43 入力契約表が parent_page_id required:yes と記すが、SKILL.md L38は『新規作成モードのみ・既定不要』、build_notion_db.py main()は database_id 有時parent不要の条件付き。ただしR1の実行指示(L120)とLayer5.4/4.1は『database_id有→既存利用/無→parent必要』を正しく分岐実装しており、load-bearingな実行指示は整合。L2.3表が2モード設計化前の旧『新規DB専用』前提を残した stale residual。smell=1: 同表の同件。実害(既定ゼロ設定経路)は無いため明確な欠陥に当たらずPASS維持。SKILL.md未改変。lib依存(notion_invoice_sink._notion_token/_req, mfk_api.load_config)実在・スクリプトparse OK確認済。"
+}
