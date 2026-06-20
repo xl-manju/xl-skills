@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "package_mode": "bundle",
+  "pkg_checks": {
+    "PKG-001": {
+      "status": "skip",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "claude plugin validate --strict wrapper is not available in this repository yet."
+    },
+    "PKG-002": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-002/"
+    },
+    "PKG-003": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-003/"
+    },
+    "PKG-004": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-004/"
+    },
+    "PKG-005": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-005/"
+    },
+    "PKG-006": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-006/"
+    },
+    "PKG-007": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-007/"
+    },
+    "PKG-008": {
+      "status": "not_applicable",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "This plugin has no settings/*.json fragments; hooks are declared in plugin.json."
+    },
+    "PKG-009": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-009/"
+    },
+    "PKG-010": {
+      "status": "skip",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "Repository-level smoke-plugin-install.sh is not implemented yet; static install contract is covered by tests."
+    },
+    "PKG-011": {
+      "status": "skip",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "Pre-release uninstall smoke is pending repository harness support."
+    },
+    "PKG-012": {
+      "status": "skip",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "Pre-release upgrade smoke is pending repository harness support."
+    },
+    "PKG-013": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-013/"
+    },
+    "PKG-013a": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-013/"
+    },
+    "PKG-013b": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-013/"
+    },
+    "PKG-013c": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-013/"
+    },
+    "PKG-013d": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-013/"
+    },
+    "PKG-014": {
+      "status": "pass",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "eval_log_path": "eval-log/mf-kessai-invoice-check/pkg-014/"
+    },
+    "PKG-015": {
+      "status": "skip",
+      "last_run_at": "2026-06-19T00:00:00Z",
+      "skip_reason": "Rubric violation threshold gate is repository-level and not implemented for this plugin yet."
+    }
+  }
+}

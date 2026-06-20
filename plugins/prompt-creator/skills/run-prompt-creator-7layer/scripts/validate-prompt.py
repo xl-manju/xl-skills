@@ -98,7 +98,11 @@ def validate_prompt_text(input_path):
     for n in range(1, 8):
         if re.search(rf"#+\s*Layer\s*{n}\s*[:：]", text) is None:
             problems.append(f"Layer {n}: marker missing")
-    if re.search(r"\{\{[^}]+\}\}", text):
+    # 「出力指示」セクション以降は実行時入力プレースホルダー {{...}} を許可する
+    # (seven-layer-markdown-template.md の「入力 placeholder は {{...}}」規定)。
+    # それ以前の Layer 本文に残る {{...}} のみ未展開の骨格変数として検出する。
+    layer_body = re.split(r"#+\s*出力指示", text, maxsplit=1)[0]
+    if re.search(r"\{\{[^}]+\}\}", layer_body):
         problems.append("unexpanded placeholder remains")
     if re.search(r"TODO(?!\(human\))", text, re.IGNORECASE):
         problems.append("TODO remains without TODO(human)")

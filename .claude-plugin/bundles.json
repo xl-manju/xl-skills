@@ -4,12 +4,13 @@
   "bundles": [
     {
       "name": "xl-skills-full",
-      "description": "Recommended. All 10 plugins required for the full skill-creator → prompt-creator → governance → distribution pipeline.",
+      "description": "Recommended. All plugins for the full skill-creator → prompt-creator → governance → distribution pipeline, plus end-user productivity plugins (contract-generator, mf-kessai-invoice-check).",
       "plugins": [
         "skill-creator",
         "prompt-creator",
         "skill-intake",
         "contract-generator",
+        "mf-kessai-invoice-check",
         "skill-governance-config",
         "skill-governance-lint",
         "skill-governance-hooks",
