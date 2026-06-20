@@ -1,0 +1,13 @@
+{
+  "environment": "production",
+  "base_url": "https://api.mfkessai.co.jp/v2",
+  "keychain_service": "mfkessai-api-key.xl-skills",
+  "keychain_account": "xl-skills",
+  "_comment_environment": "サンドボックスで試す場合は environment を 'sandbox' にする (base_url が sandbox-api に自動切替)",
+  "_comment_keychain": "API キー本体は Keychain に保存。この JSON には service/account 名のみ (秘匿値は書かない)",
+  "notion": {
+    "_comment": "上書き専用。空欄は既定(mf-kessai-config.default.json の database_id=請求書チェック_DB)を温存する。別DBを使う時のみ database_id を記入。database_id を空のまま parent_page_id を指定すると、その親ページ配下に新規DBを作成するモードになる。",
+    "database_id": "",
+    "parent_page_id": ""
+  }
+}
