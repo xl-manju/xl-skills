@@ -29,38 +29,6 @@
       "guard-mfk-readonly"
     ]
   },
-  "skills": [
-    {
-      "name": "run-mf-invoice-check",
-      "path": "skills/run-mf-invoice-check",
-      "kind": "run",
-      "role": "monthly-invoice-gap-check"
-    },
-    {
-      "name": "run-mf-invoice-db-setup",
-      "path": "skills/run-mf-invoice-db-setup",
-      "kind": "run",
-      "role": "notion-db-schema-setup"
-    },
-    {
-      "name": "ref-mf-kessai-api",
-      "path": "skills/ref-mf-kessai-api",
-      "kind": "ref",
-      "role": "api-reference"
-    }
-  ],
-  "agents": [
-    {
-      "name": "mfk-gap-verifier",
-      "path": "agents/mfk-gap-verifier.md",
-      "owner_skill": "run-mf-invoice-check",
-      "responsibility_id": "R3"
-    }
-  ],
-  "commands": {
-    "run-mf-invoice-check": "skills/run-mf-invoice-check",
-    "run-mf-invoice-db-setup": "skills/run-mf-invoice-db-setup"
-  },
   "permissions": {
     "network": [
       "https://api.mfkessai.co.jp",

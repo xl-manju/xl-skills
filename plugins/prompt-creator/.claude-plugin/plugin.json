@@ -9,52 +9,18 @@
   "since": "2026-05-20",
   "last_audited": "2026-05-24",
   "source": "plugins/prompt-creator/ (旧 doc/prompt-creator/ は deprecated)",
-  "skills": [
-    {
-      "name": "run-prompt-create",
-      "path": "skills/run-prompt-create",
-      "kind": "run",
-      "role": "orchestrator"
-    },
-    {
-      "name": "run-prompt-elicit",
-      "path": "skills/run-prompt-elicit",
-      "kind": "run",
-      "role": "step1-elicit"
-    },
-    {
-      "name": "run-prompt-creator-7layer",
-      "path": "skills/run-prompt-creator-7layer",
-      "kind": "run",
-      "role": "step2-build"
-    },
-    {
-      "name": "assign-prompt-design-evaluator",
-      "path": "skills/assign-prompt-design-evaluator",
-      "kind": "assign",
-      "role": "step3b-evaluator"
-    }
-  ],
-  "agents": [
-    {
-      "name": "prompt-creator-interview-user",
-      "owner_skill": "run-prompt-elicit",
-      "responsibility_id": "R1"
-    },
-    {
-      "name": "prompt-creator-generate-prompt",
-      "owner_skill": "run-prompt-creator-7layer",
-      "responsibility_id": "R2"
-    },
-    {
-      "name": "prompt-creator-review-prompt",
-      "owner_skill": "assign-prompt-design-evaluator",
-      "responsibility_id": "R1"
-    }
-  ],
-  "commands": {
-    "run-prompt-create": "skills/run-prompt-create",
-    "run-prompt-creator-7layer": "skills/run-prompt-creator-7layer"
+  "entry_points": {
+    "skills": [
+      "run-prompt-create",
+      "run-prompt-elicit",
+      "run-prompt-creator-7layer",
+      "assign-prompt-design-evaluator"
+    ],
+    "agents": [
+      "prompt-creator-interview-user",
+      "prompt-creator-generate-prompt",
+      "prompt-creator-review-prompt"
+    ]
   },
   "depends_on": [
     "skill-creator",
