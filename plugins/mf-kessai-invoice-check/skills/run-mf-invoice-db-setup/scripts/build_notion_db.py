@@ -92,17 +92,27 @@ def ensure_schema(db_id, schema, token):
             if missing_options:
                 patch[name] = merge_select_property(existing[name], spec)
 
+    # deprecated 列の自動削除 (whitelist のみ)。顧客ID集約への移行で不要になった旧列
+    # (月次サマリ行モデルの件数列等) を消す。安全のため schema の現行 properties に
+    # 含まれる名前は絶対に削除しない (誤削除防止)。Notion は properties.{name}=null で列削除。
+    for name in schema.get("deprecated_properties", []):
+        if name in existing and name not in schema["properties"]:
+            patch[name] = None
+
     if not patch:
         print(f"OK 既存DB『{_db_title(res)}』は既にスキーマ最新 (database_id={db_id})。変更なし。")
         return 0
     _req("PATCH", f"/databases/{db_id}", token, {"properties": patch})
-    renamed = [f"{k}→{v['name']}" for k, v in patch.items() if set(v) == {"name"}]
-    added = sorted(k for k, v in patch.items() if set(v) != {"name"})
+    removed = sorted(k for k, v in patch.items() if v is None)
+    renamed = [f"{k}→{v['name']}" for k, v in patch.items() if v is not None and set(v) == {"name"}]
+    added = sorted(k for k, v in patch.items() if v is not None and set(v) != {"name"})
     print(f"OK 既存DB『{_db_title(res)}』にスキーマ適用 (database_id={db_id})")
     if renamed:
         print(f"   タイトル列リネーム: {renamed}")
     if added:
         print(f"   追加プロパティ ({len(added)}): {added}")
+    if removed:
+        print(f"   削除した旧プロパティ ({len(removed)}): {removed}")
     print("   次に verify_db_schema.py で検証してください。")
     return 0
 

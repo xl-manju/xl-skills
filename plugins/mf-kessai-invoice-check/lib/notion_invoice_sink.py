@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""発行漏れチェック結果を Notion DB に冪等 upsert する sink。
+"""発行漏れチェック結果を Notion DB に冪等 upsert する sink (顧客ID集約モデル)。
 
-キー: customer_id × 対象年月(period_ym)。毎月実行で重複行を作らず既存行を更新する。
-**事実列のみ** を書き込み、管理列(請求要否/対応状況/チェック済/備考)には触れない
+upsert キー = customer_id 単独。1顧客=1 Notion ページ。月が変わっても同じページを
+更新し、新規ページを作らない。月次履歴は各顧客ページの**本文 table block**
+(Notion type:"table") に 1 行=1 対象年月で蓄積する(自然キー=period_ym, 同月再実行は
+既存行更新で冪等)。DBプロパティはその顧客の「最新月スナップショット」(事実列のみ)を
+書き込み、管理列(請求要否/対応状況/チェック済/備考)には触れない
 (人の運用記入を自動実行が上書きしないため)。
-各月につき `__monthly_summary__ × 対象年月` の月次サマリ行も upsert し、候補0件の月でも
-「確認済み」の記録を残す。各ページ本文には実行履歴を追記し、過去の確認証跡を消さない。
 Notion トークンは Keychain (notion-api-key.xl-skills / xl-skills) から取得。
 """
 import datetime
@@ -17,7 +18,10 @@ import urllib.request
 
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
-SUMMARY_CUSTOMER_ID = "__monthly_summary__"
+
+# 本文 table block の固定列定義 (1行=1対象年月)。順序がセル順を規定する。
+TABLE_COLUMNS = ["対象年月", "判定", "前月金額", "今月金額", "確認済み日時"]
+TABLE_WIDTH = len(TABLE_COLUMNS)
 
 
 def _notion_token():
@@ -49,23 +53,23 @@ def _req(method, path, token, body=None):
         raise RuntimeError(f"Notion {method} {path}: HTTP {e.code} {e.read().decode('utf-8', 'replace')}")
 
 
-def _find_page(database_id, customer_id, period_ym, token):
-    """customer_id × period_ym で既存ページを検索。あれば page_id を返す。"""
-    body = {"filter": {"and": [
-        {"property": "顧客ID", "rich_text": {"equals": customer_id}},
-        {"property": "対象年月", "rich_text": {"equals": period_ym}},
-    ]}}
+def _find_page(database_id, customer_id, token):
+    """customer_id 単独で既存ページを検索。あれば page_id を返す。
+
+    顧客IDは一意のはず。複数ヒットは冪等キー破壊なので暗黙に先頭採用せず raise する。
+    """
+    body = {"filter": {"property": "顧客ID", "rich_text": {"equals": customer_id}}}
     res = _req("POST", f"/databases/{database_id}/query", token, body)
     items = res.get("results", [])
-    if len(items) > 1:  # 冪等キーが壊れている。暗黙に先頭採用せず運用者に気づかせる
+    if len(items) > 1:
         raise RuntimeError(
-            f"重複行検出: 顧客ID={customer_id} 対象年月={period_ym} が {len(items)}件存在。"
-            "手動で重複を解消してから再実行してください (customer_id×対象年月 は一意のはず)。")
+            f"重複ページ検出: 顧客ID={customer_id} が {len(items)}件存在。"
+            "手動で重複を解消してから再実行してください (顧客ID は一意のはず)。")
     return items[0]["id"] if items else None
 
 
 def _props(row):
-    """発行漏れ結果1件を Notion プロパティ形式に変換 (事実列のみ)。"""
+    """1 顧客の最新月スナップショットを Notion プロパティ形式に変換 (事実列のみ)。"""
     def rt(v):
         return {"rich_text": [{"text": {"content": str(v if v is not None else "")}}]}
 
@@ -74,7 +78,6 @@ def _props(row):
 
     props = {
         "取引先企業名": {"title": [{"text": {"content": row.get("company_name", "")}}]},
-        "レコード種別": {"select": {"name": row.get("record_type", "明細")}},
         "顧客ID": rt(row.get("customer_id")),
         "対象年月": rt(row.get("period_ym")),
         "判定": {"select": {"name": row.get("verdict", "発行漏れ候補")}},
@@ -90,124 +93,160 @@ def _props(row):
         props["確認済み日時"] = {"date": {"start": row["checked_at"]}}
     if row.get("run_id"):
         props["チェック実行ID"] = rt(row["run_id"])
-    # 月次サマリ行が持つ件数。明細行は該当キーが無く num(None)→{"number": None} で全行共通可。
-    props["発行漏れ件数"] = num(row.get("gap_count"))
-    props["金額変動件数"] = num(row.get("changed_count"))
-    props["チェック件数合計"] = num(row.get("total_count"))
     return props
 
 
-def _plain(text):
-    return {"type": "text", "text": {"content": str(text)}}
+# --- 本文 table block (月次履歴) -------------------------------------------------
+
+def _cell(text):
+    """table_row の 1 セル。空セルも [] でなく content="" の text を1つ持たせる。"""
+    return [{"type": "text", "text": {"content": str(text if text is not None else "")}}]
 
 
-def _paragraph(text):
-    return {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [_plain(text)]}}
+def _table_row_block(values):
+    """values (TABLE_WIDTH 個の文字列) から table_row ブロックを構築する。"""
+    return {
+        "object": "block",
+        "type": "table_row",
+        "table_row": {"cells": [_cell(v) for v in values]},
+    }
 
 
-def _audit_children(row, action):
-    checked_at = row.get("checked_at") or ""
-    run_id = row.get("run_id") or ""
-    if row.get("record_type") == "月次サマリ":
-        lines = [
-            f"月次チェック完了: {row.get('period_ym')} ({checked_at})",
-            f"実行ID: {run_id}",
-            f"候補: {row.get('gap_count', 0)} / 金額変動(継続発行のうち金額が変わった件数): {row.get('changed_count', 0)} / 合計: {row.get('total_count', 0)}",
-            f"Notion処理: {action}",
-        ]
-    else:
-        lines = [
-            f"チェック記録: {row.get('period_ym')} ({checked_at})",
-            f"実行ID: {run_id}",
-            f"判定: {row.get('verdict')} / 前月金額: {row.get('prev_amount')} / 今月金額: {row.get('curr_amount')}",
-            f"Notion処理: {action}",
-        ]
+def _header_row_block():
+    return _table_row_block(TABLE_COLUMNS)
+
+
+def _month_values(row):
+    """1 顧客の月次行 (TABLE_COLUMNS 順の値リスト)。"""
     return [
-        {
-            "object": "block",
-            "type": "heading_3",
-            "heading_3": {"rich_text": [_plain("MF掛け払い 月次チェック履歴")]},
-        },
-        *[_paragraph(line) for line in lines],
+        row.get("period_ym") or "",
+        row.get("verdict") or "",
+        str(row.get("prev_amount") if row.get("prev_amount") is not None else ""),
+        str(row.get("curr_amount") if row.get("curr_amount") is not None else ""),
+        row.get("checked_at") or "",
     ]
 
 
-def _has_run_id_block(page_id, run_id, token):
-    """既存ページ本文に同一 run_id の履歴ブロックがあるか(冪等判定)。"""
-    res = _req("GET", f"/blocks/{page_id}/children?page_size=100", token)
-    for blk in res.get("results", []):
-        para = blk.get("paragraph") or {}
-        for rt in para.get("rich_text", []):
-            if run_id and run_id in ((rt.get("text") or {}).get("content") or ""):
-                return True
-    return False
+def _table_block(header_and_rows):
+    """新規ページ作成時に children へ渡す table ブロック (header + data 行群)。"""
+    return {
+        "object": "block",
+        "type": "table",
+        "table": {
+            "table_width": TABLE_WIDTH,
+            "has_column_header": True,
+            "has_row_header": False,
+            "children": header_and_rows,
+        },
+    }
 
 
-def _append_audit(page_id, row, token, action):
-    run_id = row.get("run_id") or ""
-    if run_id and _has_run_id_block(page_id, run_id, token):
-        return  # 同一実行の履歴は既存。冪等スキップ(過去証跡は保持)
-    _req("PATCH", f"/blocks/{page_id}/children", token, {"children": _audit_children(row, action)})
+def _cell_plain(cell):
+    """table_row の 1 セル (rich_text 配列) を plain text へ連結する。"""
+    return "".join((rt.get("text") or {}).get("content") or "" for rt in (cell or []))
+
+
+def _all_block_children(block_id, token):
+    """block の子要素を has_more/next_cursor で全ページ取得する。
+
+    Notion はブロック子要素を既定 100 件/ページで返す。table の月次行が 100 行
+    (約 8 年) を超えても既存行を取りこぼさないようカーソルで全件辿る。取りこぼすと
+    period_ym 一致を見落として重複追記し、冪等 (同月は既存行更新) が壊れるため。
+    """
+    out = []
+    cursor = None
+    while True:
+        query = "?page_size=100" + (f"&start_cursor={cursor}" if cursor else "")
+        res = _req("GET", f"/blocks/{block_id}/children{query}", token)
+        out.extend(res.get("results", []))
+        if not res.get("has_more"):
+            break
+        cursor = res.get("next_cursor")
+    return out
+
+
+def _find_table_id(page_id, token):
+    """ページ本文から type=="table" のブロック id を返す。無ければ None。"""
+    for blk in _all_block_children(page_id, token):
+        if blk.get("type") == "table":
+            return blk["id"]
+    return None
+
+
+def _upsert_month_row(page_id, row, token):
+    """既存ページの本文 table に当月行を upsert する (自然キー=period_ym)。
+
+    手順: table 取得→無ければ append→既存行で period_ym 一致を探し更新、無ければ追加。
+    同月の再 sink は既存行更新で重複しない。
+    """
+    period_ym = row.get("period_ym") or ""
+    values = _month_values(row)
+    table_id = _find_table_id(page_id, token)
+    if table_id is None:
+        # 後方データ移行: table が無い旧ページには header + 当月行で table を新規 append。
+        _req("PATCH", f"/blocks/{page_id}/children", token,
+             {"children": [_table_block([_header_row_block(), _table_row_block(values)])]})
+        return
+
+    table_rows = _all_block_children(table_id, token)
+    # has_column_header の先頭行はヘッダなので除外して period_ym 一致を探す。
+    for idx, blk in enumerate(table_rows):
+        if idx == 0:
+            continue
+        cells = (blk.get("table_row") or {}).get("cells") or []
+        if cells and _cell_plain(cells[0]) == period_ym:
+            _req("PATCH", f"/blocks/{blk['id']}", token,
+                 {"table_row": {"cells": [_cell(v) for v in values]}})
+            return
+    # 一致行なし → 末尾に追加。
+    _req("PATCH", f"/blocks/{table_id}/children", token,
+         {"children": [_table_row_block(values)]})
 
 
 def _run_id(checked_at):
     return "mfk-" + checked_at.replace(":", "").replace("-", "").replace("+", "").replace(".", "")
 
 
-def _summary_row(period_ym, rows, checked_at, run_id):
-    gap_count = sum(1 for r in rows if r.get("verdict") == "発行漏れ候補")
-    changed_count = sum(1 for r in rows if r.get("verdict") == "継続発行")
-    return {
-        "customer_id": SUMMARY_CUSTOMER_ID,
-        "period_ym": period_ym,
-        "company_name": f"月次チェックサマリ {period_ym}",
-        "record_type": "月次サマリ",
-        "verdict": "月次サマリ",
-        "product_name": "月次チェック完了記録",
-        "prev_amount": None,
-        "curr_amount": None,
-        "checked_at": checked_at,
-        "run_id": run_id,
-        "gap_count": gap_count,
-        "changed_count": changed_count,
-        "total_count": len(rows),
-    }
-
-
 def upsert(database_id, rows, token=None, period_ym=None, checked_at=None):
-    """rows を customer_id×period_ym キーで冪等 upsert。作成/更新件数を返す。
+    """rows を customer_id キーで冪等 upsert。作成/更新件数を返す。
 
-    rows: [{customer_id, period_ym, company_name, verdict, product_name,
-            prev_amount, curr_amount, issue_date?, updated_at?}, ...]
-    period_ym: rows が空の月でも月次サマリを残すための対象年月。
+    1 顧客=1 ページ。DBプロパティは最新月スナップショット、月次履歴は本文 table block。
+    rows: [{customer_id, period_ym, company_name, verdict, prev_amount, curr_amount,
+            issue_date?, updated_at?, product_name, checked_at?, run_id?}, ...]
+    period_ym: 今回チェックした対象月 (rows が空でも戻り値に含めるため)。
+    rows が空なら何もせず {created:0, updated:0, ...} を返す (候補0件月の「チェック済」
+    証跡は collect 側が全顧客行で担保する。sink はサマリ行を作らない)。
     """
     token = token or _notion_token()
     checked_at = checked_at or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     run_id = _run_id(checked_at)
     if rows:
         period_ym = period_ym or rows[0]["period_ym"]
-    if not period_ym:
-        raise ValueError("period_ym is required when rows is empty")
 
-    detail_rows = []
+    # customer_id でグループ化し、各顧客は最新 period_ym の行をスナップショットに採用。
+    by_customer = {}
     for row in rows:
-        enriched = dict(row)
-        enriched.setdefault("record_type", "明細")
-        enriched.setdefault("checked_at", checked_at)
-        enriched.setdefault("run_id", run_id)
-        detail_rows.append(enriched)
-    all_rows = [_summary_row(period_ym, detail_rows, checked_at, run_id), *detail_rows]
+        cid = row["customer_id"]
+        prev = by_customer.get(cid)
+        if prev is None or (row.get("period_ym") or "") >= (prev.get("period_ym") or ""):
+            by_customer[cid] = row
 
     created = updated = 0
-    for row in all_rows:
-        page_id = _find_page(database_id, row["customer_id"], row["period_ym"], token)
+    for cid, row in by_customer.items():
+        enriched = dict(row)
+        enriched.setdefault("checked_at", checked_at)
+        enriched.setdefault("run_id", run_id)
+        page_id = _find_page(database_id, cid, token)
         if page_id:
-            _req("PATCH", f"/pages/{page_id}", token, {"properties": _props(row)})
-            _append_audit(page_id, row, token, "updated")
+            _req("PATCH", f"/pages/{page_id}", token, {"properties": _props(enriched)})
+            _upsert_month_row(page_id, enriched, token)
             updated += 1
         else:
-            res = _req("POST", "/pages", token,
-                       {"parent": {"database_id": database_id}, "properties": _props(row)})
-            _append_audit(res["id"], row, token, "created")
+            res = _req("POST", "/pages", token, {
+                "parent": {"database_id": database_id},
+                "properties": _props(enriched),
+                "children": [_table_block([_header_row_block(), _table_row_block(_month_values(enriched))])],
+            })
+            _ = res  # 新規ページは作成時に table を同梱済み。追加処理不要。
             created += 1
     return {"created": created, "updated": updated, "period_ym": period_ym, "run_id": run_id}

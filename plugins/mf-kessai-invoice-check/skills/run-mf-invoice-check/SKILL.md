@@ -3,8 +3,8 @@ name: run-mf-invoice-check
 description: 前月と今月の請求書発行漏れをチェックしたいとき、月次で請求発行状況を確認したいときに使う。
 disable-model-invocation: true
 user-invocable: true
-argument-hint: "[--month YYYY-MM]"
-arguments: [month]
+argument-hint: "[--month YYYY-MM] [--backfill --from YYYY-MM --to YYYY-MM]"
+arguments: [month, backfill, from, to]
 allowed-tools:
   - Read
   - Write
@@ -34,11 +34,11 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-前月発行・今月未発行の取引先（発行漏れ候補）を MF掛け払い API から差集合で洗い出し、商品名・前月/今月金額・取引先企業名を突合して Notion DB に冪等 upsert し、画面にも要確認リストを表示する。候補0件の月も `月次サマリ` 行とページ本文の実行履歴で確認済み月を残す。
+前月発行・今月未発行の取引先（発行漏れ候補）を MF掛け払い API から差集合で洗い出し、商品名・前月/今月金額・取引先企業名を突合して Notion DB に冪等 upsert し、画面にも要確認リストを表示する。upsert キーは顧客ID単独で 1 顧客=1 ページ。月が変わっても新規ページを作らず同じページを更新し、月次履歴は各顧客ページ本文の table block に蓄積する。候補0件の月も全チェック対象顧客の行が table に残り確認済み月を記録する。
 
-**入力**: `month`（任意。既定は実行日の月。前月は自動算出）
-**出力**: 発行漏れ候補が Notion DB に反映 + 月次サマリ行/ページ本文に実行履歴を追記 + 画面に要確認リスト。
-**完了条件**: collect→verify(subagent)→sink が完了し、確定候補と月次サマリが Notion に upsert された状態。
+**入力**: `month`（任意。既定は実行日の月。前月は自動算出）。過去月の範囲一括投入は `--backfill --from YYYY-MM --to YYYY-MM` (両端含む・月昇順、`--month` と排他)
+**出力**: 発行漏れ候補が Notion DB に反映 (1 顧客=1 ページ) + 各顧客ページ本文の月次履歴 table に当月行を upsert + 画面に要確認リスト。
+**完了条件**: collect→verify(subagent)→sink が完了し、確定候補が顧客IDキーで Notion に upsert され月次履歴 table に当月行が反映された状態。
 
 ## End-to-End Flow
 
@@ -47,7 +47,7 @@ manifest: workflow-manifest.json
 [2 diff]     lib/mfk_invoice_diff.detect_gaps (collect内, 純関数・pytest済)
 [3 verify]   subagent mfk-gap-verifier (context:fork) で誤検出排除
 [4 finalize] check_invoice_gaps.py --finalize [--exclude-ids …] → eval-log/mfk-gap-verified.json (確定)
-[5 sink]     check_invoice_gaps.py --sink → 確定リスト + 月次サマリを Notion 冪等upsert、ページ本文へ履歴追記
+[5 sink]     check_invoice_gaps.py --sink → 確定リストを顧客IDキーで Notion 冪等upsert (1顧客=1ページ)、ページ本文の月次履歴 table に当月行を upsert
              ↑ 確定リスト不在なら fail-closed(exit 2)。MF APIは全GET / 変更系は hook(guard-mfk-readonly.py)で遮断
 ```
 
@@ -69,7 +69,7 @@ manifest: workflow-manifest.json
 - **R1 collect** (`prompts/R1-collect.md`): 前月・今月の `/billings/qualified` を全ページ取得する。
 - **R2 diff** (`prompts/R2-diff.md`): 取得集合を `発行漏れ候補/継続発行/今月新規` に差集合分類し金額変動を検出する。
 - **R3 verify** (`prompts/R3-verify.md`): subagent `mfk-gap-verifier` が独立 context で誤検出を排除する。
-- **R4 sink** (`prompts/R4-sink.md`): customer_id×対象年月キーで Notion DB に冪等 upsert する (重複行を作らず管理列に触れない)。`__monthly_summary__×対象年月` の月次サマリ行とページ本文追記で確認済み履歴を残す。
+- **R4 sink** (`prompts/R4-sink.md`): 顧客ID単独キーで Notion DB に冪等 upsert する (1 顧客=1 ページ、新規ページを作らず管理列に触れない)。各顧客ページ本文の月次履歴 table に当月行 (自然キー `period_ym`) を upsert し確認済み履歴を残す。
 
 横断不変条件 (各 Rn の L1/L4 が担保): 契約終了等の除外は機械で消さず請求要否列で人が管理。MF API への POST/PATCH/DELETE は hook で遮断され参照専用が保証される。
 
@@ -78,9 +78,9 @@ manifest: workflow-manifest.json
 - [ ] `--collect` が前月/今月の qualified billing を全ページ取得し未検証候補 JSON を出力した (R1/R2)
 - [ ] subagent `mfk-gap-verifier` が独立 context で誤検出を排除した (R3)
 - [ ] `--finalize` が確定リスト `eval-log/mfk-gap-verified.json` を物質化した (二段確認の物理境界)
-- [ ] `--sink` が確定リストを customer_id×対象年月キーで冪等 upsert した (管理列不可侵, R4)
-- [ ] `--sink` が月次サマリ行を作成/更新し、ページ本文へ実行履歴を追記した (候補0件月も確認済み記録を残す)
-- [ ] 運用者が任意の過去月の確認済み状態と件数を Notion 上 (対象年月ソート/レコード種別フィルタ) で参照できる (見方は README『過去月の状態を確認する』参照)
+- [ ] `--sink` が確定リストを顧客ID単独キーで冪等 upsert した (1 顧客=1 ページ、新規ページ不作成、管理列不可侵, R4)
+- [ ] `--sink` が各顧客ページ本文の月次履歴 table に当月行 (自然キー `period_ym`) を upsert した (同月再実行は行更新で重複しない)
+- [ ] 運用者が任意の過去月の確認済み状態を Notion 上 (各顧客ページ本文の月次履歴 table) で参照できる (見方は README『過去月の状態を確認する』参照)
 - [ ] `database_id` 未設定時は db-setup へ差し戻した
 
 ### ゴールシークループ
@@ -120,8 +120,8 @@ PY
 
 1. **参照専用（二層で機械保証）**: 第1層=`hooks/guard-mfk-readonly.py`（PreToolUse）が Bash 経由の MF 変更系コマンドを遮断。第2層=`lib/mfk_api.py` は GET 専用で POST/PATCH/DELETE 関数を構造的に持たない。指示でなく仕組みで担保。
 2. **一覧は qualified**: インボイスモードで `/billings` は空。`/billings/qualified` を使う。
-3. **冪等 upsert**: customer_id×対象年月キー。事実列・監査メタ列のみ書き、管理列は触らない。
-4. **月次完了履歴**: 毎回 `顧客ID=__monthly_summary__` の月次サマリ行を対象年月ごとに upsert し、ページ本文に実行履歴を追記する。候補0件でも完了月を残す。
+3. **冪等 upsert**: 顧客ID単独キー。1 顧客=1 ページ。月が変わっても新規ページを作らず同じページを更新。事実列・監査メタ列 (最新月スナップショット) のみ書き、管理列は触らない。
+4. **月次履歴は本文 table**: 各顧客ページ本文の table block (列: 対象年月/判定/前月金額/今月金額/確認済み日時) に 1 行=1 対象年月で蓄積。自然キー `period_ym` で当月行を upsert し、同月再実行は行更新 (冪等)。サマリ行・件数集計プロパティ・paragraph 追記は持たない。候補0件月も全チェック対象顧客の行を collect が毎月記録する。
 5. **二段確認必須（機構強制）**: collect は未検証候補、finalize が確定リストを別ファイルに物質化。sink は確定リストを fail-closed で要求し、未検証投入は `--force-unverified` 明示時のみ。verify をスキップした直結投入を仕組みで防ぐ（Sycophancy/誤検出防止）。
 6. **除外は人**: 契約終了等の請求不要判断は機械で消さず Notion 請求要否列へ。
 
@@ -131,7 +131,8 @@ PY
 2. MF APIキーと Notion トークンは別 Keychain entry。
 3. `updated_at` は無いので更新日は `created_at` で代替。
 4. 月をまたぐ発行（5月取引→6月発行）があるため判定軸は必ず `issue_date`。
-5. 過去月の見方・要対応ビューの作り方は README『過去月の状態を確認する』節を参照。件数はDBプロパティ (発行漏れ件数等) とページ本文の両方で確認可。
+5. 過去月の見方・要対応ビューの作り方は README『過去月の状態を確認する』節を参照。月次履歴は各顧客ページを開き本文 table block (対象年月/判定/前月金額/今月金額/確認済み日時) で確認。DB は顧客一覧 (最新月スナップショット) として使う。
+6. 過去月の範囲一括投入 (backfill) は `--backfill --from YYYY-MM --to YYYY-MM` で範囲 (両端含む) を月昇順に collect→sink で回す。複数月を自動で回すため対話 verify は挟めず `--month` の単月フローとは排他。
 
 ## Additional Resources
 

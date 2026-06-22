@@ -1,0 +1,7 @@
+# テスト/セッション生成物 (コミット対象外)。本番ランタイムは標準ライブラリのみで、
+# これらはローカル/CI のテスト実行や Claude セッションが生成する一時物。
+.coverage
+.coverage.*
+.pytest_cache/
+__pycache__/
+.claude/handoff/

@@ -30,14 +30,21 @@ def main():
     res = _req("GET", f"/databases/{db_id}", token)
     existing = set((res.get("properties") or {}).keys())
     expected = set(schema["properties"].keys())
+    deprecated = set(schema.get("deprecated_properties", []))
     missing = sorted(expected - existing)
-    extra = sorted(existing - expected)
-    if missing:
-        print(f"FAIL 欠落プロパティ: {missing}")
+    # 削除されるべき旧列が残っていないか (移行の drift)。extra のうち deprecated は致命。
+    residual = sorted(deprecated & existing)
+    extra = sorted(existing - expected - deprecated)
+    if missing or residual:
+        if missing:
+            print(f"FAIL 欠落プロパティ: {missing}")
+        if residual:
+            print(f"FAIL 削除されるべき旧プロパティが残存: {residual} "
+                  f"(build_notion_db.py を再実行して掃除してください)")
         if extra:
-            print(f"     (DBにのみ存在: {extra})")
+            print(f"     (参考: DBにのみ存在する追加列: {extra})")
         return 1
-    print(f"PASS 全 {len(expected)} プロパティが存在します。")
+    print(f"PASS 全 {len(expected)} プロパティが存在し、旧プロパティの残存もありません。")
     if extra:
         print(f"     (参考: DBにのみ存在する追加列: {extra})")
     return 0

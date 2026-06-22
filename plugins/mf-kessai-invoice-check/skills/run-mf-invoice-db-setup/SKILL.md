@@ -30,7 +30,7 @@ schema_refs:
 
 ## Purpose & Output Contract
 
-発行漏れチェック (`run-mf-invoice-check`) の出力先となる Notion DB のスキーマを用意する。事実列 (API由来) と管理列 (人の運用) を分離した設計を `schemas/notion-db-schema.json` 正本から物質化する。冪等に動く 2 モード:
+発行漏れチェック (`run-mf-invoice-check`) の出力先となる Notion DB のスキーマを用意する。事実列 (API由来) と管理列 (人の運用) を分離した 15 プロパティ設計を `schemas/notion-db-schema.json` 正本から物質化する。DB は 1 顧客=1 ページ (upsert キー=顧客ID単独) の顧客一覧で、各行は最新月スナップショット。月次履歴は各顧客ページ本文の table block に蓄積する (DB プロパティではない)。冪等に動く 2 モード:
 
 - **既存DBへ適用** (既定): `database_id` が設定済み (配布既定 `mf-kessai-config.default.json` の『請求書チェック_DB』) の場合、その DB に不足プロパティを追加しタイトル列を `取引先企業名` にリネームする。既存データ・管理列記入は壊さない。
 - **新規作成**: `database_id` が空で `parent_page_id` がある場合、親ページ配下に新規 DB を作成し `database_id` をローカル `.mf-kessai-config.json` に記録する。
@@ -50,9 +50,9 @@ schema_refs:
 ### 完了チェックリスト (Checklist)
 - [ ] `database_id` が解決できる (既定 `mf-kessai-config.default.json` か、ローカル上書き、または `parent_page_id` からの新規作成)
 - [ ] `build_notion_db.py` がスキーマを適用する (既存DB→不足追加+タイトルrename / 新規→作成し database_id 記録)
-- [ ] 事実列 (取引先企業名/レコード種別/顧客ID/対象年月/判定/商品名/前月金額/今月金額/発行日/更新日/確認済み日時/チェック実行ID/発行漏れ件数/金額変動件数/チェック件数合計) が存在
+- [ ] 事実列 (取引先企業名/顧客ID/対象年月/判定/商品名/前月金額/今月金額/発行日/更新日/確認済み日時/チェック実行ID) が存在
 - [ ] 管理列 (請求要否/対応状況/チェック済/備考) が存在
-- [ ] `verify_db_schema.py` が全プロパティ PASS
+- [ ] `verify_db_schema.py` が全 15 プロパティ PASS
 
 ### ゴールシークループ
 1. config の `database_id`/`parent_page_id` を読み現状評価 (`R1`)。

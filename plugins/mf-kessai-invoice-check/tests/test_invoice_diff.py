@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """lib/mfk_invoice_diff.py の純関数を単体テストする (pytest, API不要)。"""
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
-from mfk_invoice_diff import amount_changed, detect_gaps  # noqa: E402
+from mfk_invoice_diff import amount_changed, detect_gaps
 
 
 def _b(cid, amount, status="invoice_issued"):
