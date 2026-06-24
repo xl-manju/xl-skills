@@ -60,7 +60,8 @@ def detect_gaps(prev_billings, curr_billings):
 
 - 月帰属は `issue_date` 基準。
 - `gap_candidates` の各 customer は `/customers?ids=` で企業名、`/transactions?billing_id=`(前月billing) で商品名・前月金額を解決。
-- 「契約終了で今月不要」は API で判別不能 → 候補として出し、除外は Notion `請求要否` 列で人が判断。
+- **年間契約期間中(初回契約月から12ヶ月)の発行漏れ候補は機械が自動抑制する** (Notion 管理列 `初回契約月` を読み `billing_lifecycle` で判定、年間前払い期間中は月次発行が無いのが正常)。`初回契約月` は API で取得できないため人が YYYY-MM で記入し、機械はそれを読んで抑制に用いる。初回契約月が空/不明の顧客は fail-safe で候補に残す。
+- 「契約終了で今月不要」は API で判別不能 → 候補として出し、除外は Notion `請求要否` 列で人が判断 (この例外判断は機械化しない)。
 
 ## 4. フィールド定義（使用分）
 
@@ -96,5 +97,5 @@ def iter_all(get, path, params):
 1. `GET /billings`(区分記載) はインボイスモードで **0件**。必ず `GET /billings/qualified`。
 2. `updated_at` は存在しない。更新日は `created_at`/`accepted_at`/`billing_accepted_at`。
 3. レート制限は spec 未記載 → `limit=200` カーソル + バックオフを保守的に。
-4. 定期請求/自動延長の概念は API に無い。「20万×3」等のスケジュールは人が管理。
+4. 定期請求/自動延長の概念は API に無い。契約開始月・支払サイクルは Notion 管理列 `初回契約月`(人が YYYY-MM で記入)/`支払サイクル` に持ち、**年間契約期間中の発行漏れ抑制は機械がこの初回契約月を読んで自動で行う**。「20万×3」等の個別スケジュール判断や契約終了の例外は引き続き人が `請求要否` 列で管理する。
 5. 全て GET（参照専用）。POST/PATCH/DELETE は `run-mf-invoice-check` の PreToolUse hook で遮断。

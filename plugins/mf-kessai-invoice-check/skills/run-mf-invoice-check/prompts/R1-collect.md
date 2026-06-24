@@ -31,17 +31,17 @@
 - 非担当: 差集合判定ロジック本体 (R2)、誤検出排除 (R3)、Notion 書込 (R4)。
 
 ### 2.2 ドメインルール
-- 前月 = 実行月の1つ前。`--month` 未指定時は実行日の月を今月とする。
+- 対象月(今月) = `--month` 未指定時は**実行日の年月**を今月とする。比較する前月はその1つ前。対象年月(period_ym)ラベルもこの今月に一致する。例: 2026年6月中は 対象年月=2026-06、今月金額=2026-06、前月金額=2026-05。
 - カーソルページングは `limit=200` (レート対策)。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
 |---|---|---|---|
-| --month | string(YYYY-MM) | no | 対象今月。未指定なら実行日の月 |
+| --month | string(YYYY-MM) | no | 対象今月。未指定なら実行日の年月 |
 
 ### 2.4 出力契約
 - schema: `../schemas/invoice-gap-result.schema.json` (additionalProperties:false)。`verdict` 表記は schema enum から逐語引用する。
-- 出力: `eval-log/mfk-gap-candidates.json` (候補配列) + 画面に件数サマリ。
+- 出力: `eval-log/mfk-gap-candidates.json` (未検証の月次チェック行配列。発行漏れ候補、継続発行全件、今月新規を含む。削除済みの `initial_billing_month_estimated` は含めない) + 画面に件数サマリ。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -49,8 +49,8 @@
 | id | path | when_to_read |
 |---|---|---|
 | collect script | scripts/check_invoice_gaps.py | --collect 実行時 |
-| api lib | ../../lib/mfk_api.py | GET 専用 API クライアント |
-| api spec | ../ref-mf-kessai-api/ | エンドポイント・判定仕様の正本 |
+| api lib | `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` | GET 専用 API クライアント |
+| api spec | `$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/` | エンドポイント・判定仕様の正本 |
 
 ### 3.2 外部ツール / API
 - `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py" --collect [--month YYYY-MM]`
@@ -75,14 +75,14 @@
 - collect 実行 (決定論 script 主体、context-fork 不要)。
 
 ### 5.2 ゴール定義
-- 目的: 前月・今月の発行済み請求集合を漏れなく取得し、差集合・突合の入力を揃える。
+- 目的: 前月・今月の発行済み請求集合を漏れなく取得し、差集合・突合の入力を揃える。契約開始月は API から判別せず付与しない (初回契約月は Notion 管理列で人が YYYY-MM で記入し、年間契約抑制は本 collect 段が Notion 初回契約月を読み `suppress_annual_period_gaps` で発行漏れ候補から年間期間中の顧客を除外する)。
 - 背景: 取得漏れ・誤エンドポイントは後段判定を腐らせる。`/billings/qualified` 全ページ取得を機構で固定する。
 - 達成ゴール: command 実行により前月/今月の qualified billing が全ページ取得され、`eval-log/mfk-gap-candidates.json` が schema 準拠で書き出された状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] 前月 (issue_date) の `/billings/qualified` を全ページ取得した
 - [ ] 今月の `/billings/qualified` を全ページ取得した
-- [ ] `eval-log/mfk-gap-candidates.json` が schema (verdict enum) に準拠して出力された
+- [ ] `eval-log/mfk-gap-candidates.json` が schema (verdict enum / 全チェック対象顧客の月次チェック行 / schema 外キーなし) に準拠して出力された
 - [ ] POST 等変更系を一切呼んでいない (GET のみ)
 
 ### 5.4 実行方式
@@ -113,4 +113,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py" --collect [--month YYYY-MM]` を実行し、前月/今月の `/billings/qualified` を全ページ取得 (`limit=200` カーソルページング) して差集合・突合まで進め、`eval-log/mfk-gap-candidates.json` を `../schemas/invoice-gap-result.schema.json` 準拠で書き出させる。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ。出力は件数サマリのみ、前置き禁止。
+`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py" --collect [--month YYYY-MM]` を実行し、前月/今月の `/billings/qualified` を全ページ取得 (`limit=200` カーソルページング) して差集合・突合まで進める。`eval-log/mfk-gap-candidates.json` を `../schemas/invoice-gap-result.schema.json` 準拠で書き出させる。出力行は発行漏れ候補だけでなく、月次履歴の確認済み証跡を残すための継続発行全件・今月新規を含む。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ。出力は件数サマリのみ、前置き禁止。

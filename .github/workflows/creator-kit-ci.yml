@@ -44,6 +44,31 @@ jobs:
       - name: Lint stale root refs in governance scripts
         run: python3 plugins/skill-governance-lint/scripts/lint-path-canonical.py --scripts-dir plugins/skill-governance-lint/scripts
 
+      # plugin 配下のテスト (plugins/*/tests) を CI で実行する。repo-root の
+      # `pytest tests/` は plugin 配下を収集しないため、これが無いと plugin の回帰
+      # テスト (例: mf-kessai-invoice-check の 41 件) が一度も走らず無言で腐る。
+      # plugins/*/tests を総当りで回すので、新規 plugin が tests を足せば自動で CI
+      # 対象になり「配線忘れで無言腐敗」を構造的に封じる (F-HYP-01 と同型の予防)。
+      # 各 plugin の pytest.ini (--import-mode=importlib + pythonpath) を拾うため
+      # plugin dir へ cd して実行する。dev 依存は requirements-dev.txt 一枚を SSOT に install。
+      - name: Run plugin behavior tests (pytest, per-plugin)
+        run: |
+          python3 -m pip install --quiet -r requirements-dev.txt
+          set -euo pipefail
+          found=0
+          for tests_dir in plugins/*/tests; do
+            [ -d "$tests_dir" ] || continue
+            plugin_dir="$(dirname "$tests_dir")"
+            echo "::group::pytest ${plugin_dir}"
+            ( cd "$plugin_dir" && python3 -m pytest tests/ -q )
+            echo "::endgroup::"
+            found=1
+          done
+          if [ "$found" != "1" ]; then
+            echo "ERROR: no plugins/*/tests discovered — plugin test wiring is broken" >&2
+            exit 1
+          fi
+
       # skill-intake コアフローの契約・SSOT・パッケージ整合を CI で保証する。
       # references/assets/schemas を plugin 直下へ移設した後の参照整合 (enum SSOT /
       # vendored byte 一致 / PKG 契約) が無言で腐るのを防ぐ (ローカル make test と整合)。
