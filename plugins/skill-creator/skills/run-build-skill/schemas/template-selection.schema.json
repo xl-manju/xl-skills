@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-build-skill/schemas/template-selection.schema.json",
   "title": "Template Selection",
-  "description": "kind → templates/_base + combinator 選択ルールを宣言的に表現。SKILL.md 本文の kind→template 対応表をここに外出しした正本。",
+  "description": "skill subtype(kind=run/ref/assign/delegate/wrap) → templates/_base + combinator 選択ルールを宣言的に表現。Capability 7 kind は build-flags.schema.json#capability_kind で扱い、本 schema の kind とは混同しない。",
   "type": "object",
   "additionalProperties": false,
   "required": ["composer_modes", "selection_rules"],

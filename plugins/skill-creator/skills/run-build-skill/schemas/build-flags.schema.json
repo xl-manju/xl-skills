@@ -2,13 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-build-skill/schemas/build-flags.schema.json",
   "title": "Build Flags",
-  "description": "run-build-skill が受け取るフラグの入出力定義。--with-prompts/--with-evaluator/--with-hooks/--with-knowledge は対応する phase を有効化する。",
+  "description": "run-build-skill が受け取るフラグの入出力定義。kind は後方互換の skill subtype(run/ref/assign/delegate/wrap)。Capability 7 kind(skill/agent/hook/command/plugin-composition/prompt/workflow) は capability_kind で表す。",
   "type": "object",
   "additionalProperties": false,
   "required": ["skill_name", "kind", "mode"],
   "properties": {
     "skill_name": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
     "kind": {"type": "string", "enum": ["run", "ref", "assign", "delegate", "wrap"]},
+    "capability_kind": {
+      "type": "string",
+      "enum": ["skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow"],
+      "default": "skill",
+      "description": "Capability 7 kind の分類。kind は skill 配下の subtype として維持する。"
+    },
     "mode": {"type": "string", "enum": ["create", "update"], "default": "create"},
     "model": {"type": "string", "enum": ["opus", "sonnet"], "default": "opus"},
     "with_subagent": {
@@ -52,6 +58,69 @@
       "type": "boolean",
       "default": false,
       "description": "Step 11.6 feedback-deploy phase を skip する opt-out フラグ (default-ON のため明示指定時のみ false→true)。drift リスクを引き受ける場合に限り使用し、trace.layer_decisions に理由記録必須。skill-creator 自身は自動除外のため本フラグ不要。"
+    },
+    "skip_content_review": {
+      "type": "boolean",
+      "default": false,
+      "description": "Step 12 content-review phase を skip する opt-out フラグ。内容変更なし等の明確な理由がある場合のみ true にでき、trace.layer_decisions と feedback_contract.skip_reason に理由記録必須。"
+    },
+    "feedback_contract": {
+      "type": "object",
+      "description": "生成対象ごとの評価基準と内側/外側フィードバックループ契約。content-review / goal-seek / evaluator / hook が同じ契約を参照し、評価→改善→再評価を max_iterations 内で閉じる。",
+      "additionalProperties": false,
+      "properties": {
+        "inner_loop": {
+          "type": "object",
+          "description": "小さな機能・責務単位で現在ゴールを確実に満たすゴールシーク型ループ。",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "max_iterations": {"type": "integer", "minimum": 1, "default": 3},
+            "criteria_ref": {"type": "string", "description": "スキル固有 criteria の参照先。例: references/rubric.json#inner_loop"},
+            "negative_feedback": {"type": "string", "enum": ["required", "optional", "none"], "default": "required"},
+            "positive_feedback": {"type": "string", "enum": ["required", "optional", "none"], "default": "optional"}
+          }
+        },
+        "outer_loop": {
+          "type": "object",
+          "description": "ハーネス全体が目的に対して良く動くかを評価し、再利用可能パターンや基盤改善へ戻すループ。",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "max_iterations": {"type": "integer", "minimum": 1, "default": 3},
+            "criteria_ref": {"type": "string", "description": "外側ループ criteria の参照先。例: run-elegant-review/references/convergence-policy.json"},
+            "negative_feedback": {"type": "string", "enum": ["required", "optional", "none"], "default": "required"},
+            "positive_feedback": {"type": "string", "enum": ["required", "optional", "none"], "default": "required"}
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "description": "対象スキル固有の評価基準。YES/NO または閾値で判定でき、各項目は内側/外側のどちらに属するかを明示する。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "loop_scope", "text", "verify_by"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^(IN|OUT|C)[0-9]+$"},
+              "loop_scope": {"type": "string", "enum": ["inner", "outer"]},
+              "text": {"type": "string"},
+              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"]},
+              "threshold": {"type": "string", "description": "score>=80 / high=0 / C1-C4=PASS 等の観測可能なしきい値。"},
+              "weight": {"type": "number", "minimum": 0, "default": 1}
+            }
+          }
+        },
+        "hook_triggers": {
+          "type": "array",
+          "description": "評価を要求する hook 発火点。実行環境で LLM を直接起動できない場合も、queue + lint で未評価をブロックする。",
+          "items": {
+            "type": "string",
+            "enum": ["PostToolUse:Skill", "PostToolUse:Edit", "PostToolUse:Write", "SubagentStop", "Stop", "SessionEnd", "pre-push", "CI"]
+          },
+          "default": ["PostToolUse:Skill", "Stop", "pre-push"]
+        },
+        "skip_reason": {"type": "string"}
+      }
     },
     "with_knowledge": {
       "type": "object",

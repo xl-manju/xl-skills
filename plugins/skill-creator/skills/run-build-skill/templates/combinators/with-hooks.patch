@@ -15,5 +15,5 @@
 +## Hook Wiring（10章 / 17章）
 +- `PreToolUse`: 破壊的引数の検査。block は exit 2 または `hookSpecificOutput.permissionDecision: "deny"` で行う（top-level decision は deprecated）。
 +- `PostToolUse`: 監査ログ + 後処理。failure 系は `PostToolUseFailure` を別途配線。
-+- `SubagentStop`: Subagent ありの場合、完了 hook で evaluator JSON 検証を強制（17章 TaskCompleted hook 参照）。
++- `SubagentStop`: Subagent ありの場合、完了 hook で evaluator JSON 検証を強制。`TaskCompleted` は Agent Team の teammate artifact 完了確認に限定する。
 +- `FileChanged`: 設計書 17/18/19 章の更新を検知し、本 Skill の再 lint を提案する自動追従ループに使う。

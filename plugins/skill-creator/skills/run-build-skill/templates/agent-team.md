@@ -20,7 +20,8 @@ role_suffix: orchestrator
 #
 # 必須 hook (settings.json):
 #   TaskCreated:   scripts/hook-check-file-ownership.py  (ownership 衝突 block)
-#   TaskCompleted: scripts/hook-verify-evaluator-json.py (artifact 欠落 block)
+#   TaskCompleted: scripts/hook-verify-task-artifact.py  (teammate artifact 欠落 block)
+#   SubagentStop:  scripts/hook-verify-evaluator-json.py (evaluator JSON 契約 block)
 ---
 
 # {{name}}
@@ -55,7 +56,8 @@ role_suffix: orchestrator
 
 ### 完了チェックリスト (Checklist)
 - [ ] TaskCreated hook が exit 0（file ownership 衝突なし）
-- [ ] 各 teammate の output_file が生成され、TaskCompleted hook の JSON 契約を通過
+- [ ] 各 teammate の output_file が生成され、TaskCompleted hook の artifact 契約を通過
+- [ ] evaluator JSON が SubagentStop hook の JSON 契約を通過
 - [ ] evaluator (`context: fork`) の score >= threshold
 
 ### ゴールシークループ
@@ -68,7 +70,7 @@ role_suffix: orchestrator
   Task(subagent_type="{{role2_subagent}}", file_ownership=[{{role2_files}}], ...)
   Task(subagent_type="{{role3_subagent}}", file_ownership=[{{role3_files}}], ...)
   ```
-- **artifact 検証**: 各 teammate の output_file を読み、TaskCompleted hook で契約検証。
+- **artifact 検証**: 各 teammate の output_file を読み、TaskCompleted hook で成果物存在を検証。
 - **統合（直列・最後）**: evaluator を `context: fork` で起動し全 artifact を採点。
 
 ## Gotchas

@@ -56,10 +56,10 @@ local_artifacts:
     - ../schemas/build-flags.schema.json
     - ../schemas/goal-seek-loop.schema.json   # loop実行系の周回progress契約 (with-goal-seek配線)
   prompts:
-    - ../prompts/scaffold.md
-    - ../prompts/responsibility-emit.md
-    - ../prompts/template-select.md
-    - ../prompts/trace-write.md
+    - ../prompts/R1-scaffold.md
+    - ../prompts/R2-responsibility-emit.md
+    - ../prompts/R3-template-select.md
+    - ../prompts/R4-trace-write.md
 # resources[].bundle が未指定なら default_bundle を継承 (本 skill は skill-creator 所属)
 default_bundle: skill-creator
 
