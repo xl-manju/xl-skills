@@ -82,10 +82,11 @@
       "id": "trace-write",
       "step": 9,
       "title": "skill-build-trace.json 章別記入と検証",
-      "dependsOn": ["scripts", "prompts-emit", "evaluator-emit"],
+      "dependsOn": ["scripts"],
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "resourceIds": ["schema-skill-build-trace", "prompt-trace-write"],
-      "output_artifact": "eval-log/skill-build-trace.json"
+      "output_artifact": "eval-log/skill-build-trace.json",
+      "note": "prompts-emit / evaluator-emit は flag_required の任意 phase。trace-write は必須 phase のため optional phase へ依存しない。任意成果物が存在する場合のみ trace に取り込む。"
     },
     {
       "id": "notion-register",
@@ -101,7 +102,7 @@
     {
       "id": "feedback-deploy",
       "step": 11,
-      "title": "量産先プラグインに run-skill-feedback を symlink 配備 (default-ON, with-feedback-loop combinator)",
+      "title": "量産先プラグインに run-skill-feedback を symlink 配備 (default-ON, deployment action)",
       "dependsOn": ["trace-write"],
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "default_on": true,
@@ -109,7 +110,7 @@
       "resourceIds": [],
       "output_artifact": "plugins/<plugin>/skills/run-skill-feedback (-> ../../skill-creator/skills/run-skill-feedback)",
       "verifier": "scripts/lint-feedback-protocol.py --strict (R7)",
-      "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存 symlink は再作成しない)。実装は scripts/render-combinators.py apply_feedback_loop()。"
+      "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存 symlink は再作成しない)。これは SKILL.md patch combinator ではなく、scripts/render-combinators.py apply_feedback_loop() の副作用付き deployment action。"
     },
     {
       "id": "content-review",
@@ -119,11 +120,11 @@
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "default_on": true,
       "opt_out_flag": "--skip-content-review",
-      "resourceIds": [],
+      "resourceIds": ["schema-content-review-verdict", "ref-content-review-protocol"],
       "output_artifact": "eval-log/<plugin>/<skill>/content-review/{elegance-verdict.json, rubric-verdict.json}",
       "verifier": "scripts/lint-content-review.py --changed-only --base origin/main",
       "execution": "local-llm-only",
-      "note": "ローカル Claude Code で run-elegant-review + assign-skill-design-evaluator を SubAgent 起動し verdict json を保存する。LLM はリモート CI では実行せず、CI/pre-push は成果物の存在のみ機械検査 (cost/API課金回避)。skip 時は trace.layer_decisions に理由必須。実装手順は references/content-review-protocol.md。"
+      "note": "ローカル Claude Code で run-elegant-review + assign-skill-design-evaluator を SubAgent 起動し verdict json を保存する。PostToolUse/Stop hook は重い LLM を直接起動せず評価要求を queue 化し、pre-push/CI は成果物の存在・PASS・skill_md_sha256 一致を機械検査する。skip 時は trace.layer_decisions と feedback_contract.skip_reason に理由必須。実装手順は references/content-review-protocol.md。"
     }
   ],
   "resources": [
@@ -133,9 +134,11 @@
     {"id": "schema-skill-build-trace", "kind": "schema", "path": "./schemas/skill-build-trace.schema.json", "phaseIds": ["scripts", "trace-write"]},
     {"id": "schema-responsibility-slot", "kind": "schema", "path": "./schemas/responsibility-slot.schema.json", "phaseIds": ["prompts-emit"]},
     {"id": "schema-build-flags", "kind": "schema", "path": "./schemas/build-flags.schema.json", "phaseIds": ["init", "evaluator-emit"]},
-    {"id": "prompt-scaffold", "kind": "prompt", "path": "./prompts/scaffold.md", "phaseIds": ["scaffold"]},
-    {"id": "prompt-template-select", "kind": "prompt", "path": "./prompts/template-select.md", "phaseIds": ["scaffold"]},
-    {"id": "prompt-responsibility-emit", "kind": "prompt", "path": "./prompts/responsibility-emit.md", "phaseIds": ["prompts-emit"]},
-    {"id": "prompt-trace-write", "kind": "prompt", "path": "./prompts/trace-write.md", "phaseIds": ["trace-write"]}
+    {"id": "schema-content-review-verdict", "kind": "schema", "path": "./schemas/content-review-verdict.schema.json", "phaseIds": ["content-review"]},
+    {"id": "ref-content-review-protocol", "kind": "reference", "path": "./references/content-review-protocol.md", "phaseIds": ["content-review"]},
+    {"id": "prompt-scaffold", "kind": "prompt", "path": "./prompts/R1-scaffold.md", "phaseIds": ["scaffold"]},
+    {"id": "prompt-template-select", "kind": "prompt", "path": "./prompts/R3-template-select.md", "phaseIds": ["scaffold"]},
+    {"id": "prompt-responsibility-emit", "kind": "prompt", "path": "./prompts/R2-responsibility-emit.md", "phaseIds": ["prompts-emit"]},
+    {"id": "prompt-trace-write", "kind": "prompt", "path": "./prompts/R4-trace-write.md", "phaseIds": ["trace-write"]}
   ]
 }

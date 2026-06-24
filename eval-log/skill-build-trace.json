@@ -144,6 +144,15 @@
     },
     "per_responsibility": []
   },
+  "feedback_contract": {
+    "max_iterations": 3,
+    "criteria": [
+      {"id": "IN1", "loop_scope": "inner", "text": "差込後に未置換マーカー(黄色run/プレースホルダ残存)が0件である (検証: scripts/validate.py の drift 検知)", "verify_by": "script", "threshold": "未置換マーカー数==0", "weight": 1.0},
+      {"id": "IN2", "loop_scope": "inner", "text": "ひな形変更(scan_template.py のハッシュ差分)が検知されたら停止・報告し、無断生成しない", "verify_by": "script", "threshold": "template_hash 一致 / scan_template.py exit!=0 で停止・--dry-run 副作用なし", "weight": 0.8},
+      {"id": "OUT1", "loop_scope": "outer", "text": "黄色二系統出力(監査用Google Docs=黄色維持 / 提出用PDF=黄色除去)が作成指示行ごとに揃う (検証: render 出力2系統存在 + 台帳書き戻しURL)", "verify_by": "script", "threshold": "2系統/行", "weight": 1.0},
+      {"id": "OUT2", "loop_scope": "outer", "text": "P0 lint 群(lint-skill-name/validate-frontmatter/lint-goal-seek/validate-build-trace)が全て exit0", "verify_by": "lint", "threshold": "exit0", "weight": 0.9}
+    ]
+  },
   "variable_contract": [
     {"name": "spreadsheet_id", "meaning": "管理台帳のスプレッドシートID", "default": "(なし)", "required": true, "not_applicable_when": "N/A", "source_trace": ".google-config.json / google-config.sample.json"},
     {"name": "templates_folder_id", "meaning": "ひな形フォルダID", "default": "(なし)", "required": true, "not_applicable_when": "N/A", "source_trace": ".google-config.json"},

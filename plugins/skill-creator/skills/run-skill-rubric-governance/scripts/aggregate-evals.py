@@ -39,6 +39,16 @@ def _plugin_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _repo_root() -> Path:
+    # _plugin_root() == <repo>/plugins/skill-creator なので parent.parent が repo root。
+    return _plugin_root().parent.parent
+
+
+def _eval_log_dir() -> Path:
+    # write-eval-log.py の sink 基底と一致: <repo>/eval-log/
+    return _repo_root() / "eval-log"
+
+
 def _evals_path() -> Path:
     return _plugin_root() / "EVALS.json"
 
@@ -52,15 +62,150 @@ def _proposals_dir() -> Path:
     )
 
 
-def _load_evals() -> dict[str, Any]:
-    p = _evals_path()
-    if not p.exists():
-        return {"evaluations": []}
+def _date_of(ts: Any) -> str | None:
+    # "2026-06-06T19:59:43+0900" / "2026-06-01T00:00:00Z" -> "2026-06-06"
+    if not isinstance(ts, str) or not ts:
+        return None
+    m = re.match(r"(\d{4}-\d{2}-\d{2})", ts)
+    return m.group(1) if m else None
+
+
+def _normalize_score_record(rec: dict[str, Any]) -> dict[str, Any] | None:
+    """write-eval-log.py の score.jsonl 1行を共通形へ。
+
+    sink schema: rubric{rubric_id,...} / score / passed / findings / skill_name / timestamp
+    -> {skill, date, verdict, score, findings}
+    """
+    if not isinstance(rec, dict):
+        return None
+    rubric = rec.get("rubric") if isinstance(rec.get("rubric"), dict) else {}
+    skill = rec.get("skill_name") or rubric.get("rubric_id")
+    if not skill:
+        return None
+    passed = rec.get("passed")
+    if passed is True:
+        verdict = "PASS"
+    elif passed is False:
+        verdict = "FAIL"
+    else:
+        verdict = str(rec.get("verdict", ""))
+    return {
+        "skill": skill,
+        "date": _date_of(rec.get("timestamp")),
+        "verdict": verdict,
+        "score": rec.get("score"),
+        "findings": rec.get("findings", []) or [],
+    }
+
+
+def _normalize_verdict_record(rec: dict[str, Any]) -> dict[str, Any] | None:
+    """content-review verdict.json を共通形へ。
+
+    verdict schema: target{plugin,skill} / verdict(PASS|FAIL|INCOMPLETE) / reviewed_at
+    -> {skill, date, verdict, score, findings}
+    """
+    if not isinstance(rec, dict):
+        return None
+    target = rec.get("target") if isinstance(rec.get("target"), dict) else {}
+    skill = target.get("skill")
+    if not skill:
+        return None
+    return {
+        "skill": skill,
+        "date": _date_of(rec.get("reviewed_at")),
+        "verdict": str(rec.get("verdict", "")),
+        "score": None,  # verdict は数値スコアを持たない
+        "findings": [],
+    }
+
+
+def _load_score_jsonl() -> list[dict[str, Any]]:
+    """eval-log/<plugin>/<date>-score.jsonl (write-eval-log の実 sink) を全件読む。"""
+    out: list[dict[str, Any]] = []
+    base = _eval_log_dir()
+    if not base.exists():
+        return out
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(f"[aggregate-evals] EVALS.json load failed: {exc}\n")
-        return {"evaluations": []}
+        paths = sorted(base.glob("**/*-score.jsonl"))
+    except OSError:
+        return out
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            norm = _normalize_score_record(rec)
+            if norm is not None:
+                out.append(norm)
+    return out
+
+
+def _load_content_review_verdicts() -> list[dict[str, Any]]:
+    """eval-log/<plugin>/<skill>/content-review/*-verdict.json を全件読む。"""
+    out: list[dict[str, Any]] = []
+    base = _eval_log_dir()
+    if not base.exists():
+        return out
+    try:
+        paths = sorted(base.glob("**/content-review/*-verdict.json"))
+    except OSError:
+        return out
+    for path in paths:
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        norm = _normalize_verdict_record(rec)
+        if norm is not None:
+            out.append(norm)
+    return out
+
+
+def _load_evals() -> dict[str, Any]:
+    """評価レコードを 3 ソースから集約。
+
+    1) EVALS.json#/evaluations[]   (従来。誰も書かない可能性が高い旧経路)
+    2) eval-log/<plugin>/<date>-score.jsonl       (write-eval-log の実 sink)
+    3) eval-log/<plugin>/<skill>/content-review/*-verdict.json  (content-review verdict)
+
+    いずれも {skill,date,verdict,score,findings} 形へ正規化済みで concat する。
+    新 writer は作らず既存 writer の出力を読むだけ (重複writer回避)。
+    各ソースは防御的に skip (無ければ空)。
+    """
+    evals: list[dict[str, Any]] = []
+
+    # 1) 従来 EVALS.json
+    p = _evals_path()
+    if p.exists():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            for ev in data.get("evaluations", []) or []:
+                if isinstance(ev, dict):
+                    evals.append(ev)
+        except (OSError, json.JSONDecodeError) as exc:
+            sys.stderr.write(f"[aggregate-evals] EVALS.json load failed: {exc}\n")
+
+    # 2) write-eval-log の実 sink (score.jsonl)
+    try:
+        evals.extend(_load_score_jsonl())
+    except Exception as exc:  # 非ブロック (SessionEnd 流儀)
+        sys.stderr.write(f"[aggregate-evals] score.jsonl load failed: {exc}\n")
+
+    # 3) content-review verdict
+    try:
+        evals.extend(_load_content_review_verdicts())
+    except Exception as exc:  # 非ブロック
+        sys.stderr.write(f"[aggregate-evals] verdict load failed: {exc}\n")
+
+    return {"evaluations": evals}
 
 
 def _verdict_is_fail(verdict: str) -> bool:

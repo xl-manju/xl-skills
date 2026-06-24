@@ -1,0 +1,26 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "assign-skill-design-evaluator",
+    "skill_md_sha256": "729d6ec43b55a370133668a0ccbfb1e50f723ef9f1eb424bf6f847d13f5425f0"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator-equivalent",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "採点専用 skill に Goal/Checklist は残しつつ runtime loop は配線しない設計が維持されている"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "Static rubric-equivalent review for the self-improvement diff; no write-capable evaluator path was introduced."
+}

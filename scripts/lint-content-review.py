@@ -7,13 +7,14 @@
   - LLM 層 (本 lint の対象外): 評価実行自体はローカル Claude Code で run-elegant-review +
             assign-skill-design-evaluator を SubAgent 起動して行う (リモート CI コスト回避)
 
-skill-creator 自身および ref kind は除外 (内容評価対象外)。
+ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない。
 
 Usage:
   python3 scripts/lint-content-review.py --changed-only [--base origin/main]
   python3 scripts/lint-content-review.py --all
 """
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -24,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = ROOT / "plugins"
 EVAL_LOG = ROOT / "eval-log"
 REQUIRED_VERDICTS = ("elegance-verdict.json", "rubric-verdict.json")
-EXEMPT_PLUGINS = {"skill-creator"}
+EXEMPT_PLUGINS = set()
 EXEMPT_KINDS = {"ref"}
 
 
@@ -77,17 +78,113 @@ def _read_kind(plugin, skill):
     return m.group(1) if m else None
 
 
-def _check_verdict(path):
+def _skill_sha256(plugin, skill):
+    md = PLUGINS_DIR / plugin / "skills" / skill / "SKILL.md"
+    try:
+        return hashlib.sha256(md.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _expected_review_kind(fname):
+    if fname.startswith("elegance-"):
+        return "elegance"
+    if fname.startswith("rubric-"):
+        return "rubric"
+    return None
+
+
+def _check_verdict(path, plugin, skill, fname):
     if not path.is_file():
         return "missing"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         return f"invalid-json: {exc}"
+    for key in ("target", "review_kind", "verdict", "reviewer", "reviewed_at", "iterations", "feedback_loop"):
+        if key not in data:
+            return f"schema: missing {key}"
+    target = data.get("target")
+    if not isinstance(target, dict):
+        return "schema: target must be object"
+    if target.get("plugin") != plugin or target.get("skill") != skill:
+        return (
+            "target-mismatch: "
+            f"expected {plugin}/{skill}, got {target.get('plugin')}/{target.get('skill')}"
+        )
+    expected_kind = _expected_review_kind(fname)
+    if expected_kind and data.get("review_kind") != expected_kind:
+        return f"review_kind={data.get('review_kind')} expected={expected_kind}"
     verdict = data.get("verdict")
     if verdict != "PASS":
         return f"verdict={verdict}"
+    current_sha = _skill_sha256(plugin, skill)
+    recorded_sha = target.get("skill_md_sha256")
+    if not recorded_sha:
+        return "schema: target.skill_md_sha256 missing"
+    if current_sha and recorded_sha != current_sha:
+        return f"stale-sha: {recorded_sha} != current {current_sha}"
+    if not isinstance(data.get("iterations"), int):
+        return "schema: iterations must be integer"
+    feedback_loop = data.get("feedback_loop")
+    if not isinstance(feedback_loop, dict):
+        return "schema: feedback_loop must be object"
+    criteria = feedback_loop.get("criteria_evaluated")
+    if not isinstance(criteria, list) or not criteria:
+        return "schema: feedback_loop.criteria_evaluated must be non-empty array"
+    if len(criteria) != len(set(criteria)):
+        return "schema: feedback_loop.criteria_evaluated has duplicates"
+    if not isinstance(feedback_loop.get("iteration_limit"), int):
+        return "schema: feedback_loop.iteration_limit must be integer"
+    if not isinstance(feedback_loop.get("iteration"), int):
+        return "schema: feedback_loop.iteration must be integer"
+    if feedback_loop.get("loop_scope") not in {"inner", "outer", "both"}:
+        return "schema: feedback_loop.loop_scope invalid"
+    if not isinstance(feedback_loop.get("positive_feedback"), list):
+        return "schema: feedback_loop.positive_feedback must be array"
+    if not isinstance(feedback_loop.get("negative_feedback"), list):
+        return "schema: feedback_loop.negative_feedback must be array"
+    if feedback_loop.get("next_action") not in {"none", "improve", "re_evaluate", "human_review"}:
+        return "schema: feedback_loop.next_action invalid"
+    if not isinstance(feedback_loop.get("hook_trigger"), str) or not feedback_loop.get("hook_trigger").strip():
+        return "schema: feedback_loop.hook_trigger missing"
+    expected = _expected_criteria_ids(plugin, skill)
+    if expected:
+        missing = expected - set(criteria)
+        if missing:
+            return f"criteria-missing: {sorted(missing)}"
     return None
+
+
+def _expected_criteria_ids(plugin, skill):
+    """Trace に固定された feedback_contract.criteria id を読む。
+
+    build trace は世代により保存場所が異なるため、skill local → global の順に
+    best-effort で読む。見つからなければ空集合を返し、verdict 自体の必須構造のみ
+    検査する。
+    """
+    candidates = [
+        EVAL_LOG / plugin / skill / "skill-build-trace.json",
+        EVAL_LOG / "skill-build-trace.json",
+    ]
+    for path in candidates:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if path.name == "skill-build-trace.json" and data.get("skill_name") not in {None, skill}:
+            continue
+        fc = data.get("feedback_contract")
+        if not isinstance(fc, dict):
+            continue
+        criteria = fc.get("criteria")
+        if not isinstance(criteria, list):
+            continue
+        ids = {str(item.get("id", "")).strip() for item in criteria if isinstance(item, dict)}
+        ids.discard("")
+        if ids:
+            return ids
+    return set()
 
 
 def main():
@@ -120,7 +217,7 @@ def main():
     for plugin, skill in filtered:
         review_dir = EVAL_LOG / plugin / skill / "content-review"
         for fname in REQUIRED_VERDICTS:
-            err = _check_verdict(review_dir / fname)
+            err = _check_verdict(review_dir / fname, plugin, skill, fname)
             if err:
                 violations.append(f"{plugin}/{skill}: {fname} {err}")
 

@@ -24,29 +24,20 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["path", "chapter_id"],
-        "properties": {
-          "path": {"type": "string"},
-          "chapter_id": {"$ref": "#/definitions/chapterId"},
-          "read_excerpt": {"type": "string"}
-        }
+        "type": "string"
       }
     },
     "doc_coverage": {
-      "type": "object",
-      "additionalProperties": false,
-      "patternProperties": {
-        "^(01|01a|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35)$": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["status"],
-          "properties": {
-            "status": {"type": "string", "enum": ["covered", "na", "skipped"]},
-            "reason": {"type": "string"},
-            "evidence": {"type": "string"}
-          }
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["doc", "status"],
+        "properties": {
+          "doc": {"type": "string"},
+          "status": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]},
+          "reason": {"type": "string"},
+          "evidence": {"type": "string"}
         }
       }
     },
@@ -58,8 +49,10 @@
         "required": ["step", "status"],
         "properties": {
           "step": {"type": "string"},
-          "status": {"type": "string", "enum": ["done", "skipped", "na"]},
-          "artifact": {"type": "string"}
+          "status": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]},
+          "artifact": {"type": "string"},
+          "evidence": {"type": "string"},
+          "reason": {"type": "string"}
         }
       }
     },
@@ -71,8 +64,13 @@
         "required": ["layer", "decision"],
         "properties": {
           "layer": {"type": "string", "enum": ["Skill", "Subagent", "Hook", "MCP", "CLI", "script"]},
-          "decision": {"type": "string"},
-          "rationale": {"type": "string"}
+          "decision": {"type": "string", "enum": ["use", "skip"]},
+          "reason": {"type": "string"},
+          "placement_evidence": {"type": "string"},
+          "fallback": {"type": "string"},
+          "dependency_direction_ok": {"type": "boolean"},
+          "macos_stdlib_ok": {"type": "boolean"},
+          "deterministic": {"type": "boolean"}
         }
       }
     },
@@ -81,29 +79,93 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["pattern", "decision"],
+        "required": ["decision", "pattern_ref", "reason", "reuse_target"],
         "properties": {
-          "pattern": {"type": "string"},
-          "decision": {"type": "string", "enum": ["adopt", "reject", "na"]},
-          "reason": {"type": "string"}
+          "decision": {"type": "string", "enum": ["use", "skip"]},
+          "pattern_ref": {"type": "string"},
+          "reason": {"type": "string"},
+          "reuse_target": {"type": "string"}
         }
       }
     },
     "reproducibility_gates": {
       "type": "object",
+      "description": "run-build-skill の既存ゲート。4条件(C1-C4)は four_conditions に集約し、本キーは lint / evaluator / elegant_review / governance の通過状態を保持する。",
+      "additionalProperties": false,
+      "required": ["lint", "evaluator", "elegant_review", "governance"],
+      "properties": {
+        "lint": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]},
+        "evaluator": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]},
+        "elegant_review": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]},
+        "governance": {"type": "string", "enum": ["PASS", "FAIL", "N/A"]}
+      }
+    },
+    "four_conditions": {
+      "type": "object",
+      "description": "run-elegant-review の最終4条件。C1=矛盾なし、C2=漏れなし、C3=整合性あり、C4=依存関係整合。content-review / evaluator / trace の意味的最終判定をここへ集約する。",
       "additionalProperties": false,
       "required": ["C1", "C2", "C3", "C4"],
       "properties": {
-        "C1": {"type": "string", "enum": ["pass", "fail", "na"]},
-        "C2": {"type": "string", "enum": ["pass", "fail", "na"]},
-        "C3": {"type": "string", "enum": ["pass", "fail", "na"]},
-        "C4": {"type": "string", "enum": ["pass", "fail", "na"]}
+        "C1": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "矛盾なし: 仕様書間・実装間で相反する記述がない。"},
+        "C2": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "漏れなし: 必須項目がすべて反映されている。"},
+        "C3": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "整合性あり: 用語・フォーマット・データ構造が統一されている。"},
+        "C4": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "依存関係整合: タスク間・モジュール間の依存が正しく定義されている。"}
+      }
+    },
+    "feedback_contract": {
+      "type": "object",
+      "description": "build-flags.schema.json#/properties/feedback_contract の criteria 制約 (id=^(IN|OUT|C)[0-9]+$ / verify_by enum / item additionalProperties:false) に準拠。対象 skill 固有の inner/outer 評価基準を AI が brief.goal/Checklist から文脈読解で都度導出し trace に固定する。loop 実行系(run/wrap/delegate)では criteria 必須。ref/assign は skip_reason で escape 可。生成必須化と pattern/enum 強制は validate-build-trace.py が kind-aware に行う(required トップ配列には足さず任意トレースを破壊しない)。",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "content-review の評価→改善→再評価の上限。数値正本は run-elegant-review/references/convergence-policy.json#loop_bounds。"
+        },
+        "skip_reason": {
+          "type": "string",
+          "description": "criteria を生成しない場合の N/A 根拠。ref/assign(read-only 評価器)等の非ループ系で使用。"
+        },
+        "criteria": {
+          "type": "array",
+          "description": "per-skill 評価基準。固定テンプレでなく brief.goal / 完了チェックリストから AI が文脈読解で test-first 導出し trace に固定する。inner(goal-seek)/outer(content-review)を最低各1件。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "loop_scope", "text", "verify_by"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^(IN|OUT|C)[0-9]+$"},
+              "loop_scope": {"type": "string", "enum": ["inner", "outer"]},
+              "text": {"type": "string", "minLength": 1},
+              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"]},
+              "threshold": {"type": "string"},
+              "weight": {"type": "number", "minimum": 0}
+            }
+          }
+        },
+        "hook_triggers": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "評価要求を発火する hook/CI 契機。例: PostToolUse:Skill / Stop / pre-push。"
+        }
       }
     },
     "variable_contract": {
-      "type": "object",
+      "type": "array",
       "description": "本文・テンプレ・config の具体値直書き禁止に対する変数化記録",
-      "additionalProperties": true
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "meaning", "default", "required", "not_applicable_when", "source_trace"],
+        "properties": {
+          "name": {"type": "string"},
+          "meaning": {"type": "string"},
+          "default": {"type": "string"},
+          "required": {"type": "boolean"},
+          "not_applicable_when": {"type": "string"},
+          "source_trace": {"type": "string"}
+        }
+      }
     }
   },
   "definitions": {
