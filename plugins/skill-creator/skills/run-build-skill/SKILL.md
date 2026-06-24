@@ -73,6 +73,25 @@ reference_refs:
   - ref-knowledge-loop
   - references/reproducibility-trace-schema.md
   - references/goal-seek-paradigm.md
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成 Capability が命名/構造/frontmatter/goal-seek/completeness/ssot lint と validate-build-trace を全て exit0 で通過する
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: skill-build-trace.json が source_docs/doc_coverage/layer_decisions/reproducibility_gates を空欄なく記録している
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: fork した assign-skill-design-evaluator の score>=80 かつ high severity 0 件
+      verify_by: evaluator
+    - id: OUT2
+      loop_scope: outer
+      text: 生成物がユーザ brief の goal を最適反映し 30 思考法 elegance と 4 条件を満たす
+      verify_by: elegant-review
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
