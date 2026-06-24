@@ -8,7 +8,7 @@
 > 「`ls`/`git status` の実出力」のみ。テスト件数や「やった」は、実コマンド出力を
 > `/tmp/*.txt` に書き Read して確認した結果だけを書く (Bash 末尾 stdout は壊れることがある)。
 
-最終更新: 2026-06-22
+最終更新: 2026-06-24
 
 ---
 
@@ -19,6 +19,10 @@ MoneyForward 掛け払いの**請求書発行漏れ**を毎月検知し、結果
 よって守るべき不変条件は次の 3 つ:
 
 - **I1 (検知正当性)**: 前月発行・今月未発行 → 発行漏れ候補。金額変動 → 検知。誤検知しない。
+  金額変動の検知は、Notion 月次履歴 table の `前月金額` / `今月金額` 列 (schema の `fact_columns`、
+  `notion_invoice_sink.TABLE_COLUMNS`) として**成果物に観測可能**である。すなわち「金額が変わった」
+  という不変条件は、抽象的なログでなく Notion 上の 2 列の差分として人間が直接検証できる
+  (table 行の `前月金額` ≠ `今月金額` が金額変動の根拠)。
 - **I2 (冪等性)**: 同じ月を二度 sink しても Notion に行が重複しない。月が変わっても新規ページを
   作らず、顧客IDで既存ページを更新する。
 - **I3 (移植性)**: 任意の install 先・本番環境で、手動セットアップ無しに動く (標準ライブラリのみ
@@ -39,9 +43,13 @@ MoneyForward 掛け払いの**請求書発行漏れ**を毎月検知し、結果
 | P4 | L3 real_test (実 Notion 往復) | ✅ 完了 | `tests/test_real_notion.py` 作成。secrets 無しで **2 skipped / exit 0**、既存 41 は緑を実証 (`/tmp/mfk_l3.txt`)。`MFK_TEST_DATABASE_ID` を持つ運用者環境でのみ実 API 往復 |
 | P5 | 自己検証ループ (別 SubAgent レビュー) | ✅ 完了 (ADEQUATE) | §6。round1 R2=FAIL→3死角是正→**round2 で別contextが M3/M4 再ミューテーションし検出を確認、overall=ADEQUATE**。45 passed |
 | P6 | deprecated 列の移行 | ✅ 完了 | schema に `deprecated_properties` 宣言。build が whitelist 削除 (現行列は不削除の安全制約)、verify が residual を FAIL 化。`tests/test_db_migration.py` 7本。ミューテーションで検出力実証 (`/tmp/mfk_p6_mutation.txt`) |
+| P7 | カバレッジ ≥80% 機械ゲート | ✅ 完了 | `pytest.ini` に `--cov-fail-under=80`。network 層 (api/keychain) も mock unit でカバーし **TOTAL 90% / 全モジュール≥80% / 114 passed・2 skipped / exit 0**。CI は plugin dir で pytest.ini を拾い自動強制 (他 plugin の pytest には波及しない)。新規 test: `test_mfk_api.py` / `test_mfk_keychain.py` / `test_build_notion_db.py` + `check_invoice_gaps` の main() dispatch |
+| P8 | 参照専用 guard のテスト+カバレッジ算入 | ✅ 完了 | guard (`hooks/guard-mfk-readonly.py`) を従来カバレッジ対象外・無テストだった不整合を解消。`pytest.ini` の `--cov` に `--cov=hooks` を追加し guard を 80% ゲートの母数へ算入。`tests/test_guard_mfk_readonly.py` を新規作成 (30 本)。importlib で guard を module ロードし `main()` を in-process 実行 + 本番経路の subprocess 起動の両経路で境界を固定。**guard 単体 100% / TOTAL 92.93% / 183 passed・2 skipped / exit 0**。精度改善: 別ホスト宛て変更系の同一行共起による誤遮断を解消しつつ、ホスト不明断片は fail-closed で遮断 (遮断を弱めない)。WebFetch 等 非Bash tool の `method:"POST"` 取りこぼしも遮断強化 |
+| P9 | enrich skill のテスト整備 + cov 算入 | ✅ 完了 | enrich skill (`skills/run-mf-initial-month-enrich/scripts`) が従来カバレッジ対象外・無テストだった非対称を解消。`pytest.ini` の `--cov` / `pythonpath` に enrich scripts を追加し 80% ゲートの母数へ算入。新規 unit test 5本 (`tests/test_mf_invoice_{names,api,oauth,csv_match,enrich}.py`) を network/Keychain 不要の monkeypatch で固定 (既存 `test_mfk_keychain.py`/`test_mfk_api.py` と同流儀)。security 回帰: `_kc_save` が secret を argv に載せず stdin 渡しすることを機械担保。`test_plugin_contract.py` の実行ビット smoke に enrich 実行エントリ4本を追加し RUNTIME_DIRS との片肺を解消。schema↔validate_rows の parity test (LS-05) も追加。**全 enrich モジュール≥80% (names 100% / oauth 99% / enrich 95% / api 93% / csv_match 90%) / TOTAL 94.23% / 260 passed・2 skipped / exit 0** (ランダム順でも緑) |
 
-**次にやること (next action)**: 全フェーズ (P0–P6) 完了。**52 passed / 2 skipped / exit 0**。残るは
-ブランチ作成→コミット→PR (push/PR は実行前に内容を提示して確認)。
+**次にやること (next action)**: 全フェーズ (P0–P9) 完了。enrich skill のテスト整備 + カバレッジ母数算入まで含めて完了。**260 passed / 2 skipped / exit 0 / TOTAL coverage 94.23%** (enrich を母数算入後・ランダム順でも緑。`cd plugins/mf-kessai-invoice-check && python3 -m pytest`)。
+[PR #37](https://github.com/xl-manju/xl-skills/pull/37) 作成済 (`feat/mf-kessai-testing-hardening`→main)。
+pre-push で CI 等価 `run-ci-checks.sh` が PASS を通過。残: GitHub Actions の CI 緑確認 → マージ。
 
 ---
 
@@ -57,9 +65,40 @@ MoneyForward 掛け払いの**請求書発行漏れ**を毎月検知し、結果
 - L3 は secrets があるときだけ走る (無ければ `pytest.mark.skip`)。本番同等の往復で I2 冪等性を
   実証する。mock では捕まえられない「実 API のレスポンス形・ページネーション・型」を守る。
 
-カバレッジ実測 (`/tmp/mfk_verify.txt`): `notion_invoice_sink.py` 79% / `check_invoice_gaps.py` 55% /
-`mfk_api.py` 18% / `mfk_keychain.py` 26%。**低い 2 つ (api/keychain) はネットワーク層**で、
-L1 では原理的に届かない。ここは L3 real_test が担保すべき範囲だと数値が示している。
+カバレッジ方針 (**2026-06-24 更新**): **全モジュール行カバレッジ ≥80% を機械ゲート化**
+(`pytest.ini` の `--cov-fail-under=80`)。当初はネットワーク層 (api/keychain) を L3 担保とし
+「L1 では原理的に届かない」としていたが、`urllib`/`subprocess` を mock した unit test で
+**契約** (doseq エンコード / カーソルページネーションの after 追従 / KeychainError の exit_code
+44・9 / mask が生値を出さない 等) を固定し、検出力を保ったまま L1 で到達させた。
+
+**hooks 算入 (2026-06-24)**: 従来 `--cov` の母数は `lib` + 2 scripts ディレクトリのみで、
+参照専用 guard (`hooks/guard-mfk-readonly.py`) は**カバレッジ対象外かつ無テスト**だった
+(90% 主張の母数に guard が入っていない不整合)。`pytest.ini` に `--cov=hooks` を追加し guard を
+80% ゲートの母数へ算入。あわせて `tests/test_guard_mfk_readonly.py` (30 本) を新規作成し、
+guard を **100% カバー**。これにより「参照専用を仕組みで担保する第1層」自体が回帰テストで
+守られ、無言で緩む変更を CI が赤くする。
+
+実測 (CI 等価 `cd plugins/mf-kessai-invoice-check && python3 -m pytest`、hooks 算入後):
+`mfk_invoice_diff` 100% / `guard-mfk-readonly` 100% / `build_notion_db` 99% / `mfk_keychain` 98% /
+`mfk_api` 96% / `verify_db_schema` 94% / `check_invoice_gaps` 90% / `notion_invoice_sink` 85% /
+**TOTAL 92.93%** (P8 時点)。
+
+**enrich 算入 (P9, 2026-06-24)**: enrich skill の5モジュールを母数に追加し unit test で担保:
+`mf_invoice_names` 100% / `mf_invoice_api` 93% / `mf_invoice_oauth` 99% /
+`mf_invoice_csv_match` 90% / `mf_invoice_enrich` 95% (全て≥80%)。
+**enrich 算入後 TOTAL 94.23% / 260 passed・2 skipped / exit 0** (ランダム順でも緑)。
+
+トレードオフ (記録): mock は実 API のレスポンス形・ページネーション・型までは保証しない
+(それは L3 real_test の責務)。**mock unit (契約固定) と L3 real (実 API 往復) を二層で持つ**
+ことで「速い回帰検出力」と「実 API 契約遵守」を両取りする。行カバレッジ数値の最大化を
+目的化せず (Goodhart 回避)、各 mock テストは必ず意味のある assertion を伴う。
+
+**enrich を母数へ算入 (P9, Goodhart 回避の徹底)**: enrich skill (`run-mf-initial-month-enrich`)
+の5モジュールは従来 `--cov` の母数外で、テストもゼロだった。これは「対象を母数から外せば
+TOTAL% が見かけ上高く出る」典型の Goodhart リスクであり、enrich を `--cov` に追加して
+母数を正直化した。追加した enrich の各 unit test も数値稼ぎでなく、`norm` の名寄せ収束・
+`_get` の 401/429 リトライ・`_kc_save` の secret 非露出 (argv 不混入)・CSV 名寄せの
+VERIFIED fail-closed といった**契約を必ず意味ある assertion で固定**している。
 
 ---
 
@@ -67,7 +106,8 @@ L1 では原理的に届かない。ここは L3 real_test が担保すべき範
 
 - **ローカル**: `cd plugins/mf-kessai-invoice-check && python3 -m pytest tests/ -q`。exit code が
   唯一の合否。pytest-randomly が毎回**実行順をランダム化**し順序依存バグを自動検出。
-  `-n auto` (xdist) で並列、`--cov` で抜けを可視化。
+  `-n auto` (xdist) で並列。`--cov-fail-under=80` (pytest.ini) が 80% 未満で exit 1 にする
+  **機械ゲート** (単なる可視化でなく合否条件)。
 - **CI** (`.github/workflows/creator-kit-ci.yml`): `plugins/*/tests` を**総当り**で pytest 実行。
   新規 plugin が `tests/` を足せば自動で CI 対象になり「配線忘れで無言腐敗」を構造的に封じる。
   dev 依存は `requirements-dev.txt` 一枚を SSOT として install。

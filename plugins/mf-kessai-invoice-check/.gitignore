@@ -5,3 +5,8 @@
 .pytest_cache/
 __pycache__/
 .claude/handoff/
+
+# 実行時/レビュー出力。collect/finalize/sink の候補・確定 JSON や elegant-review の
+# patch には実顧客データ(社名・金額・customer_id)が入りうるため git 追跡しない。
+# (MFK_OUTPUT_DIR > CLAUDE_PROJECT_DIR > CWD で解決される実行時ディレクトリで、ソース資産ではない)
+eval-log/

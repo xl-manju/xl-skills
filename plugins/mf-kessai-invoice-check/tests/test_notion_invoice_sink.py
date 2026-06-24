@@ -5,9 +5,23 @@
 table block (1行=1対象年月) に蓄積。月が変わっても新規ページを作らず table 行を追加し、
 同月再 sink は既存行を更新して重複しない。月次サマリ行は作らない。
 """
+import json
+import os
+import urllib.error
+
 import pytest
 
 import notion_invoice_sink as sink
+
+_SCHEMA_PATH = os.path.join(
+    os.path.dirname(__file__), "..",
+    "skills", "run-mf-invoice-db-setup", "schemas", "notion-db-schema.json",
+)
+
+
+def _load_db_schema():
+    with open(_SCHEMA_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _table_id_of(page_id):
@@ -24,6 +38,7 @@ def _make_fake_store():
         "page_customer": {},  # page_id -> customer_id
         "table_rows": {},     # table_id -> [ {id, cells} ... ] (先頭はヘッダ)
         "page_table": {},     # page_id -> table_id
+        "page_tables": {},    # page_id -> [table_id, ...]
         "seq": {"page": 0, "row": 0},
         "calls": [],
     }
@@ -56,6 +71,7 @@ def _make_fake_store():
             assert tables, "新規ページは children に table を含むべき"
             tid = _table_id_of(pid)
             state["page_table"][pid] = tid
+            state["page_tables"][pid] = [tid]
             rows = []
             for r in tables[0]["table"]["children"]:
                 state["seq"]["row"] += 1
@@ -73,8 +89,8 @@ def _make_fake_store():
         if method == "GET" and path.startswith("/blocks/") and "/children" in path:
             bid = path.split("/blocks/")[1].split("/")[0]
             if bid in state["page_table"]:  # ページ本文の取得 → table ブロックを返す
-                tid = state["page_table"][bid]
-                return {"results": [{"id": tid, "type": "table"}]}
+                tids = state.get("page_tables", {}).get(bid) or [state["page_table"][bid]]
+                return {"results": [{"id": tid, "type": "table"} for tid in tids]}
             if bid in state["table_rows"]:  # table 配下の行群 (実 Notion 同様 100件/ページで分割)
                 qs = path.split("?", 1)[1] if "?" in path else ""
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
@@ -117,6 +133,7 @@ def _make_fake_store():
             assert tables
             tid = _table_id_of(bid)
             state["page_table"][bid] = tid
+            state["page_tables"].setdefault(bid, []).append(tid)
             rows = []
             for r in tables[0]["table"]["children"]:
                 state["seq"]["row"] += 1
@@ -130,10 +147,42 @@ def _make_fake_store():
     return fake_req, state
 
 
+class _FakeHTTPResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self):
+        return json.dumps(self.payload).encode()
+
+
 # ---------------------------------------------------------------------------
 
+def test_req_retries_transient_notion_429(monkeypatch):
+    """Notion 429 は Retry-After を尊重して再試行し、成功レスポンスを返す。"""
+    calls = []
+    sleeps = []
+
+    def fake_urlopen(req, timeout):
+        calls.append((req.full_url, timeout))
+        if len(calls) == 1:
+            raise urllib.error.HTTPError(
+                req.full_url, 429, "rate limited", {"Retry-After": "0"}, None)
+        return _FakeHTTPResponse({"ok": True})
+
+    monkeypatch.setattr(sink.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(sink.time, "sleep", lambda delay: sleeps.append(delay))
+    assert sink._req("GET", "/pages/x", "token") == {"ok": True}
+    assert len(calls) == 2
+    assert sleeps == [0.0]
+
 def test_props_snapshot_fact_columns_only():
-    """_props は最新月スナップショットの事実列のみ。レコード種別/件数列は持たない。"""
+    """_props は最新月スナップショットの事実列のみ。削除/改名した列の扱いを固定する。"""
     row = {
         "customer_id": "c1",
         "period_ym": "2026-06",
@@ -149,14 +198,73 @@ def test_props_snapshot_fact_columns_only():
     assert props["取引先企業名"]["title"][0]["text"]["content"] == "A社"
     assert props["顧客ID"]["rich_text"][0]["text"]["content"] == "c1"
     assert props["対象年月"]["rich_text"][0]["text"]["content"] == "2026-06"
-    assert props["判定"]["select"]["name"] == "発行漏れ候補"
+    # 改名: 表示名は「今月の発行状況」、値 (verdict) は不変。
+    assert props["今月の発行状況"]["select"]["name"] == "発行漏れ候補"
     assert props["確認済み日時"]["date"]["start"] == "2026-06-20T00:00:00+00:00"
-    assert props["チェック実行ID"]["rich_text"][0]["text"]["content"] == "mfk-20260620"
+    # 改名前の旧プロパティ名は書かない。
+    assert "判定" not in props
+    # 削除したプロパティを書かない (run_id があっても チェック実行ID を書かない)。
+    assert "チェック実行ID" not in props
+    assert "初回請求月(API推定)" not in props
     # 月次サマリ廃止に伴い削除した列を持たないこと。
     assert "レコード種別" not in props
     assert "発行漏れ件数" not in props
     assert "金額変動件数" not in props
     assert "チェック件数合計" not in props
+    assert "初回契約月" not in props
+
+
+def test_sink_emits_every_declared_fact_column():
+    """schema SSOT の fact_columns 全列が sink から漏れなく出力される (silent drop の機械保証)。
+
+    fact_column を schema に足したのに `_props`/`_create_props` への配線を忘れると、Notion DB に
+    列はあっても値が入らない (今回の `初回請求月(API推定)` 実バグの再現条件)。schema を正本に
+    「完全な行を渡せば全 fact_column が出力キーへ通る」ことを機械検査し、CI で回帰を止める。
+    これがプロンプト指示でなく仕組みで『100%構築される』を担保する層。
+    """
+    schema = _load_db_schema()
+    fact_columns = set(schema["fact_columns"])
+    managed_columns = set(schema["managed_columns"])
+    # 全 fact_column の元データを埋めた行 (条件付き列 発行日/更新日/確認済み日時 含む)。
+    complete_row = {
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "継続発行", "product_name": "SaaS",
+        "prev_amount": 100, "curr_amount": 120,
+        "issue_date": "2026-06-05", "updated_at": "2026-06-06T00:00:00+00:00",
+        "checked_at": "2026-06-20T00:00:00+00:00", "run_id": "mfk-x",
+    }
+    update_keys = set(sink._props(complete_row))
+    create_keys = set(sink._create_props(complete_row))
+    assert not (fact_columns - update_keys), \
+        f"_props が出力しない fact_column: {sorted(fact_columns - update_keys)}"
+    assert not (fact_columns - create_keys), \
+        f"_create_props が出力しない fact_column: {sorted(fact_columns - create_keys)}"
+    # 既存ページ更新 (_props) は managed_column を一切書かない (人の運用記入を上書きしない)。
+    assert not (managed_columns & update_keys), \
+        f"_props が managed_column を書いている: {sorted(managed_columns & update_keys)}"
+    # 新規作成 (_create_props) は managed_column のうち 初回契約月 のみ空欄初期化する。
+    assert managed_columns & create_keys == {"初回契約月"}
+
+
+def test_create_props_initializes_initial_contract_month_blank():
+    """新規ページだけ初回契約月を空欄初期化し、既存更新用 _props には混ぜない。
+
+    支払サイクルは月次 sink/新規作成で初期化しない (人が設定する managed 列)。
+    """
+    row = {
+        "customer_id": "c1",
+        "period_ym": "2026-06",
+        "company_name": "A社",
+        "verdict": "今月新規",
+        "product_name": "SaaS",
+        "prev_amount": None,
+        "curr_amount": 100,
+    }
+    props = sink._create_props(row)
+    assert props["初回契約月"]["rich_text"][0]["text"]["content"] == ""
+    # 支払サイクルは新規作成時も書き込まない (空欄=未設定で人が選ぶ)。
+    assert "支払サイクル" not in props
+    assert "初回契約月" not in sink._props(row)
 
 
 def test_table_block_structure_header_and_cells():
@@ -195,6 +303,7 @@ def test_upsert_new_customer_creates_page_with_table(monkeypatch):
     # ページは1つだけ。月次サマリ用の追加ページを作らない。
     assert len(state["pages"]) == 1
     pid = next(iter(state["pages"]))
+    assert state["pages"][pid]["初回契約月"]["rich_text"][0]["text"]["content"] == ""
     rows_in_table = state["table_rows"][state["page_table"][pid]]
     # ヘッダ + 当月1行 = 2 行。
     assert len(rows_in_table) == 2
@@ -258,7 +367,60 @@ def test_upsert_new_month_appends_row_same_page(monkeypatch):
     assert period_col == ["2026-06", "2026-07"]
     # DBプロパティは最新月 (7月) スナップショット。
     assert state["pages"][pid]["対象年月"]["rich_text"][0]["text"]["content"] == "2026-07"
-    assert state["pages"][pid]["判定"]["select"]["name"] == "継続発行"
+    assert state["pages"][pid]["今月の発行状況"]["select"]["name"] == "継続発行"
+
+
+def test_upsert_multi_month_same_customer_keeps_all_history_rows(monkeypatch):
+    """同一入力に同一顧客の複数月があっても、最新月だけに潰さず全月を table に残す。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    rows = [
+        {"customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+         "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None},
+        {"customer_id": "c1", "period_ym": "2026-07", "company_name": "A社",
+         "verdict": "継続発行", "product_name": "SaaS", "prev_amount": 100, "curr_amount": 120},
+    ]
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-07-20T00:00:00+00:00")
+
+    assert result["created"] == 1
+    assert result["updated"] == 0
+    assert len(state["pages"]) == 1
+    pid = next(iter(state["pages"]))
+    rows_in_table = state["table_rows"][state["page_table"][pid]]
+    assert len(rows_in_table) == 3  # header + 6月 + 7月
+    period_col = [state["_cells_to_values"](r["cells"])[0] for r in rows_in_table[1:]]
+    assert period_col == ["2026-06", "2026-07"]
+    # DBプロパティは最新月スナップショット。
+    assert state["pages"][pid]["対象年月"]["rich_text"][0]["text"]["content"] == "2026-07"
+    assert state["pages"][pid]["今月金額"]["number"] == 120
+
+
+def test_upsert_multi_month_same_customer_existing_page_updates_all_rows(monkeypatch):
+    """既存ページでも複数月入力の各月行を upsert し、最新月だけに落とさない。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    sink.upsert("db1", [{
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None,
+    }], token="token", checked_at="2026-06-20T00:00:00+00:00")
+
+    rows = [
+        {"customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+         "verdict": "継続発行", "product_name": "SaaS", "prev_amount": 100, "curr_amount": 110},
+        {"customer_id": "c1", "period_ym": "2026-07", "company_name": "A社",
+         "verdict": "継続発行", "product_name": "SaaS", "prev_amount": 110, "curr_amount": 120},
+    ]
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-07-20T00:00:00+00:00")
+
+    assert result["created"] == 0
+    assert result["updated"] == 1
+    pid = next(iter(state["pages"]))
+    rows_in_table = state["table_rows"][state["page_table"][pid]]
+    assert len(rows_in_table) == 3  # header + 6月更新 + 7月追加
+    by_period = {state["_cells_to_values"](r["cells"])[0]: state["_cells_to_values"](r["cells"])
+                 for r in rows_in_table[1:]}
+    assert by_period["2026-06"][3] == "110"
+    assert by_period["2026-07"][3] == "120"
 
 
 def test_upsert_does_not_create_summary_row(monkeypatch):
@@ -312,6 +474,7 @@ def _seed_page_with_months(state, cid, months):
     state["page_customer"][pid] = cid
     tid = _table_id_of(pid)
     state["page_table"][pid] = tid
+    state["page_tables"][pid] = [tid]
     state["seq"]["row"] += 1
     rows = [{"id": f"row-{state['seq']['row']}",
              "cells": [sink._cell(c) for c in sink.TABLE_COLUMNS]}]  # header
@@ -321,6 +484,18 @@ def _seed_page_with_months(state, cid, months):
         rows.append({"id": f"row-{state['seq']['row']}", "cells": [sink._cell(v) for v in vals]})
     state["table_rows"][tid] = rows
     return pid, tid
+
+
+def _seed_foreign_table_before_history(state, pid):
+    """ページ本文の先頭に月次履歴ではない table を差し込む。"""
+    foreign_tid = f"foreign-{pid}"
+    state["seq"]["row"] += 1
+    state["table_rows"][foreign_tid] = [{
+        "id": f"row-{state['seq']['row']}",
+        "cells": [sink._cell("別用途"), sink._cell("メモ")],
+    }]
+    state["page_tables"][pid] = [foreign_tid] + state["page_tables"][pid]
+    return foreign_tid
 
 
 def test_find_page_raises_on_duplicate_customer_id(monkeypatch):
@@ -390,3 +565,254 @@ def test_upsert_same_month_updates_correct_row_in_multirow_table(monkeypatch):
     by_period = {sink._cell_plain(r["cells"][0]): r for r in rows[1:]}
     assert sink._cell_plain(by_period["2026-06"]["cells"][3]) == "555", "6月行が更新されている"
     assert sink._cell_plain(by_period["2026-07"]["cells"][3]) == "120", "7月行は触られていない"
+
+
+def test_upsert_uses_table_with_matching_header_not_first_table(monkeypatch):
+    """ページ本文の先頭に別 table があっても、固定ヘッダを持つ月次履歴 table だけを更新する。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    pid, history_tid = _seed_page_with_months(state, "c1", ["2026-06"])
+    foreign_tid = _seed_foreign_table_before_history(state, pid)
+    before_foreign = list(state["table_rows"][foreign_tid])
+
+    row = {"customer_id": "c1", "period_ym": "2026-07", "company_name": "A社",
+           "verdict": "継続発行", "product_name": "SaaS", "prev_amount": 100, "curr_amount": 120}
+    sink._upsert_month_row(pid, row, "token")
+
+    assert state["table_rows"][foreign_tid] == before_foreign
+    periods = [sink._cell_plain(r["cells"][0]) for r in state["table_rows"][history_tid][1:]]
+    assert periods == ["2026-06", "2026-07"]
+
+
+# --- 年間契約抑制 reader: fetch_initial_contract_months ({customer_id: 契約情報}) ----------
+
+def _rt_prop(value):
+    """rich_text プロパティを Notion API レスポンス形に組む。"""
+    return {"rich_text": [{"text": {"content": value}, "plain_text": value}]} if value else {"rich_text": []}
+
+
+def _select_prop(value):
+    return {"select": {"name": value}} if value else {"select": None}
+
+
+def _page(cid, month, cycle="年間払い"):
+    return {"properties": {
+        "顧客ID": _rt_prop(cid),
+        "初回契約月": _rt_prop(month),
+        "支払サイクル": _select_prop(cycle),
+    }}
+
+
+def test_fetch_initial_contract_months_maps_customer_to_month(monkeypatch):
+    """年間払い顧客だけを {customer_id: 契約情報} に写像する。"""
+    def fake_req(method, path, token, body=None):
+        assert method == "POST" and path.endswith("/query")
+        return {"results": [_page("c1", "2026-04"), _page("c2", "2025-12")], "has_more": False}
+
+    monkeypatch.setattr(sink, "_req", fake_req)
+    result = sink.fetch_initial_contract_months("db1", token="t")
+    assert result == {
+        "c1": {"initial_contract_month": "2026-04", "payment_cycle": "年間払い"},
+        "c2": {"initial_contract_month": "2025-12", "payment_cycle": "年間払い"},
+    }
+
+
+def test_fetch_initial_contract_months_skips_blank_and_invalid(monkeypatch):
+    """初回契約月/支払サイクルが抑制条件を満たさない顧客は含めない。"""
+    def fake_req(method, path, token, body=None):
+        return {"results": [
+            _page("ok", "2026-04"),
+            _page("blank", ""),          # 空 → 除外
+            _page("bad", "2026/04"),      # YYYY-MM でない → 除外
+            _page("monthly", "2026-04", "月払い"),  # 月払い → 除外
+            _page("nocycle", "2026-04", ""),         # cycle 空 → 除外
+            _page("", "2026-05"),         # 顧客IDなし → 除外
+        ], "has_more": False}
+
+    monkeypatch.setattr(sink, "_req", fake_req)
+    result = sink.fetch_initial_contract_months("db1", token="t")
+    assert result == {"ok": {"initial_contract_month": "2026-04", "payment_cycle": "年間払い"}}
+
+
+def test_fetch_initial_contract_months_paginates(monkeypatch):
+    """has_more/next_cursor を辿って全ページ取得する (100件超の DB を取りこぼさない)。"""
+    pages = [
+        {"results": [_page("c1", "2026-01")], "has_more": True, "next_cursor": "cur2"},
+        {"results": [_page("c2", "2026-02")], "has_more": False},
+    ]
+    seen_cursors = []
+
+    def fake_req(method, path, token, body=None):
+        seen_cursors.append((body or {}).get("start_cursor"))
+        return pages.pop(0)
+
+    monkeypatch.setattr(sink, "_req", fake_req)
+    result = sink.fetch_initial_contract_months("db1", token="t")
+    assert result == {
+        "c1": {"initial_contract_month": "2026-01", "payment_cycle": "年間払い"},
+        "c2": {"initial_contract_month": "2026-02", "payment_cycle": "年間払い"},
+    }
+    # 1ページ目は cursor なし、2ページ目は next_cursor を引き継ぐ。
+    assert seen_cursors == [None, "cur2"]
+
+
+def test_fetch_initial_contract_months_uses_token_arg_without_keychain(monkeypatch):
+    """token を渡せば Keychain (_notion_token) を呼ばずに済む (_notion_token 自体は触らない)。"""
+    def fake_req(method, path, token, body=None):
+        assert token == "explicit-token"
+        return {"results": [], "has_more": False}
+
+    monkeypatch.setattr(sink, "_req", fake_req)
+    # _notion_token を呼んだら失敗させ、token 引数経路だけを通すことを保証する。
+    monkeypatch.setattr(sink, "_notion_token",
+                        lambda: (_ for _ in ()).throw(AssertionError("_notion_token を呼ぶべきでない")))
+    assert sink.fetch_initial_contract_months("db1", token="explicit-token") == {}
+
+
+# --- 改名 B: _find_table_id の後方互換 (旧 判定 ヘッダ / 新 今月の発行状況 ヘッダ) ----------
+
+def _seed_page_with_header(state, cid, header):
+    """指定ヘッダだけを持つ table を本文に持つページを直接構築する (data 行なし)。"""
+    state["seq"]["page"] += 1
+    pid = f"page-{state['seq']['page']}"
+    state["pages"][pid] = {"顧客ID": {"rich_text": [{"text": {"content": cid}}]}}
+    state["page_customer"][pid] = cid
+    tid = _table_id_of(pid)
+    state["page_table"][pid] = tid
+    state["page_tables"][pid] = [tid]
+    state["seq"]["row"] += 1
+    state["table_rows"][tid] = [
+        {"id": f"row-{state['seq']['row']}", "cells": [sink._cell(c) for c in header]}
+    ]
+    return pid, tid
+
+
+def test_table_columns_renamed_and_legacy_defined():
+    """新ヘッダは 今月の発行状況、旧ヘッダ (判定) は LEGACY 定数で別名保持される。"""
+    assert sink.TABLE_COLUMNS == ["対象年月", "今月の発行状況", "前月金額", "今月金額", "確認済み日時"]
+    assert sink.TABLE_COLUMNS_LEGACY == ["対象年月", "判定", "前月金額", "今月金額", "確認済み日時"]
+
+
+def test_find_table_id_matches_new_header(monkeypatch):
+    """新ヘッダ (今月の発行状況) の月次履歴 table を _find_table_id が拾う。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    pid, tid = _seed_page_with_header(state, "c1", sink.TABLE_COLUMNS)
+    assert sink._find_table_id(pid, "token") == tid
+
+
+def test_find_table_id_matches_legacy_header(monkeypatch):
+    """旧ヘッダ (判定) の既存 table も後方互換で拾い、二重 table append を防ぐ。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    pid, tid = _seed_page_with_header(state, "c1", sink.TABLE_COLUMNS_LEGACY)
+    assert sink._find_table_id(pid, "token") == tid
+
+
+def test_find_table_id_ignores_unrelated_table(monkeypatch):
+    """新旧いずれのヘッダにも一致しない table は月次履歴と見なさない (None)。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    pid, _tid = _seed_page_with_header(state, "c1", ["別用途", "メモ"])
+    assert sink._find_table_id(pid, "token") is None
+
+
+def test_upsert_into_legacy_header_table_no_duplicate(monkeypatch):
+    """旧ヘッダ table を持つ既存ページへ別月 sink → 同じ table へ追記し二重 table を作らない。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    # 旧ヘッダ (判定) + 6月行 1 件を持つ既存ページを仕込む。
+    state["seq"]["page"] += 1
+    pid = f"page-{state['seq']['page']}"
+    state["pages"][pid] = {"顧客ID": {"rich_text": [{"text": {"content": "c1"}}]}}
+    state["page_customer"][pid] = "c1"
+    tid = _table_id_of(pid)
+    state["page_table"][pid] = tid
+    state["page_tables"][pid] = [tid]
+    state["seq"]["row"] += 1
+    rows = [{"id": f"row-{state['seq']['row']}",
+             "cells": [sink._cell(c) for c in sink.TABLE_COLUMNS_LEGACY]}]
+    state["seq"]["row"] += 1
+    rows.append({"id": f"row-{state['seq']['row']}",
+                 "cells": [sink._cell(v) for v in
+                           ["2026-06", "継続発行", "100", "100", "2026-06-20T00:00:00+00:00"]]})
+    state["table_rows"][tid] = rows
+
+    row = {"customer_id": "c1", "period_ym": "2026-07", "company_name": "A社",
+           "verdict": "継続発行", "product_name": "SaaS", "prev_amount": 100, "curr_amount": 120}
+    sink._upsert_month_row(pid, row, "token")
+
+    # 既存 (旧ヘッダ) table が 1 つだけのまま、行が追記される (新 table を作らない)。
+    assert state["page_tables"][pid] == [tid]
+    periods = [sink._cell_plain(r["cells"][0]) for r in state["table_rows"][tid][1:]]
+    assert periods == ["2026-06", "2026-07"]
+
+
+# --- CL4 一元化: _notion_token の service 解決順 (env > config > default), MF 側と対称 -----
+
+def _clear_notion_env(monkeypatch):
+    for k in ("NOTION_API_KEY", "NOTION_KEYCHAIN_SERVICE", "NOTION_KEYCHAIN_ACCOUNT"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_notion_service_default_when_no_env_no_config(monkeypatch):
+    """env も config(notion.keychain_service) も無ければ既定 notion-api-key.xl-skills。"""
+    _clear_notion_env(monkeypatch)
+    # config を空 dict にして load_config 経由の差し込みを排除する。
+    assert sink._notion_service({}) == "notion-api-key.xl-skills"
+    assert sink._notion_account({}) == "xl-skills"
+
+
+def test_notion_service_resolved_from_config(monkeypatch):
+    """config(notion.keychain_service/account) を解決できる (MF 側 keychain_service と対称)。"""
+    _clear_notion_env(monkeypatch)
+    cfg = {"notion": {"keychain_service": "notion-cfg", "keychain_account": "acc-cfg"}}
+    assert sink._notion_service(cfg) == "notion-cfg"
+    assert sink._notion_account(cfg) == "acc-cfg"
+
+
+def test_notion_service_env_overrides_config(monkeypatch):
+    """env(NOTION_KEYCHAIN_SERVICE) が config より優先される。"""
+    _clear_notion_env(monkeypatch)
+    monkeypatch.setenv("NOTION_KEYCHAIN_SERVICE", "notion-env")
+    monkeypatch.setenv("NOTION_KEYCHAIN_ACCOUNT", "acc-env")
+    cfg = {"notion": {"keychain_service": "notion-cfg", "keychain_account": "acc-cfg"}}
+    assert sink._notion_service(cfg) == "notion-env"
+    assert sink._notion_account(cfg) == "acc-env"
+
+
+def test_notion_token_env_api_key_short_circuits(monkeypatch):
+    """NOTION_API_KEY があれば Keychain を呼ばず env トークンを strip して返す (従来挙動維持)。"""
+    _clear_notion_env(monkeypatch)
+    monkeypatch.setenv("NOTION_API_KEY", "  env-token  ")
+    # fetch_secret を呼んだら失敗させ、env 経路だけを通すことを保証する。
+    import mfk_keychain as kc
+    monkeypatch.setattr(kc, "fetch_secret",
+                        lambda *a, **k: pytest.fail("env トークンがあれば Keychain を呼ぶべきでない"))
+    assert sink._notion_token({}) == "env-token"
+
+
+def test_notion_token_uses_resolved_service_via_fetch_secret(monkeypatch):
+    """_notion_token は config 解決した service/account で共通コア fetch_secret を呼ぶ。"""
+    _clear_notion_env(monkeypatch)
+    captured = {}
+    import mfk_keychain as kc
+
+    def fake_fetch(service, account):
+        captured["service"] = service
+        captured["account"] = account
+        return "tok-from-keychain"
+
+    monkeypatch.setattr(kc, "fetch_secret", fake_fetch)
+    cfg = {"notion": {"keychain_service": "svc-x", "keychain_account": "acc-x"}}
+    assert sink._notion_token(cfg) == "tok-from-keychain"
+    assert captured == {"service": "svc-x", "account": "acc-x"}
+
+
+def test_notion_token_raises_when_keychain_miss(monkeypatch):
+    """env も Keychain も無ければ RuntimeError (service/account を含むメッセージ)。"""
+    _clear_notion_env(monkeypatch)
+    import mfk_keychain as kc
+    monkeypatch.setattr(kc, "fetch_secret", lambda *a, **k: None)
+    with pytest.raises(RuntimeError, match="Notion token lookup failed"):
+        sink._notion_token({})

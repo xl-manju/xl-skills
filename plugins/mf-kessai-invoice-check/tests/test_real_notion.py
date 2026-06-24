@@ -117,6 +117,6 @@ def test_real_schema_verify_passes_on_sandbox():
     res = sink._req("GET", f"/databases/{db_id}", token)
     existing = set((res.get("properties") or {}).keys())
     # 集約モデルの必須事実列が揃っていること (最低限の drift ガード)。
-    required = {"取引先企業名", "顧客ID", "対象年月", "判定", "今月金額"}
+    required = {"取引先企業名", "顧客ID", "対象年月", "今月の発行状況", "今月金額"}
     missing = required - existing
     assert not missing, f"サンドボックスDBに必須プロパティが欠落: {sorted(missing)}"

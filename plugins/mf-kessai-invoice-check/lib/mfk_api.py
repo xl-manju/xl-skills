@@ -120,8 +120,11 @@ def iter_all(path, params=None, cfg=None, api_key=None):
         if not pg.get("has_next"):
             break
         nxt = pg.get("end")
-        if not nxt:  # has_next なのに次カーソル欠落 → 無限ループ防止で打ち切り
-            break
+        if not nxt:
+            raise SystemExit(
+                f"ページング異常 {path}: pagination.has_next=true だが pagination.end が空です。"
+                "部分取得のまま続行しないため停止します。"
+            )
         params["after"] = nxt
 
 

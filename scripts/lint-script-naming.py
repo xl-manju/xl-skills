@@ -170,6 +170,16 @@ PENDING_RENAME_PATHS = {
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
+    # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
+    # 実体スクリプト群。相互 import する module (api→oauth, enrich→api/oauth) で Python import 上
+    # underscore 必須のため §4.3 例外。許可動詞化は SKILL.md/README 参照と同時の後続 PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_enrich.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_api.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_csv_match.py",
+    # mf_invoice_names.py: enrich/csv_match が `import mf_invoice_names` する名寄せ正規化の
+    # 共有 module (SSOT)。同上の §4.3 例外 (Python import 上 underscore 必須)。
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_names.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

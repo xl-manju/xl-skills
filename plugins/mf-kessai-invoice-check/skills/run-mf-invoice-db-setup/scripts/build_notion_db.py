@@ -4,13 +4,15 @@
 2 モード (冪等):
   - config に database_id がある場合 → 既存DBにスキーマを適用 (不足プロパティ追加・
     タイトル列リネーム)。配布既定の『請求書チェック_DB』はこの経路で整う。
-  - database_id が無く parent_page_id がある場合 → 親ページ配下に新規DBを作成し
+  - --parent-page-id 指定時、または database_id が無く parent_page_id がある場合 →
+    親ページ配下に新規DBを作成し
     database_id をローカル .mf-kessai-config.json に記録する。
 status型はNotion APIで作成不可のため、schema側で select に固定済み。
 """
 import json
 import os
 import sys
+import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
@@ -76,9 +78,27 @@ def ensure_schema(db_id, schema, token):
     # タイトル列を schema 名に合わせる (型は title のまま名前だけ変更)。既に正しければ何もしない
     if cur_title and cur_title != want_title and want_title not in existing:
         patch[cur_title] = {"name": want_title}
+    # 宣言された列リネーム (値保持) を適用する。schema.renames = {old: new}。
+    # old が既存 DB にあり new がまだ無ければ {old: {"name": new}} で改名する
+    # (タイトル列リネームと同型。select の option 値はそのまま保持される)。
+    # 既に new に改名済み (old が無い) なら何もしない=冪等。下の「不足追加」で new を
+    # 新規作成して値ゼロの空列を生むのを防ぐため、renames は不足追加より先に処理する。
+    renamed_targets = set()
+    for old, new in schema.get("renames", {}).items():
+        if old in existing and new not in existing:
+            patch[old] = {"name": new}
+            renamed_targets.add(new)
+        elif old in existing and new in existing:
+            # 旧名と新名が併存している drift。値保持リネームは既に完了しているため、
+            # 旧列だけ削除して schema の単一名へ収束させる。
+            patch[old] = None
     # 不足プロパティを追加 (title 型は1つだけなので除外)
     for name, spec in schema["properties"].items():
         if spec["type"] == "title":
+            continue
+        if name in renamed_targets:
+            # この列は旧名からの値保持リネームで用意される。空列の新規追加で
+            # リネームを潰さないようスキップする (option 値を保持する経路を優先)。
             continue
         if name not in existing:
             patch[name] = build_property(spec)
@@ -108,7 +128,7 @@ def ensure_schema(db_id, schema, token):
     added = sorted(k for k, v in patch.items() if v is not None and set(v) != {"name"})
     print(f"OK 既存DB『{_db_title(res)}』にスキーマ適用 (database_id={db_id})")
     if renamed:
-        print(f"   タイトル列リネーム: {renamed}")
+        print(f"   列リネーム (値保持): {renamed}")
     if added:
         print(f"   追加プロパティ ({len(added)}): {added}")
     if removed:
@@ -117,20 +137,7 @@ def ensure_schema(db_id, schema, token):
     return 0
 
 
-def main():
-    schema = load_schema()
-    cfg = load_config()
-    notion = cfg.get("notion", {})
-    token = _notion_token()
-    if notion.get("database_id"):
-        return ensure_schema(notion["database_id"], schema, token)
-    parent = notion.get("parent_page_id")
-    if not parent:
-        sys.stderr.write(
-            "[build_notion_db] .mf-kessai-config.json の notion.parent_page_id が空です。\n"
-            "  Notionで親ページをインテグレーションに共有し、page_id を設定してください。\n"
-        )
-        return 2
+def create_database(parent, schema, token, cfg):
     props = {name: build_property(spec) for name, spec in schema["properties"].items()}
     body = {
         "parent": {"type": "page_id", "page_id": parent},
@@ -140,10 +147,34 @@ def main():
     res = _req("POST", "/databases", token, body)
     db_id = res["id"]
     cfg.setdefault("notion", {})["database_id"] = db_id
+    cfg.setdefault("notion", {})["parent_page_id"] = parent
     save_config(cfg)
     print(f"OK DB作成完了 database_id={db_id}")
     print(f"   .mf-kessai-config.json に記録しました。次に verify_db_schema.py で検証してください。")
     return 0
+
+
+def main():
+    p = argparse.ArgumentParser(description="Notion 請求書チェック DB のスキーマ適用/新規作成")
+    p.add_argument("--parent-page-id", help="この親ページ配下に新規 DB を作成する。指定時は既定 database_id より優先")
+    a = p.parse_args()
+
+    schema = load_schema()
+    cfg = load_config()
+    notion = cfg.get("notion", {})
+    token = _notion_token()
+    if a.parent_page_id:
+        return create_database(a.parent_page_id, schema, token, cfg)
+    if notion.get("database_id"):
+        return ensure_schema(notion["database_id"], schema, token)
+    parent = notion.get("parent_page_id")
+    if not parent:
+        sys.stderr.write(
+            "[build_notion_db] .mf-kessai-config.json の notion.parent_page_id が空です。\n"
+            "  Notionで親ページをインテグレーションに共有し、page_id を設定してください。\n"
+        )
+        return 2
+    return create_database(parent, schema, token, cfg)
 
 
 if __name__ == "__main__":

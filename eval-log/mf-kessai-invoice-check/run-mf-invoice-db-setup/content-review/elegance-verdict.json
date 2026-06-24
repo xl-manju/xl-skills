@@ -1,21 +1,18 @@
 {
-  "target": {
-    "plugin": "mf-kessai-invoice-check",
-    "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
-  },
+  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-db-setup", "skill_md_sha256": "88ec35e6f41c0f3d3b19b721cfc29bd67bbf966bb669abc27ffdbade79bdb273"},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 1,
-    "dependency_break": 0,
-    "smell": 1
-  },
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
   "reviewer": "elegant-improvement-executor",
-  "reviewed_at": "2026-06-20T00:00:00Z",
-  "iterations": 1,
+  "reviewed_at": "2026-06-25T00:00:00Z",
+  "iterations": 2,
   "human_review_required": false,
-  "notes": "4条件検証。完全性=PASS: 2モード(既存DB ensure_schema=database_id既定『請求書チェック_DB』へ不足追加+タイトルrename / 新規作成=parent_page_id配下にPOST+database_id記録)がSKILL.md L33-36・R1 prompt・build_notion_db.py main()/ensure_schema()で三位一致。管理列不可侵=Key Rule3・R1 L1.1/L4.1・ensure_schema『足りないものを足すだけ(既存option消さずmerge_select_property)』で一貫担保。チェックリストMECE=database_id解決/build/事実列15個/管理列4個/verify PASSで漏れ重複なし、SKILL.md L53事実列15個==schema fact_columns 15個、L54管理列4個==managed_columns 4個で完全一致。一貫性=おおむねPASS: build(R1)→verify(R2)の記述がSKILL.md・両prompt・schema・スクリプトで矛盾なし(verify FAIL→R1差し戻し配線も双方向一致)。検証可能性=PASS: verify_db_schema.pyのPASS条件(全期待プロパティ存在)・FAIL(欠落でexit1+欠落列提示)・stop(database_id未設定でexit2)が明示、追加列は警告(失敗扱いせず)もR2 L4.1と実装一致。簡潔性=PASS: body 81行、重複・冗長なし。inconsistency=1(非blocking): R1-build-db.md L43 入力契約表が parent_page_id required:yes と記すが、SKILL.md L38は『新規作成モードのみ・既定不要』、build_notion_db.py main()は database_id 有時parent不要の条件付き。ただしR1の実行指示(L120)とLayer5.4/4.1は『database_id有→既存利用/無→parent必要』を正しく分岐実装しており、load-bearingな実行指示は整合。L2.3表が2モード設計化前の旧『新規DB専用』前提を残した stale residual。smell=1: 同表の同件。実害(既定ゼロ設定経路)は無いため明確な欠陥に当たらずPASS維持。SKILL.md未改変。lib依存(notion_invoice_sink._notion_token/_req, mfk_api.load_config)実在・スクリプトparse OK確認済。"
+  "notes": "再検証 (iteration 2)。SKILL.md は未改変 (sha 88ec35e6f41c... 不変)、build_notion_db.py main() の分岐順序 (1 --parent-page-id→新規 / 2 database_id 解決→ensure_schema 既存DB適用 / 3 parent_page_id のみ→新規 / 4 両方空→exit2) を再確認。prompts/R1-build-db.md が現行 2 モード設計へ修正され、前回 REJECT の 3 blocking 欠陥が全て解消されたことを独立確認した。【inconsistency 解消】§2.3 入力契約は database_id (required:no・既定経路) を新設し parent_page_id を required:no (新規作成モードのみ) へ訂正 — SKILL.md line 38『既定では不要』および script (既定経路は parent_page_id を読まない) と一致。§1.1 (line 21) は既存 database_id を『新規作成せず既存 DB へスキーマを冪等適用 (不足追加/値保持リネーム/deprecated 削除)』と正しく記述し、旧来の誤『skip』表現は除去された (実装 ensure_schema の能動 PATCH と一致)。【dependency_break 解消】§4.1 (line 69) は『database_id も parent_page_id も両方空のときのみ停止 (exit2)。database_id 解決の既定経路では停止しない』へ修正、出力指示 branch 2 (line 124) で配布既定ゼロ設定経路は ensure_schema を実行し停止しないことを明示 — SKILL.md line 48『導入者はゼロ設定で既存 DB へ適用』との dependency_break は解消。【omission 解消】§2.1 (line 30) 担当に既存DBスキーマ適用 (既定) を追加し新規作成と並記、配布既定 mf-kessai-config.default.json / 『請求書チェック_DB』/ ensure_schema を §1.1/§2.3/§5.2/出力指示で参照、§5.2 ゴール (line 84) は『既存 DB へのスキーマ適用 (既定) または新規作成』へ拡張。【smell 解消】前回の部分追従 (renames/deprecated を §2.2 のみが認識) による内部不整合は解消し、§1.1/§2.1/§2.3/§4.1/§5.x が一貫して 2 モードを反映。出力指示の 4 分岐順序は script main() と完全一致、残存する単一モード語 (required:yes / 初回作成のみ / 前提:parent_page_id 設定済み) は grep 上ゼロ。新たな inconsistency の混入なし。R2-verify-schema.md は未改変 (現行設計と整合維持)。schema 正本 (15=事実10+管理5 重複なし, rename target 存在, deprecated と props 互いに素, upsert_key=顧客ID) も整合。完全性/一貫性/検証可能性/簡潔性の 4 条件すべて充足、blocking 欠陥ゼロにつき PASS。",
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["completeness", "consistency", "verifiability", "conciseness"],
+    "positive_feedback": ["R1-build-db.md が現行 2 モード設計へ修正され前回 REJECT の 3 blocking 欠陥 (inconsistency/dependency_break/omission) が全解消", "R1 出力指示の 4 分岐順序が build_notion_db.py main() と完全一致", "入力契約 database_id(no)/parent_page_id(no) が SKILL.md・script と整合し既定ゼロ設定経路の誤停止が解消", "SKILL.md/R2/schema は未改変で整合維持・新たな inconsistency 混入なし"],
+    "negative_feedback": [],
+    "iteration": 2, "iteration_limit": 3, "hook_trigger": "manual", "next_action": "none"
+  }
 }

@@ -8,7 +8,8 @@ FAIL として検出する。誤って現行列を削除しない安全制約も
 import build_notion_db
 import verify_db_schema
 
-DEPRECATED = ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計"]
+DEPRECATED = ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計",
+              "対応状況", "チェック実行ID", "初回請求月(API推定)"]
 
 
 def _existing_from_schema(schema, *, with_deprecated):
@@ -22,6 +23,10 @@ def _existing_from_schema(schema, *, with_deprecated):
         entry = {"type": spec["type"]}
         if spec["type"] == "select":
             entry["select"] = {"options": [{"name": o} for o in spec.get("options", [])]}
+        elif spec["type"] == "number":
+            entry["number"] = {"format": "yen"}
+        else:
+            entry[spec["type"]] = {}
         props[name] = entry
     if with_deprecated:
         for name in schema["deprecated_properties"]:
@@ -108,29 +113,65 @@ def test_build_never_deletes_a_current_schema_column(monkeypatch):
 
 # --- verify: residual 検出 ---
 
-def _patch_verify(monkeypatch, existing_keys):
+def _patch_verify(monkeypatch, existing_props):
     monkeypatch.setattr(verify_db_schema, "load_config",
                         lambda: {"notion": {"database_id": "db1"}})
     monkeypatch.setattr(verify_db_schema, "_notion_token", lambda: "token")
+    if not isinstance(existing_props, dict):
+        existing_props = {k: {} for k in existing_props}
     monkeypatch.setattr(verify_db_schema, "_req",
-                        lambda method, path, token, body=None: {"properties": {k: {} for k in existing_keys}})
+                        lambda method, path, token, body=None: {"properties": existing_props})
 
 
 def test_verify_passes_when_clean(monkeypatch):
     schema = verify_db_schema.load_schema()
-    _patch_verify(monkeypatch, set(schema["properties"]))
+    _patch_verify(monkeypatch, _existing_from_schema(schema, with_deprecated=False))
     assert verify_db_schema.main() == 0
 
 
 def test_verify_fails_on_residual_deprecated(monkeypatch):
     schema = verify_db_schema.load_schema()
-    existing = set(schema["properties"]) | {"レコード種別"}
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["レコード種別"] = {"type": "number", "number": {"format": "yen"}}
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 1
+
+
+def test_verify_fails_when_renamed_old_and_new_coexist(monkeypatch):
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["判定"] = {"type": "select", "select": {"options": [{"name": "発行漏れ候補"}]}}
     _patch_verify(monkeypatch, existing)
     assert verify_db_schema.main() == 1
 
 
 def test_verify_fails_on_missing(monkeypatch):
     schema = verify_db_schema.load_schema()
-    existing = set(schema["properties"]) - {"今月金額"}
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing.pop("今月金額")
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 1
+
+
+def test_verify_fails_on_type_mismatch(monkeypatch):
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["顧客ID"] = {"type": "number", "number": {"format": "yen"}}
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 1
+
+
+def test_verify_fails_on_select_option_missing(monkeypatch):
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["今月の発行状況"]["select"]["options"] = [{"name": "発行漏れ候補"}]
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 1
+
+
+def test_verify_fails_on_number_format_mismatch(monkeypatch):
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["今月金額"]["number"]["format"] = "number"
     _patch_verify(monkeypatch, existing)
     assert verify_db_schema.main() == 1

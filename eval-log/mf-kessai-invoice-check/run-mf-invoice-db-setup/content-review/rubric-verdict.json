@@ -1,21 +1,19 @@
 {
-  "target": {
-    "plugin": "mf-kessai-invoice-check",
-    "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
-  },
+  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-db-setup", "skill_md_sha256": "88ec35e6f41c0f3d3b19b721cfc29bd67bbf966bb669abc27ffdbade79bdb273"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-20T00:00:00Z",
+  "reviewed_at": "2026-06-25T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "ref-skill-design-rubric rubric.json(1.3.0, threshold80, applies_to_kinds=skill)を逐条照合。FM-001(high) PASS: name=run-mf-invoice-db-setup が ^(run|...)-[a-z0-9][a-z0-9-]*$ 一致・len25<=60。FM-002(med) PASS: description『〜したいとき/たいとき』trigger含み句点。終止。FM-003(med) PASS: trigger『とき』2個(初回構築したいとき/作り直したいとき)で2..3内。FM-004(med) PASS: 内部動作語(採点する/JSONで返す/sha256/exit code)混入なし。FM-005(low) PASS: description に動詞名詞句『構築』含む。BD-001(high) PASS: '## Purpose & Output Contract' 厳格一致(L31)。BD-002(med) PASS: '## Gotchas' 存在(L96)。BD-003(high) PASS: body 81行<=300。BD-004(med) PASS: 2 trigger(初回構築/作り直す)が body の2モード(既存DB ensure_schema=作り直し時の不足追加+rename / 新規作成=初回構築)とチェックリスト・ゴールシークループに1:1対応。NM-001(high) PASS: dir basename==name。NM-002(med) PASS: kebab+run-prefix。NM-003(low) PASS: scripts/ は build_notion_db.py / verify_db_schema.py の .py のみ。PD-001(low) PASS: references相当(prompts/schemas/scripts)存在かつ body81<=100。PD-002(med) PASS: 冒頭30行内(body4行目)に '## Purpose & Output Contract' + 禁則(『壊さない』『status型は使わない』Key Rule)集約。RG governance: 採点は upstream ref-skill-design-rubric/rubric.json 規範に準拠(rubric_version=1.3.0)。FM/BD/NM/PD 必須全充足・high finding 0件のため PASS。SKILL.md未改変。"
+  "rubric_hash": "6e1843e5204accb8c76c96bf0d8189dafff6d51f2d182096424fcb6c6bfd3d0d",
+  "notes": "rubric-id=skill-design v1.3.0 threshold=80。kind=skill 適用 rule (FM/BD/NM/PD/RG) を逐条照合し全 PASS、high finding ゼロ、score=100>=80 で PASS。FM-001(high): name=run-mf-invoice-db-setup は ^(run|ref|assign|wrap|delegate)-[a-z0-9][a-z0-9-]*$ かつ len<=60 PASS。FM-002(med): description に 'とき' トリガ含み '。' 終端 PASS。FM-003(med): トリガ数=2 (『初回構築したいとき』『作り直したいときに使う』) で 2..3 範囲内 PASS。FM-004(med): 動作詳細語 (採点する/JSONで返す/sha256/exit code) 不在 PASS。FM-005(low): description が動詞名詞句 (構築/作り直し) を含み『〜に使う』終端で動詞ベース PASS。BD-001(high): '## Purpose & Output Contract' 厳格一致 heading 存在 PASS (PD-002 を包含で自動充足)。BD-002(med): '## Gotchas' heading 存在 PASS。BD-003(high): frontmatter 除く body=82 行 <=300 PASS。BD-004(med): description の 2 トリガ (初回構築→新規作成モード / プロパティ設計の作り直し→既存DBへスキーマ適用=列リネーム+不足追加) が body の 2 モードとチェックリスト・ゴールシークループに 1:1 対応 PASS。NM-001(high): ディレクトリ basename == frontmatter.name PASS。NM-002(med): kebab-case + run- prefix PASS。NM-003(low): scripts/ は build_notion_db.py / verify_db_schema.py の .py のみで tree 規約準拠 PASS。PD-001(low): body 82 行 <=100 で PASS (references/ 不要)。PD-002(med): 冒頭30行に '## Purpose & Output Contract' + 禁則 (『固定値を書かない』『唯一の真実』『破壊しない』) 存在 PASS。RG-001(low): 本 verdict に rubric_hash (sha256 of rubric.json) を含め再現性担保 PASS。KL-001..005(*): knowledge/ ディレクトリ・frontmatter.knowledge_loop とも不在のため存在ゲートで無条件 PASS (誤減点防止)。AG/HK/CM/PC/PR/WF-* は applies_to_kinds に skill を含まず非適用。rubric は単一 SKILL.md の機械照合を採点軸とし、本タスクで別途検出した R1-build-db.md の SSOT 不整合 (elegance-verdict 参照) は cross-file SSOT staleness を採る high rule が rubric に存在せず直接スコープ外のため rubric verdict は PASS。ただし当該不整合は elegance 側で REJECT 済みで改善対象として残る。",
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "BD-004", "NM-001", "NM-002", "NM-003", "PD-001", "PD-002", "RG-001", "KL-001", "KL-002", "KL-003", "KL-004", "KL-005"],
+    "positive_feedback": ["kind=skill 適用 rule (FM/BD/NM/PD/RG) 全 PASS・high finding ゼロ", "BD-001 厳格 heading 一致・BD-003 body 82 行・BD-004 description↔body 1:1 整合", "FM-003 トリガ数=2 で誤発動/取りこぼしのスイートスポット", "KL-* は存在ゲートで誤減点なし"],
+    "negative_feedback": [],
+    "iteration": 1, "iteration_limit": 3, "hook_trigger": "manual", "next_action": "none"
+  }
 }
