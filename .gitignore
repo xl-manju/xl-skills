@@ -58,6 +58,8 @@ eval-log/skill-intake/**
 !eval-log/skill-intake/*/content-review/**
 eval-log/docs/
 eval-log/notion-conflicts.json
+# check-review-trigger.py が Stop hook で append する評価トリガキュー (揮発状態・タイムスタンプ含む)
+eval-log/review-queue.jsonl
 
 # Plugin-local runtime
 plugins/skill-intake/output/

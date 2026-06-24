@@ -72,7 +72,9 @@ capabilities:
   - { kind: hook, ref: "hook:UserPromptExpansion/cache-refresh",      tier: extension }
   - { kind: hook, ref: "hook:PostToolUse-Skill/notify-skill-end",     tier: extension }
   - { kind: hook, ref: "hook:PostToolUse-Skill/auto-record-lesson",   tier: core }
+  - { kind: hook, ref: "hook:PostToolUse-Skill/content-review-queue", tier: core }
   - { kind: hook, ref: "hook:PostToolUse-Edit/lint-capability-manifest", tier: core }
+  - { kind: hook, ref: "hook:PostToolUse-EditWrite/content-review-queue", tier: core }
   - { kind: hook, ref: "hook:PostToolUse-Edit-rubric/diff-rubric-impact", tier: core }
   - { kind: hook, ref: "hook:PreToolUse-Bash/wrap-git-commit-safe",   tier: extension }
   - { kind: hook, ref: "hook:Stop/elegant-review-trigger",            tier: extension }
@@ -89,7 +91,7 @@ dependencies:
   - { from: skills/run-build-skill,         to: skills/ref-skill-design-rubric,     type: reads }
   - { from: skills/run-build-skill,         to: skills/ref-claude-code-skill-spec,  type: reads }
   - { from: skills/run-build-skill,         to: skills/ref-skill-naming-convention, type: reads }
-  - { from: skills/run-build-skill,         to: skills/run-goal-seek,               type: emits-goal-seek }
+  - { from: skills/run-build-skill,         to: skills/run-goal-seek,               type: emits }
   - { from: skills/run-build-skill,         to: skills/ref-knowledge-loop,          type: reads }
   - { from: skills/run-skill-elicit,        to: skills/ref-knowledge-loop,          type: reads }
   - { from: skills/run-elegant-review,      to: agents/elegant-reset-observer,      type: calls }
@@ -124,7 +126,9 @@ governance:
 observability:
   hooks:
     - PostToolUse-Skill/auto-record-lesson
+    - PostToolUse-Skill/content-review-queue
     - PostToolUse-Edit/lint-capability-manifest
+    - PostToolUse-EditWrite/content-review-queue
     - PostToolUse-Edit-rubric/diff-rubric-impact
     - SessionEnd/aggregate-evals
     - Stop/elegant-review-trigger

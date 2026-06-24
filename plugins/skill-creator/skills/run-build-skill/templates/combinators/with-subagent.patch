@@ -15,7 +15,7 @@
 
 +## Subagent / Agent Team 連携（17章）
 +- spawn prompt は **lead history を継承しない** ため、必要な context（対象 path、評価観点、severity format）を明示する。
-+- `placement_candidates` に `Agent Team` を含めた場合、`TaskCompleted` hook で evaluator JSON 検証を強制すること。
++- `placement_candidates` に `Agent Team` を含めた場合、teammate artifact は `TaskCompleted`、evaluator JSON は `SubagentStop` hook で検証すること。
 +- file ownership を分け、同一 file を複数 teammate に触らせない（17章 best practices）。
 +- cleanup は必ず lead 経由（teammate cleanup は resource inconsistency を起こす）。
 +

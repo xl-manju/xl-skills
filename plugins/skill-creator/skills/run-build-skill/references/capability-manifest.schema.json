@@ -158,7 +158,7 @@
             "properties": {
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "type": { "type": "string", "enum": ["calls", "reads", "extends", "evaluates"] }
+              "type": { "type": "string", "enum": ["calls", "reads", "extends", "evaluates", "emits", "writes", "delegates"] }
             }
           }
         },

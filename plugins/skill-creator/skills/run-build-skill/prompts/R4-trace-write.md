@@ -41,6 +41,7 @@
 ### 2.2 ドメインルール
 - `pattern_decisions / layer_decisions / reproducibility_gates (C1-C4)` を必ず記入
 - `variable_contract` に変数化した具体値の source_trace を記録
+- loop 実行系 (skill_kind=run/wrap/delegate) は `feedback_contract.criteria` を必ず記入。各 criterion は `id / loop_scope(inner|outer) / text / verify_by` を持ち、inner と outer を最低各1件。criteria は goal-seek checklist と**同源化**する (checklist=二値達成判定 / criteria=評価観点+verify_by の写像) ことで二重管理を回避する。ref/assign は `feedback_contract.skip_reason` で N/A escape。
 - 最後に `validate-build-trace.py` で exit 0 を確認
 
 ### 2.3 入力契約
@@ -53,6 +54,7 @@
 ### 2.4 出力契約
 - schema: `schemas/skill-build-trace.schema.json`
 - 必須: doc_coverage / pattern_decisions / layer_decisions / reproducibility_gates / variable_contract
+- loop 実行系のみ追加必須: feedback_contract.criteria (inner/outer 各1件以上)
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -94,6 +96,7 @@
 - [ ] doc_coverage の全章 ID (01/01a/02-35) を網羅、未読は status=na + reason 残存
 - [ ] pattern_decisions / layer_decisions を記入
 - [ ] variable_contract に変数化具体値の source_trace あり
+- [ ] (loop 実行系のみ) feedback_contract.criteria に inner/outer 各1件以上 (id/loop_scope/text/verify_by 充足)、ref/assign は skip_reason
 - [ ] validate-build-trace.py exit 0
 - [ ] 同 brief + 同 scaffold で trace JSON sha256 一致
 
@@ -129,8 +132,10 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 `eval-log/skill-build-trace.json` を `{{schema}}` に従って章別に記入し、
 未読章は `status=na + reason` を残す。`reproducibility_gates` の C1-C4 を必ず埋め、
-`variable_contract` に source_trace を記録する。最後に `validate-build-trace.py` を
-実行し exit 0 を確認する。
+`variable_contract` に source_trace を記録する。loop 実行系 (skill_kind=run/wrap/delegate)
+は `feedback_contract.criteria` を goal-seek checklist と同源で導出し inner/outer 各1件以上
+(id/loop_scope/text/verify_by) を記入する (ref/assign は `feedback_contract.skip_reason`)。
+最後に `validate-build-trace.py` を実行し exit 0 を確認する。
 
 出力は `schemas/skill-build-trace.schema.json` 準拠の JSON のみ。
 余計な前置き・後書き・思考過程出力は禁止。

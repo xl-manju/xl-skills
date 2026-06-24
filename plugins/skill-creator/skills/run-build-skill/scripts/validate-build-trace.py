@@ -292,6 +292,114 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
     return errs
 
 
+# loop 実行系 = criteria 必須 / ref・assign = N/A(skip_reason)許容
+FEEDBACK_LOOP_KINDS = {"run", "wrap", "delegate"}
+FEEDBACK_SKIP_KINDS = {"ref", "assign"}
+# build-flags.schema.json#/properties/feedback_contract/criteria と同型に強制
+# (id pattern / verify_by enum)。潜在不整合を排し「同型」宣言を事実化する。
+# 正本= build-flags.schema.json#/properties/feedback_contract/properties/criteria/items。
+# 下記2定数はその id.pattern / verify_by.enum の機械強制用ミラー。値を変える際は
+# build-flags.schema.json と skill-build-trace.schema.json を同時更新すること (現状3者一致)。
+CRITERIA_ID_RE = re.compile(r"^(IN|OUT|C)[0-9]+$")
+CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
+
+
+def _resolve_trace_kind(data: dict) -> str | None:
+    """trace の skill_kind(schema field)を優先し、無ければ variant_support.prefix。
+
+    後方互換: 旧トレースは skill_kind を持たず variant_support.prefix のみ。
+    """
+    kind = str(data.get("skill_kind", "")).strip().lower()
+    if kind:
+        return kind
+    return _resolve_brief_kind(data)
+
+
+def _validate_feedback_contract(data: dict) -> list[str]:
+    """feedback_contract.criteria を kind-aware に検査する。
+
+    loop 実行系(run/wrap/delegate)では criteria を1件以上、各 criterion に
+    id/loop_scope/text/verify_by を要求し、inner と outer を最低各1件課す。
+    ref/assign(read-only 評価器)等は feedback_contract.skip_reason か
+    kind による N/A escape を許容(既存 optional_models の N/A パターンに倣う)。
+    required トップ配列には足さないため、kind 不明の旧トレースは検査しない
+    (任意トレース破壊回避)。
+    """
+    errs: list[str] = []
+    kind = _resolve_trace_kind(data)
+    fc = data.get("feedback_contract")
+
+    # kind 不明 or 非ループ系(ref/assign)は escape。
+    if kind not in FEEDBACK_LOOP_KINDS:
+        # ref/assign で feedback_contract がある場合のみ最低限の形式を確認。
+        if isinstance(fc, dict) and fc.get("criteria") is not None:
+            crit = fc.get("criteria")
+            if not isinstance(crit, list):
+                errs.append("feedback_contract.criteria must be array")
+        return errs
+
+    # ここから loop 実行系: criteria 必須(skip_reason で N/A escape 可)。
+    if not isinstance(fc, dict):
+        errs.append(
+            f"feedback_contract is required when skill_kind={kind!r} "
+            "(loop 実行系 run/wrap/delegate)。criteria を brief.goal/Checklist から "
+            "導出するか skip_reason を記載してください。"
+        )
+        return errs
+
+    skip_reason = str(fc.get("skip_reason", "")).strip()
+    criteria = fc.get("criteria")
+    if not isinstance(criteria, list) or not criteria:
+        if skip_reason:
+            return errs  # N/A escape: 明示根拠あり
+        errs.append(
+            f"feedback_contract.criteria must list >=1 criterion when "
+            f"skill_kind={kind!r} (or set feedback_contract.skip_reason for N/A)"
+        )
+        return errs
+
+    seen_scopes: set[str] = set()
+    seen_ids: set[str] = set()
+    for idx, item in enumerate(criteria):
+        if not isinstance(item, dict):
+            errs.append(f"feedback_contract.criteria[{idx}] must be object")
+            continue
+        for key in ("id", "loop_scope", "text", "verify_by"):
+            if not _non_empty_string(item.get(key)):
+                errs.append(f"feedback_contract.criteria[{idx}].{key} is empty")
+        cid = str(item.get("id", "")).strip()
+        if cid and not CRITERIA_ID_RE.match(cid):
+            errs.append(
+                f"feedback_contract.criteria[{idx}].id={cid!r} must match "
+                "^(IN|OUT|C)[0-9]+$ (build-flags feedback_contract と同型)"
+            )
+        if cid and cid in seen_ids:
+            errs.append(f"feedback_contract.criteria[{idx}].id={cid!r} duplicated")
+        seen_ids.add(cid)
+        vb = str(item.get("verify_by", "")).strip()
+        if vb and vb not in CRITERIA_VERIFY_BY:
+            errs.append(
+                f"feedback_contract.criteria[{idx}].verify_by={vb!r} not in "
+                f"{sorted(CRITERIA_VERIFY_BY)} (build-flags feedback_contract と同型)"
+            )
+        scope = str(item.get("loop_scope", "")).strip().lower()
+        if scope and scope not in {"inner", "outer"}:
+            errs.append(
+                f"feedback_contract.criteria[{idx}].loop_scope={scope!r} "
+                "must be inner or outer"
+            )
+        else:
+            seen_scopes.add(scope)
+
+    for required_scope in ("inner", "outer"):
+        if required_scope not in seen_scopes:
+            errs.append(
+                f"feedback_contract.criteria must include >=1 {required_scope} "
+                f"loop_scope when skill_kind={kind!r}"
+            )
+    return errs
+
+
 # =============================================================
 # CapabilityManifest 検証 (kind 別 dispatch)
 # =============================================================
@@ -1025,6 +1133,8 @@ def main() -> int:
                 errs.append(f"{model_name}.{key} is empty")
 
     errs.extend(_validate_prompt_generation_model(data))
+
+    errs.extend(_validate_feedback_contract(data))
 
     variable_contract = data.get("variable_contract")
     if not isinstance(variable_contract, list) or not variable_contract:

@@ -1,0 +1,26 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-build-skill",
+    "skill_md_sha256": "2b4cb724bea92a895053a085c3138653b72960653ed6c8d2b345e60e1a9a7f3d"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator-equivalent",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "feedback_contract.criteria と content-review verdict を結び、評価ポイント漏れを機械検査で検出できるようにした"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "Static rubric-equivalent review for the self-improvement diff; no generated evaluator modified the target."
+}

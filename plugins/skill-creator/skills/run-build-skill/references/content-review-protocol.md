@@ -16,16 +16,31 @@
 
 新規/更新 build 完了直後、対象 skill ごとに以下 2 評価をローカルで起動する:
 
+### ループ分類
+
+| ループ | 目的 | 評価基準 | 上限 | 発火 |
+|----|----|----|----|----|
+| Inner loop | 小さな機能・責務単位で現在ゴールを満たす | `feedback_contract.criteria[loop_scope=inner]` + goal-seek checklist | 再評価=`inner_loop.max_iterations` (既定3) / goal-seek 手順反復=`loop_bounds.goal_seek_inner` (5) ※別ループ | build 中 / evaluator findings |
+| Outer loop | ハーネス全体がユーザー目的に近づいているかを改善する | `feedback_contract.criteria[loop_scope=outer]` + 4条件 + convergence policy | `feedback_contract.outer_loop.max_iterations` (既定3) | content-review / Stop queue / pre-push |
+
+負のフィードバックは findings を減らす方向（C1-C4違反、high severity、rubric低スコア）で、未解決なら改善→再評価へ戻す。正のフィードバックは良い設計判断・再利用可能パターンを抽出し、outer loop で `run-elegant-review/references/amplified-patterns.json` または対象 skill の references へ横展開候補として残す。どちらも無限周回は禁止し、上限到達時は `INCOMPLETE` + `human_review_required=true` で停止する。
+
+> **有界反復の数値正本 = `run-elegant-review/references/convergence-policy.json` の `loop_bounds`**。有界反復は3つの別ループに分かれる: ① goal-seek 手順反復 `inner_max_loops=5`(AI が文脈から手順を都度導出する内ループ)、② 本表 Inner 行の上限列 = content-review の評価→改善 **再評価** `inner_loop.max_iterations=3`、③ Outer 再評価 `max_iterations=3`。**①(5) と ②(3) は別ループの上限であり矛盾ではない**(同名 'inner' の混同に注意)。本表は内/外 × 正/負フィードバックの**モデル説明**の正本、数値は convergence-policy.json を参照する(重複宣言しない)。
+>
+> **入口ゲート（admission_control）**: 評価開始前に、対象 SKILL.md が無変更（`skill_md_sha256` が直近 verdict と一致）なら評価を skip してトークンを節約する（`--force-review` で上書き可）。詳細ルールは convergence-policy.json の `admission_control`。これは下記「skip / opt-out」（内容変更が無い場合のみ skip）と同方向の整合した安全弁。
+
 ### 1. elegance review (30 思考法 × 4 条件)
 
 ```
 Agent({
-  subagent_type: "elegant-improvement-executor",
-  prompt: "<plugin>/<skill> を 30 思考法 4 条件で検証。max_iter=3。
+  subagent_type: "run-elegant-review",
+  prompt: "<plugin>/<skill> を Phase1 思考リセット → Phase2 3並列分析 → Phase3 改善で検証。max_iter=3。
     verdict json を eval-log/<plugin>/<skill>/content-review/elegance-verdict.json に
     schemas/content-review-verdict.schema.json 準拠で保存すること。"
 })
 ```
+
+`elegant-improvement-executor` は Phase 3 専用であり、content-review の入口として直接呼ばない。入口を `run-elegant-review` に固定することで、思考リセットと 30 思考法 coverage を省略しない。
 
 ### 2. rubric review (規範採点)
 
@@ -47,9 +62,19 @@ Agent({
   "target": {"plugin": "skill-foo", "skill": "run-bar", "skill_md_sha256": "..."},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "elegant-improvement-executor",
+  "reviewer": "run-elegant-review",
   "reviewed_at": "2026-05-26T12:00:00Z",
-  "iterations": 2
+  "iterations": 2,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "positive_feedback": ["再利用可能な良設計判断"],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
 }
 ```
 
@@ -58,9 +83,23 @@ Agent({
 `scripts/lint-content-review.py --changed-only --base origin/main`:
 
 - `git diff origin/main...HEAD` から `plugins/*/skills/*/SKILL.md` 変更を抽出
-- 各変更 skill について `eval-log/<plugin>/<skill>/content-review/{elegance,rubric}-verdict.json` の存在 + `verdict=="PASS"` を検査
-- skill-creator 自身 / `kind: ref` / symlink skill は対象外 (内容評価非該当)
+- 各変更 skill について `eval-log/<plugin>/<skill>/content-review/{elegance,rubric}-verdict.json` の存在 + `verdict=="PASS"` + `target.skill_md_sha256` が現在の SKILL.md と一致することを検査
+- `feedback_loop` は必須。`criteria_evaluated` は trace の `feedback_contract.criteria[].id` 全件と突合し、未評価 ID があれば PASS 不可
+- `kind: ref` / symlink skill は対象外。`skill-creator` 自身は dogfooding 対象なので CI/pre-push では除外しない
 - 違反時 exit 1 → merge ブロック
+
+## hook 発火と queue
+
+Claude Code hook はレスポンス時間と副作用境界を守るため、**重い LLM 評価を直接実行しない**。hook は評価要求を queue 化し、ローカル build / pre-push が queue を消化して verdict を更新する。ただし `Stop` hook は「LLM を実行する」のではなく `{"decision":"block","reason":...}` を返して **Claude 本体に評価を実行させる**(トリガのみ・実行は本体)ことで、起動の確実性を hook 層でも担保する。この block は無限ループ防止のため `stop_hook_active` 継続中は発火せず、`skill-creator` 自身の変更は対象外、env `SKILL_CREATOR_NO_REVIEW_BLOCK=1` で opt-out できる。
+
+| Hook | 役割 |
+|----|----|
+| `PostToolUse:Skill` | `run-build-skill` / `delegate-codex-skill-review` 等の完了後、`check-review-trigger.py` を queue-only で起動し、対象 artifact と hook_trigger を評価要求として記録 |
+| `PostToolUse:Edit|Write` | SKILL.md / rubric / workflow-manifest 変更時に `check-review-trigger.py` を queue-only で起動し、stale verdict 再評価要求を記録 |
+| `Stop` | `check-review-trigger.py`。評価要求を `eval-log/review-queue.jsonl` へ queue 化し、他プラグインに未評価 or stale な変更 skill が残れば `decision:block` で `run-elegant-review` + `assign-skill-design-evaluator` の実行を Claude 本体へ差し戻す(確実起動)。`skill-creator` 自身は作業不能化を避けるため Stop block 対象外だが、CI/pre-push では self-review verdict を必須にする。変更20件以上なら推奨も stdout 出力 |
+| `pre-push` / CI | `lint-content-review.py` で verdict の存在・PASS・SHA一致を強制 (最終強制層) |
+
+Codex 委譲の完了も新しい自動実行層を増やさない。`delegate-codex-skill-review` はレスポンス JSON / patch / handoff を artifact として保存し、その artifact を既存の content-review verdict 契約に正規化して評価する。
 
 ## skip / opt-out
 

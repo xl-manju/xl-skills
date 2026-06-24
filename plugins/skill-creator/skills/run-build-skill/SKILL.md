@@ -120,7 +120,7 @@ audit-trigger: quarterly
 16. **prompt 形式**: 新規 prompt は **Markdown (`.md`) を既定**とし、`prompts/<R-id>-<slug>.md` で生成する。骨格は `plugins/prompt-creator/skills/run-prompt-creator-7layer/references/seven-layer-markdown-template.md` を写経。YAML (`.yaml`) は既存資産のみ許容し、新規作成は禁止 (warn を発する)。
 17. **Capability 7 kind 統一**: skill / agent / hook / command / plugin-composition / prompt / workflow の全 kind で `CapabilityManifest commonCore` を必須とする。**必須項目集合の正本は `references/capability-manifest.schema.json#/definitions/commonCore.required` 唯一**（本文に再掲しない＝SSOT。現行は `name` / `description` / `kind` / `version` / `owner` の5項目。`since` / `source-tier` 等は任意）。kind 別追加フィールドは同 schema の `definitions/<kind>` を参照。`commonCore` 欠落は `validate-frontmatter.py` が exit 1（同 lint は必須集合を schema から動的ロードし、`--self-test` で正本との drift を検出）。
 
-18. **ゴールシーク必須 (固定手順禁止)**: 実行系 kind (run / assign / wrap / delegate / orchestrator / agent / agent-team / hook-integrated) は達成手順を固定列挙せず、`## ゴールシーク実行` (**Goal + 目的/背景 + 完了チェックリスト + ゴールシークループ**) で構成する。手順は実行時に AI がチェックリストの未達項目から都度生成する。`ref-*` (read-only) は対象外で `## 手順` は「参照用。手順なし。」のまま。正本定義は `references/goal-seek-paradigm.md`。lint は `lint-goal-seek.py` (固定 `### Step N:` の連番羅列を実行系本文で検出したら violation)。
+18. **ゴールシーク必須 (固定手順禁止)**: ループ実行系 kind (run / wrap / delegate / orchestrator / agent / agent-team / hook-integrated) は達成手順を固定列挙せず、`## ゴールシーク実行` (**Goal + 目的/背景 + 完了チェックリスト + ゴールシークループ**) で構成する。手順は実行時に AI がチェックリストの未達項目から都度生成する。`assign-*` は評価系のため Goal/Checklist 形は使うが runtime loop は配線しない。`ref-*` (read-only) は対象外で `## 手順` は「参照用。手順なし。」のまま。正本定義は `references/goal-seek-paradigm.md`。lint は `lint-goal-seek.py` (固定 `### Step N:` の連番羅列を実行系本文で検出したら violation)。
     - **実行可能機構の配線 (with-goal-seek combinator)**: loop 実行系 (run / wrap / delegate) は `render-combinators.py` が `with-goal-seek.patch` を**default-ON で自動適用**し (`--no-goal-seek` で opt-out)、frontmatter `goal_seek:` と `### ゴールシーク配線` を注入する。周回状態は `schemas/goal-seek-loop.schema.json` 準拠の `eval-log/<skill>-progress.json` に記録し、重い周回は `Skill(run-goal-seek)` に fork 委譲する。`assign-*` は checklist のみ (ループ非配線)。`lint-goal-seek.py` は loop 実行系に対し二値チェックリスト項目の存在・曖昧語不在を violation、`### ゴールシーク配線` 不在を warning で検査する。フラグ仕様は `schemas/build-flags.schema.json#/properties/with_goal_seek`。
 
 `kind → templates/_base + combinator` 対応表は **`schemas/template-selection.schema.json#/selection_rules`** を正本とする (本文に再掲しない)。
@@ -145,6 +145,7 @@ audit-trigger: quarterly
 - [ ] P0 lint 群 + `lint-goal-seek.py` + `lint-skill-completeness.py` + `lint-ssot-duplication.py` + `validate-build-trace.py` が exit 0
 - [ ] fork した `assign-skill-design-evaluator` の score>=80 かつ high=0
 - [ ] `eval-log/skill-build-trace.json` に `source_docs`/`doc_coverage`/`layer_decisions`/`reproducibility_gates` を空欄なく記録 (未使用は N/A 理由付き)
+- [ ] (loop 実行系 run/wrap/delegate のみ) `feedback_contract.criteria` を `brief.goal`/完了チェックリストから導出し inner/outer 各1件以上を trace に記録 (ref/assign は `feedback_contract.skip_reason` で N/A)
 - [ ] (`--with-*` 指定時のみ) subagent/prompt/evaluator/hook 生成と整合 lint を完了
 - [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007)
 
@@ -186,7 +187,7 @@ audit-trigger: quarterly
 
 > **[MANDATORY]** 冒頭で `Skill(ref-yaml-spec-fetcher)` を呼び `yaml-spec-cache.md` を Read。`validate-build-trace.py` が 15/16 章未実施を exit 1 で拒否する。
 
-`resolve-skill-dirs.py` で `$SKILL_DIR` / `$OUT_BASE` 確定 → `references/resource-map.yaml` で task category 選択 → 01章 5 要素 + 01a Step2 実行レイヤー判断表を埋める。詳細は `references/build-steps.md`。
+`resolve-skill-dirs.py` で `$SKILL_DIR` / `$OUT_BASE` 確定 → `references/resource-map.yaml` で task category 選択 → 01章 5 要素 + 01a Step2 実行レイヤー判断表を埋める。詳細は `references/build-steps.md`。loop 実行系 (run/wrap/delegate) はこの時点で `brief.goal` と完了チェックリストから per-skill 評価基準 (`feedback_contract.criteria`) を test-first で導出し、Step 3.5 で trace に固定する (criteria は goal-seek checklist と同源)。
 
 ### Step 2: テンプレ展開 / 既存読込 (phase: scaffold)
 
@@ -198,7 +199,7 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 ### Step 3.5: 再現性トレース生成 (phase: trace-write)
 
-`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/R4-trace-write.md` (R4) に従って章別記入。
+`eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/R4-trace-write.md` (R4) に従って章別記入。loop 実行系 (run/wrap/delegate) は Step 1 で導出した `feedback_contract` (inner/outer criteria を id/loop_scope/text/verify_by で記述) を trace に固定する。ref/assign は `feedback_contract.skip_reason` で N/A escape。`validate-build-trace.py` が kind-aware に gating する。
 
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
@@ -278,7 +279,12 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 ### Step 12: 内容 adequacy LLM 評価 (content-review, default-ON / ハーネスの核)
 
-機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。詳細: `references/content-review-protocol.md`。要点: ローカル build 完了時に `run-elegant-review` + `assign-skill-design-evaluator` を必須起動し verdict json を `eval-log/<plugin>/<skill>/content-review/` に保存。CI/pre-push は `scripts/lint-content-review.py --changed-only` で成果物存在 + verdict=PASS のみ機械検査 (LLM はリモートで実行しない)。`--skip-content-review` 明示時のみ skip / trace 必須。verdict=FAIL は SKILL.md 改善→再評価を max_iter=3 まで反復。
+機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。詳細: `references/content-review-protocol.md`。要点:
+
+- ローカル build 完了時に `run-elegant-review` (Phase1 reset → Phase2 3並列分析 → Phase3 改善) + `assign-skill-design-evaluator` を必須起動し verdict json を `eval-log/<plugin>/<skill>/content-review/` に保存する。
+- `feedback_contract` で対象 skill 固有の評価基準を inner loop / outer loop に分け、負のフィードバック (findings 減少) と正のフィードバック (良設計の横展開候補) を両方記録する。
+- PostToolUse/Stop hook は重い LLM を直接起動せず評価要求を queue 化する。CI/pre-push は `scripts/lint-content-review.py --changed-only` で成果物存在 + verdict=PASS + `target.skill_md_sha256` が現在の SKILL.md と一致することを機械検査する。
+- `--skip-content-review` 明示時のみ skip / trace + `feedback_contract.skip_reason` 必須。verdict=FAIL は SKILL.md 改善→再評価を max_iter=3 まで反復し、上限到達時は `INCOMPLETE` + human_review とする。
 
 ## 配置先
 
