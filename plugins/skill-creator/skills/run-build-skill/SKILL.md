@@ -279,12 +279,7 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 ### Step 12: 内容 adequacy LLM 評価 (content-review, default-ON / ハーネスの核)
 
-機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。詳細: `references/content-review-protocol.md`。要点:
-
-- ローカル build 完了時に `run-elegant-review` (Phase1 reset → Phase2 3並列分析 → Phase3 改善) + `assign-skill-design-evaluator` を必須起動し verdict json を `eval-log/<plugin>/<skill>/content-review/` に保存する。
-- `feedback_contract` で対象 skill 固有の評価基準を inner loop / outer loop に分け、負のフィードバック (findings 減少) と正のフィードバック (良設計の横展開候補) を両方記録する。
-- PostToolUse/Stop hook は重い LLM を直接起動せず評価要求を queue 化する。CI/pre-push は `scripts/lint-content-review.py --changed-only` で成果物存在 + verdict=PASS + `target.skill_md_sha256` が現在の SKILL.md と一致することを機械検査する。
-- `--skip-content-review` 明示時のみ skip / trace + `feedback_contract.skip_reason` 必須。verdict=FAIL は SKILL.md 改善→再評価を max_iter=3 まで反復し、上限到達時は `INCOMPLETE` + human_review とする。
+機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。ローカル build 完了時に `run-elegant-review` (reset→3並列分析→改善) + `assign-skill-design-evaluator` を必須起動し verdict を `eval-log/<plugin>/<skill>/content-review/` に保存。hook は重い LLM を直接実行せず queue 化のみ・CI/pre-push の `scripts/lint-content-review.py --changed-only` が成果物存在 + verdict=PASS + `target.skill_md_sha256` 一致を機械検査する。`--skip-content-review` 明示時のみ skip (trace + `feedback_contract.skip_reason` 必須)。**`feedback_contract` の inner/outer × 正負フィードバック・有界反復 (max_iter=3 超過で `INCOMPLETE`+human_review)・hook queue/Stop block の詳細正本は `references/content-review-protocol.md`** (本文に再掲しない＝SSOT)。
 
 ## 配置先
 
