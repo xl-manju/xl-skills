@@ -223,7 +223,7 @@ xl-skills/                          # marketplace リポジトリ
 ```
 [plugins/<name>/agents/foo.md]
          │
-         ▼ scripts/build-claude-symlinks.py（新設予定、Phase 0 中盤で着手）
+         ▼ scripts/build-claude-symlinks.py（実装済・規約正本 / CI --check で fail-closed 強制）
          │
 [.claude/agents/foo.md] = symlink → ../../plugins/<name>/agents/foo.md
 ```
@@ -272,7 +272,7 @@ xl-skills/                          # marketplace リポジトリ
 
 - [ ] `classify_change()` 実装完了
 - [ ] 全 SKILL.md の外部参照棚卸し完了
-- [ ] `build-claude-symlinks.py` 実装と test
+- [x] `build-claude-symlinks.py` 実装と test（実装済: `scripts/build-claude-symlinks.py` + `tests/test_build_claude_symlinks.py`、CI `--check` 配線済）
 - [ ] `build-claude-settings.py` 実装と test
 - [ ] migrate スクリプトの `--dry-run` ログ取得
 - [ ] **36章 PKG-001〜009 lint 実装**（package completeness check の P0 セット。`scripts/validate-plugin-package.py` として配置、Python stdlib 限定）

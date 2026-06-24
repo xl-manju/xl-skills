@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-migrate-audit",
+    "skill_md_sha256": "d469597ff7a1b06e2070c4daa6e9c09d26e6bcfdba18ef99437c35a875225588"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:38:38Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "frontmatter 群が rubric を全充足: FM-001 name='run-migrate-audit' は ^(run|ref|...)-...$ かつ <=60、FM-002/003 description のトリガ『〜とき』が 2 個(規約 2〜3)、FM-004 description に内部動作詞なし、FM-005 名詞句で開始。NM-001 ディレクトリ basename == name 一致。",
+      "本文 rubric を全充足: BD-001 '## Purpose & Output Contract' 厳格一致、BD-002 '## Gotchas' あり、BD-003 本文 <=300 行、PD-001 references/ 実在、PD-002 冒頭に Purpose 見出し + Key Rules 禁則を集約。schema_refs 整合修復後も schema は存在ゲートを満たし、内容も実装と一致するため二重に健全。"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "GENUINE re-review (iteration 2) against ref-skill-design-rubric/rubric.json (kind=skill 適用 rule)。FM-001..005 PASS / BD-001..004 PASS / NM-001(basename一致) PASS / NM-002,003 逸脱なし / PD-001,002 PASS / RG/KL は knowledge-loop 非組込のため存在ゲートで PASS(skip)。前回 iteration 1 では rubric の機械検査 rule(schema は存在のみ評価)スコープ外として PASS だったが、本 iteration で elegance 観点の inconsistency(schema_refs ↔ 出力契約乖離)が実修復され schemas/output.schema.json が audit.py 実出力に整合(jsonschema.validate=PASS で実証)したため、存在ゲートに加え内容整合も満たした状態で verdict=PASS を維持。SKILL.md は実装一致のため未編集(sha256 不変)。"
+}

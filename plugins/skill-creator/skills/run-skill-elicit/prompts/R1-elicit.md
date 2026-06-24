@@ -1,8 +1,8 @@
 # Prompt: R1-elicit
 
 > 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の seven-layer-format.md を正本とする。
-> 出力フィールドの正本は `../run-skill-create/schemas/skill-brief.schema.json` (13 必須フィールド)。
-> 聞き取りフロー (5 prefix / hierarchy / boundary / goal-checklist 抽出) の正本は SKILL.md ## Steps。
+> 出力フィールドの正本は `../run-skill-create/schemas/skill-brief.schema.json` (13 必須フィールド + ゴールシーク用 goal/purpose_background/checklist 等)。
+> 聞き取りフロー (5 prefix / hierarchy / boundary / goal-checklist 抽出) の正本は SKILL.md `## ゴールシーク実行` の局面カタログ。
 > 本プロンプトは Wiegers 流要件抽出の推論リファレンスであり契約 (schema) を再定義しない。
 
 ## メタ
@@ -22,12 +22,12 @@
 - 曖昧な skill 要望を `run-build-skill` が受理できる brief.json に最小対話で構造化する。
 
 ### 1.2 背景 / 期待成果 / 成功基準
-- 背景: 自然言語要望は曖昧。5 項目テンプレに沿って最小対話で構造化する必要がある。
+- 背景: 自然言語要望は曖昧。schema 正本フィールドを最小対話で構造化する必要がある。
 - 期待成果: 正本スキーマ準拠の `skill-brief.json` (フィールド集合は schema 正本に従う)。
-- 成功基準: 対話 5 ターン以内で schema PASS + `trigger_phrases >= 2 件`。
+- 成功基準: 対話 5 ターン以内で schema PASS + `trigger_conditions 2〜3 件`。
 
 ### 1.3 スコープ
-- 含む: 対話で 5 項目を埋める / schema 検証 / diff 提示
+- 含む: 対話で必須フィールドを埋める / schema 検証 / diff 提示
 - 含まない: Skill 本体生成 / 既存 brief の破壊的上書き
 
 ## Layer 2: ドメイン層
@@ -35,14 +35,14 @@
 ### 2.1 用語
 | 用語 | 定義 |
 |---|---|
-| brief | Skill 化の最小設計書 (5 項目 JSON) |
-| trigger_phrases | Skill 発動を意図するユーザ発話例 (最低 2 件) |
-| 5 項目 | purpose / trigger / inputs / outputs / constraints |
+| brief | Skill 化の最小設計書 (schema 正本フィールド準拠の JSON) |
+| trigger_conditions | Skill 発動を意図する動詞ベース条件 (2〜3 件) |
+| 必須フィールド | skill_name / prefix / hierarchy_level / trigger_conditions / output_contract / boundary ほか schema required |
 
 ### 2.2 ビジネスルール
 - CONST_001: 対話は最小回数 (目安 5 ターン以内)。
 - CONST_002: 既存 brief があれば上書きせず diff を提示。
-- CONST_003: `trigger_phrases` は最低 2 件。
+- CONST_003: `trigger_conditions` は 2〜3 件。
 - OUTPUT_CONST: `eval-log/skill-brief.json` を正本スキーマ準拠で書く。
 
 ## Layer 3: インフラ層
@@ -67,18 +67,18 @@
 - Karl E. Wiegers (要件抽出の体系化, 最小対話での要件構造化に強み)
 
 ### 5.2 知識ベース
-- Software Requirements (Wiegers & Beatty): 要件抽出テンプレを 5 項目にマップ
+- Software Requirements (Wiegers & Beatty): 要件抽出テンプレを schema 正本フィールドへマップ
 - Exploring Requirements (Gause & Weinberg): 曖昧質問の絞り込み
-- User Story Mapping (Patton): trigger_phrases を利用者シナリオから抽出
+- User Story Mapping (Patton): trigger_conditions を利用者シナリオから抽出
 
 ### 5.3 ゴール定義
 - 目的: 曖昧な skill 要望を schema 準拠 brief.json に最小対話で構造化。
 - 背景: run-build-skill が受理可能な構造化が要る。
-- 達成ゴール: 正本スキーマ準拠 + `trigger_phrases >= 2` + 全必須項目に有意値の brief。
+- 達成ゴール: 正本スキーマ準拠 + `trigger_conditions 2〜3` + 全必須項目に有意値の brief。
 
 ### 5.4 完了チェックリスト (停止条件)
 - [ ] 正本スキーマ PASS (skill-brief.schema.json validator exit 0)
-- [ ] `trigger_phrases >= 2` 件
+- [ ] `trigger_conditions 2〜3` 件
 - [ ] 対話 5 ターン以内
 - [ ] 既存 brief 衝突時は diff 提示と user 確認の記録あり
 - [ ] 推測を事実として述べていない (inferred 値に `source=inferred` 明記)

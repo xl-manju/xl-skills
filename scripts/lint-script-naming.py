@@ -44,6 +44,23 @@ PENDING_RENAME_PATTERNS = [
 # 暫定例外: 個別パス (初回投入時の既存スクリプト群、33章 Change Governance 管理下)
 # リネーム計画は .claude/changelog/governance-log.jsonl 参照
 PENDING_RENAME_PATHS = {
+    # company-master (PR: 日本郵便 addresszip 移行): scripts/*.py は相互 import される
+    # Python モジュール (import notion_config / postal_api 等) のため §4.3 のハイフン命名を
+    # 適用できず underscore 許容。skill-intake の同種モジュール群と同じ PENDING 扱い
+    # (後続 Change Governance PR で一括リネーム検討。正本 skill-creator/scripts/notion_config.py も PENDING)。
+    "plugins/company-master/scripts/notion_config.py",
+    "plugins/company-master/scripts/notion_upsert.py",
+    "plugins/company-master/scripts/postal_api.py",
+    "plugins/company-master/scripts/postal_proxy.py",
+    "plugins/company-master/scripts/enrich_company.py",
+    "plugins/company-master/scripts/resolve_company.py",
+    "plugins/company-master/scripts/validate_company_master.py",
+    "plugins/company-master/scripts/company_master.py",
+    "plugins/company-master/scripts/confirm_url.py",
+    "plugins/company-master/scripts/bootstrap_plugin.py",
+    "plugins/company-master/scripts/normalize.py",
+    "plugins/company-master/scripts/remarks.py",
+    "plugins/company-master/scripts/backfill.py",
     "scripts/detect-repeated-rubric-violations.py",
     "scripts/inventory-skill-references.py",
     "scripts/skill-fixture-runner.py",

@@ -94,14 +94,14 @@ build へ渡る brief の品質が後工程全体の質を決める。曖昧さ�
 - [ ] prefix は 5 分岐 (ref/run/wrap/assign/delegate) を全網羅した決定木で確定 (wrap/delegate の聞き忘れなし)。`prefix=wrap`→base_skill、`prefix=delegate`→delegate_agent、`hierarchy_level=L2`→rubric_refs (空は禁止) も埋まっている
 - [ ] trigger_conditions が動詞ベース 2〜3 個に整理されている (4 個以上は不可)
 - [ ] 実行系 (prefix≠ref) の場合 goal / purpose_background / checklist が brief に埋め込まれている (判定不能表現・手順そのものは項目化しない)。ref は skip
-- [ ] placement_candidates と決定論的 hint (Subagent→needs_independent_context/with_subagent_hint、Agent Team→agent_team_required、Hook→with_hooks/needs_lifecycle_enforcement) が設定されている
+- [ ] placement_candidates と決定論的 hint (Subagent/Agent Team→needs_independent_context/with_subagent_hint、Hook→needs_lifecycle_enforcement/with_hooks。いずれも正本スキーマ定義済み boolean) が設定されている
 - [ ] cross_platform / os_preamble_required が確認済み
 - [ ] ナレッジループ要否を判定済み (ref-knowledge-loop の5条件に1つ以上該当→`knowledge_loop.pattern` 設定、非該当→null)。`consult_build_knowledge` (既定true) の場合は蓄積知見を参照し設計へ反映している
 - [ ] 対話は 5 問以内に収め、超過・判断分岐する細部は open_questions (OPEN_QUESTION(escalate) ラベル) に記録されている
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本スキル固有の差分:
 
 - **未達評価の単位は brief フィールド**: チェックリスト未充足フィールドを、下記「局面カタログ」を参考に 1 問ずつ (連打禁止) 埋める。スキーマ違反 (必須欠落) があれば再質問。
 - **仮想ヒアリング**: 既出回答から導出できる値は質問せず AI が埋め、不足のみ open_questions へ。設計用語 (prefix/hierarchy_level/boundary) は直接質問せず brief 確認画面でのみ開示。
@@ -221,11 +221,13 @@ prefix=run の場合は原則 `role_suffix=null` とし、生成者・評価者�
 
 | `placement_candidates` に含まれる値 | brief に追加するフィールド | build 側へ渡る効果 |
 |---|---|---|
-| `Subagent` | `needs_independent_context: true`, `with_subagent_hint: true` | run-build-skill に `--with-subagent` フラグを推奨 |
-| `Agent Team` | `needs_independent_context: true`, `with_subagent_hint: true`, `agent_team_required: true` | run-build-skill が 17 章 (Agent Teams) を必ず読む。`TaskCompleted` hook 配線も build skeleton に含める |
-| `Hook` | `with_hooks: true`, `needs_lifecycle_enforcement: true` | run-build-skill に `--with-hooks` フラグを推奨。10 章を category=subagent-hook-integration で必ず読む |
+| `Subagent` | `needs_independent_context: true`, `with_subagent_hint: true` | run-build-skill に `--with-subagent` フラグを推奨。`agent-teams` category を必ず読む |
+| `Agent Team` | `needs_independent_context: true`, `with_subagent_hint: true` | 上記に加え `placement_candidates` に `Agent Team` を残す。run-build-skill が 17 章 (Agent Teams) を必ず読み、`TaskCompleted` hook 配線も build skeleton に含める |
+| `Hook` | `needs_lifecycle_enforcement: true`, `with_hooks: true` | run-build-skill に `--with-hooks` フラグを推奨。10 章を category=subagent-hook-integration で必ず読む |
 
-これにより `scripts/resolve-brief-to-category.py` が決定論的に 17 章 / 10 章を読むべき category として返し、LLM 主観依存を排除する。
+これら 3 フィールド (`needs_independent_context` / `needs_lifecycle_enforcement` / `with_subagent_hint` / `with_hooks`) は全て正本スキーマ `../run-skill-create/schemas/skill-brief.schema.json` に boolean として定義済みであり、`additionalProperties:false` 下でも valid。`scripts/resolve-brief-to-category.py` の `CONDITIONAL_CATEGORIES` がこれらを読んで決定論的に 17 章 / 10 章を読むべき category として返し、LLM 主観依存を排除する。
+
+> **注**: brief の `with_subagent_hint` / `with_hooks` は boolean の **build フラグ推奨シグナル** であり、`run-build-skill/schemas/build-flags.schema.json` の同名 object 型フラグ (`{enabled, ...}`) とは別レイヤーの別物。Agent Team は専用 boolean を設けず `placement_candidates: ["Agent Team", ...]` で表現する (resolve は Subagent/Agent Team いずれも `agent-teams` category へ同一に解決するため、片肺の死にフィールドを作らない)。
 
 #### クロスプラットフォーム確認 (11章 / 14章)
 
@@ -283,11 +285,4 @@ echo "eval-log/skill-brief.json を生成。run-build-skill / run-skill-create �
 
 ## Additional Resources
 
-- `references/brief-template.md` — skill-brief の人間可読フィールド早見 (正本スキーマへのポインタ)
-- `../run-skill-create/schemas/skill-brief.schema.json` — JSON 出力スキーマ**正本** (フィールド詳細はこの description を参照)
-- `../ref-knowledge-loop/SKILL.md` — ナレッジループ判定 (5条件・パターン選択フロー) の正本。`knowledge_loop` 設定時に参照
-- `../../knowledge/` — skill-creator 自身の蓄積知見 (Loop B ストア)。作成時に `search_knowledge.py --dir` で検索
-- `01a-build-flow.md` Step3 — 5 prefix 判定の正本表
-- `06-classification-and-naming.md` — prefix / role-suffix 判定の詳細
-- `29-multi-project-rubric-composition.md` — L0/L1/L2 階層と rubric_refs 一方向依存
-- `13-checklists.md` — trigger / output contract のチェック
+- 索引正本 = frontmatter `schema_refs` (skill-brief.schema.json 正本) と `references/resource-map.yaml` (brief-template / ref-knowledge-loop / knowledge Loop B ストア / 設計書 01a Step3・06・29・13 の read_when 付き一覧)。

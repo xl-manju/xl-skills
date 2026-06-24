@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UserPromptExpansion hook: stale 時のみ cache refresh。常に exit 0。"""
+"""UserPromptSubmit hook: stale 時のみ cache refresh。常に exit 0。"""
 from __future__ import annotations
 
 import subprocess

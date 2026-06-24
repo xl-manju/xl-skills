@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-rename",
+    "skill_md_sha256": "46f0a37218947f1637055de2db3eed7f685c3565772955ed3d78b69453091d54"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:26:34Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "ゴールシーク節が『全箇所が新名で整合した状態』という不変ゴールを宣言し、不可分セット(ディレクトリ改名・frontmatter.name・aliases)を明示することで部分更新による参照不整合を構造的に防いでいる(C1/C4の好設計)。",
+      "完了条件をlint-skill-name.py / lint-skill-tree.pyのexit 0という機械検証に帰着させており、実機でも両lintがexit 0で通過することを確認(検証可能な出力契約)。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "C1(矛盾なし): SKILL.md本文・Key Rules・ゴールシーク・Gotchas間に論理矛盾なし(contradiction_edges==0)。C2(漏れなし): 入力(old_name/new_name)・出力(改名dir/frontmatter name/aliases/CHANGELOG/参照更新)・完了条件(2 lint exit0)がMECEに揃う(omission==0)。C3(整合性): 上位仕様ref-skill-design-rubric・06章命名規約と整合(rubric違反0、後述rubric-verdict参照)。C4(依存): 参照先lint-skill-name.py・lint-skill-tree.py・validate-frontmatter.py・resolve-skill-dirs.py・goal-seek-paradigm.mdの実在をfindで確認、dangling_refs==0、phase順序preflight→scan→apply→verify→changelogは非循環DAG(cycles==0)。検出smell=1(low): SKILL.md L36 Purposeの分類タグ『(A5/C2: 未実装スキルの新規作成)』が改名スキルでなく新規作成スキルの記述で、本文『スキルを安全に改名するワークフロー』と齟齬するコピペ残渣。実行や契約は破壊せず(本文/checklist/manifestは一貫して改名)severity=low(smell→low)に留まり高severity未解決なし。よってPASS。SKILL.md未編集(sha256=46f0a372...固定)。"
+}

@@ -1,0 +1,33 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-feedback",
+    "skill_md_sha256": "340c84c9098afda24b6fc264f30019c84682a93d774e62c98ce0437a0dc9ac34"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:28:37Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "frontmatter が rubric 全要件を高品質に満たす: name 規約 prefix(run-)準拠かつディレクトリ名一致(FM-001/NM-001)、description 末尾句点+発動条件のみで内部動作語なし(FM-002/004)、冒頭30行に Purpose & Output Contract + 禁則(必ず/禁止)を集約(PD-002)、本文181行で300行制約に余裕(BD-003)。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "rubric-version 1.3.0(threshold 80, max_skill_md_lines 300)で applies_to_kinds=skill/* の全 rule を採点。FM-001 PASS: name=run-skill-feedback は ^(run|ref|assign|wrap|delegate)- に合致・60字以内。FM-002 PASS: description は とき で終わり句点(。)で終端。FM-003 PASS: triggers 配列2件で 2..3 範囲内。FM-004 PASS: description に内部動作語(採点する/JSONで返す/sha256/exit code)なし。FM-005 PASS: 動詞句で開始。BD-001 PASS: ## Purpose & Output Contract heading 厳格一致。BD-002 PASS: ## Gotchas heading 存在。BD-003 PASS: 本文181行 <= 300。BD-004 PASS: 2 triggers(改善要望/要望・不満)が局面カタログ(対象スキル同定→要望収集→投入)の手順に 1:1 対応。NM-001 PASS: ディレクトリ basename=frontmatter.name 一致。NM-002/003 PASS: 命名・ツリー規約準拠。PD-001 PASS: references/ 参照経路存在かつ本文181行。PD-002 PASS: 冒頭30行に ## Purpose & Output Contract + 禁則(必ず/省略しない/context に乗せない)集約。RG-001 該当(出力 JSON 側要件、verdict 生成プロセスで充足想定)。KL-001..005 PASS(skip): knowledge/ ディレクトリ・frontmatter.knowledge_loop いずれも不在のため存在ゲートで無条件 PASS(誤減点なし)。agent/hook/command/plugin-composition/prompt/workflow 系 rule(AG/HK/CM/PC/PR/WF)は applies_to_kinds が kind=run の本 skill に非適用。high severity 違反ゼロ・減点なしで threshold 80 を充足。"
+}

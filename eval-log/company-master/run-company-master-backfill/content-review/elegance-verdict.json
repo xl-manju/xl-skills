@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "company-master",
+    "skill": "run-company-master-backfill",
+    "skill_md_sha256": "bc70309d0b57c05a8fce31794de700991bd69811a11c5038794ea6bc6598eaed"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T15:50:13Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "build と backfill を『起動の独立性』(既存行起点⇄断片起点 / 運用中メンテ⇄新規登録時) で分割しつつ、scripts/references/prompts を plugin-root に集約し ../../ 参照で共有する二層分離が明快。確度4ラベル・8列・信頼キー・検証 (validate_company_master) を単一 SSOT 化し二重定義を避けた設計判断が SKILL.md の主張と実装 (backfill.py の validate_enriched=validate_company_master.validate_row 委譲、REQUIRE_REVERIFY_CERTAINTIES 正本化) で一致している。",
+      "誤値 >> 空欄 の非対称コスト原則を『既存非空セル不可侵 + 取得不能は空欄+未確定(要確認)+備考定型記録』として一貫適用し、PATCH 前 validate_enriched ゲートで不正形式値が既存非空セル保護のもとで恒久固着する自己強化ループを断つ設計まで配慮している。build→backfill ハンドオフを新規ステータス列ではなく既存『情報の確かさ』列+セル空欄状態 (Notion DB 自身を SSOT) で疎結合した点も状態の二重管理を生まず再利用価値が高い。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none",
+    "next_action_detail": "高 severity の未解決欠陥は無く 4 条件すべて 0。検出した唯一の smell (replay 退避先の『plugin-root 直下』表現が実装の eval-log/ サブディレクトリ配置を厳密に反映しない軽微な語の緩み) は依存破壊でも矛盾でもなく PASS を妨げない。改善は任意で必須でないため next_action=none。"
+  },
+  "notes": "現 SKILL.md (python3 hashlib で SHA 再計算 → bc70309d0b57c05a8fce31794de700991bd69811a11c5038794ea6bc6598eaed が task 指定値と一致を確認) を既存 verdict を一切参照せず genuine に通読し 4 条件を検証した。(1) contradiction=0: build/backfill 境界、共有 SSOT・二重定義回避、precondition gate fail-closed (Notion+gBizINFO 必須・日本郵便鍵は任意縮退・proxy_url 代替で gate 通過・送信元IP自動検出で gate 非含)、2パス制御、REQUIRE_REVERIFY_CERTAINTIES 正本、validate_enriched=validate_company_master.validate_row エイリアスを実 scripts (backfill.py L70/L74-95/L202-209、company_master.py backfill サブコマンド/--dry-run) と突合し矛盾なし。(2) omission=0: 完了チェックリスト11項目が preflight fail-closed / 既存非空不可侵 / 最小API起動 / 決定論1パス / Web2パス (needs_web_search+attempts+--web-findings) / フォールバックホワイトリスト / validate ゲート / remarks 備考 / URL 非減少マージ / 429-5xx 指数バックオフ最大5回+replay再開 / dry-run を MECE に網羅。セキュリティ(3鍵 fail-closed hook)・open_issues も具備で漏れなし。(3) inconsistency=0: 8列・確度4ラベル・確認用URL本文記録・再取得対象(空欄列 or 要確認行)の定義が全節 (目的/境界/主要ルール/チェックリスト) で一貫、高/中 severity の不整合なし。(4) dependency_break=0: frontmatter の responsibility_refs(1)/reference_refs(7)/script_refs(13) と本文参照の agents(3)/command(1)/hook(1) を全て ../../ 経由で Bash test -e により全数確認し dangling 0。本文の『同梱 notion-config.fixed.json』は plugin-root 実在 (notion_config.BUNDLED_CONFIG_FILENAME L59 と一致、誤パス主張なし) のため依存破壊ではない。smell 1 件 = L116『REPLAY_LOG (repo-root、非 repo 環境では plugin-root 直下)』が実装 (backfill.py _eval_log_dir L59-66 で root/eval-log/backfill-replay.jsonl) の eval-log/ サブディレクトリ階層を厳密表現しない軽微な語の緩み (root 解決ロジック=repo-root else plugin-root は正確で cwd 非依存も担保)。high severity 欠陥なし → PASS。本 review で SKILL.md は一切編集していない。"
+}

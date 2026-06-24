@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot pytest test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot company-master-vendored pytest test help
 
 ## sync: creator-kit/skills/ を .claude/skills/ に同期する（--apply）
 sync:
@@ -13,14 +13,32 @@ sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
 ## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT 検証を実行する
-lint: contract-intake vendored-ssot
+lint: contract-intake vendored-ssot company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/company-master/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/company-master/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/company-master/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-intake/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-intake/skills
+	# skill-intake の validate-frontmatter は effect enum 違反で FAIL するため
+	# lint-plugin-lint-coverage.py の ALLOWLIST に理由付きで宣言済み (後日是正)
+	python3 scripts/lint-skill-name.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-plugin-lint-coverage.py
 
 ## vendored-ssot: skill-intake 同梱 SSOT (notion_config.py) が skill-creator 正本と byte 一致か検証
 vendored-ssot:
 	python3 scripts/lint-intake-vendored-ssot.py
+
+## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
+company-master-vendored:
+	python3 scripts/lint-company-master-vendored-deps.py
 
 ## contract-intake: skill-intake の enum SSOT / 軸分離 / 二重定義検出 contract test
 contract-intake:

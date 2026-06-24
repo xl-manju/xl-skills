@@ -15,7 +15,7 @@
   ],
   "applies_to_kinds_default": ["skill"],
   "upstream": [
-    "plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json"
+    "plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json"
   ],
   "merge_strategy": "deep-merge",
   "conflict_policy": "most-specific-wins",

@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-plugin-package-check",
+    "skill_md_sha256": "aa5e07c53ed6b19017a8044a2f8ea5b78fa203ff831f9a977478292ec3b53142"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:38:01Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4", "FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "NM-001", "PD-002"],
+    "positive_feedback": [
+      "FM 群 全PASS: name=run-plugin-package-check は ^(run|ref|assign|wrap|delegate)- 正規表現に合致・len<=60 (FM-001/NM-002)、description の trigger phrase が『〜とき』×2 で 2..3 個の hard rule を満たし句点終端 (FM-002/FM-003)、description に採点する/sha256/exit code 等の内部動作詳細を含まず発動条件のみ (FM-004)、『検査したいとき』で動詞ベース冒頭 (FM-005)",
+      "BD/PD 群 全PASS: 『## Purpose & Output Contract』厳格一致 heading 存在 (BD-001) で PD-002 を包含充足、『## Gotchas』存在 (BD-002)、本文行数 300 行制約内 (BD-003)、references/ ディレクトリに resource-map.yaml 等が存在し Progressive Disclosure 起点を確保 (PD-001)、冒頭30行に Purpose+Key Rule(禁止/必須)集約 (PD-002)",
+      "C4 dependency 修復後も rubric 表層規則は無回帰: SKILL.md 局面カタログの lint 参照パス是正は本文行数・heading・name・description trigger いずれにも影響せず、basename==name 一致 (NM-001) を維持"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "C4 dependency_break 修復 (lint 参照を実在する ../../../skill-governance-lint/scripts/ へ4箇所是正) 後の rubric 再採点。rubric (skill-design 1.3.0, applies_to_kinds=skill) の機械検証規則を genuine 採点: FM-001..005 / BD-001..003 / NM-001..003 / PD-001..002 すべて PASS。修復は SKILL.md 本文の局面カタログ2行 (Step3/Step8 の script パス文字列) のみ変更で、name/description/heading/本文行数といった rubric 観測対象を不変に保つため iteration 1 の rubric PASS は無回帰で維持。検証根拠: name 正規表現一致・basename==name 一致・『## Purpose & Output Contract』『## Gotchas』heading 存在・description に動作詳細語(採点する/sha256/exit code)なし・trigger 数=2 (範囲2..3)。KL-* は knowledge/ ディレクトリ・frontmatter.knowledge_loop ともに不在のため存在ゲートで無条件 PASS (誤減点防止)。rubric 観点に属する high severity 違反は検出されず verdict=PASS、next_action=none。"
+}

@@ -1,45 +1,8 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "run-skill-create handoff",
-  "type": "object",
-  "required": ["step", "timestamp", "skill_name", "mode", "state"],
-  "properties": {
-    "step": {"type": "string", "enum": ["after_elicit", "after_build", "after_lint", "after_evaluator", "after_elegant", "after_governance", "done"]},
-    "timestamp": {"type": "string", "format": "date-time"},
-    "skill_name": {"type": "string"},
-    "mode": {"type": "string", "enum": ["create", "update"]},
-    "state": {
-      "type": "object",
-      "properties": {
-        "brief_path": {"type": "string"},
-        "skill_path": {"type": "string"},
-        "lint_results": {"type": "object"},
-        "evaluator_result": {"type": "object"},
-        "elegant_review_result": {"type": "object"},
-        "governance_decision": {"type": "string", "enum": ["solo_auto_approved", "manual_approved", "rejected", "pending"]},
-        "gates_passed": {"type": "array", "items": {"type": "integer"}},
-        "open_questions": {"type": "array", "items": {"type": "string"}}
-      }
-    },
-    "last_completed_gate": {"type": "integer"},
-    "rubric": {
-      "type": "object",
-      "properties": {
-        "rubric_id": {"type": "string"},
-        "rubric_version": {"type": "string"},
-        "rubric_hash": {"type": "string"}
-      }
-    },
-    "evaluator_summary": {
-      "type": "object",
-      "properties": {
-        "score": {"type": "number"},
-        "high_severity_count": {"type": "integer"},
-        "result_path": {"type": "string"}
-      }
-    },
-    "required_fixes": {"type": "array", "items": {"type": "string"}},
-    "resume_command": {"type": "string"},
-    "next_step": {"type": "string"}
-  }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "handoff-schema.json",
+  "title": "Gate Handoff Record (redirect → schemas/handoff.schema.json)",
+  "x-canonical-redirect": "../schemas/handoff.schema.json",
+  "x-redirect-note": "正本は ../schemas/handoff.schema.json (required: step/timestamp/gate_id/approver/artifacts/next_phase)。本ファイルの旧形式 (required: state/skill_name/mode) は producer/consumer 不在を確認の上廃止し、$ref のみの薄いリダイレクトに縮約した。プロパティ・required を再掲しない (SSOT)。フィールド仕様の参照・編集は全て正本側で行うこと。",
+  "$ref": "../schemas/handoff.schema.json"
 }

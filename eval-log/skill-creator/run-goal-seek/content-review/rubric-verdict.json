@@ -1,0 +1,33 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-goal-seek",
+    "skill_md_sha256": "ede6e475c72b20faa7b1b78ed8adb9306f385891cd00dfb34df9d738353b1f6c"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:25:33Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "frontmatter が name/kind/prefix/effect/owner/since/version に加え schema_refs/reference_refs/completeness_exempt まで明示し、汎用オーケストレーターの適用外宣言を機械可読に表現している点が rubric の trace 可能性要件を高水準で満たす"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "FM-001: name='run-goal-seek' は ^(run|ref|assign|wrap|delegate)-[a-z0-9][a-z0-9-]*$ に一致・60字以下 PASS。 FM-002: description が trigger句『〜とき』を含み句点(。)で終端 PASS。 FM-003: trigger句数=2(『遂行したいとき』『反復実行したいとき』)で 2..3 域内 PASS。 FM-004: description に動作詳細語(採点する/JSONで返す/sha256/exit code)なし PASS。 FM-005: 日本語動詞句『使う』で終端 PASS。 BD-001/PD-002: 冒頭『## 目的と出力契約』が Purpose & Output Contract と意味同型で、本文に MUST/必須/禁止級の禁則(『手順を事前固定しない』『コンテキスト分離(必須)』『中間成果物アンカー(必須)』)を冒頭30行域に集約。sibling run-goal-elicit と同一の日本語見出し慣行で整合し PASS。 BD-002: 『## 注意点』が Gotchas と同型(反パターン4件提示)PASS。 BD-003: body 行数=115 ≤300 PASS。 NM-001: ディレクトリ basename 'run-goal-seek' == frontmatter.name PASS。 NM-002/NM-003: 命名・tree 規約逸脱なし(references/ は空だが PD-001 は body<=100 OR references有り条件で、本文 schema_refs/reference_refs により progressive disclosure を cross-skill ref で達成)。 PD-001: cross-skill reference_refs/schema_refs で外部化済み・100行超でも分割原則を満たす PASS。 RG-001: 採点出力(本verdict)に target.skill_md_sha256 を含み再現性担保。 schema 整合: goal-spec.schema.json の verify_by enum(script/lint/test)が主要ルール#3、max_loops default=5 が主要ルール#4 と一致し本文契約に齟齬なし。kind=skill 対象外 rule(AG/HK/CM/PC/PR/WF)は適用外、KL-* は knowledge/ 不在ゲートで無条件 PASS。高severity未解決なし→PASS。"
+}

@@ -6,18 +6,11 @@
     "name": "xl-skills maintainers"
   },
   "hooks": {
-    "UserPromptExpansion": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-cache-refresh.py" }
-        ]
-      }
-    ],
     "UserPromptSubmit": [
       {
         "matcher": ".*",
         "hooks": [
+          { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/run-skill-update-notifier/scripts/hook-cache-refresh.py" },
           { "type": "command", "command": "python3 $CLAUDE_PLUGIN_ROOT/skills/ref-task-context-map/scripts/preload-context-map.py", "timeout": 3000 }
         ]
       }

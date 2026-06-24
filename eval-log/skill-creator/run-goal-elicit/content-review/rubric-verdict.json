@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-goal-elicit",
+    "skill_md_sha256": "2378547afaa66517e01b8aea6e2b5bb62ec80da5b7a50dc44ef0b7f4343c9370"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:25:30Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "FM-004 遵守が秀逸: description は発動条件のみで『採点する/sha256/exit code』等の動作詳細語を持たず、本文の主要ルール・検証へ動作を委譲。token効率と読み取り精度を両立。",
+      "検証 script が schema['required'] と checklist items.required を実読し drift を機械防止 (ハードコードなし)。有効サンプルで実走 PASS を確認した再現性の高い出力契約。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "kind=skill 適用 rule を採点。FM-001 name=run-goal-elicit が ^(run|ref|assign|wrap|delegate)-... <=60 一致(PASS)。FM-002 description が trigger『とき』含み『。』終端(PASS)。FM-003 trigger count=2 で 2..3 範囲内(PASS)。FM-004 動作詳細語句なし(PASS)。FM-005 『〜使う』動詞句終端(PASS)。BD-001/PD-002 冒頭30行内に『## 目的と出力契約』+禁則(『不可』『〜しない』)あり、日本語見出し運用は lint exit0 で受理(PASS)。BD-002 反パターン節は『## 注意点』に統合され Gotchas 相当を充足(omission 不問)。BD-003 本文79行<=300(PASS)。BD-004 description の2発動条件(目的曖昧/goal-spec化)が本文ゴール・主要ルールに1:1対応(PASS)。NM-001 dir basename==name(PASS)。NM-002 lint-skill-name.py exit0(PASS)。NM-003 lint-skill-tree.py exit0(PASS)。PD-001 references/(schemas/)存在(PASS)。KL-001..005 knowledge/ 不在ゆえ skip-PASS。high severity 違反0。"
+}

@@ -31,6 +31,7 @@ ALLOWED_NESTED_DIRS = {
 }
 SCRIPT_EXTS = {".py", ".sh"}
 MAX_SKILL_LINES = 300  # P0-2: 300行 cap 機械強制
+WARN_SKILL_LINES = 280  # SS-203: 上限接近の事前警告 (warn のみ、exit 1 にしない)
 
 OS_PREAMBLE_PATTERN = re.compile(r"!`uname -s")
 # 本文先頭から探索する行数 (先頭付近の定義: 設計書13章)
@@ -170,6 +171,14 @@ def lint_one(root: Path) -> list[str]:
             f"P0-2違反: SKILL.md が {line_count} 行 (上限 {MAX_SKILL_LINES} 行)。"
             " 超過分は references/ に分割すること（07章）"
         )
+    elif line_count > WARN_SKILL_LINES:
+        # SS-203: 上限手前で事前警告 (exit 1 にしない)
+        print(
+            f"[Warn]SS-203: {root.name}/SKILL.md が {line_count} 行"
+            f" (warn 閾値 {WARN_SKILL_LINES} 超、上限 {MAX_SKILL_LINES})。"
+            " 早めに references/ への分割を検討",
+            file=sys.stderr,
+        )
 
     # 第13条 フラットツリー (深さ <= 2)
     for p in root.rglob("*"):
@@ -185,8 +194,12 @@ def lint_one(root: Path) -> list[str]:
                 if tuple(rel.parts) not in ALLOWED_NESTED_DIRS:
                     errs.append(f"第13条違反: nested dir '{rel}'")
             elif rel.parts[0] not in ALLOWED_DIRS and rel.parts[0] != ".":
-                # extra top-level dirs allowed but warn
-                pass
+                # LS-203: extra top-level dirs allowed but warn (exit 1 にしない)
+                print(
+                    f"[Warn]LS-203: {root.name}: 規約外 top-level dir '{rel}'"
+                    f" (許可: {', '.join(sorted(ALLOWED_DIRS))})",
+                    file=sys.stderr,
+                )
         else:
             # 第8〜11条 ファイル命名
             if len(rel.parts) >= 2:

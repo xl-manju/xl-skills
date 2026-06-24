@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "delegate-codex-skill-review",
+    "skill_md_sha256": "7e2728e2f2f8bdb09c02939d148896d0182305d81ac8118ce24d2d00b5a64e19"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:37:14Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "NM-001", "BD-001", "BD-002", "BD-003", "BD-004", "PD-002", "C3"],
+    "positive_feedback": [
+      "frontmatter が rubric の構造要件を満たす良設計: FM-001(name=delegate-codex-skill-review が ^(run|ref|assign|wrap|delegate)- に一致, len 26<=60), NM-001(basename==name), BD-001(## Purpose & Output Contract 厳格一致 L38), BD-002(## Gotchas L106), BD-003(本文行数 <=300), FM-004(description が発動条件のみ) がすべて PASS。加えて修復で BD-004(description<->body 整合)と C3 が回復: 提示コマンドが上位正本 external-cli-agents-guide.md の codex --prompt 形式と一致し runtime path error 源だった dangling rubric も実体パスへ収束。"
+    ],
+    "negative_feedback": [
+      "[解消済 iteration1->2] C3 coherence(high相当): SKILL.md L100 の codex 実行コマンド例 'codex review --input ... --rubric ...' が外部CLI正本 external-cli-agents-guide.md(codex --prompt 形式, review subcommand 非掲載)に不整合だった。-> 正本形式 codex --prompt/--context-file/--output-format text/--approval-mode yolo へ書換えて整合。",
+      "[解消済 iteration1->2] dependency_break(high): SKILL.md L100 の --rubric ref-skill-design-rubric/rubric.json が実在せず採点時 runtime path error を起こす dangling だった。-> ref-skill-design-rubric/references/rubric.json(実在)へ修正し dangling 0 を実証(R2 prompt L72 の同型も同時修正)。",
+      "[解消済 iteration1->2] smell(low): 出力名 delegate-codex-review.json(L101) が response 命名 delegate-codex-response.json と一字違いで乖離していた命名一貫性の臭い。-> delegate-codex-response.json へ統一し命名臭を除去。"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "ref-skill-design-rubric/references/rubric.json (rubric_version 1.3.0, kind=skill) で genuine 再採点(修復後 sha=7e2728e2f2f8)。機械層 PASS: FM-001(prefix delegate- 一致/len 26), FM-003(description trigger 2句で 2..3 域内), FM-004(description に内部動作なし), NM-001(basename==name), BD-001(## Purpose & Output Contract L38 厳格一致), BD-002(## Gotchas L106), BD-003(本文行数 <=300), PD-002(冒頭30行内に Purpose 見出し + 完了条件/禁止規則相当)。前回 FAIL 根拠(dependency_break high / C3 coherence / smell low)は本 iteration の実修復で全解消: (1)--rubric が references/rubric.json 実体を指し ls で実在確認, dangling 0。(2)コマンド形式が external-cli-agents-guide.md / codex-connection.md と整合(review subcommand 不在)。(3)出力名 delegate-codex-response.json に統一(grep で旧名 0 件)。高 severity 未解決なし -> PASS。"
+}

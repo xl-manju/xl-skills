@@ -48,7 +48,7 @@ python3 plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.
 
 - 「Purpose & Output Contract」: 入力/出力/完了条件
 - 「Key Rules」: 5〜10個
-- 「Steps」: 番号付き、各StepはBashブロック or 短い手順
+- 「ゴールシーク実行」: ゴール+完了チェックリスト+ゴールシークループ。固定 Step 連番は lint-goal-seek が violation 化するため禁止
 - 「Gotchas」: 反パターン3〜5個
 - 「Additional Resources」: references/ への索引
 
@@ -443,6 +443,7 @@ TODO(human): `scripts/build-yaml-spec-cache.py` の実装は、Claude Code 公�
 | skill | `templates/{run,ref,assign-generator,assign-evaluator,wrap,delegate}.md` | `plugins/<plugin>/skills/<name>/SKILL.md` | `lint-skill-name.py` / `lint-skill-description.py` / `lint-skill-tree.py` / `validate-frontmatter.py` |
 | agent | `templates/agent-skeleton.md` | `plugins/<plugin>/agents/<name>.md` | `lint-agent-prompt-section.py` / `validate-frontmatter.py` |
 | hook | `templates/hook-skeleton.md` | `plugins/<plugin>/hooks/<name>.{py,md}` | `lint-script-frontmatter.py` / `validate-frontmatter.py` |
+| hook (skill-local) | 同上 | `plugins/<plugin>/skills/<skill>/hooks/<name>.{py,md}` も正式許容 (例: run-skill-update-notifier)。ただし plugin.json からの配線パスと一致させること | 同上 |
 | command | `templates/command-skeleton.md` | `plugins/<plugin>/commands/<name>.md` | `lint-command-md.py` (未整備時は warn) / `validate-frontmatter.py` |
 | plugin-composition | `templates/plugin-composition-skeleton.yaml` | `plugins/<plugin>/plugin-composition.yaml` | `lint-plugin-composition.py` (未整備時は warn) |
 | prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` | `lint-prompt-md.py` (未整備時は warn) |

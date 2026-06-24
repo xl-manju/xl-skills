@@ -103,7 +103,8 @@
       {"name": "やってほしいこと",       "required": true,  "hint": "具体的にどう直してほしいか一段落"},
       {"name": "背景・困っていること",   "required": false, "hint": "なぜそれが必要か"},
       {"name": "優先度",                 "required": false, "hint": "高 / 中 / 低 (default 中)"},
-      {"name": "重要度",                 "required": false, "hint": "高 / 中 / 低 (default 中)"}
+      {"name": "重要度",                 "required": false, "hint": "高 / 中 / 低 (default 中)"},
+      {"name": "関連 PR/コミット URL",   "required": false, "hint": "既知の関連 PR / コミットがあれば URL を記入"}
     ],
     "status_lifecycle": ["未着手", "計画中", "対応中", "完了", "見送り"],
     "open_statuses": ["未着手", "計画中", "対応中"],

@@ -1,0 +1,39 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-migrate-audit",
+    "skill_md_sha256": "d469597ff7a1b06e2070c4daa6e9c09d26e6bcfdba18ef99437c35a875225588"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:38:38Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "良設計: audit.py が LLM 非依存の決定論的 first-pass で、区分タクソノミ(8区分)と優先順位を references/classification-rules.md の SSOT 表と RULES 配列で同一語彙・同一優先順位(hook>wrap>assign>delegate>run>ref>docs>always-on)に共有しており、機械層(script)と参照層(rules.md)の二層分離が破綻なく貫かれている。",
+      "C4(依存整合)PASS: frontmatter の schema_refs/responsibility_refs/pair/reference_refs/manifest が全て実在に解決し dangling ゼロ。to-brief.py が読む sections[].suggested_skill_name / classification / heading を schema が required で固定したことで下流(run-build-skill 引き渡し)契約とも整合が補強された。",
+      "C1(本文内矛盾)PASS: 本文 Key Rules・Gotchas・チェックリスト・出力 contract が実体 audit.py の出力(input_file/origin/sections[].classification/summary)および区分 enum と完全一致。"
+    ],
+    "negative_feedback": [
+      "修復済(旧 inconsistency/critical 相当): frontmatter schema_refs が指す schemas/output.schema.json を audit.py 実出力へ整合させた。旧スキーマ {audit_id, classified[].category(enum=skill|reference|template|schema|script|doc|archive|discard), abstraction_findings} を実出力 {input_file, origin(enum=article|internal-doc|external-spec|unknown), sections[]{heading,classification(enum=always-on|ref|run|wrap|assign|delegate|hook|docs),rationale,suggested_skill_name(string|null)}, summary{ref_candidates,run_candidates,hook_candidates,kept_in_claude_md,total_sections}} に置換。実 audit.py 出力を jsonschema.validate に通し PASS(余剰キーなし・enum 一致)で実証。",
+      "修復済(旧 smell/low): prompts/R1-audit.md の出力先 `eval-log/migrate-audit-report.json` と形状 {files, classifications, findings} を本文・実装の `.claude/handoff/migrate-audit-<session>.json` と {input_file, origin, sections, summary} に整合。メタ表 outputs / Layer1 期待成果・成功基準・スコープ / Layer2 用語(findings→rationale)・OUTPUT_CONST / Layer5 達成ゴール・完了チェックリスト・5.7 インターフェース / Layer6 ハンドオフ直列 / Layer7 出力指示 を一括是正。",
+      "修復済(派生 smell): workflow-manifest.json 最終 phase 'report' の output_artifact `eval-log/migrate-audit-report.json` を実契約 `.claude/handoff/migrate-audit-<session>.json` へ整合(同根の第三契約乖離を解消)。grep で skill 配下の旧パス/旧フィールド(audit_id/classified/abstraction_findings/migrate-audit-report.json/category enum/{files,classifications,findings})残存ゼロを確認。"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "GENUINE re-review (iteration 2). 前回 iteration 1 で指摘した inconsistency(critical 相当: schema_refs ↔ 本文/audit.py の出力契約食い違い)と smell(low: prompts stub の出力先/形状乖離)を実修復し再検証。正本判断=実装 audit.py + 本文出力契約を真とし schema をそれへ整合(SKILL.md は元から実装一致のため未編集・sha256 不変)。検証: (1) schema は valid JSON、(2) 実 audit.py 出力(sample 実行)を新 schema へ jsonschema.validate=PASS、(3) origin enum が detect_origin の全返値を網羅、(4) classification enum が classification-rules.md 表・RULES 配列と完全一致。4条件: C1 PASS・C2 PASS(Purpose&Output Contract/Boundary/Key Rules/Gotchas/Goal-seek/局面カタログ揃う)・C3 PASS・C4 PASS。高 severity 未解決ゼロのため verdict=PASS, next_action=none。"
+  }

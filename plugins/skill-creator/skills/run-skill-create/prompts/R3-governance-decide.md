@@ -57,7 +57,7 @@
 |---|---|---|---|
 | phase | string | yes | governance |
 | manifest | path | yes | workflow-manifest.json |
-| governance_params | path | yes | references/governance-params.json |
+| governance_params | path | yes | repo-root `references/governance-params.json` (27章§11 正本, gitignore; 未配備時は `references/governance-params.json.example` から provision) |
 | findings | path | yes | eval-log/findings.json |
 | evaluator_result | path | yes | eval-log/docs/<NN>-<timestamp>.json |
 
@@ -73,7 +73,7 @@
 
 | id | path | when_to_read |
 |---|---|---|
-| params | references/governance-params.json | solo_operator_mode 確認時 |
+| params | repo-root `references/governance-params.json` (27章§11 正本, gitignore; `.json.example` から provision; 不在時 graceful degrade=手動承認) | solo_operator_mode 確認時 |
 | findings | eval-log/findings.json | verdicts 確認時 |
 | evaluator | eval-log/docs/<NN>-<timestamp>.json | newly_failing 確認時 |
 
@@ -86,7 +86,7 @@
 ### 4.1 失敗時挙動
 
 - 条件評価が判定不能 → 手動承認に回す (safe-fail)
-- governance_params 不在 → exit 3 (structural error)
+- governance_params 不在 (gitignore で未 provision) → graceful degrade=手動承認フロー (safe-fail)。`references/governance-params.json.example` から provision 可能
 
 ### 4.2 観測 / ロギング
 
@@ -125,7 +125,7 @@
 2. 解消手順を立案 (params Read / 4 条件評価 / Skill(run-skill-rubric-governance) 起動 / handoff Write のいずれか)
 3. 実行し handoff JSON を更新
 4. schema 検証で自己評価、全項目充足まで反復
-5. 評価不能は手動承認 (safe-fail)、governance_params 不在は exit 3
+5. 評価不能は手動承認 (safe-fail)、governance_params 不在も graceful degrade=手動承認 (safe-fail)
 
 ## Layer 6: オーケストレーション層
 

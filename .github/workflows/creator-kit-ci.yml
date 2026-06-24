@@ -31,7 +31,18 @@ jobs:
       - name: Run behavior tests (pytest)
         run: |
           python3 -m pip install --quiet pytest
-          python3 -m pytest tests/ -q
+          # plugins/skill-governance-lint/tests/ は lint fail-open 修復 (MD-208/LS-211/LS-215) の
+          # 回帰保証。repo-root tests/ のみだと governance-lint の保証が無言で腐る。
+          python3 -m pytest tests/ plugins/skill-governance-lint/tests/ -q
+
+      # rubric 正本(L0)-派生(L2) の版ずれ検出。2026-05-24 に「チェックリスト化のみで
+      # 実体未配線」のまま腐り drift (1.3.0 vs 1.2.0) が素通りした前例の再発防止 (SS-205/SS-213)。
+      - name: Check rubric L0/L2 sync (check-rubric-sync)
+        run: python3 plugins/skill-governance-lint/scripts/check-rubric-sync.py
+
+      # LS-215: governance lint scripts 自身の削除済み root (creator-kit) 残存参照を fail-closed 検出
+      - name: Lint stale root refs in governance scripts
+        run: python3 plugins/skill-governance-lint/scripts/lint-path-canonical.py --scripts-dir plugins/skill-governance-lint/scripts
 
       # plugin 配下のテスト (plugins/*/tests) を CI で実行する。repo-root の
       # `pytest tests/` は plugin 配下を収集しないため、これが無いと plugin の回帰
@@ -66,6 +77,11 @@ jobs:
           python3 scripts/contract-intake-enum-ssot.py
           python3 scripts/lint-intake-vendored-ssot.py
           python3 scripts/validate-plugin-packages.py
+
+      # company-master の scripts が外部依存ゼロ (空 vendor が正常) であることを機械検証する。
+      # ローカル make lint (company-master-vendored) と整合。CI 未配線だと保証が無言で腐る。
+      - name: Verify company-master vendored deps (zero external deps)
+        run: python3 scripts/lint-company-master-vendored-deps.py
 
       # marketplace install ポータビリティ不変条件: 任意の install 先 (cwd 非依存) で
       # vendor/python の jinja2 等が __file__ 相対で import 解決でき、plugin が
@@ -108,6 +124,12 @@ jobs:
       - name: Lint Skill descriptions
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py \
                --skills-dir plugins/skill-creator/skills
+
+      # plugin lint 被覆メタ検査: marketplace 登録 plugin (実体 skill 所有) が
+      # name/description/frontmatter lint の --skills-dir 対象に配線済みかを検査。
+      # per-plugin 手書き配線の追加忘れ (新 plugin 追加時の被覆漏れ) をここで fail させる。
+      - name: Lint plugin lint coverage (meta-check for new plugin wiring)
+        run: python3 scripts/lint-plugin-lint-coverage.py
 
       - name: Lint doc/20 dependency contract
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir plugins/skill-creator/skills

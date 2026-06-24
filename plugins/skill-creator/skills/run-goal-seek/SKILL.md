@@ -29,9 +29,12 @@ reference_refs:
   - ../run-build-skill/references/goal-seek-paradigm.md
 completeness_exempt:
   - "prompts: 責務単位プロンプトを持たない汎用オーケストレーター。手順は固定化せずゴールシークループで都度生成するため、prompt-creator の R-id 単位 7 層プロンプトは適用外 (prompt-placement-convention.md の ref/wrap/delegate 同等の skip 扱い)。ループ規約は ../run-build-skill/references/goal-seek-paradigm.md を共有正本として参照。"
+  - "manifest: ゴールシークループで手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。"
 ---
 
 # run-goal-seek
+
+> **配布注記**: 本 skill の cross-skill `schema_refs` / `reference_refs` (`../run-goal-elicit/`, `../run-build-skill/`) は repo-bundled 前提 (単独配布非対応)。
 
 ## 目的と出力契約
 

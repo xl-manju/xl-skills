@@ -1,6 +1,6 @@
 # Prompt: R1-notify
 
-> 7 層プロンプトの Markdown 表現。Skill 実行末尾に installed と latest を比較し差分があれば stderr に 1 行のみ通知する。
+> 7 層プロンプトの Markdown 表現。Skill 実行末尾に installed と latest を比較し差分があれば stdout に 1 行のみ通知する (会話末尾付記)。
 
 ## メタ
 
@@ -11,13 +11,13 @@
 | responsibility | R1 |
 | layers_covered | [L2, L4, L5, L6] |
 | inputs | mode (enum: auto\|check-only\|refresh, default: auto) |
-| outputs | stderr 1 行 or 空 (schemas/output.schema.json) |
+| outputs | stdout 1 行 or 空 (schemas/output.schema.json) |
 
 ## Layer 1: 基本定義層
 
-- 最上位目的: installed と latest を比較し差分があれば stderr に 1 行のみ通知。
+- 最上位目的: installed と latest を比較し差分があれば stdout に 1 行のみ通知 (会話末尾付記)。
 - 背景: 頻繁な通知は UX を損なう。差分時のみ静かに 1 行で知らせる契約。
-- 期待成果: 差分時のみ stderr 1 行 + cache 更新 (必要時)。
+- 期待成果: 差分時のみ stdout 1 行 + cache 更新 (必要時)。
 - 成功基準: `up-to-date / offline / unknown` は無出力、差分時のみ 1 行で再現可能。
 - スコープ
   - 含む: cache 読込 / version 比較 / 1 行通知 / cache refresh
@@ -37,7 +37,7 @@
 - CONST_001: `plugin.json / marketplace.json / bundles.json` は読取専用。
 - CONST_002: 通知は 1 行のみ。二重出力禁止。
 - CONST_003: `up-to-date / offline / unknown` は無出力。
-- OUTPUT_CONST: stdout ではなく stderr に 1 行のみ。`schemas/output.schema.json` 準拠。
+- OUTPUT_CONST: stderr ではなく stdout に 1 行のみ (会話末尾付記 = effect: conversation-output)。`schemas/output.schema.json` 準拠。
 
 ## Layer 3: インフラ層
 
@@ -49,7 +49,7 @@
 ## Layer 4: 共通ポリシー層
 
 - 信頼度閾値: 0.7 / 最大リトライ: 1 / 最大改善回数: 2
-- 許可: Read (cache, plugin.json) / stderr 出力
+- 許可: Read (cache, plugin.json) / stdout 出力 (通知 1 行) / stderr 出力 (診断ログのみ)
 - 禁止: `plugin.json / marketplace.json / bundles.json` 書換 / 二重通知
 - 入力検証拒否: 不正 mode 値
 - 事実確認: installed/latest の差分根拠を内部保持。unknown 時は通知しない。semver パースで検証。
@@ -68,7 +68,7 @@
 ### 5.3 ゴール定義
 - 目的: 差分時のみ 1 行で通知し UX ノイズを抑える。
 - 背景: 頻繁通知は alert fatigue を招く。silent-on-success を徹底。
-- 達成ゴール: status 確定 + 差分時のみ stderr 1 行 + 必要時のみ cache 更新済み。
+- 達成ゴール: status 確定 + 差分時のみ stdout 1 行 (会話末尾付記) + 必要時のみ cache 更新済み。
 
 ### 5.4 完了チェックリスト
 - [ ] 出力は 0 行 or 1 行
@@ -91,7 +91,7 @@
 
 ### 5.7 インターフェース
 - 入力: `mode` (auto|check-only|refresh のいずれか。範囲外拒否。欠損時 auto)
-- 出力: `stderr_line` → user shell。形式: `"{{plugin}} {{installed}} -> {{latest}} (run: xl-skills update)"`。差分時のみ 1 行、silent モードは無出力。
+- 出力: `stdout_line` → 会話末尾付記。形式: `"(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"` (references/output-format.md 正本)。差分時のみ 1 行、silent モードは無出力。
 
 ### 5.8 依存関係
 - 前提: なし (hook として呼ばれる末尾実行)
@@ -114,4 +114,4 @@
 
 ## 出力指示
 
-Layer 5 ゴール+完了チェックリストを唯一の停止条件とし、5.5 ループで動的に手順生成・実行・自己評価する。出力は stderr 1 行 (差分時) または無出力 (それ以外)。前置き・後書き禁止。
+Layer 5 ゴール+完了チェックリストを唯一の停止条件とし、5.5 ループで動的に手順生成・実行・自己評価する。出力は stdout 1 行 (差分時・会話末尾付記) または無出力 (それ以外)。前置き・後書き禁止。

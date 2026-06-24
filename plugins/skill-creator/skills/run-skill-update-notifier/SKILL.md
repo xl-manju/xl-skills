@@ -48,8 +48,8 @@ manifest: workflow-manifest.json
 
 | Hook Event | Script | 役割 | exit |
 |---|---|---|---|
-| UserPromptExpansion | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
-| PostToolUse | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
+| UserPromptSubmit (matcher=`.*`) | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
+| PostToolUse (matcher=`Skill`) | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
 
 settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge はしない (人間承認)。
 
@@ -84,7 +84,7 @@ cache 比較が完了し（差分有無を問わず）、`tool_name == "Skill"` 
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップに従う。本スキル固有差分:
 
 - 対象ファイル: `~/.cache/xl-skills/version-snapshot.json`（書込対象はこれのみ）、各 `plugins/*/CHANGELOG.md`（read-only）
 - 固定パス/閾値: cache 鮮度 24h TTL（時刻欠落時は `stale` 扱い）、通知書式 `(installed: ... / latest: ... — /skill-update で更新)`、抑制 `XL_SKILLS_NOTIFY=off`
