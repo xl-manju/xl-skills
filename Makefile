@@ -27,6 +27,9 @@ lint: contract-intake vendored-ssot company-master-vendored
 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-intake/skills
 	# skill-intake の validate-frontmatter は effect enum 違反で FAIL するため
 	# lint-plugin-lint-coverage.py の ALLOWLIST に理由付きで宣言済み (後日是正)
+	python3 scripts/lint-skill-name.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/mf-kessai-invoice-check/skills
 	python3 scripts/lint-plugin-lint-coverage.py
 
 ## vendored-ssot: skill-intake 同梱 SSOT (notion_config.py) が skill-creator 正本と byte 一致か検証
