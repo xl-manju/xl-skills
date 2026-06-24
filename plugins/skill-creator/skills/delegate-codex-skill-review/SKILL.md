@@ -94,13 +94,16 @@ codex CLI を標準フローの必須依存にしないまま、任意実行用�
   ```
   exit 2 が返ったら BLOCK。標準フローではなく任意拡張であることを案内して停止。
 - **target 検証**: `target_skill_path` が存在し SKILL.md であることを確認。
-- **任意実行コマンドの提示**:
+- **任意実行コマンドの提示** (正本 `references/codex-connection.md`):
 
   ```bash
-  codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
-    > eval-log/delegate-codex-review.json
+  codex --prompt "$(cat plugins/skill-creator/skills/delegate-codex-skill-review/prompts/R2-codex-review.md)" \
+        --context-file eval-log/delegate-codex-request.json \
+        --output-format text \
+        --approval-mode yolo \
+        > eval-log/delegate-codex-response.json
   ```
-  このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
+  codex に subcommand は無く `--prompt` 直接指定。rubric (`ref-skill-design-rubric/references/rubric.json` の critical axis) は R2 プロンプト本文へ焼き込み、別フラグでは渡さない。このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
 - **結果提示**: 書き出した JSON のサマリをユーザーに返す。修正判断は委ねる。
 
 ## Gotchas

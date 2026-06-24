@@ -48,8 +48,8 @@ manifest: workflow-manifest.json
 
 | Hook Event | Script | 役割 | exit |
 |---|---|---|---|
-| UserPromptExpansion | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
-| PostToolUse | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
+| UserPromptSubmit (matcher=`.*`) | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
+| PostToolUse (matcher=`Skill`) | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
 
 settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge はしない (人間承認)。
 

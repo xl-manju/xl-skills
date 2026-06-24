@@ -34,6 +34,8 @@ capabilities:
     name: hook-guard-secret
     path: hooks/hook-guard-secret.py
     role: secret-guard
+  # scripts capability は公開エントリポイント(wrapper)と独立起動 server のみ宣言する。
+  # 内部実装 script (resolve/enrich/notion_upsert/postal_api/validate 等) の物理依存 DAG の正本は各 SKILL.md の script_refs。
   - kind: script
     name: company_master
     path: scripts/company_master.py
@@ -58,12 +60,12 @@ dependencies:
     - service: gbizinfo-api-token.xl-skills
       account: xl-skills
       storage: macOS Keychain
-    - service: japanpost-da-api
+    - service: japanpost-da-api.xl-skills
       account: client_id / secret_key (+ 任意 egress_ip / proxy_url / proxy_token)
       storage: "macOS Keychain (BYO setup: references/japanpost-api-setup.md / 中央プロキシ setup: references/postal-proxy-deploy.md)"
-      note: "egress_ip は送信元IP固定時のみ(既定は自動検出)。proxy_url/proxy_token は多拠点配布(中央プロキシ既定)時にクライアントが設定し、鍵と固定IPはプロキシ側へ集約する。"
+      note: "egress_ip は送信元IP固定時のみ(既定は自動検出)。既定は BYO 直結(各自の client_id/secret_key + 送信元IP)。proxy_url/proxy_token は送信元IPを固定できない/拠点数>10 の例外時のみクライアントが設定し中央プロキシ経由とする(鍵と固定IPはプロキシ側へ集約)。"
 distribution:
   python_dependencies:
     policy: "標準ライブラリ優先。外部ライブラリが必要な場合は plugin-root/vendor/ に同梱し、ユーザー手動 pip install を前提にしない。"
     status: "現状は外部依存ゼロ = pip install 不要を達成済み。vendor/ は将来用の空の受け皿で、空が正常。"
-    enforcement: "scripts/lint-company-master-vendored-deps.py が空 vendor の正当性 (未同梱の外部 import ゼロ) を機械強制する。"
+    enforcement: "repo-level CI の scripts/lint-company-master-vendored-deps.py が空 vendor の正当性 (未同梱の外部 import ゼロ) を機械強制する。単独 install 実行時は同梱済み標準ライブラリ実装のみで動くことを vendor/README.md に明記する。"

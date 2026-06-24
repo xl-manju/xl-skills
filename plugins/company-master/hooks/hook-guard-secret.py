@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: hook-guard-secret
-# purpose: company-master の Notion token / gBizINFO APIトークン / 日本郵政DA API機密の平文流出・削除を PreToolUse でブロックする二段防御の動的層。
+# purpose: company-master の Notion token / gBizINFO APIトークン / 日本郵便DA API機密の平文流出・削除を PreToolUse でブロックする二段防御の動的層。
 # inputs:
 #   - stdin: PreToolUse hook JSON ({tool_name, tool_input.command})
 # outputs:
@@ -17,7 +17,7 @@
 SKILL.md セキュリティ節の二段防御のうち「文脈依存の危険検査」を担う実体。
 静的層は settings.json の permissions.deny。
 
-ガード対象 (GUARD_ACCOUNTS: Notion / gBizINFO / 日本郵政DA API の Keychain
+ガード対象 (GUARD_ACCOUNTS: Notion / gBizINFO / 日本郵便DA API の Keychain
 account/service 文字列) を含む Bash コマンドに対し以下をブロックする:
   - `-w` / `--print-unsafe`   : トークンの平文標準出力(流出)
   - `-g`                      : Keychain 属性と秘密値を stderr へ表示し得る操作
@@ -35,7 +35,7 @@ import sys
 GUARD_ACCOUNTS = [
     "notion-api-key.xl-skills",       # Notion API token (共有 Keychain service)
     "gbizinfo-api-token.xl-skills",   # gBizINFO API token
-    "japanpost-da-api",               # 日本郵政 DA API (service 名: secret_key / proxy_token / client_id を内包)
+    "japanpost-da-api.xl-skills",               # 日本郵便 DA API (service 名: secret_key / proxy_token / client_id を内包)
 ]
 BLOCK_PATTERNS = ["--print-unsafe", "delete-generic-password"]
 # `-w` / `-g` はトークン平文出力につながる。account/service 文字列と同時出現時のみブロック。
@@ -62,7 +62,7 @@ def main():
         if pat in cmd:
             sys.stderr.write(
                 f"[hook-guard-secret] BLOCKED: '{pat}' は company-master の機密"
-                "(Notion token / gBizINFO トークン / 日本郵政DA API機密)に対して禁止です(平文流出/誤削除防止)。"
+                "(Notion token / gBizINFO トークン / 日本郵便DA API機密)に対して禁止です(平文流出/誤削除防止)。"
                 "鍵は Keychain のみで扱い、生値を端末に出さないでください。\n"
             )
             return 2

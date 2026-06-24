@@ -40,8 +40,8 @@
       "id": "pkg-009",
       "step": 3,
       "phase_gate": 0,
-      "command": "../../scripts/lint-external-refs.py",
-      "args": ["--plugin", "${plugin}"],
+      "command": "../../../skill-governance-lint/scripts/lint-external-refs.py",
+      "args": ["--skills-dir", "plugins/${plugin}/skills", "--fail-on-external", "--json"],
       "output": "eval-log/${plugin}/pkg-009/${date}-${run}.json",
       "failure_action": "record_and_continue"
     },
@@ -99,8 +99,8 @@
       "id": "pkg-015",
       "step": 8,
       "phase_gate": 2,
-      "command": "../../scripts/lint-rubric-violation.py",
-      "args": ["--plugin", "${plugin}"],
+      "command": "../../../skill-governance-lint/scripts/lint-rubric-violation.py",
+      "args": ["--log-dir", "eval-log/${plugin}", "--out", "eval-log/${plugin}/pkg-015/${date}-${run}.json"],
       "output": "eval-log/${plugin}/pkg-015/${date}-${run}.json",
       "failure_action": "record_and_continue"
     },

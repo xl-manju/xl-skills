@@ -1,0 +1,33 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "wrap-git-commit-safe",
+    "skill_md_sha256": "99cedfe7472a5ad67c1b18429fa5e96a842a4645c1484fe76ff82dd83d8a1dcf"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:28:56Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "frontmatterがwrap-*の最小実例として模範的: name規約(FM-001)・trigger 2個(FM-003)・内部詳細なしdescription(FM-004)・## Purpose & Output Contract厳格一致(BD-001)・## Gotchas(BD-002)・本文66行<=300(BD-003)を全て満たし、base/effect/hierarchy_level/schema_refs/script_refsの宣言が二層分離原則(機構=script, 内容判断=AI)に整合している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "rubric-id=skill-design v1.3.0 の kind=skill 適用 rule を機械照合。FM-001(name=wrap-git-commit-safe が ^(run|ref|assign|wrap|delegate)-...$ 合致, len20<=60) PASS / FM-002(description trigger『〜とき』含み『。』終端) PASS / FM-003(trigger『実行したいとき』『防ぎたいとき』=2個, hard rule 2-3内) PASS / FM-004(採点する/JSONで返す/sha256/exit code 等の内部動作詳細なし) PASS / FM-005(『実行したい』『防ぎたい』する系動詞句で開始) PASS / BD-001(## Purpose & Output Contract L35 厳格一致) PASS / BD-002(## Gotchas L87) PASS / BD-003(本文65-66行<=300) PASS / BD-004(trigger①commit安全実行→Key Rules/ゴールシーク/base commit, trigger②機密/hook無視防止→Key Rule 2-3+局面カタログsecret scan/bypass検出 に1:1対応) PASS / NM-001(dir basename==name) PASS / NM-002(name規約合致) PASS / NM-003(scripts/templates/schemas配下命名規約準拠) PASS / PD-001(本文<=100 OR references存在 → 65行で充足) PASS / PD-002(冒頭30行内に## Purpose & Output Contract + 禁則『禁止』L47/49, BD-001包含でPASS) PASS / RG-001(producer側責務, 本体阻却なし) PASS。knowledge/不在のため KL-001..005 は存在ゲートにより PASS(skip)。FAIL なし、高severity未解決なし。smell=1(low): templates/commit-template.md:27 TODO(human) が AI確定可能な scope を人間委譲し方針逸脱だが、rubric に TODO 禁止 rule は存在せず(grep TODO rubric.json → No matches)明示 rule 違反ではないため減点せず low smell として計上。全 rule PASS で threshold 80 を満たし PASS。"
+}

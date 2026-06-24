@@ -2,6 +2,7 @@
 """Skill update notifier: changelog/version cache check.
 
 非破壊原則: plugin manifest / marketplace.json / bundles.json は読み取りのみ。
+出力チャネル: 通知本体は stdout 1 行 (会話末尾付記)。診断ログのみ stderr。
 graceful degradation: 例外は握りつぶし stderr に短文を出すのみ。exit は常に 0。
 """
 from __future__ import annotations
@@ -104,16 +105,30 @@ def cmd_refresh(args) -> int:
     return 0
 
 
+def _vprefix(version: str) -> str:
+    """先頭 `v` を正規化 (既に付いていれば二重化しない)。"""
+    v = version.strip()
+    return v if v.lower().startswith("v") else f"v{v}"
+
+
 def _format_line(installed: str | None, latest: str | None) -> str:
-    # TODO(human): R2 notification-formatting
-    # 仕様:
-    #   - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
-    #   - それ以外 (片方欠落 / 一致) は空文字列を返す
-    #   - フォーマット規約は references/output-format.md 参照:
-    #     "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
-    #   - 先頭の `v` 接頭辞が installed/latest どちらかに既に付いている場合は二重 v 化しない
-    #   - locale 切替や ANSI カラーは出さない (純テキスト)
-    raise NotImplementedError("R2 notification-formatting is TODO(human)")
+    """R2 notification-formatting: 差分時のみ 1 行通知文字列を返す純関数。
+
+    仕様 (references/output-format.md 準拠):
+      - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
+      - それ以外 (片方欠落 / 一致) は空文字列を返す
+      - 書式: "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
+      - `v` 接頭辞が既に付いている場合は二重 v 化しない
+      - locale 切替や ANSI カラーは出さない (純テキスト・日本語固定)
+    """
+    if not installed or not latest:
+        return ""
+    if installed.strip() == latest.strip():
+        return ""
+    return (
+        f"(installed: {_vprefix(installed)} / "
+        f"latest: {_vprefix(latest)} — /skill-update で更新)"
+    )
 
 
 def cmd_notify(args) -> int:
@@ -127,13 +142,12 @@ def cmd_notify(args) -> int:
         return 0
     try:
         line = _format_line(entry.get("installed"), entry.get("latest"))
-    except NotImplementedError:
-        # R2 未実装時は no-op (Skill 全体を壊さない)
-        return 0
     except Exception as exc:
+        # R3 graceful-degradation: 整形失敗時も Skill 全体を壊さない
         print(f"[notifier] format skipped: {exc}", file=sys.stderr)
         return 0
     if line:
+        # 出力チャネル = stdout (会話末尾付記。PostToolUse hook が拾う)
         print(line)
     return 0
 

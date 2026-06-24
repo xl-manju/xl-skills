@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-elegant-review",
+    "skill_md_sha256": "66252a2ed947ad89b850ebe30c97ce2211b781249e3ed1bba14d88ca91e15e09"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:25:52Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "FM-001〜005 全 PASS: name=run-elegant-review が ^(run|ref|assign|wrap|delegate)- に適合(len<=60)、description は trigger 2個(〜とき×2, FM-003 の 2..3 帯)で句点終端、内部動作詞(採点する/sha256/exit code)を含まず(FM-004)、起動する で終端(FM-005)。lint-skill-name.py=ok。",
+      "BD-001/002/003 全 PASS: '## Purpose & Output Contract' と '## Gotchas' 見出しが実在、本文行数=223(frontmatter 除く)で 300 行上限を大きく下回り Less is More を体現。30 思考法テンプレを thought-methods.yaml へ外部化(D2)し本文は早見表のみに圧縮した progressive disclosure が秀逸。",
+      "NM-001/002/003 PASS: ディレクトリ basename == frontmatter.name、lint-skill-name.py / lint-skill-tree.py が ok(SS-203 warn のみ)。Additional Resources で正本索引を frontmatter *_refs と resource-map.yaml に一本化し SSOT を維持。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "RUBRIC 観点(ref-skill-design-rubric/references/rubric.json v1.3.0, applies_to_kinds=skill 該当 rule)で genuine 採点。検証根拠: FM-001 PASS(name 正規表現適合・27文字)/ FM-002 PASS(〜とき trigger + 。終端)/ FM-003 PASS(trigger 2個=2..3 帯, 実測 count)/ FM-004 PASS(description に内部動作詞なし)/ FM-005 PASS(起動する 終端)/ BD-001 PASS(## Purpose & Output Contract 厳格一致, file line 105)/ BD-002 PASS(## Gotchas, line 274)/ BD-003 PASS(本文 223 行 <=300, awk+python 実測)/ BD-004 PASS(description の2 trigger『設計elegance検証』『量産品質ゲート』が本文 Purpose & Output Contract 節・役割直交表・実行フローに 1:1 対応)/ NM-001 PASS(dir basename=name)/ NM-002 PASS(lint-skill-name.py=ok)/ NM-003 PASS(lint-skill-tree.py=ok)/ PD-001 PASS(references/ に多数ファイル)/ RG-001 該当外(本 verdict は採点出力でなく content-review)。KL-001〜005 は knowledge/ ディレクトリ・frontmatter.knowledge_loop が不在のため存在ゲートで無条件 PASS(skip, 誤減点防止)。agent/hook/command/plugin-composition/prompt/workflow 系 rule は applies_to_kinds 不一致で非対象。smell=1: PD-002(medium, weight 0.6)が厳格には partial-miss。冒頭30行(本文)内に Key Rule(自己承認禁止/force_pass禁止)は存在するが '## Purpose'/'## Output Contract' 見出しは本文36行目にあり30行窓を僅かに超過。ただし(a)これは rubric 自身が文書化する BD-001⊂PD-002 の意図的非対称(BD-001 は heading 存在を別途充足)、(b)Reading Order が明示的にゴールシークを先頭・Purpose を後置する設計判断、(c)compaction lifecycle 対策の核である禁則は冒頭30行に保持済み、のため PD-002 の rationale(目的・出力契約・禁則を冒頭集約)は実質充足。-6 点相当でも threshold 80 を割らず、high-severity の omission ではなく改善示唆(smell)に分類。SS-203(292 行, 280 warn 超だが 300 上限内)は warn であって finding ではない。高severity 未解決ゼロにつき PASS。SKILL.md は無編集。"
+}

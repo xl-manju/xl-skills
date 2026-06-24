@@ -38,6 +38,14 @@ resolve 済みの確定/候補企業に対し、6属性 (会社名・正式名�
   "certainty_by_field": {"郵便番号": "公的データ取得", "電話番号": "ネット検索(要確認)"},
   "overall_certainty": "未確定(要確認)",
   "remarks_text": "電話番号: ネット検索結果のため要確認",
+  "source_by_field": {
+    "company_name": {"origin": "user_input", "url": ""},
+    "official_name": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
+    "address": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
+    "postal_code": {"origin": "japanpost", "url": "https://www.post.japanpost.jp/zipcode/"},
+    "hojin_bango": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
+    "phone_number": {"origin": "web", "url": "https://..."}
+  },
   "source_urls": [{"attribute": "電話番号", "origin": "web", "url": "https://..."}],
   "missing_fields": [],
   "attempts": [
@@ -112,4 +120,4 @@ attempts の `pattern` には使用したパターン名を記録する (例)。
 
 ## Handoff
 
-補完結果 JSON (`fields` / `certainty_by_field` / `overall_certainty` / `remarks_text` / `source_urls` / `missing_fields` / `attempts`) を `company-master-notion-upsert` の入力へ渡す。親セッションには補完結果と要約のみを返し、Web 検索の試行過程はこの fork 内に閉じる (親コンテキスト汚染回避)。
+補完結果 JSON (`fields` / `certainty_by_field` / `overall_certainty` / `remarks_text` / `source_by_field` / `source_urls` / `missing_fields` / `attempts`) を `company-master-notion-upsert` の入力へ渡す (`source_by_field` が per-field 出典の正本入力、`source_urls` はその列順派生)。親セッションには補完結果と要約のみを返し、Web 検索の試行過程はこの fork 内に閉じる (親コンテキスト汚染回避)。

@@ -9,6 +9,7 @@ entrypoint: run-company-master-backfill
 # /company-master-backfill
 
 固定 Notion 企業マスタ DB を既定の対象として、空欄列または `ネット検索(要確認)` / `未確定(要確認)` の行だけを補完対象にする。
+Marketplace から install した場合の呼び出し名は通常 `/company-master:company-master-backfill`。
 
 ## 振る舞い
 

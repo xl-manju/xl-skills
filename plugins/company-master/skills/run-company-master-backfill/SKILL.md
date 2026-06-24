@@ -69,7 +69,7 @@ audit-trigger: quarterly
 - **確度4ラベル固定**: `公的データで確認済み | 公的データ取得 | ネット検索(要確認) | 未確定(要確認)` (英語コード値禁止)。
 - **信頼キー (SSOT)**: upsert 一意キーは gBizINFO 確定 13桁法人番号のみ。未確定行は代替キー (正規化会社名+住所ハッシュ) で**既存行を誤更新せず**扱う。
 - **live スキーマ preflight**: 書き込み前に Notion live スキーマを `../../references/notion-db-schema.json` と照合し、必須8列の欠落・型不一致・select 4オプション不一致・API 不達は**書き込まず fail-closed**。
-- **precondition gate / 認証**: Notion token・gBizINFO トークン未登録は fail-closed (exit 2)。日本郵便鍵 (client_id・secret_key) は直叩き時必須・**プロキシ経由は `proxy_url` 代替**で gate を通過する (`backfill.precondition_gate` が単発 upsert と対称化済)。送信元IPは自動検出で解決するため gate に含めない。token は `notion_config` で解決 (独自実装しない・Keychain のみ・平文出力禁止)。
+- **precondition gate / 認証**: Notion token・gBizINFO トークン未登録は fail-closed (exit 2)。日本郵便鍵 (client_id・secret_key) は郵便番号取得用の任意追加設定であり、未設定時は郵便番号だけ空欄 + 備考へ縮退して他項目の補完を継続する。**プロキシ経由は `proxy_url` 代替**でローカル鍵を不要にする (`backfill.precondition_gate` が単発 upsert と対称化済)。送信元IPは自動検出で解決するため gate に含めない。token は `notion_config` で解決 (独自実装しない・Keychain のみ・平文出力禁止)。
 - **フォールバック多段化 / 確度昇格禁止 / 信頼キー不変条項**: `../../references/data-sources.md` の fallback tier 表に従い、属性×許可段ホワイトリスト内のみ試行する。origin → 確度上限は `validate_company_master` (g) が機械照合する。
 
 ### backfill 固有のルール
@@ -155,7 +155,7 @@ build と同一の `../../scripts/validate_company_master.py <records.json>` が
 
 ## セキュリティと権限
 
-本 Skill は `effect: external-mutation` (Notion 書き込み + 外部 API 照会)。二段防御は build と共有する。静的層 deny ルールは `../../references/settings-hardening.json` (利用者が `.claude/settings.json` へマージ)、動的層は `../../hooks/hook-guard-secret.py` (plugin.json 配線) が 3鍵 (`notion-api-key.xl-skills` / `gbizinfo-api-token.xl-skills` / `japanpost-da-api` (secret_key・proxy_token 等)) の平文出力・誤削除を fail-closed で遮断する。トークンは Keychain のみで扱い生値を端末に出さない。
+本 Skill は `effect: external-mutation` (Notion 書き込み + 外部 API 照会)。二段防御は build と共有する。静的層 deny ルールは `../../references/settings-hardening.json` (利用者が `.claude/settings.json` へマージ)、動的層は `../../hooks/hook-guard-secret.py` (plugin.json 配線) が 3鍵 (`notion-api-key.xl-skills` / `gbizinfo-api-token.xl-skills` / `japanpost-da-api.xl-skills` (secret_key・proxy_token 等)) の平文出力・誤削除を fail-closed で遮断する。トークンは Keychain のみで扱い生値を端末に出さない。
 
 ## open_issues
 

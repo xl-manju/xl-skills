@@ -7,7 +7,7 @@
 ```json
 {
   "hooks": {
-    "UserPromptExpansion": [
+    "UserPromptSubmit": [
       {
         "matcher": ".*",
         "hooks": [
@@ -36,7 +36,7 @@
 
 ## 設計判断
 
-- `UserPromptExpansion` は **ブロッキングしない** (cache 鮮度確認のみ、24h TTL 以内なら即 return)
+- `UserPromptSubmit` は **ブロッキングしない** (cache 鮮度確認のみ、24h TTL 以内なら即 return)
 - `PostToolUse` matcher は `"Skill"` 限定 (Bash/Read/Edit 等の末尾には通知しない)
 - 既存 `hooks.PostToolUse` が他にある場合は配列に追記する (上書き禁止)
 - 抑制したいユーザーは shell rc で `export XL_SKILLS_NOTIFY=off` を設定する

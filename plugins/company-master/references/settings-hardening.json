@@ -1,16 +1,16 @@
 {
-  "_doc": "company-master 二段防御の静的層。本ファイルを repo の .claude/settings.json (または settings.local.json) の permissions.deny へマージすると、Notion API token (notion-api-key.xl-skills) と gBizINFO API token (gbizinfo-api-token.xl-skills、どちらも account=xl-skills)、および日本郵政 DA API 機密 (service=japanpost-da-api、account=secret_key/proxy_token/client_id) の 3 鍵の平文流出・誤削除に対する deny が効く。japanpost-da-api の deny は service 名で照合し account を問わず全 account をカバーする。plugin は repo の settings.json を直接配布・上書きできないため、利用者が手動マージする (マージ手順は同階層 references/README-setup.md 参照)。動的層 hooks/hook-guard-secret.py(PreToolUse) の GUARD_ACCOUNTS および -w/-g 検査と対称。--print-unsafe ルールは account 非依存で全機密(security CLI 経由の平文出力)をブロックする。マージ方法: 既存 .claude/settings.json の permissions.deny 配列へ下記 10 エントリを追記 (重複は除く)。settings.json が無ければ {\"permissions\":{\"deny\":[...]}} を新規作成する。",
+  "_doc": "company-master 二段防御の静的層。本ファイルを repo の .claude/settings.json (または settings.local.json) の permissions.deny へマージすると、Notion API token (notion-api-key.xl-skills) と gBizINFO API token (gbizinfo-api-token.xl-skills、どちらも account=xl-skills)、および日本郵便 DA API 機密 (service=japanpost-da-api.xl-skills、account=secret_key/proxy_token/client_id) の 3 鍵の平文流出・誤削除に対する deny が効く。japanpost-da-api.xl-skills の deny は service 名で照合し account を問わず全 account をカバーする。plugin は repo の settings.json を直接配布・上書きできないため、利用者が手動マージする (マージ手順は同階層 references/README-setup.md 参照)。動的層 hooks/hook-guard-secret.py(PreToolUse) の GUARD_ACCOUNTS および -w/-g 検査と対称。--print-unsafe ルールは account 非依存で全機密(security CLI 経由の平文出力)をブロックする。マージ方法: 既存 .claude/settings.json の permissions.deny 配列へ下記 10 エントリを追記 (重複は除く)。settings.json が無ければ {\"permissions\":{\"deny\":[...]}} を新規作成する。",
   "permissions": {
     "deny": [
       "Bash(*find-generic-password*notion-api-key.xl-skills*-w*)",
       "Bash(*find-generic-password*gbizinfo-api-token.xl-skills*-w*)",
-      "Bash(*find-generic-password*japanpost-da-api*-w*)",
+      "Bash(*find-generic-password*japanpost-da-api.xl-skills*-w*)",
       "Bash(*find-generic-password*notion-api-key.xl-skills*-g*)",
       "Bash(*find-generic-password*gbizinfo-api-token.xl-skills*-g*)",
-      "Bash(*find-generic-password*japanpost-da-api*-g*)",
+      "Bash(*find-generic-password*japanpost-da-api.xl-skills*-g*)",
       "Bash(security delete-generic-password*notion-api-key.xl-skills*)",
       "Bash(security delete-generic-password*gbizinfo-api-token.xl-skills*)",
-      "Bash(security delete-generic-password*japanpost-da-api*)",
+      "Bash(security delete-generic-password*japanpost-da-api.xl-skills*)",
       "Bash(*--print-unsafe*)"
     ]
   }

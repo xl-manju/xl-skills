@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "company-master",
+    "skill": "run-company-master-backfill",
+    "skill_md_sha256": "051f5e480b1708099117c11bf1608bde2089c3415c2a5bd91fc0f33f4867ca7a"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:52:29Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "frontmatter が script_refs/reference_refs/responsibility_refs を ../../ の相対パスで明示宣言し、plugin-root 共有 SSOT への依存が機械可読かつ NM-003/lint-skill-tree で検証可能になっている。共有実装スキルの依存宣言の手本。",
+      "## 責務マッピング表が 責務→実装(script/agent)→prompt を1行1責務で対応付けており、CM-003 (command→entrypoint skill 実在) や PR 系の正本参照を追跡しやすい。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none",
+    "next_action_detail": "high severity の未解決欠陥なし。smell=1 (英語 heading literal 不一致) は減点しても threshold 80 を割らないため improve 不要。"
+  },
+  "notes": "現在 SHA 051f5e48... で genuine 再採点。stale-sha の原因は SKILL.md の『japanpost-da-api』→『japanpost-da-api.xl-skills』表記統一のユーザー編集で、rubric 観点の劣化はない (本 review で SKILL.md は一切編集していない)。rubric_id=skill-design v1.3.0 (threshold 80, max_skill_md_lines 300) で applies_to_kinds=skill のルールを採点。FM-001: name=run-company-master-backfill は ^(run|ref|assign|wrap|delegate)- に合致・len<=60 → PASS。FM-002/003: description が『〜したいとき』trigger を2個含む (2..3 範囲内) かつ 。終端 → PASS。FM-004: description に sha256/exit code 等の内部動作詳細なし → PASS。FM-005: 動詞句 (補完したいとき/底上げ再取得したいとき) で開始 → PASS。NM-001: ディレクトリ basename=run-company-master-backfill が frontmatter.name と一致 → PASS。NM-002/003: 命名規約・tree 規約準拠 (resource-map.yaml は references/ 配下) → PASS。BD-003: 本文118行 (frontmatter 44行除外, 300以下) → PASS。PD-001: 本文>100行だが references/resource-map.yaml 実在 → PASS。PD-002: 冒頭30行内 (body 6行目) に '## 目的と出力契約' + 禁則 (上書きしない/fail-closed/二重定義しない) → PASS。BD-004: description の2 trigger (空欄列補完・要確認行底上げ) が完了チェックリストの対応手順に 1:1 で現れる → PASS。RG-001: rubric_hash は採点 JSON 側で付与される運用のため本 verdict 対象外 (low)。KL-001..005: knowledge/ 不在 かつ frontmatter.knowledge_loop なし → 存在ゲートで全 PASS(skip)。AG/HK/CM/PC/PR/WF-*: applies_to_kinds≠skill のため対象外。Keychain 表記: SKILL.md L158 の3鍵列挙『notion-api-key.xl-skills / gbizinfo-api-token.xl-skills / japanpost-da-api.xl-skills』が共有 scripts/hooks/settings-hardening.json と綴り一致し frontmatter の owner/effect 宣言とも整合。smell=1: BD-001 (## Purpose & Output Contract 厳格一致) / BD-002 (## Gotchas) は英語 heading の literal 一致を要求するが本 skill は日本語見出しのため文字列一致せず。ただし PD-002 が許容する日本語契約節+禁則は満たし、プラグイン全体が日本語著述の規範に整合するため low severity (medium 以下、減点しても threshold 80 を割らない)。high severity の未解決欠陥なし → PASS。"
+}

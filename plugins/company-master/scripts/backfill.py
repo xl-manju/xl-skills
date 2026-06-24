@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: backfill
-# purpose: 企業マスタDBの空欄列・要確認行のみを対象に必要APIだけ起動し情報の確かさ付きで書き戻す(precondition gate fail-closed + JSONL退避リプレイ)。
+# purpose: 企業マスタDBの空欄列・要確認行のみを対象に必要APIだけ起動し情報の確かさ付きで書き戻す(gBizINFO/Notion precondition gate + JSONL退避リプレイ)。
 # inputs:
 #   - argv: --dry-run (副作用抑止) / --web-findings <json> (page_id キーの属性別候補マップ。2パス運用の再投入口)
 #   - config: notion_config.get_db_id("company-master") 経由 (解決順 env COMPANY_MASTER_NOTION_DATABASE_ID -> .notion-config.json -> notion-config.fixed.json)
@@ -25,7 +25,8 @@ deferred + replay 退避へ回す (単発 upsert と対称の検証ゲート)。
 冪等同期し、再失敗時は『備考』を定型文言で更新する。
 
 precondition gate (fail-closed): Notion token / gBizINFO トークン未登録は exit 2 で停止
-(silent-skip 禁止)。外部依存障害時は取れた項目だけ書き、取れない項目は要確認とし、
+(silent-skip 禁止)。日本郵便鍵は郵便番号取得用の任意追加設定として扱い、未設定時は郵便番号だけ
+空欄 + 備考へ縮退する。外部依存障害時は取れた項目だけ書き、取れない項目は要確認とし、
 中間結果を JSONL 退避して次回リプレイ可能にする (縮退設計)。
 
 2 パス運用 (fallback tier3 = Web 検索の受け口): backfill 自体は Web 検索しない (責務分離)。
@@ -71,11 +72,11 @@ HOJIN_BANGO_RE = re.compile(r"^\d{13}$")
 
 
 def precondition_gate() -> tuple[dict, str]:
-    """Notion + gBizINFO + 日本郵便鍵を fail-closed で検査する (build _preflight_gate と対称)。
+    """Notion + gBizINFO を fail-closed で検査する (build _preflight_gate と対称)。
 
-    backfill は『住所→日本郵便 API で郵便番号補完』を主機能に持つため、build wrapper と同様に
-    日本郵便鍵不在を事前検知する (silent な空欄縮退の禁止)。中央プロキシ経由 (proxy_url 設定時) は
-    鍵がプロキシ側にあるためローカル必須にしない (company_master._preflight_gate と同じ思想)。
+    日本郵便鍵は郵便番号だけの供給段なので、未設定でも backfill 自体は継続する。該当列は
+    `enrich_company` / `postal_api` の通常縮退により空欄 + 備考へ落とす。中央プロキシ経由
+    (proxy_url 設定時) は鍵がプロキシ側にあるためローカル鍵を見ない。
     """
     cfg, token = notion_config.require_or_skip("company-master")  # Notion 不在は exit 2
     gtoken = notion_config.get_gbizinfo_token(cfg)
@@ -85,14 +86,12 @@ def precondition_gate() -> tuple[dict, str]:
             "'gbizinfo-api-token.xl-skills')。precondition gate fail-closed。\n"
         )
         sys.exit(2)
-    # 中央プロキシ経由なら日本郵便鍵はプロキシ側にあるためローカル必須にしない (build と対称)。
     if not notion_config.get_postal_proxy_url() and not notion_config.has_japanpost_credentials():
         sys.stderr.write(
-            "[backfill] FATAL: 日本郵便 client_id/secret_key 不在 (Keychain "
-            "japanpost-da-api。プロキシ経由なら proxy_url 設定で代替)。"
-            "precondition gate fail-closed。\n"
+            "[backfill] WARN: 日本郵便 client_id/secret_key 未設定のため、"
+            "郵便番号は空欄 + 備考に縮退します "
+            "(設定手順: references/japanpost-api-setup.md)。\n"
         )
-        sys.exit(2)
     return cfg, token
 
 

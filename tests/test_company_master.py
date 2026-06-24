@@ -1249,6 +1249,7 @@ def _patch_postal_cache_offline(monkeypatch, tmp_path):
     monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
     monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: True)
     monkeypatch.setattr(company_master.notion_config, "get_japanpost_egress_ip", lambda *a, **k: "203.0.113.10")
+    monkeypatch.setattr(company_master.notion_config, "get_japanpost_base_url", lambda *a, **k: None)
     monkeypatch.setattr(postal_api, "detect_egress_ip", lambda *a, **k: "203.0.113.10")
 
 
@@ -1389,18 +1390,18 @@ def test_hook_guard_allows_unrelated_and_safe_commands():
 
 
 def test_hook_guard_blocks_japanpost_secret_and_proxy_token_w_flag():
-    """japanpost-da-api の secret_key / proxy_token の平文出力 (-w) は block (exit 2)。"""
+    """japanpost-da-api.xl-skills の secret_key / proxy_token の平文出力 (-w) は block (exit 2)。"""
     for account in ("secret_key", "proxy_token"):
         res = _run_hook(_hook_payload(
-            f"security find-generic-password -s japanpost-da-api -a {account} -w"
+            f"security find-generic-password -s japanpost-da-api.xl-skills -a {account} -w"
         ))
         assert res.returncode == 2, f"japanpost {account} -w がバイパスされた\n{res.stderr}"
 
 
 def test_hook_guard_allows_japanpost_add_generic_password():
-    """japanpost-da-api への add-generic-password (登録) はセットアップ用途で許容 (exit 0)。"""
+    """japanpost-da-api.xl-skills への add-generic-password (登録) はセットアップ用途で許容 (exit 0)。"""
     res = _run_hook(_hook_payload(
-        "security add-generic-password -s japanpost-da-api -a secret_key -w 'SECRETVALUE'"
+        "security add-generic-password -s japanpost-da-api.xl-skills -a secret_key -w 'SECRETVALUE'"
     ))
     assert res.returncode == 0, f"鍵登録が誤遮断された\n{res.stderr}"
 
@@ -1501,7 +1502,7 @@ def test_validate_certainty_cap_and_origin_whitelist():
     promoted["certainty_by_field"]["phone_number"] = "公的データで確認済み"
     errs = vcm.validate_row(promoted, 0, remark_phrases)
     assert any("確度昇格禁止" in e for e in errs), errs
-    # 許可段外 (postal_code を Web 取得) → FAIL (郵便番号は KEN_ALL+jigyosyo のみ)。
+    # 許可段外 (postal_code を Web 取得) → FAIL (郵便番号は日本郵便 addresszip API のみ)。
     web_postal = _canonical_record()
     web_postal["source_by_field"]["postal_code"] = {
         "origin": "web", "url": "https://example.co.jp/zip"}
@@ -1602,12 +1603,12 @@ def _stub_backfill_gate_deps(monkeypatch, *, proxy_url, has_creds):
     monkeypatch.setattr(backfill.notion_config, "has_japanpost_credentials", lambda: has_creds)
 
 
-def test_backfill_precondition_gate_fail_closed_without_proxy_or_credentials(monkeypatch):
-    """precondition_gate: proxy_url 無 かつ 日本郵便鍵 無 → exit 2 で fail-closed。"""
+def test_backfill_precondition_gate_allows_missing_japanpost_credentials(monkeypatch, capsys):
+    """precondition_gate: proxy_url 無 かつ 日本郵便鍵 無でも通過し、郵便番号だけ縮退させる。"""
     _stub_backfill_gate_deps(monkeypatch, proxy_url=None, has_creds=False)
-    with pytest.raises(SystemExit) as exc:
-        backfill.precondition_gate()
-    assert exc.value.code == 2
+    cfg, token = backfill.precondition_gate()
+    assert token == "tok"
+    assert "WARN: 日本郵便" in capsys.readouterr().err
 
 
 def test_backfill_precondition_gate_passes_with_credentials(monkeypatch):
@@ -1679,6 +1680,7 @@ def test_doctor_japanpost_warns_when_credentials_missing(monkeypatch):
     monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
     monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: False)
     monkeypatch.setattr(company_master.notion_config, "get_japanpost_egress_ip", lambda *a, **k: None)
+    monkeypatch.setattr(company_master.notion_config, "get_japanpost_base_url", lambda *a, **k: None)
     monkeypatch.setattr(postal_api, "detect_egress_ip", lambda *a, **k: None)
     items = company_master._doctor_check_japanpost(probe=False)
     statuses = [it["status"] for it in items]
@@ -1688,18 +1690,39 @@ def test_doctor_japanpost_warns_when_credentials_missing(monkeypatch):
 
 
 def test_doctor_japanpost_ok_when_credentials_present(monkeypatch):
-    """鍵設定済み + 送信元IP解決可 (env or 自動検出) + probe 無し → OK 2件 + 実疎通は SKIP。"""
+    """鍵設定済み + 送信元IP解決可 (env or 自動検出) + 本番接続 + probe 無し →
+    OK 4件 (モード/接続先/Keychain/送信元IP) + 実疎通は SKIP。"""
     monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
     monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: True)
     monkeypatch.setattr(company_master.notion_config, "get_japanpost_egress_ip", lambda *a, **k: None)
+    monkeypatch.setattr(company_master.notion_config, "get_japanpost_base_url", lambda *a, **k: None)
     monkeypatch.setattr(postal_api, "detect_egress_ip", lambda *a, **k: "203.0.113.10")
     items = company_master._doctor_check_japanpost(probe=False)
     statuses = [it["status"] for it in items]
-    assert statuses.count("OK") == 2
+    assert statuses.count("OK") == 4
+    # proxy_url 未設定なので「郵便番号取得モード: BYO 直結」をプロキシ分岐と対称に明示する。
+    assert any(it["label"] == "郵便番号取得モード" and "BYO 直結" in it["detail"] for it in items)
+    # base_url 上書き無し → 接続先は本番ホストを明示する。
+    assert any(it["label"] == "接続先" and "api.da.pf.japanpost.jp" in it["detail"] for it in items)
     # 送信元IP 行は「登録してください」案内に検出IPを載せる (BYO ガイド)。
     assert any(it["label"] == "送信元IP" and "203.0.113.10" in it["detail"] for it in items)
     assert any(it["status"] == "SKIP" and "実疎通" in it["label"] for it in items)
     assert "FAIL" not in statuses and "WARN" not in statuses
+
+
+def test_doctor_japanpost_warns_on_stub_base_url(monkeypatch):
+    """base_url が stub/テストホストを指す → 接続先 WARN (本番移行を促す。誤って本番扱いしない)。"""
+    monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
+    monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: True)
+    monkeypatch.setattr(company_master.notion_config, "get_japanpost_egress_ip", lambda *a, **k: "203.0.113.10")
+    monkeypatch.setattr(
+        company_master.notion_config, "get_japanpost_base_url",
+        lambda *a, **k: "https://stub-qz73x.da.pf.japanpost.jp")
+    monkeypatch.setattr(postal_api, "detect_egress_ip", lambda *a, **k: "203.0.113.10")
+    items = company_master._doctor_check_japanpost(probe=False)
+    conn = next((it for it in items if it["label"] == "接続先"), None)
+    assert conn is not None and conn["status"] == "WARN"
+    assert "stub-qz73x" in conn["detail"] and "api.da.pf.japanpost.jp" in (conn["next_action"] or "")
 
 
 def test_doctor_japanpost_warns_on_egress_drift(monkeypatch):
@@ -1707,6 +1730,7 @@ def test_doctor_japanpost_warns_on_egress_drift(monkeypatch):
     monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
     monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: True)
     monkeypatch.setattr(company_master.notion_config, "get_japanpost_egress_ip", lambda *a, **k: "198.51.100.1")
+    monkeypatch.setattr(company_master.notion_config, "get_japanpost_base_url", lambda *a, **k: None)
     monkeypatch.setattr(postal_api, "detect_egress_ip", lambda *a, **k: "203.0.113.10")
     items = company_master._doctor_check_japanpost(probe=False)
     drift = next((it for it in items if it["label"] == "送信元IP"), None)
@@ -1766,24 +1790,24 @@ def test_japanpost_probe_stub_switches_search_term(monkeypatch):
 
 # --- preflight gate (バックグラウンド実行前の fail-fast) 回帰 --------------------
 
-def test_preflight_gate_fails_fast_on_missing_credentials(monkeypatch):
-    """gBizINFO/日本郵便鍵/送信元IP のいずれか不在 → exit 2 で fail-fast (silent 縮退でなく即時通知)。"""
+def test_preflight_gate_fails_fast_on_missing_gbizinfo(monkeypatch):
+    """gBizINFO 不在 → exit 2 で fail-fast。日本郵便は郵便番号だけの縮退対象。"""
     monkeypatch.setattr(company_master.notion_config, "load_config", lambda *a, **k: None)
     monkeypatch.setattr(company_master.notion_config, "get_gbizinfo_token", lambda cfg=None: None)
     monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: False)
-    monkeypatch.setattr(company_master.notion_config, "has_egress_ip", lambda: False)
     with pytest.raises(SystemExit) as exc:
         company_master._preflight_gate(require_upsert=False)
     assert exc.value.code == 2
 
 
-def test_preflight_gate_passes_when_all_present(monkeypatch):
-    """gBizINFO + 日本郵便鍵 + 送信元IP が揃えば通過する (require_upsert=False は Notion 不問)。"""
+def test_preflight_gate_allows_missing_japanpost_credentials(monkeypatch, capsys):
+    """gBizINFO があれば、日本郵便鍵が未設定でも通過し郵便番号だけ縮退させる。"""
     monkeypatch.setattr(company_master.notion_config, "load_config", lambda *a, **k: {})
     monkeypatch.setattr(company_master.notion_config, "get_gbizinfo_token", lambda cfg=None: "g")
-    monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: True)
-    monkeypatch.setattr(company_master.notion_config, "has_egress_ip", lambda: True)
+    monkeypatch.setattr(company_master.notion_config, "get_postal_proxy_url", lambda: None)
+    monkeypatch.setattr(company_master.notion_config, "has_japanpost_credentials", lambda: False)
     company_master._preflight_gate(require_upsert=False)  # SystemExit を投げないこと
+    assert "WARN: 日本郵便" in capsys.readouterr().err
 
 
 def test_preflight_gate_requires_notion_for_upsert(monkeypatch):

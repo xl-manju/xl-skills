@@ -26,8 +26,8 @@ delegate_skills:
   pkg_014: assign-plugin-package-evaluator
 
 external_scripts:
-  pkg_009: ../../scripts/lint-external-refs.py
-  pkg_015: ../../scripts/lint-rubric-violation.py
+  pkg_009: ../../../skill-governance-lint/scripts/lint-external-refs.py
+  pkg_015: ../../../skill-governance-lint/scripts/lint-rubric-violation.py
 
 reference_skills:
   - ref-pkg-contract

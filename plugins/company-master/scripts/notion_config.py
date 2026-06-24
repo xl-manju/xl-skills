@@ -5,7 +5,7 @@
 # inputs:
 #   - env: NOTION_CONFIG_PATH / NOTION_TOKEN(INTAKE_ALLOW_ENV_TOKEN=1 時) / *_DB_ID / COMPANY_MASTER_EGRESS_IP
 #   - files: .notion-config.json / notion-config.fixed.json
-#   - keychain: notion-api-key.xl-skills / gbizinfo-api-token.xl-skills / japanpost-da-api
+#   - keychain: notion-api-key.xl-skills / gbizinfo-api-token.xl-skills / japanpost-da-api.xl-skills
 # outputs:
 #   - stdout: loaded config(__main__ 実行時)
 #   - api: get_db_id / get_token / get_parent_page_id / get_japanpost_credentials / get_japanpost_egress_ip
@@ -240,7 +240,7 @@ def get_gbizinfo_token(cfg: Optional[dict] = None) -> Optional[str]:
 
 
 # ── 日本郵便 addresszip API 認証 (postal_api の SSOT) ─────────────────────────
-JAPANPOST_KEYCHAIN_SERVICE = "japanpost-da-api"
+JAPANPOST_KEYCHAIN_SERVICE = "japanpost-da-api.xl-skills"
 JAPANPOST_CLIENT_ID_ACCOUNT = "client_id"
 JAPANPOST_SECRET_KEY_ACCOUNT = "secret_key"
 JAPANPOST_EGRESS_IP_ACCOUNT = "egress_ip"
@@ -268,7 +268,7 @@ def _keychain_password(service: str, account: str) -> Optional[str]:
 def get_japanpost_credentials() -> tuple[str, str]:
     """日本郵便 addresszip API の client_id / secret_key を解決する。
 
-    解決順: Keychain service `japanpost-da-api`、account `client_id` / `secret_key` (優先) →
+    解決順: Keychain service `japanpost-da-api.xl-skills`、account `client_id` / `secret_key` (優先) →
     env `COMPANY_MASTER_JAPANPOST_CLIENT_ID` / `COMPANY_MASTER_JAPANPOST_SECRET_KEY` (低優先)。
     Keychain を優先するが、Keychain 不在環境 (Linux/コンテナのプロキシ運用: 中央 postal_proxy が
     固定IPで鍵を保持し addresszip を代行する) 向けに env フォールバックを許容する。
@@ -289,7 +289,7 @@ def has_japanpost_credentials() -> bool:
 def get_japanpost_egress_ip() -> Optional[str]:
     """日本郵便にシステム登録した送信元IP (x-forwarded-for 用) の明示 pin を返す。
 
-    解決順: Keychain `japanpost-da-api`/`egress_ip` (推奨・env ファイル不使用) →
+    解決順: Keychain `japanpost-da-api.xl-skills`/`egress_ip` (推奨・env ファイル不使用) →
     env `COMPANY_MASTER_EGRESS_IP` (CI/後方互換の低優先フォールバック)。
     どちらも無ければ None を返し、呼び出し側 (postal_api.resolve_egress_ip) が自動検出へフォールバックする。
     IP 認証のため、pin する場合は API ゲートウェイに登録済みの IP と一致している必要がある。
@@ -305,7 +305,7 @@ def has_egress_ip() -> bool:
 
 
 def get_postal_proxy_url() -> Optional[str]:
-    """郵便番号取得を中継する中央プロキシの URL。Keychain `japanpost-da-api`/`proxy_url` → env。
+    """郵便番号取得を中継する中央プロキシの URL。Keychain `japanpost-da-api.xl-skills`/`proxy_url` → env。
 
     設定されていれば postal_api はこの URL 経由で検索し、ローカルに日本郵便鍵/送信元IP は不要になる
     (不特定多数・多拠点配布向け: 鍵と IP 登録はプロキシ側=固定IP 1件に集約する)。未設定なら従来の直叩き。
@@ -321,7 +321,7 @@ def get_postal_proxy_token() -> Optional[str]:
 
 
 def get_japanpost_base_url() -> Optional[str]:
-    """日本郵便 API の接続先ホスト上書き (テスト/stub 環境用)。Keychain `japanpost-da-api`/`base_url` → env。
+    """日本郵便 API の接続先ホスト上書き (テスト/stub 環境用)。Keychain `japanpost-da-api.xl-skills`/`base_url` → env。
 
     未設定なら postal_api の本番既定 (https://api.da.pf.japanpost.jp) を使う。テスト用 API は別ホスト
     (例 https://stub-...da.pf.japanpost.jp) かつ東京都千代田区のみのため、配線検証時のみ上書きする。

@@ -7,7 +7,7 @@
 | 取得元 | 取得項目 | 認証 | 既定確度 |
 |---|---|---|---|
 | gBizINFO (経済産業省 法人情報API) | 正式名称 / 所在地 / 13桁法人番号 | リクエストヘッダ `X-hojinInfo-api-token` (Keychain `gbizinfo-api-token.xl-skills`) | 公的データで確認済み |
-| 日本郵便 addresszip API (郵便番号・デジタルアドレスAPI V2) | 郵便番号 (住所→NNN-NNNN 逆引き) | OAuth2 client_credentials (Keychain `japanpost-da-api` の client_id/secret_key) + 送信元IP認証 (`x-forwarded-for`。既定は自動検出、固定時のみ Keychain `egress_ip`)。**多拠点配布は鍵を集約する中央プロキシ (既定・`references/postal-proxy-deploy.md`)、単独/少数拠点は BYO (各自鍵・`references/japanpost-api-setup.md`)**。 | 公的データ取得 |
+| 日本郵便 addresszip API (郵便番号・デジタルアドレスAPI V2) | 郵便番号 (住所→NNN-NNNN 逆引き) | OAuth2 client_credentials (Keychain `japanpost-da-api.xl-skills` の client_id/secret_key) + 送信元IP認証 (`x-forwarded-for`。既定は自動検出、固定時のみ Keychain `egress_ip`)。**既定は BYO 直結 (各自が client_id/secret_key + 送信元IP を持ち直接叩く・`references/japanpost-api-setup.md`)。送信元IPを固定できない/拠点数>10 で IP 件数上限に達する場合のみ例外的に鍵を集約する中央プロキシ (`references/postal-proxy-deploy.md`) を使う**。 | 公的データ取得 |
 | Web検索 | 電話番号 / 住所のみ入力時の会社名候補 | 不要 | ネット検索(要確認) |
 | Notion REST API | 企業マスタ DB への upsert/backfill | Bearer token (`notion_config.get_token`, Keychain `notion-api-key.xl-skills`) | — (出力先) |
 

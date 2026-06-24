@@ -51,12 +51,12 @@ def _resolve(args: argparse.Namespace) -> dict:
 
 
 def _preflight_gate(require_upsert: bool) -> None:
-    """バックグラウンド実行前の fail-fast 検査。必須の鍵/IP が欠ければ exit 2 で停止する。
+    """バックグラウンド実行前の fail-fast 検査。
 
-    郵便番号取得を日本郵便 API に一本化したため、企業同定 (gBizINFO) と郵便番号取得 (japanpost の
-    client_id/secret_key) の鍵を実行前に必須化する。設定不足を silent な空欄縮退で進めず即時通知する
-    (「鍵設定が先に要る」というユーザー要件への対応)。送信元IP は env 未設定でも自動検出で解決するため
-    preflight の hard-gate には含めない (登録IPとのズレは実行時に 401→postal_api_unauthorized 備考で surface)。
+    gBizINFO は企業同定の必須入力なので欠ければ exit 2 で停止する。日本郵便 API は郵便番号だけの
+    供給段なので、client_id/secret_key または proxy_url が無い場合も実行は継続し、郵便番号を空欄
+    + 備考へ縮退させる。送信元IP は env 未設定でも自動検出で解決するため preflight の hard-gate
+    には含めない (登録IPとのズレは実行時に 401→postal_api_unauthorized 備考で surface)。
     require_upsert=True (--upsert / backfill 本実行) 時は Notion トークン + 出力先 DB ID も必須。
     """
     missing: list[str] = []
@@ -66,11 +66,12 @@ def _preflight_gate(require_upsert: bool) -> None:
         cfg = None
     if not notion_config.get_gbizinfo_token(cfg):
         missing.append("gBizINFO トークン (Keychain gbizinfo-api-token.xl-skills) — 企業同定に必須")
-    # 中央プロキシ経由なら日本郵便鍵はプロキシ側にあるためローカル必須にしない。
     if not notion_config.get_postal_proxy_url() and not notion_config.has_japanpost_credentials():
-        missing.append(
-            "日本郵便 client_id/secret_key (Keychain japanpost-da-api) — 郵便番号取得に必須 "
-            "(直叩き時。プロキシ経由なら proxy_url 設定で代替。references/japanpost-api-setup.md)")
+        sys.stderr.write(
+            "[company_master] WARN: 日本郵便 client_id/secret_key 未設定のため、"
+            "郵便番号は空欄 + 備考に縮退します "
+            "(設定手順: references/japanpost-api-setup.md)。\n"
+        )
     if require_upsert:
         if not notion_config.get_token(cfg):
             missing.append("Notion トークン (Keychain notion-api-key.xl-skills) — --upsert 書き込みに必須")
@@ -258,9 +259,9 @@ def _doctor_check_settings_hardening() -> list[dict]:
 
 _JAPANPOST_SETUP_ACTION = (
     "references/japanpost-api-setup.md の手順で client_id/secret_key を Keychain "
-    "(service=japanpost-da-api, account=client_id / secret_key) に登録する。"
+    "(service=japanpost-da-api.xl-skills, account=client_id / secret_key) に登録する。"
     "送信元IPは既定で自動検出。固定が必要な場合のみ Keychain "
-    "(service=japanpost-da-api, account=egress_ip) に pin する (env ファイルは使わない)"
+    "(service=japanpost-da-api.xl-skills, account=egress_ip) に pin する (env ファイルは使わない)"
 )
 
 
@@ -291,9 +292,10 @@ def _japanpost_probe_item(postal_api) -> dict:
                 "WARN", "日本郵便 API 実疎通",
                 f"認証OKだが確定せず ({query}→候補確定せず)",
                 "認証・通信は成功。検索語が API のデータ対象外の可能性 (郵便番号付与には影響なし)")
+        env_note = " ※stub/テスト環境 (本番データではない)" if is_stub else ""
         return _doctor_item(
             "OK", "日本郵便 API 実疎通",
-            f"テスト検索 OK ({query}→{value})")
+            f"テスト検索 OK ({query}→{value}){env_note}")
     except Exception as e:  # noqa: BLE001  probe の予期せぬ失敗も FAIL + 手順案内へ倒す
         return _doctor_item(
             "FAIL", "日本郵便 API 実疎通", f"予期せぬ失敗 ({type(e).__name__}: {e})",
@@ -303,7 +305,7 @@ def _japanpost_probe_item(postal_api) -> dict:
 def _doctor_check_japanpost(probe: bool = False) -> list[dict]:
     """(e) 日本郵便 addresszip API の認証情報診断 (郵便番号逆引きの可用性)。
 
-    client_id/secret_key (Keychain japanpost-da-api) の有無と、送信元IP
+    client_id/secret_key (Keychain japanpost-da-api.xl-skills) の有無と、送信元IP
     (Keychain pin 優先 → env (低優先) → 自動検出) を表示する。
     BYO: 表示された送信元IP を各ユーザが日本郵便 for Biz に登録する必要がある
     (登録要否自体は --probe で確定)。郵便番号は空欄+備考へ縮退するだけなので未設定は WARN 止まり
@@ -324,6 +326,23 @@ def _doctor_check_japanpost(probe: bool = False) -> list[dict]:
             items.append(_doctor_item(
                 "SKIP", "日本郵便 API 実疎通", "--probe 指定時にプロキシ経由で疎通確認"))
         return items
+    # proxy_url 未設定 = BYO 直結 (各メンバーが自分の client_id/secret_key + 送信元IP で日本郵便を
+    # 直接叩く・チーム既定)。プロキシ分岐と対称に「郵便番号取得モード」を明示する。
+    items.append(_doctor_item(
+        "OK", "郵便番号取得モード",
+        "BYO 直結 (自分の client_id/secret_key + 送信元IP で日本郵便 API を直接呼ぶ。チーム既定)"))
+    # 接続先ホスト: base_url 上書きが stub/テスト環境を指していると「stub で通った=本番OK」と誤読されるため、
+    # plain doctor (probe なし) でも本番/stub を明示する。stub の上書きは WARN で本番移行を促す。
+    base_override = notion_config.get_japanpost_base_url()
+    if not base_override or base_override.rstrip("/") == postal_api.BASE_URL.rstrip("/"):
+        items.append(_doctor_item(
+            "OK", "接続先", f"本番 {postal_api.BASE_URL}"))
+    else:
+        items.append(_doctor_item(
+            "WARN", "接続先",
+            f"stub/テスト環境に接続中: {base_override} (本番の実在企業データは引けない)",
+            "本番へ戻す: security add-generic-password -U -s japanpost-da-api.xl-skills -a base_url -w "
+            f"'{postal_api.BASE_URL}' (delete はフックが禁止のため上書きで戻す)"))
     has_creds = notion_config.has_japanpost_credentials()
     if has_creds:
         items.append(_doctor_item(
@@ -337,7 +356,7 @@ def _doctor_check_japanpost(probe: bool = False) -> list[dict]:
     # 送信元IP: Keychain pin 優先 → env (低優先) → 自動検出の「実際に外へ出ていくIP」を提示する。
     # BYO ではこの IP を日本郵便 for Biz に登録する (要否は --probe で確定)。
     _EGRESS_PIN_ACTION = ("固定したい場合のみ Keychain に pin: "
-                          "security add-generic-password -U -s japanpost-da-api -a egress_ip -w '<IP>'")
+                          "security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '<IP>'")
     pinned_ip = notion_config.get_japanpost_egress_ip()  # Keychain pin → env (低優先)
     detected_ip = postal_api.detect_egress_ip()
     eff_ip = pinned_ip or detected_ip

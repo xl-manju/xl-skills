@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "company-master",
+    "skill": "run-company-master-backfill",
+    "skill_md_sha256": "051f5e480b1708099117c11bf1608bde2089c3415c2a5bd91fc0f33f4867ca7a"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:52:29Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "build→backfill のハンドオフを新規ステータス列ではなく『情報の確かさ』列+セル空欄状態という既存 Notion DB 自身を SSOT にして疎結合した設計が再利用価値が高い (contract-generator の台帳ステータス疎結合と同型)。状態の二重管理を生まず、両 skill が新たな結合点を増やさずに連携できる。",
+      "日本郵便の Keychain 機密が『1サービス japanpost-da-api.xl-skills に複数 account (client_id/secret_key/egress_ip/proxy_token/proxy_url) をぶら下げる』方式に統一され、その綴りが SKILL.md(L158 セキュリティ節)・hook-guard-secret.py(GUARD_ACCOUNTS L38)・settings-hardening.json(deny ルール)・notion_config.py(JAPANPOST_KEYCHAIN_SERVICE L243)・keychain-setup.md(変更不可と明記)で完全一致しており、機密 gate の単一 SSOT が綴りレベルで担保されている。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none",
+    "next_action_detail": "high severity の未解決欠陥なし。smell=1 (英語 heading literal 不一致) は日本語著述規範下で意味的に充足され elegant を阻害しないため improve 不要。"
+  },
+  "notes": "現在 SHA 051f5e48... で genuine 再評価。SKILL.md は『japanpost-da-api』→『japanpost-da-api.xl-skills』の Keychain アカウント名表記統一のユーザー編集で stale-sha 化していたが内容劣化はなく PASS を再確認 (本 review で SKILL.md は一切編集していない)。C1(矛盾なし): 『既存非空セル不可侵』『誤値>>空欄の非対称コスト』『確度昇格禁止』が目的と出力契約/境界/主要ルール/設計判断ログ#3 で相互補強され矛盾なし。再取得対象 (空欄列 or 要確認行) の定義が全節 (目的/境界/主要ルール/チェックリスト) で一致。precondition gate の『直叩き時は日本郵便鍵必須・プロキシ経由は proxy_url 代替で gate 通過・送信元IPは自動検出で gate に含めない』が L72 と postal_api.py の解決順 (egress_ip pin→env→自動検出) で整合し矛盾なし。contradiction=0。C2(漏れなし): 完了チェックリスト11項目が preflight fail-closed・補完対象限定・空欄列ごと最小API起動・1パス決定論補完・2パス Web 検索 (needs_web_search/attempts/--web-findings)・fallback ホワイトリスト・validate_enriched PATCH前ゲート・取得不能の備考定型記録・確認用URL の URL非減少マージ・429/5xx 指数バックオフ最大5回+replay再開・--dry-run を MECE に網羅。対象スコープ (既存行の空欄補完) に必要要素の欠落なし。omission=0。C3(整合性): 共有 references を正本とし8列/確度4ラベル/信頼キー/検証を build と二重定義せず参照。本文118行 (300以下)、PD-002 契約節 (## 目的と出力契約) は body 6行目で冒頭30行内、禁止表現 (上書きしない/書き込まず fail-closed/二重定義しない) を含む。inconsistency=0。C4(依存): script_refs 13本・reference_refs 7本・responsibility_refs 1本・agents 3本・command 1本・hook 1本の参照すべてが ../../ 実体で dangling 0 (Bash 全数確認済)。backfill→build ハンドオフは新規状態列を設けず既存DB状態で疎結合するため循環なし。backfill.py の REQUIRE_REVERIFY_CERTAINTIES / precondition_gate (proxy_url 代替で単発と対称) / validate_enriched=validate_row / REPLAY_LOG (eval-log配下で cwd 非依存) / needs_web_search 2パス出力 / --web-findings 再投入 が実在し SKILL.md の主張と一致。dependency_break=0。Keychain アカウント名一貫性: 『japanpost-da-api.xl-skills』が SKILL.md 内1箇所 (L158) で誤綴りなく出現し、共有 scripts/hooks/references の全 12 箇所と byte 一致。smell=1: BD-001/BD-002 の英語 heading (## Purpose & Output Contract / ## Gotchas) は日本語見出し (## 目的と出力契約・境界に反パターン記述あり) で代替され literal 一致しないが、プラグイン全体が日本語著述で意味的契約節と禁則は存在するため low (elegant 阻害なし)。高 severity の未解決欠陥なし → PASS。"
+}

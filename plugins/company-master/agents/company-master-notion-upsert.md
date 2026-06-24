@@ -19,7 +19,7 @@ enrich 済みレコードを固定 Notion 企業マスタ DB へ安全に反映�
 
 - 上流 (`company-master-enrich-attributes`) からの補完結果 JSON: `fields` / `certainty_by_field` / `overall_certainty` / `remarks_text` / `source_urls`
 - 実行スクリプト: `../scripts/notion_upsert.py` (DB ID 解決・キー突合・8列upsert・確認用URL本文同期)、`../scripts/confirm_url.py` (確認用URL本文テンプレート展開)、`../scripts/notion_config.py` (DB ID/token 解決の vendored SSOT)、`../scripts/backfill.py` (空欄列補完経路)
-- 参照: `../references/company-master-columns.md` (8列定義+確認用URL本文)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)、`../references/README-setup.md` (Keychain 2鍵・upsert 挙動)
+- 参照: `../references/company-master-columns.md` (8列定義+確認用URL本文)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)、`../references/README-setup.md` (Notion/gBizINFO 必須鍵、日本郵便任意鍵、upsert 挙動)
 
 ## Outputs
 
@@ -65,7 +65,7 @@ enrich 済みレコードを固定 Notion 企業マスタ DB へ安全に反映�
 - 法人番号が未確定の行を upsert キーにしない (代替キーで新規追記のみ)。
 - 既存非空セルを上書きしない (backfill は空欄列のみ補完)。
 - 確定根拠のない推定で既存マスタ行を更新しない。
-- Notion token・gBizINFO トークンを平文出力・ログ記録しない (取扱は Keychain のみ)。precondition gate 未登録時は fail-closed (exit 2)。
+- Notion token・gBizINFO トークンを平文出力・ログ記録しない (取扱は Keychain のみ)。Notion/gBizINFO 未登録時は fail-closed (exit 2)。日本郵便鍵は前段の郵便番号取得用で、未設定時は郵便番号だけ空欄 + 備考へ縮退する。
 - token を独自実装で解決しない (`notion_config` の SSOT を使う)。
 
 ## Prompt Templates

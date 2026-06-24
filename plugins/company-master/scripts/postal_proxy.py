@@ -3,7 +3,7 @@
 # name: postal_proxy
 # purpose: 日本郵便 addresszip を中継する最小プロキシ。鍵と固定送信元IPをこのサーバ1台に集約し、不特定多数・多拠点のクライアントが鍵/IP登録なしで郵便番号を引けるようにする(IP許可リスト10件上限の回避)。
 # inputs:
-#   - keychain/env(サーバ側): japanpost-da-api (client_id/secret_key)、proxy_token (通行認証, 任意)
+#   - keychain/env(サーバ側): japanpost-da-api.xl-skills (client_id/secret_key)、proxy_token (通行認証, 任意)
 #   - http: POST /addresszip (addresszip と同じ body) / GET /healthz
 # outputs:
 #   - http: 日本郵便 addresszip レスポンス {addresses, level, ...} をそのまま返す
@@ -59,7 +59,7 @@ _RATE_LOCK = threading.Lock()
 
 
 def _client_token() -> str | None:
-    """通行認証トークン (Keychain japanpost-da-api/proxy_token → env)。未設定なら認証なし。"""
+    """通行認証トークン (Keychain japanpost-da-api.xl-skills/proxy_token → env)。未設定なら認証なし。"""
     return notion_config.get_postal_proxy_token()
 
 
@@ -147,7 +147,7 @@ def main() -> int:
     if not (cid and sec):
         sys.stderr.write(
             "[postal-proxy] FATAL: サーバ側に日本郵便 client_id/secret_key がありません "
-            "(Keychain japanpost-da-api)。references/postal-proxy-deploy.md を参照。\n")
+            "(Keychain japanpost-da-api.xl-skills)。references/postal-proxy-deploy.md を参照。\n")
         return 2
     # fail-closed: 非ループバック bind かつ proxy_token 未設定なら、無認証の踏み台化を機械層で拒否する。
     # ループバック bind 時のみ無認証を許容 (ローカル開発用)。proxy_token 設定時は Bearer 認証で防御。

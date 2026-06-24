@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-create",
+    "skill_md_sha256": "b7969af0ec457cae26500d80d7360ac1a55e2be067133f15ce88f60f137b543e"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:38:36Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "BD-004", "NM-001", "NM-003", "PD-001", "PD-002"],
+    "positive_feedback": [
+      "FM-001..005 PASS: name=run-skill-create は ^(run|ref|assign|wrap|delegate)-... に合致 (len<=60)、description は trigger 句『〜とき』2 個・句点終端・内部動作詞なし・動詞ベース。BD-001 PASS (## Purpose & Output Contract 厳格一致)、BD-002 PASS (## Gotchas)、BD-003 PASS (本文 300 行未満)、NM-001 PASS。orchestrator を制御層に限定し子スキルへ委譲する責務分離が rubric 設計意図と整合。",
+      "PD-002 PASS (本反復で修復): 本文冒頭 30 行窓内に `## Purpose & Output Contract` 見出し + 禁則トークン (禁止 / 必ず / 禁則) を共に含む状態へ整い、02章 §設計判断4『冒頭30行に目的・出力契約・禁則を集約』(compaction lifecycle 対策) を充足。"
+    ],
+    "negative_feedback": [
+      "PD-002 を修復: 旧 iteration では冒頭 30 行窓内に Key Rule / 禁則トークン (MUST/NEVER/禁止/必ず) が 0 個で FAIL (inconsistency/medium, C3)。本反復で `## Purpose & Output Contract` 節内・完了条件直後 (30 行窓内) に禁則 1 行 (ゲート前で必ず止まる/lint 自動修正禁止/同一 context 評価禁止) を追記して充足。`awk` で frontmatter 除外後の body 1-30 行を抽出し禁則トークン>=1 を実測。",
+      "C3 coherence (governance-params dangling) を修復: 旧 iteration で SKILL.md L122 完了チェックリストが本 skill 配下に不在の `references/governance-params.json` 参照を前提とし NM-003 lint-skill-tree の references 実在前提および 24/27章正本との coherence を損なっていた (high)。本反復で参照を repo-root canonical (27章§11 正本, gitignore, .example provision, graceful degrade) + workflow-manifest.json auto_approve_conditions へ寄せ dangling を除去。"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "再レビュー (genuine, rubric)。ref-skill-design-rubric/rubric.json の applies_to_kinds=skill 該当 rule を genuine 採点。修復後実測: PD-002=body 1-30 行に heading + 禁則トークン (禁止/必ず/禁則) を確認 PASS。governance-params dangling=`grep -rn governance-params plugins/skill-creator/skills/run-skill-create/` の全 4 参照 (SKILL.md 1 + R3 prompt 3) が repo-root `references/governance-params.json` (27章§11 正本) + `.json.example` provision 表記へ統一され、自己相対 dangling 解消。repo-root に `.example` (918B) 実在、実 .json は gitignore で fresh checkout 未配備=graceful degrade 記述と整合。姉妹 skill run-skill-rubric-governance (SKILL.md L94 --params references/governance-params.json) と parity。inconsistency=0 / dependency_break=0、high severity 未解決なし→verdict=PASS, next_action=none。SHA256=b7969af0ec45。"
+}

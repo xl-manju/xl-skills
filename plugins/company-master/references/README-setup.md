@@ -6,6 +6,10 @@
 > Keychain 命名規約 (本 plugin):
 > - Notion API token: **service = `notion-api-key.xl-skills`**, **account = `xl-skills`**
 > - gBizINFO API token: **service = `gbizinfo-api-token.xl-skills`**, **account = `xl-skills`**
+> - 日本郵便 郵便番号API (郵便番号取得を使う場合): **service = `japanpost-da-api.xl-skills`** の1サービスに複数 account をぶら下げる方式 — 郵便番号自動取得を有効にする場合のみ **account = `client_id` / `secret_key`** が必要、**`egress_ip`** は固定IP回線なら推奨で pin。未設定でも他項目は動き、郵便番号だけ空欄 + 備考に縮退する。テスト stub は `base_url`、例外のプロキシ運用時のみ `proxy_url` / `proxy_token`。詳細・取得手順は [`japanpost-api-setup.md`](japanpost-api-setup.md)、ロール別の登録は [`keychain-setup.md`](keychain-setup.md)。
+>   - 当チームの郵便番号取得は **BYO 直結が既定**(各メンバーが自分の for Biz 鍵+送信元IPを持つ)。送信元IPを固定できないメンバーだけ例外的に中央プロキシ。
+
+> **パスについて(install 済みプラグインで使う場合・必読)**: 本書のコマンド例のうち `python3 plugins/company-master/scripts/...` という **repo 相対パス**は、**このリポジトリを clone してそのフォルダから実行する開発者向け**の書き方。マーケットプレイスから install して使う通常の利用者は、これらを**手打ちせず** Code タブで「**doctor を実行して**」「**会社を調べて**」のように日本語で頼む(プラグインが `$CLAUDE_PLUGIN_ROOT` 配下の正しいパスで実行する。背景は [`japanpost-api-setup.md`](japanpost-api-setup.md) ⑥ と共通)。`security add-generic-password` / `find-generic-password` 系は **パス非依存**なのでどちらの利用者もそのまま使える。
 
 ---
 
@@ -41,14 +45,20 @@ security add-generic-password \
 
 plugin は repo の `.claude/settings.json` を直接配布・上書きできないため、機密流出系コマンドの `permissions.deny` は `references/settings-hardening.json` として同梱配布している。これを利用者が手動でマージして静的層を有効化する。
 
+通常は Code タブで「**company-master の安全設定(settings-hardening)を適用して**」と頼めば、プラグインが下記を `$CLAUDE_PLUGIN_ROOT` 配下から読み取りマージ手順を案内する(手動でパスを探す必要なし)。中身を自分で確認したい場合:
+
 ```bash
+# install 済みプラグインなら(clone 不要):
+cat "$CLAUDE_PLUGIN_ROOT/references/settings-hardening.json"
+# このリポジトリを clone 済みの開発者なら:
+cat plugins/company-master/references/settings-hardening.json
+
 # 既存 .claude/settings.json があるなら、その permissions.deny 配列へ
-# settings-hardening.json の permissions.deny 7 エントリを追記する (重複は除く)。
+# settings-hardening.json の permissions.deny 10 エントリを追記する (重複は除く)。
 # settings.json が無ければ {"permissions":{"deny":[...]}} を新規作成する。
-cat <このリポジトリのパス>/plugins/company-master/references/settings-hardening.json
 ```
 
-これにより、2鍵 (`notion-api-key.xl-skills` / `gbizinfo-api-token.xl-skills`) の平文出力 (`find-generic-password ... -w` / `-g` / `--print-unsafe`) と誤削除 (`delete-generic-password`) が静的に deny される。防御は動的層 (`hooks/hook-guard-secret.py`, plugin.json 配線・fail-closed) が単独で完結し、静的層マージは深層防御の追加層として推奨。
+これにより、3鍵 (`notion-api-key.xl-skills` / `gbizinfo-api-token.xl-skills` / `japanpost-da-api.xl-skills`) の平文出力 (`find-generic-password ... -w` / `-g` / `--print-unsafe`) と誤削除 (`delete-generic-password`) が静的に deny される。防御は動的層 (`hooks/hook-guard-secret.py`, plugin.json 配線・fail-closed) が単独で完結し、静的層マージは深層防御の追加層として推奨。
 
 ## 4. 実行 (`--upsert` 有無で挙動が変わる)
 

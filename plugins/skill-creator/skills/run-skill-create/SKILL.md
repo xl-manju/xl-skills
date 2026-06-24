@@ -59,6 +59,8 @@ audit-trigger: quarterly
 
 **完了条件**: P0 lint pass + evaluator JSON pass (`--fast` 低リスク ref/wrap は `evaluator: N/A` 理由必須) + (solo_operator_mode 下) LLM-reviewer pass。
 
+**禁則**: ゲート前で必ず止まりユーザー承認なしに次フェーズへ進まない。P0 lint 失敗の自動修正は禁止 (根本原因をユーザー提示)。evaluator/governance reviewer は同一 context 評価禁止 (必ず context:fork)。詳細は `## Key Rules`。
+
 ### 起動モード
 
 - **引数なし**: Step 1 (run-skill-elicit) が起動、対話で topic を確定。フィールド意味は `schemas/skill-brief.schema.json` (詳細は `references/skill-brief-schema.json`)。
@@ -119,7 +121,7 @@ audit-trigger: quarterly
 - [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み
 - [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし
 - [ ] 新規 or >30 行変更時、`run-elegant-review` (context:fork) で C1-C4 全 PASS。PASS 時 `eval-log/pattern-feedback.json` に pattern_ref_candidates/new_patterns/mass_production_risk を提案保存
-- [ ] governance 承認済み: `references/governance-params.json` の 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) 全充足で自動、不充足なら `run-skill-rubric-governance` 経由 (`prompts/R3-governance-decide.md` R3)。Gate 4 承認済み
+- [ ] governance 承認済み: 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) を `workflow-manifest.json` の `phases[id=governance].auto_approve_conditions` で機械評価し、全充足で自動承認。条件値の正本は repo-root `references/governance-params.json` (27章§11 パラメータ正本、gitignore。未配備なら `references/governance-params.json.example` から provision。不在時は graceful degrade=手動承認フロー)。不充足なら `run-skill-rubric-governance` 経由 (`prompts/R3-governance-decide.md` R3)。Gate 4 承認済み
 - [ ] 各ゲート通過時に `eval-log/handoff-<step>.json` が `schemas/handoff.schema.json` 準拠で保存されている
 - [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/open_questions) が日本語本文で提示されている (パラメーター名のみ英語)
 

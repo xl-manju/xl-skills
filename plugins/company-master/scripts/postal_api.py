@@ -5,8 +5,8 @@
 # inputs:
 #   - net: POST https://api.da.pf.japanpost.jp/api/v2/j/token (client_credentials + x-forwarded-for)
 #   - net: POST https://api.da.pf.japanpost.jp/api/v2/addresszip (Bearer token)
-#   - keychain: japanpost-da-api (client_id / secret_key / egress_ip) ※notion_config 経由
-#   - egress IP 解決順: Keychain `japanpost-da-api`/`egress_ip` (pin・優先) → env COMPANY_MASTER_EGRESS_IP (低優先フォールバック) → 自動検出 / COMPANY_MASTER_EGRESS_IP_DETECT_URL
+#   - keychain: japanpost-da-api.xl-skills (client_id / secret_key / egress_ip) ※notion_config 経由
+#   - egress IP 解決順: Keychain `japanpost-da-api.xl-skills`/`egress_ip` (pin・優先) → env COMPANY_MASTER_EGRESS_IP (低優先フォールバック) → 自動検出 / COMPANY_MASTER_EGRESS_IP_DETECT_URL
 #   - net: 送信元IP自動検出の公開エコー (既定 https://api.ipify.org。env 未設定時のみ)
 #   - keychain/env: proxy_url / proxy_token (中央プロキシ経由時。設定時は鍵/IP 不要)
 # outputs:
@@ -27,8 +27,8 @@
 種別で remark を選ぶため、reject_reason は失敗種別語 (auth: / network:) を先頭に含める。
 
 認証 (notion_config が SSOT):
-  client_id / secret_key … Keychain `japanpost-da-api`。
-  送信元IP (x-forwarded-for) … Keychain `japanpost-da-api`/`egress_ip` の pin を優先、無ければ
+  client_id / secret_key … Keychain `japanpost-da-api.xl-skills`。
+  送信元IP (x-forwarded-for) … Keychain `japanpost-da-api.xl-skills`/`egress_ip` の pin を優先、無ければ
   env `COMPANY_MASTER_EGRESS_IP` (低優先フォールバック)、どちらも無ければ `detect_egress_ip()` で
   実際の送信元グローバルIPを自動検出する (BYO: ユーザが自分のIPを調べる手間を省く)。日本郵便に
   システム登録した IP と一致している必要がある (IP 認証)。ズレると 401/403 → reject_reason `auth:`。
@@ -183,11 +183,11 @@ def get_token(now: float | None = None, _post_fn=None) -> str:
     creds = notion_config.get_japanpost_credentials()
     egress_ip = resolve_egress_ip()
     if not creds or not creds[0] or not creds[1]:
-        raise JapanPostError("auth", "japanpost 認証情報 (Keychain japanpost-da-api) 不在")
+        raise JapanPostError("auth", "japanpost 認証情報 (Keychain japanpost-da-api.xl-skills) 不在")
     if not egress_ip:
         raise JapanPostError(
             "network",
-            "送信元IP を解決できない (Keychain japanpost-da-api/egress_ip pin も env COMPANY_MASTER_EGRESS_IP も未設定かつ自動検出失敗=ネット不達の可能性)")
+            "送信元IP を解決できない (Keychain japanpost-da-api.xl-skills/egress_ip pin も env COMPANY_MASTER_EGRESS_IP も未設定かつ自動検出失敗=ネット不達の可能性)")
     client_id, secret_key = creds
     post = _post_fn or _post_json
     data = post(

@@ -9,6 +9,7 @@ entrypoint: run-company-master-build
 # /company-master
 
 `$ARGUMENTS` を `run-company-master-build` に渡し、企業の同定、属性補完、検証、Notion 反映を実行する。
+Marketplace から install した場合の呼び出し名は通常 `/company-master:company-master`。
 
 ## 振る舞い
 

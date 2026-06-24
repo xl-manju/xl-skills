@@ -4,22 +4,24 @@
 > 本ファイルが API キー取得〜送信元IP登録〜Keychain 保存の唯一の正本 (SSOT)。`run-company-master-build` /
 > `run-company-master-backfill` のセットアップ節からここへリンクする。`company_master.py doctor` が未設定を診断する。
 >
-> **配布モデルの選択 (意思決定木)**: 日本郵便の送信元IP許可リストは 1鍵あたり最大10件のため、配布形態で正本を分岐する。
-> - **多拠点 / 送信元IPがバラつく (>10)** → **中央プロキシが既定 (本番配布モデル)**。鍵と固定送信元IPをプロキシ1台に集約し、各クライアントは `proxy_url` (+任意 `proxy_token`) だけ設定する。正本手順は `references/postal-proxy-deploy.md`。社内チーム・フルリモート運用はこちら。
-> - **単独 / 少数拠点・固定IP** → **BYO (Bring Your Own credentials)**。各ユーザが**それぞれ自分の** for Biz アカウント・client_id/secret_key・送信元IP を用意する (鍵は共有しない)。**本手順 (本書) は BYO のセットアップを案内する**。
+> **配布モデルの選択 (意思決定木)**: 当チームの既定は **BYO 直結**。日本郵便の送信元IP許可リストは 1鍵あたり最大10件だが、BYO では各メンバーが自分の鍵を持つため10件制約に当たらない。
+> - **BYO (Bring Your Own credentials) — 既定** → 各メンバーが**それぞれ自分の** for Biz アカウント・client_id/secret_key・送信元IP を用意し (鍵は共有しない)、日本郵便 API を直接叩く。**本手順 (本書) はこの BYO のセットアップを案内する**。固定IP回線なら `egress_ip` を pin して送信元IPを確定させると堅牢。
+> - **中央プロキシ — 例外** → **送信元IPを固定できない / 頻繁に変わるメンバーだけ**の代替。鍵と固定送信元IPをプロキシ1台に集約し、そのメンバーは `proxy_url` (+任意 `proxy_token`) だけ設定する。正本手順は `references/postal-proxy-deploy.md`。
 >
-> 以下の手順は **BYO (単独 / 少数拠点向け)** を対象とする。各ユーザが自分の環境で一度だけ実施する。送信元IP は既定で自動検出されるため、`doctor` が
+> 以下の手順は **BYO (既定)** を対象とする。各メンバーが自分の環境で一度だけ実施する。送信元IP は既定で自動検出されるため、`doctor` が
 > 表示する IP をそのまま for Biz に登録すればよい (「自分のグローバルIPが分からない」を解消)。秘密情報・設定は
-> env ファイルではなく Keychain に置く方針 (鍵=`japanpost-da-api`/`client_id`,`secret_key`、固定IP=`/egress_ip`)。多拠点配布は本書でなく `references/postal-proxy-deploy.md` を正本とする。
+> env ファイルではなく Keychain に置く方針 (鍵=`japanpost-da-api.xl-skills`/`client_id`,`secret_key`、固定IP=`/egress_ip` に pin)。送信元IPを固定できない例外運用のみ `references/postal-proxy-deploy.md` を正本とする。
+>
+> **パスについて(先に一読)**: 以下に出てくる `python3 plugins/company-master/scripts/...`(doctor / postal_api)は **repo を clone した開発者向け**の書き方(詳細は本書 ⑥ の注記)。マーケットプレイスから install した通常利用者は手打ちせず、Code タブで「**doctor を実行して**」「**〇〇社の郵便番号を取得して**」と日本語で頼む(`$CLAUDE_PLUGIN_ROOT` で自己解決)。`security ...` 系はパス非依存でそのまま使える。
 
 ## 必要な情報 (3 つ + ホストは固定)
 
 | 情報 | 使う場面 | 保存先 |
 |---|---|---|
 | ホスト `https://api.da.pf.japanpost.jp` | token / addresszip 両方 | コードに固定 (`scripts/postal_api.py`)。入力不要 |
-| `client_id` | token 発行 | Keychain `japanpost-da-api` / account `client_id` |
-| `secret_key` | token 発行 | Keychain `japanpost-da-api` / account `secret_key` (**初回のみ表示**) |
-| 送信元IP (`x-forwarded-for`) | token 発行ヘッダ (必須) | **既定は自動検出**。固定時のみ Keychain `japanpost-da-api`/`egress_ip` |
+| `client_id` | token 発行 | Keychain `japanpost-da-api.xl-skills` / account `client_id` |
+| `secret_key` | token 発行 | Keychain `japanpost-da-api.xl-skills` / account `secret_key` (**初回のみ表示**) |
+| 送信元IP (`x-forwarded-for`) | token 発行ヘッダ (必須) | **既定は自動検出**。固定時のみ Keychain `japanpost-da-api.xl-skills`/`egress_ip` |
 
 呼び出しフロー (実装は `postal_api.py`):
 
@@ -46,15 +48,15 @@
 
 ```bash
 # client_id (公開寄り。値を直接渡してよい)
-security add-generic-password -U -s japanpost-da-api -a client_id -w 'あなたのclient_id'
+security add-generic-password -U -s japanpost-da-api.xl-skills -a client_id -w 'あなたのclient_id'
 
 # secret_key (-w を空にすると対話入力 → コマンド履歴/ログに平文が残らない)
-security add-generic-password -U -s japanpost-da-api -a secret_key -w
+security add-generic-password -U -s japanpost-da-api.xl-skills -a secret_key -w
 #   ↑ 実行後にプロンプトが出るので secret_key を貼り付けて Enter
 
 # 確認 (存在確認のみ・中身は出さない)
-security find-generic-password -s japanpost-da-api -a client_id >/dev/null 2>&1 && echo "client_id: set"
-security find-generic-password -s japanpost-da-api -a secret_key >/dev/null 2>&1 && echo "secret_key: set"
+security find-generic-password -s japanpost-da-api.xl-skills -a client_id >/dev/null 2>&1 && echo "client_id: set"
+security find-generic-password -s japanpost-da-api.xl-skills -a secret_key >/dev/null 2>&1 && echo "secret_key: set"
 ```
 
 > 注意: 鍵をブラウザ等から貼り付ける際、不可視のハイフン (U+2011 等) や前後空白が混入すると認証に失敗する。ASCII ハイフン `-` と余分な空白なしを確認すること。
@@ -66,10 +68,10 @@ security find-generic-password -s japanpost-da-api -a secret_key >/dev/null 2>&1
 IP を固定したいとき (プロキシ/複数NIC で自動検出値が実際の送信元と異なる等) のみ、**env ファイルではなく Keychain に pin** する (鍵と同じ場所で一元管理):
 
 ```bash
-security add-generic-password -U -s japanpost-da-api -a egress_ip -w '203.0.113.10'   # (任意) 固定IP
+security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '203.0.113.10'   # (任意) 固定IP
 ```
 
-解決順は `postal_api.resolve_egress_ip()` = Keychain `japanpost-da-api`/`egress_ip` → env `COMPANY_MASTER_EGRESS_IP` (CI 用の低優先フォールバック) → 自動検出。バックグラウンド/cron 実行でも自動検出は働く。検出先を変えるときのみ env `COMPANY_MASTER_EGRESS_IP_DETECT_URL`。
+解決順は `postal_api.resolve_egress_ip()` = Keychain `japanpost-da-api.xl-skills`/`egress_ip` → env `COMPANY_MASTER_EGRESS_IP` (CI 用の低優先フォールバック) → 自動検出。バックグラウンド/cron 実行でも自動検出は働く。検出先を変えるときのみ env `COMPANY_MASTER_EGRESS_IP_DETECT_URL`。
 
 ## (任意) テスト環境(stub)で配線を先に検証する
 
@@ -78,24 +80,36 @@ security add-generic-password -U -s japanpost-da-api -a egress_ip -w '203.0.113.
 
 1. テスト用 client_id/secret_key を Keychain へ(本番と同じ account 名):
    ```bash
-   security add-generic-password -U -s japanpost-da-api -a client_id  -w '<テスト client_id>'
-   security add-generic-password -U -s japanpost-da-api -a secret_key -w
+   security add-generic-password -U -s japanpost-da-api.xl-skills -a client_id  -w '<テスト client_id>'
+   security add-generic-password -U -s japanpost-da-api.xl-skills -a secret_key -w
    ```
 2. 接続先をテストホストへ上書き(Keychain。env でなく Keychain):
    ```bash
-   security add-generic-password -U -s japanpost-da-api -a base_url -w 'https://stub-xxxxx.da.pf.japanpost.jp'
+   security add-generic-password -U -s japanpost-da-api.xl-skills -a base_url -w 'https://stub-xxxxx.da.pf.japanpost.jp'
    ```
 3. **テストデータにある住所**で確認(霞が関はテスト対象外。`飯田橋`/`一番町`/`岩本町`/`内幸町`/`大手町` が対象):
    ```bash
    python3 plugins/company-master/scripts/postal_api.py 東京都千代田区飯田橋   # → 102-0072
    python3 plugins/company-master/scripts/company_master.py doctor --probe       # 配線の総合確認
    ```
-4. 本番移行時は base_url 上書きを削除(本番既定 `api.da.pf.japanpost.jp` に戻る):
+4. 本番移行 (stub → 本番。**この2つを必ず両方**行う):
+   1. **本番システムの client_id/secret_key を上書き登録**(テスト用のままだと本番ホストで 401 になる):
+      ```bash
+      security add-generic-password -U -s japanpost-da-api.xl-skills -a client_id  -w '<本番 client_id>'
+      security add-generic-password -U -s japanpost-da-api.xl-skills -a secret_key -w
+      ```
+   2. **接続先を本番ホストへ戻す**。`base_url` を本番ホストで上書きする(`_base_url()` は `get_japanpost_base_url() or 本番既定` なので、本番ホストを入れれば本番に戻る):
+      ```bash
+      security add-generic-password -U -s japanpost-da-api.xl-skills -a base_url -w 'https://api.da.pf.japanpost.jp'
+      ```
+      > **注意**: `security delete-generic-password -s japanpost-da-api.xl-skills ...` は `hooks/hook-guard-secret.py` が**誤削除防止でブロック**するため使えない。stub 上書きの「解除」は上記のように**本番ホストで上書き**するか、Keychain Access.app から手動削除する。
+5. 本番で疎通確認(stub のテスト住所でなく実在の住所で。送信元IPが for Biz 登録値と一致している必要がある):
    ```bash
-   security delete-generic-password -s japanpost-da-api -a base_url
+   python3 plugins/company-master/scripts/company_master.py doctor --probe
    ```
+   `doctor` の「接続先」が本番 `api.da.pf.japanpost.jp` になり、実疎通が OK なら本番移行完了。401/403 が出たら client_id/secret_key がテスト用のまま、または送信元IPが未登録/ズレ。
 
-> テストAPIは検証専用。実在企業を全国規模で引く本番運用には**本番システム登録**(と送信元IP登録、または中央プロキシ)が必須。
+> テストAPIは検証専用 (stub は送信元IPを厳格に見ないため「stub で通った=本番でも通る」ではない)。実在企業を全国規模で引く本番運用には**本番システム登録**(と送信元IP登録、または中央プロキシ)が必須。
 
 ## ⑥ 動作確認
 
