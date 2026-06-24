@@ -2,20 +2,26 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
+    "skill_md_sha256": "b42b457f35e795a6313fa71c25774008274fb356adfb6dab1fe1361720b7dded"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-20T00:00:00Z",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "ref-skill-design-rubric rubric.json(1.3.0, threshold80, applies_to_kinds=skill)を逐条照合。FM-001(high) PASS: name=run-mf-invoice-db-setup が ^(run|...)-[a-z0-9][a-z0-9-]*$ 一致・len25<=60。FM-002(med) PASS: description『〜したいとき/たいとき』trigger含み句点。終止。FM-003(med) PASS: trigger『とき』2個(初回構築したいとき/作り直したいとき)で2..3内。FM-004(med) PASS: 内部動作語(採点する/JSONで返す/sha256/exit code)混入なし。FM-005(low) PASS: description に動詞名詞句『構築』含む。BD-001(high) PASS: '## Purpose & Output Contract' 厳格一致(L31)。BD-002(med) PASS: '## Gotchas' 存在(L96)。BD-003(high) PASS: body 81行<=300。BD-004(med) PASS: 2 trigger(初回構築/作り直す)が body の2モード(既存DB ensure_schema=作り直し時の不足追加+rename / 新規作成=初回構築)とチェックリスト・ゴールシークループに1:1対応。NM-001(high) PASS: dir basename==name。NM-002(med) PASS: kebab+run-prefix。NM-003(low) PASS: scripts/ は build_notion_db.py / verify_db_schema.py の .py のみ。PD-001(low) PASS: references相当(prompts/schemas/scripts)存在かつ body81<=100。PD-002(med) PASS: 冒頭30行内(body4行目)に '## Purpose & Output Contract' + 禁則(『壊さない』『status型は使わない』Key Rule)集約。RG governance: 採点は upstream ref-skill-design-rubric/rubric.json 規範に準拠(rubric_version=1.3.0)。FM/BD/NM/PD 必須全充足・high finding 0件のため PASS。SKILL.md未改変。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "name=run-mf-invoice-db-setup の命名規約・description のトリガ表現(初回構築/作り直す)・Purpose & Output Contract と Gotchas の必須見出し・body 簡潔性(81行)が rubric の FM/BD/NM/PD 必須項目を全充足している点。",
+      "2つのトリガが body の2モードおよび完了チェックリスト・ゴールシークループと1:1対応し、評価基準 IN1/IN2/OUT1 がスキル固有の検証観点(冪等性・schema正本一元・2モード全体最適)を素直に反映している点。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md を精読のうえ ref-skill-design-rubric 規範(FM/BD/NM/PD)で逐条照合し、本スキル固有の評価基準 IN1(verify PASS+管理列非破壊の冪等性=script)/IN2(schema正本一元・status型不可/format:yen=test)/OUT1(2モードが導入者目的を過不足なく満たし未解決時安全停止=elegant-review)を導出。FM-001 name 正規一致(len25<=60)、FM-002/003 description トリガ2件で句点終止、FM-004 内部動作語混入なし、BD-001 Purpose & Output Contract 厳格一致・BD-002 Gotchas 存在・BD-003 body81<=300、BD-004 トリガ↔body の2モード1:1対応、NM-001 dir basename==name、PD-002 冒頭30行内に Purpose+禁則集約をいずれも確認。high finding 0件・必須全充足で rubric adequacy を満たすと判断し PASS。frontmatter へ feedback_contract を追加後の sha(b42b457f)で照合。"
 }

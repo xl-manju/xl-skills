@@ -1,0 +1,33 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "delegate-codex-skill-review",
+    "skill_md_sha256": "b42f40f330734748ed046ae7c4eae543a4b2c5d8e12e1257129cd8ac2ad370b5"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "FM系: name=delegate-codex-skill-review と frontmatter name 一致, description は外部委譲したいとき Sycophancy を避けたいときの発動条件のみで構成され kind=delegate/prefix=delegate も整合",
+      "BD系: ## Purpose & Output Contract と ## Gotchas を存置し 入力/出力/完了条件 を明示。本文も簡潔で行数上限内。responsibility_refs/schema_refs/reference_refs/script_refs が局面カタログの参照と一致し IN1/IN2 の検証手段が実体ファイルへ追跡可能",
+      "L1抽象境界の自己整合: hierarchy_level=L1 と Gotchas の L1階層注記(codex CLI 抽象 L1, プロジェクト固有観点は L2 で wrap)が一致し OUT2 の opt-in 依存設計を階層分離で裏づけている"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric観点で genuine 検証。実ファイルを読み FM-001..004(name一致/description発動条件のみ)/BD-001..003(Purpose・Gotchas存置/行数上限内)/NM-001(delegate-* prefix)を PASS 確認。criteria IN1(check-codex-installed.py gate)/IN2(io-contract入力)は script_refs/schema_refs に, OUT1(非採点境界)/OUT2(opt-in依存)は本文設計に追跡可能で adequacy あり。high severity finding 0件。被採点物への改変は一切なし(read-only)。[propagation] frontmatter feedback_contract(IN1/IN2/OUT1/OUT2)を携帯化し criteria_evaluated を同期。"
+}

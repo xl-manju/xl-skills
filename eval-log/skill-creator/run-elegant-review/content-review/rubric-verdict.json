@@ -1,0 +1,32 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-elegant-review",
+    "skill_md_sha256": "7855e1377cdb69514c92d7b66b87da8b192e16e5c9c3257d1a1ec447a7d88445"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "本 skill が ref-skill-design-rubric と elegant-4-conditions.json を rubric_refs に持ち規範採点側と責務直交している設計が frontmatter と本文の役割直交テーブル(Step5契約 / 5.5 elegance / 6 rubric)で明示され rubric 適合度が高い",
+      "携帯した feedback_contract が verify_by に script/lint/elegant-review/evaluator を割り当て inner(機械)とouter(設計品質)を分離しており規範観点の二層分離原則に沿っている"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "read-only検証: assign-skill-design-evaluator観点で SKILL.md を採点。命名(run接頭辞+kebab)/description trigger形式/frontmatter必須キー/goal-seek正本ポインタ/出力契約スキーマ固定/proposer非イコールapprover の各 rubric 項目を満たす。新規 frontmatter の4基準IDは手順導出の全集合(IN1/IN2/OUT1/OUT2)と一致し criteria_evaluated と突合可能。規範採点上の high severity 問題は検出されず PASS。"
+}

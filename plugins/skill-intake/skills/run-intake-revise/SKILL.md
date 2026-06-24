@@ -26,6 +26,21 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: apply 確定時に output/<hint>/revision-log.jsonl へ追記される 1 行が schemas/output.schema.json 準拠で revision_no/timestamp/target_section/user_request/applied_changes/notion_page_url を充足し、user_request と applied_changes が日本語・schema key/page-id が英語である
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: revision 回数上限 5 / page-id 不一致 / Keychain 失敗 / cancel / self-updater 失敗 が exit code 60/51/44/2/61 に決定論的に対応し、PATCH 失敗時は output/<hint>/notion-rollback-<rev>.json を必ず保存して旧版を維持する
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: 本スキルが同一 Notion ページへの PATCH 上書き(新規ページ非作成=URL/リンク保全)に責務を絞り、PNG/mermaid 全揃いの All-or-Nothing と internal-analysis.json 非開示を守りつつ、新規 intake 生成・publish へ逸脱しない設計になっている
+      verify_by: elegant-review
 ---
 
 # run-intake-revise

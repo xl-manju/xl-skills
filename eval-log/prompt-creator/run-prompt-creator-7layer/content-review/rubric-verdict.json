@@ -1,0 +1,27 @@
+{
+  "target": {
+    "plugin": "prompt-creator",
+    "skill": "run-prompt-creator-7layer",
+    "skill_md_sha256": "463e8f768774b8488430d4e697e119422cc490419aa03c2a596d5285218b368d"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "論理構造の正本を references/seven-layer-format.md へ、提示形式を seven-layer-markdown-template.md へ、冪等更新規約を idempotent-update-policy.md へと SSOT 委譲し SKILL 側で再定義せず Progressive Disclosure で Phase 直前読込とすることで片側更新ドリフトを回避している。",
+      "戻り検証(Phase 5)で lint-agent-prompt-section.py 通過必須・FAIL 時最大 3 回自律修正→未達なら orchestrator 差戻と停止条件/完了条件が二値で明確に定義されており loop 実行系として検証可能。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点(完全性/一貫性/検証可能性/簡潔性)で SKILL.md を精読し本スキル固有の criteria(IN1=Layer 5 ゴール宣言+Layer 単位生成の verify-completeness.py 検出 / IN2=要素原子性・スキーマ妥当性・重複回避の validate-prompt.py 機械検証 / OUT1=本質目的と設計原則の整合)を導出して照合した。7 層 L1-L7 の役割表(Clean Arch/DDD 対応)・Layer 単位生成→merge・Layer 5 ゴールシーク・冪等更新・セッション分離・300 行制約という中核要件がすべて Purpose/Flow/Key Rules/Gotchas に反映され漏れがない(完全性)。固定手順禁止と verify-completeness.py の FAIL、9 セクション骨格非生成(run-build-skill 責務)、Markdown 既定で内部正規形 YAML という記述が SKILL/script/reference 間で一貫(一貫性)。各 Phase の具体 python3 コマンドと lint-agent-prompt-section.py 戻り検証で機械検証可能(検証可能性)。本文を references/schemas/agents へ委譲し簡潔(簡潔性)。重大な不足は検出されず PASS と判定した。"
+}

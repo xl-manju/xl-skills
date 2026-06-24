@@ -1,0 +1,28 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-elicit",
+    "skill_md_sha256": "77877f45328a522cf4d39f65b4b0e078bb6bf72764f09d262f1cbf851e903c6c"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "description が発動条件(Skill要望を brief.json に固める / 対話形式で requirements 収集)を具体的に記述し、ヒアリングという単一責務に絞られ build/評価は run-build-skill / run-skill-create へ委譲されている。",
+      "完了条件が必須フィールド確定 + 条件付き必須(wrap→base_skill / delegate→delegate_agent / L2→rubric_refs)で二値判定可能に明示され、trigger 2〜3個や 5問上限とともに IN1/IN2 の機械検証要件と整合している。",
+      "boundary(やらないこと)・重複回避(run-goal-elicit を呼ばない)・代理決定禁止(open_questions へ退避)が SRP / Bounded Context として明文化され、責務肥大を回避している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点で SKILL.md を精読。発動条件の具体性(description が brief.json 生成と対話収集を明示)・単一責務(ヒアリングのみ・build/evaluate は別 skill へ委譲)・出力契約の明確性(eval-log/skill-brief.json 固定パス + 正本スキーマ skill-brief.schema.json + 必須/条件付き必須フィールド)・完了条件の検証可能性(必須6フィールド確定 + 条件付き必須 + trigger 2〜3個の二値判定)を確認。IN1(固定パス出力かつスキーマ準拠かつ必須フィールド確定)・IN2(5分岐決定木で prefix 確定+条件付き必須+trigger 件数)・OUT1(導出値の自動補完/5問上限/open_questions 退避/代理決定禁止)の3基準とも rubric 上で adequate。重大な設計欠陥(責務肥大・契約曖昧・検証不能)は検出されず PASS。"
+}

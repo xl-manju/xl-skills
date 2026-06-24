@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot pytest test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot feedback-contract content-review pytest test help
 
 ## sync: creator-kit/skills/ を .claude/skills/ に同期する（--apply）
 sync:
@@ -33,12 +33,20 @@ contract-intake:
 plugin-package-check:
 	python3 scripts/validate-plugin-packages.py
 
+## feedback-contract: 量産先 loop-kind スキルが frontmatter に評価基準を携帯するか repo 全体検査
+feedback-contract:
+	python3 scripts/lint-feedback-contract.py --all
+
+## content-review: 全スキルの content-review verdict 存在・PASS・sha一致・criteria突合を repo 全体検査
+content-review:
+	python3 scripts/lint-content-review.py --all
+
 ## pytest: tests/ 配下の振る舞いテストを実行する (hook-guard-skillgen 等の機械保証を回帰検証)
 pytest:
 	python3 -m pytest tests/ -q
 
-## test: sync-check + lint (contract-intake 含む) + plugin-package-check + pytest + gate-phase0 を順に実行する
-test: sync-check lint plugin-package-check pytest
+## test: sync-check + lint + plugin-package-check + feedback-contract + content-review + pytest + gate-phase0 を順に実行する
+test: sync-check lint plugin-package-check feedback-contract content-review pytest
 	python3 scripts/gate-phase0.py
 
 ## help: このメッセージを表示する

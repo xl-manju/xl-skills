@@ -1,0 +1,28 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-elicit",
+    "skill_md_sha256": "77877f45328a522cf4d39f65b4b0e078bb6bf72764f09d262f1cbf851e903c6c"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "出力契約が eval-log/skill-brief.json 固定パスと正本スキーマ ../run-skill-create/schemas/skill-brief.schema.json への準拠で一意に定義され、必須フィールド(skill_name/prefix/hierarchy_level/trigger_conditions/output_contract/boundary)と条件付き必須(wrap→base_skill / delegate→delegate_agent / L2→rubric_refs)が完了条件・ゴールチェックリスト・Gotchas で三重に反復され機械検証(IN1)へ直結している。",
+      "prefix 判定が Onboarding 3問→Decision tree(裏側推定)→5分岐ウィザード(全網羅)→role_suffix の段階構造で設計され、wrap/delegate の聞き忘れを構造で防ぎつつ設計用語をユーザーに直接質問しない分離が貫かれており、対話負担最小化(OUT1)とprefix決定の網羅性(IN2)を両立している。",
+      "ゴールシークの差分が brief フィールド単位の未達評価・1問ずつ・仮想ヒアリングで導出可能値を AI が埋め不足のみ open_questions へ退避という安全側設計で明示され、汎用 run-goal-elicit を呼ばない重複回避まで一貫している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md を全文精読し criteria を導出。完全性: Purpose & Output Contract / Key Rules(5項) / ゴールシーク実行(ゴール・Why・チェックリスト・ループ) / 局面カタログ / Gotchas / Additional Resources が相互整合し、入力 topic から出力 eval-log/skill-brief.json への流れに欠落なし。一貫性: frontmatter allowed-tools(Read/Write)・kind=run・responsibility_refs=prompts/R1-elicit.md・schema_refs=../run-skill-create/schemas/skill-brief.schema.json が本文の固定パス記述と整合。IN1(brief が固定パス出力かつスキーマ準拠かつ必須フィールド確定)・IN2(5分岐決定木で prefix 確定+条件付き必須充足+trigger 2〜3個)・OUT1(導出可能値を再質問せず5問以内に収め判断分岐は open_questions へ退避し代理決定しない)の3基準で adequacy を確認。Step1 ヒアリング責務として brief 品質ゲートが層をまたいで一貫しており PASS。"
+}

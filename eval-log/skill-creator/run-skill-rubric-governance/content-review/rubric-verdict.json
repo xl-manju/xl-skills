@@ -1,0 +1,27 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-rubric-governance",
+    "skill_md_sha256": "0769042d7ec7e346c357775fad1eb98ff9700920cc5d80acb8134ba928550987"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "kind=run の loop 実行系として inner 各1件以上(IN1=rubric_hash再計算+check-rubric-sync exit0 を script / IN2=30%超major昇格+semver整合 を lint)と outer 各1件以上(OUT1=proposer非イコールapprover を evaluator / OUT2=猶予期間+log closed 到達状態 を elegant-review)を満たし、verify_by が inner∈{lint,test,script}・outer∈{evaluator,elegant-review,lint} の制約に適合している",
+      "criteria text が rubric governance ドメイン固有の検証可能命題(rubric_hash drift/合否変動率閾値/承認ボード独立性/governance log closed)で記述され、汎用テンプレ文言でなくスキル実目的に紐づいている"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "read-only採点: SKILL.md frontmatter feedback_contract を rubric 観点で評価。id ^(IN|OUT|C)[0-9]+$ 適合・重複なし・inner/outer 双方>=1・verify_by enum内を確認(lint-feedback-contract.py の grep 空で機械検査も PASS)。criteria は本スキルの『rubric 改正 Runbook』という実目的(影響評価→猶予期間→rubric_hash再計算→派生同期→版ずれ検証→発効→log closed)から固有導出されており、固定テンプレ流用なし。重大欠陥なく rubric adequate のため verdict=PASS。"
+}

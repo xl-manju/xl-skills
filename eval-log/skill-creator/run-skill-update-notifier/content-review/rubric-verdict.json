@@ -1,0 +1,28 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-update-notifier",
+    "skill_md_sha256": "2a6cb3c0fa90b4096360cc7cb7d6b433b49a854be5652182e1f0cac61c0b53b5"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1"],
+    "positive_feedback": [
+      "ゴール・Why・完了チェックリスト・ゴールシークループが揃い、cache 鮮度 fresh/stale/absent と一致/未提供/未取得/抑制フラグの各分岐が二値チェックで網羅されていて loop 実行系として停止条件と完了条件が明確である(完全性/検証可能性)。",
+      "notifier-check.py の各 mode(cache-status/refresh/notify)が CLI 単体実行可能で局面カタログに具体コマンドが列挙され、機械検証の入口が明示されている(検証可能性)。",
+      "出力フォーマット規約を references/output-format.md へ、hook 配線案を references/hook-wiring.md へ SSOT 委譲し SKILL 側で再定義しないことで片側更新ドリフトを回避している(一貫性/簡潔性)。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点(完全性/一貫性/検証可能性/簡潔性)で SKILL.md を精読し本スキル固有の criteria(IN1=全失敗分岐の no-op+exit0 graceful degradation / IN2=tool_name==Skill filter と last_notified_at 重複抑止 / IN3=書込先 version-snapshot.json 限定の非破壊 read-only と stdlib のみ / OUT1=cache 鮮度判定・通知整形・graceful 保護層の責務分割の過不足)を導出して照合した。graceful degradation・PostToolUse filter・重複抑止・非破壊 read-only・stdlib のみ 24h TTL という中核要件がすべて Purpose/Boundary/Key Rules/Hook Integration Map/Checklist に反映され漏れがない(完全性)。exit 0 固定・no-op・matcher 必須・書込先限定の記述が SKILL/hook/script/Constraints 間で一貫(一貫性)。--mode cache-status/refresh/notify の具体コマンドとチェックリストの二値判定で機械検証可能(検証可能性)。本文を references へ委譲し簡潔(簡潔性)。重大な不足は検出されず PASS と判定した。"
+}

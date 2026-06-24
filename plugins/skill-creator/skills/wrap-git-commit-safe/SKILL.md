@@ -30,6 +30,21 @@ script_refs:
   - scripts/preflight-git-commit.py
 reference_refs:
   - references/resource-map.yaml
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: pre-commit-secret-scan.py が機密ファイル(.env credentials.json *.pem)を add 対象から検出した場合に exit 2 で BLOCK し LLM の文字列マッチに依存しない決定論検査として閉じている
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: commit_args や script に --no-verify --no-gpg-sign が含まれる場合と main master への force-push が試行された場合をいずれも決定論的に検出して BLOCK する
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: base(run-build-skill)の commit 手順を上書きせず前後フックとして被せる wrap 責務が allowed-tools と本文で一貫し L1 階層として L0 共通規約に依存する設計が崩れていない
+      verify_by: elegant-review
 ---
 
 # wrap-git-commit-safe

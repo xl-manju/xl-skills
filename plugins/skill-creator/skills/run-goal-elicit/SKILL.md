@@ -24,6 +24,21 @@ reference_refs:
   - ../run-build-skill/references/goal-seek-paradigm.md
 completeness_exempt:
   - "prompts: ゴール抽出の単一責務 skill。出力契約は schemas/goal-spec.schema.json に集約され、責務分割が不要なため R-id 単位プロンプトを持たない。推定手順はゴールシークループで都度生成する。"
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成した eval-log/goal-spec.json が schemas/goal-spec.schema.json 検証を通過し purpose/background/goal/checklist が全て非空で checklist が1件以上であること(## 検証 の機械チェックで担保)。
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: goal が観測可能な完了形の1文で checklist が二値判定可能な受入基準のみで構成され「Edit で X する」等の手順を一切混入させず 達成手順生成は run-goal-seek へ責務分離されている設計であること。
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: ユーザーに追加質問せず情報不足でも停止せず 合理的な仮定を constraints か open_questions に明示して実行可能な spec を必ず出すユーザー負担最小化の設計が ゴール抽出という目的を最適に反映していること。
+      verify_by: elegant-review
 ---
 
 # run-goal-elicit

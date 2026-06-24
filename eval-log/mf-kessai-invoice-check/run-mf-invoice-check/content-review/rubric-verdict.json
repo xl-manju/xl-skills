@@ -2,20 +2,26 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-check",
-    "skill_md_sha256": "7c7a0d2490cfcecd721ce63ee2c0dfb12816d899f51dbe6e3f589bfc9500998a"
+    "skill_md_sha256": "2d0fe04e9ab2d1b4e29e88cb0c834cffe1abaccbca5ca8154b4fe20e909ccf54"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 1
-  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-20T00:00:00Z",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "ref-skill-design-rubric/references/rubric.json v1.3.0 (threshold 80, kind=skill 適用 rule) を逐条照合。high finding なし、score=97(>=80)で PASS。SKILL.md 不改変。【FM】FM-001(high) PASS: name=run-mf-invoice-check が ^(run|ref|assign|wrap|delegate)-[a-z0-9-]*$ に一致・len19<=60。FM-002(med) PASS: description が『〜したいとき』trigger を含み句点。で終止。FM-003(med) PASS: trigger 2個(請求書発行漏れをチェックしたいとき/月次で請求発行状況を確認したいとき)=2..3。FM-004(med) PASS: 内部動作語(採点する/sha256/exit code/JSONで返す)混入なし。FM-005(low) PASS: 末尾『使う』=動詞。【BD】BD-001(high) PASS: 『## Purpose & Output Contract』厳格一致(L35)。BD-002(med) PASS: 『## Gotchas』存在(L128)。BD-003(high) PASS: body 113行<=300。BD-004(med) PASS: description の2 trigger(発行漏れチェック/月次発行状況確認)が body End-to-End Flow + ゴールシークループ + 完了チェックリストに 1:1 対応。【NM】NM-001(high) PASS: dir basename==name=run-mf-invoice-check。NM-002(med) PASS: prefix run-/kebab 準拠。NM-003(low) PASS: scripts は check_invoice_gaps.py の .py のみ。【PD】PD-002(med) PASS: body 冒頭30行(=file L33-62)内に『## Purpose & Output Contract』+ 禁則(fail-closed/変更系遮断 L51,55)が存在。PD-001(low) は body 113>100 かつ skill 直下に references/ ディレクトリ非在(progressive disclosure は prompts/+schemas/ で実施)のため literal の OR 両アームを満たさず -3 の smell 1件。ただし severity=low で score 100-3=97>=threshold 80、high finding ゼロのため passed 規約(score>=threshold AND NOT any(high))を充足し PASS は不変。【RG】RG-001(low) は scorer 出力側 rubric_hash 要件で SKILL.md 内容とは独立。agent/hook/command/workflow/knowledge-loop rule(AG/HK/CM/PC/PR/WF/KL)は applies_to_kinds に kind=skill を含まず本 skill では非適用(KL-* も knowledge/ 非在で存在ゲート skip)。force_pass 不使用。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "完了条件の詳細を prompts/Rn の L5.3 完了チェックリストへ SSOT 委譲し SKILL 側で再定義しないことで片側更新ドリフトを回避しており、責務サマリと正本の分離が rubric の検証可能性/簡潔性を高い水準で満たす。",
+      "ゴール・Why・完了チェックリスト・ゴールシークループが揃い、database_id 未設定時の db-setup 差し戻しまで二値チェックで網羅されていて、loop 実行系として停止条件と完了条件が明確。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点(完全性/一貫性/検証可能性/簡潔性)で SKILL.md を精読し本スキル固有の criteria(IN1=差集合検知の issue_date 帰属と月またぎ正当性 / IN2=確定リスト不在 fail-closed の物理境界 / OUT1=collect→verify→finalize→sink + Notion 冪等 upsert の責務分割の過不足)を導出して照合した。前月発行−今月発行の差集合検知・独立 context 二段確認・Notion 冪等 upsert(管理列不可侵)・参照専用二層保証・月次サマリでの0件月履歴という中核要件がすべて Purpose/Flow/Key Rules に反映され漏れがない(完全性)。fail-closed exit2・hook guard・GET 専用 lib の記述が SKILL/script/manifest/prompt 間で一貫(一貫性)。--collect/--finalize/--sink の具体コマンドと各 Rn L5.3 を停止条件 SSOT とする明示で機械検証可能(検証可能性)。本文を prompts/schemas へ委譲し簡潔(簡潔性)。重大な不足は検出されず PASS と判定した。"
 }

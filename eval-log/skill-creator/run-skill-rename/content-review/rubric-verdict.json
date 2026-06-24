@@ -1,0 +1,28 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-rename",
+    "skill_md_sha256": "7a2ec6b748f702f0a9a1e02a69a871425f3798b481c323a7b90444def2545e9a"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "description が発動条件(スキル改名時 / 改名後の参照整合確認時)を具体的に記述し、改名ワークフローという単一責務に絞られている。",
+      "完了条件が lint-skill-name.py / lint-skill-tree.py / validate-frontmatter.py の exit0 と機械検証可能で明示され、IN1 の lint 検証要件と整合している。",
+      "ゴールシーク不可分セット(ディレクトリ改名・frontmatter.name・aliases は必ずひとまとめ)が IN2 の script 検証要件を構造で支えており、部分更新による不整合を設計で排除している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点で SKILL.md を精読。発動条件の具体性(改名時/参照整合確認時を description が明示)・単一責務(改名と参照整合のみ・新規作成や評価は別 skill)・出力契約の明確性(改名済みディレクトリ + name/aliases/CHANGELOG/参照更新を Purpose & Output Contract に列挙)・完了条件の検証可能性(lint-skill-name / lint-skill-tree exit0 + validate-frontmatter)を確認。IN1(新名 SKILL.md が3 lint exit0)・IN2(git mv 履歴保持と name 新名化と aliases 旧名登録の不可分セット)・OUT1(OUT_BASE 全 SKILL.md の pair/Skill() 旧名参照を漏れなく走査し新名化し参照切れを残さない)の3基準とも rubric 上で adequate。重大な設計欠陥(責務肥大・契約曖昧・検証不能)は検出されず PASS。"
+}

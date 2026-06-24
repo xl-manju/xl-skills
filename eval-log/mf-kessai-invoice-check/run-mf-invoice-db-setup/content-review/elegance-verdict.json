@@ -2,20 +2,26 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
+    "skill_md_sha256": "b42b457f35e795a6313fa71c25774008274fb356adfb6dab1fe1361720b7dded"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 1,
-    "dependency_break": 0,
-    "smell": 1
-  },
-  "reviewer": "elegant-improvement-executor",
-  "reviewed_at": "2026-06-20T00:00:00Z",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "4条件検証。完全性=PASS: 2モード(既存DB ensure_schema=database_id既定『請求書チェック_DB』へ不足追加+タイトルrename / 新規作成=parent_page_id配下にPOST+database_id記録)がSKILL.md L33-36・R1 prompt・build_notion_db.py main()/ensure_schema()で三位一致。管理列不可侵=Key Rule3・R1 L1.1/L4.1・ensure_schema『足りないものを足すだけ(既存option消さずmerge_select_property)』で一貫担保。チェックリストMECE=database_id解決/build/事実列15個/管理列4個/verify PASSで漏れ重複なし、SKILL.md L53事実列15個==schema fact_columns 15個、L54管理列4個==managed_columns 4個で完全一致。一貫性=おおむねPASS: build(R1)→verify(R2)の記述がSKILL.md・両prompt・schema・スクリプトで矛盾なし(verify FAIL→R1差し戻し配線も双方向一致)。検証可能性=PASS: verify_db_schema.pyのPASS条件(全期待プロパティ存在)・FAIL(欠落でexit1+欠落列提示)・stop(database_id未設定でexit2)が明示、追加列は警告(失敗扱いせず)もR2 L4.1と実装一致。簡潔性=PASS: body 81行、重複・冗長なし。inconsistency=1(非blocking): R1-build-db.md L43 入力契約表が parent_page_id required:yes と記すが、SKILL.md L38は『新規作成モードのみ・既定不要』、build_notion_db.py main()は database_id 有時parent不要の条件付き。ただしR1の実行指示(L120)とLayer5.4/4.1は『database_id有→既存利用/無→parent必要』を正しく分岐実装しており、load-bearingな実行指示は整合。L2.3表が2モード設計化前の旧『新規DB専用』前提を残した stale residual。smell=1: 同表の同件。実害(既定ゼロ設定経路)は無いため明確な欠陥に当たらずPASS維持。SKILL.md未改変。lib依存(notion_invoice_sink._notion_token/_req, mfk_api.load_config)実在・スクリプトparse OK確認済。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "事実列(API由来)と管理列(人の運用)を分離した設計を schemas/notion-db-schema.json 正本に一元化し、build/verify スクリプトがそれを読むことで SKILL.md とのドリフトを構造的に防いでいる点。",
+      "database_id 既定焼き込みによるゼロ設定の既存DB適用と parent_page_id 指定の新規作成という2モードを冪等(不足列を足すだけ・管理列非破壊)で両立させ、両方未解決なら安全停止する設計が導入者目的に過不足なく合致している点。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md を全文精読し criteria を本スキル固有(Notion DB スキーマ初回構築/再設計)の実目的から導出。IN1=verify_db_schema.py が事実列15個+管理列4個の全プロパティ PASS を返し、再適用でも管理列・既存データを壊さず不足列追加のみの冪等性を機械検証(Key Rule3・ゴールシーク完了条件・schema の fact/managed 列数と SKILL.md L53/L54 が一致)。IN2=プロパティ正本を schemas/notion-db-schema.json のみに置き status型不可/format:yen をスクリプト側で担保(Key Rule2/4・Gotchas3)。OUT1=2モード(既定『請求書チェック_DB』ゼロ設定適用 / parent_page_id 新規作成)が後段 run-mf-invoice-check の出力先準備という導入者目的を満たし、database_id 未解決で安全停止する全体最適を確認。完全性・一貫性・検証可能性・簡潔性の4条件に照らし adequacy を確認、重大欠陥なしと判断して PASS。本 verdict は frontmatter へ feedback_contract を追加後の sha(b42b457f)で照合。"
 }

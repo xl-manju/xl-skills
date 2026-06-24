@@ -1,0 +1,33 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-create",
+    "skill_md_sha256": "43b0d7a6b9316661768abc4f47b39cf84ad59128298370d65bc4e5c5e22cc235"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "FM 系の高 severity ルールを維持: name=run-skill-create 一致、## Purpose & Output Contract / ## Key Rules / ## Gotchas を存置、description は発動条件のみ。frontmatter への feedback_contract 追加で既存キー(allowed-tools/kind/pair/responsibility_refs 等)を破損していない",
+      "携帯した criteria は inner 各1件以上+outer 各1件以上(IN1/IN2/OUT1/OUT2)で SSOT 制約(id=^(IN|OUT|C)[0-9]+$ / verify_by enum / loop_scope inner-outer 両方)を満たし、本スキルの目的=ゲートあり品質保証フロー orchestrator から導出され固定テンプレートの流用でない",
+      "verify_by の割当が機械層(IN1=lint, IN2=script)と判断層(OUT1=elegant-review, OUT2=evaluator)に二層分離され、二層分離原則と整合する"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点で frontmatter feedback_contract 携帯化を genuine 検証。実ファイルを読み FM-001..004 / NM-001 を PASS 確認。criteria 4件は本スキル固有の制御層責務(P0 lint+manifest exit0 / handoff・build-trace schema 準拠 / ゲート前停止+context:fork / evaluator findings+elegant C1-C4)を反映し、SSOT(scripts/feedback_contract_ssot.py)の id pattern・verify_by enum・inner-outer 両在を充足、text にコロン無しで YAML 妥当。adequacy 上の重大問題(矛盾/欠落/テンプレ流用)は無く high severity finding 0件。被採点物への改変は frontmatter キー追加のみ(本文 read-only)。 [propagation] frontmatter feedback_contract(IN1/IN2/OUT1/OUT2)を携帯化し criteria_evaluated を同期。"
+}

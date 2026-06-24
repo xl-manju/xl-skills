@@ -66,6 +66,25 @@ source_refs:
 source-tier: internal
 last-audited: 2026-05-23
 audit-trigger: quarterly
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 1周回内で30思考法が全種 finding を出すか skip_reason を残し used 足す skipped_with_reason が30に到達する
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: 各 SubAgent が出力する findings.json が集約スキーマを通過し severity tag が定義済み列挙に収まる
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: 矛盾なし 漏れなし 整合性あり 依存関係整合の4条件が全 PASS かつ未達時は force_pass せず human_review へ差し戻す
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: 改善案の承認を同一 context が行わず別 SubAgent または人間が独立採点する proposer 非イコール approver を満たす
+      verify_by: evaluator
 ---
 
 # run-elegant-review (v2)

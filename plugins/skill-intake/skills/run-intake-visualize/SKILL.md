@@ -23,6 +23,21 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成された output/<hint>/visuals.json が schemas/output.schema.json 準拠(additionalProperties:false, items 1-3)かつ scripts/verify-visuals.py exit 0 で、§0〜§11 全 12 セクションに 1〜3 図が配置され、type=svg の全エントリが workspace 相対 png_path の実在 PNG を保有する
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: visuals.json の全 figure_id が Mermaid 12 + SVG 8 のカタログ id 集合に包含され(カタログ外創作ゼロ)、同一 sheet.md+purpose.json で 2 回連続実行した (section→figure_id) が完全一致する(determinism)
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: 本スキルが「カタログ既存図の決定論的配置と SVG→PNG 化」に責務を絞り、カタログ外の図種創作・sheet.md にない事実の図注入(誤情報生成)を行わず、新規図種が必要な場合は創作せず差し戻す設計になっている
+      verify_by: elegant-review
 ---
 
 # run-intake-visualize

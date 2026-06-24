@@ -44,6 +44,21 @@ responsibilities:
   - id: R1
     name: interview
     prompt_required: true
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成された prompt-brief.json が prompt-brief.schema.json に妥当でかつ responsibility_id が target_skill の SKILL.md responsibilities[].id に実在する1:1対応として機械検証できる(不在時は open_questions に記録され confirm 化されない)。
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: batch モード指定時は topic と target_skill と responsibility_id が全て与えられ AskUserQuestion を一切起動せず非対話で brief を確定する一方、欠落時は fail する(対話前提と非対話前提の取り違えが起きない)。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: AI の推定値を導出確認(ユーザー承認)なしに事実として埋めない・質問は1セッション3-5問+評価優先度に集約するというヒアリング中核原則が SKILL.md と prompts/R1-interview.md SSOT と interview-user agent アダプタまで一貫し、迷いなく後続 build が依拠できる brief を生むユーザー目的を最適反映している。
+      verify_by: elegant-review
 ---
 
 # run-prompt-elicit
