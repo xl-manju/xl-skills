@@ -24,6 +24,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = ROOT / "plugins"
 EVAL_LOG = ROOT / "eval-log"
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import feedback_contract_ssot as FC  # noqa: E402
 REQUIRED_VERDICTS = ("elegance-verdict.json", "rubric-verdict.json")
 EXEMPT_PLUGINS = set()
 EXEMPT_KINDS = {"ref"}
@@ -157,12 +160,23 @@ def _check_verdict(path, plugin, skill, fname):
 
 
 def _expected_criteria_ids(plugin, skill):
-    """Trace に固定された feedback_contract.criteria id を読む。
+    """期待される feedback_contract.criteria id 集合を返す。
 
-    build trace は世代により保存場所が異なるため、skill local → global の順に
-    best-effort で読む。見つからなければ空集合を返し、verdict 自体の必須構造のみ
-    検査する。
+    正本は **量産先 SKILL.md frontmatter の feedback_contract**(携帯する評価基準)。
+    frontmatter に無い場合のみ後方互換で build trace(skill-local→global)を best-effort
+    で読む。どこにも無ければ空集合を返す(verdict 自体の必須構造のみ検査)。
     """
+    # 1) frontmatter 正本 (SSOT)
+    md = PLUGINS_DIR / plugin / "skills" / skill / "SKILL.md"
+    try:
+        fc = FC.extract_frontmatter_feedback_contract(md.read_text(encoding="utf-8"))
+        ids = FC.criteria_ids(fc.get("criteria")) if isinstance(fc, dict) else set()
+        if ids:
+            return ids
+    except OSError:
+        pass
+
+    # 2) 後方互換: build trace (世代差で skill-local→global)
     candidates = [
         EVAL_LOG / plugin / skill / "skill-build-trace.json",
         EVAL_LOG / "skill-build-trace.json",
@@ -177,11 +191,7 @@ def _expected_criteria_ids(plugin, skill):
         fc = data.get("feedback_contract")
         if not isinstance(fc, dict):
             continue
-        criteria = fc.get("criteria")
-        if not isinstance(criteria, list):
-            continue
-        ids = {str(item.get("id", "")).strip() for item in criteria if isinstance(item, dict)}
-        ids.discard("")
+        ids = FC.criteria_ids(fc.get("criteria"))
         if ids:
             return ids
     return set()

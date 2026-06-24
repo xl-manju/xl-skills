@@ -292,16 +292,36 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
     return errs
 
 
-# loop 実行系 = criteria 必須 / ref・assign = N/A(skip_reason)許容
-FEEDBACK_LOOP_KINDS = {"run", "wrap", "delegate"}
-FEEDBACK_SKIP_KINDS = {"ref", "assign"}
-# build-flags.schema.json#/properties/feedback_contract/criteria と同型に強制
-# (id pattern / verify_by enum)。潜在不整合を排し「同型」宣言を事実化する。
-# 正本= build-flags.schema.json#/properties/feedback_contract/properties/criteria/items。
-# 下記2定数はその id.pattern / verify_by.enum の機械強制用ミラー。値を変える際は
-# build-flags.schema.json と skill-build-trace.schema.json を同時更新すること (現状3者一致)。
-CRITERIA_ID_RE = re.compile(r"^(IN|OUT|C)[0-9]+$")
-CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
+# criteria 制約の正本は repo-root scripts/feedback_contract_ssot.py (単一 SSOT)。
+# 従来 build-flags.schema / skill-build-trace.schema / 本ファイルに3者ミラーされていた
+# id.pattern / verify_by.enum / loop_scope / kind 分類を一本化し drift を機械的に封じる。
+def _load_feedback_contract_ssot():
+    """repo-root を上方探索して feedback_contract_ssot を import する。
+
+    governance validator は SSOT 無しで stale 定数を使うべきでないため、
+    見つからなければ ImportError を送出して fail-closed にする。
+    """
+    import importlib.util
+
+    here = Path(__file__).resolve()
+    for ancestor in here.parents:
+        cand = ancestor / "scripts" / "feedback_contract_ssot.py"
+        if cand.is_file():
+            spec = importlib.util.spec_from_file_location("feedback_contract_ssot", cand)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
+            return mod
+    raise ImportError(
+        "feedback_contract_ssot.py (criteria SSOT) not found upward from "
+        f"{here}. repo-root scripts/ に正本を配置してください。"
+    )
+
+
+_FC = _load_feedback_contract_ssot()
+FEEDBACK_LOOP_KINDS = _FC.FEEDBACK_LOOP_KINDS
+FEEDBACK_SKIP_KINDS = _FC.FEEDBACK_SKIP_KINDS
+CRITERIA_ID_RE = _FC.CRITERIA_ID_RE
+CRITERIA_VERIFY_BY = _FC.CRITERIA_VERIFY_BY
 
 
 def _resolve_trace_kind(data: dict) -> str | None:
