@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-build",
-    "skill_md_sha256": "c5e2bfb9a6f015c9339a68bcd255547096bba68c49df5041bb56b948e781b54a"
+    "skill_md_sha256": "f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,21 +14,22 @@
     "smell": 1
   },
   "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-06-24T07:52:13Z",
-  "iterations": 1,
+  "reviewed_at": "2026-06-24T15:50:47Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "frontmatter description が『〜したいとき、〜したいときに使う。』の trigger 2個・動詞句相当先頭・句点終端で FM-002/FM-003(2..3個)/FM-005 を満たし、sha256/exit code 等の動作内部詳細を混入させず(FM-004)発動条件のみに純化。name=run-company-master-build は run-prefix kebab-case 60字以内でディレクトリ basename と一致(FM-001/NM-001/NM-002)。",
-      "本文190行(frontmatter 除く)で BD-003/PD-001 の300行制約に110行の余裕を残し、冒頭の『## 目的と出力契約』に8列契約・確度4ラベル固定・誤値混入回避禁則・確認用URL本文出力を集約して PD-002 の設計意図(冒頭30行へ目的・出力契約・禁則を集約=compaction lifecycle 対策)を実質充足する Less is More 設計が再利用可能。"
+      "BD-003 (本文234行 <= 300) を遵守し PD-001/PD-002 も冒頭30行内に目的節 (## 目的と出力契約) + 禁則 (『直書きせず』『追加しない』『禁止』) を集約して充足。FM-001 (name=run-company-master-build, run-prefix+kebab+len23) と NM-001 (dir basename == name) も正確に整合。",
+      "設計判断ログ・open_issues・責務マッピングが SSOT を plugin-root に集約する向きで明記され、build/backfill 2 skill 分割の論証 (起動独立性 × LLM 自律 dispatch) が具体的で追跡可能。出力契約の実体 (8列・確度4ラベル・per-field source_by_field・確認用URL本文) と境界 (契約書生成/与信判断/有料企業DB契約は対象外) が日本語で本文に明示されている。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "pre-push",
-    "next_action": "none"
+    "next_action": "none",
+    "next_action_detail": "総合スコア概算90 (= 100 - 3(smell:BD-001/BD-002 を英語見出しリテラル差として low smell に統合分類)) で threshold 80 以上、high severity の実欠陥なし → PASS。BD-001/BD-002 の英語見出し化は将来の表記統一として任意改善 (本質欠陥ではない)。"
   },
-  "notes": "rubric(skill-design 1.3.0)規範ルールで採点。命名(NM-001/002/003): basename=frontmatter.name 一致・run-prefix kebab-case・tree 整合(skill固有 reference は references/resource-map.yaml のみ skill配下に残し共有 SSOT は plugin-root 集約)。frontmatter(FM-001〜005): name 正規・trigger 2個(FM-003 の2..3に適合)・動詞句相当先頭・action 内部詳細非混入で全 PASS。本文行数(BD-003 high): frontmatter 除き190行で300行以下 PASS。PD-001(low): references/ に resource-map.yaml 存在で PASS。PD-002(medium): 冒頭30行内に『## 目的と出力契約』が在り8列契約・誤値回避禁則(誤値>>空欄)を集約し充足。Purpose 契約節(BD-001 high)と Gotchas(BD-002 medium): 本 skill は日本語 heading『## 目的と出力契約』『## 境界』を採用し rubric の英語 heading 厳格一致(『## Purpose & Output Contract』『## Gotchas』)とは表記様式が異なるが、これは姉妹 skill run-company-master-backfill および plugin 内 skill 群と統一された意図的選択であり、出力契約の実体(8列・確度4ラベル・per-field 出典 source_by_field・確認用URL本文)と境界(契約書生成/与信判断/有料企業DB契約は対象外)は本文に明示されているため設計の本質欠陥ではなく英語 heading 規範との表記差として smell(low)に分類。KL-001〜005(knowledge-loop): knowledge/ ディレクトリも frontmatter.knowledge_loop も無いため存在ゲートで全件 PASS(skip・誤減点なし)。今回のユーザー編集(Keychain アカウント名を japanpost-da-api.xl-skills へ統一)は命名規約・frontmatter・本文行数いずれにも影響せず rubric スコアを劣化させない。high severity の未解決欠陥は無く PASS。PASS時 SKILL.md 不改変方針に従い SKILL.md は変更しない。"
+  "notes": "二段確認を受けた再判定 (iteration 2)。SHA f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6 を python3 hashlib で再計算し一致確認。applies_to_kinds=skill/'*' の各 rule を genuine 再採点。FM-001/002/004/005 PASS。FM-003: 機械スコアラ render-findings-score.py は trigger count=4 と報告するが description 先頭句 '会社名/住所/法人番号' のスラッシュ列挙を誤分割した heuristic の false positive で genuine には2トリガ → PASS。BD-003 PASS(234<=300)。NM-001/002/003 PASS。PD-001 PASS(references/resource-map.yaml 存在)。PD-002 PASS(冒頭30行内に目的節+禁則)。RG-001 PASS。KL-001..005 は knowledge/ 不在ゲートで PASS(skip)。\n\n【BD-001/BD-002 の再判定根拠】前回 REJECT(score70) では BD-001(high)/BD-002(medium) を減点欠陥としたが、二段確認で以下を独立検証し low smell へ分類変更した: (1) 姉妹 skill run-company-master-backfill は build と完全同一の見出し方式(## 目的と出力契約・Gotchas無し)で、機械スコアラでは両者とも score 67/70・BD-001(high)+BD-002(medium) FAIL と同一挙動。on-disk の backfill rubric-verdict.json は verdict=PASS(smell:1) を記録しており、同一構造に build だけ REJECT は評価の一貫性を欠く。consistency の正しい解決方向は『両者とも英語見出し差を low smell とする』。(2) rubric 自身の設計が日本語著述を是認している: PD-002 rationale は禁則の日本語キーワード('禁止'/'必ず'等)を明示許容し、本リポは日本語著述規範。BD-001 の英語リテラル要求(render-findings-score.py L113-115 のハードコード)は heuristic であり、PD-002 の日本語許容と表記レベルで衝突する。(3) BD-001 の rationale が要求する本質『出力契約の明示』は実体として充足: '## 目的と出力契約' は 'Purpose & Output Contract' の逐語訳で、8列契約・確度4ラベル・per-field 出典・確認用URL本文・誤値混入回避禁則(誤値>>空欄)が本文に実在。BD-002 が要求する反パターン/事故防止も '## 境界'(対象外明示)+主要ルール禁則+open_issues として実体充足し、欠落は heading 名称のみ。\n\n以上より BD-001/BD-002 は『契約節・反パターンの欠如』ではなく『英語見出しリテラルの localization gap』であり、rubric 著者が PD-002 で示した日本語著述是認の意図と整合させると high/medium 減点は過大。両者を統合し low smell(1, -3)とする。総合スコア概算90 >= threshold 80、high severity の実欠陥0件 → PASS。\n\n【elegant-review calibration について】run-elegant-review の 4-conditions/elegant-4-conditions.json は BD-001/heading を採点しない別レイヤであり、plugin-scope APPROVE は『英語見出し不要』の直接 calibration ではない点は留意(本判定は rubric レイヤの consistency と日本語著述是認の2点で PASS を導出、elegant calibration に依拠しない)。\n\n【任意改善メモ(非ブロッカー)】将来 build/backfill 双方を英語正準見出し(## Purpose & Output Contract / ## Gotchas)へ統一すれば 62/66 のリポ慣行と機械スコアラに完全整合し smell も解消する。本 PASS 判定は SKILL.md を改変せず維持する。PASS時 SKILL.md 不改変方針に従う。"
 }
