@@ -20,7 +20,7 @@ rubric_refs:
 # permissions: 設計書10章§7.4 二段防御。orchestrator は subagent 起動を伴うため
 #   settings.json で permissions.deny に破壊的 command を列挙すること。
 # TaskCreated hook: file ownership 衝突検出のため scripts/hook-check-file-ownership.py を有効化。
-# TaskCompleted hook: evaluator JSON 契約検証のため scripts/hook-verify-evaluator-json.py を有効化。
+# SubagentStop hook: evaluator JSON 契約検証のため scripts/hook-verify-evaluator-json.py を有効化。
 ---
 
 # {{name}}
@@ -104,4 +104,4 @@ rubric_refs:
 1. **一段目（静的）**: `settings.json` の `permissions.deny` に破壊的 command と rubric ファイル Write/Edit を列挙
 2. **二段目（動的）**: `PreToolUse` hook で context-dependent な危険検査
 3. **TaskCreated hook**: file ownership 衝突を block
-4. **TaskCompleted hook**: evaluator JSON 契約違反を block
+4. **SubagentStop hook**: evaluator JSON 契約違反を block

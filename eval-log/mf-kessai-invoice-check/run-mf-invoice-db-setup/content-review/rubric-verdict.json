@@ -1,0 +1,21 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-db-setup",
+    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-20T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "ref-skill-design-rubric rubric.json(1.3.0, threshold80, applies_to_kinds=skill)を逐条照合。FM-001(high) PASS: name=run-mf-invoice-db-setup が ^(run|...)-[a-z0-9][a-z0-9-]*$ 一致・len25<=60。FM-002(med) PASS: description『〜したいとき/たいとき』trigger含み句点。終止。FM-003(med) PASS: trigger『とき』2個(初回構築したいとき/作り直したいとき)で2..3内。FM-004(med) PASS: 内部動作語(採点する/JSONで返す/sha256/exit code)混入なし。FM-005(low) PASS: description に動詞名詞句『構築』含む。BD-001(high) PASS: '## Purpose & Output Contract' 厳格一致(L31)。BD-002(med) PASS: '## Gotchas' 存在(L96)。BD-003(high) PASS: body 81行<=300。BD-004(med) PASS: 2 trigger(初回構築/作り直す)が body の2モード(既存DB ensure_schema=作り直し時の不足追加+rename / 新規作成=初回構築)とチェックリスト・ゴールシークループに1:1対応。NM-001(high) PASS: dir basename==name。NM-002(med) PASS: kebab+run-prefix。NM-003(low) PASS: scripts/ は build_notion_db.py / verify_db_schema.py の .py のみ。PD-001(low) PASS: references相当(prompts/schemas/scripts)存在かつ body81<=100。PD-002(med) PASS: 冒頭30行内(body4行目)に '## Purpose & Output Contract' + 禁則(『壊さない』『status型は使わない』Key Rule)集約。RG governance: 採点は upstream ref-skill-design-rubric/rubric.json 規範に準拠(rubric_version=1.3.0)。FM/BD/NM/PD 必須全充足・high finding 0件のため PASS。SKILL.md未改変。"
+}

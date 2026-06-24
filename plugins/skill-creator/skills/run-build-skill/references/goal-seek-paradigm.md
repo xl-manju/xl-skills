@@ -9,7 +9,7 @@ source-tier: internal
 
 # ゴールシーク・パラダイム（正本）
 
-> skill-creator が生成する**実行系 Capability**（run / assign / wrap / delegate / orchestrator / agent / agent-team / hook-integrated）は、達成手順を固定で列挙しない。ユーザーへ追加ヒアリングするのではなく、AI が既存コンテキストを仮想ヒアリング結果として扱い、**最適ゴール + 目的・背景 + 完了チェックリスト** を推定する。そのうえで、チェックリストが全充足するまで「手順を都度生成して実行する」ループを回す。
+> skill-creator が生成する**ループ実行系 Capability**（run / wrap / delegate / orchestrator / agent / agent-team / hook-integrated）は、達成手順を固定で列挙しない。ユーザーへ追加ヒアリングするのではなく、AI が既存コンテキストを仮想ヒアリング結果として扱い、**最適ゴール + 目的・背景 + 完了チェックリスト** を推定する。そのうえで、チェックリストが全充足するまで「手順を都度生成して実行する」ループを回す。`assign-*` は評価系のため Goal/Checklist 形は使うが、runtime loop は配線せず一度の採点で完結する。
 
 ## なぜ固定手順を書かないか
 
@@ -37,6 +37,15 @@ source-tier: internal
 | **目的・背景 (Why)** | なぜそのゴールか（判断のよりどころ） | 1〜3 文。手順生成時の優先順位の根拠になる |
 | **完了チェックリスト (Checklist)** | ゴール達成の受入基準 | `- [ ]` 形式の**検証可能**な項目。各項目は YES/NO で判定できること |
 | **ゴールシークループ (Loop)** | 反復の規約 | 下記 6 ステップ固定 (現状評価/手順生成/実行/検証/Anchor Step/反復)。これは手順ではなく**メタ手順**＝反復の枠組み |
+
+## 適用マトリクス
+
+| Capability | Goal/Checklist 構造 | runtime loop wiring | 扱い |
+|---|---:|---:|---|
+| `run` / `wrap` / `delegate` | 必須 | 必須 (default-ON) | `with-goal-seek` が `goal_seek:` と progress/intermediate 記録を注入 |
+| `orchestrator` / `agent` / `agent-team` / `hook-integrated` | 必須 | 必須相当 | 専用テンプレート側で Gate / hook / SubAgent 境界として配線 |
+| `assign-*` evaluator | 必須 | 対象外 | 採点網羅性を checklist で担保し、一度の read-only 採点で終了 |
+| `ref-*` | 対象外 | 対象外 | 参照用。手順なし |
 
 ## ゴールシークループ（メタ手順・固定）
 
@@ -142,3 +151,9 @@ source-tier: internal
 ## 評価系 (assign-*-evaluator) の扱い
 
 evaluator は一度の採点で完結する read-only 工程。ループは回さないが、**採点の網羅性をチェックリスト**で担保する（全 rubric 項目を評価したか / findings にエビデンスがあるか / score が算出済みか）。
+
+> **P8 整合**: 評価器（`assign-*`）は read-only 単発で**ループしない**。評価→改善の**ループ**は `feedback_contract` / content-review が回す（評価器自身ではない）。内/外ループの正本説明は `content-review-protocol.md` の「ループ分類」表を参照。
+
+有界反復の数値正本（SSOT）は `run-elegant-review/references/convergence-policy.json` の `loop_bounds`。本ファイルの goal-seek `max_loops` 既定 5 は `loop_bounds.goal_seek_inner`（手順反復＝AI が文脈から手順を都度導出する内ループの上限）であり、content-review の inner 評価→改善 **再評価** 上限 3（`inner_loop.max_iterations`）とは**別ループ**（同名 'inner' の 3 と 5 を混同しない）。ここでは参照のみ（重複宣言しない）。
+
+内ループ × 正フィードバック（従来の空白セル）= 小機能単位で見つけた良手順パターンは、生成スキルの `knowledge/`（Loop A, [[ref-knowledge-loop]]）へ蓄積・横展開する。

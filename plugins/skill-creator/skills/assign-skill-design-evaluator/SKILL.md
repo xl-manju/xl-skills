@@ -94,7 +94,7 @@ evaluator は一度の採点で完結する read-only 工程。**ループは回
 - [ ] 各 finding に loc エビデンスと severity (high/medium/low) が付いている
 - [ ] severity weight (high -20 / medium -10 / low -3、初期 100、負値は 0 クランプ) で score を算出済み
 - [ ] 出力 JSON が `schemas/evaluator-output.schema.json` / `references/evaluator-contract.md` に準拠し rubric_hash を含む
-- [ ] STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/skill-build-trace.jsonl` へ append 済み
+- [ ] STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/<plugin>/<date>-score.jsonl` へ append 済み
 
 ### 採点フロー（局面カタログ・順序は都度判断）
 
@@ -123,7 +123,7 @@ evaluator は一度の採点で完結する read-only 工程。**ループは回
 - **静的検査**: Read / Grep / lint-* で findings 収集 — FM-001..005 (`validate-frontmatter.py`)、BD-001..004 (Output contract / Gotchas / 行数 / BD-004=TODO(human))、NM-001..003 (`lint-skill-name.py`, `lint-skill-tree.py`)、PD-001 (本文100行超なら references/ 必須)、RG-001 (rubric_hash 埋め込み)。
 - **スコア計算**: `render-findings-score.py` に findings を渡し severity weight で減点。
 - **JSON 出力**: `references/evaluator-contract.md` のスキーマ通り STDOUT 1 行で出す。threshold 未達は `passed=false`。run-build-skill が `findings[*].message` を元に再生成する。
-- **eval-log 永続化 (必須・F1 規約)**: STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/skill-build-trace.jsonl` へ append。自己進化ループ（設計書23章）の入力ストックを確保する唯一の書き込み経路。
+- **eval-log 永続化 (必須・F1 規約)**: STDOUT の JSON を `write-eval-log.py` 経由で `eval-log/<plugin>/<date>-score.jsonl` (= `write-eval-log.py` の `resolve_log_path`) へ append。自己進化ループ（設計書23章）の入力ストックを確保する唯一の書き込み経路。集計 `aggregate-evals.py` (SessionEnd) はこの score.jsonl を読み取り source とする。
 
   ```bash
   python3 "$SKILL_DIR/scripts/render-findings-score.py" ... \

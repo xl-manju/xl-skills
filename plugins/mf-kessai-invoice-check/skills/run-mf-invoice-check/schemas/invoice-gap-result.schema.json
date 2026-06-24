@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Invoice Gap Candidates",
+  "description": "check_invoice_gaps.py --collect が出力し --finalize/--sink が消費する候補リストの契約。出力されるのは『発行漏れ候補』(全件) と金額変動した『継続発行』のみ。『今月新規』および金額無変動の継続発行は発行漏れ検知の対象外のため collect 出力には含めない (enum は監査・将来用途として保持)。",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["customer_id", "period_ym", "verdict"],
+    "properties": {
+      "customer_id": {"type": "string"},
+      "period_ym": {"type": "string", "pattern": "^\\d{4}-\\d{2}$"},
+      "company_name": {"type": "string"},
+      "verdict": {"type": "string", "enum": ["発行漏れ候補", "継続発行", "今月新規"], "description": "collect が実際に出力するのは『発行漏れ候補』と金額変動した『継続発行』のみ。『今月新規』は enum 上有効だが collect は出力しない (監査用途で予約)。"},
+      "product_name": {"type": "string"},
+      "prev_amount": {"type": ["integer", "null"]},
+      "curr_amount": {"type": ["integer", "null"]},
+      "issue_date": {"type": ["string", "null"]},
+      "updated_at": {"type": ["string", "null"]}
+    }
+  }
+}

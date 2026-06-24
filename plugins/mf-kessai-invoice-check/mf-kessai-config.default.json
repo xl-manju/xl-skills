@@ -1,0 +1,11 @@
+{
+  "_comment": "配布既定 (コミット対象)。プラグイン導入者は設定不要でこの値が使われる。個別に変えたい場合のみ同階層の .mf-kessai-config.json (gitignore) に差分を書く。空文字は既定を上書きしない。",
+  "environment": "production",
+  "base_url": "https://api.mfkessai.co.jp/v2",
+  "keychain_service": "mfkessai-api-key.xl-skills",
+  "keychain_account": "xl-skills",
+  "notion": {
+    "_comment": "発行漏れチェック結果の出力先 Notion DB『請求書チェック_DB』。アクセスには Keychain の Notion トークン (notion-api-key.xl-skills) と、この DB への integration 接続が必要。",
+    "database_id": "38407a0c-d18c-80ec-a872-ce1a9654619f"
+  }
+}

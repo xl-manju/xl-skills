@@ -33,6 +33,10 @@ references/governance-params.json
 .notion-config.json
 !.notion-config.example.json
 
+# Per-repo MF KESSAI config (base_url / keychain service identity / Notion DB id) - see plugins/mf-kessai-invoice-check/README.md
+.mf-kessai-config.json
+!.mf-kessai-config.example.json
+
 # Session-local artifacts
 output/
 .claude/handoff/
@@ -54,6 +58,8 @@ eval-log/skill-intake/**
 !eval-log/skill-intake/*/content-review/**
 eval-log/docs/
 eval-log/notion-conflicts.json
+# check-review-trigger.py が Stop hook で append する評価トリガキュー (揮発状態・タイムスタンプ含む)
+eval-log/review-queue.jsonl
 
 # Plugin-local runtime
 plugins/skill-intake/output/
