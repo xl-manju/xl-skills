@@ -19,6 +19,34 @@ def load_schema():
         return json.load(f)
 
 
+def property_errors(existing_props, schema):
+    """Notion DB properties が schema の型/option/format と一致するか検証する。"""
+    errs = []
+    for name, spec in schema["properties"].items():
+        prop = existing_props.get(name)
+        if prop is None:
+            continue
+        actual_type = prop.get("type")
+        expected_type = spec["type"]
+        if actual_type != expected_type:
+            errs.append(f"{name}: type が {actual_type!r} (期待 {expected_type!r})")
+            continue
+        if expected_type == "select":
+            actual_options = {
+                o.get("name")
+                for o in ((prop.get("select") or {}).get("options") or [])
+                if o.get("name")
+            }
+            missing_options = sorted(set(spec.get("options", [])) - actual_options)
+            if missing_options:
+                errs.append(f"{name}: select option 欠落 {missing_options}")
+        if expected_type == "number":
+            fmt = (prop.get("number") or {}).get("format")
+            if fmt != "yen":
+                errs.append(f"{name}: number format が {fmt!r} (期待 'yen')")
+    return errs
+
+
 def main():
     schema = load_schema()
     cfg = load_config()
@@ -28,16 +56,36 @@ def main():
         return 2
     token = _notion_token()
     res = _req("GET", f"/databases/{db_id}", token)
-    existing = set((res.get("properties") or {}).keys())
+    existing_props = res.get("properties") or {}
+    existing = set(existing_props.keys())
     expected = set(schema["properties"].keys())
+    deprecated = set(schema.get("deprecated_properties", []))
+    stale_renames = sorted(
+        old for old, new in schema.get("renames", {}).items()
+        if old in existing and new in existing
+    )
     missing = sorted(expected - existing)
-    extra = sorted(existing - expected)
-    if missing:
-        print(f"FAIL 欠落プロパティ: {missing}")
+    type_errors = property_errors(existing_props, schema)
+    # 削除されるべき旧列が残っていないか (移行の drift)。extra のうち deprecated は致命。
+    residual = sorted(deprecated & existing)
+    extra = sorted(existing - expected - deprecated)
+    if missing or residual or type_errors or stale_renames:
+        if missing:
+            print(f"FAIL 欠落プロパティ: {missing}")
+        if type_errors:
+            print("FAIL プロパティ型/option/format 不一致:")
+            for err in type_errors:
+                print(f"  - {err}")
+        if residual:
+            print(f"FAIL 削除されるべき旧プロパティが残存: {residual} "
+                  f"(build_notion_db.py を再実行して掃除してください)")
+        if stale_renames:
+            print(f"FAIL 改名済みの旧プロパティが新名と併存: {stale_renames} "
+                  f"(build_notion_db.py を再実行して旧列を掃除してください)")
         if extra:
-            print(f"     (DBにのみ存在: {extra})")
+            print(f"     (参考: DBにのみ存在する追加列: {extra})")
         return 1
-    print(f"PASS 全 {len(expected)} プロパティが存在します。")
+    print(f"PASS 全 {len(expected)} プロパティが存在し、旧プロパティの残存もありません。")
     if extra:
         print(f"     (参考: DBにのみ存在する追加列: {extra})")
     return 0

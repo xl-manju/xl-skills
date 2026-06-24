@@ -5,7 +5,10 @@
     "PKG-001": {
       "status": "skip",
       "last_run_at": "2026-06-19T00:00:00Z",
-      "skip_reason": "claude plugin validate --strict wrapper is not available in this repository yet."
+      "skip_reason": "claude plugin validate --strict wrapper is not available in this repository yet.",
+      "skip_kind": "time_boxed_debt",
+      "next_audit_by": "2026-09-30",
+      "debt_note": "恒久免除ではない。repo-level の strict validate harness が整い次第 pass へ昇格する期限付き負債。期限到来時に再監査する。"
     },
     "PKG-002": {
       "status": "pass",
@@ -49,18 +52,27 @@
     },
     "PKG-010": {
       "status": "skip",
-      "last_run_at": "2026-06-19T00:00:00Z",
-      "skip_reason": "Repository-level smoke-plugin-install.sh is not implemented yet; static install contract is covered by tests."
+      "last_run_at": "2026-06-24T00:00:00Z",
+      "skip_reason": "Repository-level smoke-plugin-install.sh is not implemented yet; static install contract is covered by tests.",
+      "skip_kind": "time_boxed_debt",
+      "next_audit_by": "2026-09-30",
+      "debt_note": "恒久免除ではない。静的 install 契約は tests/test_plugin_contract.py で代替検査中。repo の install smoke harness 整備後に pass へ昇格する期限付き負債。2026-06-24: enrich skill / 新ホスト権限 / OAuth secret が追加され配布表面が拡大。再監査対象。"
     },
     "PKG-011": {
       "status": "skip",
-      "last_run_at": "2026-06-19T00:00:00Z",
-      "skip_reason": "Pre-release uninstall smoke is pending repository harness support."
+      "last_run_at": "2026-06-24T00:00:00Z",
+      "skip_reason": "Pre-release uninstall smoke is pending repository harness support.",
+      "skip_kind": "time_boxed_debt",
+      "next_audit_by": "2026-09-30",
+      "debt_note": "恒久免除ではない。uninstall smoke を回す repo harness 整備後に pass へ昇格する期限付き負債。期限到来時に再監査する。2026-06-24: enrich skill / 新ホスト権限 / OAuth secret が追加され配布表面が拡大。再監査対象。"
     },
     "PKG-012": {
       "status": "skip",
-      "last_run_at": "2026-06-19T00:00:00Z",
-      "skip_reason": "Pre-release upgrade smoke is pending repository harness support."
+      "last_run_at": "2026-06-24T00:00:00Z",
+      "skip_reason": "Pre-release upgrade smoke is pending repository harness support.",
+      "skip_kind": "time_boxed_debt",
+      "next_audit_by": "2026-09-30",
+      "debt_note": "恒久免除ではない。upgrade smoke を回す repo harness 整備後に pass へ昇格する期限付き負債。期限到来時に再監査する。2026-06-24: enrich skill / 新ホスト権限 / OAuth secret が追加され配布表面が拡大。再監査対象。"
     },
     "PKG-013": {
       "status": "pass",
@@ -95,7 +107,10 @@
     "PKG-015": {
       "status": "skip",
       "last_run_at": "2026-06-19T00:00:00Z",
-      "skip_reason": "Rubric violation threshold gate is repository-level and not implemented for this plugin yet."
+      "skip_reason": "Rubric violation threshold gate is repository-level and not implemented for this plugin yet.",
+      "skip_kind": "time_boxed_debt",
+      "next_audit_by": "2026-09-30",
+      "debt_note": "恒久免除ではない。rubric 違反閾値ゲートの repo-level 実装後に pass へ昇格する期限付き負債。期限到来時に再監査する。"
     }
   }
 }

@@ -32,18 +32,33 @@ import os
 import subprocess
 import sys
 
+# --- service 命名規約 SSOT ---------------------------------------------------
+# Keychain service 名の既定はこの定数群を唯一の正本とする。MF キーと Notion トークンの
+# 両方をここで一元管理し、命名規約 (<purpose>-api-key.xl-skills / account=xl-skills) の
+# 散在を防ぐ。notion_invoice_sink._notion_token はこの DEFAULT_NOTION_SERVICE を参照する。
 DEFAULT_SERVICE = "mfkessai-api-key.xl-skills"
+DEFAULT_NOTION_SERVICE = "notion-api-key.xl-skills"
 DEFAULT_ACCOUNT = "xl-skills"
+
+
+def resolve_service(env_var, config_value, default):
+    """env > config > default の優先順で Keychain service/account 名を解決する共通リゾルバ。
+
+    MF キー (_service/_account) と Notion トークン (_notion_token) が同一の解決規則を
+    共有するための単一実装。env_var が示す環境変数を最優先し、次に config 値、最後に
+    既定値へフォールバックする。空文字/None は「未設定」とみなし次の候補へ進む。
+    """
+    return os.environ.get(env_var) or (config_value or None) or default
 
 
 def _service(cfg=None):
     """env > config(keychain_service) > DEFAULT の優先順で service 名を解決する。"""
-    return os.environ.get("MFK_KEYCHAIN_SERVICE") or (cfg or {}).get("keychain_service") or DEFAULT_SERVICE
+    return resolve_service("MFK_KEYCHAIN_SERVICE", (cfg or {}).get("keychain_service"), DEFAULT_SERVICE)
 
 
 def _account(cfg=None):
     """env > config(keychain_account) > DEFAULT の優先順で account 名を解決する。"""
-    return os.environ.get("MFK_KEYCHAIN_ACCOUNT") or (cfg or {}).get("keychain_account") or DEFAULT_ACCOUNT
+    return resolve_service("MFK_KEYCHAIN_ACCOUNT", (cfg or {}).get("keychain_account"), DEFAULT_ACCOUNT)
 
 
 class KeychainError(Exception):
@@ -52,8 +67,13 @@ class KeychainError(Exception):
         self.exit_code = exit_code
 
 
-def _from_keychain(service, account):
-    """Keychain から取得。見つからなければ None を返す (例外は投げない)。"""
+def fetch_secret(service, account):
+    """macOS Keychain から service/account の生値を取得する共通コア。
+
+    見つからない/非macOS なら None を返す (例外は投げない)。MF キーと Notion トークンの
+    両方がこの単一実装を経由することで、`security` 呼出・非macOS フォールバック・改行除去の
+    挙動を一元化する。生値はログ・標準出力に出さないこと。
+    """
     if sys.platform != "darwin":
         return None
     res = subprocess.run(
@@ -65,6 +85,11 @@ def _from_keychain(service, account):
         return None
     token = (res.stdout or "").rstrip("\n")
     return token or None
+
+
+def _from_keychain(service, account):
+    """後方互換エイリアス。共通コア fetch_secret へ委譲する (既存呼出/テストを壊さない)。"""
+    return fetch_secret(service, account)
 
 
 def get_api_key(service=None, account=None, cfg=None):
