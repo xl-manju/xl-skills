@@ -101,7 +101,7 @@ build へ渡る brief の品質が後工程全体の質を決める。曖昧さ�
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本スキル固有の差分:
 
 - **未達評価の単位は brief フィールド**: チェックリスト未充足フィールドを、下記「局面カタログ」を参考に 1 問ずつ (連打禁止) 埋める。スキーマ違反 (必須欠落) があれば再質問。
 - **仮想ヒアリング**: 既出回答から導出できる値は質問せず AI が埋め、不足のみ open_questions へ。設計用語 (prefix/hierarchy_level/boundary) は直接質問せず brief 確認画面でのみ開示。
@@ -283,11 +283,4 @@ echo "eval-log/skill-brief.json を生成。run-build-skill / run-skill-create �
 
 ## Additional Resources
 
-- `references/brief-template.md` — skill-brief の人間可読フィールド早見 (正本スキーマへのポインタ)
-- `../run-skill-create/schemas/skill-brief.schema.json` — JSON 出力スキーマ**正本** (フィールド詳細はこの description を参照)
-- `../ref-knowledge-loop/SKILL.md` — ナレッジループ判定 (5条件・パターン選択フロー) の正本。`knowledge_loop` 設定時に参照
-- `../../knowledge/` — skill-creator 自身の蓄積知見 (Loop B ストア)。作成時に `search_knowledge.py --dir` で検索
-- `01a-build-flow.md` Step3 — 5 prefix 判定の正本表
-- `06-classification-and-naming.md` — prefix / role-suffix 判定の詳細
-- `29-multi-project-rubric-composition.md` — L0/L1/L2 階層と rubric_refs 一方向依存
-- `13-checklists.md` — trigger / output contract のチェック
+- 索引正本 = frontmatter `schema_refs` (skill-brief.schema.json 正本) と `references/resource-map.yaml` (brief-template / ref-knowledge-loop / knowledge Loop B ストア / 設計書 01a Step3・06・29・13 の read_when 付き一覧)。

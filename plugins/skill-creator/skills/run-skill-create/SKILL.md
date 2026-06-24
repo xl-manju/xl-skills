@@ -42,7 +42,7 @@ audit-trigger: quarterly
 
 # run-skill-create
 
-> Phase 2 移行後は `plugins/skill-creator/skills/` が正本、`.claude/skills/` は symlink/deploy target。本SKILL.md は両配置で動作するよう self-relative パスを使用。
+> Phase 2 移行後は `plugins/skill-creator/skills/` が正本、`.claude/skills/` は symlink/deploy target。schema/prompt 参照は self-relative パスだが、本SKILL.md 内の lint / スクリプト起動コマンド (`python3 plugins/...`) は repo-root cwd 前提。
 
 ## Purpose & Output Contract
 
@@ -53,7 +53,7 @@ audit-trigger: quarterly
 - `plugins/skill-creator/skills/<skill_name>/` 一式 (SKILL.md + references/ + scripts/)
 - `eval-log/skill-build-trace.json` (`schemas/build-trace.schema.json` 準拠)
 - 共通基盤の場合は `plugins/skill-creator/.claude-plugin/plugin.json` 登録差分
-- `eval-log/docs/<NN>-<timestamp>.json` (評価結果、`schemas/findings.schema.json` 準拠)
+- `eval-log/docs/<NN>-<timestamp>.json` (評価結果、`schemas/findings.schema.json` 準拠)。deprecated: 27章 §3.1 の `eval-log/<plugin>/<skill>/<gate>/<run-id>/` (repo root 基準) へ移行
 - `eval-log/handoff-<step>.json` (`schemas/handoff.schema.json` 準拠)
 - 完了レポート (日本語本文、パラメーター名のみ英語)
 
@@ -89,6 +89,7 @@ audit-trigger: quarterly
 [Step 2 build]  run-build-skill  ─→ skill-build-trace.json
 [Step 3 manifest-register] [Gate 2.5] [Step 3.5 bundle-register]
 [Step 4a p0-lint] (fail→Step 2、最大3周) ─[Gate 2 diff]─▶
+[Step 4a.5 pkg-check] run-plugin-package-check (条件: kind==plugin-composition or 新規 plugin 横展開)
 [Step 4b design-evaluate] (context:fork) ─→ findings
 [Step 5 elegant-review] (条件: new or >30 行, context:fork) ─[Gate 3]─▶
 [Step 6 governance] (solo_operator_mode 自動承認) ─[Gate 4]─▶
@@ -124,7 +125,7 @@ audit-trigger: quarterly
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ (現状評価/手順生成/実行/検証/Anchor Step/反復) に従う。本スキル固有の差分:
 
 - **未達評価の単位はゲート**: Gate 1→2→2.5→3→4 を順に「未承認」とみなして都度埋める。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/R2-gate-review.md`)。
 - **委譲先 (子 Skill)**: `run-skill-elicit` / `run-build-skill` / `assign-skill-design-evaluator` / `run-elegant-review` / `run-skill-rubric-governance`。Notion 指定ありの非技術者 intake は `skill-intake` 完了証跡を先に検証する。本スキルは制御のみ、各子が自設計書を参照。
@@ -145,7 +146,7 @@ audit-trigger: quarterly
 
 ## 品質ゲート: Elegant Review Protocol
 
-新規/更新/プロンプト改善時は `plugins/skill-intake/references/elegant-review-protocol.md` を適用 (3 フェーズで C1-C4 全 PASS を確認、大規模設計は必須、軽微修正は `--fast` と整合可)。結果は Step 5 findings に紐付け `eval-log/` に残す。
+新規/更新/プロンプト改善時は Elegant Review Protocol を適用する。本プロトコルの正本は `plugins/skill-creator/skills/run-elegant-review/SKILL.md` (Phase 1→2→3 で C1-C4 全 PASS を確認、大規模設計は必須、軽微修正は `--fast` と整合可)。結果は Step 5 findings に紐付け `eval-log/` に残す。
 
 ## Additional Resources
 
@@ -154,10 +155,10 @@ audit-trigger: quarterly
 - `workflow-manifest.json` — Step/Gate/Phase の機械可読定義 (entryHook/exitHook/dependsOn/delegateSkill)
 - `schemas/skill-brief.schema.json` — Step 1→2 渡し正本スキーマ
 - `schemas/handoff.schema.json` — Gate 通過時 handoff 共通形式
-- `schemas/findings.schema.json` — evaluator/elegant-review 出力形式 (C1-C4)
+- `schemas/findings.schema.json` — orchestrator handoff envelope (evaluator 集約結果の封筒)。Step 5 producer 出力の正本は `../run-elegant-review/schemas/findings.schema.json`
 - `schemas/build-trace.schema.json` — Step 2 emit する章別 coverage 形式
 - `schemas/rubric-merge.schema.json` — L0/L1/L2 rubric deep-merge 物質化形式
 - `prompts/R1-elicit.md` / `prompts/R2-gate-review.md` / `prompts/R3-governance-decide.md` — R1/R2/R3 責務別プロンプト
 - `references/gate-templates.md` — Gate 確認質問テンプレ (人間向け詳細手順)
-- 子スキル: `run-skill-elicit`, `run-build-skill`, `assign-skill-design-evaluator`, `run-elegant-review`, `run-skill-rubric-governance`, `run-skill-rename`
+- 子スキル: `run-skill-elicit`, `run-build-skill`, `run-plugin-package-check`, `assign-skill-design-evaluator`, `run-elegant-review`, `run-skill-rubric-governance`, `run-skill-rename`
 - 設計書: 05/06/07/11/13/23/25 章

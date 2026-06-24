@@ -94,7 +94,7 @@ rubric_refs:
 - **handoff file は session 単位**: 別 session で resume するときは PostCompact が拾う
 
 ## Additional Resources
-- `references/handoff-schema.json` — Phase間 handoff 構造
+- `schemas/handoff.schema.json` — Gate 通過時 handoff 共通形式
 - `references/gate-templates.md` — Gate 判定 snippet 集
 - 設計書 09章 — 評価ピラミッド P0-P3
 - 設計書 10章 §7 — Hook 競合解決

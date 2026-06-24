@@ -40,7 +40,7 @@
 | 31 | 31-output-routing-adapter-architecture.md | 出力先routing / adapter分離 |
 | 32 | 32-creator-kit-implementation-ledger.md | 実装台帳 / 正本と派生 / 残課題 |
 | 33 | 33-change-governance.md | 変更分類 / 承認 / cooldown / blast radius |
-| 34 | 34-plugin-governance-roadmap.md | plugin境界 / 移行ゲート / 外部参照棚卸し |
+| 34 | 34-plugin-governance-roadmap.md | plugin境界 / 移行ゲート / 外部参照棚卸し / .claude symlink戦略 (build-claude-symlinks.py) |
 | 35 | 35-meta-harness-feedback-loop.md | セッションログ由来の自己改善ループ |
 
 ## 読み順（用途別）

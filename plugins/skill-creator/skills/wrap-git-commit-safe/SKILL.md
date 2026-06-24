@@ -28,8 +28,6 @@ schema_refs:
 script_refs:
   - scripts/pre-commit-secret-scan.py
   - scripts/preflight-git-commit.py
-reference_refs:
-  - references/resource-map.yaml
 ---
 
 # wrap-git-commit-safe
@@ -71,7 +69,7 @@ base の commit を上書きせず前後に安全フックを被せ、LLM の文
 
 ### ゴールシークループ
 
-正本の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。固有差分は下記局面で未達チェックを埋める。決定論検査は script に寄せ、検査不合格は即 BLOCK（再試行で握り潰さない）。
+正本の 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し）に従う。固有差分は下記局面で未達チェックを埋める。決定論検査は script に寄せ、検査不合格は即 BLOCK（再試行で握り潰さない）。
 
 ### 局面カタログ（順序は都度判断）
 
@@ -94,4 +92,5 @@ base の commit を上書きせず前後に安全フックを被せ、LLM の文
 ## Additional Resources
 
 - base: `run-build-skill`
+- `templates/commit-template.md` — commit message を整形するときに Read
 - 設計書: `06-classification-and-naming.md` (wrap-* prefix), `01a-build-flow.md` Step3

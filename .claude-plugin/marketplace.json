@@ -43,6 +43,14 @@
       "tags": ["contract", "docx", "google-drive", "google-sheets", "slack", "automation"]
     },
     {
+      "name": "company-master",
+      "source": "./plugins/company-master",
+      "description": "会社名/住所/法人番号の断片から、gBizINFO(正式名称/所在地/法人番号)・日本郵便KEN_ALL(郵便番号)・Web検索(電話番号)で企業情報を補完し、Notion企業マスタDBへ法人番号キーでupsertする。確度4ラベル・取得失敗の備考定型文言・ネット検索値の確認用URLを保持。DB IDはnotion_config経由・Keychainトークン保管・PreToolUse hookで機密保護。",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["notion", "company-master", "gbizinfo", "enrichment", "automation"]
+    },
+    {
       "name": "skill-governance-config",
       "source": "./plugins/skill-governance-config",
       "description": "ガバナンスポリシー・rubric レジストリ・アダプタ登録・テンプレート変数など、governance 基盤の設定ファイル群を管理するプラグイン。",

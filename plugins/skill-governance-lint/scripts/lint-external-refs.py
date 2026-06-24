@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: lint-external-refs
-# purpose: Inventory SKILL.md references that point outside creator-kit/plugin boundaries.
+# purpose: Inventory SKILL.md references that point outside plugin boundaries.
 # inputs:
 #   - --skills-dir: directory containing skill subdirectories
 #   - --json: emit machine-readable JSON
@@ -28,14 +28,13 @@ import sys
 
 
 DEFAULT_ALLOWED_PREFIXES = (
-    "creator-kit/",
     ".claude/",
     "eval-log/",
     "references/",
 )
 
 PATH_RE = re.compile(
-    r"(?P<path>(?:\.claude|creator-kit|scripts|doc|references|eval-log|plugins)/"
+    r"(?P<path>(?:\.claude|scripts|doc|references|eval-log|plugins)/"
     r"[A-Za-z0-9_\-./一-龠ぁ-んァ-ンー]+)"
 )
 

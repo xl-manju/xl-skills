@@ -70,7 +70,7 @@ responsibility_refs: []
 ```
 
 ## Self-Evaluation
-`plugins/skill-intake/references/quality-rubric.md` の 5 次元で自己採点する。
+`plugins/skill-creator/references/quality-rubric.md` の 5 次元で自己採点する。
 
 | 次元 | 本 agent での重点 |
 |---|---|

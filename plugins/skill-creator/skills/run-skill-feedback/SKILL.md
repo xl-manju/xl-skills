@@ -38,10 +38,12 @@ last-audited: 2026-05-25
 audit-trigger: on-change
 manifest: workflow-manifest.json
 completeness_exempt:
-  - "prompts: 対話手順 SSOT は doc/notion-schema/skill-list.schema.json#feedback_protocol (Notion §7 と同一正本)。本 SKILL.md は schema を参照し scripts/notion-submit-improvement.py へ橋渡しするのみ。prompt-creator の R-id 単位 7 層プロンプトは適用外 (二重定義禁止 [[project_ssot_dedup_mechanism]])。"
+  - "prompts: 対話手順は doc/notion-schema/skill-list.schema.json#feedback_protocol 正本 (Notion §7 と同一) から本文に展開している (初見実行の自己完結性のため)。整合は scripts/lint-feedback-protocol.py で発火条件と参照経路を検証。prompt-creator の R-id 単位 7 層プロンプトは適用外 (二重定義禁止 [[project_ssot_dedup_mechanism]])。"
 ---
 
 # run-skill-feedback
+
+> **配布注記**: 本 skill の `script_refs` / `schema_refs` は repo-root 配置 (`scripts/`, `doc/notion-schema/`) に依存する。distribution: repo-bundled 前提 (単独配布非対応)。
 
 ## Purpose & Output Contract
 
@@ -51,7 +53,7 @@ completeness_exempt:
 
 ## 発火条件 (SSOT)
 
-発火条件・対話項目・状態遷移は `doc/notion-schema/skill-list.schema.json` の `feedback_protocol` を唯一の正本 (SSOT) とする。本 SKILL.md / `scripts/notion-upsert-plugin.py` / Notion スキル一覧ページ本文 §7 の三者は全てこの正本から派生し、`scripts/lint-feedback-protocol.py` が整合を機械検証する。
+発火条件・対話項目・状態遷移は `doc/notion-schema/skill-list.schema.json` の `feedback_protocol` を唯一の正本 (SSOT) とする。本 SKILL.md / `scripts/notion-upsert-plugin.py` / Notion スキル一覧ページ本文 §7 の三者は全てこの正本から派生する。整合の保証範囲: 発火条件・参照経路は `scripts/lint-feedback-protocol.py` で機械検証、対話文面の逐語一致は対象外 (正本変更時は本文を手動同期する)。
 
 具体的な発火条件 (schema `feedback_protocol.firing_conditions` 抜粋):
 - プラグインを使って「ここが分かりにくい」と感じた

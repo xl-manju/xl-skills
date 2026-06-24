@@ -76,7 +76,7 @@ manifest: workflow-manifest.json
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本スキル固有の差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本スキル固有の差分:
 
 - **対象パス**: `$OUT_BASE` は `resolve-skill-dirs.py` 出力。入出力は `$OUT_BASE/$OLD_NAME` → `$OUT_BASE/$NEW_NAME`。
 - **不可分セット**: ディレクトリ改名・frontmatter.name・aliases は必ずひとまとめで満たす (どれか欠けると参照不整合)。

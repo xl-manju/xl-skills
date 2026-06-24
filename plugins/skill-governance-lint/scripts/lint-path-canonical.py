@@ -21,6 +21,8 @@
      skill 自身の scripts/) を指している
   3. ref-* スキルの frontmatter に source: フィールドが存在する (doc/21)
   4. 具体プロジェクト名・組織名のハードコード検出 (横展開阻害)
+  5. LS-215: governance lint scripts 内の削除済み root 'creator-kit/' への
+     残存参照検出 (fail-closed)。自分自身 (本スクリプト) の検査ルール定義行は除外。
 
 usage:
   python3 lint-path-canonical.py --skills-dir plugins/skill-creator/skills
@@ -42,6 +44,9 @@ HARDCODE_PATTERNS = [
 
 # python3 呼び出し検出
 PY3_CALL = re.compile(r"python3\s+([A-Za-z0-9_./\\-]+\.py)")
+
+# LS-215: 削除済み root への参照パターン (パス文字列 'creator-kit/' / quoted path 部品)
+STALE_ROOT_RE = re.compile(r"creator-kit/|['\"]creator-kit['\"]")
 
 
 def parse_name(text: str) -> str | None:
@@ -96,10 +101,42 @@ def check_skill_md(skill_md: Path) -> list[str]:
     return errs
 
 
+def check_stale_root_refs(scripts_dir: Path) -> list[tuple[str, list[str]]]:
+    """LS-215: scripts_dir/*.py 内の削除済み 'creator-kit/' 参照を検出する (fail-closed)。
+
+    自分自身 (本スクリプト) はこの検査ルール定義行を含むため除外する。
+    """
+    results: list[tuple[str, list[str]]] = []
+    self_path = Path(__file__).resolve()
+    if not scripts_dir.is_dir():
+        return results
+    for py in sorted(scripts_dir.glob("*.py")):
+        if py.resolve() == self_path:
+            continue  # 自分自身の検査ルール定義行は除外
+        errs: list[str] = []
+        try:
+            lines = py.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines, 1):
+            if STALE_ROOT_RE.search(line):
+                errs.append(
+                    f"L{i}: 削除済み root 'creator-kit' への残存参照: {line.strip()[:100]}"
+                )
+        if errs:
+            results.append((str(py), errs))
+    return results
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills-dir")
     ap.add_argument("--skill-md")
+    ap.add_argument(
+        "--scripts-dir",
+        default=str(Path(__file__).resolve().parent),
+        help="LS-215 creator-kit 残存参照検査の対象 scripts dir (既定: 本スクリプトと同階層)",
+    )
     args = ap.parse_args()
 
     targets: list[Path] = []
@@ -108,15 +145,16 @@ def main() -> int:
     if args.skills_dir:
         targets.extend(sorted(Path(args.skills_dir).glob("*/SKILL.md")))
 
-    if not targets:
-        ap.print_help()
-        return 2
-
     total_errs: list[tuple[str, list[str]]] = []
     for t in targets:
         errs = check_skill_md(t)
         if errs:
             total_errs.append((str(t), errs))
+
+    # LS-215: governance lint scripts の削除済み root 参照検査 (fail-closed)。
+    # skill targets 未指定でも必ず実行する (--scripts-dir 単独呼出を CI で使うため。
+    # 旧実装は targets 空で help+return 2 となり本検査に到達しない fail-open だった)。
+    total_errs.extend(check_stale_root_refs(Path(args.scripts_dir)))
 
     if total_errs:
         for path, errs in total_errs:
@@ -125,7 +163,9 @@ def main() -> int:
                 print(f"  - {e}", file=sys.stderr)
         return 1
 
-    print(f"ok: {len(targets)} skill(s) pass path-canonical lint")
+    print(
+        f"ok: {len(targets)} skill(s) + stale-root scan ({args.scripts_dir}) pass path-canonical lint"
+    )
     return 0
 
 

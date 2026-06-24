@@ -18,7 +18,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-18
-version: 0.1.0
+version: 0.1.0  # version=配布 semver / spec_version=仕様世代タグ (定義は workflow-manifest.json _comment 参照)
 manifest: workflow-manifest.json
 spec_version: "2.0"
 responsibility_refs:
@@ -38,7 +38,7 @@ schema_refs:
   - schemas/verdict.schema.json
 rubric_refs:
   - ref-skill-design-rubric
-  - references/elegant-4-conditions.json
+  - references/4-conditions.json        # 4 条件の唯一正本 (elegant-4-conditions.json は後方互換 redirect)
 reference_refs:
   - references/30-paradigms-full.md
   - references/thought-methods.yaml
@@ -98,7 +98,7 @@ audit-trigger: quarterly
 
 ### ゴールシークループ
 
-正本 5 ステップ（現状評価→手順生成→実行→検証→反復、既定 5 周 / max_iter=3）に従う。固有差分: ループ本体は Phase 1→2→3 を SubAgent へ context fork して回し（親へは最終成果物 + handoff のみ返す）、Phase 1/2 は read-only、write は Phase 3 限定。判定は `scripts/validate-paradigm-coverage.py` で機械実行。下記 Phase 群は順序固定の手順ではなく、未達条件を埋める局面カタログとして都度選ぶ。
+正本 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復、既定 5 周 / max_iter=3）に従う。固有差分: ループ本体は Phase 1→2→3 を SubAgent へ context fork して回し（親へは最終成果物 + handoff のみ返す）、Phase 1/2 は read-only、write は Phase 3 限定。判定は `scripts/validate-paradigm-coverage.py` で機械実行。下記 Phase 群は順序固定の手順ではなく、未達条件を埋める局面カタログとして都度選ぶ。
 
 ---
 
@@ -288,11 +288,5 @@ emit event の具体例 (4 条件 FAIL / safety_valve_fired=true 双方) は `re
 
 ## Additional Resources
 
-30 思考法の 1-2 行適用テンプレは `references/thought-methods.yaml` に外部化（D2、本文再掲せず SubAgent 起動時に該当カテゴリを引用渡し）。正本一覧は frontmatter (`reference_refs / schema_refs / script_refs / source_refs`) 参照。以下は人間向けナビ要約:
-
-- references: 30 思考法定義 / 4 条件 / agent 役割 / orchestration flow / convergence policy / variable contract / amplified patterns / observable emit examples
-- schemas: `finding` (機械観測 signal 単数) / `findings` (集約 wrapper) / `phase-output` / `verdict`
-- scripts: `build-paradigm-scorecard.py` / `validate-paradigm-coverage.py` / `emit-observable.py`
-- examples: `example-review-output.md` / `safety-valve-fired-verdict.json`
-- 関連 skill: `run-plugin-package-check` (Step 5) / `assign-skill-design-evaluator` (Step 6) / `delegate-codex-skill-review` / `ref-pkg-contract` / `ref-skill-design-rubric`
-- 設計書: 09 / 17 / 25 §runbook Step 5.5 / 26 §dogfooding / 27 §8.5 governance-log / 30 / 35 §observables / 36
+- 正本一覧は frontmatter (`reference_refs` / `schema_refs` / `script_refs` / `source_refs`) と `references/resource-map.yaml` (schemas / scripts / examples / related_skills / source_docs § ポインタ含む read_when 付き索引) を参照。
+- 30 思考法の 1-2 行適用テンプレは `references/thought-methods.yaml` に外部化 (D2、本文再掲せず SubAgent 起動時に該当カテゴリを引用渡し)。

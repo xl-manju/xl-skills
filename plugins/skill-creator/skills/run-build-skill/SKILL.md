@@ -82,7 +82,7 @@ audit-trigger: quarterly
 
 # run-build-skill
 
-> Phase 2 移行後は `plugins/skill-creator/skills/` が正本、`.claude/skills/` は symlink/deploy target。本 SKILL.md は両配置で動作するよう self-relative パスを使用。
+> Phase 2 移行後は `plugins/skill-creator/skills/` が正本、`.claude/skills/` は symlink/deploy target。ただし Step 4 等の lint コマンドは **repo-root cwd 前提**で実行する (bundles.json full bundle 同梱の `plugins/skill-governance-lint/` への repo-root 相対パスに依存)。skill 自身の資産は `$SKILL_DIR` 経由の self-relative 参照。
 
 ## Purpose & Output Contract
 
@@ -150,7 +150,7 @@ audit-trigger: quarterly
 
 ### ゴールシークループ
 
-正本 `references/goal-seek-paradigm.md` の 5 ステップ (現状評価→手順生成→実行→検証→反復/差し戻し) に従う。本 Skill 固有の差分:
+正本 `references/goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本 Skill 固有の差分:
 
 - 現状評価は上記チェックリストの未達項目を対象にし、それを埋める局面を下記「局面カタログ」から選ぶ (順序固定なし)。
 - 検証は決定論検査 (lint/trace/score) を優先し、`### 局面: 命名・構造 Lint` / `### 局面: フォーク評価` のコマンド群で機械判定する。
@@ -165,18 +165,7 @@ audit-trigger: quarterly
 本 Skill は **Capability 7 kind** (skill / agent / hook / command / plugin-composition / prompt / workflow) を統一抽象として扱う。以下 4 段で分岐する。
 
 1. **kind 確認**: 引数 `kind` または `brief.kind` を確定。既定は `skill`。未指定なら Step 1 のヒアリングで決める。7 kind 以外は exit 1。
-2. **対応 skeleton 選択**: kind → skeleton ファイルの対応は下表 (`schemas/template-selection.schema.json#/selection_rules` の `capability_kind_map` を正本)。
-
-   | kind               | skeleton                                                                                                          | 主出力先                                   |
-   | ------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-   | skill              | `templates/run.md` / `templates/ref.md` / `templates/assign-*.md` / `templates/wrap.md` / `templates/delegate.md` | `plugins/<plugin>/skills/<name>/SKILL.md`  |
-   | agent              | `templates/agent-skeleton.md`                                                                                     | `plugins/<plugin>/agents/<name>.md`        |
-   | hook               | `templates/hook-skeleton.md`                                                                                      | `plugins/<plugin>/hooks/<name>.{py,md}`    |
-   | command            | `templates/command-skeleton.md`                                                                                   | `plugins/<plugin>/commands/<name>.md`      |
-   | plugin-composition | `templates/plugin-composition-skeleton.yaml`                                                                      | `plugins/<plugin>/plugin-composition.yaml` |
-   | prompt             | `templates/prompt-skeleton.md`                                                                                    | `plugins/<plugin>/prompts/<name>.md`       |
-   | workflow           | `templates/workflow-skeleton.md`                                                                                  | `plugins/<plugin>/workflows/<name>.md`     |
-
+2. **対応 skeleton 選択**: kind → skeleton/出力先の対応は `schemas/template-selection.schema.json#/selection_rules` の `capability_kind_map` を正本とする (本文に再掲しない=SSOT)。人間可読の対応表+検証コマンドは `references/build-steps.md` §I.1。
 3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
 4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint は warn 出力に留め、Hook/CI で再実行する。
 
@@ -213,7 +202,7 @@ python3 plugins/skill-governance-lint/scripts/lint-script-frontmatter.py "$OUT_B
 python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py "$OUT_BASE/$SKILL_NAME"  # kind別必須サポート資産(prompts/references/schemas/scripts)を実在/共有正本参照/completeness_exempt理由付きのいずれかで充足。空欄(無宣言の欠落)は exit 1
 python3 "$SKILL_DIR/scripts/lint-goal-seek.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
 python3 "$SKILL_DIR/scripts/lint-ssot-duplication.py" --plugin-dir "$(dirname "$OUT_BASE")"  # SSOT 重複(正本曖昧/redirect 太り/required 二重定義/本文再掲)を検出。DUP-SCHEMA-ID は exit 1
-python3 "$SKILL_DIR/scripts/lint-knowledge-loop.py" "$OUT_BASE/$SKILL_NAME"  # knowledge/ がある場合のみ KL-001..005 を検査(無ければ exit0 skip)。既定 warn、CI の --strict で fail 化
+python3 "$SKILL_DIR/scripts/lint-knowledge-loop.py" "$OUT_BASE/$SKILL_NAME"  # knowledge/ がある場合のみ KL-001..007 を検査(無ければ exit0 skip)。既定 warn、CI の --strict で fail 化
 python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
 ```
 
@@ -287,7 +276,7 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 | Skill Creator 基盤 | `plugins/skill-creator/skills/<skill>/SKILL.md` | `plugins/skill-creator/skills/` |
 | 他 plugin 所属     | `plugins/<plugin>/skills/<skill>/SKILL.md`      | `plugins/<plugin>/`             |
 
-`.claude/skills/<skill>/` は symlink 派生 (直接書き込まない)。詳細: 34章 § plugin 物理レイアウトと symlink 戦略。
+`.claude/{skills,agents,commands}/<name>` は symlink 派生 (直接書き込まない)。**build/更新後は build 完了契約として `bash scripts/sync-skills-to-claude.sh --apply` (唯一の生成器 `scripts/build-claude-symlinks.py` を冪等呼び出し。`make sync` も可) を必ず実行**し、新規 skill/agent/command を `.claude/` へ展開する (未実行だと Claude Code が認識しない)。最終ゲートは CI `build-claude-symlinks.py --check` (orphan/broken/欠落 を fail-closed 検出)。生成器が SSOT であり、build 工程内に別途 symlink 生成を再実装しない。詳細: 34章 § plugin 物理レイアウトと symlink 戦略。
 
 ## Gotchas
 
@@ -295,5 +284,5 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 ## Additional Resources
 
-- `workflow-manifest.json` / `schemas/` / `prompts/R{1-4}-*.md` / `templates/` / `examples/` / `scripts/` — phase 宣言・機械検証 schema・R-id プロンプト・kind 別雛形・完成例・lint/render スクリプト
-- `references/{design-docs-index, resource-map.yaml, build-steps, reproducibility-trace-schema, prompt-placement-convention, skill-factory-reproducibility, agent-template, goal-seek-paradigm, feedback-loop-deployment, content-review-protocol, capability-manifest.schema.json}` — 設計書索引・詳細手順・Capability 7 kind 統一 Manifest 正本
+- 資産索引の正本は frontmatter (`manifest` / `responsibility_refs` / `template_refs` / `schema_refs` / `script_refs` / `reference_refs`) と `references/resource-map.yaml` (task category → 設計書章選択)。`examples/` = 完成例 (minimal-ref / workflow-with-evaluator)。
+- references/ 主要補助: `design-docs-index.md` (設計書索引) / `build-steps.md` (詳細手順) / `capability-manifest.schema.json` (Capability 7 kind 統一 Manifest 正本)。他の references/ は本文各 Step から個別参照。

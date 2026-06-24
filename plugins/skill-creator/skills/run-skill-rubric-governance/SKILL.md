@@ -28,7 +28,7 @@ manifest: workflow-manifest.json
 
 ## Purpose & Output Contract
 
-`ref-skill-design-rubric/rubric.json` の改正 Runbook（27章）。
+`ref-skill-design-rubric/references/rubric.json` の改正 Runbook（27章）。
 提案 → 影響評価 → 猶予期間 → 発効 の4フェーズを1本のワークフローで管理。
 
 **入力**: `templates/proposal.json` を埋めた改正提案ファイル
@@ -69,9 +69,9 @@ rubric は全 Skill 採点の SSOT であり、直接編集や手順抜けは採
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。本スキル固有差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し）に従う。本スキル固有差分:
 
-- 対象ファイル: `ref-skill-design-rubric/rubric.json`（直接編集禁止・本 Runbook 経由のみ）、`templates/proposal.json`、governance log（`$SKILL_DIR/log/*.jsonl`）
+- 対象ファイル: `ref-skill-design-rubric/references/rubric.json`（直接編集禁止・本 Runbook 経由のみ）、`templates/proposal.json`、governance log（`$SKILL_DIR/log/*.jsonl`）
 - 固定パス/閾値: 違反率閾値 0.20 / 連続 3 release、合否変動率 30% で major 昇格、bootstrap 最小件数 20、猶予 major14/minor7/patch0 日
 - 検証は `## 検証` 系スクリプト（`lint-rubric-violation.py` / `diff-rubric-impact.py` / `check-rubric-sync.py`）へ寄せ、決定論的に `[x]` 判定する
 - 規定周回を超えても未達なら残項目を承認ボード（`references/governance-board.md` の 4 ロール）へ差し戻す
@@ -85,11 +85,11 @@ rubric は全 Skill 採点の SSOT であり、直接編集や手順抜けは採
   python3 "$SKILL_DIR/scripts/lint-rubric-violation.py" --logs "$SKILL_DIR/log" --rule "$RULE_ID"
   python3 "$SKILL_DIR/scripts/diff-rubric-impact.py" --proposal proposal.json --logs "$SKILL_DIR/log"
   ```
-- 発効: `compute-rubric-hash.py --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json` → `check-rubric-sync.py`（exit 0 確認）→ `git commit`
+- 発効: `compute-rubric-hash.py --rubric plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json` → `check-rubric-sync.py`（exit 0 確認）→ `git commit`
 - 自動 rollback:
   ```bash
   python3 plugins/skill-governance-automation/scripts/rollback-to-stable.py \
-    --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
+    --rubric plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json \
     --versions-md eval-log/rubric-versions.md \
     --params references/governance-params.json --dry-run
   ```

@@ -84,7 +84,7 @@ cache 比較が完了し（差分有無を問わず）、`tool_name == "Skill"` 
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップに従う。本スキル固有差分:
 
 - 対象ファイル: `~/.cache/xl-skills/version-snapshot.json`（書込対象はこれのみ）、各 `plugins/*/CHANGELOG.md`（read-only）
 - 固定パス/閾値: cache 鮮度 24h TTL（時刻欠落時は `stale` 扱い）、通知書式 `(installed: ... / latest: ... — /skill-update で更新)`、抑制 `XL_SKILLS_NOTIFY=off`
