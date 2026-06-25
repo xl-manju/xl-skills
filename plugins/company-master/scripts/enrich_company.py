@@ -103,6 +103,12 @@ def note_attempt(attempts: list[dict], field: str, source: str, pattern: str,
 
     同一 (field, source, pattern) が既にあれば追記しない (再試行の機械スキップ)。
     field あたり MAX_ATTEMPTS_PER_FIELD 件で打ち切る (有限停止)。追記したら True。
+
+    注意: この dedup/cap は Web/agent の gap-driven 多段試行 (1 段=1 呼び出し) 専用。
+    日本郵便 postal_api は 1 回の決定論呼び出しで内部多段 (構造化/freeword/市区町村prefix)
+    を完結させ、その sub-attempts を冪等スナップショットとして全件転記する
+    (graft_postal_snapshot)。同一 pattern が複数バリアントで再出現したり 3 件を超えても
+    欠落させない (prefix hit の観測性を保つ)。
     """
     for a in attempts:
         if (a.get("field"), a.get("source"), a.get("pattern")) == (field, source, pattern):
@@ -112,6 +118,33 @@ def note_attempt(attempts: list[dict], field: str, source: str, pattern: str,
     attempts.append({"field": field, "source": source, "pattern": pattern,
                      "result": result, "reject_reason": reject_reason})
     return True
+
+
+def graft_postal_snapshot(attempts: list[dict], sub_attempts: list[dict]) -> None:
+    """日本郵便 postal_api の sub-attempts を attempts[] へ冪等に全件転記する。
+
+    postal_api.lookup_postal は 1 回の決定論呼び出しで構造化検索→freeword→市区町村prefix の
+    内部多段を完結させ、その各段を sub_attempts として返す。これは「完結した1スナップショット」
+    なので note_attempt の gap-driven dedup/MAX_ATTEMPTS_PER_FIELD cap は適用しない
+    (同一 pattern の再出現・3 件超・先行 miss 後の hit を欠落させると prefix/town-trimmed hit の
+    観測性と postal_code の result 整合が壊れる)。
+
+    cross-pass 冪等性: entity.attempts に前パスの japanpost postal snapshot が引き継がれている
+    場合、今パスで同じ snapshot を二重追加しない。既存の (field=postal_code, source=japanpost)
+    行を全除去してから今回のスナップショットを順序保持で転記し置換する (件数が二重化しない)。
+    japanpost 以外の postal 行 (将来の別ソース) と postal_code 以外の field は保持する。
+    """
+    attempts[:] = [a for a in attempts
+                   if not (a.get("field") == "postal_code"
+                           and a.get("source") == "japanpost")]
+    for a in sub_attempts:
+        attempts.append({
+            "field": "postal_code",
+            "source": a.get("source", "japanpost"),
+            "pattern": a.get("pattern", ""),
+            "result": a.get("result", ""),
+            "reject_reason": a.get("reject_reason", ""),
+        })
 
 
 def derive_overall_certainty(fields: dict, certainty_by_field: dict) -> str:
@@ -142,8 +175,9 @@ def normalize_address(addr: str) -> str:
 def postal_from_address(address: str, company_name: str = "") -> dict:
     """住所→郵便番号を 日本郵便 addresszip API で逆引きする (公式 API 完結)。
 
-    実体は postal_api.lookup_postal。構造化検索 (pref/city/town) → freeword の 2 段で逆引きし、
-    pick_best で一意確定したもののみ NNN-NNNN を CERTAINTY_PUBLIC_FETCHED で返す。一意でない/
+    実体は postal_api.lookup_postal。構造化検索 (pref/city/town。town は小字/大字を段階剥離した
+    複数バリアント) → freeword → 市区町村一覧の最長前方一致の 3 段で逆引きし、
+    pick_best / pick_best_prefix で一意確定したもののみ NNN-NNNN を CERTAINTY_PUBLIC_FETCHED で返す。一意でない/
     未一致/取得失敗 (認証/通信) は空欄 + 未確定 + remark_key='postal_code' (誤値を入れない)。
     試行履歴は attempts ([{source:'japanpost', pattern, result, reject_reason}]) キーで返る。
     """
@@ -257,10 +291,9 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
             "result": "hit" if p.get("value") else "miss",
             "reject_reason": "" if p.get("value") else "一意確定不能または未一致",
         }]
-        for a in p_attempts:
-            note_attempt(attempts, "postal_code", a.get("source", "japanpost"),
-                         a.get("pattern", ""), a.get("result", ""),
-                         a.get("reject_reason", ""))
+        # postal_api の sub-attempts は 1 回の決定論呼び出しの完結スナップショット。
+        # note_attempt の gap-driven dedup/cap は通さず全件冪等転記する (cross-pass 置換)。
+        graft_postal_snapshot(attempts, p_attempts)
         if p["value"] and POSTAL_RE.match(p["value"]):
             fields["postal_code"] = p["value"]
             certainty["postal_code"] = CERTAINTY_PUBLIC_FETCHED

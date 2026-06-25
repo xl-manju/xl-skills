@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-build",
-    "skill_md_sha256": "a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4"
+    "skill_md_sha256": "552f0aeb95b5467a376779c0a135e3c4975faaa8ed49e3e7b21d1a20eaa92f71"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,25 +11,26 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 3
+    "smell": 0
   },
-  "reviewer": "run-elegant-review-subagent-team",
+  "reviewer": "independent-content-review-reviewer",
   "reviewed_at": "2026-06-25",
-  "iterations": 1,
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "今回 frontmatter へ携帯化した feedback_contract.criteria が本文の実体と genuine に一致する: IN1 (8列+空欄行は『未確定(要確認)』+備考定型文言+郵便番号/電話/住所/法人番号の形式検証) は検証節 (a)-(h) および scripts/validate_company_master.py の機械判定と対応し、IN2 (誤値混入回避の非対称コスト・upsert キー=gBizINFO 確定13桁法人番号のみ・origin→確度ラベル上限の確度昇格 FAIL・origin=web は url 非空) は主要ルール『信頼キー (SSOT)』『フォールバック多段化』と fallback tier 機械照合に一致。OUT1/OUT2 は『automation bias による誤値固着の回避』『build/backfill 責務分離 × 起動独立性』という目的・背景/設計判断ログ#1 の論証を outer ループ基準へ正しく昇華しており、フォールバック既定文 (同語反復) でなく per-skill 固有の検証可能基準になっている。",
-      "BYO直結 vs 中央プロキシの配布モデルが 2026-06-18→2026-06-24 で反転した歴史を、衝突時の単一真実源を『実装 company_master.py が BYO 既定で動作する側を正』と明示して固定している。確認用URL を DB 9列目でなくページ本文へ固定テンプレート (confirm-url-template.md 正本・confirm_url.py 展開) で出す判断も、検索キーにならない手動検証専用という属性の性質から導出され、8列維持の理由が目的契約/checklist/検証節/設計判断ログ#6 で一貫している。"
+      "前回 REJECT で検出した contradiction (SKILL.md L94『postal sub-attempts は…冪等に全件転記する。note_attempt の dedup/上限は Web/agent 専用』が実装の note_attempt 経由 dedup+cap=3 と矛盾) が独立実装者の修正で genuine に解消された。enrich_company.py に graft_postal_snapshot を新設し、postal sub-attempts を note_attempt を経由せず順序保持で全件転記 (dedup/cap なし)、cross-pass 冪等は既存 (field=postal_code, source=japanpost) 行の全除去→今回スナップショット置換で実現。enrich() の postal ブロックも note_attempt ループから graft_postal_snapshot 呼び出しへ置換済み。実機再検証: 前回 RED だった『5 sub-attempts 中 3 件のみ転記・cap=3 で勝った hit 脱落』シナリオが、修正後は 5 件全件転記 + hit 生存 + cross-pass で件数二重化なし (postal=5 維持・foreign field 行保持) へ転じた。",
+      "『note_attempt の dedup/上限は Web/agent 専用』という scoping 主張も genuine に成立する: note_attempt の docstring に postal は graft_postal_snapshot で全件転記する旨が明記され、test_enrich_attempts_dedupe_and_max が phone_number (Web/agent 経路) で dedup+MAX_ATTEMPTS_PER_FIELD=3 が依然適用されることを確認しており、postal だけが例外という非対称が文書・コード・テストで一貫する。誤値非混入は pick_best/pick_best_prefix 下流で担保され不変 (IN2 維持)。デルタの 2段→3段部分 (postal_api.lookup_postal の _town_variants/freeword/structured_city_prefix_match) も引き続き実装一致。",
+      "新テスト3本が文書契約を genuine に固定する: test_enrich_preserves_all_japanpost_sub_attempts (>3 件でも欠落なし)・test_enrich_keeps_town_trimmed_hit_after_leading_misses (同一 pattern 'structured_town_trimmed' の miss→hit 系列で hit を握り潰さない=前回 RED の実バグ経路)・test_enrich_japanpost_snapshot_not_duplicated_cross_pass (2 パス引き継ぎで二重化しない)。いずれも値整合 (postal_code == hit 値) まで検証。tests/test_company_master.py 全 107 passed を独立実行で確認。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none",
-    "next_action_detail": "4条件 (contradiction/omission/inconsistency/dependency_break) すべて 0、dangling 参照ゼロ。high severity の未解決欠陥なし。smell 3 件はいずれも軽微 (frontmatter reference_refs の参照カバレッジ gap・build script_refs への backfill.py 推移的依存・open_issues の解決済み履歴の changelog 化) で defect ではなく、PASS 方針に従い SKILL.md 本文は改変しない。改善・再評価とも不要。"
+    "next_action_detail": "前回 REJECT の contradiction(1)+inconsistency(1) はいずれも postal sub-attempts 全件転記の文書-実装乖離に起因していたが、graft_postal_snapshot 新設 + enrich() ブロック置換 + 新テスト3本で genuine 解消。前回 smell として挙げた postal_from_address docstring の『2段』も『3段(小字/大字段階剥離→freeword→市区町村最長前方一致)・pick_best/pick_best_prefix』へ更新され docstring drift も解消。4条件すべて 0、未解決欠陥なし。改善・再評価とも不要。SKILL.md 本文は不変 (SHA 据え置き)。"
   },
-  "notes": "frontmatter へ per-skill feedback_contract (max_iterations:3 / IN1 IN2 OUT1 OUT2) を携帯化した差分に伴い SHA が f16e4d28 → a95f9be7 へ変化したため verdict を再生成した。新 SHA a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4 を shasum -a 256 で実測し target 値と一致を確認。今回の差分は frontmatter への feedback_contract 追記のみで本文 (## 目的と出力契約 以降) は不変のため、4条件評価は本文を全文読了した上で再判定した。【dependency_break=0】frontmatter 宣言の全参照は前回確認時から不変で responsibility_refs (R1-resolve-identity.md) 1/1・reference_refs 7/7・script_refs 13/13・skill-local references/resource-map.yaml すべて実在。本文参照の commands/company-master.md・agents 3体・hooks/hook-guard-secret.py・japanpost-api-setup.md・postal-proxy-deploy.md・plugin.json・plugin-composition.yaml・../run-company-master-backfill・../../vendor すべて実在。dangling ゼロ。【inconsistency=0】新規 feedback_contract.criteria が本文の検証節/主要ルール/目的・背景と整合 (IN1↔検証(a)-(h)+validate_company_master.py / IN2↔信頼キーSSOT+fallback tier 機械照合 / OUT1↔automation bias 回避 / OUT2↔設計判断ログ#1 起動独立性)。8列主張・確度4ラベル・source_by_field origin enum 5値が本文/コードで一貫。【contradiction=0】信頼キー=gBizINFO確定13桁法人番号のみ・郵便番号は日本郵便 addresszip API 一本化・BYO/proxy 反転履歴は真実源 (実装 company_master.py BYO既定) を明示し矛盾化を回避。criteria の verify_by (script/elegant-review) は inner=機械検証・outer=設計妥当性レビューという loop_scope の性質と一致し矛盾なし。【omission=0】出力契約・境界・主要ルール・precondition gate (fail-closed exit2)・live スキーマ preflight・レート制限リトライ・責務分離・セキュリティ二段防御・ゴールシーク配線/検証完備。inner/outer 各2件で criteria の loop_scope 網羅。【smell=3】(1) 本文参照の references/japanpost-api-setup.md・postal-proxy-deploy.md が frontmatter reference_refs に未掲載 (resource-map.yaml には登録・実ファイル存在で dangling ではない)。(2) build の script_refs に backfill.py を推移的依存として宣言 (設計判断ログ#2 で正当化済)。(3) open_issues 節が解決済み履歴を厚く保持し changelog 化。いずれも軽微で high severity defect ではない。PASS。SKILL.md 本文は不改変。"
+  "notes": "前回 (iteration 1) に検出した REJECT の独立 approver 再検証 (iteration 2)。SKILL.md は不変のため SHA は 552f0aeb95b5467a376779c0a135e3c4975faaa8ed49e3e7b21d1a20eaa92f71 を shasum -a 256 で実測し据え置き確認。SHA 書換でなく実装修正 (working-tree 差分) を実読し pytest と実機シミュレーションで genuine 再検証した。\n\n【検証手順】(1) enrich_company.py の working-tree 差分を実読: graft_postal_snapshot(attempts, sub_attempts) 新設 (既存 postal_code/japanpost 行を全除去→sub_attempts を順序保持で全件 append・dedup/cap なし)、enrich() postal ブロックの note_attempt ループを graft_postal_snapshot 呼び出しへ置換、note_attempt docstring に Web/agent 専用スコープ明記、postal_from_address docstring を 3段へ更新。(2) 新テスト3本を実読し文書契約を genuine に固定していることを確認。(3) python3 -m pytest tests/test_company_master.py -q を独立実行 = 107 passed (3本含む)。(4) 前回 RED だった adversarial シナリオ (5 sub-attempts・重複 pattern・cap 超過 hit) を graft_postal_snapshot へ直接通し、5 件全件転記・hit 生存・cross-pass 件数二重化なし・foreign field 保持を実機確認。\n\n【4条件再採点】contradiction=0: 文書 (SKILL.md L94 + data-sources.md tier2) と実装 (graft_postal_snapshot=全件転記・note_attempt=Web/agent 専用 dedup/cap) が一致。inconsistency=0: 実装側が文書ナラティブへ追従し乖離解消、新テストが契約を固定。omission=0: 出力契約・境界・precondition gate・preflight・リトライ・責務分離・セキュリティ二段防御・ゴールシーク配線完備。dependency_break=0: script_refs/reference_refs/responsibility_refs 全実在・dangling ゼロ。smell=0: 前回の postal_from_address docstring drift も解消。\n\n【判定】前回 REJECT の根因 (postal 全件転記の文書-実装乖離) が genuine 解消されたため PASS。誤値非混入は pick_best/pick_best_prefix 下流で不変、IN1/IN2/OUT1/OUT2 も維持。SKILL.md 本文は不改変 (修正は実装側のみ)。"
 }
