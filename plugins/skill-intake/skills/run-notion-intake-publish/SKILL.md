@@ -26,21 +26,6 @@ role_suffix: null
 owner: team-platform
 since: 2026-05-20
 version: 0.1.0
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 単一発火点が機構として守られ、本 skill の Steps が publish パイプとして intake_publish_pipeline.py のみを起動し render_notion_page.py / publish_notion_page.py を直接呼ばないこと(render/quality_gate/publish の重複実装も無いこと)を lint で機械検証できる。
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: 再公開が update 専用の冪等動作になり、--revise + page_id_consistency(notion-url.txt 期待値との一致検査)+ page_id 解決不能時の exit 51 により、同一 intake/manifest を複数回起動しても新規ページを量産せず既存 page_id を保ったまま更新されることを pipeline の exit code/quality_gate で機械検証できる。
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: スキル全体がユーザ目的(ヒアリングをやり直さず Notion 側だけを安全に再公開し、canonical=output/<hint> 修正→派生 view 更新のループを page_id 破壊なく回す)を最適に反映し、wrapper としての責務(precheck 4 種→単一発火点起動→exit code 伝搬、aggregator/fidelity-guard との境界、All-or-Nothing/Keychain/読み取り専用の各契約)が目的に対し過不足ないこと。
-      verify_by: elegant-review
 ---
 
 # run-notion-intake-publish

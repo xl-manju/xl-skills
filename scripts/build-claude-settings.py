@@ -10,18 +10,13 @@ import tempfile
 from pathlib import Path
 
 
-# Claude Code の hook events。plugin manifest が実際に配線するイベントを網羅すること
-# (stale allowlist だと discover_plugins→normalize_hook_entries が LayoutError で exit3 する)。
 HOOK_EVENTS = (
     "PreToolUse",
     "PostToolUse",
-    "UserPromptSubmit",
-    "UserPromptExpansion",
-    "Stop",
     "SubagentStop",
-    "SessionStart",
-    "SessionEnd",
-    "Notification",
+    "TaskCompleted",
+    "TaskCreated",
+    "FileChanged",
     "PreCompact",
     "PostCompact",
 )

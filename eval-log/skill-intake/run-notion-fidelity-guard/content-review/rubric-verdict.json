@@ -2,26 +2,20 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-notion-fidelity-guard",
-    "skill_md_sha256": "e342b50a1e83eb17970625340b0dfb30561ed407e9232f180dd1f49103685a73"
+    "skill_md_sha256": "042c6374d392d8c66ca2ba52b143e4001e2508fd3ff1800c94cb887ccbea0c7b"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-07T08:25:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
   "iterations": 1,
   "human_review_required": false,
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "BD-001(## Purpose & Output Contract)+ BD-002(## Gotchas)存在、NM-001 dir==name 一致、responsibility_refs(prompts R1-R3)と schema_refs(schemas/output.schema.json)実在、300行 cap 約145<=300 で構造 rubric を満たす",
-      "allowed-tools(Read/Bash/Grep/Glob)が JSON 構造比較のみ・Notion API 認証不保持の責務単一性と整合し、IN2 の output.schema.json 適合要求と verify_by=lint が機械検証可能"
-    ],
-    "negative_feedback": [],
-    "iteration": 1,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "rubric 観点で実読検証。lint-skill-name(第1-17条)整合、lint-skill-description VIOLATION=0、BD-001/BD-002 見出し存在、NM-001 ディレクトリ名==name。携帯化した feedback_contract は inner≧1(IN1=script,IN2=lint)+outer≧1(OUT1=elegant-review)を満たし id pattern ^(IN|OUT|C)[0-9]+$ 準拠。IN1/IN2 はスコア重み・閾値・exit 写像・schema 適合という本スキル固有の機械検証点を、OUT1 は責務単一(構造粒度のみ)と越境禁止を捉え固定テンプレでない。high findings=0 => PASS。role_suffix: fidelity-guard は命名規約上 advisory だが lint 非ブロッキングのため verdict に影響なし。"
+  "notes": "rubric lint 実測: lint-skill-name (第1-17条) ok / lint-skill-description VIOLATION=0 / 300行 cap 130<=300 / BD-001(## Purpose & Output Contract) + BD-002(## Gotchas) 存在 / NM-001 dir==name OK / responsibility_refs(prompts R1-R3) と schema_refs(schemas/output.schema.json) 実在。high findings=0 => PASS。smell 1件: validate-frontmatter の version 欠落指摘は skill-intake 全 skill 共通の advisory (PKG-002/004 非ブロッキング) で repo 横断対応方針のため本 PR 未編集。allowed-tools (Read/Bash/Grep/Glob) は JSON 構造比較のみで Notion API 認証を扱わない責務単一性と整合。role_suffix: fidelity-guard は命名規約 第17条 正式語彙外だが lint 非ブロッキング (governance amendment 候補として findings 記録)。"
 }

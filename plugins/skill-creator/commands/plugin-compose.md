@@ -7,6 +7,7 @@ kind: command
 version: 0.1.0
 owner: team-platform
 since: 2026-05-24
+entrypoint: plugin-compose
 ---
 
 # /skill-creator:plugin-compose

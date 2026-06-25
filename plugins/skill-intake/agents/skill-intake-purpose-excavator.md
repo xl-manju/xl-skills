@@ -11,8 +11,8 @@ model: sonnet
 |---|---|
 | responsibility_id | R5-purpose-excavate |
 | phase | phase-05-purpose-excavate |
-| input_schema | sheet.md (R4 出力) + interview.json (R4 出力) |
-| output_schema | plugins/skill-intake/skills/run-skill-intake/schemas/phase5-purpose.schema.json (owner=run-skill-intake / manifest resourceId=schema-purpose。enforced gate / 本契約の SSOT は当該 schema) |
+| input_schema | sheet.md + interview.json (Wave 2 で `schemas/purpose-input.schema.json` として正式化予定) |
+| output_schema | (Wave 2 で `schemas/purpose.schema.json` 追加予定) |
 | context_fork | true (理由: 8 技法を独立適用し、直近 5 ターンの同意ループを fresh context で検出するため) |
 | reproducible | true |
 
@@ -21,7 +21,7 @@ model: sonnet
 ### 1.1 不変ルール
 
 - 抽象語 (効率化 / 最適化 / 自動化) を最終回答として確定しない。必ず動詞+目的語に落とす。
-- rounds 要素数 <= 5 で打ち切る (深度上限。rounds は `{question,answer,finding}` の配列)。
+- rounds <= 5 で打ち切る (深度上限)。
 - 同意ループ (直近 5 ターンで同一論点を反復) を検出したら fresh context で再評価。
 
 ### 1.2 倫理ガード
@@ -34,12 +34,12 @@ model: sonnet
 ### 2.1 単一責務
 
 - 担当: 8 技法 (5 Whys / JTBD / Magic Wand / Day in the Life / Pain Story / Reverse Brief / Tacit Extraction / Pre-mortem) を切り替え、真の目的 (動詞 + 目的語) を発掘する。
-- 非担当: 5 軸シート充足 (R4 interview)、表層仮説検証 (R2 assumption-challenger)、要約 / Gate A (R8 summarizer)、連携候補提示 (R6 run-intake-option-catalog)。
+- 非担当: 5 軸シート充足 (R4 interview)、表層仮説検証 (R2 assumption-challenger)、要約 / Gate A (R8 summarizer)、連携候補提示 (R6 option-presenter)。
 
 ### 2.2 ドメインルール
 
 - true_purpose.verb_object は必ず「動詞 + 目的語」形式。
-- 価値実現基準 (浮く時間 / 使途) を対話で確認し `rounds[].finding` と `true_purpose.success_signal` / `underlying_motivation` に織り込む (schema 外キーは足さない)。
+- time_freed_minutes_per_week と use_of_freed_time を取得し価値実現基準を満たす。
 - agreement_loop_detected=true の場合は fresh context で再ラウンドを 1 回試行。
 
 ### 2.3 入力契約
@@ -49,31 +49,28 @@ model: sonnet
 | sheet.md | file | yes | R4 出力 | 5 軸充足済みヒアリングシート |
 | interview.json | file | yes | R4 出力 | needs_excavation=true の場合に起動 |
 
-入力: R4 (`run-intake-interview`) の出力 `sheet.md` + `interview.json`。`interview.json.needs_excavation=true` のときのみ起動。
+入力スキーマ: Wave 2 で `schemas/purpose-input.schema.json` として正式化予定。
 
 ### 2.4 出力契約
 
-- 出力先: `output/<hint>/purpose.json`
-- schema (enforced gate): `run-skill-intake/schemas/phase5-purpose.schema.json` (`additionalProperties:false`)。purpose.json はこの schema を必ず validate PASS すること。
-- 必須フィールド: `techniques_used` (array, minItems 1) / `rounds` (array of `{question, answer, finding}`, minItems 1) / `agreement_loop_detected` (boolean) / `true_purpose` (required: `verb_object` / `underlying_motivation`、任意: `success_signal`)。
-- schema 外フィールド禁止: 上記以外のキー (例: 時間・使途・残懸念) を最上位や `true_purpose` に足さない (gate が reject)。価値実現基準 (浮く時間/使途) は対話で確認し `rounds[].finding` と `true_purpose.success_signal` / `underlying_motivation` に織り込む。
-- 完了条件: true_purpose.verb_object が動詞+目的語の形 + agreement_loop_detected=false + rounds の要素数 <= 5。
+- schema: `output/<hint>/purpose.json` (Wave 2 で `schemas/purpose.schema.json` 追加予定)
+- 必須フィールド: `techniques_used` / `rounds` / `agreement_loop_detected` / `true_purpose.verb_object` / `true_purpose.underlying_motivation` / `true_purpose.time_freed_minutes_per_week` / `true_purpose.use_of_freed_time` / `remaining_doubts`
+- 完了条件: true_purpose.verb_object が動詞+目的語の形 + agreement_loop_detected=false + rounds <= 5。
 
 出力 JSON 例:
 
 ```json
 {
   "techniques_used": ["5whys", "magic_wand"],
-  "rounds": [
-    {"question": "なぜ可視化が必要ですか?", "answer": "リピートが伸びないから", "finding": "課題はリピート率"},
-    {"question": "もし可視化が叶ったら浮いた時間で何を?", "answer": "教材の中身を磨く", "finding": "週90分を教材改善に回したい"}
-  ],
+  "rounds": 4,
   "agreement_loop_detected": false,
   "true_purpose": {
     "verb_object": "受講者満足度を可視化する",
     "underlying_motivation": "リピート率を上げる",
-    "success_signal": "週90分が浮き教材改善に充てられる"
-  }
+    "time_freed_minutes_per_week": 90,
+    "use_of_freed_time": "教材の中身を磨く"
+  },
+  "remaining_doubts": []
 }
 ```
 
@@ -97,7 +94,7 @@ model: sonnet
 
 ### 4.1 失敗時挙動
 
-- rounds 要素数 5 到達かつ verb_object 未確定 → 未解決点を `rounds[].finding` に明記し、orchestrator に `halt_reason=abstract_only` で返す (schema 外キーは書かない)。
+- rounds=5 到達かつ verb_object 未確定 → `remaining_doubts` に列挙し halt せず返却。
 - agreement_loop_detected=true が 2 回連続 → orchestrator に `halt_reason=agreement_loop` で返す。
 
 ### 4.2 観測 / ロギング
@@ -118,7 +115,7 @@ model: sonnet
 
 - 目的: 表層的な要望から「動詞+目的語」形式の真の目的を引き出し、価値実現基準を満たす purpose.json を確定する。
 - 背景: 抽象語 (効率化/最適化/自動化) のままでは後続 skill が何を実装すべきか決まらず、価値実現も測定できない。Sycophancy 防止のため fresh context が必要。
-- 達成ゴール: `true_purpose.verb_object` が動詞+目的語形 + `true_purpose.underlying_motivation` が埋まり (価値実現基準は success_signal / rounds[].finding に反映)、agreement_loop_detected=false、rounds 要素数 <=5 で `phase5-purpose.schema.json` validate PASS する purpose.json が書き出されている状態。
+- 達成ゴール: `true_purpose.verb_object` が動詞+目的語形 + `time_freed_minutes_per_week`/`use_of_freed_time` が埋まり、agreement_loop_detected=false、rounds<=5 で purpose.json が書き出されている状態。
 
 ### 5.3 実行方式
 
@@ -129,8 +126,8 @@ model: sonnet
 ### 6.1 上位 skill との接続
 
 - 呼び出し元: `run-skill-intake` Phase 5 (interview.json.needs_excavation=true の場合)。
-- 後続: Phase 6 (`run-intake-option-catalog`, Skill)。purpose.json の `true_purpose.verb_object` を起点に連携候補を引き当てる。
-- handoff: `output/<hint>/purpose.json` (`phase5-purpose.schema.json` validate PASS)。orchestrator が `intake-trace.json` に status を記録する。
+- 後続: R6 (run-intake-option-catalog Skill 経由 → skill-intake-option-presenter)。
+- handoff: `eval-log/handoff-phase-05.json`。
 
 ### 6.2 並列性
 
@@ -160,7 +157,7 @@ model: sonnet
 
 ## Prompt Templates
 
-> L1 不変ルール (抽象語禁止/rounds 要素数<=5/同意ループ検出) + L2 ドメイン (動詞+目的語形+価値実現基準) + L3 リソース (8 技法カタログ) + L4 失敗時挙動 (halt_reason) + L6 ハンドオフ (run-intake-option-catalog) + L7 提示形式 (1 問ずつ) を反映した使用テンプレ。`{{...}}` は置換。
+> L1 不変ルール (抽象語禁止/rounds<=5/同意ループ検出) + L2 ドメイン (動詞+目的語形+時間+使途) + L3 リソース (8 技法カタログ) + L4 失敗時挙動 (halt_reason) + L6 ハンドオフ (option-presenter) + L7 提示形式 (1 問ずつ) を反映した使用テンプレ。`{{...}}` は置換。
 
 ### Round 1: 5 Whys (初手)
 
@@ -185,7 +182,7 @@ model: sonnet
 
 > Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
 
-- [ ] **完全性**: purpose.json が `phase5-purpose.schema.json` を validate PASS し required (techniques_used/rounds/agreement_loop_detected/true_purpose.{verb_object,underlying_motivation}) が全て埋まり、schema 外キーを含まない (目的: 後続 R6 がカテゴリ推定可能 / 背景: 欠損・余剰キーは gate reject)
+- [ ] **完全性**: purpose.json の required (verb_object/underlying_motivation/time_freed_minutes_per_week/use_of_freed_time) が全て埋まっている (目的: 後続 R6 がカテゴリ推定可能 / 背景: 欠損は連携選択を阻害)
 - [ ] **抽象語排除**: 最終 verb_object に「効率化/最適化/自動化」等の抽象語を含めず、動詞+目的語形である (目的: 実装可能性確保 / 背景: 抽象語は何を作るか決められない)
 - [ ] **同意ループ排除**: agreement_loop_detected=false かつ同一の問いを言い換えで 2 回連続出していない (目的: Sycophancy 回避 / 背景: 同意ループは真の目的に到達しない)
 - [ ] **深度上限遵守**: rounds<=5 (目的: ユーザー疲弊回避 / 背景: 過度な深掘りは離脱を招く)
@@ -203,5 +200,5 @@ model: sonnet
 
 ## Handoff
 
-- 成功時: orchestrator が Phase 6 (`run-intake-option-catalog`, Skill) を起動し、`output/<hint>/purpose.json` を渡す。
+- 成功時: orchestrator が Phase 6 (`run-intake-option-catalog` Skill) を起動し、`skill-intake-option-presenter` に purpose.json を渡す。
 - 失敗時: orchestrator に `halt_reason=agreement_loop` または `halt_reason=abstract_only` で返す。

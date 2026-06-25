@@ -56,50 +56,15 @@ _CAPABILITY_MAP = {
 }
 
 
-def _plugin_root() -> Path:
+def _repo_root_from_script() -> Path:
     # このスクリプトは plugins/skill-creator/skills/run-build-skill/scripts/ 配下。
-    # 4 つ上って plugins/skill-creator (= plugin-root)。
-    env = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if env:
-        return Path(env).resolve()
-    return Path(__file__).resolve().parents[3]
-
-
-def _state_fallback_root() -> Path:
-    """plugin-root が書込不能な install (read-only / 次回 update で消失) 用の退避先。
-
-    手本: notifier-check.py の `Path.home()/.cache/xl-skills` (user 領域退避)。
-    優先順: $CLAUDE_PROJECT_DIR → $XDG_STATE_HOME → ~/.claude/state。
-    いずれも skill-creator/ サブディレクトリに隔離する。
-    """
-    project = os.environ.get("CLAUDE_PROJECT_DIR")
-    if project:
-        return Path(project) / ".claude" / "state" / "skill-creator"
-    xdg = os.environ.get("XDG_STATE_HOME")
-    base = Path(xdg) if xdg else Path.home() / ".claude" / "state"
-    return base / "skill-creator"
+    here = Path(__file__).resolve()
+    # 4 つ上って plugins/skill-creator
+    return here.parents[3]
 
 
 def _lessons_dir() -> Path:
-    """lessons-learned の書込先。env override > plugin-root (既定・dogfooding 互換)。
-
-    plugin-root を既定に保つことで maintainer の読取フロー (lessons-learned/ 直読み)
-    を壊さない。read-only install での fallback は呼び出し側 (_write_lesson) が担う。
-    """
-    override = os.environ.get("SKILL_CREATOR_LESSONS_DIR")
-    if override:
-        return Path(override).resolve()
-    return _plugin_root() / "lessons-learned"
-
-
-def _dir_is_writable(d: Path) -> bool:
-    """d (存在しなければ最寄りの既存祖先) が書込可能かを実 mkdir/touch せず判定。"""
-    probe = d
-    while not probe.exists():
-        if probe.parent == probe:
-            return False
-        probe = probe.parent
-    return os.access(probe, os.W_OK)
+    return _repo_root_from_script() / "lessons-learned"
 
 
 def _read_hook_input() -> dict[str, Any]:
@@ -229,18 +194,6 @@ def _upsert_lesson(path: Path, entry: dict[str, str]) -> None:
         f.write("\n".join(appended))
 
 
-def _candidate_dirs() -> list[Path]:
-    """書込先候補を優先順で返す (3 段 fallback)。
-
-    (a) 既定 = plugin-root 配下 lessons-learned/ (dev 既存挙動・dogfooding 読取互換)
-    (b) plugin-root が書込不能なら user state 領域 (~/.claude/state or $CLAUDE_PROJECT_DIR)
-    env `SKILL_CREATOR_LESSONS_DIR` が明示されればそれを単独で使う (override)。
-    """
-    if os.environ.get("SKILL_CREATOR_LESSONS_DIR"):
-        return [_lessons_dir()]
-    return [_lessons_dir(), _state_fallback_root() / "lessons-learned"]
-
-
 def main() -> int:
     hook = _read_hook_input()
     text = _flatten_text(hook)
@@ -250,26 +203,14 @@ def main() -> int:
     severity = _estimate_severity(text)
     slug = _extract_slug(hook, text)
     today = _dt.date.today().isoformat()
+    target = _lessons_dir() / f"{today}-{slug}.md"
     entry = _build_entry(hook, text, severity)
-    filename = f"{today}-{slug}.md"
-
-    # 3 段 fallback: 書込可能な最初の候補へ。全滅なら (c) silent no-op exit 0。
-    last_exc: OSError | None = None
-    for base in _candidate_dirs():
-        if not _dir_is_writable(base):
-            continue
-        try:
-            _upsert_lesson(base / filename, entry)
-            sys.stderr.write(f"[auto-record-lesson] recorded -> {base / filename}\n")
-            return 0
-        except OSError as exc:
-            last_exc = exc
-            continue
-    # どこにも書けない (read-only install 等): クラッシュさせず no-op で握る。
-    if last_exc is not None:
-        sys.stderr.write(f"[auto-record-lesson] no writable sink, skipped: {last_exc}\n")
-    else:
-        sys.stderr.write("[auto-record-lesson] no writable sink, skipped\n")
+    try:
+        _upsert_lesson(target, entry)
+    except OSError as exc:
+        # 書き込み失敗は非ブロック警告で。
+        sys.stderr.write(f"[auto-record-lesson] write failed: {exc}\n")
+        return 1
     return 0
 
 

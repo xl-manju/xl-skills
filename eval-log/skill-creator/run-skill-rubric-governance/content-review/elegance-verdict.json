@@ -2,14 +2,10 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-skill-rubric-governance",
-    "skill_md_sha256": "2db32c0a108df543bd160a7d01bca2e72edc0f5d25f4e2712afb974dac4fc815"
+    "skill_md_sha256": "decd41f1ed72fb43893d644ec390801946c9e1d0f03dd688c469a3690fa602b4"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
-  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
@@ -17,19 +13,21 @@
     "dependency_break": 0,
     "smell": 0
   },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:27:19Z",
+  "iterations": 1,
+  "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "merge差分(67425a0→HEAD)は依存断絶の修復であり、本文4箇所の `ref-skill-design-rubric/rubric.json` を実在する `ref-skill-design-rubric/references/rubric.json` へ訂正(Purpose節 line50/対象ファイル line93/発効コマンド line107/rollbackコマンド line112)。修正後パスは実ファイル(`plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json`)へ解決し、IN1の『rubric.json 改正後に compute-rubric-hash.py で rubric_hash 再計算』が指す対象が正しく接続された",
-      "ゴールシークループ節(line91)を正本 goal-seek-paradigm.md の現行 6 ステップ(現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し)へ更新し、正本 line39『下記 6 ステップ固定…Anchor Step』と版ずれゼロで整合。Anchor Step 追加は OUT2 の『到達状態 adequate』判定に必要な中間成果物アンカーと矛盾なく接続している",
-      "frontmatter feedback_contract の criteria(IN1/IN2/OUT1/OUT2)は merge で不変。本文 Key Rules(直接編集禁止/semver/猶予期間major14minor7patch0/影響評価/承認ボード4ロール)と完了チェックリスト(rubric_hash再計算+check-rubric-sync exit0/合否変動率30%超でmajor昇格/猶予期間+log記録/log closed)へ一対一対応し、inner=script・lint / outer=evaluator・elegant-review の二層分離も本文ゴールシーク方針と整合"
+      "ゴールシーク段が固定手順を回避し『発効+検証通過+log closed』という到達状態をゴール化、提案種別(add/modify/remove)やbootstrap有無の分岐脆さを正本(run-build-skill/goal-seek-paradigm.md 6ステップ)へ委譲した設計は完成度が高い。検証を lint-rubric-violation.py / diff-rubric-impact.py / check-rubric-sync.py の決定論スクリプトへ寄せ [x] 判定を機械化しており、SSOT(27章§8.2 rubric_hash再計算)との接続も明示されている。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "dev同期merge後の現SKILL.md(SHA 2db32c0…)を全文実読し elegance 4条件を再評価。merge差分は `git diff 67425a0 HEAD` で特定: (1) rubric.json 参照パスの `/references/` 挿入(4箇所)=依存断絶修復、修正後 `ls` で実ファイル存在を実測確認。(2) goal-seek 5→6 ステップ更新=正本 paradigm の現行版(line39『6 ステップ固定…Anchor Step』)との整合修復。両差分とも stale参照/版ずれの解消であり新たな矛盾を導入していない。frontmatter feedback_contract は merge 不変で criteria IN1/IN2/OUT1/OUT2 が本文不変条件から逸脱なく導出(rubric_hash drift ゼロ/合否変動率30%でmajor強制昇格/4ロール独立承認/猶予期間+governance log closed)。矛盾0/欠落0/不整合0/依存断絶0/smell0 で elegance adequate、PASS。"
+  "notes": "C1(矛盾)=0: semver方向(Key Rule2: minor=緩和/major=厳格化)が version-rules.md・prompts/R1-govern.md と一致。猶予期間(major>=14/minor>=7/patch0)が SKILL.md Key Rule3・version-rules.md・governance-board.md で完全一致。緊急パッチ例外(emergency:true)も Gotchas と board.md で整合。contradiction edge なし。 C2(漏れ)=0: Purpose&Output Contract / 入出力 / Key Rules / ゴールシーク(Goal/Why/Checklist/ループ/局面カタログ) / Gotchas / Additional Resources が MECE に揃う。Runbook 必須要素(提案->影響評価->猶予->発効の4フェーズ)が workflow-manifest.json の5 phase(proposal/impact/review/grace/enact)と網羅的に対応。 C3(整合)=0: 27章正本(rubric改正Runbook)の §8.2 hash再計算・§9 rollback・§11 params正本・§13 solo_operator_mode と本文が整合。SKILL.md line59 が参照する key bootstrap_mode.min_eval_log_records は skill-governance-config/config/governance-params.json.example と governance-policy.json の実運用SSOTで定義済(27章§11 の旧式抽象構造との差は config plugin が operative SSOT であることで解消)。lint-rubric-violation.py が exit3=bootstrap を実装し SKILL.md の『exit 3=pending 許容』記述と一致。 C4(依存)=0: 参照スクリプト群を実在確認 — plugins/skill-governance-lint/scripts/lint-rubric-violation.py・check-rubric-sync.py、plugins/skill-governance-automation/scripts/compute-rubric-hash.py・rollback-to-stable.py・notify-if-governance-trigger.py・doc-to-skill-adapter.py、run-build-skill/scripts/resolve-skill-dirs.py、run-build-skill/references/goal-seek-paradigm.md、doc 26/27/28章、assign側rubric.json(同期先) すべて存在。references/governance-params.json は .gitignore line24 で意図的に gitignore され references/governance-params.json.example(918B, repo-root)から provision される per-repo config(27章§11 正本パス xl-skills/references/governance-params.json と一致)であり dangling ではない。rollback-to-stable.py は params 不在時 freeze.violation_rate_ceiling=0.05 へ graceful fallback、diff-rubric-impact.py は logs/proposal 不在で exit2(SKILL.md Gotchas line101『exit 2 でフェイルセーフ』と一致)するため依存破綻なし。 smell=0: prefix=kind=run・name=dir名一致・本文94行(<=300)で簡潔。高severity未解決なし -> PASS。"
 }

@@ -23,21 +23,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 生成された output/<hint>/intake.json が schemas/output.schema.json に適合し validation.render/quality_gate/cross_check の各 enum と(FAIL 時)failures[].retry_phase を必ず含み、quality_gate.py と cross_check.py を exit 確認できる
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: 同一 Phase 1-8 入力に対し render-intake-final.py → convert_md_to_json.py 経路が LLM 推論を混入させず intake.md/intake.json を bit-identical(sha256 一致)に再生成し、欠落成果物を推測補完せず FAIL 返却する決定論を保つ
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: 本スキルが Phase 9(全成果物統合と最終 intake 生成)に責務を絞り、render→quality_gate→cross_check の直列順序固定・単一発火点・atomic write を維持して Notion 公開や next-action 生成へ越境しない設計になっている
-      verify_by: elegant-review
 ---
 
 # run-intake-finalize

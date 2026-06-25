@@ -35,21 +35,6 @@ schema_refs:
 reference_refs:
   - ref-workflow-sequence
   - ref-handoff-contract
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: workflow-manifest.json の phases[] を本 SKILL.md へ複製せず manifest を唯一の SSOT として参照する(二重管理 drift がない)。lint-manifest-contents.py exit 0。
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: スキル生成スキル(run-skill-create/run-build-skill/capability-build 等)の起動禁止が hook-guard-skillgen.py(PreToolUse, exit 2)で機械強制され、intake 実行中フラグ駆動の遮断が回帰テストで担保されている。
-      verify_by: test
-    - id: OUT1
-      loop_scope: outer
-      text: 業務ロジック(質問雛形・採点基準・Notion blocks 生成)を持たず 11 phase を Skill/SubAgent へ委譲し handoff JSON 契約のみで橋渡しする薄い orchestrator 設計が、非エンジニアの曖昧要望から実装可能な intake 仕様まで橋渡しする目的を最適に反映している。
-      verify_by: elegant-review
 ---
 
 # run-skill-intake

@@ -26,28 +26,6 @@ import re
 import sys
 from pathlib import Path
 
-
-def _import_feedback_contract_ssot():
-    """repo-root scripts/feedback_contract_ssot.py を探して import (SSOT 単一正本)。
-
-    本ファイルは深い階層に置かれるため、親を遡って scripts/feedback_contract_ssot.py
-    を持つディレクトリを repo-root とみなす (派生配備でも resolve 後の実体から辿る)。
-    """
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        cand = parent / "scripts" / "feedback_contract_ssot.py"
-        if cand.is_file():
-            sys.path.insert(0, str(parent / "scripts"))
-            import feedback_contract_ssot as fc_mod  # noqa: E402
-
-            return fc_mod
-    raise ModuleNotFoundError(
-        "feedback_contract_ssot.py not found in any parent scripts/ dir"
-    )
-
-
-FC = _import_feedback_contract_ssot()
-
 OS_PREAMBLE = "!`uname -s 2>/dev/null || ver`"
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_-]+)(?:\s*\|\s*default\(([^)]*)\))?\s*\}\}")
 
@@ -60,49 +38,6 @@ def _normalize_value(value: object) -> str:
     if value is None:
         return ""
     return str(value)
-
-
-def _feedback_contract_mapping(data: dict[str, object]) -> dict[str, object]:
-    """Return flat template vars for generated per-skill feedback criteria.
-
-    The source of truth is brief.feedback_contract.criteria when present. When
-    a brief does not provide concrete criteria yet, keep the generated SKILL.md
-    fail-closed by deriving a minimal inner/outer pair from the goal/checklist
-    context instead of leaving placeholders unresolved.
-    """
-    skill_name = str(data.get("skill_name") or data.get("name") or "this-skill")
-    goal = str(data.get("goal") or data.get("output_contract") or skill_name).strip()
-    checks = data.get("deterministic_checks") or []
-    # fallback 文面の正本は repo-root scripts/feedback_contract_ssot.py
-    # (fallback_inner_text / fallback_outer_text)。直書きせず SSOT を呼ぶことで
-    # drift を構造的に排除する。値一致は tests/test_feedback_contract_parity.py が
-    # 固定し、is_fallback_text が lint で残存を検出する。
-    if isinstance(checks, list) and checks:
-        inner = " / ".join(str(item).strip() for item in checks if str(item).strip())
-    else:
-        inner = FC.fallback_inner_text(skill_name)
-    outer = FC.fallback_outer_text(goal)
-
-    max_iterations: object = 3
-    fc = data.get("feedback_contract")
-    if isinstance(fc, dict):
-        max_iterations = fc.get("max_iterations") or max_iterations
-        criteria = fc.get("criteria")
-        if isinstance(criteria, list):
-            for item in criteria:
-                if not isinstance(item, dict):
-                    continue
-                text = str(item.get("text", "")).strip()
-                scope = str(item.get("loop_scope", "")).strip().lower()
-                if scope == "inner" and text:
-                    inner = text
-                elif scope == "outer" and text:
-                    outer = text
-    return {
-        "feedback_contract_max_iterations": max_iterations,
-        "feedback_contract_inner_criteria_text": inner,
-        "feedback_contract_outer_criteria_text": outer,
-    }
 
 
 def _parse_default(raw: str | None) -> str:
@@ -198,7 +133,7 @@ def brief_mapping(path: Path) -> dict[str, object]:
     abstraction_variables = data.get("abstraction_variables") or []
     template_inputs = data.get("template_inputs") or []
     template_non_goals = data.get("template_non_goals") or []
-    mapping = {
+    return {
         "name": data.get("skill_name", ""),
         "skill_name": data.get("skill_name", ""),
         "kind": data.get("kind") or data.get("prefix", ""),
@@ -262,8 +197,6 @@ def brief_mapping(path: Path) -> dict[str, object]:
             template_non_goals,
         ),
     }
-    mapping.update(_feedback_contract_mapping(data))
-    return mapping
 
 
 def _lines(items: list[object], empty: str) -> list[str]:
@@ -438,15 +371,6 @@ def main() -> int:
         "generated_gotchas": _generated_gotchas([], []),
         "variable_contract": _variable_contract([], [], []),
     }
-    mapping.update(
-        _feedback_contract_mapping(
-            {
-                "skill_name": args.name,
-                "output_contract": mapping["output_contract"],
-                "deterministic_checks": [],
-            }
-        )
-    )
     if args.brief:
         bpath = Path(args.brief)
         if not bpath.exists():

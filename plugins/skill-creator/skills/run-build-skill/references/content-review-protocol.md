@@ -23,27 +23,11 @@
 | Inner loop | 小さな機能・責務単位で現在ゴールを満たす | `feedback_contract.criteria[loop_scope=inner]` + goal-seek checklist | 再評価=`inner_loop.max_iterations` (既定3) / goal-seek 手順反復=`loop_bounds.goal_seek_inner` (5) ※別ループ | build 中 / evaluator findings |
 | Outer loop | ハーネス全体がユーザー目的に近づいているかを改善する | `feedback_contract.criteria[loop_scope=outer]` + 4条件 + convergence policy | `feedback_contract.outer_loop.max_iterations` (既定3) | content-review / Stop queue / pre-push |
 
-> **"inner" 命名の自己説明** (JSON キー名は数値 SSOT に直結するため変更しない): 同じ "inner" 語が 2 つの別ループを指す。`inner`(=goal-seek の**手順反復**。AI が手順を都度導出する内ループ, 上限5) と `inner_loop`(=content-review の**再評価**反復, 上限3) は別物。前者は「手順」を、後者は「評価」を反復する。
-
 負のフィードバックは findings を減らす方向（C1-C4違反、high severity、rubric低スコア）で、未解決なら改善→再評価へ戻す。正のフィードバックは良い設計判断・再利用可能パターンを抽出し、outer loop で `run-elegant-review/references/amplified-patterns.json` または対象 skill の references へ横展開候補として残す。どちらも無限周回は禁止し、上限到達時は `INCOMPLETE` + `human_review_required=true` で停止する。
 
 > **有界反復の数値正本 = `run-elegant-review/references/convergence-policy.json` の `loop_bounds`**。有界反復は3つの別ループに分かれる: ① goal-seek 手順反復 `inner_max_loops=5`(AI が文脈から手順を都度導出する内ループ)、② 本表 Inner 行の上限列 = content-review の評価→改善 **再評価** `inner_loop.max_iterations=3`、③ Outer 再評価 `max_iterations=3`。**①(5) と ②(3) は別ループの上限であり矛盾ではない**(同名 'inner' の混同に注意)。本表は内/外 × 正/負フィードバックの**モデル説明**の正本、数値は convergence-policy.json を参照する(重複宣言しない)。
 >
 > **入口ゲート（admission_control）**: 評価開始前に、対象 SKILL.md が無変更（`skill_md_sha256` が直近 verdict と一致）なら評価を skip してトークンを節約する（`--force-review` で上書き可）。詳細ルールは convergence-policy.json の `admission_control`。これは下記「skip / opt-out」（内容変更が無い場合のみ skip）と同方向の整合した安全弁。
-
-### 完了チェックリスト と feedback_contract.criteria の使い分け（同源・別用途）
-
-初見時に「どちらに何を書くか」で詰まりやすい。両者は **同じ `brief.goal` から導出される同源**だが、用途と置き場所が異なる。
-
-| 観点 | 完了チェックリスト | feedback_contract.criteria |
-|----|----|----|
-| 役割 | 二値の達成判定 / 実行停止条件（goal-seek ループを「もう回さない」判断） | 評価観点 + `verify_by` 写像（誰が・どう検証するか） |
-| 形式 | `- [ ]` の自然文チェック項目 | `{id, loop_scope, text, verify_by}` の構造化 criterion |
-| 置き場所 | SKILL.md 本文 `## ゴールシーク実行` の Checklist | SKILL.md frontmatter `feedback_contract.criteria`（量産先が携帯する正本）+ build-trace |
-| 検証主体 | 実行中の AI 自身（自己評価ループ） | inner=lint/script、outer=content-review/elegant-review |
-| 導出方向 | `brief.goal` → Checklist（**先に書く**） | 各停止条件を `verify_by` 付き criterion へ**写像して導出**（**後に書く**） |
-
-**導出方向は Checklist が上流・criteria が下流**。run-build-skill は Step 1 で goal/Checklist を確定し、Step 3.5 で各 Checklist 停止条件を「何で検証するか(`verify_by`)」へ写像して frontmatter + trace に固定する。criteria を先に書いて Checklist を後付けしてはならない（停止条件が検証手段に引きずられ空洞化するため）。
 
 ### 1. elegance review (30 思考法 × 4 条件)
 
@@ -100,7 +84,7 @@ Agent({
 
 - `git diff origin/main...HEAD` から `plugins/*/skills/*/SKILL.md` 変更を抽出
 - 各変更 skill について `eval-log/<plugin>/<skill>/content-review/{elegance,rubric}-verdict.json` の存在 + `verdict=="PASS"` + `target.skill_md_sha256` が現在の SKILL.md と一致することを検査
-- `feedback_loop` は必須。`criteria_evaluated` は**量産先 SKILL.md frontmatter** の `feedback_contract.criteria[].id` 全件と突合し、未評価 ID があれば PASS 不可（frontmatter が正本＝携帯する評価基準。trace は frontmatter 不在時の後方互換 fallback）
+- `feedback_loop` は必須。`criteria_evaluated` は trace の `feedback_contract.criteria[].id` 全件と突合し、未評価 ID があれば PASS 不可
 - `kind: ref` / symlink skill は対象外。`skill-creator` 自身は dogfooding 対象なので CI/pre-push では除外しない
 - 違反時 exit 1 → merge ブロック
 

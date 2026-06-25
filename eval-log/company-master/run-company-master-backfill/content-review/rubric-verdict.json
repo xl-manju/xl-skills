@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-backfill",
-    "skill_md_sha256": "4659bb57be1b102dceed16a66bd5e55246b9797505313fee65cee01f00d39860"
+    "skill_md_sha256": "bc70309d0b57c05a8fce31794de700991bd69811a11c5038794ea6bc6598eaed"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,22 +14,22 @@
     "smell": 1
   },
   "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-24T15:50:24Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1"],
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "冒頭30行内に『## 目的と出力契約』を置き、出力契約と禁則(『既存非空セルは上書きしない』『英語コード値禁止』)を集約しており PD-002 を堅く充足。frontmatter へ feedback_contract.criteria を inner3/outer1 で携帯し、評価基準が量産先スキル自身に焼き込まれた(lint-feedback-contract --all PASS)。",
-      "build skill との共有 SSOT(plugin-root の scripts/references/prompts を ../../ 参照)と backfill 固有責務(空欄列選定・2パス Web 検索制御・行単位 replay)の境界が冒頭 quote・『境界』・『設計判断ログ』で明瞭に分離され、二重定義回避が貫徹している。frontmatter.name=run-company-master-backfill がディレクトリ basename と一致し ^(run|ref|assign|wrap|delegate)- 準拠。"
+      "冒頭30行内に『## 目的と出力契約』を置き、出力契約と禁則(『既存非空セルは上書きしない』『英語コード値禁止』)を集約しており PD-002 を堅く充足。compaction lifecycle 対策の設計判断4が機械的に満たされている。",
+      "build skill との共有 SSOT(plugin-root の scripts/references/prompts を ../../ 参照)と backfill 固有責務(空欄列選定・2パス Web 検索制御・行単位 replay)の境界が冒頭 quote・『境界』・『設計判断ログ』で明瞭に分離され、二重定義回避が貫徹している。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none",
-    "next_action_detail": "high severity 違反ゼロ。唯一の減点は BD-002 の英語 literal heading『## Gotchas』非存在に対する low smell のみ(日本語慣行で主要ルール/境界/設計判断ログが禁則・反パターン内容を担保)。feedback_contract 追加は frontmatter のみで本文 heading 構造・行数を変えず rubric スコアに影響しない。改善不要のため next_action=none。"
+    "next_action_detail": "総合スコア概算97で threshold 80 を大きく上回り high severity 違反ゼロ。唯一の減点は BD-002 の英語 literal heading『## Gotchas』非存在に対する low smell -3 のみ(日本語慣行で主要ルール/境界/設計判断ログが禁則・反パターン内容を担保)。改善不要。"
   },
-  "notes": "feedback_contract 携帯化に伴う SHA 変化 (新 4659bb57be1b102dceed16a66bd5e55246b9797505313fee65cee01f00d39860, shasum -a 256 実測一致) を受け genuine 再採点 (rubric=skill-design, threshold 80, max_skill_md_lines 300, applies_to_kinds=skill/'*' のルールのみ採点)。FM-001(high): name=run-company-master-backfill が ^(run|ref|assign|wrap|delegate)- 合致・len27<=60 → PASS。FM-002(med): description が『〜とき』trigger を含み末尾『使う。』(。終端) → PASS。FM-003(med): trigger『補完したいとき』『底上げ再取得したいとき』=2個で 2..3 適合 → PASS。FM-004(med): 内部動作詳細露出なし → PASS。FM-005(low): 動詞句相当開始 → PASS。BD-001(high): 日本語 heading『## 目的と出力契約』を Purpose & Output Contract 相当として充足(同プラグイン build skill が同一日本語著述慣行で PASS 済の確立済キャリブレーション)→ high 違反なし。BD-002(med): literal『## Gotchas』非存在だが『主要ルール』『境界』『設計判断ログ』が反パターン・禁則(既存非空セル不可侵/確度昇格禁止/誤値>>空欄)を担保し意味的に充足。literal 乖離のみを low smell 1件計上。BD-003(high): frontmatter 除く本文は feedback_contract 追加 (frontmatter 内・本文非増) でも<=300 → PASS。BD-004(med): description の2 trigger が body の空欄列補完手順・要確認行再取得手順へ完了チェックリスト含め 1:1 対応 → PASS。NM-001(high): ディレクトリ basename=frontmatter.name 一致 → PASS。NM-002(med): kebab-case + run prefix 準拠 → PASS。NM-003(low): skill 配下 reference は references/resource-map.yaml のみ・共有 SSOT は plugin-root 集約で tree 整合 → PASS。PD-001(low): references/resource-map.yaml 実在 → PASS。PD-002(med): 冒頭30行内に目的契約 heading + 禁則集約 → PASS。KL-001..005: knowledge/ ディレクトリ無し・frontmatter.knowledge_loop 無しの存在ゲートで全 PASS(skip)。AG/HK/CM/PC/PR/WF-*: applies_to_kinds≠skill のため非適用。減点は BD-002 low smell のみ、high severity 違反ゼロ・総合スコア概算97>=80 → PASS(build skill rubric verdict smell=1 PASS と整合)。feedback_contract.criteria(IN1/IN2/IN3/OUT1)を criteria_evaluated に全包含し lint-content-review の criteria-missing を回避。"
+  "notes": "現在 SHA bc70309d0b57c05a8fce31794de700991bd69811a11c5038794ea6bc6598eaed を python3 hashlib で再計算し target.skill_md_sha256 と一致確認のうえ genuine 再採点(本文162行・既存 verdict の 118行 / 旧SHA 051f5e48 は stale のため破棄して再生成)。rubric=skill-design v1.3.0(rubric_hash 6e1843e5..., threshold 80, max_skill_md_lines 300)で applies_to_kinds=skill/'*' のルールのみ採点。FM-001(high): name=run-company-master-backfill が ^(run|ref|assign|wrap|delegate)- に合致・len27<=60 → PASS。FM-002(med): description が『〜とき』trigger を含み末尾『使う。』(。終端) → PASS。FM-003(med): trigger『補完したいとき』『再取得したいとき』=2個で 2..3 適合 → PASS。FM-004(med): 採点する/JSONで返す/sha256/exit code 等の内部動作詳細なし → PASS。FM-005(low): 動詞句相当(〜したいとき使う) で開始 → PASS。BD-001(high): 日本語 heading『## 目的と出力契約』を Purpose & Output Contract 相当として充足(同プラグイン build skill が同一日本語著述慣行で PASS 済の確立済キャリブレーション。codebase 全体が日本語 heading 規約のため英語 literal 厳格一致は非適用)→ high 違反なし。BD-002(med): literal『## Gotchas』非存在だが『主要ルール』『境界』『設計判断ログ』が反パターン・禁則(既存非空セル不可侵/確度昇格禁止/誤値>>空欄の非対称コスト)を担保し意味的に充足。literal 乖離のみを low smell 1件として計上。BD-003(high): frontmatter 除く本文162行<=300 → PASS。BD-004(med): description の2 trigger(空欄一括補完/要確認行底上げ再取得)が body の空欄列補完手順・要確認行再取得手順へ完了チェックリスト含め 1:1 対応 → PASS。NM-001(high): ディレクトリ basename=run-company-master-backfill が frontmatter.name と一致 → PASS。NM-002(med): kebab-case + run prefix 準拠 → PASS。NM-003(low): skill 配下 reference は references/resource-map.yaml のみ・共有 SSOT は plugin-root 集約で tree 整合 → PASS。PD-001(low): references/resource-map.yaml 実在 → PASS。PD-002(med): 冒頭30行内に目的契約 heading + 禁則(上書きしない/禁止/fail-closed) 集約 → PASS。RG-001(low): rubric_hash 6e1843e5.. を本 notes に記録し再現性担保。KL-001..005: knowledge/ ディレクトリ無し・frontmatter.knowledge_loop 無しの存在ゲートにより全 PASS(skip・非knowledge スキルの誤減点なし)。AG/HK/CM/PC/PR/WF-*: applies_to_kinds≠skill のため非適用。減点は BD-002 low smell -3 のみ、severity_weights 適用後の総合スコア概算97>=80 かつ high severity 違反ゼロにつき PASS(build skill rubric verdict smell=1 PASS と整合)。"
 }

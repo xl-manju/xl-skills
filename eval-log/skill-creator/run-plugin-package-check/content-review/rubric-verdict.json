@@ -2,34 +2,34 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-plugin-package-check",
-    "skill_md_sha256": "7da14a0752a65ac64ae99e0a0f7bd2ac9aa9497437fa1a59e00de4e5ea21df15"
+    "skill_md_sha256": "aa5e07c53ed6b19017a8044a2f8ea5b78fa203ff831f9a977478292ec3b53142"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
-  "human_review_required": false,
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "FM 軸: name=run-plugin-package-check(run- 接頭辞/kebab/dir 名一致, len 23≤60 で FM-001)・description が『〜したいとき』trigger 2 句で句点終止し内部動作語(採点する/sha256/exit code)を含まない(FM-002/003/004) を満たす。",
-      "BD 軸: 英語 literal 見出し ## Purpose & Output Contract(BD-001)・## Gotchas(BD-002) が存在し、本文行数(frontmatter 除き 137 行)≤300(BD-003)、merge 後も description の 2 trigger が局面カタログ Step と 1:1 対応(BD-004)。",
-      "PD/KL 軸: 冒頭30行内に ## Purpose & Output Contract 見出し+Key Rule 禁則(『再定義しない』『独自定義禁止』『単独実行不可』)で PD-002 を充足、prompts/schemas/scripts への分割と Additional Resources 列挙で Progressive Disclosure を満たし、knowledge/ 不在ゆえ KL-001〜005 は存在ゲートで skip-PASS。"
-    ],
-    "negative_feedback": [],
-    "iteration": 1,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "ref-skill-design-rubric/references/rubric.json(rubric_version 1.3.0, threshold 80, kind=skill 適用 rule)に照らし、dev 同期 merge 後の現 SKILL.md(SHA 7da14a07…)を精読して採点。stale だった旧 SHA(e632b8f9…)を実測値へ更新。FM-001〜005: name 規約・trigger 2 句(『検査したいとき』『一括実行したいとき』)・末尾句点・内部動作語非含有を全充足。BD-001/002/003/004: ## Purpose & Output Contract と ## Gotchas の厳格一致見出し、本文 137 行(≤300)、description↔局面カタログの整合を満たす。NM-001/002/003: dir basename(run-plugin-package-check)==frontmatter.name。PD-001/002: 本文>100 行だが prompts/schemas/scripts 分割+Additional Resources で Progressive Disclosure を担保、冒頭30行内に Purpose 見出し+禁則語。KL-001〜005: frontmatter.knowledge_loop も knowledge/ も不在のため存在ゲートで skip-PASS(誤減点なし)。merge 差分(ゴールシーク 5→6 ステップ・Step3/Step8 の script パス正式化)は rubric 観点では見出し構造・命名・PD に影響せず採点不変。criteria IN1/IN2(全件評価+exit 停止 / append-only 保存+observable 1 行)は検証可能性軸を、OUT1(契約適合と elegance・rubric の責務直交+委譲設計維持)は設計適合軸を満たす。high severity finding なしのため PASS。",
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
     "smell": 0
-  }
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-24T07:38:01Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4", "FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "NM-001", "PD-002"],
+    "positive_feedback": [
+      "FM 群 全PASS: name=run-plugin-package-check は ^(run|ref|assign|wrap|delegate)- 正規表現に合致・len<=60 (FM-001/NM-002)、description の trigger phrase が『〜とき』×2 で 2..3 個の hard rule を満たし句点終端 (FM-002/FM-003)、description に採点する/sha256/exit code 等の内部動作詳細を含まず発動条件のみ (FM-004)、『検査したいとき』で動詞ベース冒頭 (FM-005)",
+      "BD/PD 群 全PASS: 『## Purpose & Output Contract』厳格一致 heading 存在 (BD-001) で PD-002 を包含充足、『## Gotchas』存在 (BD-002)、本文行数 300 行制約内 (BD-003)、references/ ディレクトリに resource-map.yaml 等が存在し Progressive Disclosure 起点を確保 (PD-001)、冒頭30行に Purpose+Key Rule(禁止/必須)集約 (PD-002)",
+      "C4 dependency 修復後も rubric 表層規則は無回帰: SKILL.md 局面カタログの lint 参照パス是正は本文行数・heading・name・description trigger いずれにも影響せず、basename==name 一致 (NM-001) を維持"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "C4 dependency_break 修復 (lint 参照を実在する ../../../skill-governance-lint/scripts/ へ4箇所是正) 後の rubric 再採点。rubric (skill-design 1.3.0, applies_to_kinds=skill) の機械検証規則を genuine 採点: FM-001..005 / BD-001..003 / NM-001..003 / PD-001..002 すべて PASS。修復は SKILL.md 本文の局面カタログ2行 (Step3/Step8 の script パス文字列) のみ変更で、name/description/heading/本文行数といった rubric 観測対象を不変に保つため iteration 1 の rubric PASS は無回帰で維持。検証根拠: name 正規表現一致・basename==name 一致・『## Purpose & Output Contract』『## Gotchas』heading 存在・description に動作詳細語(採点する/sha256/exit code)なし・trigger 数=2 (範囲2..3)。KL-* は knowledge/ ディレクトリ・frontmatter.knowledge_loop ともに不在のため存在ゲートで無条件 PASS (誤減点防止)。rubric 観点に属する high severity 違反は検出されず verdict=PASS、next_action=none。"
 }

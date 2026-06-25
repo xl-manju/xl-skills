@@ -3,7 +3,7 @@
   "$id": "https://xl-skills/schemas/elegant-review-finding.json",
   "title": "Elegant Review Single Finding",
   "type": "object",
-  "required": ["id", "thought_method", "condition_signal", "priority", "condition", "location", "evidence"],
+  "required": ["id", "thought_method", "severity", "condition", "location", "evidence"],
   "properties": {
     "id": {
       "type": "string",
@@ -23,13 +23,9 @@
         "why", "kaizen", "hypothesis", "issue", "kj"
       ]
     },
-    "condition_signal": {
+    "severity": {
       "enum": ["contradiction", "omission", "inconsistency", "dependency_break", "smell"],
       "description": "4 条件 PASS 判定の機械観測 signal。smell は警告枠"
-    },
-    "priority": {
-      "enum": ["low", "medium", "high", "critical"],
-      "description": "Phase 3 の処理順を決める優先度。condition_signal とは分離する"
     },
     "condition": {
       "enum": ["C1", "C2", "C3", "C4", "warning"],

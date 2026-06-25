@@ -29,25 +29,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 分類JSONの全sectionがdoc/20の8区分(always-on/ref/run/wrap/assign/delegate/hook/docs)のいずれかに収まりlint-skill-dep-step7の5条件を全PASSする
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: suggested_skill_nameから具体プロジェクト名とドメイン語が{{var}}へ抽象化され入力ファイルが物理削除されずkept_in_claude_mdが0でない
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: forkしたassign-skill-design-evaluatorが各briefを採点し閾値未満briefのrun-build-skill引き渡しを止め再分類を促す判断が妥当である
-      verify_by: evaluator
-    - id: OUT2
-      loop_scope: outer
-      text: 各分類の1行根拠が後段evaluatorのjudgeを成立させ移行先Skill候補が横展開可能な抽象度に最適化されている
-      verify_by: elegant-review
 ---
 
 # run-migrate-audit

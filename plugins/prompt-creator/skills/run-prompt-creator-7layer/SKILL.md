@@ -62,21 +62,6 @@ responsibilities:
     name: main
     prompt_required: true
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: Layer 5 がゴール定義+完了チェックリストで宣言され固定手順(思考プロセスのステップ列挙)を含まないこと、かつ 7 層(L1→L7)が Layer 単位生成→merge で構成され一括生成でないことを verify-completeness.py が検出し FAIL なら停止できる。
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: 生成物が内部正規形 YAML として要素原子性(長文フィールド禁止・1 値 50 文字目安)とスキーマ妥当性を満たし同一意図の重複要素が 2 つ以上残らないことを validate-prompt.py が機械検証できる。
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: 生成された 7 層プロンプトがエンドユーザー要求の本質目的を過不足なく満たし、L7→L1 単方向依存・冪等更新(分解→類似は上書き統合)・ゴールシーク反復のセッション分離(親へ最終差分のみ)という設計原則がスキルの目的に対し整合していること。
-      verify_by: elegant-review
 ---
 
 # run-prompt-creator-7layer

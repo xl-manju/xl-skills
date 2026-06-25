@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-build",
-    "skill_md_sha256": "a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4"
+    "skill_md_sha256": "f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,22 +14,22 @@
     "smell": 1
   },
   "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
+  "reviewed_at": "2026-06-24T15:50:47Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "BD-003 (本文行数 <= 300) を遵守し PD-001/PD-002 も冒頭30行内に目的節 (## 目的と出力契約) + 禁則 (『直書きせず』『追加しない』『禁止』) を集約して充足。FM-001 (name=run-company-master-build, run-prefix+kebab+len23) と NM-001 (dir basename == name) も正確に整合。今回携帯化した frontmatter feedback_contract は SSOT 制約 (id=^(IN|OUT|C)[0-9]+$ / verify_by enum / inner+outer 各1件以上) を満たし lint-feedback-contract が PASS。",
+      "BD-003 (本文234行 <= 300) を遵守し PD-001/PD-002 も冒頭30行内に目的節 (## 目的と出力契約) + 禁則 (『直書きせず』『追加しない』『禁止』) を集約して充足。FM-001 (name=run-company-master-build, run-prefix+kebab+len23) と NM-001 (dir basename == name) も正確に整合。",
       "設計判断ログ・open_issues・責務マッピングが SSOT を plugin-root に集約する向きで明記され、build/backfill 2 skill 分割の論証 (起動独立性 × LLM 自律 dispatch) が具体的で追跡可能。出力契約の実体 (8列・確度4ラベル・per-field source_by_field・確認用URL本文) と境界 (契約書生成/与信判断/有料企業DB契約は対象外) が日本語で本文に明示されている。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none",
     "next_action_detail": "総合スコア概算90 (= 100 - 3(smell:BD-001/BD-002 を英語見出しリテラル差として low smell に統合分類)) で threshold 80 以上、high severity の実欠陥なし → PASS。BD-001/BD-002 の英語見出し化は将来の表記統一として任意改善 (本質欠陥ではない)。"
   },
-  "notes": "frontmatter へ per-skill feedback_contract を携帯化した差分に伴い SHA が f16e4d28 → a95f9be7 へ変化したため verdict を再生成した。新 SHA a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4 を shasum -a 256 で実測し target 値と一致確認。今回の差分は frontmatter への feedback_contract 追記のみで本文は不変。applies_to_kinds=skill/'*' の各 rule を genuine 再採点。FM-001/002/004/005 PASS。FM-003: description 先頭句 '会社名/住所/法人番号' のスラッシュ列挙は trigger 列挙でなく入力種別の例示で genuine には過剰トリガでない → PASS。BD-003 PASS (本文行数 <= 300・frontmatter 追記は本文行数に非算入)。NM-001/002/003 PASS。PD-001 PASS (references/resource-map.yaml 存在)。PD-002 PASS (冒頭30行内に目的節+禁則)。RG-001 PASS。KL-001..005 は knowledge/ 不在ゲートで PASS (skip)。\n\n【BD-001/BD-002 の判定根拠】機械スコアラ render-findings-score.py は英語見出しリテラル ('Purpose & Output Contract' / 'Gotchas') の不在を BD-001(high)/BD-002(medium) FAIL と報告するが、二段確認で low smell へ分類する: (1) 姉妹 skill run-company-master-backfill は build と完全同一の見出し方式で on-disk verdict も verdict=PASS(smell:1) を記録しており、同一構造に build だけ REJECT は評価の一貫性を欠く。(2) PD-002 rationale は禁則の日本語キーワードを明示許容し本リポは日本語著述規範であり、BD-001 の英語リテラル要求は heuristic で PD-002 の日本語許容と表記レベルで衝突する。(3) BD-001 が要求する本質『出力契約の明示』は '## 目的と出力契約' (8列契約・確度4ラベル・per-field 出典・確認用URL本文・誤値混入回避禁則) として実体充足、BD-002 が要求する反パターン/事故防止も '## 境界'+主要ルール禁則+open_issues として実体充足し欠落は heading 名称のみ。よって『英語見出しリテラルの localization gap』として両者を統合し low smell(1, -3)とする。総合スコア概算90 >= threshold 80、high severity の実欠陥0件 → PASS。\n\n【feedback_contract 採点】新規携帯化した criteria は per-skill 性を満たし (IN1=8列+形式検証 / IN2=非対称コスト+確度昇格 FAIL / OUT1=automation bias 回避 / OUT2=build/backfill 責務分離) フォールバック既定文 (is_fallback_text) でなく、lint-feedback-contract --all で WARN/FAIL なし。\n\n【任意改善メモ(非ブロッカー)】将来 build/backfill 双方を英語正準見出しへ統一すればリポ慣行と機械スコアラに完全整合し smell も解消する。本 PASS 判定は SKILL.md 本文を改変せず維持する。"
+  "notes": "二段確認を受けた再判定 (iteration 2)。SHA f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6 を python3 hashlib で再計算し一致確認。applies_to_kinds=skill/'*' の各 rule を genuine 再採点。FM-001/002/004/005 PASS。FM-003: 機械スコアラ render-findings-score.py は trigger count=4 と報告するが description 先頭句 '会社名/住所/法人番号' のスラッシュ列挙を誤分割した heuristic の false positive で genuine には2トリガ → PASS。BD-003 PASS(234<=300)。NM-001/002/003 PASS。PD-001 PASS(references/resource-map.yaml 存在)。PD-002 PASS(冒頭30行内に目的節+禁則)。RG-001 PASS。KL-001..005 は knowledge/ 不在ゲートで PASS(skip)。\n\n【BD-001/BD-002 の再判定根拠】前回 REJECT(score70) では BD-001(high)/BD-002(medium) を減点欠陥としたが、二段確認で以下を独立検証し low smell へ分類変更した: (1) 姉妹 skill run-company-master-backfill は build と完全同一の見出し方式(## 目的と出力契約・Gotchas無し)で、機械スコアラでは両者とも score 67/70・BD-001(high)+BD-002(medium) FAIL と同一挙動。on-disk の backfill rubric-verdict.json は verdict=PASS(smell:1) を記録しており、同一構造に build だけ REJECT は評価の一貫性を欠く。consistency の正しい解決方向は『両者とも英語見出し差を low smell とする』。(2) rubric 自身の設計が日本語著述を是認している: PD-002 rationale は禁則の日本語キーワード('禁止'/'必ず'等)を明示許容し、本リポは日本語著述規範。BD-001 の英語リテラル要求(render-findings-score.py L113-115 のハードコード)は heuristic であり、PD-002 の日本語許容と表記レベルで衝突する。(3) BD-001 の rationale が要求する本質『出力契約の明示』は実体として充足: '## 目的と出力契約' は 'Purpose & Output Contract' の逐語訳で、8列契約・確度4ラベル・per-field 出典・確認用URL本文・誤値混入回避禁則(誤値>>空欄)が本文に実在。BD-002 が要求する反パターン/事故防止も '## 境界'(対象外明示)+主要ルール禁則+open_issues として実体充足し、欠落は heading 名称のみ。\n\n以上より BD-001/BD-002 は『契約節・反パターンの欠如』ではなく『英語見出しリテラルの localization gap』であり、rubric 著者が PD-002 で示した日本語著述是認の意図と整合させると high/medium 減点は過大。両者を統合し low smell(1, -3)とする。総合スコア概算90 >= threshold 80、high severity の実欠陥0件 → PASS。\n\n【elegant-review calibration について】run-elegant-review の 4-conditions/elegant-4-conditions.json は BD-001/heading を採点しない別レイヤであり、plugin-scope APPROVE は『英語見出し不要』の直接 calibration ではない点は留意(本判定は rubric レイヤの consistency と日本語著述是認の2点で PASS を導出、elegant calibration に依拠しない)。\n\n【任意改善メモ(非ブロッカー)】将来 build/backfill 双方を英語正準見出し(## Purpose & Output Contract / ## Gotchas)へ統一すれば 62/66 のリポ慣行と機械スコアラに完全整合し smell も解消する。本 PASS 判定は SKILL.md を改変せず維持する。PASS時 SKILL.md 不改変方針に従う。"
 }

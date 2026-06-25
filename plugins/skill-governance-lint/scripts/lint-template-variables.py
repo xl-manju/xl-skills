@@ -21,8 +21,7 @@ import sys
 from pathlib import Path
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
-# registry の正本は兄弟プラグイン skill-governance-config/config/ (プラグイン分割で移動)。
-REGISTRY = KIT_ROOT.parent / "skill-governance-config" / "config" / "template-variable-registry.json"
+REGISTRY = KIT_ROOT / "config" / "template-variable-registry.json"
 VAR_RE = re.compile(r"\{\{[A-Z0-9_]+}}")
 ABS_PATH_RE = re.compile(r"(?<![`<])/(Users|home|var|tmp)/[A-Za-z0-9._/\-]+")
 URL_RE = re.compile(r"https?://(?!\{\{)[^\s\"')]+")

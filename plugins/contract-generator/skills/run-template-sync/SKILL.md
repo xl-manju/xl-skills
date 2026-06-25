@@ -21,21 +21,6 @@ source: output/contract-generator-v2/(refactor-plan.md) + run-contract-generate/
 source-tier: internal
 last-audited: 2026-05-30
 audit-trigger: on-change
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: scan_template が整合時 exit 0 / drift 検知時 exit 5 を返し、MISSING(差込位置消失)/UNMAPPED(新規プレースホルダ)を機械判定できること。
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: "--apply 時のみ対象 completed 行へ再生成フラグを立て 未作成 へ差し戻し、--dry-run/未指定では台帳書込を行わない(診断のみ)こと。"
-      verify_by: test
-    - id: OUT1
-      loop_scope: outer
-      text: 「ひな形が変わった」等の明示意図でのみ発火し、作成意図(「契約書を作って」)では発火しない誤発火防止設計が description に純化されていること。
-      verify_by: elegant-review
 ---
 
 # run-template-sync

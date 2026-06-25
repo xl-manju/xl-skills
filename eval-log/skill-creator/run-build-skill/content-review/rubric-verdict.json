@@ -1,39 +1,25 @@
 {
-  "target": {
-    "plugin": "skill-creator",
-    "skill": "run-build-skill",
-    "skill_md_sha256": "0970c62173c84b87c800842f2d8a9f96d65affe12633feb8d1d045cae87f79cd"
-  },
+  "target": {"plugin": "skill-creator", "skill": "run-build-skill", "skill_md_sha256": "ebe3e2aaab8ae7454bd5583c83d8ee049507f9c865b4c446765ba5ae72167133"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
   "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-24T07:17:44Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": [
-      "IN1",
-      "IN2",
-      "OUT1",
-      "OUT2"
-    ],
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "BD-003 (本文 <=300 行) を merge 後も維持 (本文 215 行)。FM-002/003 (description が発動条件のみ・trigger 2-3 個) は description 『〜とき/〜整備するときに使う』で trigger 2 個・動作詳細なしを満たす。BD-001 『## Purpose & Output Contract』/ BD-002 『## Gotchas』heading も存続",
-      "skeleton 選択表・commonCore 必須集合を本文に再掲せず schema (#/selection_rules, #/definitions/commonCore.required) を唯一正本とする SSOT ポインタ化により、rubric が嫌う重複定義(正本曖昧化)を merge 後も増やしていない"
+      "BD-003(本文300行上限)を実測で順守: frontmatter は81行目で終わり本文は82-290行のうち空行を除く実コンテンツ208行で上限300に対し余裕がある。kind=skill 共通核の Less is More 原則を満たす",
+      "frontmatter 規範(FM-001..005)が高品質: name=run-build-skill が ^(run|ref|assign|wrap|delegate)-[a-z0-9-]+$ かつ len<=60 を満たし(FM-001 high PASS)、description は『〜とき』発動条件3トリガで終止し(FM-002/003 PASS)、動作詳細語(採点する/sha256/exit code 等)を含まず(FM-004 PASS)発動条件のみに純化。argument-hint/allowed-tools/pair/kind 等のサポートフィールドも整備済み",
+      "BD-001(## Purpose & Output Contract)・BD-002(## Gotchas)を厳格一致で存置し、入力/出力/完了条件の出力契約を冒頭30行近傍に集約(PD-002 補強も満たす)。NM-001(ディレクトリ名 run-build-skill == frontmatter.name)一致。これら高severity核ルールが SSOTポインタ化の圧縮で破損していないことを確認"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "ref-skill-design-rubric/references/rubric.json(v1.3.0)の FM/BD/NM/PD/KL 系で merge 後の現 SKILL.md(本文215行)を再採点。SHA は実測 0970c62... に更新。FM-001(name=run-build-skill, run- prefix, kebab)/FM-002(description が 〜とき で trigger 形式)/FM-003(trigger=2 個で 2-3 範囲内)/FM-004(description に採点する/sha256/exit code 等の内部動作語なし)/FM-005(『新規作成・更新するとき』動詞起点)いずれも PASS。BD-001(『## Purpose & Output Contract』厳格一致 heading 存在)/BD-002(『## Gotchas』存在)/BD-003(本文 215<=300, P0-2 順守)/BD-004(description の 2 発動条件が本文 Step に対応)PASS。NM-001(dir名==name)/NM-002/NM-003 PASS。PD-001(references/ 多数存在)/PD-002(冒頭30行内に『## Purpose & Output Contract』+ Key Rule『禁止』)PASS。KL-001..005 は本 skill に knowledge/ ディレクトリ・frontmatter.knowledge_loop が無いため存在ゲートで無条件 PASS(skip, 誤減点なし)。merge 差分(goal-seek 5→6 ステップ化, skeleton 表 SSOT ポインタ化)は heading・命名・行数いずれにも悪影響なく、新規サブシステム増設なし。high severity finding 0 件、PASS 維持。"
+  "notes": "ref-skill-design-rubric/rubric.json(rubric_version 1.3.0, threshold 80, max_skill_md_lines 300)で kind=skill 適用ルールを genuine 採点。FM-001(name正規表現+len high)/FM-002(trigger文〜とき)/FM-003(trigger数3=2..3内)/FM-004(動作詳細語なし medium)/FM-005(動詞ベース low)すべてPASS。BD-001(## Purpose & Output Contract 厳格一致 high)/BD-002(## Gotchas medium)/BD-003(本文208行<=300 high)/BD-004(description 3トリガ↔本文ゴールシーク実行・局面カタログの対応 medium)PASS。NM-001(basename==name high)/NM-002/NM-003 PASS。PD-001(references/ 実在12ファイル)/PD-002(冒頭に出力契約+禁止語)PASS。KL-001..005 は本 skill に knowledge/ ディレクトリ無し・frontmatter.knowledge_loop 無しのため存在ゲートで無条件PASS(誤減点なし)。high severity finding 0件・推定score>=80。被採点物(SKILL.md)は read-only で一切改変していない。既存verdictは旧SHA 37211c3... を保持し stale だったため現行SHA ebe3e2a... へ更新。"
 }

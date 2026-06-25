@@ -24,21 +24,6 @@ responsibility_refs:
   - prompts/R1-search-summarize.md
 schema_refs: []
 manifest: references/resource-map.yaml
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: "生成された options.json が selected_integrations と rejected の2配列を持つ形式で、各 selected 候補に tier ∈ {required, optional}/id/name が付与され、rejected 全項目が空でない reason を持つことを lint で機械検証できる(reason 空文字は fail)。"
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: "selected_integrations の全 id が plugin 共有 references/integration-catalog.md に実在するカタログ項目であり、カタログ外(新規提案)の id が混入していないことを lint で機械検証できる。"
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: "スキル全体がユーザ目的(purpose.json の verb_object に親和する連携を読み取り専用カタログから過不足なく引き当て、tier=required を漏れなく確定させ後続 phase の責務分離を崩さない)を最適に反映し、カタログ参照と options.json 生成のみへ責務が最小化されていること。"
-      verify_by: elegant-review
 ---
 
 # run-intake-option-catalog

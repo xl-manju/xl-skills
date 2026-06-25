@@ -2,26 +2,20 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-option-catalog",
-    "skill_md_sha256": "078c09ad5e7375ac32fcf48d38878bcc8a0770e4fba3135cf4ba449abaf50ffc"
+    "skill_md_sha256": "5c0ca3644cc394184b7b3e7c2349bb7987bac6d1f0d4f7a35ffee33393c7f156"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewer": "run-elegant-review",
+  "reviewed_at": "2026-06-07T08:20:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "iterations": 1,
   "human_review_required": false,
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "write スコープを options.json 生成のみに構造的に限定し(Key Rule 1・Gotcha 4)、カタログを読み取り専用に保つ責務最小化が allowed-tools(Read/Write のみ)と Purpose の write 限定記述で一貫しており、Phase 6 の単一責務が明快。",
-      "tier=required も「除外可だが reason 必須」とすることで(Gotcha 1・Key Rule 3)、必須連携の判断材料を下流 skill に欠落なく引き渡す設計になっており、後続 phase の責務分離が崩れない不変条件と整合している。"
-    ],
-    "negative_feedback": [],
-    "iteration": 1,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "SKILL.md を全文精読し本スキル固有の criteria(IN1=options.json の2配列形式と tier/id/name 付与・rejected の reason 非空を機械検証 / IN2=selected の全 id がカタログ実在・カタログ外混入なし / OUT1=verb_object 親和連携の過不足ない引き当てと責務最小化)を導出して adequacy を確認した。Purpose & Output Contract・Key Rules 1-4・ゴールシーク Checklist・Gotchas が相互に矛盾なく、入力 purpose.json→静的カタログ参照→ユーザー選択→options.json 生成という中核フローが一貫している。カタログ参照は pointer 経由でハードコードを避け(Gotcha 3)、カタログ外候補は本 skill で補完せず別 phase の skill 拡張要求へ回す境界(Key Rule 4・Gotcha 2)が責務を過不足なく区切っており、4条件すべて PASS と判定した。"
+  "notes": "20260607-conformance elegant-review (30思考法×3 analyst 独立分析) の対象として run-intake-option-catalog を検証。本 PR での変更点: (1) references/integration-catalog-pointer.md の正本参照を旧 run-skill-intake-aggregator/references/ から plugin 直下 references/ (移設後 SSOT) へ rewrite、(2) frontmatter に user-invocable: true を追加し命名規約 第4条 (run-* は user-invocable 必須) 違反を解消、(3) aliases に ref-intake-option-catalog を保持し ref→run 改名の後方互換を維持。4条件: 矛盾なし=pointer と移設先 references/integration-catalog.md が一致 (実在確認)。漏れなし=Purpose/Gotchas 見出し 2 件存在、78 行 (<=300)。整合性=description 動詞語尾 OK・dir==name OK・kind:run と user-invocable:true が第4条整合。依存関係整合=移設後の references/ への参照のみで deprecated dir 依存ゼロ (grep 確認)。残リスク無し。"
 }

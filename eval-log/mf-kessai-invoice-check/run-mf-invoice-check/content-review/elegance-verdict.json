@@ -2,34 +2,38 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-check",
-    "skill_md_sha256": "323e617711b7a8a50d6acfef9370245ec74df4db8cc0b4c594e368080b11e86c"
+    "skill_md_sha256": "7ff538fdecab22846fcb602d71afa9fab8a885427e1caeebc7c692ecbf23a546"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
-  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 0
+    "smell": 2
   },
+  "reviewer": "elegant-improvement-executor",
+  "reviewed_at": "2026-06-25T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "4条件すべて PASS。blocking 欠陥(contradiction/omission/inconsistency/dependency_break)なし。SKILL.md 不改変・現行 sha256=7ff538…(本文91行)。【完全性】ユーザー要望が SKILL.md(Purpose L37-41/End-to-End Flow L45-55/責務サマリ R1-R4 L69-72/横断不変条件 L74/Key Rules 1-9 L95-103)に漏れなく反映: (a)発行漏れ=前月発行−今月発行の差集合, (b)商品名/前月今月金額/取引先企業名突合, (c)Notion 冪等 upsert(顧客ID単独キー・1顧客=1ページ・既存更新/未登録のみ新規), (d)月次履歴 table(自然キー period_ym)に当月行 upsert・候補0件月も全顧客行を記録, (e)独立 context(context:fork)の subagent で二段確認, (f)今回変更の年間契約抑制(支払サイクル=年間払い+初回契約月12ヶ月以内のみ機械抑制)。完了チェックリスト L78-84 が collect(R1/R2)/verify(R3)/finalize(物理境界)/sink upsert(R4)/月次履歴/過去月参照/db-setup 差し戻し を MECE 被覆。【一貫性】今回変更の billing ライフサイクル抑制が全層で逐語整合: SKILL Key Rule6 L100『支払サイクルが年間払い かつ初回契約月から12ヶ月以内の顧客だけ』+横断不変条件 L74 ↔ R2-diff L2.2/出力指示(suppress_annual_period_gaps)↔ workflow-manifest.json diff note ↔ lib/mfk_invoice_diff.billing_lifecycle(payment_cycle==年間払い かつ 0<=elapsed<ANNUAL_MONTHS=12)/suppress_annual_period_gaps ↔ check_invoice_gaps.collect()。fail-safe(月払い/支払サイクル空欄/初回契約月空欄は候補に残す)も SKILL L74,L100 ↔ billing_lifecycle の payment_cycle!=年間払い/elapsed None 分岐と一致。collect→verify→finalize→sink の責務記述が SKILL・manifest phases(collect/diff/verify/finalize/sink, dependsOn 直列)・prompts R1-R4 の L2/L6・agents/mfk-gap-verifier.md で矛盾なし。二段確認 fail-closed が三点整合: SKILL『確定リスト不在なら fail-closed(exit 2)』L51 ↔ check_invoice_gaps.py --sink(verified_path 不在で return 2)↔ R4-sink 出力指示。参照専用が二層(hook guard-mfk-readonly.py + lib/mfk_api.py GET 専用)で Key Rule1 と一致。updated_at 非存在→created_at 代替が Gotcha3 ↔ script docstring/detail_of()で一致。管理列不可侵(初回契約月/支払サイクル等)が R4 L4.4 CONST ↔ Key Rule3/7 で一致し、抑制の入力源 初回契約月を sink が破壊しない論理も整合。【検証可能性】具体コマンド(--collect/--finalize/--sink を $CLAUDE_PLUGIN_ROOT 絶対パスで)・停止条件(各 Rn L5.3 完了チェックリストを SSOT 委譲)・完了条件 L41・fatal exit code 2・--month と period_ym 一致検証(script --sink の periods!={a.month}→exit2)が実行可能形で明示。参照ファイル7種(prompts R1-R4/schema/manifest/script)・agent アダプタ・hook の実在を確認。【簡潔性】body 91行(<=300, 旧113行から圧縮済)。完了条件詳細を prompts Rn L5.3 へ SSOT 委譲し SKILL 側再定義を避け片側ドリフトを防止。重複・未使用なし。smell 2件(いずれも非blocking): (1)prompts/R1-collect.md L44 が削除済みフィールド名 `initial_billing_month_estimated` を『含めない』と明示する受動的注記を残す。スキーマ additionalProperties:false と整合する正しい記述だが、削除概念を名指しする点でやや stale な語感(将来の読み手混乱の軽微リスク)。(2)skill 直下に references/ ディレクトリ命名は未採用(PD は prompts/+schemas/ で実施)。本文91行で PD 上の実害なし。両 smell とも単独で PASS を妨げない。",
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "criteria_evaluated": ["completeness", "consistency", "verifiability", "conciseness"],
     "positive_feedback": [
-      "二段確認を「指示」ではなく物理境界(collect=未検証JSON / finalize=確定JSON 別ファイル + sink の fail-closed exit2)で機構強制しており、Sycophancy/誤検出の混入を構造的に防いでいる。dev同期merge後も Key Rule 5『二段確認必須(標準フロー)』として導線維持(IN2)。",
-      "merge で導入された『支払サイクル=年間払い かつ初回契約月から12ヶ月以内だけを機械が自動抑制/月払い・空欄・不明は fail-safe で候補に残す』(横断不変条件・Key Rule 6,7)が、契約終了等の人間判断列を機械が消さない既存不変条件と矛盾なく整合し、誤抑制を fail-safe 側へ倒している。",
-      "月次履歴モデルの merge 移行(`__monthly_summary__` 集計行/DBプロパティ件数 → 各顧客ページ本文 table block・自然キー period_ym)が Purpose/Flow/R4/Checklist/Key Rule 4/Gotcha 5 へ一貫伝播し、片側更新ドリフトが残っていない。"
+      "年間契約抑制ロジック(支払サイクル=年間払い+初回契約月12ヶ月以内)が SKILL/prompts/manifest/lib/script の5層で逐語整合し、fail-safe(月払い/空欄/不明は候補に残す)も全層一致",
+      "二段確認 fail-closed(確定リスト不在→exit2)が SKILL・script・R4-sink で三点整合し物理境界が機構化",
+      "本文91行へ圧縮しつつ完了条件詳細を prompts Rn L5.3 へ SSOT 委譲し片側ドリフトを防止",
+      "参照専用が hook+GET専用lib の二層で担保され Key Rule1 と整合、管理列不可侵が抑制の入力源(初回契約月)を保護"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "prompts/R1-collect.md L44 が削除済みフィールド `initial_billing_month_estimated` を名指しで『含めない』と注記(正しいが stale な語感、非blocking smell)",
+      "skill 直下に references/ ディレクトリ命名は未採用(本文91行で実害なし、非blocking smell)"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
-  },
-  "notes": "dev同期merge(git diff 67425a0..HEAD)後の現 SKILL.md を全文実読し、本スキル固有 criteria(IN1=差集合検知の issue_date 帰属と月またぎ正当性 / IN2=確定リスト不在 fail-closed の物理境界 / OUT1=collect→verify→finalize→sink + Notion 冪等 upsert の責務分割の過不足)で4条件を採点した。merge の主要変更=(a)入力に backfill(`--backfill --from/--to`)追加、(b)月次履歴を集計行から各顧客ページ本文 table block へ移行、(c)年間契約期間の自動抑制(`suppress_annual_period_gaps`)導入、(d)旧『ゴールシーク配線』(intermediate.jsonl アンカー)節の削除、(e)相対パス→`$CLAUDE_PLUGIN_ROOT` 化。本文記述を実装で検証: `lib/mfk_invoice_diff.py` に suppress_annual_period_gaps/billing_lifecycle が存在し period_ym ラベル==今月の不変条件を実装、`lib/notion_invoice_sink.py` が 1顧客=1ページ upsert と本文 table の period_ym 自然キー upsert(旧『判定』ヘッダ後方互換含む)を実装、`scripts/check_invoice_gaps.py` に backfill/--force-unverified が実装済で SKILL の記述と一致。【矛盾0】Purpose『issue_date 帰属の差集合』『顧客ID単独キー 1顧客=1ページ』が Flow・R4・Key Rule 3/4・Gotcha 4 と整合し相互背反なし。【漏れ0】OUT1 が要求する collect→verify→finalize→sink・Notion 冪等 upsert・参照専用二層・候補0件月の確認済み履歴(table 行)・年間契約 fail-safe がすべて本文に反映。【整合0】fail-closed exit2 / hook guard / GET 専用 lib の記述が SKILL/script/manifest/prompt 間で一貫。【依存破壊0】削除された旧 goal-seek 配線への参照が本文・Checklist・Resources に残存せず、Key Rule が 1-9 へ連番再採番されダングリング無し。Additional Resources の `$CLAUDE_PLUGIN_ROOT/...` パス先(ref-mf-kessai-api/lib/hooks/agents)も実在を確認。4条件すべて 0 で PASS。"
+  }
 }

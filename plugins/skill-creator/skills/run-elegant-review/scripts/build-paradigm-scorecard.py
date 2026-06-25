@@ -70,28 +70,15 @@ def main(argv: list[str]) -> int:
     src = Path(argv[1])
     data = json.loads(src.read_text(encoding="utf-8"))
     findings = {f["paradigm_id"]: f for f in data.get("paradigm_findings", [])}
-    coverage = data.get("thought_method_coverage", {})
-    skipped = {
-        item.get("method"): item.get("reason", "")
-        for item in coverage.get("skipped_with_reason", [])
-        if isinstance(item, dict)
-    }
-    missing = [
-        pid
-        for pid, name, _ in EXPECTED_PARADIGMS
-        if pid not in findings and name not in skipped
-    ]
+    missing = [pid for pid, _, _ in EXPECTED_PARADIGMS if pid not in findings]
     if missing:
         print(f"missing paradigm_findings ids: {missing}", file=sys.stderr)
         return 1
 
     out_stream = open(argv[2], "w", encoding="utf-8", newline="") if len(argv) >= 3 else sys.stdout
     writer = csv.writer(out_stream)
-    writer.writerow(["paradigm_id", "paradigm_name", "category", *CONDITIONS, "score", "skip_reason"])
+    writer.writerow(["paradigm_id", "paradigm_name", "category", *CONDITIONS, "score"])
     for pid, name, cat in EXPECTED_PARADIGMS:
-        if pid not in findings:
-            writer.writerow([pid, name, cat, *("SKIP" for _ in CONDITIONS), "", skipped.get(name, "")])
-            continue
         f = findings[pid]
         issues = f.get("issues", [])
         cond_flags = {c: "PASS" for c in CONDITIONS}
@@ -100,7 +87,7 @@ def main(argv: list[str]) -> int:
             if c in cond_flags:
                 cond_flags[c] = "FAIL"
         score = f.get("score", 0.0)
-        writer.writerow([pid, name, cat, *(cond_flags[c] for c in CONDITIONS), score, ""])
+        writer.writerow([pid, name, cat, *(cond_flags[c] for c in CONDITIONS), score])
     if out_stream is not sys.stdout:
         out_stream.close()
     return 0

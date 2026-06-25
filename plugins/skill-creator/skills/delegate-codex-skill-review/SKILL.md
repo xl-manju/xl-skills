@@ -31,25 +31,6 @@ reference_refs:
   - references/resource-map.yaml
 script_refs:
   - scripts/check-codex-installed.py
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: check-codex-installed.py が exit0 か未導入exit2 を判定し未導入時は任意拡張と案内して BLOCK し Node や npm を推奨しないこと
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: 書き出す eval-log/delegate-codex-request.json が io-contract.schema.json に準拠し target_skill_path と rubric パスと任意実行コマンド例を含むこと
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: 自セッションでスコアを付けず採点と結果保存を codex 実行ユーザー管理に委ね Sycophancy を避ける委譲境界が保たれていること
-      verify_by: elegant-review
-    - id: OUT2
-      loop_scope: outer
-      text: codex CLI を標準フローの必須依存にせず Node や npm や shell を opt-in cross-check に留める内製と委譲の補完関係が崩れていないこと
-      verify_by: evaluator
 ---
 
 # delegate-codex-skill-review

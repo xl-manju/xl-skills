@@ -16,7 +16,7 @@ entrypoint: run-build-skill
 
 ## 振る舞い
 
-1. `$ARGUMENTS` を空白区切りでパース。`kind` が `skill|agent|hook|command|plugin-composition|prompt|workflow` (正本 enum: `run-build-skill/references/capability-manifest.schema.json#/definitions/commonCore.kind`) のいずれでなければ利用可能 kind を表示して停止。
+1. `$ARGUMENTS` を空白区切りでパース。`kind` が `skill|agent|hook|command|plugin-composition|prompt|workflow` (正本: `run-build-skill/references/capability-manifest.schema.json`) のいずれでなければ利用可能 kind を表示して停止。
 2. `name` の命名規約を `ref-skill-naming-convention` 準拠で軽く検証 (run-/ref-/assign- prefix など)。
 3. `run-build-skill` Skill を起動し、引数として `kind / name / options` を渡す。
 4. 生成後に `validate-build-trace.py` を実行し、PASS/FAIL を報告。

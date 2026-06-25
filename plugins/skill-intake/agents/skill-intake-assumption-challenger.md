@@ -12,7 +12,7 @@ model: sonnet
 | responsibility_id | R2-assumption-challenge |
 | phase | phase-02-assumption-challenge |
 | input_schema | plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json |
-| output_schema | plugins/skill-intake/skills/run-skill-intake/schemas/phase2-assumption.schema.json (owner=run-skill-intake / manifest resourceId=schema-assumption。本契約の SSOT は当該 schema) |
+| output_schema | (JSON schema は Wave 2 で追加予定。本文 §2.4 / Output Contract を暫定の出力契約とする) |
 | context_fork | true (主スレッドが初期発話に同意的になるのを排除し、fresh context で adversarial に表層仮説を疑うため) |
 | reproducible | true |
 
@@ -48,22 +48,16 @@ model: sonnet
 入力スキーマ: `plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json` 準拠必須。
 
 ### 2.4 出力契約
-- schema (SSOT): `plugins/skill-intake/skills/run-skill-intake/schemas/phase2-assumption.schema.json` に validate 必須 (`additionalProperties: false`)。
-- schema 必須フィールド: surface_request, deep_candidates, user_picked, confirmed_deep_problem。
-- schema 任意フィールド: time_freed_intent (string), blind_spots (array)。`confidence` 等の未定義キーは `additionalProperties: false` のため出力禁止 (validate FAIL)。
-- deep_candidates 各要素は `{id, label, reason}` 必須 (3 要素とも reason 非空)。
-- 本 agent の追加完了条件 (L1.1): deep_candidates を 3 件提示し user_picked 確定 + confirmed_deep_problem 非空。
+- schema: JSON schema は Wave 2 で追加予定。本文 `## Output Contract` を暫定の出力契約とする (AG-004)。
+- 必須フィールド: surface_request, deep_candidates(3 件), user_picked, confirmed_deep_problem, time_freed_intent, blind_spots, confidence
+- 完了条件: deep_candidates 3 件提示 + user_picked 確定 + confirmed_deep_problem 非空。
 
-出力 JSON 雛形 (上記 schema に validate 適合):
+出力 JSON 雛形:
 
 ```json
 {
   "surface_request": "...",
-  "deep_candidates": [
-    {"id": "D1", "label": "...", "reason": "..."},
-    {"id": "D2", "label": "...", "reason": "..."},
-    {"id": "D3", "label": "...", "reason": "..."}
-  ],
+  "deep_candidates": [{"id": "D1", "label": "..."}, {"id": "D2", "label": "..."}, {"id": "D3", "label": "..."}],
   "user_picked": "D1",
   "confirmed_deep_problem": "...",
   "time_freed_intent": "...",
@@ -181,19 +175,17 @@ L5.2 ゴール達成判定の唯一の停止条件。**目的**: 第三者が YE
 
 1 つでも NO なら 5.3 実行方式に従い該当項目の解消手順を立案・再実行する。
 
-## Output Contract
+## Output Contract (暫定 / AG-004)
 
-出力契約の正本 (SSOT) は owner skill `run-skill-intake` の `schemas/phase2-assumption.schema.json` (manifest resourceId=`schema-assumption`)。`output/<hint>/assumption.json` は当該 schema に validate (`additionalProperties: false`) 通過必須。本節は schema の意味づけ補足であり、フィールド定義の正本ではない。
+JSON schema ファイルは Wave 2 で追加予定。それまで本節を出力契約の正本とする。`output/<hint>/assumption.json` は以下を必須フィールドとして持つ。
 
-schema 由来の制約 (要約):
-
-- `surface_request` (string, 必須): 初期発話を汎用語化した表層要望 (PII 除去済)。
-- `deep_candidates` (array, 必須): 各要素 `{id, label, reason}` (全て非空必須)。本 agent は 3 件提示・最低 2 件は表層と対立する角度 (L1.1)。
-- `user_picked` (string, 必須): ユーザーが選んだ candidate の id。
-- `confirmed_deep_problem` (string, 必須・非空): 確定した真の課題。
-- `time_freed_intent` (string, 任意): 課題解決後に空いた時間の使途。
-- `blind_spots` (array, 任意): 見落とされやすい前提 (本 agent は L2.2 で ≥1 件を要求)。
-- schema 未定義キー (`confidence` 等) は出力禁止 (`additionalProperties: false` で validate FAIL)。
+- `surface_request` (string): 初期発話を汎用語化した表層要望 (PII 除去済)。
+- `deep_candidates` (array, 3 件固定): 各要素 `{id, label}`。最低 2 件は表層と対立する角度であること。
+- `user_picked` (string): ユーザーが選んだ candidate の id。
+- `confirmed_deep_problem` (string, 非空): 確定した真の課題。
+- `time_freed_intent` (string): 課題解決後に空いた時間の使途。
+- `blind_spots` (array, ≥1): 見落とされやすい前提。
+- `confidence` (enum: high|medium|low): confirmed_deep_problem の確からしさ。
 
 ## Context Boundary (AG-002)
 

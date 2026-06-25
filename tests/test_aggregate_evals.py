@@ -2,10 +2,8 @@
 
 外ループの負フィードバック検知 (連続 FAIL / スコア低下) と、
 sink 断線解消で追加された score.jsonl + content-review verdict の合流が要点。
-末尾に書込先移植性 (3 段 fallback: read-only install での graceful degrade) を追加。
 """
 import importlib.util
-import io
 import json
 from pathlib import Path
 
@@ -128,82 +126,3 @@ def test_load_evals_empty_when_no_sources(monkeypatch, tmp_path):
     monkeypatch.setattr(MOD, "_eval_log_dir", lambda: tmp_path / "missing")
     monkeypatch.setattr(MOD, "_evals_path", lambda: tmp_path / "EVALS.json")
     assert MOD._load_evals()["evaluations"] == []
-
-
-# --- 書込先移植性 (read-only install での graceful degrade) ---
-
-def _anomalous_score_jsonl(eval_log: Path) -> None:
-    """3 連続 FAIL を含む score.jsonl を仕込み、必ず anomaly を発火させる。"""
-    d = eval_log / "demo"
-    d.mkdir(parents=True, exist_ok=True)
-    lines = [
-        json.dumps({
-            "skill_name": "run-x", "passed": False,
-            "timestamp": f"2026-06-0{i}T00:00:00Z", "findings": [],
-        })
-        for i in (1, 2, 3)
-    ]
-    (d / "2026-06-03-score.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def test_default_proposals_dir_is_plugin_root(monkeypatch):
-    monkeypatch.delenv("SKILL_CREATOR_PROPOSALS_DIR", raising=False)
-    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
-    d = MOD._proposals_dir()
-    assert d.name == "proposals"
-    assert d.parent.name == "run-skill-rubric-governance"
-    assert MOD._plugin_root().name == "skill-creator"
-
-
-def test_proposals_env_override_is_sole_candidate(monkeypatch, tmp_path):
-    monkeypatch.setenv("SKILL_CREATOR_PROPOSALS_DIR", str(tmp_path / "pd"))
-    assert MOD._candidate_proposals_dirs() == [(tmp_path / "pd").resolve()]
-
-
-def test_state_fallback_prefers_project_dir(monkeypatch, tmp_path):
-    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path / "proj"))
-    assert MOD._state_fallback_root() == tmp_path / "proj" / ".claude" / "state" / "skill-creator"
-
-
-def test_main_writes_to_primary_when_writable(monkeypatch, tmp_path, capsys):
-    eval_log = tmp_path / "eval-log"
-    _anomalous_score_jsonl(eval_log)
-    monkeypatch.setattr(MOD, "_eval_log_dir", lambda: eval_log)
-    monkeypatch.setattr(MOD, "_evals_path", lambda: tmp_path / "EVALS.json")
-    primary = tmp_path / "proposals"
-    monkeypatch.setattr(MOD, "_candidate_proposals_dirs", lambda: [primary, tmp_path / "fb"])
-    monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    rc = MOD.main()
-    assert rc == 0
-    assert list(primary.glob("*-rubric-update.md")), "primary に提案が書かれていない"
-    assert "proposal ->" in capsys.readouterr().err
-
-
-def test_main_falls_back_when_primary_unwritable(monkeypatch, tmp_path, capsys):
-    eval_log = tmp_path / "eval-log"
-    _anomalous_score_jsonl(eval_log)
-    monkeypatch.setattr(MOD, "_eval_log_dir", lambda: eval_log)
-    monkeypatch.setattr(MOD, "_evals_path", lambda: tmp_path / "EVALS.json")
-    primary = tmp_path / "ro" / "proposals"
-    fallback = tmp_path / "state" / "proposals"
-    monkeypatch.setattr(MOD, "_candidate_proposals_dirs", lambda: [primary, fallback])
-    monkeypatch.setattr(MOD, "_dir_is_writable", lambda d: d == fallback)
-    monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    rc = MOD.main()
-    assert rc == 0
-    assert list(fallback.glob("*-rubric-update.md")), "fallback に退避されていない"
-
-
-def test_main_noop_exit0_when_no_writable_sink(monkeypatch, tmp_path, capsys):
-    eval_log = tmp_path / "eval-log"
-    _anomalous_score_jsonl(eval_log)
-    monkeypatch.setattr(MOD, "_eval_log_dir", lambda: eval_log)
-    monkeypatch.setattr(MOD, "_evals_path", lambda: tmp_path / "EVALS.json")
-    monkeypatch.setattr(MOD, "_candidate_proposals_dirs", lambda: [tmp_path / "a", tmp_path / "b"])
-    monkeypatch.setattr(MOD, "_dir_is_writable", lambda d: False)
-    monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    rc = MOD.main()
-    assert rc == 0
-    err = capsys.readouterr().err
-    assert "no writable sink" in err
-    assert "Traceback" not in err

@@ -44,21 +44,6 @@ script_refs:
   - scripts/aggregate-pkg-findings.py
 subagent_refs:
   - assign-plugin-package-evaluator
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: phase に対応する PKG gate を全件評価し pass か not_applicable で確定させ fail が1件でもあれば exit 1 で停止する
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: pkg-summary を 27章 §3.1 規約パスへ append-only 保存し run-report スキーマを通過させ verdict.fail>0 のとき pkg_check_failed を1 run 1行だけ emit する
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: 契約適合検査を elegance lint や rubric 採点と責務直交に保ち PKG 定義は ref-pkg-contract に委ね PKG-002〜008/014 は evaluator へ fork 委譲する設計を崩さない
-      verify_by: elegant-review
 ---
 
 # run-plugin-package-check

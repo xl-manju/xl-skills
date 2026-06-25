@@ -24,21 +24,6 @@ responsibility_refs:
   - prompts/R2-verify-schema.md
 schema_refs:
   - schemas/notion-db-schema.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: schema 適用後に verify_db_schema.py が全期待プロパティ(事実列15個+管理列4個)PASS を返し、適用前に存在した管理列・既存データが破壊されていないこと(再実行で不足列を追加するだけの冪等性)。
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: プロパティ定義の正本が schemas/notion-db-schema.json のみで、build_notion_db.py / verify_db_schema.py が SKILL.md にハードコードせず schema を読んで動く(対応状況は status 型でなく select、number は format:yen)こと。
-      verify_by: test
-    - id: OUT1
-      loop_scope: outer
-      text: 既定『請求書チェック_DB』へのゼロ設定適用と parent_page_id 指定での新規作成という2モードが、後段 run-mf-invoice-check の出力先準備という導入者目的を過不足なく満たし、database_id 未解決時は安全に停止する設計になっていること。
-      verify_by: elegant-review
 ---
 
 # run-mf-invoice-db-setup

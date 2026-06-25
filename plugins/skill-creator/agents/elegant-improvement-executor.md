@@ -31,7 +31,7 @@ since: 2026-05-24
 - [ ] `git diff` の hunk が全て `source_trace[]` に紐づく (findings 外編集 0)
 - [ ] `validation_commands[]` 全件 exit 0、うち 1 件以上が既存 lint / `validate-build-trace.py`
 - [ ] `git grep` で `variable_abstraction[].literal` 残存 0 件
-- [ ] `convergence_status` が `complete|in_progress|diverging|human_escalate|incomplete` (owner `schemas/phase-output.schema.json#/definitions/phase3_output` enum 正本) のいずれかに一意決定
+- [ ] `convergence_status` が `converged|continue|escalated` のいずれかに一意決定
 
 # 出力
 
@@ -48,7 +48,7 @@ since: 2026-05-24
 | L1 基本定義 | 最小パッチ原則、スコープ逸脱禁止という不変ルール。通常パスは AI が自動収束し、`max_iterations=3` 超過の収束失敗時のみ安全弁として `human_escalate` (`force_pass` 禁止) |
 | L2 ドメイン | `changed_paths[] / validation_commands[] / residual_risks[] / convergence_status` 出力契約 |
 | L3 インフラ | Edit/MultiEdit/Write/Bash(python3) |
-| L4 共通ポリシー | C1-C4 ゲート (`four_conditions{}`)、max 3 周回の安全弁 |
+| L4 共通ポリシー | C1-C4 ゲート、max 3 周回の安全弁 |
 | L5 エージェント | executor 単体 (再帰起動なし) |
 | L6 オーケスト | Phase 3 → 収束判定 → 次周回 Phase 2 or human_review |
 | L7 UI | パッチ + 検証結果 JSON |
@@ -62,16 +62,16 @@ since: 2026-05-24
 
 - 入力 placeholder: `{{aggregated_findings}}` (KJ 集約済 + severity ソート済), `{{iteration_count}}`
 - 依存 Layer: L2 (出力契約), L4 (C1-C4 ゲート, max 3)
-- 出力 schema: `{patches[]: {group_id, changed_paths[], source_trace[]}, validation_commands[], four_conditions{C1,C2,C3,C4}}` (owner `phase-output.schema.json#/definitions/phase3_output` の `four_conditions` に合わせる)
+- 出力 schema: `{patches[]: {group_id, changed_paths[], source_trace[]}, validation_commands[], gate_results{C1,C2,C3,C4}}`
 
 ### Round 2: executor → orchestrator への結果報告
 
 - **目的**: ゲート結果と残リスクを返し、orchestrator の収束判定を可能にする。
 - **背景**: 残リスク非開示だと次周回 Phase 2 が同一論点を再検出し、ループに陥る。
 
-> 「適用したパッチの `changed_paths[] / validation_commands[] / residual_risks[]` を返します。C1-C4 ゲート結果 (`four_conditions{}`) と `iteration_count` を含めます。収束未達なら次周回 Phase 2 を起動するか、安全弁 (max 3) 発火で `convergence_status: human_escalate` を選択し human_review に差し戻します。」
+> 「適用したパッチの `changed_paths[] / validation_commands[] / residual_risks[]` を返します。C1-C4 ゲート結果と `iteration_count` を含めます。収束未達なら次周回 Phase 2 を起動するか、安全弁 (max 3) 発火で human_review に escalate します。」
 
-- 出力 schema: `{changed_paths[], validation_commands[], residual_risks[], four_conditions{C1,C2,C3,C4}, iteration_count, convergence_status(complete|in_progress|diverging|human_escalate|incomplete)}` (enum は owner `phase-output.schema.json#/definitions/phase3_output` 正本)
+- 出力 schema: `{changed_paths[], validation_commands[], residual_risks[], gate_results{}, iteration_count, convergence_status(converged|continue|escalated)}`
 - 依存 Layer: L6 (convergence-policy.json の Δneg/Δpos 閾値判定)
 
 ## Self-Evaluation
@@ -90,9 +90,9 @@ since: 2026-05-24
 
 1. **1 回目**: 不合格次元のみ修正パッチを追加適用 (例: 簡潔性 FAIL → 余分 hunk を revert)。
 2. **2 回目**: 検証可能性 FAIL (script exit != 0) なら該当 patch を rollback し依存順を再計算。
-3. **3 回目 (上限 = max iteration 3)**: なお未達なら Handoff せず `convergence_status=human_escalate / blocked_dimensions[]` で orchestrator に差し戻し、human_review へ (`force_pass` 禁止)。
+3. **3 回目 (上限 = max iteration 3)**: なお未達なら Handoff せず `convergence_status=escalated / blocked_dimensions[]` で orchestrator に差し戻し、human_review へ。
 4. **差し戻し条件**: 検証可能性 FAIL (exit != 0) または 完全性 FAIL (high severity 未消化) が 3 回連続、もしくは収束政策の Δneg/Δpos 閾値未達。
 
 # Handoff
 
-run-elegant-review orchestrator に `changed_paths / validation_commands / residual_risks / convergence_status` を返す。出力は owner `run-elegant-review/schemas/phase-output.schema.json#/definitions/phase3_output` 準拠 (`convergence_status` enum: `complete|in_progress|diverging|human_escalate|incomplete`)。収束判定は `run-elegant-review/references/convergence-policy.json` の Δneg/Δpos 閾値で行う。
+run-elegant-review orchestrator に `changed_paths / validation_commands / residual_risks / convergence_status` を返す。収束判定は `references/convergence-policy.json` の Δneg/Δpos 閾値で行う。

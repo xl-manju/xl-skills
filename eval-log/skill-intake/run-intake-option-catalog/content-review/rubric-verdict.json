@@ -2,26 +2,20 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-option-catalog",
-    "skill_md_sha256": "078c09ad5e7375ac32fcf48d38878bcc8a0770e4fba3135cf4ba449abaf50ffc"
+    "skill_md_sha256": "5c0ca3644cc394184b7b3e7c2349bb7987bac6d1f0d4f7a35ffee33393c7f156"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-07T08:24:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
   "iterations": 1,
   "human_review_required": false,
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "description が「外部連携カタログから候補を引いて選択肢化したいとき」と発火条件を動詞句で明示し、kind:run / user-invocable:true / prefix:run と命名規約が整合。出力契約(output/<hint>/options.json の selected_integrations/rejected)が Purpose・Checklist・期待出力例で三重一致しており rubric の明確性・整合性基準を満たす。",
-      "ゴールシーク Checklist が purpose.json 抽出→カタログ参照→tier 付与→ユーザー提示→reason 記録→書き出し→自己確認の反復構造で、完了条件(tier=required が全て確定し reason 付き rejected も充足)へ機械的に収束する設計になっている。"
-    ],
-    "negative_feedback": [],
-    "iteration": 1,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "SKILL.md を実読し設計品質 rubric(発火条件の明確性・出力契約の検証可能性・責務の単一性・依存整合)に照らして評価した。導出した criteria(IN1=options.json 形式と tier/reason の機械検証 / IN2=カタログ実在 id・カタログ外混入なし / OUT1=verb_object 親和の引き当てと責務最小化)はいずれもスキル固有で、SKILL.md の Key Rules・Gotchas に裏付けがある。references/integration-catalog-pointer.md 経由の参照(直接ハードコード禁止)と manifest: references/resource-map.yaml の依存記述に断線がなく、responsibility_refs(prompts/R1-search-summarize.md)が実在し責務が単一。重大な矛盾・漏れ・依存破綻は検出されず PASS と判定した。"
+  "notes": "rubric lint 実測: lint-skill-name (第1-17条) ok / lint-skill-description VIOLATION=0 / 300行 cap 78<=300 / BD-001(## Purpose & Output Contract) + BD-002(## Gotchas) 存在 / NM-001 dir==name OK。high findings=0 => PASS。smell 1件: validate-frontmatter が version 欠落を指摘するが、これは skill-intake plugin 全 11 skill 共通の状態であり PKG-002/004 (未採用の将来標準) として plugin-package-check で advisory・非ブロッキング扱い。本 skill 単体に version を足すと plugin 内不整合を招くため repo 横断マイグレーションで一括対応する方針 (本 PR では未編集)。allowed-tools (Read/Write) は options.json 生成の責務と整合。"
 }

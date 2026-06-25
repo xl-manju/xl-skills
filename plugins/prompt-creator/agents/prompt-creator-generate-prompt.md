@@ -4,7 +4,7 @@ description: Prompt 作成シートから 7 層構造プロンプトを生成し
 tools: Read, Write, Edit, Bash
 model: sonnet
 owner_skill: run-prompt-creator-7layer
-responsibility_id: R1
+responsibility_id: R2
 isolation: fork
 since: 2026-05-22
 last-audited: 2026-05-22
@@ -23,25 +23,17 @@ Layer 5 はゴールシーク型: 達成ゴール+完了チェックリスト+�
 
 ## Outputs
 
-- `tmp/prompt-layers/L{1..7}.yaml` (Layer 別中間生成物)
-- `tmp/prompt.yaml` (merged 内部正規形 YAML)
-- `eval-log/prompt-creator-trace.json` (worker-local trace。`schemas/output.schema.json` 準拠・`additionalProperties:false`)
-
-worker-local trace は owner skill の `schemas/output.schema.json` に準拠する (必須: `path_convention`/`responsibility_id`/`layer_artifact_path`/`sha256`/`validation`)。次工程 review-prompt への引き継ぎは `target_agent` で表す:
+- `tmp/prompt-layers/L{1..7}.yaml`
+- `tmp/prompt.yaml` (merged)
+- `eval-log/prompt-creator-trace.json#phase4a`
 
 ```json
 {
-  "path_convention": "skill-local-v1",
-  "responsibility_id": "R1",
-  "layer_artifact_path": "tmp/prompt.yaml",
-  "sha256": "<tmp/prompt.yaml の sha256>",
-  "format": "yaml",
-  "target_agent": "prompt-creator-review-prompt",
-  "validation": {
-    "verify_completeness": "PASS",
-    "validate_prompt": "PASS",
-    "lint_agent_prompt_section": "PASS"
-  }
+  "phase4a": {
+    "layers_generated": ["L1","L2","L3","L4","L5","L6","L7"],
+    "merged_path": "tmp/prompt.yaml", "format": "yaml"
+  },
+  "next_agent": "prompt-creator-review-prompt"
 }
 ```
 
@@ -52,7 +44,7 @@ worker-local trace は owner skill の `schemas/output.schema.json` に準拠す
 3. Layer 5 はゴール定義 (目的・背景・達成ゴール)+完了チェックリスト+実行方式を生成。固定手順は書かない。
 4. 要素原子性 (1 値 50 文字目安) 厳守、長文はリスト/サブキー分解。
 5. `python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py --layers tmp/prompt-layers/ --output tmp/prompt.yaml`
-6. `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` 準拠で記録→Handoff。
+6. trace#phase4a 記録→Handoff。
 
 ## Constraints
 
@@ -77,15 +69,15 @@ trace JSON 入力のみで進行。clarify 必要時の参考:
 
 ## Self-Evaluation
 
-`references/quality-criteria.md` (正本) の品質基準で自己採点する。下表は同正本の該当節を生成フェーズ向けに要約した 5 次元 (定義の正本は各節)。
+quality-rubric.md の 5 次元で自己採点。
 
-| 次元 | 重点 | 正本節 |
-|---|---|---|
-| 完全性 | 7 Layer 全て最低 1 要素 | §1 網羅性基準 |
-| 一貫性 | 依存方向 (L7→L1) 遵守 | §2 整合性基準 |
-| 深度 | 目的+背景併記、達成ゴールが成果状態 | §6 意味的深度基準 |
-| 検証可能性 | verify-completeness.py PASS (ゴールシーク要素+固定手順不在) | §6.1 Layer 5 ゴール定義の深度 |
-| 簡潔性 | 1 値 50 文字目安遵守 | §4 簡潔性 / §5 要素原子性 |
+| 次元 | 重点 |
+|---|---|
+| 完全性 | 7 Layer 全て最低 1 要素 |
+| 一貫性 | 依存方向 (L7→L1) 遵守 |
+| 深度 | 目的+背景併記、達成ゴールが成果状態 |
+| 検証可能性 | verify-completeness.py PASS (ゴールシーク要素+固定手順不在) |
+| 簡潔性 | 1 値 50 文字目安遵守 |
 
 未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
 

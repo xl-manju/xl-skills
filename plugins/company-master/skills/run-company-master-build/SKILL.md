@@ -41,25 +41,6 @@ source: plugins/company-master/references/data-sources.md
 source-tier: internal
 last-audited: 2026-06-09
 audit-trigger: quarterly
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: "全行が計8列(6属性+『情報の確かさ』+『備考』)構成で、空欄属性を持つ行は確度=『未確定(要確認)』かつ『備考』に remarks-templates.md 準拠の定型文言が入り、非空の郵便番号 `^\\d{3}-\\d{4}$`/電話ハイフン/住所都道府県起点/法人番号13桁の形式検証を満たすこと(scripts/validate_company_master.py が exit0 で機械判定)。"
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: "誤値混入回避の非対称コスト原則を守り、upsert 一意キーは gBizINFO 確定13桁法人番号のみ・source_by_field の origin→確度ラベル上限を超える確度昇格(例 origin=web で『公的データで確認済み』)は FAIL とし、origin=web の項目は根拠 URL 非空であること(validate_company_master.py の fallback tier 機械照合で担保)。"
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: "高確度ソース(gBizINFO/日本郵便)で一意確定した値のみ自動確定し、一意確定不能は誤値を入れず空欄+要確認で人間裁定に委ねる設計が、業務横断で参照される信頼マスタの構築・維持という目的(automation bias による誤値固着の回避)を最適に反映していること。"
-      verify_by: elegant-review
-    - id: OUT2
-      loop_scope: outer
-      text: "断片入力からの新規構築(build)と既存行底上げ(backfill)の責務分離・確認用URLのページ本文出力(8列維持)・precondition gate の fail-closed が、起動独立性と SSOT plugin-root 集約の観点で過不足なく境界設定されていること。"
-      verify_by: elegant-review
 ---
 
 # run-company-master-build

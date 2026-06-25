@@ -1,1 +1,21 @@
-{"target":{"plugin":"skill-intake","skill":"run-skill-intake","skill_md_sha256":"b3d03ea0e1194708bbc24daa544d9f8db53d0e15eb71670aa07776754c0227ba"},"review_kind":"rubric","verdict":"PASS","reviewer":"assign-skill-design-evaluator","reviewed_at":"2026-06-24T00:00:00Z","iterations":1,"human_review_required":false,"feedback_loop":{"loop_scope":"both","criteria_evaluated":["IN1","IN2","OUT1"],"positive_feedback":["FM: name=run-skill-intake は prefix=run/kebab/length 充足、description は『〜とき/〜ときに使う』のトリガ2件+動詞語尾を満たす","BD: ## Purpose & Output Contract / ## Key Rules / ## Gotchas / ## Additional Resources が揃い body 行数も上限内、責務は委譲制御に限定された薄い orchestrator として一貫(OUT1 整合)","NM/PD: dirname==name、委譲先 7 Skill+4 SubAgent が実在し references 4ファイル(workflow-sequence/handoff-contract/keychain-setup/resource-map)も実在、manifest 参照で IN1 を構造的に担保"],"negative_feedback":[],"iteration":1,"iteration_limit":3,"hook_trigger":"manual","next_action":"none"},"notes":"rubric(FM/BD/NM/PD)で SKILL.md を genuine 評価。FrontMatter=name/description/allowed-tools/kind=run/トリガ表現すべて充足。BodyStructure=必須セクション具備・業務ロジック非混入(Gotcha 1)で SRP 維持。Naming=dirname 一致・prefix 整合。ProgressiveDisclosure=本文100行超だが references/ へ詳細を逃がし resource-map.yaml で最小読込先を提示。委譲契約(workflow-manifest.json delegateType/delegateName)と schemas/ handoff 契約が実在し本文記述と一致、命名 drift・dependency break なし。今回携帯化した criteria(IN1=manifest SSOT lint/IN2=hook-guard skillgen test/OUT1=薄い orchestrator elegant-review)はスキル実目的に即した固有観点で重大問題なし。"}
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-skill-intake",
+    "skill_md_sha256": "4fb78ea468e0a0906d3907e04adaba7e39a0c46e091dac974da87b285860b48d"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:58:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric assign-skill-design-evaluator/references/rubric.json v1.2.0): score=97 threshold=80 passed=true. high findings=0 => PASS. findings: FM-005(low,smell) のみ — description 冒頭句 '非エンジニアから...' が動詞始まりでないと heuristic 判定されるが description は末尾 '使う' で動詞語尾を満たし FM-002/FM-003 trigger 判定も PASS。低 severity の表現指摘で blocking でなく PR を膨らませないため未編集。FM(name=run-skill-intake は prefix/kebab/len OK, trigger=とき/ときに 2件) BD(## Purpose & Output Contract / ## Gotchas 存在, body 142 行 <=300) NM(dirname==name, prefix OK, scripts なし) PD(body>100 だが references/ に 4 ファイルあり OK) 全て充足。手動 cross-check: 委譲先 7 Skill (run-intake-kickoff/-interview/ref-intake-option-catalog/run-intake-visualize/-finalize/run-notion-intake-publish/run-intake-next-action) と 4 SubAgent (assumption-challenger/user-profiler/purpose-excavator/summarizer) は全て実在。workflow-manifest.json は delegateSkill:null を P2/P3/P5/P8 に正しく設定し SubAgent 4 phase と一致 (依存方向 PD 整合)。scripts(keychain_get_secret/verify_notion_schema/quality_gate/cross_check) と references(workflow-sequence/handoff-contract/keychain-setup/resource-map) 全て実在し本文記述と一致。命名 drift・dependency break なし。"
+}

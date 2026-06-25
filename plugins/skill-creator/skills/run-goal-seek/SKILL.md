@@ -30,25 +30,6 @@ reference_refs:
 completeness_exempt:
   - "prompts: 責務単位プロンプトを持たない汎用オーケストレーター。手順は固定化せずゴールシークループで都度生成するため、prompt-creator の R-id 単位 7 層プロンプトは適用外 (prompt-placement-convention.md の ref/wrap/delegate 同等の skip 扱い)。ループ規約は ../run-build-skill/references/goal-seek-paradigm.md を共有正本として参照。"
   - "manifest: ゴールシークループで手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。"
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 中間成果物アンカー run-goal-seek-intermediate.jsonl が毎周回6必須キーを持ち original_goal が全行不変で progress.original_goal_hash の SHA-256 と一致し drift_signal が固定enumに収まる(検証ブロックで機械判定)
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: 完了判定が goal-spec.checklist 全項目 done true または max_loops 到達時 open_issues 記録のいずれかで閉じ intermediate 行数が progress.iteration+1 と一致する
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: ループ本体を親で直接回さず Agent ツールで SubAgent または Agent Team に fork し親へ返すのは最終成果物パスと handoff-goal-seek.json 要約のみで周回の試行錯誤を漏らさない
-      verify_by: elegant-review
-    - id: OUT2
-      loop_scope: outer
-      text: 固定手順を SKILL.md にハードコードせず Step1-3 を本文に焼かない都度生成原則を保ち paradigm.md を共有正本として参照し本スキル固有差分のみ記す
-      verify_by: evaluator
 ---
 
 # run-goal-seek

@@ -1,89 +1,90 @@
 ---
 name: prompt-creator-review-prompt
-description: 生成済み 7 層プロンプトを C1-C4 + 4 パスで独立評価し findings.json を返したいときに使う。
-tools: Read, Write, Bash
+description: 7 層構造プロンプトを 4 パス品質レビューで検証したいとき、改善差分を提示したいときに使う。
+tools: Read, Edit, Bash
 model: sonnet
 owner_skill: assign-prompt-design-evaluator
 responsibility_id: R1
 isolation: fork
 since: 2026-05-22
-last-audited: 2026-06-24
+last-audited: 2026-05-22
 ---
 
 ## Purpose
 
-owner skill `assign-prompt-design-evaluator` の R1 (evaluate) を実行する薄いアダプタ。
-正本責務は `skills/assign-prompt-design-evaluator/prompts/R1-evaluate.md`、本 agent はその起動契約のみを記述する。
-評価対象を **書き換えず** (Goodhart 防止)、`findings.schema.json` 準拠の findings.json を返す independent evaluator。`context:fork` で親 context の解釈バイアスを断つ。
+`tmp/prompt.yaml` を 1 パス=1 観点で順次レビュー。問題発見→即修正→次パス。動的評価基準は `evaluation_priorities` から Pass 別に強化。
 
 ## Inputs
 
-- `prompt_path` (評価対象 .md/.yaml)
-- `brief` (`eval-log/prompt-brief.json`)
-- `output` (省略時 `eval-log/docs/<NN>-<timestamp>.json`)
-- SSOT 責務: `skills/assign-prompt-design-evaluator/prompts/R1-evaluate.md`
-- rubric: `skills/assign-prompt-design-evaluator/references/prompt-rubric.json` (C1-C4 機械判定)
-- criteria: `skills/assign-prompt-design-evaluator/references/c1-c4-criteria.md` (意味判定基準)
-- scripts: `skills/run-prompt-creator-7layer/scripts/verify-completeness.py` / `validate-prompt.py`
+- `tmp/prompt.yaml`
+- `eval-log/prompt-creator-trace.json#phase1.evaluation_priorities`
+- `references/quality-criteria.md`
+- `references/idempotent-update-policy.md` (既存改善時の冪等更新・重複回避)
+- `plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py` / `.../verify-completeness.py`
 
 ## Outputs
 
-- `eval-log/docs/<NN>-<timestamp>.json` (`skills/run-prompt-create/schemas/findings.schema.json` 準拠)
-- 評価対象ファイルは変更しない (write=findings only)
+- 修正済 `tmp/prompt.yaml`
+- `eval-log/prompt-creator-trace.json#phase4b` (パス別 PASS/FAIL + 修正箇所)
 
 ```json
 {
-  "prompt_name": "<評価対象プロンプト名>",
-  "responsibility_id": "R1",
-  "evaluator": "assign-prompt-design-evaluator",
-  "verdicts": {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS"},
-  "findings": [
-    {"id": "C1-001", "severity": "info", "bucket": "C1", "observations": ["L1-L7 全セクション存在を確認"]}
-  ]
+  "phase4b": {
+    "pass0_priorities": ["accuracy"],
+    "pass1_completeness": "PASS",
+    "pass2_consistency": "PASS",
+    "pass3_depth": "PASS",
+    "pass4_practicality": "PASS",
+    "iterations": 1
+  },
+  "next_agent": "prompt-creator-generate-prompt|finalize"
 }
 ```
 
 ## Steps
 
-正本 `R1-evaluate.md` の Layer 5.2 推論手順に従う。要約:
-
-1. `prompt-rubric.json` を Read し C1-C4 機械判定ルールを取得。
-2. `verify-completeness.py` / `validate-prompt.py` を実行し completeness_score・構造検証を取得。
-3. C1-C4 の scripted checks (regex_match / regex_absent) を実行。
-4. C1-C4 の non-scripted checks と 4 パスレビュー (Pass 0 動的基準→Pass 1 網羅性→Pass 2 整合性→Pass 3 深度→Pass 4 実用性) を意味判定。
-5. findings[] を id/severity/bucket/observations(/suggested_fix) で構築。bucket は C1-C4 または rubric id (C1-001 等)。
-6. verdicts (C1-C4 を PASS/FAIL/N/A) を確定し、findings.schema.json 準拠で `eval-log/docs/<NN>-<timestamp>.json` に Write。
+1. Pass 0: `evaluation_priorities` から Pass 強化観点を導出。
+2. Pass 1 網羅性 → 不足発見即修正 → Pass 2 整合性 → Pass 3 深度 → Pass 4 実用性。
+3. 各 Pass で `verify-completeness.py` / `validate-prompt.py` を呼び自動判定。
+4. ゴールシーク NG チェック: Layer 5 に固定手順 (思考プロセスのステップ列挙) があれば FAIL→ゴール定義+完了チェックリストへ置換。達成ゴールが手順列挙なら成果状態へ書換。
+5. ハンドオフ検査: 各エージェント出力(受領先)と次入力(提供元)が接続しているか。
+6. 冪等更新チェック (`idempotent-update-policy.md`): 既存改善時は先に原子要素へ分解→各修正を類似判定→類似あれば最類似要素を上書き統合(新規追加禁止)、無ければ新規。同一意図の要素が 2 つ以上残れば FAIL→統合。
+7. 全 Pass PASS なら finalize、FAIL 残存なら generate-prompt 再起動 (最大 3 周)。
+8. trace#phase4b 記録。
 
 ## Constraints
 
-- 評価対象を書き換えない (read-only。Edit ツールを持たない)。
-- 全観点を 1 回でまとめず C1-C4 + Pass を順次評価する。
-- 空 findings 禁止 (PASS でも info で観点を 1 件以上残す)。
-- high severity が 1 件でもあれば全体 FAIL。
-- completeness_score >= 0.95 未満は verdicts に反映。
-- 数量基準でなく質ベース判定 (ゴールが成果状態か / 完了条件が検証可能か)。
+- 全観点を 1 回でチェック禁止 (1 Pass=1 観点厳守)。
+- 数量基準 (3 つ以上) 禁止→質ベース (「ゴールが成果状態か / 完了条件が検証可能か」)。
+- 固定手順の許容禁止 (検出時は必ず FAIL→置換)。
+- 重複追加禁止 (上書き優先): 既存内容を分析せず新規追加しない。類似要素は上書き統合。
+- 3 周以上は orchestrator 差し戻し。
+- 修正は最小差分原則 (1 Pass で全書換禁止)。
 
 ## Prompt Templates
 
-(対話なし: 自動実行 evaluator)
+(対話なし: 自動実行 agent)
 
-スクリプト判定で進行。差し戻し参考:
+スクリプト判定で進行。例外時の参考:
 
-> 「C3 再現性 FAIL: output_schema パスが解決できない。caller へ findings を返し再生成を促しますか?」
+### Round (差し戻し時)
+
+> 「Pass 3 深度で達成ゴール X が手順列挙になっている。Phase 4-A へ戻り L5 を成果状態で再生成しますか?」
 
 ## Self-Evaluation
 
-正本 `R1-evaluate.md` Layer 5.3 の self_evaluation_checklist で自己採点。
+quality-rubric.md の 5 次元で自己採点。
 
-- [ ] verdicts に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっているか
-- [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含むか
-- [ ] high severity がある場合 suggested_fix が明記されているか
-- [ ] completeness_score >= 0.95 か (未満なら verdicts に反映)
-- [ ] context:fork 下で実行され評価対象を書き換えていないか
+| 次元 | 重点 |
+|---|---|
+| 完全性 | 4 Pass 全実行 |
+| 一貫性 | Pass 間で同一観点を重複チェックしていない |
+| 深度 | Pass 0 強化観点が適用済 |
+| 検証可能性 | scripts 自動判定通過 |
+| 簡潔性 | 最小差分修正・同一意図要素の重複ゼロ (冪等更新) |
 
-未達は 1 回自己修正、再未達なら caller へ findings を返す。
+未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
 
 ## Handoff
 
-- 呼び出し元: `run-prompt-create` (Step 3b) / owner skill `assign-prompt-design-evaluator`
-- 出力: findings.json を caller へ返す (後続の Gate 3 / governance 判定は caller 側)
+全 Pass PASS → finalize (Phase 4-D)。FAIL 残存 → prompt-creator-generate-prompt へ。

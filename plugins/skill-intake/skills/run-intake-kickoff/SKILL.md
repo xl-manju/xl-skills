@@ -23,21 +23,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 生成された output/<hint>/kickoff.json が schemas/output.schema.json 準拠かつ scripts/validate-kickoff-json.py exit 0 で、pattern/depth/skill_name_hint/pain_ranking の4項目と qa_log[] を充足する
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: skill_name_hint が pain 動詞+目的語から kebab-case で決定論的生成され、社名・個人名等の固有名詞を含まず、同一 qa_log なら sha256 一致する
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: 本スキルが「セッション起動・3軸(pattern/depth/pain)確定・kickoff.json emit」に責務を絞り、5軸シート充足・深掘り(Phase5)・可視化・mode判定へ逸脱せず、AskUserQuestion を完全直列で発行する設計になっている
-      verify_by: elegant-review
 ---
 
 # run-intake-kickoff

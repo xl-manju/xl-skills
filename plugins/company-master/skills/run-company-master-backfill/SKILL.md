@@ -41,25 +41,6 @@ source: plugins/company-master/references/data-sources.md
 source-tier: internal
 last-audited: 2026-06-18
 audit-trigger: quarterly
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 補完対象を「空欄列を持つ行」または『ネット検索(要確認)』/『未確定(要確認)』行のみに限定し、既存非空セルが PATCH 前後で不変であること(backfill.py が既存値を読み空欄列のみ PATCH 対象化・tests/test_company_master.py の backfill ケースで機械検証)。
-      verify_by: test
-    - id: IN2
-      loop_scope: inner
-      text: PATCH 前に validate_enriched (= validate_company_master.validate_row) を実行し、8列構成・郵便番号8文字・電話ハイフン・住所都道府県起点・確度4ラベル enum・origin→確度上限・信頼キーに違反する行は PATCH せず deferred + replay JSONL へ退避すること(validate_company_master.py が実判定)。
-      verify_by: script
-    - id: IN3
-      loop_scope: inner
-      text: 各行の空欄列を埋めるのに必要な API (gBizINFO / 日本郵便 addresszip) だけを起動し全項目を無条件再取得しないこと、Web 検索が要る列は needs_web_search (page_id + missing_fields + attempts) に列挙し 2 パス目で attempts に無い (source, pattern) のみ許可段ホワイトリスト内で試行すること(backfill.py の 2 パス制御・REQUIRE_REVERIFY_CERTAINTIES 正本で担保)。
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: 既存 Notion 行起点の空欄補完という起動が、断片入力からの新規構築 (run-company-master-build) と入力契約・実行タイミングで混線せず疎結合し、誤値 >> 空欄 の非対称コスト原則 (取得不能は空欄+『未確定(要確認)』+備考定型記録) と URL 非減少マージを満たして「既存マスタの品質を後から底上げする」目的を最適に反映していること。
-      verify_by: elegant-review
 ---
 
 # run-company-master-backfill

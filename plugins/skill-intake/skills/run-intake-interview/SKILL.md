@@ -24,21 +24,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 5 軸シート充足の停止条件が機械検証可能である——five_axes_complete=true かつ validate-interview-json.py(interview.json の schema 準拠)と check-five-axes-coverage.py(sheet.md の 5 軸 coverage)双方が exit 0 で揃って初めて完了とみなされ、空欄や [?] 残存が PASS をすり抜けないこと。
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: 抽象回答と個人情報の扱いが機構で担保される——abstract-answer-patterns.md 該当回答は abstract_answers[] に {axis,answer,reason} で印付けし needs_excavation=true を立てて最終確定せず Phase 5 に委ね、社名・個人名は interview.json 本文に直書きせず {{var_*}} へ変数化されていることが schema/script で検査できること。
-      verify_by: script
-    - id: OUT1
-      loop_scope: outer
-      text: スキル全体が「5 軸シート充足・抽象フラグ付け・interview.json emit」というユーザ目的を過不足なく反映し、深掘り(Phase 5)・仮説検証(Phase 2)・要約(Phase 8)・3 軸確定(run-intake-kickoff)へ越境せず、vocabulary_tier 固定と AskUserQuestion 1 問直列・5 軸優先順位といった責務境界が目的に対し最適であること。
-      verify_by: elegant-review
 ---
 
 # run-intake-interview

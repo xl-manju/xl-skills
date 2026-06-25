@@ -24,23 +24,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-def _default_plugins_root() -> Path:
-    env_plugin = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if env_plugin:
-        return Path(env_plugin).expanduser().resolve().parent
-    return Path(__file__).resolve().parents[5] / "plugins"
-
-
-def _resolve_plugin_dir(plugin: str | None, plugin_dir: str | None, plugins_root: str | None) -> Path | None:
-    if plugin_dir:
-        return Path(plugin_dir).expanduser().resolve()
-    env_plugin = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if env_plugin and (not plugin or Path(env_plugin).name == plugin):
-        return Path(env_plugin).expanduser().resolve()
-    if plugin:
-        root = Path(plugins_root).expanduser().resolve() if plugins_root else _default_plugins_root()
-        return root / plugin
-    return None
+REPO_ROOT = Path(__file__).resolve().parents[5]
 
 PKG_IDS = ["PKG-002", "PKG-003", "PKG-004", "PKG-005", "PKG-006", "PKG-007", "PKG-008"]
 
@@ -382,16 +366,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", default="all",
                     help="pkg-002〜pkg-008 のいずれか、または all")
-    ap.add_argument("--plugin", help="plugin 名（互換: --plugins-root/<name> で解決）")
-    ap.add_argument("--plugin-dir", help="検査対象 plugin ディレクトリ。marketplace 単独 install ではこちらを優先")
-    ap.add_argument("--plugins-root", help="兄弟 plugin を含む root。未指定時は $CLAUDE_PLUGIN_ROOT の親または dev fallback")
+    ap.add_argument("--plugin", required=True, help="plugin 名（plugins/<name>/）")
+    ap.add_argument("--plugins-root", default=str(REPO_ROOT / "plugins"))
     ap.add_argument("--output", default="-")
     args = ap.parse_args()
 
-    plugin_dir = _resolve_plugin_dir(args.plugin, args.plugin_dir, args.plugins_root)
-    if plugin_dir is None:
-        print("error: --plugin-dir, --plugin, or CLAUDE_PLUGIN_ROOT is required", file=sys.stderr)
-        return 2
+    plugin_dir = Path(args.plugins_root) / args.plugin
     if not plugin_dir.exists():
         print(f"error: plugin not found: {plugin_dir}", file=sys.stderr)
         return 2

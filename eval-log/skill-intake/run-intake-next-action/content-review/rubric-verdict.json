@@ -1,1 +1,21 @@
-{"target":{"plugin":"skill-intake","skill":"run-intake-next-action","skill_md_sha256":"ef6059c680bd9a6964130c7603b80981063cb83ebd6ce51a0289dac8499d0bb6"},"review_kind":"rubric","verdict":"PASS","reviewer":"assign-skill-design-evaluator","reviewed_at":"2026-06-24T00:00:00Z","iterations":1,"human_review_required":false,"feedback_loop":{"loop_scope":"both","criteria_evaluated":["IN1","IN2","OUT1"],"positive_feedback":["frontmatter(name=dir, kind=run, run- prefix, allowed-tools に Skill/Task 非搭載)と本文の構造(Purpose & Output Contract / Key Rules / Gotchas / Additional Resources)が rubric の FM/BD/NM/PD 観点を充足し、責務単一(OUT1)が宣言と allowed-tools の両面で担保されている","decide-mode.py の precondition gate(notion-publish-result.json + notion-log.json.status=='published' + page_id, exit 2)・入力欠落 exit 3・output.schema.json の additionalProperties:false が SKILL/manifest/script 間で一致し、IN1/IN2 の機械検証(verify_by=script/lint)が実在の検証経路に接地している"],"negative_feedback":[],"iteration":1,"iteration_limit":3,"hook_trigger":"manual","next_action":"none","notes":""},"notes":"SKILL.md を実読し ref-skill-design-rubric 観点(FM=frontmatter整合 / BD=本文構造 / NM=命名 / PD=参照充足)と本スキル固有の内容整合を二段確認。命名(dirname==name=run-intake-next-action, run- prefix)・本文構造(節充足, 行数<300)・参照(references/ 非空, scripts/decide-mode.py, schemas/output.schema.json, workflow-manifest.json)いずれも充足。内容整合: precondition gate(exit2)= decide-mode.py の Notion公開完了 assert、入力欠落 exit3、output.schema additionalProperties:false/required、manifest P1-P4 + validate-next-action hook、mode-catalog handoff phase 文言の逐語整合 を確認。導出 criteria(IN1=決定論mode判定の再現性とschema検証 / IN2=公開gate+exit code+D→E格下げの機械検証 / OUT1=責務単一とAskUserQuestion直列)はスキルの実目的を反映し固有。contradiction/omission/inconsistency/dependency_break/smell いずれも検出なし=PASS。"}
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-next-action",
+    "skill_md_sha256": "6659e7d00bacf7c815e14017607d3596d06bdfcfd80acc01601223ae22736ad7"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-06T10:56:10Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "canonical scorer render-findings-score.py (rubric-refs: ref-skill-design-rubric L0 + assign-skill-design-evaluator override) score=97 threshold=80 passed=true. findings: FM-005(low) のみ ('description first phrase skill-creator is not a verb')。これは scorer heuristic の偽陽性: (1) re.split(r'[。\\.]') が 'summary.json' のドット手前で head_jp を打ち切るため後続の動詞表現 '判定したい'/'確定したい' に届かない、(2) jp_verb_markers に '判定'/'確定'/'したい' 系が無い。description は実質 verb-led かつ trigger 2 件 (とき×2) で適切。low は PASS をブロックしないため (score>=threshold AND not any(high)) 編集なし (PR 不膨張)。二段確認: FM(name=dir, run- prefix, len OK), BD(Purpose & Output Contract / Gotchas 節あり, 行数<300), NM(dirname==name, scripts/ は .py のみ), PD(body>100行 & references/ 非空) 全て充足。内容整合: SKILL.md の precondition gate(exit2: notion-publish-result.json + notion-log.json.status=='published' + page_id)が decide-mode.py check_publish_precondition と一致、入力欠落 exit3 が load_json_required と一致、output.schema.json の additionalProperties:false/required が一致、workflow-manifest.json P1-P4 + validate-next-action exitHook が一致、mode-catalog.md の handoff phase 文言が script の handoff dict と一致。contradiction/omission/inconsistency/dependency_break/smell いずれも検出なし。"
+}

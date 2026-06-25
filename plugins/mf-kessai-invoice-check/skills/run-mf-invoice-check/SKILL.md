@@ -28,21 +28,6 @@ responsibility_refs:
 schema_refs:
   - schemas/invoice-gap-result.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: 発行漏れ候補が「前月発行−今月発行」の差集合として issue_date 帰属で正しく算出され、月またぎ発行(例 5月取引→6月発行)も誤判定しないことを pytest(test_invoice_diff の detect_gaps)で機械検証できる。
-      verify_by: test
-    - id: IN2
-      loop_scope: inner
-      text: 二段確認の物理境界が機構強制される——sink が確定リスト(mfk-gap-verified.json)不在では fail-closed(exit 2)で停止し、未検証候補の直結投入を防ぐことを test_check_invoice_gaps で機械検証できる。
-      verify_by: test
-    - id: OUT1
-      loop_scope: outer
-      text: スキル全体がユーザ目的(発行漏れの早期発見・独立 context での誤検出排除・候補0件月も含む確認済み履歴の保全・参照専用の保証)を最適に反映し、collect→verify→finalize→sink と Notion 冪等 upsert の責務分割が目的に対し過不足ないこと。
-      verify_by: elegant-review
 ---
 
 # run-mf-invoice-check

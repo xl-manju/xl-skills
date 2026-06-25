@@ -5,7 +5,7 @@ __pycache__/
 *.pyd
 .python-version
 
-# Test coverage artifacts (pytest / coverage.py が生成する揮発バイナリ / 任意階層の .coverage にマッチ)
+# Test coverage artifacts (pytest / coverage.py が生成する揮発バイナリ)
 .coverage
 .coverage.*
 htmlcov/

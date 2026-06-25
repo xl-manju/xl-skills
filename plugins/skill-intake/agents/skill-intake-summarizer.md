@@ -12,7 +12,7 @@ model: sonnet
 | responsibility_id | R8-summarize |
 | phase | phase-08-summarize |
 | input_schema | kickoff.json + assumption.json + profile.json + sheet.md + purpose.json + options.json + visuals.json (Phase 1-7 全成果物) |
-| output_schema | summary.md (自然文) + summary.json (契約は run-skill-intake/schemas/phase8-summary.schema.json = workflow-manifest schema-summary が SSOT。本ファイル Layer 2.4 はその要約) |
+| output_schema | (Wave 2 で追加予定。summary.md + summary.json を出力。本ファイル Layer 2.4 雛形を暫定契約とする) |
 | context_fork | true (理由: 生成側が自己肯定的になるのを避け、fresh context で Gate A を独立レビューする) |
 | reproducible | true (同入力→同 5 軸抽出を保証。approval_status はユーザー入力依存のため除く) |
 
@@ -36,7 +36,7 @@ model: sonnet
 
 ### 2.2 ドメインルール
 - 5 軸定義: `output_target` / `info_source` / `share_target` / `true_problem` / `knowledge_assets`。
-- knowledge_assets は `string[]` (利用可能なナレッジ資産・既存情報源を 1 件以上列挙)。schema は array(items string, minItems 1) を要求するため object 形式にしない。
+- knowledge_assets は `{needed: bool, existing_sources: string[]}` 構造で保持。
 - approval_status は `approved` / `revision_requested` の二値。
 
 ### 2.3 入力契約
@@ -46,20 +46,16 @@ model: sonnet
 | kickoff | json | yes | Phase 1 | パターン選択等 |
 | assumption | json | yes | Phase 2 | 前提整理 |
 | profile | json | yes | Phase 3 | ユーザープロファイル |
-| sheet | md | yes | Phase 4 | セクション要約 (run-intake-interview が生成) |
+| sheet | md | yes | Phase 6 | セクション要約 |
 | purpose | json | yes | Phase 5 | verb_object と背景 |
 | options | json | yes | Phase 6 | 選択肢提示結果 |
 | visuals | json | yes | Phase 7 | 図解一覧 |
 
-入力スキーマ: schema が wire 済みの phase (P2 assumption / P3 profile / P5 purpose, workflow-manifest の outputSchemaId 参照) はその schema に準拠した JSON を受け取る。他 phase は当該 skill の handoff JSON をそのまま読む。
+入力スキーマ: 各 phase の出力 schema に準拠。
 
 ### 2.4 出力契約
-
-契約 SSOT は `run-skill-intake/schemas/phase8-summary.schema.json` (workflow-manifest `schema-summary`)。`additionalProperties:false` のため下記以外のキー (user_feedback 等) を summary.json に書かない。
-
 - 出力: `output/<hint>/summary.md` (200〜400 字 + 補助箇条書き), `output/<hint>/summary.json`
-- 必須フィールド: `five_axes.output_target`, `five_axes.info_source`, `five_axes.share_target`, `five_axes.true_problem`, `five_axes.knowledge_assets` (string[] / minItems 1), `approval_status` (enum: approved | revision_requested)
-- 任意フィールド: `revision_notes` (修正要求・部分戻しの記述), `summary_md_path`, `summary_json_path`
+- 必須フィールド: `five_axes.output_target`, `five_axes.info_source`, `five_axes.share_target`, `five_axes.true_problem`, `five_axes.knowledge_assets`, `approval_status`, `user_feedback`
 - 完了条件: summary.md 200-400 字 + 5 軸全充足 + approval_status=approved (revision_requested は Phase 4 へ戻る)
 
 ```json
@@ -69,10 +65,10 @@ model: sonnet
     "info_source": "...",
     "share_target": "...",
     "true_problem": "...",
-    "knowledge_assets": ["..."]
+    "knowledge_assets": {"needed": true, "existing_sources": ["..."]}
   },
-  "approval_status": "approved",
-  "revision_notes": "..."
+  "approval_status": "approved|revision_requested",
+  "user_feedback": "..."
 }
 ```
 
@@ -164,7 +160,7 @@ model: sonnet
 - 情報源 (info_source): {{...}}
 - 共有相手 (share_target): {{...}}
 - 真の課題 (true_problem): {{...}}
-- ナレッジ資産 (knowledge_assets): [{{利用可能なナレッジ資産・既存情報源を 1 件以上}}]
+- ナレッジ資産 (knowledge_assets): needed={{bool}} / existing_sources=[{{...}}]
 ```
 
 ### Template 2: Gate A 承認確認 (AskUserQuestion, 最大 3 択)
@@ -174,11 +170,11 @@ model: sonnet
 選択肢:
 1. はい、このまま進める (approval_status=approved)
 2. 修正したい (approval_status=revision_requested, Phase 4 に戻す)
-3. 5 軸の一部だけ直したい (revision_notes に箇所を記述, Phase 4 に部分戻し)
+3. 5 軸の一部だけ直したい (user_feedback に箇所を記述, Phase 4 に部分戻し)
 
 ### Template 3: 部分戻しフィードバック収集
 
-> 「どの軸を直しますか? (output_target / info_source / share_target / true_problem / knowledge_assets) / どう直したいですか?」 → revision_notes に記録し Phase 4 へ。
+> 「どの軸を直しますか? (output_target / info_source / share_target / true_problem / knowledge_assets) / どう直したいですか?」 → user_feedback に記録し Phase 4 へ。
 
 ## Self-Evaluation
 
@@ -187,7 +183,7 @@ model: sonnet
 - [ ] **5 軸完全性**: output_target / info_source / share_target / true_problem / knowledge_assets が全て埋まっている (目的: skill-creator が欠損なく実装計画を立てるため / 背景: 5 軸欠損は後続 Phase の停止要因)
 - [ ] **字数遵守**: summary.md が 200-400 字 (目的: 読まれる長さ / 背景: 長文は確認時に読まれず短文は情報不足)
 - [ ] **ユーザー語彙準拠**: Phase 4-5 で記録された言い回しを優先採用している (目的: ユーザーの「自分の言葉だ」感覚 / 背景: 翻訳語は心理的距離を生む)
-- [ ] **Gate A 確定**: approval_status が approved / revision_requested の二値で確定し、revision_requested 時は revision_notes が記録されている (目的: 後続 phase 分岐の決定論性)
+- [ ] **Gate A 確定**: approval_status が approved / revision_requested の二値で確定し user_feedback が記録されている (目的: 後続 phase 分岐の決定論性)
 - [ ] **再現性**: 同 Phase 1-7 入力から同じ 5 軸抽出になる (approval_status はユーザー入力依存のため除外) (目的: trace 性)
 - [ ] **責務遵守**: 追加質問 (R4) / 深掘り (R5) / intake 生成 (R9) / Notion 公開 (R10) / 次アクション判定 (R11) を含めていない (目的: SRP 維持)
 - [ ] **PII 非露出**: summary.md / summary.json に PII を直書きしていない (匿名化/抽象化済み) (目的: 倫理ガード)
@@ -206,5 +202,5 @@ model: sonnet
 ## Handoff
 
 - 成功時 (approved): orchestrator に `summary.md` + `summary.json` + Phase 1-7 全 JSON を返し、Phase 9 `run-intake-finalize` へ進める。
-- 修正要求時 (revision_requested): orchestrator 経由で `run-intake-interview` (Phase 4) に revision_notes を添えて戻す。
+- 修正要求時 (revision_requested): orchestrator 経由で `run-intake-interview` (Phase 4) に user_feedback を添えて戻す。
 - 失敗時 (2 周超過): orchestrator に `halt_reason=gate_a_unreachable` で返す。

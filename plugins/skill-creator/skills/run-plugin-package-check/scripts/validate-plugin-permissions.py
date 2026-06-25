@@ -13,28 +13,12 @@ stub 実装: plugin.json の permissions ブロックの基本構造を検査し
 from __future__ import annotations
 import argparse
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-def _resolve_repo_root() -> Path:
-    """repo_root を解決(dev/CI 層②)。
-
-    優先順: $CLAUDE_PROJECT_DIR(plugins/ を含む) → 本ファイル parents[5](同) → cwd。
-    marketplace install 環境で誤起動しても IndexError で死なずフォールバックする。
-    本スクリプトは主に dev/CI で repo 内 plugin を検査する層。install 環境で
-    個別 plugin を検査する場合は --plugin-dir でパスを明示すること。
-    """
-    env = os.environ.get("CLAUDE_PROJECT_DIR")
-    if env and (Path(env) / "plugins").is_dir():
-        return Path(env)
-    here = Path(__file__).resolve()
-    if len(here.parents) > 5 and (here.parents[5] / "plugins").is_dir():
-        return here.parents[5]
-    return Path.cwd()
+REPO_ROOT = Path(__file__).resolve().parents[5]
 
 
 def now_iso() -> str:
@@ -125,21 +109,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True)
     ap.add_argument("--check", default="013a,013b,013c,013d")
-    ap.add_argument(
-        "--plugin-dir",
-        default=None,
-        help="検査対象 plugin ディレクトリを明示する(install 環境用)。"
-        "未指定なら repo_root (_resolve_repo_root) から plugins/<plugin> を解決する。",
-    )
     args = ap.parse_args()
 
-    # repo_root は module-level 定数ではなく _resolve_repo_root() で解決する
-    # (marketplace install / CLAUDE_PROJECT_DIR 環境差を吸収する可搬性層②)。
-    # --plugin-dir 明示時はそれを優先 (install 環境で repo 外の plugin を検査する経路)。
-    if args.plugin_dir:
-        plugin_dir = Path(args.plugin_dir)
-    else:
-        plugin_dir = _resolve_repo_root() / "plugins" / args.plugin
+    plugin_dir = REPO_ROOT / "plugins" / args.plugin
     perms = load_permissions(plugin_dir)
     if perms is None:
         result = {

@@ -7,8 +7,7 @@
   - LLM 層 (本 lint の対象外): 評価実行自体はローカル Claude Code で run-elegant-review +
             assign-skill-design-evaluator を SubAgent 起動して行う (リモート CI コスト回避)
 
-ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない
-(dogfooding 境界の SSOT = scripts/feedback_contract_ssot.py:is_content_review_exempt)。
+ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない。
 
 Usage:
   python3 scripts/lint-content-review.py --changed-only [--base origin/main]
@@ -25,13 +24,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = ROOT / "plugins"
 EVAL_LOG = ROOT / "eval-log"
-
-sys.path.insert(0, str(ROOT / "scripts"))
-import feedback_contract_ssot as FC  # noqa: E402
 REQUIRED_VERDICTS = ("elegance-verdict.json", "rubric-verdict.json")
-# dogfooding 除外境界は SSOT (FC.is_content_review_exempt) が単一正本。
-# content-review は生成器自身も除外しない (常に False) ため集合は空のままだが、
-# 判定は SSOT 述語へ委譲しリテラル散在を排除する。
+EXEMPT_PLUGINS = set()
 EXEMPT_KINDS = {"ref"}
 
 
@@ -80,7 +74,8 @@ def _read_kind(plugin, skill):
         text = md.read_text(encoding="utf-8")
     except OSError:
         return None
-    return FC.read_kind(text)  # kind 抽出は SSOT の単一実装に委譲 (lint 間の乖離を排除)
+    m = re.search(r"^kind:\s*([a-z]+)\s*$", text, re.M)
+    return m.group(1) if m else None
 
 
 def _skill_sha256(plugin, skill):
@@ -162,23 +157,12 @@ def _check_verdict(path, plugin, skill, fname):
 
 
 def _expected_criteria_ids(plugin, skill):
-    """期待される feedback_contract.criteria id 集合を返す。
+    """Trace に固定された feedback_contract.criteria id を読む。
 
-    正本は **量産先 SKILL.md frontmatter の feedback_contract**(携帯する評価基準)。
-    frontmatter に無い場合のみ後方互換で build trace(skill-local→global)を best-effort
-    で読む。どこにも無ければ空集合を返す(verdict 自体の必須構造のみ検査)。
+    build trace は世代により保存場所が異なるため、skill local → global の順に
+    best-effort で読む。見つからなければ空集合を返し、verdict 自体の必須構造のみ
+    検査する。
     """
-    # 1) frontmatter 正本 (SSOT)
-    md = PLUGINS_DIR / plugin / "skills" / skill / "SKILL.md"
-    try:
-        fc = FC.extract_frontmatter_feedback_contract(md.read_text(encoding="utf-8"))
-        ids = FC.criteria_ids(fc.get("criteria")) if isinstance(fc, dict) else set()
-        if ids:
-            return ids
-    except OSError:
-        pass
-
-    # 2) 後方互換: build trace (世代差で skill-local→global)
     candidates = [
         EVAL_LOG / plugin / skill / "skill-build-trace.json",
         EVAL_LOG / "skill-build-trace.json",
@@ -193,7 +177,11 @@ def _expected_criteria_ids(plugin, skill):
         fc = data.get("feedback_contract")
         if not isinstance(fc, dict):
             continue
-        ids = FC.criteria_ids(fc.get("criteria"))
+        criteria = fc.get("criteria")
+        if not isinstance(criteria, list):
+            continue
+        ids = {str(item.get("id", "")).strip() for item in criteria if isinstance(item, dict)}
+        ids.discard("")
         if ids:
             return ids
     return set()
@@ -211,7 +199,7 @@ def main():
     # filter
     filtered = []
     for plugin, skill in sorted(targets):
-        if FC.is_content_review_exempt(plugin):
+        if plugin in EXEMPT_PLUGINS:
             continue
         kind = _read_kind(plugin, skill)
         if kind in EXEMPT_KINDS:

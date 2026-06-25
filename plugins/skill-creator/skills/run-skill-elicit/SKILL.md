@@ -25,21 +25,6 @@ responsibility_refs:
 schema_refs:
   - ../run-skill-create/schemas/skill-brief.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: eval-log/skill-brief.json が固定パスに出力され skill-brief.schema.json に準拠し必須フィールド skill_name prefix hierarchy_level trigger_conditions output_contract boundary が全て確定している
-      verify_by: lint
-    - id: IN2
-      loop_scope: inner
-      text: prefix が ref run wrap assign delegate の5分岐決定木で確定し条件付き必須(wrap は base_skill delegate は delegate_agent L2 は rubric_refs)が埋まり trigger_conditions が動詞ベース2〜3個に収まっている
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: 既出回答から導出可能な値を再質問せず AI が埋め設計用語を直接質問せず対話を5問以内に収め判断が分かれる細部のみ open_questions(escalate)へ退避しユーザーへ代理決定していない
-      verify_by: elegant-review
 ---
 
 # run-skill-elicit

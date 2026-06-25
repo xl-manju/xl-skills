@@ -9,7 +9,7 @@
   R5. notion-upsert-plugin.py が _load_feedback_protocol() を経由している
   R6. 量産プラグイン (plugins/*/plugin.json 保持) の README/plugin.json/commands/agents に run-skill-feedback 発火経路が周知されている
       (default warn / --strict で exit 1)
-  R7. 量産プラグイン (生成器自身=feedback_contract_ssot.is_feedback_deploy_exempt で除外) の skills/run-skill-feedback/ が symlink/実体で配備されている
+  R7. 量産プラグイン (skill-creator 自身を除く) の skills/run-skill-feedback/ が symlink/実体で配備されている
       (default warn / --strict で exit 1)
 
 Usage:
@@ -19,9 +19,6 @@ import argparse, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# dogfooding 除外境界は SSOT (FC.is_feedback_deploy_exempt) が単一正本。
-sys.path.insert(0, str(ROOT / "scripts"))
-import feedback_contract_ssot as FC  # noqa: E402
 SCHEMA = ROOT / "doc" / "notion-schema" / "skill-list.schema.json"
 SKILL_MD = ROOT / "plugins" / "skill-creator" / "skills" / "run-skill-feedback" / "SKILL.md"
 UPSERT = ROOT / "scripts" / "notion-upsert-plugin.py"
@@ -32,17 +29,14 @@ FEEDBACK_KEYWORD = "run-skill-feedback"
 
 
 def _target_plugins():
-    """検査対象 plugin (manifest を持ち、生成器自身=配備除外プラグインは除外)。
-
-    除外境界は SSOT 述語 (FC.is_feedback_deploy_exempt) に委譲する。
-    """
+    """検査対象 plugin (manifest を持ち、skill-creator 自身は除外)。"""
     if not PLUGINS_DIR.exists():
         return []
     out = []
     for plugin_dir in sorted(PLUGINS_DIR.iterdir()):
         if not plugin_dir.is_dir():
             continue
-        if FC.is_feedback_deploy_exempt(plugin_dir.name):
+        if plugin_dir.name == "skill-creator":
             continue
         manifests = [
             plugin_dir / ".claude-plugin" / "plugin.json",

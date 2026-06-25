@@ -2,34 +2,36 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-plugin-package-check",
-    "skill_md_sha256": "7da14a0752a65ac64ae99e0a0f7bd2ac9aa9497437fa1a59e00de4e5ea21df15"
+    "skill_md_sha256": "aa5e07c53ed6b19017a8044a2f8ea5b78fa203ff831f9a977478292ec3b53142"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
-  "human_review_required": false,
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "dev 同期 merge で『正本 6 ステップ（…→Anchor Step→反復）』へ更新された『ゴールシークループ』(本文126行) が、Purpose の phase 別完了条件・完了チェックリスト・局面カタログ Step 0〜10 と矛盾なく接続し、IN1 の inner 停止判定(fail≥1→exit 1 / 全 pass・not_applicable→exit 0)が三箇所(Purpose 完了条件89行 / 完了チェックリスト122行 / Gotcha)で一意に保たれている。",
-      "merge で Step 3(PKG-009)を『../../../skill-governance-lint/scripts/lint-external-refs.py --skills-dir plugins/<name>/skills --fail-on-external』、Step 8(PKG-015)を『lint-rubric-violation.py --log-dir eval-log/<name> --out eval-log/<name>/pkg-015/rubric-violation.json』へ正式パス化した変更が、外部参照ゼロ検査と rubric 違反率検査を skill-governance-lint 側へ委譲する設計と整合し、IN2 の eval-log/<plugin>/ append-only(27章 §3.1)出力契約を壊さない。",
-      "Step 5/5.5/6 役割直交表(契約適合=本 skill / elegance lint=run-elegant-review / rubric 採点=assign-skill-design-evaluator)と Key Rules 1-2 が、PKG 定義を ref-pkg-contract に委ね PKG-002〜008/014 を assign-plugin-package-evaluator へ context=fork 委譲する設計を維持しており OUT1 を充足する。"
-    ],
-    "negative_feedback": [],
-    "iteration": 1,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "dev(origin/main)同期 merge 後の現 SKILL.md(SHA 7da14a07…)を全文精読し、stale だった旧 SHA(e632b8f9…)を実測値へ更新したうえで 4 条件を genuine 再検証した。merge 差分は 3 点に限定される: ①『ゴールシークループ』本文の正本 5 ステップ→6 ステップ(Anchor Step 追加)、②Step 3 PKG-009 の lint-external-refs.py を skill-governance-lint plugin 配下の正式パス(--skills-dir/--fail-on-external)へ、③Step 8 PKG-015 の lint-rubric-violation.py を同 plugin 配下(--log-dir/--out)へ。①矛盾なし: 6 ステップ化は Anchor Step(中間成果物アンカー)導入で Purpose・完了チェックリスト・exit コード規約と一切衝突せず、pkg_check_failed の 1 run 1 line 集約(Key Rule 6/Gotcha 4)も二重発火禁止のまま。②漏れなし: IN1(phase 全件評価+exit 停止)・IN2(append-only 保存+observable 1 行)・OUT1(契約適合の責務直交+委譲設計)が Purpose/Key Rules/Gotchas/局面カタログに MECE で反映。③整合性: merge で更新された 2 つの script 参照は skill-governance-lint への外部 lint 委譲という既存設計方針と一致し、Step 7 の PKG-014 delegated 表記・OUT1・完了チェックリストの PKG-002〜008/014 委譲記述と矛盾しない(Key Rule 3 の『010〜015 直接実装』は範囲略記で 014 は Step 7・OUT1・チェックリストで委譲が明示されており holistic に一意)。④依存整合: ref-pkg-contract への PKG 定義委譲・assign-plugin-package-evaluator への fork 委譲・27章 §3.1 eval-log パス規約が維持。findings_summary 全 0 ゆえ PASS。",
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
     "smell": 0
-  }
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:38:01Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
+    "positive_feedback": [
+      "C1 矛盾なし: PKG-013 sub-check 集約 (all_must_pass / 1件failで全体fail) と PKG-001 claude CLI不在時 skip+exit非1、observable単一emitter (aggregate-pkg-findings.py) が SKILL.md・R1-orchestrate.md・workflow-manifest.json の三者で一貫し論理矛盾なし",
+      "C2 漏れなし: Purpose & Output Contract / Key Rules / ゴール+完了チェックリスト / Gotchas / Additional Resources が MECE に揃い、phase 0/1/2 完了条件と入出力契約・35章 observable 配線が網羅されている",
+      "C4 dependency 解消: PKG-009/PKG-015 の lint 参照を実在する `../../../skill-governance-lint/scripts/{lint-external-refs.py,lint-rubric-violation.py}` へ4箇所一括是正し、両 script が実在する単一 canonical home (skill-governance-lint plugin = cross-plugin lint owner) に集約。args も実 script シグネチャ (--skills-dir/--fail-on-external, --log-dir/--out) に整合させ実行可能性を回復"
+    ],
+    "negative_feedback": [
+      "(修復済) C4 dependency_break(high): PKG-009/PKG-015 の lint script を `../../scripts/lint-external-refs.py` / `../../scripts/lint-rubric-violation.py` と参照していたが、skill dir から ../../scripts/ が解決する plugins/skill-creator/scripts/ には両 lint が不在 (compute-dogfooding-metrics.py/notion_config.py のみ) で dangling。SKILL.md L126/L141・workflow-manifest.json L43/L102・resource-map.yaml L29-30・R1-orchestrate.md L87 の4箇所で同一誤パスが伝播し PKG-009/015 gate が実行時 script 未発見で破綻していた。本イテレーションで実在する `../../../skill-governance-lint/scripts/` へ4箇所是正し dangling=0 を実確認 (test -f 全 OK・残存 ../../scripts/lint- refs grep 0件)"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "pre-push",
+    "next_action": "none"
+  },
+  "notes": "iteration 1 で検出した C4 high dependency_break を genuine 修復後の再レビュー。修復内容: 4箇所 (SKILL.md 局面カタログ Step3/Step8・workflow-manifest.json pkg-009/pkg-015 command+args・references/resource-map.yaml external_scripts.pkg_009/pkg_015・prompts/R1-orchestrate.md L87) の `../../scripts/lint-{external-refs,rubric-violation}.py` を `../../../skill-governance-lint/scripts/lint-{external-refs,rubric-violation}.py` へ修正。修復根拠の実検証: (1) 旧 ../../scripts/ は plugins/skill-creator/scripts/ に解決し両 lint 不在 (dangling)、(2) lint-rubric-violation.py は repo-root scripts/ に存在せず plugins/skill-governance-lint/scripts/ にのみ実在、lint-external-refs.py は両所に実在、両者が揃う唯一の canonical home が skill-governance-lint plugin、(3) 新参照2本とも test -f で EXISTS を確認 (dangling=0)、(4) `grep '\\.\\./\\.\\./scripts/lint-'` で旧誤パス残存0件、(5) workflow-manifest.json は json.load 通過・resource-map.yaml は yaml.safe_load 通過。frontmatter の他参照 (script_refs 6本・schema_refs 2本・prompts 2本・sibling skill 2本) も全て実在を再確認し他に high dependency_break なし。C1/C2/C3 は iteration 1 から不変 PASS。残存軽微事項: resource-map.yaml human_readable が prompts/orchestrate.md・gate-decide.md を指すが実体は R1-/R2- 接頭辞付き (low inconsistency, C4対象外・本タスク範囲外につき未修正・透明化記録)。high severity 未解決なし → verdict=PASS。"
 }

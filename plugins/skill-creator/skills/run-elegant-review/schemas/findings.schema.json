@@ -4,7 +4,7 @@
   "title": "Elegant Review Findings",
   "description": "30思考法 × C1-C4 マトリクスと variable_abstraction を含む findings の構造定義。",
   "type": "object",
-  "required": ["version", "target", "paradigm_findings", "four_conditions", "variable_abstraction", "thought_method_coverage"],
+  "required": ["version", "target", "paradigm_findings", "four_conditions", "variable_abstraction"],
   "properties": {
     "version": {"type": "integer", "const": 1},
     "target": {
@@ -19,31 +19,9 @@
     "loop_count": {"type": "integer", "minimum": 0, "maximum": 3},
     "paradigm_findings": {
       "type": "array",
-      "minItems": 0,
+      "minItems": 30,
       "maxItems": 30,
       "items": {"$ref": "#/definitions/paradigm_finding"}
-    },
-    "thought_method_coverage": {
-      "type": "object",
-      "required": ["used", "skipped_with_reason", "total"],
-      "properties": {
-        "used": {
-          "type": "array",
-          "items": {"type": "string"}
-        },
-        "skipped_with_reason": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["method", "reason"],
-            "properties": {
-              "method": {"type": "string"},
-              "reason": {"type": "string", "minLength": 1}
-            }
-          }
-        },
-        "total": {"type": "integer", "const": 30}
-      }
     },
     "four_conditions": {
       "type": "object",
@@ -90,22 +68,7 @@
               "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
               "bucket": {"type": "string", "enum": ["dependency-loop", "eval-log", "hook-ci", "rubric-governance", "dogfooding", "variable-abstraction", "doc", "schema", "other"]},
               "description": {"type": "string"},
-              "recommended_intervention": {"type": "string"},
-              "condition_signal": {"type": "string", "enum": ["contradiction", "omission", "inconsistency", "dependency_break", "smell"]},
-              "location": {
-                "type": "object",
-                "required": ["file"],
-                "properties": {
-                  "file": {"type": "string"},
-                  "line": {"type": "integer", "minimum": 1},
-                  "section": {"type": "string"}
-                }
-              },
-              "depends_on": {
-                "type": "array",
-                "items": {"type": "string", "pattern": "^F-[0-9]{4}$"}
-              },
-              "root_cause": {"type": "string"}
+              "recommended_intervention": {"type": "string"}
             }
           }
         },

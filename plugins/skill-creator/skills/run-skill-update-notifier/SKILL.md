@@ -20,25 +20,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: CHANGELOG 不在・オフライン・cache 不在・権限不足・XL_SKILLS_NOTIFY=off のいずれの分岐でも例外を握りつぶし空文字列(no-op)かつ exit 0 へ倒れ Skill 実行を妨げないことを notifier-check.py の単体テストで機械検証できる(graceful degradation)。
-      verify_by: test
-    - id: IN2
-      loop_scope: inner
-      text: PostToolUse hook が tool_name=="Skill" のときだけ末尾に1行付記し Read や Bash の末尾には付かないこと、および同一 plugin の通知が last_notified_at により1セッション内で重複しないことを hook-notify-skill-end.py の単体テストで機械検証できる(filter と重複抑止)。
-      verify_by: test
-    - id: IN3
-      loop_scope: inner
-      text: 既存 manifest(plugin.json marketplace.json bundles.json skill-intake-self-updater)を一切変更せず書込先が version-snapshot.json のみに限定され Python stdlib だけで完結することを read-only 静的 lint で機械検証できる(非破壊と外部依存ゼロ)。
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: スキル全体がユーザ目的(意識せず最新版の存在に気づける非破壊な気づき提供)を最適に反映し、cache 鮮度判定・通知整形・graceful 保護層という責務分割が分岐の多い文脈で過不足なく目的に整合していることを評価できる。
-      verify_by: elegant-review
 ---
 
 # run-skill-update-notifier

@@ -24,63 +24,9 @@ kind combinator plus optional flag combinators in the documented order.
 from __future__ import annotations
 
 import argparse
-import shutil
 import re
 import sys
 from pathlib import Path
-
-
-# dogfooding 除外境界の正本は repo-root scripts/feedback_contract_ssot.py (単一 SSOT)。
-# apply_feedback_loop の配備除外を、散在リテラルでなく SSOT 述語へ委譲する。
-#
-# 解決順: (a) env CLAUDE_PLUGIN_ROOT/scripts → (b) 上方探索 (vendored plugin 内コピーを
-# dev/install 双方で発見) → (c) 全滅時は最小 fallback。**絶対に raise しない**
-# (build-time に plugin 単独 install されても import-time クラッシュさせない)。
-import os
-
-
-def _load_feedback_contract_ssot():
-    """feedback_contract_ssot を fail-soft に解決する (絶対に raise しない)。"""
-    import importlib.util
-
-    candidates: list[Path] = []
-    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if plugin_root:
-        candidates.append(Path(plugin_root) / "scripts" / "feedback_contract_ssot.py")
-    here = Path(__file__).resolve()
-    for ancestor in here.parents:
-        candidates.append(ancestor / "scripts" / "feedback_contract_ssot.py")
-    for cand in candidates:
-        try:
-            if cand.is_file():
-                spec = importlib.util.spec_from_file_location("feedback_contract_ssot", cand)
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)  # type: ignore[union-attr]
-                return mod
-        except Exception:
-            continue
-    return _fallback_feedback_contract_ssot()
-
-
-def _fallback_feedback_contract_ssot():
-    """SSOT 全滅時の最小 fallback。render-combinators が使う述語のみ提供。
-
-    自プラグイン名を __file__ パス (plugins/<self>/skills/<skill>/scripts/) から
-    導出し、判定用リテラルを直書きせず変数比較する (配備除外判定は「対象が自プラグイン
-    自身か」であり self-derive が意味的に正しい)。SSOT 実装と同値で drift せず、散在
-    リテラル禁止 (test_dogfooding_boundary) も満たす。vendored コピーが常在するため
-    通常ここには到達しない (最終安全弁)。
-    """
-    import types
-
-    self_plugin = Path(__file__).resolve().parents[3].name
-    fc = types.SimpleNamespace()
-    fc.SELF_DOGFOODING_PLUGIN = self_plugin
-    fc.is_feedback_deploy_exempt = lambda plugin: plugin == self_plugin
-    return fc
-
-
-_FC = _load_feedback_contract_ssot()
 
 
 KIND_PATCHES = {
@@ -100,37 +46,6 @@ FLAG_PATCHES = {
 # goal-seek 配線を default-ON で注入する loop 実行系 kind。
 # assign(評価系=一発採点でループしない) と ref(read-only) は対象外。
 GOAL_SEEK_KINDS = ("run", "wrap", "delegate")
-
-
-FEEDBACK_CONTRACT_KINDS = ("run", "wrap", "delegate")
-
-
-FEEDBACK_CONTRACT_FM_BLOCK = (
-    "# feedback_contract: 量産先 Skill が携帯する per-skill 評価基準。"
-    "criteria は brief.goal / Checklist から導出し、content-review の criteria_evaluated と突合する。\n"
-    "feedback_contract:\n"
-    "  max_iterations: {{feedback_contract_max_iterations | default(3)}}\n"
-    "  criteria:\n"
-    "    - id: IN1\n"
-    "      loop_scope: inner\n"
-    "      text: {{feedback_contract_inner_criteria_text}}\n"
-    "      verify_by: lint\n"
-    "    - id: OUT1\n"
-    "      loop_scope: outer\n"
-    "      text: {{feedback_contract_outer_criteria_text}}\n"
-    "      verify_by: elegant-review"
-)
-
-
-FEEDBACK_CONTRACT_SECTION = (
-    "## 評価・改善ループ契約\n"
-    "`feedback_contract.criteria` は本 Skill 固有の完了チェックリストから導出した評価基準である。"
-    "inner は現在ゴールを満たす小さな検証、outer はユーザー目的と 4 条件を満たす全体検証を担う。"
-    "content-review / evaluator / hook は同じ criteria id を参照し、"
-    "`criteria_evaluated` が全 id を覆うまで PASS にしない。"
-    "未達時は最大 `feedback_contract.max_iterations` 周まで改善→再評価し、"
-    "超過時は `INCOMPLETE` として human_review に差し戻す。"
-)
 
 
 # with-knowledge.patch の決定論的注入内容。配布スキルが自己完結するよう、
@@ -292,12 +207,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--trace", action="store_true", help="print applied patch names to stderr")
     # with-feedback-loop combinator (default-ON, opt-out で外す)。
-    # SKILL.md 合成とは独立に target plugin へ実体コピー配備を行う副作用付きアクション。
+    # SKILL.md 合成とは独立に target plugin への symlink 配備を行う副作用付きアクション。
     parser.add_argument(
         "--deploy-feedback-loop",
         type=Path,
         default=None,
-        help="量産先 plugin ディレクトリに skills/run-skill-feedback を実体コピーで配備 (default-ON 想定、--no-feedback-loop で opt-out)",
+        help="量産先 plugin ディレクトリに skills/run-skill-feedback を skill-creator 正本の相対 symlink で配備 (default-ON 想定、--no-feedback-loop で opt-out)",
     )
     parser.add_argument(
         "--no-feedback-loop",
@@ -321,10 +236,6 @@ def selected_patches(args: argparse.Namespace) -> list[str]:
     # goal-seek 配線は loop 実行系で default-ON (--no-goal-seek で opt-out)。
     if args.kind in GOAL_SEEK_KINDS and not args.no_goal_seek:
         patches.append("with-goal-seek.patch")
-    # feedback_contract は loop 実行系で default-ON。中身は brief 由来で R1/R4 が具体化し、
-    # lint-feedback-contract.py / lint-content-review.py が欠落や未評価を fail-closed にする。
-    if args.kind in FEEDBACK_CONTRACT_KINDS:
-        patches.append("with-feedback-contract.patch")
     return patches
 
 
@@ -552,9 +463,6 @@ def apply_semantic_patch(text: str, patch_name: str) -> str:
     if patch_name == "with-goal-seek.patch":
         text = ensure_frontmatter_line(text, GOAL_SEEK_FM_BLOCK, "rubric_refs")
         return add_section_after(text, GOAL_SEEK_LOOP_ANCHOR, GOAL_SEEK_WIRING_SECTION)
-    if patch_name == "with-feedback-contract.patch":
-        text = ensure_frontmatter_line(text, FEEDBACK_CONTRACT_FM_BLOCK, "rubric_refs")
-        return add_section_after(text, "## 主要ルール\n{{key_constraints}}", FEEDBACK_CONTRACT_SECTION)
     raise ComposeError(f"unknown combinator: {patch_name}")
 
 
@@ -566,41 +474,24 @@ def apply_patch_file(content: str, patch_path: Path) -> str:
         return apply_semantic_patch(content, patch_path.name)
 
 
-def _feedback_loop_source() -> Path:
-    """Return the canonical run-skill-feedback directory from this plugin install."""
-    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    candidates: list[Path] = []
-    if plugin_root:
-        candidates.append(Path(plugin_root) / "skills" / "run-skill-feedback")
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidates.append(parent / "skills" / "run-skill-feedback")
-    for candidate in candidates:
-        if candidate.is_dir() and not candidate.is_symlink():
-            return candidate
-    raise OSError("run-skill-feedback source not found")
-
-
 def apply_feedback_loop(target_plugin_dir: Path) -> Path:
-    """量産先 plugin ディレクトリに skills/run-skill-feedback を実体コピーで配備する。
+    """量産先 plugin ディレクトリに skills/run-skill-feedback を相対 symlink で配備する。
 
-    marketplace install では plugin 境界を越える symlink が dangling し得るため、配布先には
-    自己完結する実体ディレクトリを置く。冪等: 既に実体があれば no-op。既存 symlink は
-    dangling 回帰を避けるため置換する。
+    SSOT は plugins/skill-creator/skills/run-skill-feedback のみ。配備先は symlink で参照し
+    drift を防止する (R7 lint がこの存在を検査)。冪等: 既に link/実体があれば no-op。
     """
     target_plugin_dir = target_plugin_dir.resolve()
-    # 生成器自身は配備除外 (自分への自己コピーは不要)。境界判定は SSOT 述語へ委譲。
-    if _FC.is_feedback_deploy_exempt(target_plugin_dir.name):
+    if target_plugin_dir.name == "skill-creator":
         return target_plugin_dir / "skills" / "run-skill-feedback"
     skills_dir = target_plugin_dir / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
-    dest = skills_dir / "run-skill-feedback"
-    if dest.exists() and not dest.is_symlink():
-        return dest
-    if dest.is_symlink():
-        dest.unlink()
-    shutil.copytree(_feedback_loop_source(), dest, symlinks=False)
-    return dest
+    link = skills_dir / "run-skill-feedback"
+    if link.exists() or link.is_symlink():
+        return link
+    # plugins/<plugin>/skills/ から plugins/skill-creator/skills/run-skill-feedback への相対
+    rel = Path("../..") / "skill-creator" / "skills" / "run-skill-feedback"
+    link.symlink_to(rel)
+    return link
 
 
 def main(argv: list[str]) -> int:

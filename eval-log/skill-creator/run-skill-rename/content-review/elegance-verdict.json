@@ -2,27 +2,33 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-skill-rename",
-    "skill_md_sha256": "3a3071e3ad76819c90412852df26e7e81306c09171a26a5e880abb51f8f4dbd9"
+    "skill_md_sha256": "46f0a37218947f1637055de2db3eed7f685c3565772955ed3d78b69453091d54"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T07:26:34Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "改名の本質的危険である「ディレクトリ名・frontmatter.name・aliases の部分更新による参照切れ」を Key Rules 1-2・Gotchas・ゴールシーク『不可分セット: ディレクトリ改名・frontmatter.name・aliases は必ずひとまとめで満たす (どれか欠けると参照不整合)』で一貫反復し、IN2 が要求する不可分セット(git mv 履歴保持 + name 新名化 + aliases 旧名登録)を構造で束ねている。",
-      "完了条件を lint-skill-name.py / lint-skill-tree.py / validate-frontmatter.py の exit0 という機械検証へ落とし込み、完了チェックリスト最終項『lint-skill-name.py・lint-skill-tree.py・validate-frontmatter.py (新 SKILL.md) が全て exit 0』が IN1 の lint 検証要件と齟齬なく対応している。",
-      "dev同期merge差分(ゴールシークループの『5 ステップ』→『6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し)』)が正本 ../run-build-skill/references/goal-seek-paradigm.md L39『6 ステップ固定 (現状評価/手順生成/実行/検証/Anchor Step/反復)』と語順・要素ともに完全一致し、Anchor Step(中間成果物スナップショット)を正しく取り込んだ整合性更新になっている。"
+      "ゴールシーク節が『全箇所が新名で整合した状態』という不変ゴールを宣言し、不可分セット(ディレクトリ改名・frontmatter.name・aliases)を明示することで部分更新による参照不整合を構造的に防いでいる(C1/C4の好設計)。",
+      "完了条件をlint-skill-name.py / lint-skill-tree.pyのexit 0という機械検証に帰着させており、実機でも両lintがexit 0で通過することを確認(検証可能な出力契約)。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "dev同期merge後の現 SKILL.md (sha256=3a3071e3...) を全文実読し elegance 4条件を genuine 検証。merge 差分は git diff 67425a0 HEAD で1行のみ=ゴールシークループ参照の『5 ステップ』→『6 ステップ ... Anchor Step ...』追記。これは正本 goal-seek-paradigm.md L39 の6ステップ固定記述に追従した整合性向上であり矛盾を生まない。矛盾=0: frontmatter feedback_contract.criteria(IN1/IN2/OUT1) と本文(完了条件3 lint・不可分セット・grep 全走査)が一致、本文内に相反する記述なし。漏れ=0: 入力(old_name/new_name)→出力(改名済みディレクトリ + name/aliases/CHANGELOG/pair・Skill()参照更新)の流れに欠落なく、完了チェックリスト8項が全工程を被覆。整合=0: allowed-tools(Bash(git *) で git mv・Bash(python3 *) で lint)・responsibility_refs=prompts/R1-rename.md・schema_refs=schemas/output.schema.json・manifest=workflow-manifest.json が本文手順と整合。依存切れ=0: 参照する resolve-skill-dirs.py / lint-skill-name.py / lint-skill-tree.py / goal-seek-paradigm.md(6ステップ正本) が実在し参照妥当。IN1(新名 SKILL.md が3 lint exit0)・IN2(git mv 履歴保持と name 新名化と aliases 旧名登録の不可分セット)・OUT1(OUT_BASE 全 SKILL.md の pair/Skill() 旧名参照を grep -r 全走査し新名化し参照切れを残さない)の3基準が Key Rules・Gotchas・ゴールシーク不可分セットへ重複なく対応し参照切れ防止という単一目的へ収束。4条件すべて0で PASS。"
+  "notes": "C1(矛盾なし): SKILL.md本文・Key Rules・ゴールシーク・Gotchas間に論理矛盾なし(contradiction_edges==0)。C2(漏れなし): 入力(old_name/new_name)・出力(改名dir/frontmatter name/aliases/CHANGELOG/参照更新)・完了条件(2 lint exit0)がMECEに揃う(omission==0)。C3(整合性): 上位仕様ref-skill-design-rubric・06章命名規約と整合(rubric違反0、後述rubric-verdict参照)。C4(依存): 参照先lint-skill-name.py・lint-skill-tree.py・validate-frontmatter.py・resolve-skill-dirs.py・goal-seek-paradigm.mdの実在をfindで確認、dangling_refs==0、phase順序preflight→scan→apply→verify→changelogは非循環DAG(cycles==0)。検出smell=1(low): SKILL.md L36 Purposeの分類タグ『(A5/C2: 未実装スキルの新規作成)』が改名スキルでなく新規作成スキルの記述で、本文『スキルを安全に改名するワークフロー』と齟齬するコピペ残渣。実行や契約は破壊せず(本文/checklist/manifestは一貫して改名)severity=low(smell→low)に留まり高severity未解決なし。よってPASS。SKILL.md未編集(sha256=46f0a372...固定)。"
 }

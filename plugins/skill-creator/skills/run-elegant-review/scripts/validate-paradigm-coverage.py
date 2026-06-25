@@ -120,53 +120,9 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
             continue
         by_id[pid] = item
 
-    coverage = data.get("thought_method_coverage")
-    skipped_by_method: dict[str, str] = {}
-    used_methods: set[str] = set()
-    if coverage is None:
-        errors.append("missing thought_method_coverage")
-    elif not isinstance(coverage, dict):
-        errors.append("thought_method_coverage must be an object")
-    else:
-        if coverage.get("total") != 30:
-            errors.append("thought_method_coverage.total must be 30")
-        used = coverage.get("used", [])
-        if not isinstance(used, list):
-            errors.append("thought_method_coverage.used must be a list")
-        else:
-            used_methods = {str(item).strip() for item in used if str(item).strip()}
-        skipped = coverage.get("skipped_with_reason", [])
-        if not isinstance(skipped, list):
-            errors.append("thought_method_coverage.skipped_with_reason must be a list")
-        else:
-            for idx, item in enumerate(skipped):
-                if not isinstance(item, dict):
-                    errors.append(f"skipped_with_reason[{idx}] must be object")
-                    continue
-                method = str(item.get("method", "")).strip()
-                reason = str(item.get("reason", "")).strip()
-                if not method or not reason:
-                    errors.append(f"skipped_with_reason[{idx}] requires method and reason")
-                    continue
-                skipped_by_method[method] = reason
-        covered_count = len(used_methods) + len(skipped_by_method)
-        if covered_count != 30:
-            errors.append(
-                "thought_method_coverage.used + skipped_with_reason must cover 30 distinct methods"
-            )
-        overlap = used_methods & set(skipped_by_method)
-        if overlap:
-            errors.append(f"thought_method_coverage used/skipped overlap: {sorted(overlap)}")
-
-    missing = []
-    for pid in PARADIGMS:
-        expected_name = EXPECTED_META[pid][0]
-        if pid not in by_id and expected_name not in skipped_by_method:
-            missing.append(pid)
-        if pid in by_id and coverage is not None and expected_name not in used_methods:
-            errors.append(f"paradigm {pid}: finding exists but method missing from coverage.used")
+    missing = [pid for pid in PARADIGMS if pid not in by_id]
     if missing:
-        errors.append(f"missing paradigm_findings ids without skip_reason: {missing}")
+        errors.append(f"missing paradigm_findings ids: {missing}")
 
     valid_conditions = {"C1", "C2", "C3", "C4"}
     valid_severities = {"critical", "high", "medium", "low"}
@@ -194,10 +150,6 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
                 errors.append(f"paradigm {pid} issue {i}: invalid condition")
             if issue.get("severity") not in valid_severities:
                 errors.append(f"paradigm {pid} issue {i}: invalid severity")
-            signal = issue.get("condition_signal")
-            valid_signals = {"contradiction", "omission", "inconsistency", "dependency_break", "smell"}
-            if signal is not None and signal not in valid_signals:
-                errors.append(f"paradigm {pid} issue {i}: invalid condition_signal")
             if not str(issue.get("description", "")).strip():
                 errors.append(f"paradigm {pid} issue {i}: missing description")
             if not str(issue.get("recommended_intervention", "")).strip():

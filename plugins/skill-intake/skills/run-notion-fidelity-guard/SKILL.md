@@ -26,21 +26,6 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
-feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
-  max_iterations: 3
-  criteria:
-    - id: IN1
-      loop_scope: inner
-      text: validate-notion-fidelity.py が granularity_score を char_bounds 30%(section_text_length 計測値・json.dumps 長でない)+ required_fields 充足 40% + viz_slots(mandatory=true のみ)30% で算出し、overall_score を fidelity-check-rules.md の閾値 pass≥0.85/warn≥0.70/fail<0.70 で verdict 判定して exit 0/1/2 を返す決定論が test/script で機械検証できる
-      verify_by: script
-    - id: IN2
-      loop_scope: inner
-      text: 生成される output/<hint>/fidelity-report.json が schemas/output.schema.json に適合し sections[].present/granularity_score/missing_slots/excess_slots と overall_score/verdict を必ず保持し、verdict=fail(exit 2)でも fidelity-report.json/.md を空でなく書き出す(fail-fast ≠ silent-fail)
-      verify_by: lint
-    - id: OUT1
-      loop_scope: outer
-      text: 本スキルが構造粒度の fidelity 検証に責務を単一化し、canonical を section_canonical_map.json からの派生スナップショット(手書き禁止)のみで参照、intake 内容妥当性・スキーマ存在検査・Notion API 経由公開へ越境せず JSON 構造比較のみ(認証情報不保持)を貫く設計になっている
-      verify_by: elegant-review
 ---
 
 # run-notion-fidelity-guard

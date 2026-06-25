@@ -292,67 +292,16 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
     return errs
 
 
-# criteria 制約の正本は repo-root scripts/feedback_contract_ssot.py (単一 SSOT)。
-# 従来 build-flags.schema / skill-build-trace.schema / 本ファイルに3者ミラーされていた
-# id.pattern / verify_by.enum / loop_scope / kind 分類を一本化し drift を機械的に封じる。
-#
-# 解決順: (a) env CLAUDE_PLUGIN_ROOT/scripts → (b) 上方探索 (vendored plugin 内コピーを
-# dev/install 双方で発見) → (c) 全滅時は最小 fallback。**絶対に raise しない**
-# (build-time に plugin 単独 install されても import-time クラッシュさせない)。
-# fallback 時は criteria 検証を skip し WARN を出す (build-time のみ・crash させない)。
-import os as _os
-
-
-def _load_feedback_contract_ssot():
-    """feedback_contract_ssot を fail-soft に解決する (絶対に raise しない)。"""
-    import importlib.util
-
-    candidates: list[Path] = []
-    plugin_root = _os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if plugin_root:
-        candidates.append(Path(plugin_root) / "scripts" / "feedback_contract_ssot.py")
-    here = Path(__file__).resolve()
-    for ancestor in here.parents:
-        candidates.append(ancestor / "scripts" / "feedback_contract_ssot.py")
-    for cand in candidates:
-        try:
-            if cand.is_file():
-                spec = importlib.util.spec_from_file_location("feedback_contract_ssot", cand)
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)  # type: ignore[union-attr]
-                return mod
-        except Exception:
-            continue
-    return _fallback_feedback_contract_ssot()
-
-
-def _fallback_feedback_contract_ssot():
-    """SSOT 全滅時の最小 fallback。validate-build-trace が使う定数/述語のみ提供。
-
-    criteria 検証 (validate_criteria) は SSOT 不在では正本ルールを保証できないため
-    **検証を skip し WARN を1件返す** (build-time のみ・crash させない)。kind 分類定数は
-    SSOT 実装と同値の保守的値。vendored コピーが常在するため通常ここには到達しない。
-    """
-    import re as _re
-    import types
-
-    fc = types.SimpleNamespace()
-    fc.FEEDBACK_LOOP_KINDS = {"run", "wrap", "delegate"}
-    fc.FEEDBACK_SKIP_KINDS = {"ref", "assign"}
-    fc.CRITERIA_ID_RE = _re.compile(r"^(IN|OUT|C)[0-9]+$")
-    fc.CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
-    fc.validate_criteria = lambda criteria, **kw: [
-        "WARN: feedback_contract_ssot.py 不在のため criteria 検証を skip しました "
-        "(vendored copy が見つからない異常状態。plugins/skill-creator/scripts/ を確認)。"
-    ]
-    return fc
-
-
-_FC = _load_feedback_contract_ssot()
-FEEDBACK_LOOP_KINDS = _FC.FEEDBACK_LOOP_KINDS
-FEEDBACK_SKIP_KINDS = _FC.FEEDBACK_SKIP_KINDS
-CRITERIA_ID_RE = _FC.CRITERIA_ID_RE
-CRITERIA_VERIFY_BY = _FC.CRITERIA_VERIFY_BY
+# loop 実行系 = criteria 必須 / ref・assign = N/A(skip_reason)許容
+FEEDBACK_LOOP_KINDS = {"run", "wrap", "delegate"}
+FEEDBACK_SKIP_KINDS = {"ref", "assign"}
+# build-flags.schema.json#/properties/feedback_contract/criteria と同型に強制
+# (id pattern / verify_by enum)。潜在不整合を排し「同型」宣言を事実化する。
+# 正本= build-flags.schema.json#/properties/feedback_contract/properties/criteria/items。
+# 下記2定数はその id.pattern / verify_by.enum の機械強制用ミラー。値を変える際は
+# build-flags.schema.json と skill-build-trace.schema.json を同時更新すること (現状3者一致)。
+CRITERIA_ID_RE = re.compile(r"^(IN|OUT|C)[0-9]+$")
+CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
 
 
 def _resolve_trace_kind(data: dict) -> str | None:
@@ -409,18 +358,45 @@ def _validate_feedback_contract(data: dict) -> list[str]:
         )
         return errs
 
-    # criteria 本体の検査 (必須キー / id pattern / id 重複 / verify_by enum /
-    # loop_scope / inner+outer 各1件) は SSOT (_FC.validate_criteria) に委譲し、
-    # 旧来の独自再実装 (3者ミラーの drift 温床) を解消する。
-    # kind 判定 / skip_reason escape / fc 必須は本 validator 固有なため上で処理済み。
-    # ここに到達した時点で criteria は非空 list が保証される。
-    errs.extend(
-        _FC.validate_criteria(
-            criteria,
-            require_both_scopes=True,
-            prefix="feedback_contract.criteria",
-        )
-    )
+    seen_scopes: set[str] = set()
+    seen_ids: set[str] = set()
+    for idx, item in enumerate(criteria):
+        if not isinstance(item, dict):
+            errs.append(f"feedback_contract.criteria[{idx}] must be object")
+            continue
+        for key in ("id", "loop_scope", "text", "verify_by"):
+            if not _non_empty_string(item.get(key)):
+                errs.append(f"feedback_contract.criteria[{idx}].{key} is empty")
+        cid = str(item.get("id", "")).strip()
+        if cid and not CRITERIA_ID_RE.match(cid):
+            errs.append(
+                f"feedback_contract.criteria[{idx}].id={cid!r} must match "
+                "^(IN|OUT|C)[0-9]+$ (build-flags feedback_contract と同型)"
+            )
+        if cid and cid in seen_ids:
+            errs.append(f"feedback_contract.criteria[{idx}].id={cid!r} duplicated")
+        seen_ids.add(cid)
+        vb = str(item.get("verify_by", "")).strip()
+        if vb and vb not in CRITERIA_VERIFY_BY:
+            errs.append(
+                f"feedback_contract.criteria[{idx}].verify_by={vb!r} not in "
+                f"{sorted(CRITERIA_VERIFY_BY)} (build-flags feedback_contract と同型)"
+            )
+        scope = str(item.get("loop_scope", "")).strip().lower()
+        if scope and scope not in {"inner", "outer"}:
+            errs.append(
+                f"feedback_contract.criteria[{idx}].loop_scope={scope!r} "
+                "must be inner or outer"
+            )
+        else:
+            seen_scopes.add(scope)
+
+    for required_scope in ("inner", "outer"):
+        if required_scope not in seen_scopes:
+            errs.append(
+                f"feedback_contract.criteria must include >=1 {required_scope} "
+                f"loop_scope when skill_kind={kind!r}"
+            )
     return errs
 
 

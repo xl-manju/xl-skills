@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-build",
-    "skill_md_sha256": "a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4"
+    "skill_md_sha256": "f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,23 +13,23 @@
     "dependency_break": 0,
     "smell": 3
   },
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-06-24T15:51:30Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "今回 frontmatter へ携帯化した feedback_contract.criteria が本文の実体と genuine に一致する: IN1 (8列+空欄行は『未確定(要確認)』+備考定型文言+郵便番号/電話/住所/法人番号の形式検証) は検証節 (a)-(h) および scripts/validate_company_master.py の機械判定と対応し、IN2 (誤値混入回避の非対称コスト・upsert キー=gBizINFO 確定13桁法人番号のみ・origin→確度ラベル上限の確度昇格 FAIL・origin=web は url 非空) は主要ルール『信頼キー (SSOT)』『フォールバック多段化』と fallback tier 機械照合に一致。OUT1/OUT2 は『automation bias による誤値固着の回避』『build/backfill 責務分離 × 起動独立性』という目的・背景/設計判断ログ#1 の論証を outer ループ基準へ正しく昇華しており、フォールバック既定文 (同語反復) でなく per-skill 固有の検証可能基準になっている。",
-      "BYO直結 vs 中央プロキシの配布モデルが 2026-06-18→2026-06-24 で反転した歴史を、衝突時の単一真実源を『実装 company_master.py が BYO 既定で動作する側を正』と明示して固定している。確認用URL を DB 9列目でなくページ本文へ固定テンプレート (confirm-url-template.md 正本・confirm_url.py 展開) で出す判断も、検索キーにならない手動検証専用という属性の性質から導出され、8列維持の理由が目的契約/checklist/検証節/設計判断ログ#6 で一貫している。"
+      "BYO直結 vs 中央プロキシの配布モデルが 2026-06-18→2026-06-24 で反転した歴史を、衝突時の単一真実源を『実装 company_master.py が BYO 既定で動作する側を正』と明示して固定している。実コード (scripts/company_master.py: proxy_url 未設定=BYO直結既定、notion_config.get_postal_proxy_url 未設定で BYO 分岐) と一致しており、ドキュメント/実装ドリフトを真実源宣言で吸収する優れた設計判断。他 skill にも移植可能なドリフト圧縮パターン。",
+      "確認用URL を DB 9列目でなくページ本文へ固定テンプレート (confirm-url-template.md 正本・confirm_url.py 展開) で出す判断を、検索キーにならない手動検証専用という属性の性質から導出し、remarks-templates.md と同型の SSOT パターンで create/update/backfill 全経路の冪等を保証している。8列維持の理由が目的契約/checklist/検証節/設計判断ログ#6 で一貫しており、誤値混入回避の非対称コスト原則 (誤値>>空欄) も全層で一致。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none",
-    "next_action_detail": "4条件 (contradiction/omission/inconsistency/dependency_break) すべて 0、dangling 参照ゼロ。high severity の未解決欠陥なし。smell 3 件はいずれも軽微 (frontmatter reference_refs の参照カバレッジ gap・build script_refs への backfill.py 推移的依存・open_issues の解決済み履歴の changelog 化) で defect ではなく、PASS 方針に従い SKILL.md 本文は改変しない。改善・再評価とも不要。"
+    "next_action_detail": "4条件 (contradiction/omission/inconsistency/dependency_break) すべて 0、dangling 参照ゼロ。high severity の未解決欠陥なし。smell 3 件はいずれも軽微 (frontmatter reference_refs の参照カバレッジ gap・build script_refs への backfill.py 推移的依存・open_issues の解決済み履歴の changelog 化) で defect ではなく、PASS 方針に従い SKILL.md は改変しない。改善・再評価とも不要。"
   },
-  "notes": "frontmatter へ per-skill feedback_contract (max_iterations:3 / IN1 IN2 OUT1 OUT2) を携帯化した差分に伴い SHA が f16e4d28 → a95f9be7 へ変化したため verdict を再生成した。新 SHA a95f9be7dfd962c809bfdfbeca8eb311faf40d2f5cb011b2e35d96853fb8f3f4 を shasum -a 256 で実測し target 値と一致を確認。今回の差分は frontmatter への feedback_contract 追記のみで本文 (## 目的と出力契約 以降) は不変のため、4条件評価は本文を全文読了した上で再判定した。【dependency_break=0】frontmatter 宣言の全参照は前回確認時から不変で responsibility_refs (R1-resolve-identity.md) 1/1・reference_refs 7/7・script_refs 13/13・skill-local references/resource-map.yaml すべて実在。本文参照の commands/company-master.md・agents 3体・hooks/hook-guard-secret.py・japanpost-api-setup.md・postal-proxy-deploy.md・plugin.json・plugin-composition.yaml・../run-company-master-backfill・../../vendor すべて実在。dangling ゼロ。【inconsistency=0】新規 feedback_contract.criteria が本文の検証節/主要ルール/目的・背景と整合 (IN1↔検証(a)-(h)+validate_company_master.py / IN2↔信頼キーSSOT+fallback tier 機械照合 / OUT1↔automation bias 回避 / OUT2↔設計判断ログ#1 起動独立性)。8列主張・確度4ラベル・source_by_field origin enum 5値が本文/コードで一貫。【contradiction=0】信頼キー=gBizINFO確定13桁法人番号のみ・郵便番号は日本郵便 addresszip API 一本化・BYO/proxy 反転履歴は真実源 (実装 company_master.py BYO既定) を明示し矛盾化を回避。criteria の verify_by (script/elegant-review) は inner=機械検証・outer=設計妥当性レビューという loop_scope の性質と一致し矛盾なし。【omission=0】出力契約・境界・主要ルール・precondition gate (fail-closed exit2)・live スキーマ preflight・レート制限リトライ・責務分離・セキュリティ二段防御・ゴールシーク配線/検証完備。inner/outer 各2件で criteria の loop_scope 網羅。【smell=3】(1) 本文参照の references/japanpost-api-setup.md・postal-proxy-deploy.md が frontmatter reference_refs に未掲載 (resource-map.yaml には登録・実ファイル存在で dangling ではない)。(2) build の script_refs に backfill.py を推移的依存として宣言 (設計判断ログ#2 で正当化済)。(3) open_issues 節が解決済み履歴を厚く保持し changelog 化。いずれも軽微で high severity defect ではない。PASS。SKILL.md 本文は不改変。"
+  "notes": "SHA f16e4d28f6a12a59fd42aaa18174f2f863d5038467d4f157f4b2ff4483ac79f6 を python3 hashlib で再計算し target 値と一致を確認した上で、既存 verdict (旧 SHA c5e2bfb9 向け) を参照せず現 SKILL.md (234行) を全文読了し genuine に再評価した。【dependency_break=0】frontmatter 宣言の全参照を Bash test で全数確認: responsibility_refs (R1-resolve-identity.md) 1/1 OK、reference_refs 7/7 OK、script_refs 13/13 OK、skill-local references/resource-map.yaml OK。本文参照の commands/company-master.md・agents 3体 (resolve/enrich/notion-upsert)・hooks/hook-guard-secret.py・japanpost-api-setup.md・postal-proxy-deploy.md・.claude-plugin/plugin.json・plugin-composition.yaml・../run-company-master-backfill・../../vendor すべて実在。dangling ゼロ。プロンプト実体は prompts/ に R1 のみ・vendor/ は README.md 1件 (空の受け皿) で設計判断ログ#3#4 と一致。【inconsistency=0】8列主張が 目的契約/checklist/検証節/設計判断ログ#6 で一貫。確度4ラベルがコード (enrich_company.py CERTAINTY_PUBLIC_VERIFIED='公的データで確認済み'・backfill.py REQUIRE_REVERIFY_CERTAINTIES) と一致。source_by_field origin enum 5値の gbizinfo/japanpost/user_input を enrich_company.py に実在確認。【contradiction=0】信頼キー=gBizINFO確定13桁法人番号のみ・郵便番号は日本郵便 addresszip API 一本化 (旧一括DL廃止) が全層で統一。BYO/proxy 反転履歴は真実源 (実装 company_master.py BYO既定) を明示し矛盾化を回避、コードで裏取り済み。goal-seek inner ループ数値混同は protocol 準拠で回避。【omission=0】出力契約・境界・主要ルール・precondition gate (fail-closed exit2)・live スキーマ preflight・レート制限リトライ (NotionAPIRetryExhausted)・責務分離 (Web検索は Claude・Python は検証整形のみ)・セキュリティ二段防御 (静的 settings-hardening + 動的 hook fail-closed)・ゴールシーク配線/検証 (original_goal_hash 改竄検出) 完備。入力種別×到達経路4経路 (法人番号/会社名+住所/会社名のみ/住所のみ) が MECE。backfill 責務は run-company-master-backfill skill へ明示移管 (漏れでなく境界宣言)。open_issues は未解決項目 (実APIキー疎通#1#5・一意確定率実測・プロキシ実deploy#6) を正直に flag。open_issue 主張のコード裏取り: #2 (validate_enriched=validate_company_master.validate_row) を backfill.py:202-211 で、#3 (gBizINFO V1固定) を resolve_company.py:49 GBIZINFO_BASE=v1 で、#6 (BYO既定) を company_master.py で実コード照合し真正性を確認した。【smell=3】(1) 本文で『正本手順』として参照する references/japanpost-api-setup.md・references/postal-proxy-deploy.md が frontmatter reference_refs (18-25行) に未掲載 (resource-map.yaml には登録済み・実ファイル存在で dangling ではない) で frontmatter/resource-map/本文の3層間で参照宣言カバレッジが不一致。(2) build の script_refs に backfill.py を推移的依存として宣言する点 (設計判断ログ#2 で正当化済みだが build/backfill SSOT 境界をわずかに曖昧化)。(3) open_issues 節が解決済み履歴を厚く保持し skill 仕様より changelog 化 (長文化)。いずれも明示的に理由付け or 軽微で high severity defect ではない。PASS。SKILL.md は不改変。"
 }

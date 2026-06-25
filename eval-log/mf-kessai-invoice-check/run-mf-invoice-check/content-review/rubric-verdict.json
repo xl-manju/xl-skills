@@ -2,14 +2,10 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-check",
-    "skill_md_sha256": "323e617711b7a8a50d6acfef9370245ec74df4db8cc0b4c594e368080b11e86c"
+    "skill_md_sha256": "7ff538fdecab22846fcb602d71afa9fab8a885427e1caeebc7c692ecbf23a546"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-06-25",
-  "iterations": 1,
-  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
@@ -17,19 +13,24 @@
     "dependency_break": 0,
     "smell": 0
   },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewer_note": "ref-skill-design-rubric/references/rubric.json v1.3.0, threshold 80",
+  "reviewed_at": "2026-06-25T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "rubric.json v1.3.0(threshold 80)の kind=skill 適用 rule を逐条照合。high finding ゼロ、score=100(>=80)で PASS。SKILL.md 不改変・現行 sha256=7ff538…(本文91行)。【FM】FM-001(high)PASS: name=run-mf-invoice-check が ^(run|ref|assign|wrap|delegate)-[a-z0-9][a-z0-9-]*$ 一致・len19<=60。FM-002(med)PASS: description が『〜したいとき』trigger を含み句点。で終止。FM-003(med)PASS: trigger 2個(請求書発行漏れをチェックしたいとき/月次で請求発行状況を確認したいとき)=2..3。FM-004(med)PASS: 内部動作語(採点する/JSONで返す/sha256/exit code)混入なし。FM-005(low)PASS: 末尾『使う』=日本語動詞。【BD】BD-001(high)PASS: 『## Purpose & Output Contract』厳格一致(L35)。BD-002(med)PASS: 『## Gotchas』存在(L105)。BD-003(high)PASS: body 91行<=300。BD-004(med)PASS: description の2 trigger(発行漏れチェック/月次発行状況確認)が body End-to-End Flow + ゴールシークループ + 完了チェックリストに 1:1 対応。【NM】NM-001(high)PASS: dir basename==name=run-mf-invoice-check。NM-002(med)PASS: prefix run-/kebab-case 準拠。NM-003(low)PASS: scripts/ は check_invoice_gaps.py のみ・prompts/schemas 命名規約準拠。【PD】PD-001(low)PASS: body 91行<=100 で第1アーム充足(旧113行時の references/ 非在 smell は本文圧縮で解消)。PD-002(med)PASS: body 冒頭30行(file L33-62)内に『## Purpose & Output Contract』+ 禁則(fail-closed/変更系遮断 L51,55)が存在。【RG】RG-001(low)は scorer 出力側 rubric_hash 要件で SKILL.md 内容とは独立(非適用)。agent/hook/command/plugin-composition/prompt/workflow rule(AG/HK/CM/PC/PR/WF)は applies_to_kinds に skill を含まず非適用。KL-001..005 は frontmatter.knowledge_loop/knowledge ディレクトリ非在のため存在ゲートで skip(無条件 PASS)。high finding ゼロ かつ score>=threshold を満たし PASS。force_pass 不使用。",
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "BD-004", "NM-001", "NM-002", "NM-003", "PD-001", "PD-002", "RG-001"],
     "positive_feedback": [
-      "FM 系: description が日本語 trigger 2個(『〜チェックしたいとき』『〜確認したいとき』)で FM-002/003 を満たし、動作詳細(exit code/JSON)を含まず FM-004 適合。BD-001『## Purpose & Output Contract』/BD-002『## Gotchas』が存在し、本文91行で BD-003(<=300)を満たす。",
-      "完了条件の詳細を prompts/Rn の L5.3 完了チェックリストへ SSOT 委譲し SKILL 側で再定義しないことで、merge で大きく変わった月次履歴モデルでも片側更新ドリフトを構造的に回避(BD-004 description↔body 整合・簡潔性)。",
-      "KL 系(KL-001..005): knowledge/ ディレクトリも frontmatter.knowledge_loop も持たないため存在ゲートで無条件 PASS、非 knowledge スキルの誤減点なし。"
+      "FM-001/BD-001/BD-003/NM-001 等 high rule すべて PASS(name 規約・Purpose&Output Contract heading・body 91<=300・dir==name)",
+      "BD-004: description の2 trigger が body End-to-End Flow/ゴールシークループ/完了チェックリストに 1:1 対応",
+      "PD-001 が本文91行(<=100)で第1アーム充足し、旧113行時の references/ 非在 smell が解消(score=100)"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
-  },
-  "notes": "rubric(ref-skill-design-rubric/references/rubric.json v1.3.0, applies_to_kinds=skill の FM/BD/NM/PD/KL 系)で dev同期merge後の現 SKILL.md を採点した。【FM-001】name=run-mf-invoice-check は ^(run|ref|assign|wrap|delegate)- に合致・60字以内=PASS。【FM-002/003】description の日本語 trigger『前月と今月の請求書発行漏れをチェックしたいとき』『月次で請求発行状況を確認したいとき』=2個で句点終止=PASS。【FM-004】description に exit code/sha256/JSON 等の内部動作語なし=PASS。【FM-005】『チェックしたいとき』で動詞ベース冒頭=PASS。【BD-001】『## Purpose & Output Contract』厳格一致 heading 存在(high)=PASS。【BD-002】『## Gotchas』存在=PASS。【BD-003】frontmatter 除く本文91行<=300(high)=PASS。【BD-004】description の2 trigger が本文 Purpose/Flow/ゴールシークループの月次発行漏れチェック手順に1:1対応=PASS。【NM-001】skill ディレクトリ名 run-mf-invoice-check == frontmatter.name=PASS。【PD-001/002】本文91行>100でないが references 相当を prompts/schemas へ委譲、冒頭30行内に『## Purpose & Output Contract』+ 禁則(『顧客ID単独』『月ごとの重複ページは作らない』)あり=PASS。【KL-001..005】knowledge/ 不在ゲートで全 PASS(skip)。merge 差分の検証可能性: backfill(`--backfill --from/--to`)・本文 table 月次履歴(period_ym 自然キー)・年間契約自動抑制(`suppress_annual_period_gaps`)が `scripts/check_invoice_gaps.py`・`lib/notion_invoice_sink.py`・`lib/mfk_invoice_diff.py` に実装済で SKILL 記述と一致し、stale 記述なし。high severity 0・重大不足なしで PASS。"
+  }
 }

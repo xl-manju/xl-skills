@@ -160,15 +160,6 @@ PENDING_RENAME_PATHS = {
     "scripts/sync-notion-schema.py",
     # PR #16: build-trace SSOT shim (Python import がハイフン不可のため underscore 許容、§4.3 例外)
     "plugins/skill-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
-    # feedback_contract criteria の単一 SSOT モジュール。validate-build-trace.py /
-    # lint-feedback-contract.py / lint-content-review.py から import される共有 module の
-    # ため Python import 上ハイフン不可 (§4.3 恒久例外)。
-    "scripts/feedback_contract_ssot.py",
-    # 上記正本の vendored 実体コピー (skill-creator 単独 install 用)。runtime hook /
-    # build-time validator が plugin 内で import するため、正本と byte 完全一致を要件とし
-    # underscore 名のまま固定する (リネームすると import 名が変わり byte 一致が崩れる)。
-    # byte 一致は scripts/lint-vendored-ssot.py が強制 (§4.3 恒久例外)。
-    "plugins/skill-creator/scripts/feedback_contract_ssot.py",
     # PR #17: per-repo Notion config SSOT loader (Python import 必須、§4.3 例外。
     # skill-intake 側は skill-creator 側への symlink で SSOT 維持)
     "plugins/skill-creator/scripts/notion_config.py",
