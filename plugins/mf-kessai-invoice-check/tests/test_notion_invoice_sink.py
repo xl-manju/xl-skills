@@ -816,3 +816,276 @@ def test_notion_token_raises_when_keychain_miss(monkeypatch):
     monkeypatch.setattr(kc, "fetch_secret", lambda *a, **k: None)
     with pytest.raises(RuntimeError, match="Notion token lookup failed"):
         sink._notion_token({})
+
+
+# --- backward remediation: 月次フローの read-only 旧サマリ/余剰列 検知ゲート ----------------
+#  forward 生成防止 (sink/schema/test) と対をなす、過去に DB へ作られ残った旧サマリ列を
+#  月次 upsert 後に read-only で検知し誘導する経路の回帰固定。列削除は決してしない。
+
+class _RecordStream:
+    """warn_residual_summary_columns の stderr 出力を捕捉する簡易ストリーム。"""
+
+    def __init__(self):
+        self.text = ""
+
+    def write(self, s):
+        self.text += s
+
+
+def _props_from_schema(schema, *, extra=(), residual=()):
+    """schema の現行列 + 任意の extra/residual を載せた live DB properties を組む。"""
+    props = {name: {"type": spec["type"]} for name, spec in schema["properties"].items()}
+    for name in residual:  # deprecated に属する旧列を残存させる
+        props[name] = {"type": "number"}
+    for name in extra:  # schema 未知の余剰列 (手動追加サマリ列を含む)
+        props[name] = {"type": "number"}
+    return props
+
+
+def test_residual_extra_columns_clean():
+    """旧列も余剰列も無ければ (residual, extra) は両方空 (純関数の境界)。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema)
+    assert sink.residual_extra_columns(props, schema) == ([], [])
+
+
+def test_residual_extra_columns_detects_deprecated_residual():
+    """deprecated 列 (旧サマリ件数列) が残っていれば residual に挙がる。"""
+    schema = _load_db_schema()
+    dep = schema["deprecated_properties"][0]  # 例: レコード種別
+    props = _props_from_schema(schema, residual=[dep])
+    residual, extra = sink.residual_extra_columns(props, schema)
+    assert residual == [dep]
+    assert extra == []
+
+
+def test_residual_extra_columns_detects_total_summary_as_residual():
+    """全体トータル列は削除対象の既知サマリ列として residual に挙がる。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema, residual=["全体トータル"])
+    residual, extra = sink.residual_extra_columns(props, schema)
+    assert residual == ["全体トータル"]
+    assert extra == []
+
+
+def test_residual_extra_columns_detects_unknown_extra():
+    """schema 未知かつ deprecated でもない手動追加列は extra として検出される。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema, extra=["任意メモ"])
+    residual, extra = sink.residual_extra_columns(props, schema)
+    assert residual == []
+    assert extra == ["任意メモ"]
+
+
+def test_warn_residual_emits_stderr_when_residual_present(monkeypatch):
+    """upsert 後の検知ゲート: 旧サマリ列が残っていれば stderr に誘導が1行出る。"""
+    schema = _load_db_schema()
+    dep = schema["deprecated_properties"][0]
+    props = _props_from_schema(schema, residual=[dep])
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    residual, extra = sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert residual == [dep]
+    assert dep in stream.text
+    assert "/run-mf-invoice-db-setup" in stream.text
+
+
+def test_warn_residual_emits_stderr_when_total_summary_present(monkeypatch):
+    """手動追加された全体トータル列も削除対象 residual として誘導 stderr が出る。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema, residual=["全体トータル"])
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    residual, extra = sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert residual == ["全体トータル"]
+    assert extra == []
+    assert "全体トータル" in stream.text
+
+
+def test_warn_residual_silent_when_clean(monkeypatch):
+    """残骸が無ければ stderr に何も出さない (誤警告しない)。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema)
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    residual, extra = sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert (residual, extra) == ([], [])
+    assert stream.text == ""
+
+
+def test_warn_residual_best_effort_on_get_failure(monkeypatch):
+    """Notion GET が失敗しても例外を握り潰し検知のみスキップ (本体を止めない)。"""
+    def boom(method, path, token, body=None):
+        raise RuntimeError("Notion 不通")
+
+    monkeypatch.setattr(sink, "_req", boom)
+    stream = _RecordStream()
+    # 例外を送出せず (None, None) を返し、stderr も汚さない。
+    assert sink.warn_residual_summary_columns("db1", "token", stream=stream) == (None, None)
+    assert stream.text == ""
+
+
+def test_warn_residual_skips_when_db_id_missing():
+    """db_id 未解決なら GET せず検知スキップ (best-effort, (None, None))。"""
+    stream = _RecordStream()
+    assert sink.warn_residual_summary_columns(None, "token", stream=stream) == (None, None)
+    assert stream.text == ""
+
+
+def test_upsert_runs_residual_gate_after_writes(monkeypatch):
+    """upsert 完了後に read-only 検知ゲートが1回だけ発火する (発火点の配線)。
+
+    sink 本体の書き込みが終わってから warn が呼ばれること、引数に database_id/token が
+    渡ること、戻り値 (created/updated) はゲートに影響されないことを固定する。
+    """
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    calls = []
+
+    def fake_warn(database_id, token, *a, **k):
+        calls.append((database_id, token))
+        return [], []
+
+    monkeypatch.setattr(sink, "warn_residual_summary_columns", fake_warn)
+    rows = [{
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None,
+    }]
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-06-20T00:00:00+00:00")
+    assert result["created"] == 1
+    assert calls == [("db1", "token")]
+
+
+def test_upsert_does_not_crash_when_gate_db_unreachable(monkeypatch):
+    """検知ゲートの GET が落ちても upsert 本体は完走する (best-effort 統合確認)。
+
+    fake ストアは未知の GET /databases を AssertionError にするが、warn 内 except で
+    握り潰され upsert は created を返す。月次フローが残骸検知失敗で止まらない保証。
+    """
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    rows = [{
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None,
+    }]
+    # warn は本物のまま (GET /databases は fake で AssertionError → except で握り潰し)。
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-06-20T00:00:00+00:00")
+    assert result["created"] == 1
+    assert result["updated"] == 0
+
+
+# --- 集計疑い検知: suspect_summary_extras 純関数 + 文言出し分け + upsert 戻り昇格 -------------
+#  whitelist(deprecated 固定名)に載らない『新名の集計列』が extra に落ちたとき、集計語を含む
+#  列だけを『集計列の疑い』として拾い、正当な追加列(任意メモ等)と区別する。FAIL/削除はしない。
+
+def test_suspect_summary_extras_picks_summary_named_columns():
+    """集計語(総計/合計金額/月次サマリ/発行漏れ件数)を含む extra だけを sorted で拾う。"""
+    extra = ["総計", "合計金額", "月次サマリ", "発行漏れ件数", "担当者", "任意メモ"]
+    assert sink.suspect_summary_extras(extra) == ["合計金額", "月次サマリ", "発行漏れ件数", "総計"]
+
+
+def test_suspect_summary_extras_ignores_legitimate_columns():
+    """集計語を含まない正当な追加列(任意メモ/担当者)は拾わない (偽陽性を出さない)。"""
+    assert sink.suspect_summary_extras(["任意メモ", "担当者", "社内コード"]) == []
+
+
+def test_suspect_summary_extras_matches_english_summary_words():
+    """英語の集計語(total/sum/count)も大小無視で拾う。"""
+    assert sink.suspect_summary_extras(["Total", "row_sum", "Count", "memo"]) == [
+        "Count", "Total", "row_sum"]
+
+
+def test_suspect_summary_extras_empty_and_none():
+    """空/None は空を返す (純関数の境界)。"""
+    assert sink.suspect_summary_extras([]) == []
+    assert sink.suspect_summary_extras(None) == []
+
+
+def test_upsert_result_includes_residual_extra_suspect(monkeypatch):
+    """upsert 戻り dict に residual/extra/suspect_summary が昇格し、既存キーは不変。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    # warn を差し替え、residual=旧列・extra=集計疑い+正当列 のケースを返す。
+    monkeypatch.setattr(sink, "warn_residual_summary_columns",
+                        lambda database_id, token, *a, **k: (["全体トータル"], ["総計", "任意メモ"]))
+    rows = [{
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None,
+    }]
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-06-20T00:00:00+00:00")
+    # 既存キーは不変 (後方互換)。
+    assert result["created"] == 1
+    assert result["updated"] == 0
+    assert result["period_ym"] == "2026-06"
+    assert result["run_id"]
+    # 新キー: 検知結果が昇格している。
+    assert result["residual"] == ["全体トータル"]
+    assert result["extra"] == ["総計", "任意メモ"]
+    assert result["suspect_summary"] == ["総計"]  # extra から集計疑いだけ抽出
+
+
+def test_upsert_result_new_keys_default_empty_when_gate_returns_none(monkeypatch):
+    """検知ゲートが (None, None) を返しても新キーは空リストで揃う (画面側が安全に get できる)。"""
+    fake_req, state = _make_fake_store()
+    monkeypatch.setattr(sink, "_req", fake_req)
+    monkeypatch.setattr(sink, "warn_residual_summary_columns",
+                        lambda database_id, token, *a, **k: (None, None))
+    rows = [{
+        "customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+        "verdict": "発行漏れ候補", "product_name": "SaaS", "prev_amount": 100, "curr_amount": None,
+    }]
+    result = sink.upsert("db1", rows, token="token", checked_at="2026-06-20T00:00:00+00:00")
+    assert result["residual"] == []
+    assert result["extra"] == []
+    assert result["suspect_summary"] == []
+
+
+def test_warn_residual_separates_residual_suspect_other_lines(monkeypatch):
+    """文言出し分け: residual / 集計疑い extra / その他 extra が別行で stderr に出る。"""
+    schema = _load_db_schema()
+    # residual=全体トータル(deprecated), extra=総計(集計疑い)+任意メモ(その他)。
+    props = _props_from_schema(schema, residual=["全体トータル"], extra=["総計", "任意メモ"])
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    residual, extra = sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert residual == ["全体トータル"]
+    assert sorted(extra) == ["任意メモ", "総計"]
+    lines = [ln for ln in stream.text.splitlines() if ln]
+    # 3 行: 旧サマリ/集計列・集計列の疑い・schema 未知。
+    assert any("旧サマリ/集計列" in ln and "全体トータル" in ln for ln in lines)
+    assert any("集計列の疑いがある追加列" in ln and "総計" in ln for ln in lines)
+    assert any("schema 未知の追加列" in ln and "任意メモ" in ln for ln in lines)
+    # 集計疑い行と未知行は別行 (混ざらない)。
+    suspect_line = next(ln for ln in lines if "集計列の疑い" in ln)
+    assert "任意メモ" not in suspect_line
+
+
+def test_warn_residual_suspect_only_no_residual(monkeypatch):
+    """集計疑い extra のみ (residual なし) → 集計疑い行だけ出て residual 行は出ない。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema, extra=["月次サマリ"])
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    residual, extra = sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert residual == []
+    assert extra == ["月次サマリ"]
+    assert "旧サマリ/集計列" not in stream.text
+    assert "集計列の疑いがある追加列" in stream.text and "月次サマリ" in stream.text
+    assert "schema 未知の追加列" not in stream.text
+
+
+def test_warn_residual_other_extra_only(monkeypatch):
+    """集計語を含まない追加列のみ → その他 extra 行だけ出る (集計疑い行は出ない)。"""
+    schema = _load_db_schema()
+    props = _props_from_schema(schema, extra=["任意メモ"])
+    monkeypatch.setattr(sink, "_req",
+                        lambda method, path, token, body=None: {"properties": props})
+    stream = _RecordStream()
+    sink.warn_residual_summary_columns("db1", "token", schema=schema, stream=stream)
+    assert "集計列の疑いがある追加列" not in stream.text
+    assert "schema 未知の追加列" in stream.text and "任意メモ" in stream.text

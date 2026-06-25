@@ -192,7 +192,8 @@ I3 AST ガードが `{'lib/mfk_invoice_diff.py': ['requests']}` を正確に指�
 ## 7. deprecated 列移行 (P6, 実装済み)
 
 データモデルを顧客ID集約へ変えた結果、旧『月次サマリ行』モデルの列
-(レコード種別 / 発行漏れ件数 / 金額変動件数 / チェック件数合計) は未使用になった。
+(レコード種別 / 発行漏れ件数 / 金額変動件数 / チェック件数合計) と、個別行入力と整合しない
+全体集計列 (全体トータル) は未使用になった。
 
 - schema (`notion-db-schema.json`) に `deprecated_properties` を宣言。
 - `build_notion_db.ensure_schema`: 既存 DB にこれらの列があれば `properties.{name}=null` で

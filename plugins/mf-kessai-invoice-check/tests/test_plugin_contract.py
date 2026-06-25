@@ -100,7 +100,7 @@ def test_notion_schema_customer_aggregated_snapshot():
     assert "判定" not in schema["fact_columns"]
     assert schema["renames"] == {"判定": "今月の発行状況"}
     # 月次サマリ廃止 + 今回の削除に伴い消した列を schema が持たず deprecated に入ること。
-    for removed in ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計",
+    for removed in ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計", "全体トータル",
                     "対応状況", "チェック実行ID", "初回請求月(API推定)"]:
         assert removed not in props
         assert removed not in schema["fact_columns"]

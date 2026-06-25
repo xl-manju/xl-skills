@@ -92,6 +92,7 @@
 - [ ] 各顧客ページ本文の月次履歴 table に当月行 (自然キー `period_ym`) が upsert された (同月再実行は行更新で重複しない)
 - [ ] 事実列/監査メタ (fact_columns) のみ書き込み、既存ページの管理列 (managed_columns) に触れていない
 - [ ] created / updated 件数、対象年月、run_id が画面に表示された
+- [ ] 旧サマリ/集計列の残存(または集計列の疑いがある追加列)が検知された場合、画面に列名と /run-mf-invoice-db-setup 再実行案内を提示した
 
 ### 5.4 実行方式
 - 固定手順を持たない。未充足項目を特定→手順を都度立案 (config 確認 / sink command 実行 / 件数確認)→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
@@ -121,4 +122,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py" --sink [--input <確定候補JSONのpath>]` を実行し、確定候補を `customer_id` 単独キーで Notion DB に冪等 upsert させる (1 顧客=1 ページ、既存顧客は同じページを更新、未登録顧客だけ作成、月ごとの重複ページ/重複行を作らない)。同時に各顧客ページ本文の月次履歴 table block (列: 対象年月/今月の発行状況/前月金額/今月金額/確認済み日時) に当月行を自然キー `period_ym` で upsert する (同月再実行は該当行を更新)。`--input` 未指定時は既定で確定リスト `eval-log/mfk-gap-verified.json` (finalize phase 出力) を読む。**確定リストが不在なら exit 2 で fail-closed** し、二段確認 (verify→finalize) を先に実施するよう促す。`--force-unverified` なしで `--input` を指定する場合は正規の確定リスト path のみ許可し、未検証候補や任意 path を直接投入する場合は `--force-unverified` 明示を必須にする。sink 入口で入力 JSON を schema 検証し、違反 (period_ym 形式不正等) があれば exit 2 で停止する。事実列/監査メタ (fact_columns) のみ書き込み、既存ページの管理列 (managed_columns = 初回契約月/請求要否/支払サイクル/チェック済/備考) には一切触れない (L4.4 CONST)。新規ページ作成時のみ `初回契約月` を空欄初期化し、未設定顧客を Notion の空欄フィルタで表示できる状態にする (支払サイクルは初期化しない)。`database_id` 未設定なら停止し `run-mf-invoice-db-setup` を案内する。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。出力は created/updated 件数、対象年月、run_id、要確認リストのみ、前置き禁止。
+`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py" --sink [--input <確定候補JSONのpath>]` を実行し、確定候補を `customer_id` 単独キーで Notion DB に冪等 upsert させる (1 顧客=1 ページ、既存顧客は同じページを更新、未登録顧客だけ作成、月ごとの重複ページ/重複行を作らない)。同時に各顧客ページ本文の月次履歴 table block (列: 対象年月/今月の発行状況/前月金額/今月金額/確認済み日時) に当月行を自然キー `period_ym` で upsert する (同月再実行は該当行を更新)。`--input` 未指定時は既定で確定リスト `eval-log/mfk-gap-verified.json` (finalize phase 出力) を読む。**確定リストが不在なら exit 2 で fail-closed** し、二段確認 (verify→finalize) を先に実施するよう促す。`--force-unverified` なしで `--input` を指定する場合は正規の確定リスト path のみ許可し、未検証候補や任意 path を直接投入する場合は `--force-unverified` 明示を必須にする。sink 入口で入力 JSON を schema 検証し、違反 (period_ym 形式不正等) があれば exit 2 で停止する。事実列/監査メタ (fact_columns) のみ書き込み、既存ページの管理列 (managed_columns = 初回契約月/請求要否/支払サイクル/チェック済/備考) には一切触れない (L4.4 CONST)。新規ページ作成時のみ `初回契約月` を空欄初期化し、未設定顧客を Notion の空欄フィルタで表示できる状態にする (支払サイクルは初期化しない)。`database_id` 未設定なら停止し `run-mf-invoice-db-setup` を案内する。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。残骸(旧サマリ/集計列・集計疑いの追加列)が検知された場合は、列名と /run-mf-invoice-db-setup 再実行の誘導を画面に提示する(削除はしない=検知のみ)。出力は created/updated 件数、対象年月、run_id、要確認リストのみ、前置き禁止。
