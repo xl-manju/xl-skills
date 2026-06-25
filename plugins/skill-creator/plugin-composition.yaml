@@ -25,6 +25,7 @@ contract:
     - "hook の副作用境界(side_effect_scope)は manifest 上で宣言されたもののみ (enforcement: manual)"
     - "cross-plugin 参照は .claude-plugin/bundles.json で同梱宣言された plugin に限定すること (allowed_cross_plugins: skill-intake, skill-governance-lint, skill-governance-automation, skill-governance-config, skill-governance-migration, prompt-creator) (enforcement: skill-governance-lint/scripts/lint-external-refs.py --fail-on-external)"
     - "knowledge-loop は単一機構(ref-knowledge-loop 正本)を生成物(Loop A)と skill-creator 自身(Loop B)で自己適用し、並行ストアを作らないこと(SSOT) (enforcement: run-build-skill/scripts/lint-ssot-duplication.py + lint-knowledge-loop.py)"
+    - "runtime hook script は自 plugin root 外を import-time に fail-closed 依存しないこと(必須共有モジュールは plugin 内へ vendoring し byte 一致 lint で正本と同期/ローダは fail-soft で raise しない)。単独 install でも全フックが exit 0 を維持する。参照: skills/ref-cross-platform-runtime/references/runtime-portability.md (enforcement: scripts/lint-runtime-portability.py + scripts/lint-vendored-ssot.py)"
 
 capabilities:
   # === Skills (kind=skill) ===
@@ -38,8 +39,12 @@ capabilities:
   - { kind: skill, ref: skills/run-skill-rubric-governance, tier: core }
   - { kind: skill, ref: skills/run-skill-feedback,          tier: core }
   - { kind: skill, ref: skills/run-skill-rename,            tier: extension }
+  - { kind: skill, ref: skills/run-skill-feedback,          tier: core }
   - { kind: skill, ref: skills/run-skill-update-notifier,   tier: extension }
   - { kind: skill, ref: skills/run-migrate-audit,           tier: extension }
+  # contract-generator 由来の symlink skill は marketplace 単独 install で dangling するため
+  # skill-creator の公開 capabilities には含めない。必要な場合は contract-generator plugin を
+  # 別 dependency として install する。
   - { kind: skill, ref: skills/assign-skill-design-evaluator, tier: core }
   - { kind: skill, ref: skills/assign-plugin-package-evaluator, tier: core }
   - { kind: skill, ref: skills/delegate-codex-skill-review, tier: extension }
@@ -118,6 +123,8 @@ dependencies:
   - { from: commands/capability-review,     to: skills/run-elegant-review,          type: calls }
   - { from: commands/skill-improve,         to: skills/run-elegant-review,          type: calls }
   - { from: commands/plugin-compose,        to: skills/run-build-skill,             type: calls }
+  - { from: "hook:PostToolUse-EditWrite/lint-capability-manifest", to: skills/run-build-skill, type: calls }
+  - { from: "hook:PostToolUse-EditWrite/content-review-queue",     to: skills/run-elegant-review, type: calls }
 
 eval_sinks:
   - EVALS.json

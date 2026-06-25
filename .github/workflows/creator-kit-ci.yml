@@ -28,9 +28,15 @@ jobs:
 
       # 機械保証 (hook-guard-skillgen 等) の振る舞いを回帰検証する。
       # これが無いと tests/ のテストは一度も実行されず保証が無言で腐る (F-HYP-01)。
+      # 依存は requirements-dev.txt 一枚を SSOT に install する (per-plugin step と同一)。
+      # `pip install pytest` 単体だと PyYAML / jsonschema 不在で frontmatter / schema を
+      # 読むテストが ImportError 相当で落ちる (criteria / company-master / mf-kessai 等)。
+      # repo-root の tests/ は全 plugin を単一プロセスで回すため、同名 bare-import モジュール
+      # (notion_config 等) の sys.modules 衝突を tests/conftest.py の pytest_collectstart で
+      # 退避して順序非依存にしてある (本番は各 plugin 単独実行なので無害な harness 限定の分離)。
       - name: Run behavior tests (pytest)
         run: |
-          python3 -m pip install --quiet pytest
+          python3 -m pip install --quiet -r requirements-dev.txt
           # plugins/skill-governance-lint/tests/ は lint fail-open 修復 (MD-208/LS-211/LS-215) の
           # 回帰保証。repo-root tests/ のみだと governance-lint の保証が無言で腐る。
           python3 -m pytest tests/ plugins/skill-governance-lint/tests/ -q
@@ -75,8 +81,14 @@ jobs:
       - name: Verify skill-intake contracts (enum SSOT / vendored SSOT / plugin packages)
         run: |
           python3 scripts/contract-intake-enum-ssot.py
-          python3 scripts/lint-intake-vendored-ssot.py
+          python3 scripts/lint-vendored-ssot.py
           python3 scripts/validate-plugin-packages.py
+
+      # 単独 install ポータビリティ不変条件: runtime hook script が import-time に自 plugin
+      # 外を fail-closed 依存 (失敗時 raise) しないことを静的検査する。plugin だけを
+      # marketplace から install しても全フックが exit 0 を維持する保証を CI でガードする。
+      - name: Verify runtime hook portability (no import-time fail-closed cross-plugin dep)
+        run: python3 scripts/lint-runtime-portability.py
 
       # company-master の scripts が外部依存ゼロ (空 vendor が正常) であることを機械検証する。
       # ローカル make lint (company-master-vendored) と整合。CI 未配線だと保証が無言で腐る。

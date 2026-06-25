@@ -19,6 +19,21 @@ source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-06-24
 audit-trigger: official-update
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 掛け払いの顧客名と MFクラウド請求書の partner 名が、別 ID をまたいで会社名正規化(法人格除去+全半角統一・mf_invoice_names.py の正本ロジック)で突合され、表記揺れのある取引先でも正しく名寄せされ誤マッチを生まないことを pytest(csv_match の名寄せ)で機械検証できる。
+      verify_by: test
+    - id: IN2
+      loop_scope: inner
+      text: 補完は差分のみ(Notion の `初回契約月` が空欄の顧客だけが対象で埋まった顧客は再取得しない)で、CSV 名寄せ経路は掛け払い顧客の確定リスト mfk-gap-verified.json 不在時に fail-closed で停止し、未検証の顧客集合に対する書き込みを防ぐことを機械検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: スキル全体がユーザ目的(年払い顧客の初回契約月を最古発行月の初期推定値として一括投入し run-mf-invoice-check の年間契約抑制の誤検出を減らす・最終確定は人・MFクラウド請求書側は読み取り専用)を過不足なく満たし、CSV 軽量経路(OAuth 不要)と OAuth 無人経路の2経路および配布境界(コードは全員配布・実行は OAuth トークンを持つ取得担当のみ)が目的に対し適切に分離されていること。
+      verify_by: elegant-review
 ---
 
 # run-mf-initial-month-enrich

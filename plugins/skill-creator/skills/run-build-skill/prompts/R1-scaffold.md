@@ -36,8 +36,13 @@
 - 非担当: R-id 別 prompt 生成 (R2)、template 選択 (R3)、trace 記入 (R4)
 
 ### 2.2 ドメインルール
-- SKILL.md は 170 行以下
+- SKILL.md は 170 行を目安（本文上限 300 行 = P0-2。300 が唯一のハード上限、170 は目安）
 - frontmatter に `responsibility_refs` と `manifest` を含める
+- loop 実行系 (run/wrap/delegate) の frontmatter には `feedback_contract.criteria` を inner/outer 各1件以上で含める
+- ハーネス・カバレッジ仕様 (`doc/harness-coverage-spec.md`) を **kind 別に毎回満たす** (二軸 ≥80%):
+  - loop 実行系 (run/wrap/delegate): 各 criterion id (IN*/OUT*) を検証する test/fixture を携帯し `validate-llm-coverage.py --gate-new` を ≥80% で通す。最小実装は `<skill>/coverage-manifest.json` に `covered_criteria` を列挙 (実テスト/fixture の裏付けがある id のみ。空宣言禁止)
+  - **ref (辞書型/参照型): source-traceability が唯一のカバレッジ軸** — `source`/`source-tier`/`last-audited`/`audit-trigger` を全て埋め、参照内容が `source` と整合することを ref-review verdict (`eval-log/coverage/skills/<plugin>__<skill>.json` の `llm_eval.verdict=PASS`) で記録する。ref は criteria/content-review の代わりにこの source 検証で品質ゲートを満たす (全ゲート除外にしない)
+  - 同梱 scripts があれば機能テストで行カバレッジ ≥80%
 - kind→template 対応は `schemas/template-selection.schema.json#/selection_rules` を参照
 
 ### 2.3 入力契約
@@ -93,9 +98,10 @@
 - **達成ゴール**: brief を入力に schema 準拠の骨格 Markdown + scaffold trace が成立し、再実行で sha256 一致する状態
 
 ### 5.3 完了チェックリスト (停止条件)
-- [ ] SKILL.md が 170 行以下で frontmatter に responsibility_refs / manifest を含む
+- [ ] SKILL.md 本文が 300 行以下 (P0-2 ハード上限・機械ゲート `lint-skill-tree.py MAX_SKILL_LINES=300`)、170 行は目安で、frontmatter に responsibility_refs / manifest を含む
 - [ ] kind→template 対応は schemas 参照 1 行のみで本文に表が無い
 - [ ] 実行系 kind は `## ゴールシーク実行` を持ち固定 `### Step N:` を羅列していない (`ref-*` 除く)
+- [ ] loop 実行系 (run/wrap/delegate) は `feedback_contract.criteria` を frontmatter に携帯し、id/loop_scope/text/verify_by が埋まっている
 - [ ] `{{goal}}` / `{{purpose_background}}` / `{{generated_checklist}}` が brief 由来で埋まりリテラル未残存
 - [ ] 具体値は全て変数化され variable_contract.source_trace に brief フィールド由来が記録されている
 - [ ] 依存方向 L7→L1 単方向 (逆参照 0)
@@ -136,7 +142,7 @@ Layer 5.2 のゴール+5.3 完了チェックリストを唯一の停止条件�
 骨格を変数化形式で生成、kind→template は `{{template_selection_schema}}` の
 selection_rules を参照する。出力は次の 2 つのみとする:
 
-1. `SKILL.md` 本文 (Markdown / 170 行以下 / frontmatter 含む)
+1. `SKILL.md` 本文 (Markdown / 170 行目安・上限 300 行 (P0-2) / frontmatter 含む)
 2. `build_flow_coverage[scaffold]` エントリ (JSON / source_trace を含む)
 
 余計な前置き・後書き・思考過程出力は禁止。

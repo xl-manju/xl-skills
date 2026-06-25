@@ -62,6 +62,21 @@ responsibilities:
   - id: R3
     name: governance-decide
     prompt_required: true
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: workflow-manifest.json phases[id=p0-lint] の 8 本 lint が全て exit 0 で通り、未解決 TODO や未展開プレースホルダ {{...}} や英語仮文の残存(パラメーター名を除く)を検出した場合は Step 2 へ自律差し戻すことを lint で機械検証できる。
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: 各ゲート通過時に eval-log/handoff-<step>.json が schemas/handoff.schema.json 準拠で永続化され、Gate 2-4 が workflow-manifest.json の auto_approve_conditions を機械評価した証跡を伴うことを script で機械検証できる。
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: orchestrator が制御のみを担い各フェーズを独立 Skill へ委譲する責務分割と、evaluator や governance reviewer を必ず fork コンテキスト(context=fork)で起動する Sycophancy 防止と、Layer 依存方向 L7→L1 不変の差し戻しが、ユーザ目的(再現性高い 7 層プロンプト生成)に対し過不足ないこと。
+      verify_by: elegant-review
 ---
 
 # run-prompt-create

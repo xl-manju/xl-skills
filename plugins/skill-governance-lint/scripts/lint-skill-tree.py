@@ -155,6 +155,24 @@ def check_os_preamble(skill_md: "Path") -> list[str]:
 
 
 
+def _body_line_count(text: str) -> int:
+    """SKILL.md の本文(frontmatter 以降)の行数を返す。
+
+    P0-2 は「本文 300 行以下」(07章)。先頭 `---` ～ 次の `---` の YAML frontmatter は
+    メタデータ/機械可読契約であり本文ではないため除外する。frontmatter が無ければ
+    全体を本文として数える。
+    """
+    if text.startswith("---"):
+        parts = text.split("---", 2)  # ["", frontmatter, body]
+        if len(parts) >= 3:
+            body = parts[2]
+            # 閉じ `---` 行末の改行が body 先頭に1つ残るので1個だけ除去する
+            if body.startswith("\n"):
+                body = body[1:]
+            return len(body.splitlines())
+    return len(text.splitlines())
+
+
 def lint_one(root: Path) -> list[str]:
     errs: list[str] = []
 
@@ -164,17 +182,20 @@ def lint_one(root: Path) -> list[str]:
         errs.append("missing SKILL.md")
         return errs
 
-    # P0-2: 300行 cap
-    line_count = len(skill_md.read_text(encoding="utf-8").splitlines())
-    if line_count > MAX_SKILL_LINES:
+    # P0-2: 本文 300行 cap (07章 progressive disclosure は本文が対象)。
+    # frontmatter(YAML メタ + feedback_contract/knowledge_loop 等の機械可読契約)は
+    # 本文ではないためカウントから除外する。総行数で数えると frontmatter の契約追加で
+    # 誤検出するため body-only で測る (制限緩和方向=既存 PASS は不変)。
+    body_line_count = _body_line_count(skill_md.read_text(encoding="utf-8"))
+    if body_line_count > MAX_SKILL_LINES:
         errs.append(
-            f"P0-2違反: SKILL.md が {line_count} 行 (上限 {MAX_SKILL_LINES} 行)。"
+            f"P0-2違反: SKILL.md 本文が {body_line_count} 行 (上限 {MAX_SKILL_LINES} 行)。"
             " 超過分は references/ に分割すること（07章）"
         )
-    elif line_count > WARN_SKILL_LINES:
+    elif body_line_count > WARN_SKILL_LINES:
         # SS-203: 上限手前で事前警告 (exit 1 にしない)
         print(
-            f"[Warn]SS-203: {root.name}/SKILL.md が {line_count} 行"
+            f"[Warn]SS-203: {root.name}/SKILL.md が {body_line_count} 行"
             f" (warn 閾値 {WARN_SKILL_LINES} 超、上限 {MAX_SKILL_LINES})。"
             " 早めに references/ への分割を検討",
             file=sys.stderr,

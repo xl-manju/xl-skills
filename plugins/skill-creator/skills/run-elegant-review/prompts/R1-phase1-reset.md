@@ -47,7 +47,7 @@
 
 ### 2.2 ドメインルール
 - 第一印象の懸念を「事実」と「仮定」に分けて記録
-- 固有名詞・固定パス・固定 URL・固定 owner を kind 付きで variable_candidates にマーク
+- 固有名詞・固定パス・固定 URL・固定 owner を `concrete_values_to_abstract[]` に `{value, kind}` 形式でマーク
 - in_scope / out_of_scope を明示区別
 
 ### 2.3 入力契約
@@ -61,7 +61,7 @@
 
 ### 2.4 出力契約
 - schema: `./schemas/phase-output.schema.json#/definitions/phase1_output`
-- 必須: facts / assumptions / variable_candidates / scope (in/out)
+- 必須: `purpose / scope / stakeholders / first_impressions / facts_vs_assumptions / concrete_values_to_abstract`
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -102,13 +102,13 @@
 ### 5.2 ゴール定義
 - **目的**: 対象を素のまま観察し、Phase2 採点へ渡せる中立な観察ログを成立させる
 - **背景**: 既存 rubric 語彙や編集を混ぜると採点バイアスと思考法多様性の損失を生むため、read-only と語彙隔離を要件化
-- **達成ゴール**: facts / assumptions / variable_candidates / scope (in/out) が schema 準拠で記録され、同 target_path で決定論的に再現する状態
+- **達成ゴール**: `purpose / scope / stakeholders / first_impressions / facts_vs_assumptions / concrete_values_to_abstract` が schema 準拠で記録され、同 target_path で決定論的に再現する状態
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] bias_reset: 既存 rubric の言葉を観察に持ち込まなかった
 - [ ] read_only: 対象ファイルを編集しなかった (編集系ツール未使用)
 - [ ] fact_assumption_split: 事実と仮定を明示分離
-- [ ] variable_candidates: 固有名詞・固定パス・URL・owner を kind 付きで列挙
+- [ ] concrete_values_to_abstract: 固有名詞・固定パス・URL・owner を `{value, kind}` 形式で列挙
 - [ ] scope_explicit: in_scope / out_of_scope を区別して記録
 - [ ] schema_conform: `./schemas/phase-output.schema.json#/definitions/phase1_output` 準拠
 - [ ] determinism: 同 target_path で facts が並び順含め一致 (sort 安定化)
@@ -145,7 +145,7 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-read-only で `{{target_path}}` を観察し、`facts / assumptions / variable_candidates / scope`
+read-only で `{{target_path}}` を観察し、`purpose / scope / stakeholders / first_impressions / facts_vs_assumptions / concrete_values_to_abstract`
 を抽出する。編集系ツールは使用禁止 (検出時 exit 1)。採点・改善提案はしない。
 
 出力は `./schemas/phase-output.schema.json#/definitions/phase1_output` 準拠の JSON のみ。

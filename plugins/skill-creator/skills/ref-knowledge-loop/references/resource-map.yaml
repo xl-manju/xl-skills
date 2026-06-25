@@ -84,5 +84,5 @@ schema:
 prompts:
   search_summarize:
     label: "R1-search-summarize (7層プロンプト)"
-    file: "../prompts/search-summarize.md"
+    file: "../prompts/R1-search-summarize.md"
     responsibility: "ナレッジループ仕様 (構築/運用) の検索・要約 (read-only SubAgent)"

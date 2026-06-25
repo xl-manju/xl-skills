@@ -25,6 +25,21 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: scripts/decide-mode.py が references/mode-catalog.md 判定表から mode を決定論導出し、同一 4 入力(summary/purpose/options/kickoff)で 2 回連続実行した next-action.json の (mode, reason) が完全一致かつ reason に引いた mode / 判定条件を文字列で含み、schemas/output.schema.json(additionalProperties:false)で検証 exit 0 になる
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: handoff 確定前に Notion 公開完了 precondition(notion-publish-result.json 存在 + notion-log.json.status=='published' + page_id 有り)を assert し不成立は exit 2 で停止(逸脱B封鎖)、入力欠落は exit 3、mode=D で split_candidates 空なら mode=E へ格下げし reason に理由を残す、を機械検証できる
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: 本スキルが mode 判定と next-action.json 生成のみに責務を絞り、run-skill-create/run-build-skill 等のスキル生成スキルを起動せず(allowed-tools に Skill/Task を持たない)mode/handoff_phase を後続への推奨情報に留め、Notion 公開は実行せず完了を検証するだけ、Phase1 pattern 不一致時のみ AskUserQuestion を直列 1 問で追認する設計になっている
+      verify_by: elegant-review
 ---
 
 # run-intake-next-action
