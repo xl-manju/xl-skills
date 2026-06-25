@@ -1,0 +1,24 @@
+{
+  "_comment": "このファイルを repo-root に .notion-config.json としてコピーし、実値を埋める (.notion-config.json は gitignore 対象)。db_id は Notion ページURL末尾の32桁、または共有設定済みDBの database_id。",
+  "databases": {
+    "gmail-send-log": {
+      "db_id": "38907a0cd18c804dba05e05934ca2dbf",
+      "_note": "送信ログDB。run-notion-gmail-sendlog-setup でプロパティを §9 schema に整える"
+    }
+  },
+  "notion_gmail_send": {
+    "source": {
+      "body_db": "38807a0cd18c80f1ae82f01a90ff5aa2",
+      "recipient_db": "38807a0cd18c80e9b47cd9ceb81463db",
+      "_note": "body_db=メール本文_DB / recipient_db=メール送信対象者DB"
+    },
+    "sender": {
+      "impersonate": "no-reply@shonai.inc",
+      "sa_keychain": {
+        "service": "gmail-sa.xl-skills",
+        "account": "xl-skills"
+      },
+      "_note": "impersonate=DWDで成りすます送信元(本文DB『メールの送り主』と一致 or sendAs alias)。sa_keychain=Google SA鍵JSONを格納した Keychain の service/account"
+    }
+  }
+}

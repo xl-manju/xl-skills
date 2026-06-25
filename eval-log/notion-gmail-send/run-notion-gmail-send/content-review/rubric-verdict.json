@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "notion-gmail-send",
+    "skill": "run-notion-gmail-send",
+    "skill_md_sha256": "1592d8bcbed9bb83f001de2f767f4e148ef8522c01a842dd780033cc1841e1d3"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-rubric-reviewer",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "feedback_loop": {
+    "loop_scope": "inner",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "frontmatter rubric 適合: kind=run/prefix=run/effect=external-mutation が整合し、不可逆 external-mutation skill として disable-model-invocation:true + user-invocable:true + 人間承認 argument-hint (--approved-nonce/--allow-resend) を備える。description は『〜したいとき/〜送りたいとき』の自然なトリガ2系で過剰でない。responsibility_refs/schema_refs/feedback_contract が frontmatter に宣言され SSOT(scripts/feedback_contract_ssot.py)を明記。",
+      "IN1/IN2 が verify_by=test で機械検証可能な rubric 文として書かれ、IN1=test_send_campaign/test_preflight・IN2=test_idempotent_log に1対1で対応する実テストが存在し PASS。criteria text が『何を・どのテストで』まで具体化され検証可能性 (verifiability) を満たす。",
+      "本文構造が rubric 準拠: Purpose & Output Contract (入力/出力/完了条件)・End-to-End Flow・ゴールシーク (Goal/Why/Checklist/Loop/配線)・Key Rules・Gotchas・Additional Resources を MECE に持ち、決定論本体は script・LLM判断は prompt の二層分離原則を本文と spec §6 責務表で一貫宣言。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点で genuine 採点。pytest 対象4ファイル 72 passed・プラグイン全体 129 passed。verifiability (IN1/IN2 が test で機械検証・OUT1 が elegant-review で検証)・single-responsibility (orchestrate/presend-verify の 1 prompt=1 責務、agent は薄アダプタ)・SSOT 規律 (prompts/Rn が責務の正本・SKILL.md は俯瞰のみで片側更新ドリフト回避を明記)・fail-closed の正直な保証範囲明示 (presend-verify Layer5.2 が二段確認の保証限界を自認) の各 rubric 軸を満たす。criteria_evaluated=[IN1,IN2,OUT1] は elegance-verdict と重複しない別レビュー人格による独立採点。smell=1 は送信レポートの集約表示 (error+duplicate_log_key 合算 / unknown+needs_reconcile 合算) が内訳行を畳む軽微な可読性 smell のみで rubric 違反でない (low)。SHA は現 SKILL.md と一致。"
+}

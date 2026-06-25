@@ -1,0 +1,36 @@
+{
+  "target": {
+    "plugin": "notion-gmail-send",
+    "skill": "run-notion-gmail-send",
+    "skill_md_sha256": "1592d8bcbed9bb83f001de2f767f4e148ef8522c01a842dd780033cc1841e1d3"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "independent-elegance-reviewer",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "IN1 fail-closed が genuine: send-campaign.py の決定論セルフチェック (recomputed plan_hash/count/first_to/nonce を units から再計算し承認値・plan宣言値と三者照合) が NotionClient/GmailClient 生成より前 (L76-99) で abort し、test_count_injection_is_blocked / test_missing_nonce_is_blocked が _boom スタブで『送信経路に到達しない』ことを実証。send_guard.check() は no_approval/plan_hash_mismatch/count_mismatch/first_to_mismatch/nonce_mismatch/no_reserved_log/unresolved_token/from_alias_unverified の8違反を全て raise で弾き、gmail_client.send_unit が内部で再度 check() を通すため orchestrator が guard を呼び忘れても送信不能 (多層防御)。G1/G2/G3 は test_preflight で網羅。",
+      "IN2 content ベース冪等が genuine: dedup_key={本文page_id}:{宛先page_id}:{content_hash} が campaign_id 非依存 (plan_build.py L54-63) で別実行の二重送信を機構防止。reserve() の全分岐 (新規/SENT skip/SENDING→unknown relabel/quota_stopped reserved 再開/_NO_RESEND手動/_RESERVABLE再予約/2件以上 duplicate_log_key fail-closed/並行 create 後再検索) を test_idempotent_log が MECE 網羅。送信成功後ログ失敗は journal 退避+mark_unknown で自動再送せず (send-campaign.py L250-260)、_NO_RESEND と _RESERVABLE の排他も test で固定。",
+      "OUT1 三本柱と責務分割が過不足なし: 承認済みplan(plan_hash束縛)/人間承認ゲート(確認語nonceで blind approve コスト上げ)/事前予約つき content 冪等ログ の三者を §2 因果ループ警告として混同しない設計が明文化。preflight→reserve→guard→send→log→report の責務が orchestrate/presend-verify prompt(SSOT)・lib(決定論)・hook(補助)/send_guard(正本) に二層分離。送信時 suppress 再検証 (C-1) が subtract-only で承認件数を超えず test_send_campaign で実証。hook=補助/send_guard=正本 の責務境界が SKILL.md・hook docstring・guard docstring で一貫明示。",
+      "fail-closed 設計の正直さ: SKILL.md Key Rules 6『sent は到達保証でない』、presend-verify Layer5.2『保証範囲は plan の改竄・破損・宣言不整合の検出であり置換/組立ロジック自体の正しさは保証しない (同一決定論コードの再適用ゆえ)』と保証範囲を誇張せず明示。SendOutcomeUnknown を rateLimit(未送信確定)と区別し at-least-once リスクを自動再送せず unknown_needs_reconcile へ回す判断が gmail_client に明文化。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "実装照合で4条件を genuine 採点。pytest: 対象4ファイル 72 passed / プラグイン全体 129 passed (0.3s)。C1矛盾なし=PASS (三本柱の役割分担・hook補助/guard正本・quota_stopped→reserved再開 vs SENDING→unknown の遷移が prompts/lib/spec/SKILL.md 全層で論理一貫。send-campaign.py L82 の expected_nonce が空 = units 空のときのみ nonce 検査をスキップするが、その場合 count=0≠approved_count か plan_hash 不一致で別途 fail-closed するため抜け穴でない)。C2漏れなし=PASS (preflight→reserve→guard→send→log→report の全段が責務化され、quota/unknown/duplicate/suppress/log-fail の各失敗経路が REASON_CODES SSOT で網羅)。C3整合性あり=PASS (feedback_contract criteria IN1/IN2/OUT1 が verify_by=test/test/elegant-review で実装テストと1対1対応。prompts は 7層 SSOT・agent は薄アダプタの向きを維持)。C4依存関係整合=PASS (prompt_ssot/schema_refs/responsibility_refs の参照が実在しdangling なし。lib import は相対/直接 import 双方に耐える fallback あり)。smell=1 は send-campaign.py L274 で error と duplicate_log_key を合算表示・L275 で unknown_needs_reconcile と needs_reconcile を合算する集約レポートが内訳を 1 行に畳む軽微な可読性 smell (機能は内訳 details で個別表示されるため誤報告ではない・low)。本物の欠陥は検出されず、不可逆送信の安全機構は fail-closed として成立しているため PASS。SKILL.md SHA は worktree root から再計算し frontmatter 対象ファイルと一致確認済み。"
+}

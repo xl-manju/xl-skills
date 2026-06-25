@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "notion-gmail-send",
+    "skill": "run-notion-gmail-sendlog-setup",
+    "skill_md_sha256": "0034b1a32b8fa044b6810136b7aec46e9a9d82e76376f135832ef53e3e3c341a"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-rubric-reviewer",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "feedback_loop": {
+    "loop_scope": "inner",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "frontmatter 規律: kind=run/prefix=run 整合、effect=external-mutation が --apply の DB schema 変更(write-scope: notion-db-schema)と一致、allowed-tools=Read/Write/Bash(python3 *) が二層分離(script 本体)と整合、disable-model-invocation:true で user-invocable な db-setup として適切。feedback_contract に IN1(verify_by:test)/OUT1(verify_by:elegant-review)が SSOT(scripts/feedback_contract_ssot.py)準拠で焼き込み済み。",
+      "二層分離(rubric): 決定論本体を setup-send-log-db.py(差分照合/不足追加/title rename/config 案内)、解釈・適用可否判断・config 反映案内を run-skill が担う分離が明示され、schema 正本=EXPECTED 単一・選択肢正本=idempotent_log enum の単一 SSOT が Key Rule4 と test_contract_sync で機械担保。Purpose & Output Contract/完了条件/Gotcha が運用者向けに具体的。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "独立 rubric レビュア(approver≠proposer)による genuine 採点。skill-design rubric 観点(frontmatter 妥当性/二層分離/SSOT 単一化/出力契約明示/ゴールシーク配線/dangling ref なし)で違反 0。IN1: setup-send-log-db.py の diff_schema が additive-only(to_add+title_rename のみ・削除なし)・select マージ温存・型不一致非破壊(手動差し戻し)で冪等、test_contract_sync(REASON_OPTIONS is idempotent_log.REASON_CODES、冪等キー定義 drift 固定)で機械検証=PASS。OUT1: 既定 dry-run の差分提示→--apply gate→config 焼き込み案内→再 dry-run(差分0)のフローと、title='冪等キー'・db_id 解決が send 系 preflight G2 の冪等キー基盤を過不足なく先行確定し、ユーザー目的を満たす責務設計=PASS。Additional Resources の相対参照(../../lib/*, ../ref-notion-gmail-send-spec/)は実在し dangling なし。テスト 11 passed。本物の欠陥なし。"
+}
