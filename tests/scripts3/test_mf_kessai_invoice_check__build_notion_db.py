@@ -41,8 +41,9 @@ def test_load_schema_reads_real_schema():
     # title 型は1つ (取引先企業名)
     titles = [n for n, s in props.items() if s["type"] == "title"]
     assert titles == ["取引先企業名"]
-    # select 型に options がある
-    assert "options" in props["判定"]
+    # select 型に options がある (旧名『判定』は renames で『今月の発行状況』へ改名済み)
+    assert props["今月の発行状況"]["type"] == "select"
+    assert "options" in props["今月の発行状況"]
 
 
 # ===================== build_property (全型 + ValueError) =====================
@@ -220,7 +221,7 @@ def test_ensure_schema_renames_title_column(monkeypatch, capsys):
     # タイトル列 Name → 名前 (型変更せず名前のみ)
     assert body["Name"] == {"name": "名前"}
     out = capsys.readouterr().out
-    assert "タイトル列リネーム" in out
+    assert "列リネーム (値保持)" in out
     assert "Name→名前" in out
 
 
@@ -287,11 +288,17 @@ def test_ensure_schema_select_complete_no_patch(monkeypatch):
 
 # ===================== main() 経路 =====================
 
-def _isolate_config(monkeypatch, tmp_path):
-    """save_config の書き込み先を tmp に向けて repo 非汚染にする。"""
+def _isolate_config(monkeypatch, tmp_path, argv=None):
+    """save_config の書き込み先を tmp に向けて repo 非汚染にする。
+
+    main() は argparse で sys.argv を読むため、pytest の argv 混入を防ぐべく
+    既定で素の argv (オプション無し) に固定する。--parent-page-id 経路を試す
+    test は argv を渡す。
+    """
     cfg_path = tmp_path / ".mf-kessai-config.json"
     monkeypatch.setattr(BND, "CONFIG_PATH", str(cfg_path))
     monkeypatch.setattr(BND, "_notion_token", lambda: "fake-token")
+    monkeypatch.setattr(BND.sys, "argv", argv or ["build_notion_db.py"])
     return cfg_path
 
 

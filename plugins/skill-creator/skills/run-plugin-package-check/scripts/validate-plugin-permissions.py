@@ -125,9 +125,21 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True)
     ap.add_argument("--check", default="013a,013b,013c,013d")
+    ap.add_argument(
+        "--plugin-dir",
+        default=None,
+        help="検査対象 plugin ディレクトリを明示する(install 環境用)。"
+        "未指定なら repo_root (_resolve_repo_root) から plugins/<plugin> を解決する。",
+    )
     args = ap.parse_args()
 
-    plugin_dir = REPO_ROOT / "plugins" / args.plugin
+    # repo_root は module-level 定数ではなく _resolve_repo_root() で解決する
+    # (marketplace install / CLAUDE_PROJECT_DIR 環境差を吸収する可搬性層②)。
+    # --plugin-dir 明示時はそれを優先 (install 環境で repo 外の plugin を検査する経路)。
+    if args.plugin_dir:
+        plugin_dir = Path(args.plugin_dir)
+    else:
+        plugin_dir = _resolve_repo_root() / "plugins" / args.plugin
     perms = load_permissions(plugin_dir)
     if perms is None:
         result = {

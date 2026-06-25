@@ -105,9 +105,10 @@ def test_resolve_local_relative(MOD, tmp_path):
     assert out == (skill_dir / "references" / "rubric.json").resolve()
 
 
-def test_resolve_ref_prefix_creator_kit_hit(MOD, tmp_path, monkeypatch):
+def test_resolve_ref_prefix_plugins_hit(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
-    target = tmp_path / "creator-kit" / "skills" / "ref-x" / "rubric.json"
+    # 正規パスは plugins/*/skills/<ref>/references/rubric.json
+    target = tmp_path / "plugins" / "p" / "skills" / "ref-x" / "references" / "rubric.json"
     target.parent.mkdir(parents=True)
     target.write_text("{}", encoding="utf-8")
     out = MOD.resolve_rubric_ref("ref-x", tmp_path / "anything")
@@ -116,8 +117,8 @@ def test_resolve_ref_prefix_creator_kit_hit(MOD, tmp_path, monkeypatch):
 
 def test_resolve_ref_prefix_claude_fallback(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
-    # creator-kit 側に無く .claude 側に存在 → 2 番目候補を返す
-    target = tmp_path / ".claude" / "skills" / "ref-y" / "rubric.json"
+    # plugins 側に無く .claude 側に存在 → フォールバック候補を返す
+    target = tmp_path / ".claude" / "skills" / "ref-y" / "references" / "rubric.json"
     target.parent.mkdir(parents=True)
     target.write_text("{}", encoding="utf-8")
     out = MOD.resolve_rubric_ref("ref-y", tmp_path / "anything")
@@ -127,8 +128,8 @@ def test_resolve_ref_prefix_claude_fallback(MOD, tmp_path, monkeypatch):
 def test_resolve_ref_prefix_missing_returns_first_candidate(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
     out = MOD.resolve_rubric_ref("ref-none", tmp_path / "anything")
-    # どちらにも無いときは creator-kit 候補 (1 番目) を返す
-    assert out == tmp_path / "creator-kit" / "skills" / "ref-none" / "rubric.json"
+    # plugins glob は空なので 1 番目候補は .claude フォールバックパスになる
+    assert out == tmp_path / ".claude" / "skills" / "ref-none" / "references" / "rubric.json"
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +164,7 @@ def test_check_skill_md_rubric_refs_not_list(MOD, tmp_path):
 def test_check_skill_md_mixed_resolved_and_missing(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
     # ref- 解決成功 1 件 + ローカル欠落 1 件
-    ck = tmp_path / "creator-kit" / "skills" / "ref-ok" / "rubric.json"
+    ck = tmp_path / "plugins" / "p" / "skills" / "ref-ok" / "references" / "rubric.json"
     ck.parent.mkdir(parents=True)
     ck.write_text("{}", encoding="utf-8")
     p = _mk_skill(
@@ -188,7 +189,7 @@ def test_check_registry_all_present(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
     (tmp_path / "good.json").write_text("{}", encoding="utf-8")
     (tmp_path / "up.md").write_text("x", encoding="utf-8")
-    cfg = tmp_path / "creator-kit" / "config"
+    cfg = tmp_path / "plugins" / "skill-governance-config" / "config"
     cfg.mkdir(parents=True)
     (cfg / "rubric-registry.json").write_text(
         json.dumps({"rubrics": [{"domain": "d1", "rubric": "good.json", "upstream": ["up.md"]}]}),
@@ -200,7 +201,7 @@ def test_check_registry_all_present(MOD, tmp_path, monkeypatch):
 def test_check_registry_missing_rubric_and_upstream(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
     (tmp_path / "good.json").write_text("{}", encoding="utf-8")
-    cfg = tmp_path / "creator-kit" / "config"
+    cfg = tmp_path / "plugins" / "skill-governance-config" / "config"
     cfg.mkdir(parents=True)
     (cfg / "rubric-registry.json").write_text(
         json.dumps(
@@ -259,8 +260,8 @@ def test_main_inproc_nonexistent_target_skipped(MOD, tmp_path, monkeypatch, caps
 
 def test_main_inproc_default_glob_creator_kit_and_claude(MOD, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
-    # 引数なし → creator-kit/skills と .claude/skills の */SKILL.md を走査
-    ck = tmp_path / "creator-kit" / "skills"
+    # 引数なし → plugins/skill-creator/skills と .claude/skills の */SKILL.md を走査
+    ck = tmp_path / "plugins" / "skill-creator" / "skills"
     _mk_skill(ck, "ref-a", "name: ref-a\nrubric_refs:\n  - references/r.json")
     (ck / "ref-a" / "references").mkdir()
     (ck / "ref-a" / "references" / "r.json").write_text("{}", encoding="utf-8")
@@ -274,7 +275,7 @@ def test_main_inproc_default_glob_creator_kit_and_claude(MOD, tmp_path, monkeypa
 
 def test_main_inproc_registry_failure_propagates(MOD, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
-    cfg = tmp_path / "creator-kit" / "config"
+    cfg = tmp_path / "plugins" / "skill-governance-config" / "config"
     cfg.mkdir(parents=True)
     (cfg / "rubric-registry.json").write_text(
         json.dumps({"rubrics": [{"domain": "d2", "rubric": "missing.json"}]}),

@@ -44,9 +44,11 @@ def test_load_schema_reads_real_schema_file():
     props = schema["properties"]
     titles = [n for n, s in props.items() if s["type"] == "title"]
     assert titles == ["取引先企業名"]  # title 型は唯一
-    assert "判定" in props and props["判定"]["type"] == "select"
-    # upsert_key などメタも壊れずに読める
-    assert schema["upsert_key"] == ["顧客ID", "対象年月"]
+    # 旧名『判定』は renames で『今月の発行状況』へ改名済み (select 型はこちら)
+    assert "今月の発行状況" in props and props["今月の発行状況"]["type"] == "select"
+    assert schema["renames"]["判定"] == "今月の発行状況"
+    # upsert_key などメタも壊れずに読める (顧客ID 集約へ単一キー化済み)
+    assert schema["upsert_key"] == ["顧客ID"]
 
 
 # ===================== build_property (全型 + ValueError) =====================
@@ -224,7 +226,7 @@ def test_ensure_schema_renames_title_column(monkeypatch, capsys):
     body = cap["body"]["properties"]
     assert body["OldName"] == {"name": "名前"}  # 型はそのまま名前のみ変更
     out = capsys.readouterr().out
-    assert "タイトル列リネーム" in out
+    assert "列リネーム (値保持)" in out
     assert "OldName→名前" in out
 
 
@@ -307,17 +309,20 @@ def test_ensure_schema_rename_and_add_combined(monkeypatch, capsys):
     assert body["OldName"] == {"name": "名前"}
     assert {"メモ", "金額", "状態"} <= set(body)
     out = capsys.readouterr().out
-    assert "タイトル列リネーム" in out
+    assert "列リネーム (値保持)" in out
     assert "追加プロパティ" in out
 
 
 # ===================== main() 経路 =====================
 
 
-def _isolate(monkeypatch, tmp_path):
+def _isolate(monkeypatch, tmp_path, argv=None):
+    # main() は argparse で sys.argv を読むため、pytest の argv 混入を防ぐべく
+    # 既定で素の argv (オプション無し) へ固定する。
     cfg_path = tmp_path / ".mf-kessai-config.json"
     monkeypatch.setattr(BND, "CONFIG_PATH", str(cfg_path))
     monkeypatch.setattr(BND, "_notion_token", lambda: "fake-token")
+    monkeypatch.setattr(BND.sys, "argv", argv or ["build_notion_db.py"])
     return cfg_path
 
 

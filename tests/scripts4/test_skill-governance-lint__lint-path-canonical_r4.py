@@ -15,7 +15,8 @@ tmp_path 配下に置き repo を汚さない。検証対象の分岐:
       * 複数違反の累積
   - main:
       * --skill-md 単体 / --skills-dir glob / 両方
-      * 引数なし → return 2 (print_help)
+      * 引数なし → skill targets 空でも stale-root scan は実行され
+        (既定 --scripts-dir = 本スクリプト同階層, clean) return 0
       * 全合格 → return 0 + ok メッセージ
       * 違反あり → return 1 + stderr に findings
       * subprocess 経由 (__main__ ガード + exit code 契約)
@@ -244,18 +245,26 @@ def _argv(monkeypatch, *args):
     monkeypatch.setattr(sys, "argv", ["lint-path-canonical.py", *args])
 
 
-def test_main_no_args_returns_2(MOD, monkeypatch, capsys):
+def test_main_no_args_runs_stale_scan_and_returns_0(MOD, monkeypatch, capsys):
+    # 旧 API は引数なし → print_help + return 2 (fail-open) だったが、現実装は
+    # skill targets 空でも stale-root scan を必ず実行する。既定 --scripts-dir は
+    # 本スクリプト同階層 (clean) なので return 0 + "ok: 0 skill(s)" メッセージ。
     _argv(monkeypatch)
-    assert MOD.main() == 2
-    # print_help が出る (usage を含む)
-    assert "usage" in capsys.readouterr().out.lower()
+    assert MOD.main() == 0
+    out = capsys.readouterr().out
+    assert "ok: 0 skill(s)" in out
+    assert "stale-root scan" in out
 
 
 def test_main_skill_md_ok(MOD, tmp_path, monkeypatch, capsys):
     p = _mk_skill(tmp_path, "run-foo", _good_body("run-foo"))
-    _argv(monkeypatch, "--skill-md", str(p))
+    clean = tmp_path / "clean-scripts"
+    clean.mkdir()
+    _argv(monkeypatch, "--skill-md", str(p), "--scripts-dir", str(clean))
     assert MOD.main() == 0
-    assert "1 skill(s) pass path-canonical lint" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "ok: 1 skill(s)" in out
+    assert "pass path-canonical lint" in out
 
 
 def test_main_skill_md_violation_returns_1(MOD, tmp_path, monkeypatch, capsys):
@@ -284,18 +293,27 @@ def test_main_skills_dir_all_ok(MOD, tmp_path, monkeypatch, capsys):
     base = tmp_path / "skills"
     _mk_skill(base, "run-a", _good_body("run-a"))
     _mk_skill(base, "run-b", _good_body("run-b"))
-    _argv(monkeypatch, "--skills-dir", str(base))
+    clean = tmp_path / "clean-scripts"
+    clean.mkdir()
+    _argv(monkeypatch, "--skills-dir", str(base), "--scripts-dir", str(clean))
     assert MOD.main() == 0
-    assert "2 skill(s) pass" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "ok: 2 skill(s)" in out
+    assert "pass path-canonical lint" in out
 
 
 def test_main_both_targets_combined(MOD, tmp_path, monkeypatch, capsys):
     single = _mk_skill(tmp_path / "single", "run-z", _good_body("run-z"))
     base = tmp_path / "skills"
     _mk_skill(base, "run-a", _good_body("run-a"))
-    _argv(monkeypatch, "--skill-md", str(single), "--skills-dir", str(base))
+    clean = tmp_path / "clean-scripts"
+    clean.mkdir()
+    _argv(monkeypatch, "--skill-md", str(single), "--skills-dir", str(base),
+          "--scripts-dir", str(clean))
     assert MOD.main() == 0
-    assert "2 skill(s) pass" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "ok: 2 skill(s)" in out
+    assert "pass path-canonical lint" in out
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +333,10 @@ def test_subprocess_violation_exit1(tmp_path):
     assert "!= directory" in r.stderr
 
 
-def test_subprocess_no_args_exit2():
+def test_subprocess_no_args_runs_stale_scan_exit0():
+    # 旧 API: 引数なし → exit 2 (print_help)。現実装: skill targets 空でも
+    # 既定 --scripts-dir (本スクリプト同階層, clean) に対し stale-root scan を
+    # 実行し exit 0 + "ok: 0 skill(s)" を返す。
     r = _run([])
-    assert r.returncode == 2
-    assert "usage" in r.stdout.lower()
+    assert r.returncode == 0, r.stderr
+    assert "ok: 0 skill(s)" in r.stdout

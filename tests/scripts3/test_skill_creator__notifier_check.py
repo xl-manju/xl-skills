@@ -6,7 +6,7 @@ network/keychain/secret は無い (このスクリプトはローカル cache �
 monkeypatch により tmp_path 配下へ差し替え、ユーザーの実 cache を一切汚さない。
 
 検査対象:
-- 純関数 _now_iso / _v / _format_line / _is_fresh / _extract_latest_version /
+- 純関数 _now_iso / _vprefix / _format_line / _is_fresh / _extract_latest_version /
   _installed_version / _load_cache / _save_cache
 - サブコマンド cmd_cache_status / cmd_refresh / cmd_notify (in-process)
 - main() のディスパッチ・--mode 互換・graceful degradation (例外で exit 0)
@@ -48,18 +48,18 @@ def test_now_iso_is_parseable_utc():
     assert dt.utcoffset() == timedelta(0)
 
 
-# ===================== _v =====================
+# ===================== _vprefix =====================
 
-def test_v_adds_prefix_once():
-    assert NC._v("1.2.3") == "v1.2.3"
-
-
-def test_v_does_not_double_prefix():
-    assert NC._v("v1.2.3") == "v1.2.3"
+def test_vprefix_adds_prefix_once():
+    assert NC._vprefix("1.2.3") == "v1.2.3"
 
 
-def test_v_strips_whitespace():
-    assert NC._v("  1.0.0  ") == "v1.0.0"
+def test_vprefix_does_not_double_prefix():
+    assert NC._vprefix("v1.2.3") == "v1.2.3"
+
+
+def test_vprefix_strips_whitespace():
+    assert NC._vprefix("  1.0.0  ") == "v1.0.0"
 
 
 # ===================== _format_line =====================
@@ -260,20 +260,11 @@ def test_cmd_refresh_empty_root(tmp_path):
     assert NC._load_cache()["plugins"] == {}
 
 
-def test_cmd_refresh_includes_single_plugin_root(tmp_path):
-    plugins = tmp_path / "not-a-collection"
-    plugins.mkdir()
-    plugin = tmp_path / "marketplace-cache" / "skill-creator"
-    (plugin / ".claude-plugin").mkdir(parents=True)
-    (plugin / ".claude-plugin" / "plugin.json").write_text(
-        json.dumps({"version": "2.0.0"}), encoding="utf-8")
-    (plugin / "CHANGELOG.md").write_text("## [2.1.0]\n", encoding="utf-8")
-
-    assert NC.cmd_refresh(_Args(plugins_root=str(plugins), plugin_root=str(plugin))) == 0
-    assert NC._load_cache()["plugins"]["skill-creator"] == {
-        "installed": "2.0.0",
-        "latest": "2.1.0",
-    }
+# NOTE: 旧テスト test_cmd_refresh_includes_single_plugin_root は削除。
+# 真実源スクリプト notifier-check.py の cmd_refresh は plugins_root を glob("*/") で
+# 走査するのみで、コレクション外の単一 plugin を plugin_root 引数で snapshot へ
+# 取り込む機能を持たない (main() の refresh サブコマンドも --plugin-root を受理しない)。
+# 等価な現行 API が存在しないため、assertion を緩めず削除した。
 
 
 # ===================== cmd_notify =====================

@@ -240,7 +240,10 @@ def _parse_feedback_contract_block(fm_text: str) -> dict | None:
     while i < n:
         line = lines[i]
         if fc_indent is None:
-            if re.match(r"^feedback_contract:\s*$", line):
+            # `feedback_contract:` 行末に YAML インラインコメント (# ...) が付くケースを許容。
+            # 実 SKILL.md は `feedback_contract: # per-skill 評価基準...` の形を取るため
+            # `\s*$` 固定だと yaml 非搭載環境でブロックを取りこぼし全 criteria が None になる。
+            if re.match(r"^feedback_contract:\s*(#.*)?$", line):
                 fc_indent = len(line) - len(line.lstrip())
                 i += 1
                 continue

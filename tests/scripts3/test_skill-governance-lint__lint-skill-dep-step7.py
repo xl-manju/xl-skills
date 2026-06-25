@@ -6,7 +6,7 @@
 検査する 5 条件 (check_skill):
   (1) wrap-* に base: フィールドがある
   (2) assign-*-evaluator に pair: フィールドがある
-  (3) pair: の相手スキルが creator-kit/skills か .claude/skills に存在する
+  (3) pair: の相手スキルが plugins/skill-creator/skills か .claude/skills に存在する
   (4) dangerous run-* (danger:true / effect:external-mutation) に
       disable-model-invocation:true がある
   (5) ref-* が disable-model-invocation:true かつ user-invocable:false かつ
@@ -15,7 +15,7 @@
 方針:
   - 純関数 (parse_fm / _repo_root / skill_exists / _collect_inbound_refs /
     check_skill) を実ファイルから importlib でロードして直接呼ぶ。
-  - tmp_path に .git マーカ付きの「擬似 repo」を組み立て、creator-kit/skills と
+  - tmp_path に .git マーカ付きの「擬似 repo」を組み立て、plugins/skill-creator/skills と
     .claude/skills 配下に合格 fixture / 各違反 fixture の SKILL.md を実際に書いて
     check_skill / _collect_inbound_refs を実入力で assert する。
   - main は in-process (monkeypatch sys.argv) で全分岐 (paths / --skills-dir /
@@ -66,7 +66,7 @@ def _mk_repo(tmp_path: Path) -> Path:
     """tmp_path に .git マーカ付きの擬似 repo を作り、空の skills root を用意する。"""
     repo = tmp_path / "repo"
     (repo / ".git").mkdir(parents=True)
-    (repo / "creator-kit" / "skills").mkdir(parents=True)
+    (repo / "plugins" / "skill-creator" / "skills").mkdir(parents=True)
     (repo / ".claude" / "skills").mkdir(parents=True)
     return repo
 
@@ -76,7 +76,7 @@ def _mk_skill_md(
     name: str,
     frontmatter: str,
     *,
-    root: str = "creator-kit",
+    root: str = "plugins/skill-creator",
 ) -> Path:
     """repo/<root>/skills/<name>/SKILL.md を書いてそのパスを返す。"""
     d = repo / root / "skills" / name
@@ -202,10 +202,10 @@ def test_collect_inbound_refs_ignores_non_ref_keys(MOD, tmp_path):
 def test_collect_inbound_refs_skips_bad_frontmatter(MOD, tmp_path):
     repo = _mk_repo(tmp_path)
     # frontmatter が無い / 未終端の SKILL.md は安全に skip される
-    d1 = repo / "creator-kit" / "skills" / "broken1"
+    d1 = repo / "plugins" / "skill-creator" / "skills" / "broken1"
     d1.mkdir(parents=True)
     (d1 / "SKILL.md").write_text("no frontmatter at all", encoding="utf-8")
-    d2 = repo / "creator-kit" / "skills" / "broken2"
+    d2 = repo / "plugins" / "skill-creator" / "skills" / "broken2"
     d2.mkdir(parents=True)
     (d2 / "SKILL.md").write_text("---\nname: broken2\n", encoding="utf-8")
     # 例外を出さず空集合 (または他からの参照のみ)
@@ -229,7 +229,7 @@ def test_collect_inbound_refs_swallows_read_oserror(MOD, tmp_path):
         "name: run-consumer\nreference_refs:\n  - ../ref-shared/references/a.md\n",
     )
     # SKILL.md をディレクトリとして作る -> read_text が IsADirectoryError(OSError)
-    bad = repo / "creator-kit" / "skills" / "broken" / "SKILL.md"
+    bad = repo / "plugins" / "skill-creator" / "skills" / "broken" / "SKILL.md"
     bad.mkdir(parents=True)
     inbound = MOD._collect_inbound_refs(repo)
     # OSError を吐かず、正常スキルからの参照は収集される
@@ -416,7 +416,7 @@ def test_check_skill_collects_inbound_when_none(MOD, tmp_path):
 def test_check_skill_uses_parent_dir_name_when_no_name_field(MOD, tmp_path):
     # name: フィールドが無い場合は親ディレクトリ名を採用する
     repo = _mk_repo(tmp_path)
-    d = repo / "creator-kit" / "skills" / "wrap-bydir"
+    d = repo / "plugins" / "skill-creator" / "skills" / "wrap-bydir"
     d.mkdir(parents=True)
     (d / "SKILL.md").write_text("---\nbase:\n---\n\nbody\n", encoding="utf-8")
     errs = MOD.check_skill(d / "SKILL.md", inbound_refs=set())
@@ -452,7 +452,7 @@ def test_main_skills_dir_ok(MOD, tmp_path, monkeypatch, capsys):
     _mk_skill_md(
         repo, "assign-foo-evaluator", "name: assign-foo-evaluator\npair: assign-foo"
     )
-    skills_dir = repo / "creator-kit" / "skills"
+    skills_dir = repo / "plugins" / "skill-creator" / "skills"
     _argv(monkeypatch, "--skills-dir", str(skills_dir))
     assert MOD.main() == 0
     out = capsys.readouterr().out
@@ -463,7 +463,7 @@ def test_main_skills_dir_ok(MOD, tmp_path, monkeypatch, capsys):
 def test_main_skills_dir_findings_exit1(MOD, tmp_path, monkeypatch, capsys):
     repo = _mk_repo(tmp_path)
     _mk_skill_md(repo, "wrap-bad", "name: wrap-bad")  # base 欠落
-    skills_dir = repo / "creator-kit" / "skills"
+    skills_dir = repo / "plugins" / "skill-creator" / "skills"
     _argv(monkeypatch, "--skills-dir", str(skills_dir))
     assert MOD.main() == 1
     err = capsys.readouterr().err
@@ -474,7 +474,7 @@ def test_main_skills_dir_findings_exit1(MOD, tmp_path, monkeypatch, capsys):
 def test_main_skills_dir_allow_partial_suffix(MOD, tmp_path, monkeypatch, capsys):
     repo = _mk_repo(tmp_path)
     _mk_skill_md(repo, "wrap-skel", "name: wrap-skel")  # base 欠落だが partial 許容
-    skills_dir = repo / "creator-kit" / "skills"
+    skills_dir = repo / "plugins" / "skill-creator" / "skills"
     _argv(monkeypatch, "--skills-dir", str(skills_dir), "--allow-partial")
     assert MOD.main() == 0
     out = capsys.readouterr().out
@@ -494,7 +494,7 @@ def test_main_positional_not_found(MOD, tmp_path, monkeypatch, capsys):
     repo = _mk_repo(tmp_path)
     # 少なくとも 1 つ実在 path も渡して inbound 収集の repo 解決を成立させる
     real = _mk_skill_md(repo, "run-safe", "name: run-safe")
-    ghost = repo / "creator-kit" / "skills" / "ghost" / "SKILL.md"
+    ghost = repo / "plugins" / "skill-creator" / "skills" / "ghost" / "SKILL.md"
     _argv(monkeypatch, str(ghost), str(real))
     assert MOD.main() == 1
     err = capsys.readouterr().err
@@ -513,7 +513,7 @@ def test_subprocess_usage_exit2(MOD):
 def test_subprocess_skills_dir_ok(MOD, tmp_path):
     repo = _mk_repo(tmp_path)
     _mk_skill_md(repo, "run-safe", "name: run-safe")
-    skills_dir = repo / "creator-kit" / "skills"
+    skills_dir = repo / "plugins" / "skill-creator" / "skills"
     r = _run(["--skills-dir", str(skills_dir)])
     assert r.returncode == 0
     assert "PASS" in r.stdout

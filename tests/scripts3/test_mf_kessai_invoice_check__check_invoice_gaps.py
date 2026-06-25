@@ -44,19 +44,25 @@ def test_prev_month_normal_and_year_rollover():
     assert CIG.prev_month("2026-01") == "2025-12"  # 年跨ぎ
 
 
-def test_by_customer_keeps_first():
+def test_billings_by_customer_groups_all():
+    # by_customer は billings_by_customer に改名。後勝ち先勝ちの単一 dict ではなく
+    # 顧客ごとに全 billing を list へ集約する (setdefault(...).append) 新仕様。
     billings = [
         {"customer_id": "c1", "id": "b1"},
-        {"customer_id": "c1", "id": "b2"},  # 後勝ちでなく先勝ち (setdefault)
+        {"customer_id": "c1", "id": "b2"},  # 同一顧客は両方 list に残る
         {"customer_id": "c2", "id": "b3"},
     ]
-    out = CIG.by_customer(billings)
-    assert out["c1"]["id"] == "b1"
-    assert out["c2"]["id"] == "b3"
+    out = CIG.billings_by_customer(billings)
+    assert [b["id"] for b in out["c1"]] == ["b1", "b2"]  # 入力順を保持
+    assert [b["id"] for b in out["c2"]] == ["b3"]
 
 
 def test_validate_rows_ok():
-    rows = [{"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"}]
+    # validate_rows は company_name/product_name/prev_amount/curr_amount を必須化し、
+    # verdict 別に金額型を強制する (発行漏れ候補: prev=int, curr=null)。
+    rows = [{"customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+             "verdict": "発行漏れ候補", "product_name": "SaaS",
+             "prev_amount": 100, "curr_amount": None}]
     assert CIG.validate_rows(rows) == []
 
 
@@ -73,9 +79,17 @@ def test_validate_rows_collects_all_violations():
 
 
 def test_validate_rows_accepts_all_enum_verdicts():
-    for v in ("発行漏れ候補", "継続発行", "今月新規"):
-        rows = [{"customer_id": "c", "period_ym": "2026-06", "verdict": v}]
-        assert CIG.validate_rows(rows) == []
+    # 各 verdict は固有の金額契約を満たす完全な行で受理される。
+    base = {"customer_id": "c", "period_ym": "2026-06", "company_name": "A社",
+            "product_name": "SaaS"}
+    amounts = {
+        "発行漏れ候補": {"prev_amount": 100, "curr_amount": None},
+        "継続発行": {"prev_amount": 100, "curr_amount": 200},
+        "今月新規": {"prev_amount": None, "curr_amount": 300},
+    }
+    for v, amt in amounts.items():
+        rows = [{**base, "verdict": v, **amt}]
+        assert CIG.validate_rows(rows) == [], v
 
 
 # ===================== 出力先解決 (F2) =====================
@@ -203,6 +217,10 @@ def _wire_collect(monkeypatch, prev_billings, curr_billings, names_map):
                            "transaction_details": [{"description": "明細"}]}]}
 
     monkeypatch.setattr(CIG, "get", fake_get)
+    # collect は initial_contract_months=None のとき load_config の database_id で
+    # Notion から初回契約月を取得する。テストがネットワーク/Notion に出ないよう空 dict に固定
+    # (空 dict = 年間契約抑制スキップ = 全候補が発行漏れ候補に残る従来挙動)。
+    monkeypatch.setattr(CIG, "_load_initial_contract_months", lambda db_id: {})
 
 
 def test_collect_classifies_gap_continuing_new(monkeypatch):
@@ -235,18 +253,30 @@ def test_collect_classifies_gap_continuing_new(monkeypatch):
     assert cont_row["curr_amount"] == 800
 
 
-def test_collect_skips_continuing_without_amount_change(monkeypatch):
+def test_collect_skips_detail_for_unchanged_continuing(monkeypatch):
+    # 改修1で継続発行は金額変動の有無に関わらず全件 rows 化されるようになった。
+    # 金額不変の継続発行も「チェック証跡」として行は残るが、detail_of(/transactions)は
+    # スキップされ product_name 空・updated_at None で金額のみ記録する (元テストの
+    # 『行を作らない』意図は『詳細取得をスキップする』に変わった)。
     prev = [{"customer_id": "cont", "id": "p", "status": "invoice_issued", "amount": 500}]
     curr = [{"customer_id": "cont", "id": "c", "status": "invoice_issued", "amount": 500}]
     _wire_collect(monkeypatch, prev, curr, {"cont": "Cont社"})
     res, rows = CIG.collect("2026-06")
     assert res["continuing"] == ["cont"]
-    # 金額不変なので継続発行行は rows に含まれない
-    assert all(r["customer_id"] != "cont" for r in rows)
+    cont = [r for r in rows if r["customer_id"] == "cont"]
+    assert len(cont) == 1
+    assert cont[0]["verdict"] == "継続発行"
+    assert cont[0]["prev_amount"] == 500 and cont[0]["curr_amount"] == 500
+    # 金額不変なので detail_of をスキップ: 商品名空・更新日 None。
+    assert cont[0]["product_name"] == "" and cont[0]["updated_at"] is None
 
 
 def test_print_summary_output(monkeypatch, capsys):
-    res = {"gap_candidates": ["g1"], "continuing": ["c1", "c2"], "new_this_month": ["n1"]}
+    # _print_summary は amount_changed(res["continuing"], res["prev_amount"],
+    # res["curr_amount"]) で金額変動件数を出すため、res に金額マップが必要。
+    # c1 は 200→250 で変動、c2 は不変。
+    res = {"gap_candidates": ["g1"], "continuing": ["c1", "c2"], "new_this_month": ["n1"],
+           "prev_amount": {"c1": 200, "c2": 300}, "curr_amount": {"c1": 250, "c2": 300}}
     rows = [
         {"verdict": "発行漏れ候補", "company_name": "G社", "customer_id": "g1",
          "product_name": "商品", "prev_amount": 100, "curr_amount": None},
@@ -265,11 +295,18 @@ def test_print_summary_output(monkeypatch, capsys):
 # ===================== finalize (F1) =====================
 
 def _cands_file(tmp_path):
+    # validate_rows の必須キー (company_name/product_name/prev_amount/curr_amount) と
+    # verdict 別の金額契約を満たす完全な候補行を書き出す。
     p = tmp_path / "cands.json"
     p.write_text(json.dumps([
-        {"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-        {"customer_id": "c2", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-        {"customer_id": "c3", "period_ym": "2026-06", "verdict": "継続発行"},
+        {"customer_id": "c1", "period_ym": "2026-06", "company_name": "A社",
+         "verdict": "発行漏れ候補", "product_name": "SaaS",
+         "prev_amount": 100, "curr_amount": None},
+        {"customer_id": "c2", "period_ym": "2026-06", "company_name": "B社",
+         "verdict": "発行漏れ候補", "product_name": "SaaS",
+         "prev_amount": 200, "curr_amount": None},
+        {"customer_id": "c3", "period_ym": "2026-06", "company_name": "C社",
+         "verdict": "継続発行", "product_name": "", "prev_amount": 300, "curr_amount": 300},
     ], ensure_ascii=False), encoding="utf-8")
     return p
 
@@ -313,6 +350,13 @@ def test_finalize_rejects_schema_violation(tmp_path, capsys):
 
 def _argv(monkeypatch, *args):
     monkeypatch.setattr(sys, "argv", ["check_invoice_gaps.py", *args])
+
+
+def _valid_row(cid="c1", ym="2026-06"):
+    """validate_rows を通る完全な発行漏れ候補行 (必須キー + verdict 別金額契約を満たす)。"""
+    return {"customer_id": cid, "period_ym": ym, "company_name": "A社",
+            "verdict": "発行漏れ候補", "product_name": "SaaS",
+            "prev_amount": 100, "curr_amount": None}
 
 
 def test_main_collect_writes_candidates(monkeypatch, tmp_path, capsys):
@@ -362,9 +406,8 @@ def test_main_finalize_default_paths(monkeypatch, tmp_path):
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
     eval_dir = tmp_path / "eval-log"
     eval_dir.mkdir()
-    (eval_dir / "mfk-gap-candidates.json").write_text(json.dumps([
-        {"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-    ], ensure_ascii=False), encoding="utf-8")
+    (eval_dir / "mfk-gap-candidates.json").write_text(
+        json.dumps([_valid_row()], ensure_ascii=False), encoding="utf-8")
     _argv(monkeypatch, "--finalize")
     assert CIG.main() == 0
     assert (eval_dir / "mfk-gap-verified.json").exists()
@@ -378,33 +421,35 @@ def test_main_sink_fail_closed_without_verified(monkeypatch, tmp_path, capsys):
 
 
 def test_main_sink_schema_violation(monkeypatch, tmp_path, capsys):
+    # 新 main は --force-unverified なしの --input を確定リスト (verified_path) のみ許可する
+    # path ガードを先に通す。schema 違反の検証を働かせるため、不正 JSON を確定リスト位置に置く。
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
-    bad = tmp_path / "bad.json"
+    bad = tmp_path / "eval-log" / "mfk-gap-verified.json"
+    bad.parent.mkdir()
     bad.write_text(json.dumps([{"customer_id": "", "period_ym": "x", "verdict": "謎"}]),
                    encoding="utf-8")
-    _argv(monkeypatch, "--sink", "--input", str(bad))
+    _argv(monkeypatch, "--sink")  # 既定で verified_path を読む
     assert CIG.main() == 2
     assert "schema 違反" in capsys.readouterr().err
 
 
 def test_main_sink_missing_database_id(monkeypatch, tmp_path, capsys):
+    # 確定リスト位置に有効行を置き path ガード/schema を通したうえで database_id 不在を検証する。
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
-    good = tmp_path / "v.json"
-    good.write_text(json.dumps([
-        {"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-    ], ensure_ascii=False), encoding="utf-8")
+    good = tmp_path / "eval-log" / "mfk-gap-verified.json"
+    good.parent.mkdir()
+    good.write_text(json.dumps([_valid_row()], ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(CIG, "load_config", lambda: {"notion": {}})  # database_id 不在
-    _argv(monkeypatch, "--sink", "--input", str(good))
+    _argv(monkeypatch, "--sink")
     assert CIG.main() == 2
     assert "database_id 未設定" in capsys.readouterr().err
 
 
 def test_main_sink_success_calls_upsert(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
-    good = tmp_path / "v.json"
-    good.write_text(json.dumps([
-        {"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-    ], ensure_ascii=False), encoding="utf-8")
+    good = tmp_path / "eval-log" / "mfk-gap-verified.json"
+    good.parent.mkdir()
+    good.write_text(json.dumps([_valid_row()], ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(CIG, "load_config", lambda: {"notion": {"database_id": "db-1"}})
     captured = {}
 
@@ -415,7 +460,7 @@ def test_main_sink_success_calls_upsert(monkeypatch, tmp_path, capsys):
         return {"created": 1, "updated": 0, "period_ym": period_ym, "run_id": "rid"}
 
     monkeypatch.setattr(CIG.notion_invoice_sink, "upsert", fake_upsert)
-    _argv(monkeypatch, "--sink", "--input", str(good))
+    _argv(monkeypatch, "--sink")  # 既定で確定リストを読む
     assert CIG.main() == 0
     assert captured["db_id"] == "db-1"
     assert captured["period_ym"] == "2026-06"  # rows[0] の period_ym
@@ -427,9 +472,8 @@ def test_main_sink_force_unverified(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
     eval_dir = tmp_path / "eval-log"
     eval_dir.mkdir()
-    (eval_dir / "mfk-gap-candidates.json").write_text(json.dumps([
-        {"customer_id": "c1", "period_ym": "2026-06", "verdict": "発行漏れ候補"},
-    ], ensure_ascii=False), encoding="utf-8")
+    (eval_dir / "mfk-gap-candidates.json").write_text(
+        json.dumps([_valid_row()], ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(CIG, "load_config", lambda: {"notion": {"database_id": "db-1"}})
     monkeypatch.setattr(CIG.notion_invoice_sink, "upsert",
                         lambda db, rows, period_ym=None: {
@@ -440,15 +484,17 @@ def test_main_sink_force_unverified(monkeypatch, tmp_path, capsys):
 
 
 def test_main_sink_empty_rows_uses_month_arg(monkeypatch, tmp_path):
-    # rows 空 + --month で period_ym を解決する分岐
+    # rows 空 + --month で period_ym を解決する分岐。空配列を確定リスト位置に置き
+    # path ガードを通す (空配列は validate_rows OK・period 不一致チェックも素通り)。
     monkeypatch.setenv("MFK_OUTPUT_DIR", str(tmp_path))
-    good = tmp_path / "v.json"
+    good = tmp_path / "eval-log" / "mfk-gap-verified.json"
+    good.parent.mkdir()
     good.write_text(json.dumps([]), encoding="utf-8")
     monkeypatch.setattr(CIG, "load_config", lambda: {"notion": {"database_id": "db-1"}})
     captured = {}
     monkeypatch.setattr(CIG.notion_invoice_sink, "upsert",
                         lambda db, rows, period_ym=None: captured.update(period_ym=period_ym)
                         or {"created": 0, "updated": 0, "period_ym": period_ym, "run_id": "r"})
-    _argv(monkeypatch, "--sink", "--input", str(good), "--month", "2026-09")
+    _argv(monkeypatch, "--sink", "--month", "2026-09")
     assert CIG.main() == 0
     assert captured["period_ym"] == "2026-09"

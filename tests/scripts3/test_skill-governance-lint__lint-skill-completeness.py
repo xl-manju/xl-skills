@@ -183,63 +183,78 @@ def test_parse_exempt_skips_malformed_items(MOD):
 # category_satisfied
 # ---------------------------------------------------------------------------
 def test_category_satisfied_by_exempt(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {}, "schemas", {"schemas": "reason"}) is True
+    assert MOD.category_satisfied(tmp_path, {}, "schemas", {"schemas": "reason"}, None, []) is True
 
 
 def test_category_satisfied_exempt_empty_reason_ignored(MOD, tmp_path):
     # 空理由は免除として無効 (それ以外の経路も無いので False)
-    assert MOD.category_satisfied(tmp_path, {}, "scripts", {"scripts": ""}) is False
+    assert MOD.category_satisfied(tmp_path, {}, "scripts", {"scripts": ""}, None, []) is False
 
 
 def test_category_satisfied_prompts_policy_skip(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {"prompt_creator_policy": "skip"}, "prompts", {}) is True
+    assert MOD.category_satisfied(tmp_path, {"prompt_creator_policy": "skip"}, "prompts", {}, None, []) is True
 
 
 def test_category_satisfied_prompts_use_prompt_creator_false(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {"use_prompt_creator": "false"}, "prompts", {}) is True
+    assert MOD.category_satisfied(tmp_path, {"use_prompt_creator": "false"}, "prompts", {}, None, []) is True
     # true なら skip 経路は効かない (他経路も無いので False)
-    assert MOD.category_satisfied(tmp_path, {"use_prompt_creator": "true"}, "prompts", {}) is False
+    assert MOD.category_satisfied(tmp_path, {"use_prompt_creator": "true"}, "prompts", {}, None, []) is False
 
 
 def test_category_satisfied_by_refs(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {"schema_refs": ["../o/schemas/a.json"]}, "schemas", {}) is True
-    assert MOD.category_satisfied(tmp_path, {"reference_refs": ["../o/r.md"]}, "references", {}) is True
-    assert MOD.category_satisfied(tmp_path, {"prompt_refs": ["../o/p.md"]}, "prompts", {}) is True
-    assert MOD.category_satisfied(tmp_path, {"responsibility_refs": ["../o/p.md"]}, "prompts", {}) is True
-    assert MOD.category_satisfied(tmp_path, {"script_refs": ["../o/s.py"]}, "scripts", {}) is True
-    assert MOD.category_satisfied(tmp_path, {"rubric_refs": ["../o/references/rubric.json"]}, "rubric", {}) is True
+    # MD-208: *_refs は参照先の実在まで検証されるので、skill dir 相対で
+    # 解決可能な実ファイルを置いてから「ref により充足」を確認する。
+    _add_file(tmp_path, "o/schemas/a.json", "{}")
+    _add_file(tmp_path, "o/r.md", "doc")
+    _add_file(tmp_path, "o/p.md", "prompt")
+    _add_file(tmp_path, "o/s.py", "print(1)")
+    _add_file(tmp_path, "o/references/rubric.json", "{}")
+    assert MOD.category_satisfied(tmp_path, {"schema_refs": ["o/schemas/a.json"]}, "schemas", {}, None, []) is True
+    assert MOD.category_satisfied(tmp_path, {"reference_refs": ["o/r.md"]}, "references", {}, None, []) is True
+    assert MOD.category_satisfied(tmp_path, {"prompt_refs": ["o/p.md"]}, "prompts", {}, None, []) is True
+    assert MOD.category_satisfied(tmp_path, {"responsibility_refs": ["o/p.md"]}, "prompts", {}, None, []) is True
+    assert MOD.category_satisfied(tmp_path, {"script_refs": ["o/s.py"]}, "scripts", {}, None, []) is True
+    assert MOD.category_satisfied(tmp_path, {"rubric_refs": ["o/references/rubric.json"]}, "rubric", {}, None, []) is True
+
+
+def test_category_satisfied_dangling_ref_does_not_satisfy(MOD, tmp_path):
+    # MD-208: 解決不可な ref は充足しない & findings に dangling を追記する。
+    findings = []
+    assert MOD.category_satisfied(tmp_path, {"schema_refs": ["../o/schemas/a.json"]}, "schemas", {}, None, findings) is False
+    assert len(findings) == 1
+    assert "解決不可" in findings[0]
 
 
 def test_category_satisfied_empty_refs_does_not_satisfy(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {"schema_refs": []}, "schemas", {}) is False
+    assert MOD.category_satisfied(tmp_path, {"schema_refs": []}, "schemas", {}, None, []) is False
 
 
 def test_category_satisfied_local_rubric_file(MOD, tmp_path):
-    assert MOD.category_satisfied(tmp_path, {}, "rubric", {}) is False
+    assert MOD.category_satisfied(tmp_path, {}, "rubric", {}, None, []) is False
     _add_file(tmp_path, "references/rubric.json", "{}")
-    assert MOD.category_satisfied(tmp_path, {}, "rubric", {}) is True
+    assert MOD.category_satisfied(tmp_path, {}, "rubric", {}, None, []) is True
 
 
 def test_category_satisfied_local_schemas_dir(MOD, tmp_path):
     # 空ディレクトリは不可
     (tmp_path / "schemas").mkdir()
-    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}) is False
+    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}, None, []) is False
     # 非 json ファイルだけでは不可
     _add_file(tmp_path, "schemas/note.txt", "x")
-    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}) is False
+    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}, None, []) is False
     # json があれば満たす
     _add_file(tmp_path, "schemas/s.json", "{}")
-    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}) is True
+    assert MOD.category_satisfied(tmp_path, {}, "schemas", {}, None, []) is True
 
 
 def test_category_satisfied_local_dir_categories(MOD, tmp_path):
     for cat in ("prompts", "references", "scripts"):
         d = tmp_path / cat
-        assert MOD.category_satisfied(tmp_path, {}, cat, {}) is False  # 不在
+        assert MOD.category_satisfied(tmp_path, {}, cat, {}, None, []) is False  # 不在
         d.mkdir()
-        assert MOD.category_satisfied(tmp_path, {}, cat, {}) is False  # 空
+        assert MOD.category_satisfied(tmp_path, {}, cat, {}, None, []) is False  # 空
         _add_file(tmp_path, f"{cat}/file.txt", "content")
-        assert MOD.category_satisfied(tmp_path, {}, cat, {}) is True
+        assert MOD.category_satisfied(tmp_path, {}, cat, {}, None, []) is True
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +325,8 @@ def test_lint_one_assign_generator_clean_via_refs_and_exempt(MOD, tmp_path):
         "  - prompts: 生成は inline のため prompts ディレクトリ不要\n"
     )
     d = _mk_skill(tmp_path, "assign-foo-generator", fm)
+    # MD-208: schema_refs は実在まで検証されるので参照先 (skill dir 相対) を実在させる
+    _add_file(tmp_path, "shared/schemas/s.json", "{}")
     assert MOD.lint_one(d) == []
 
 

@@ -526,7 +526,9 @@ def test_main_todo_human_rule_goes_to_pending(monkeypatch, tmp_path, capsys):
 def test_main_rubric_refs_path(monkeypatch, tmp_path, capsys):
     r1 = tmp_path / "r1.json"
     r2 = tmp_path / "r2.json"
-    r1.write_text(json.dumps(_rubric([])), encoding="utf-8")
+    # refs[0] は L0 正本でなければ main() が fail-fast (return 1) する契約。
+    # 合成順序 L0→L1→L2 を満たすため先頭レイヤに layer="L0" を付与する。
+    r1.write_text(json.dumps(_rubric([], layer="L0")), encoding="utf-8")
     r2.write_text(json.dumps(_rubric([])), encoding="utf-8")
     d, _ = _write_skill_dir(tmp_path)
     _stub_compose(monkeypatch, _rubric([], _composition_hash="hh"))

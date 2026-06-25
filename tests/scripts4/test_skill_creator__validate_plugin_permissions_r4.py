@@ -54,8 +54,12 @@ def _write_plugin_json(plugin_dir: Path, data: dict) -> Path:
 
 
 def _run_main(monkeypatch, capsys, repo_root: Path, plugin: str, check: str | None = None):
-    monkeypatch.setattr(VPP, "REPO_ROOT", repo_root)
-    argv = ["prog", "--plugin", plugin]
+    # REPO_ROOT module 定数は廃止。main() は --plugin-dir 明示時はそれを、未指定なら
+    # _resolve_repo_root() ($CLAUDE_PROJECT_DIR→parents[5]→cwd) から plugins/<plugin> を解決する。
+    # fixture は tmp_path/plugins/<plugin>/.claude-plugin/plugin.json を書くので、その plugin dir を
+    # --plugin-dir で直接渡し、実 repo を汚さず完全 isolation で駆動する (dir 不在なら not_applicable)。
+    plugin_dir = repo_root / "plugins" / plugin
+    argv = ["prog", "--plugin", plugin, "--plugin-dir", str(plugin_dir)]
     if check is not None:
         argv += ["--check", check]
     monkeypatch.setattr(sys, "argv", argv)
