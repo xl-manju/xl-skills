@@ -7,6 +7,9 @@ resources:
   - file: forbidden-clis.md
     topic: cross-platform で使用禁止の CLI と代替コマンド一覧
     read_when: 使用 CLI が host OS で動かない疑いがあるとき
+  - file: runtime-portability.md
+    topic: runtime hook の単独 install ポータビリティ不変条件 (vendoring + fail-soft ローダ + 書込先安全化) と機械担保 lint
+    read_when: hook が plugin 外モジュールを import するとき、単独 install で hook がクラッシュするとき、共有 SSOT を plugin へ vendoring するとき
 prompts:
-  - file: ../prompts/search-summarize.md
+  - file: ../prompts/R1-search-summarize.md
     purpose: R1 検索/要約 (query → matches[])

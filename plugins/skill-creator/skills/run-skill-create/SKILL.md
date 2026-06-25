@@ -33,6 +33,25 @@ reference_refs:
   - ref-skill-glossary
   - ref-domain-task-spec-rubric
 # context-budget: orchestrationのみ。各子スキルがそれぞれの設計書を参照する。本スキルは05/06/07/13/23/25章のみ参照。
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: P0 lint 8本と manifest-contents が全て exit0 で通り TODO や未展開プレースホルダや英語仮文の残存が無い(パラメーター名を除く)
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: 各ゲート通過時の handoff JSON と build-trace JSON が schemas 配下の正本スキーマに準拠し章 coverage を空欄なく記録している
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: 全ゲートでユーザー承認前に自動前進せず evaluator と governance reviewer を必ず context fork で起動している
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: fork した assign-skill-design-evaluator の findings に FAIL 残存が無く新規や30行超変更時は elegant-review の C1-C4 が全 PASS
+      verify_by: evaluator
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal

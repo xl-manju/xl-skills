@@ -1,6 +1,6 @@
 ---
-description: 既存 Capability に対し run-elegant-review を起動する。多視点 agent 並列レビュー → 集約 → ゲート判定までを一括実行する薄いラッパ。
-argument-hint: "<target-path> [scope]  例: plugins/skill-creator/skills/run-build-skill / agents/elegant-reset-observer.md full"
+description: 既存 Capability に対し run-elegant-review を dry-run で起動する。多視点 agent 並列レビュー → 集約 → 4 条件ゲート判定までを analyse-only で実行する薄いラッパ (改善実行はしない)。
+argument-hint: "<target-path> [scope_mode]  例: plugins/skill-creator/skills/run-build-skill skill / plugins/skill-creator plugin"
 allowed-tools: Read, Bash
 name: capability-review
 kind: command
@@ -12,21 +12,21 @@ entrypoint: run-elegant-review
 
 # /skill-creator:capability-review
 
-`$ARGUMENTS` の `<target-path>` を `run-elegant-review` Skill に渡し、Phase 1 (発散) → Phase 2 (集約) → Phase 3 (収束判定) を起動する薄いラッパ。
+`$ARGUMENTS` の `<target-path>` を `run-elegant-review` Skill に `--dry-run` 付きで渡し、Phase 1 (思考リセット) → Phase 2 (並列多角的分析) → Phase 3 (改善実行) を起動する薄いラッパ。`--dry-run` のため Phase 3 は write を行わず、4 条件の verdict 判定のみを返す (analyse only)。
 
 ## 振る舞い
 
-1. `$ARGUMENTS` を `<target-path> [scope]` にパース。target が存在しなければ停止。
-2. target_type を自動判定 (skill/agent/hook/command/composition)。
-3. `run-elegant-review` Skill を起動。`scope` 省略時は `default` (severity high のみ)、`full` で全 severity 評価。
-4. 集約後の C1〜C4 ゲート結果と residual_risks を報告。FAIL 時は `/skill-creator:skill-improve <target-path>` を案内。
+1. `$ARGUMENTS` を `<target-path> [scope_mode]` にパース。target が存在しなければ停止。
+2. target_path を `run-elegant-review` の `target` 構造体 (plugin / skill / scope_mode) に正規化。target_type は skill/agent/hook/command/composition を自動判定。
+3. `run-elegant-review` Skill を `--dry-run` 付きで起動。`scope_mode` 省略時は `skill`、`plugin` / `repo` で横断レビュー幅を拡張。
+4. 集約後の C1〜C4 ゲート結果 (`verdict`) と residual_risks を報告。FAIL 時は改善実行を行う `/skill-creator:skill-improve <target-path>` を案内。
 
 ## 引数
 
 | 引数 | 説明 |
 |---|---|
 | `target-path` | レビュー対象の絶対 or リポジトリ相対パス (必須) |
-| `scope` | `default` / `full` / `quick` (省略時 default) |
+| `scope_mode` | `skill` / `plugin` / `repo` (レビュー幅、省略時 skill) |
 
 ## 失敗時
 
@@ -36,4 +36,4 @@ entrypoint: run-elegant-review
 
 ## 注意
 
-- 改善実行は行わない (analyse only)。実行は `/skill-creator:skill-improve` を使う。
+- 改善実行は行わない (analyse only)。`run-elegant-review` を `--dry-run` で起動するため Phase 3 でも write/auto-commit されない。改善を適用したい場合は `/skill-creator:skill-improve` を使う。

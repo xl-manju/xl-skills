@@ -2,7 +2,12 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot company-master-vendored pytest test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
+
+# LLM_COV_SINCE: 新規スキルの coverage gate 境界日。これ以降に since された loop-kind スキルは
+# coverage-gate で <80% なら fail-closed。既存スキルは ratchet で段階的に底上げ。
+LLM_COV_SINCE ?= 2026-06-24
+COV_THRESHOLD ?= 80
 
 ## sync: creator-kit/skills/ を .claude/skills/ に同期する（--apply）
 sync:
@@ -12,8 +17,8 @@ sync:
 sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
-## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT 検証を実行する
-lint: contract-intake vendored-ssot company-master-vendored
+## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime ポータビリティ + company-master vendored 検証を実行する
+lint: contract-intake vendored-ssot runtime-portability company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
@@ -32,9 +37,14 @@ lint: contract-intake vendored-ssot company-master-vendored
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/mf-kessai-invoice-check/skills
 	python3 scripts/lint-plugin-lint-coverage.py
 
-## vendored-ssot: skill-intake 同梱 SSOT (notion_config.py) が skill-creator 正本と byte 一致か検証
+## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:
-	python3 scripts/lint-intake-vendored-ssot.py
+	python3 scripts/lint-vendored-ssot.py
+
+## runtime-portability: runtime hook script が import-time に自 plugin 外を fail-closed 依存しないか静的検査
+##   単独 install (plugin のみ install) で全フックが exit 0 を維持する不変条件を機械担保する。
+runtime-portability:
+	python3 scripts/lint-runtime-portability.py
 
 ## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
 company-master-vendored:
@@ -51,12 +61,46 @@ contract-intake:
 plugin-package-check:
 	python3 scripts/validate-plugin-packages.py
 
+## feedback-contract: 量産先 loop-kind スキルが frontmatter に評価基準を携帯するか repo 全体検査
+feedback-contract:
+	python3 scripts/lint-feedback-contract.py --all
+
+## content-review: 全スキルの content-review verdict 存在・PASS・sha一致・criteria突合を repo 全体検査
+content-review:
+	python3 scripts/lint-content-review.py --all
+
 ## pytest: tests/ 配下の振る舞いテストを実行する (hook-guard-skillgen 等の機械保証を回帰検証)
 pytest:
 	python3 -m pytest tests/ -q
 
-## test: sync-check + lint (contract-intake 含む) + plugin-package-check + pytest + gate-phase0 を順に実行する
-test: sync-check lint plugin-package-check pytest
+## coverage: コード側の行カバレッジを pytest-cov で計測する (計測専用。テスト合否は `make pytest`/`make test` が担保)
+##   COVERAGE_FILE を絶対パス固定し subprocess 計測データを cwd 変更に依らず repo root へ集約する。
+##   この計測モードでは coverage .pth が subprocess 出力に混入し一部 IO テストが赤化するが、
+##   合否判定は coverage 無しの `make test` を正とするため許容 (|| true)。行カバレッジ数値のみ採取する。
+coverage:
+	python3 -m coverage erase || true
+	COVERAGE_FILE="$(PWD)/.coverage" COVERAGE_PROCESS_START="$(PWD)/.coveragerc" PYTHONPATH="$(PWD)" \
+	  python3 -m pytest tests/ -q --cov --cov-report=json:eval-log/code-coverage.json -p no:cacheprovider || true
+	@python3 -c "import json;d=json.load(open('eval-log/code-coverage.json'));p=round(d['totals']['percent_covered'],1);print(f'[coverage] code line coverage {p}% / 閾値 $(COV_THRESHOLD)%');print('[OK] code coverage >=閾値' if p>=$(COV_THRESHOLD) else '[WARN] code coverage <閾値 (ratchet)')"
+	@python3 -c "import json;d=json.load(open('eval-log/code-coverage.json'));p=round(d['totals']['percent_covered'],1);print(f'[coverage] code line coverage {p}% / 閾値 $(COV_THRESHOLD)%');print('[WARN] code coverage <閾値 (ratchet)' if p < $(COV_THRESHOLD) else '[OK] code coverage >=閾値')"
+
+## llm-coverage: LLM 駆動部分(criteria+checklist 被覆)のカバレッジを計測する (WARN, ratchet baseline)
+llm-coverage:
+	python3 scripts/validate-llm-coverage.py --all --threshold $(COV_THRESHOLD)
+
+## coverage-gate: 新規 loop-kind スキル(since>=LLM_COV_SINCE)が <80% なら fail-closed (CI gate)
+coverage-gate:
+	python3 scripts/validate-llm-coverage.py --all --threshold $(COV_THRESHOLD) \
+	  --gate-new --since $(LLM_COV_SINCE)
+
+## harness-coverage: ハーネス仕様(全種別×二軸 >=80%)の整備状況を横断集計する (doc/harness-coverage-spec.md)
+##   先に make coverage / llm-coverage を走らせ eval-log の *-coverage.json を生成しておくこと。
+harness-coverage:
+	python3 scripts/validate-harness-coverage.py --threshold $(COV_THRESHOLD)
+
+## test: sync-check + lint + plugin-package-check + feedback-contract + content-review + pytest + gate-phase0 を順に実行する
+##   (coverage / llm-coverage は WARN のため test には含めず、coverage-gate を CI で別途実行する)
+test: sync-check lint plugin-package-check feedback-contract content-review pytest llm-coverage
 	python3 scripts/gate-phase0.py
 
 ## help: このメッセージを表示する

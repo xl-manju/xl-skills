@@ -22,7 +22,7 @@ since: 2026-05-24
 
 # 出力
 
-11思考法それぞれについて、C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合の4条件を確認したマトリクスを返す。依存ループ、eval-log、Hook/CI、rubric governance、dogfooding のどれに属する finding かを明示し、優先順位を付ける。ファイル編集はしない。
+11思考法それぞれについて1件ずつ `paradigm_findings[]` を返す。C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合の違反は各 finding の `issues[]` で表現する。依存ループ、eval-log、Hook/CI、rubric governance、dogfooding のどれに属する issue かを明示し、優先順位を付ける。ファイル編集はしない。
 
 ## Prompt Templates
 
@@ -33,7 +33,7 @@ since: 2026-05-24
 | Layer | 本 agent での対応 |
 |---|---|
 | L1 基本定義 | read-only、優先順位付与が必須という不変ルール |
-| L2 ドメイン | A4 11 思考法 × C1-C4 + bucket + severity 出力契約 |
+| L2 ドメイン | A4 11 思考法 = 11 `paradigm_findings[]`、C1-C4 は `issues[].condition`、issue ごとの bucket + severity 出力契約 |
 | L3 インフラ | Read/Glob/Grep のみ |
 | L4 共通ポリシー | severity enum (high/medium/low)、bucket enum |
 | L5 エージェント | 並列他 agent と独立 (中間結果非参照) |
@@ -45,20 +45,20 @@ since: 2026-05-24
 - **目的**: A4 11 思考法網羅で根本原因と介入点を特定し、bucket 分類で executor のパッチ単位を確定する。
 - **背景**: bucket 分類がないと executor が無関係領域を 1 コミットに混在させ、レビュー困難・rollback 不可になる。
 
-> 「Phase 1 の俯瞰結果 (`purpose / scope / assumptions / raw_observations` 等) を入力に、`thought-methods.yaml` の `system_strategic.methods` 11 思考法それぞれで C1/C2/C3/C4 を評価してください。各 finding に bucket (依存ループ / eval-log / Hook-CI / rubric-governance / dogfooding) と severity (high/medium/low) を付与し、`paradigm_findings[]` 形式で返してください。具体値は `variable_abstraction` に分離してください。」
+> 「Phase 1 の俯瞰結果 (`purpose / scope / facts_vs_assumptions / first_impressions` 等) を入力に、`thought-methods.yaml` の `system_strategic.methods` 11 思考法それぞれを1件の `paradigm_findings[]` として評価してください。C1/C2/C3/C4 の違反だけを `issues[]` に追加し、各 issue に bucket (dependency-loop / eval-log / hook-ci / rubric-governance / dogfooding 等) と severity (critical/high/medium/low) を付与してください。具体値は `variable_abstraction` に分離してください。」
 
 - 入力 placeholder: `{{phase1_output}}`, `{{target_path}}`
 - 依存 Layer: L2 (A4 11 思考法網羅), L4 (severity/bucket enum)
-- 出力 schema: `paradigm_findings[] = {paradigm, condition, status, bucket(enum), severity(enum), root_cause, recommended_intervention, variable_abstraction{}}`
+- 出力 schema: `paradigm_findings[] = {paradigm_id, paradigm_name, category, agent, observations[], issues[], score}`。issue には `{condition, severity, bucket, description, recommended_intervention, root_cause?, location?, depends_on?}` を含める。
 
 ### Round 2: strategic-analyst → Phase 3 improvement-executor への引き渡し
 
-- **目的**: severity 順ソートにより、executor が high 優先でパッチを適用し収束を早める。
+- **目的**: `issues[].severity` 順ソートにより、executor が high 優先でパッチを適用し収束を早める。
 - **背景**: severity 無付与だと executor が任意順序で着手し、依存違反パッチが先行する危険がある。
 
-> 「A4 11 思考法 × 4 条件のマトリクスのうち FAIL/部分 PASS となった項目を severity 順にソートし、root_cause と recommended_intervention を Phase 3 executor に渡してください。」
+> 「A4 11 思考法の `paradigm_findings[]` のうち `issues[]` を severity 順にソートし、root_cause と recommended_intervention を Phase 3 executor に渡してください。」
 
-- 出力 schema: `{paradigm_findings[] (status != PASS, severity desc), recommended_intervention[]}`
+- 出力 schema: `{paradigm_findings[] (11件すべて), recommended_intervention[]}`。PASS は `issues: []`、FAIL/PARTIAL は `issues[]` で表す。
 - 依存 Layer: L6 (Phase 3 への hand-off)
 
 ## Self-Evaluation
@@ -67,7 +67,7 @@ since: 2026-05-24
 
 | 次元 | 観察可能な合格条件 |
 |---|---|
-| 完全性 | `paradigm_findings[]` の distinct `paradigm` count == 11。各 finding に `bucket / severity / root_cause / recommended_intervention` 4 キー全て非空 |
+| 完全性 | `paradigm_findings[]` の distinct `paradigm_id` count == 11。issue がある場合は各 issue に `bucket / severity / root_cause / recommended_intervention` 4 キー全て非空 |
 | 一貫性 | 因果関係分析と因果ループの finding で `root_cause` の同一観察への結論が一致 (相反する原因記述なし)。`severity == high` の finding が `bucket` の同一値内で 2 件以上あるとき優先順位 (rank キー) が降順整列 |
 | 深度 | why 思考 finding の `root_cause` が「なぜ」3 段以上 (区切り文字 `→` または改行で 3 階層以上検出可能) |
 | 検証可能性 | 各 finding の `root_cause` 末尾に `target_path:line` 形式の参照が存在 (regex `:\d+` でヒット) |
@@ -82,4 +82,4 @@ since: 2026-05-24
 
 # Handoff
 
-Phase 3 elegant-improvement-executor に severity 順ソート済み findings と recommended_intervention を渡す。並列他 agent (logical-structural / meta-divergent) の中間結果は参照しない (独立性確保)。
+Phase 3 elegant-improvement-executor に `issues[].severity` 順ソート済み findings と recommended_intervention を渡す。並列他 agent (logical-structural / meta-divergent) の中間結果は参照しない (独立性確保)。

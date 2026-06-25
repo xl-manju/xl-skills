@@ -1,18 +1,35 @@
 {
-  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-db-setup", "skill_md_sha256": "88ec35e6f41c0f3d3b19b721cfc29bd67bbf966bb669abc27ffdbade79bdb273"},
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-db-setup",
+    "skill_md_sha256": "df46fdfa73ad997afb541865d8960a43a1c675e92f32dbb27f2a3e02d2372921"
+  },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
-  "reviewer": "elegant-improvement-executor",
-  "reviewed_at": "2026-06-25T00:00:00Z",
-  "iterations": 2,
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
   "human_review_required": false,
-  "notes": "再検証 (iteration 2)。SKILL.md は未改変 (sha 88ec35e6f41c... 不変)、build_notion_db.py main() の分岐順序 (1 --parent-page-id→新規 / 2 database_id 解決→ensure_schema 既存DB適用 / 3 parent_page_id のみ→新規 / 4 両方空→exit2) を再確認。prompts/R1-build-db.md が現行 2 モード設計へ修正され、前回 REJECT の 3 blocking 欠陥が全て解消されたことを独立確認した。【inconsistency 解消】§2.3 入力契約は database_id (required:no・既定経路) を新設し parent_page_id を required:no (新規作成モードのみ) へ訂正 — SKILL.md line 38『既定では不要』および script (既定経路は parent_page_id を読まない) と一致。§1.1 (line 21) は既存 database_id を『新規作成せず既存 DB へスキーマを冪等適用 (不足追加/値保持リネーム/deprecated 削除)』と正しく記述し、旧来の誤『skip』表現は除去された (実装 ensure_schema の能動 PATCH と一致)。【dependency_break 解消】§4.1 (line 69) は『database_id も parent_page_id も両方空のときのみ停止 (exit2)。database_id 解決の既定経路では停止しない』へ修正、出力指示 branch 2 (line 124) で配布既定ゼロ設定経路は ensure_schema を実行し停止しないことを明示 — SKILL.md line 48『導入者はゼロ設定で既存 DB へ適用』との dependency_break は解消。【omission 解消】§2.1 (line 30) 担当に既存DBスキーマ適用 (既定) を追加し新規作成と並記、配布既定 mf-kessai-config.default.json / 『請求書チェック_DB』/ ensure_schema を §1.1/§2.3/§5.2/出力指示で参照、§5.2 ゴール (line 84) は『既存 DB へのスキーマ適用 (既定) または新規作成』へ拡張。【smell 解消】前回の部分追従 (renames/deprecated を §2.2 のみが認識) による内部不整合は解消し、§1.1/§2.1/§2.3/§4.1/§5.x が一貫して 2 モードを反映。出力指示の 4 分岐順序は script main() と完全一致、残存する単一モード語 (required:yes / 初回作成のみ / 前提:parent_page_id 設定済み) は grep 上ゼロ。新たな inconsistency の混入なし。R2-verify-schema.md は未改変 (現行設計と整合維持)。schema 正本 (15=事実10+管理5 重複なし, rename target 存在, deprecated と props 互いに素, upsert_key=顧客ID) も整合。完全性/一貫性/検証可能性/簡潔性の 4 条件すべて充足、blocking 欠陥ゼロにつき PASS。",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["completeness", "consistency", "verifiability", "conciseness"],
-    "positive_feedback": ["R1-build-db.md が現行 2 モード設計へ修正され前回 REJECT の 3 blocking 欠陥 (inconsistency/dependency_break/omission) が全解消", "R1 出力指示の 4 分岐順序が build_notion_db.py main() と完全一致", "入力契約 database_id(no)/parent_page_id(no) が SKILL.md・script と整合し既定ゼロ設定経路の誤停止が解消", "SKILL.md/R2/schema は未改変で整合維持・新たな inconsistency 混入なし"],
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "事実列(API由来)と管理列(人の運用)を分離したプロパティ設計を schemas/notion-db-schema.json 正本へ一元化し、build_notion_db.py(L27-28)/verify_db_schema.py(L18-19)がそれを読むことで SKILL.md とのドリフトを構造的に防いでいる。merge後の本文 L48『プロパティ数はこの正本が唯一の真実。本文に固定値を書かない』と verify の L88 `len(expected)` 由来表示が一致し、固定値の二重管理を排除している点。",
+      "merge差分で『1顧客=1ページ(upsert キー=顧客ID単独)・月次履歴は table block』(L48) という DB 設計意図と、列リネーム(判定→今月の発行状況)/deprecated 自動削除(対応状況等)の宣言的移行(L50/L70/L110)を本文に明示し、schema.renames/deprecated_properties と build_notion_db.py(L87/L118)・verify_db_schema.py(L71-83)の挙動が三者一致している点。",
+      "CLI `--parent-page-id` 指定時は既定 database_id より優先して新規作成(L51/L107 Key Rule1, build_notion_db.py L166-167)、未指定なら既存DB冪等適用、両方空なら安全停止という2モードの優先順位を本文・ゴールシークループ(L75)・スクリプト argparse で齟齬なく配線している点。"
+    ],
     "negative_feedback": [],
-    "iteration": 2, "iteration_limit": 3, "hook_trigger": "manual", "next_action": "none"
-  }
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "dev同期merge後の現 SKILL.md(sha df46fdfa)を全文実読し、git diff 67425a0 HEAD で特定した merge差分(Purpose の DB設計意図追記/checklist の事実列10・管理列5・renames・deprecated 明示/Key Rule1 の CLI優先反転/Additional Resources の `../ref-mf-kessai-api/`→`$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/` パス修正)を本文・schema・scripts に突き合わせて genuine 検証した。elegance 4条件: (1)矛盾0 — 本文の2モード優先順位(CLI parent_page_id 優先)が Key Rule1/ゴールシークループ/build_notion_db.py argparse(L159/L166)で一貫。(2)漏れ0 — Purpose・入力・出力・完了条件・Key Rules・Gotchas・Additional Resources を網羅し、後段 run-mf-invoice-check 出力先準備という目的に対し過不足なし。(3)不整合0 — checklist 事実列10個が schema.fact_columns(10)と、管理列5個が schema.managed_columns(5)と、renames(判定→今月の発行状況)が schema.renames と、deprecated(対応状況/チェック実行ID/初回請求月(API推定))が schema.deprecated_properties と一致。number は build_notion_db.py L44 が format:yen を付与、select は L49-50(status型回避)で schema 駆動。(4)依存破壊0 — `$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/`・prompts/R1-R2・schemas/notion-db-schema.json・scripts いずれも実在し参照解決可能(merge前の相対 `../` 参照を $CLAUDE_PLUGIN_ROOT 化したのは install先移植性の改善)。なお既存IN1/IN2 criterion text に残る『管理列4個』表現は現 schema の managed_columns=5(初回契約月の追加分)に対し1件のズレがあるが、これは criterion 文言上のラグであって本文・schema・scripts 間の実装整合は取れており、本文(L69)は正しく5列を列挙しているため elegance 欠陥(矛盾/不整合)とは判定しない。重大欠陥なしで PASS。SHA は手順3 shasum 実測値(df46fdfa)で照合。"
 }

@@ -12,6 +12,17 @@ owner: {{owner}}
 since: {{date}}
 hierarchy_level: {{hierarchy_level | default("L2") }}  # delegate は通常 L2（外部実行委譲）
 rubric_refs: {{rubric_refs | default([]) }}            # 委譲先の受け入れ判定 rubric
+feedback_contract:
+  max_iterations: {{feedback_contract_max_iterations | default(3)}}
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: {{feedback_contract_inner_criteria_text}}
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: {{feedback_contract_outer_criteria_text}}
+      verify_by: elegant-review
 # doc/21 source-traceability
 source: {{source_url_or_path}}
 source-tier: {{source_tier | default("internal")}}
@@ -32,6 +43,9 @@ audit-trigger: {{audit_trigger | default("quarterly")}}
 ## 主要ルール
 1. 入出力契約のみ定義、ロジックは subagent 側。
 {{key_constraints}}
+
+## 評価・改善ループ契約
+`feedback_contract.criteria` は本 Skill 固有の完了チェックリストから導出した評価基準である。inner は現在ゴールを満たす小さな検証、outer はユーザー目的と 4 条件を満たす全体検証を担う。content-review / evaluator / hook は同じ criteria id を参照し、`criteria_evaluated` が全 id を覆うまで PASS にしない。未達時は最大 `feedback_contract.max_iterations` 周まで改善→再評価し、超過時は `INCOMPLETE` として human_review に差し戻す。
 
 ## ゴールシーク実行
 > 固定手順は書かない。毎周「ゴール・目的/背景・チェックリスト」を読み、その時点で最適な手順を AI が生成・実行する。詳細は run-build-skill `references/goal-seek-paradigm.md`。

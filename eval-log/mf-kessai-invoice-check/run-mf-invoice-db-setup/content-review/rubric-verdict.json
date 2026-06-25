@@ -1,19 +1,35 @@
 {
-  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-db-setup", "skill_md_sha256": "88ec35e6f41c0f3d3b19b721cfc29bd67bbf966bb669abc27ffdbade79bdb273"},
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-db-setup",
+    "skill_md_sha256": "df46fdfa73ad997afb541865d8960a43a1c675e92f32dbb27f2a3e02d2372921"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-25T00:00:00Z",
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-25",
   "iterations": 1,
   "human_review_required": false,
-  "rubric_hash": "6e1843e5204accb8c76c96bf0d8189dafff6d51f2d182096424fcb6c6bfd3d0d",
-  "notes": "rubric-id=skill-design v1.3.0 threshold=80。kind=skill 適用 rule (FM/BD/NM/PD/RG) を逐条照合し全 PASS、high finding ゼロ、score=100>=80 で PASS。FM-001(high): name=run-mf-invoice-db-setup は ^(run|ref|assign|wrap|delegate)-[a-z0-9][a-z0-9-]*$ かつ len<=60 PASS。FM-002(med): description に 'とき' トリガ含み '。' 終端 PASS。FM-003(med): トリガ数=2 (『初回構築したいとき』『作り直したいときに使う』) で 2..3 範囲内 PASS。FM-004(med): 動作詳細語 (採点する/JSONで返す/sha256/exit code) 不在 PASS。FM-005(low): description が動詞名詞句 (構築/作り直し) を含み『〜に使う』終端で動詞ベース PASS。BD-001(high): '## Purpose & Output Contract' 厳格一致 heading 存在 PASS (PD-002 を包含で自動充足)。BD-002(med): '## Gotchas' heading 存在 PASS。BD-003(high): frontmatter 除く body=82 行 <=300 PASS。BD-004(med): description の 2 トリガ (初回構築→新規作成モード / プロパティ設計の作り直し→既存DBへスキーマ適用=列リネーム+不足追加) が body の 2 モードとチェックリスト・ゴールシークループに 1:1 対応 PASS。NM-001(high): ディレクトリ basename == frontmatter.name PASS。NM-002(med): kebab-case + run- prefix PASS。NM-003(low): scripts/ は build_notion_db.py / verify_db_schema.py の .py のみで tree 規約準拠 PASS。PD-001(low): body 82 行 <=100 で PASS (references/ 不要)。PD-002(med): 冒頭30行に '## Purpose & Output Contract' + 禁則 (『固定値を書かない』『唯一の真実』『破壊しない』) 存在 PASS。RG-001(low): 本 verdict に rubric_hash (sha256 of rubric.json) を含め再現性担保 PASS。KL-001..005(*): knowledge/ ディレクトリ・frontmatter.knowledge_loop とも不在のため存在ゲートで無条件 PASS (誤減点防止)。AG/HK/CM/PC/PR/WF-* は applies_to_kinds に skill を含まず非適用。rubric は単一 SKILL.md の機械照合を採点軸とし、本タスクで別途検出した R1-build-db.md の SSOT 不整合 (elegance-verdict 参照) は cross-file SSOT staleness を採る high rule が rubric に存在せず直接スコープ外のため rubric verdict は PASS。ただし当該不整合は elegance 側で REJECT 済みで改善対象として残る。",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "BD-004", "NM-001", "NM-002", "NM-003", "PD-001", "PD-002", "RG-001", "KL-001", "KL-002", "KL-003", "KL-004", "KL-005"],
-    "positive_feedback": ["kind=skill 適用 rule (FM/BD/NM/PD/RG) 全 PASS・high finding ゼロ", "BD-001 厳格 heading 一致・BD-003 body 82 行・BD-004 description↔body 1:1 整合", "FM-003 トリガ数=2 で誤発動/取りこぼしのスイートスポット", "KL-* は存在ゲートで誤減点なし"],
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "FM-001 name=run-mf-invoice-db-setup(prefix run-/kebab/len25<=60)、FM-002/003 description のトリガ2件(『初回構築したいとき』『作り直したいとき』)が句点終止、FM-004 description に内部動作語(sha256/exit code 等)混入なし、BD-001『## Purpose & Output Contract』厳格一致・BD-002『## Gotchas』存在・BD-003 body 約81行<=300、NM-001 dir basename==name を全充足している点。",
+      "BD-004: description の2トリガ(初回構築/作り直し)が body の2モード(既存DBへゼロ設定適用/parent_page_id 新規作成)および完了チェックリスト・ゴールシークループと1:1対応し、merge後の checklist が schema.fact_columns(10)・managed_columns(5)・renames・deprecated_properties と実値一致している点。",
+      "評価基準 IN1(verify_db_schema.py PASS+管理列非破壊の冪等性=script)/IN2(schema正本一元・status不可・format:yen=test)/OUT1(2モードが導入者目的を過不足なく満たし未解決時安全停止=elegant-review)がスキル固有の検証観点を素直に反映し、verify_by の手段(script/test/elegant-review)が実体(verify_db_schema.py / build スクリプトの schema-read / 2モード設計)と整合している点。"
+    ],
     "negative_feedback": [],
-    "iteration": 1, "iteration_limit": 3, "hook_trigger": "manual", "next_action": "none"
-  }
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "dev同期merge後の現 SKILL.md(sha df46fdfa)を ref-skill-design-rubric/references/rubric.json(rubric_version 1.3.0)で逐条照合し genuine 採点した。kind=skill 適用 rule: FM-001(high) name 正規 `^(run|ref|assign|wrap|delegate)-...$` 一致かつ len25<=60 → PASS。FM-002(med) description にトリガ語『〜とき』2個 + 句点 → PASS。FM-003(med) トリガ数2(範囲2..3内) → PASS。FM-004(med) 内部動作語なし → PASS。FM-005(low) description 冒頭が名詞句で意図明示 → PASS。BD-001(high) 『## Purpose & Output Contract』厳格一致(L46) → PASS。BD-002(med) 『## Gotchas』(L112) → PASS。BD-003(high) frontmatter 除く body 行数 約81<=300 → PASS。BD-004(med) description の2トリガ ↔ body の2モード/checklist/ゴールシークループ 1:1対応 → PASS。NM-001(high) ディレクトリ basename run-mf-invoice-db-setup==name → PASS。PD-001(low) references 相当 schemas/scripts/prompts 存在 → PASS。PD-002(med) 冒頭30行内に '## Purpose'(L46) と禁則(L48『本文に固定値を書かない』) → PASS。AG/HK/CM/PC/PR/WF-* は applies_to_kinds に skill を含まず非適用。KL-*(applies_to_kinds='*')は knowledge/ ディレクトリ無し・frontmatter.knowledge_loop 無しのため存在ゲートで PASS(skip)。merge差分(Purpose の DB設計意図追記/checklist の事実列10・管理列5・renames・deprecated 明示化/Key Rule1 の CLI parent_page_id 優先反転/`../ref-mf-kessai-api/`→`$CLAUDE_PLUGIN_ROOT/...` パス修正)は rubric 観点で減点なし、むしろ BD-004 の trigger↔body 整合と schema 一元化を強化している。high severity finding 0件・必須 rule 全充足で rubric adequacy を満たし PASS。SHA は手順3 shasum 実測値(df46fdfa)で照合。"
 }

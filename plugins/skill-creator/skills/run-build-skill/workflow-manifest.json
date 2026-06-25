@@ -38,7 +38,8 @@
       "dependsOn": ["references"],
       "kind_filter": ["run", "assign", "wrap", "delegate"],
       "resourceIds": ["schema-skill-build-trace"],
-      "output_artifact": "eval-log/skill-build-trace.json"
+      "output_artifact": "eval-log/skill-build-trace.json",
+      "verifier": "Step4 lint set including scripts/lint-feedback-contract.py --changed-only"
     },
     {
       "id": "templates",
@@ -86,7 +87,7 @@
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "resourceIds": ["schema-skill-build-trace", "prompt-trace-write"],
       "output_artifact": "eval-log/skill-build-trace.json",
-      "note": "prompts-emit / evaluator-emit は flag_required の任意 phase。trace-write は必須 phase のため optional phase へ依存しない。任意成果物が存在する場合のみ trace に取り込む。"
+      "note": "prompts-emit / evaluator-emit は flag_required の任意 phase。trace-write は必須 phase のため optional phase へ依存しない。任意成果物が存在する場合のみ trace に取り込む。loop実行系の feedback_contract は生成 SKILL.md frontmatter と trace の両方に固定する。"
     },
     {
       "id": "notion-register",
@@ -102,15 +103,15 @@
     {
       "id": "feedback-deploy",
       "step": 11,
-      "title": "量産先プラグインに run-skill-feedback を symlink 配備 (default-ON, deployment action)",
+      "title": "量産先プラグインに run-skill-feedback を実体コピー配備 (default-ON, deployment action)",
       "dependsOn": ["trace-write"],
       "kind_filter": ["run", "ref", "assign", "delegate", "wrap"],
       "default_on": true,
       "opt_out_flag": "--no-feedback-loop",
       "resourceIds": [],
-      "output_artifact": "plugins/<plugin>/skills/run-skill-feedback (-> ../../skill-creator/skills/run-skill-feedback)",
+      "output_artifact": "<target-plugin>/skills/run-skill-feedback (self-contained copy)",
       "verifier": "scripts/lint-feedback-protocol.py --strict (R7)",
-      "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存 symlink は再作成しない)。これは SKILL.md patch combinator ではなく、scripts/render-combinators.py apply_feedback_loop() の副作用付き deployment action。"
+      "note": "build 完了時に必ず実行。skill-creator 自身は対象外。冪等 (既存実体は再コピーしない、既存 symlink は実体へ置換)。これは SKILL.md patch combinator ではなく、scripts/render-combinators.py apply_feedback_loop() の副作用付き deployment action。"
     },
     {
       "id": "content-review",

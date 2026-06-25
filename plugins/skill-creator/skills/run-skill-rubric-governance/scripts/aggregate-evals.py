@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -36,7 +37,34 @@ _RECENT_WINDOW = 5  # 直近窓
 
 def _plugin_root() -> Path:
     # 本ファイル: plugins/skill-creator/skills/run-skill-rubric-governance/scripts/
+    env = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if env:
+        return Path(env).resolve()
     return Path(__file__).resolve().parents[3]
+
+
+def _state_fallback_root() -> Path:
+    """plugin-root が書込不能な install (read-only / 次回 update で消失) 用の退避先。
+
+    手本: notifier-check.py の `Path.home()/.cache/xl-skills` (user 領域退避)。
+    優先順: $CLAUDE_PROJECT_DIR → $XDG_STATE_HOME → ~/.claude/state。
+    """
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    if project:
+        return Path(project) / ".claude" / "state" / "skill-creator"
+    xdg = os.environ.get("XDG_STATE_HOME")
+    base = Path(xdg) if xdg else Path.home() / ".claude" / "state"
+    return base / "skill-creator"
+
+
+def _dir_is_writable(d: Path) -> bool:
+    """d (存在しなければ最寄りの既存祖先) が書込可能かを実 mkdir せず判定。"""
+    probe = d
+    while not probe.exists():
+        if probe.parent == probe:
+            return False
+        probe = probe.parent
+    return os.access(probe, os.W_OK)
 
 
 def _repo_root() -> Path:
@@ -54,12 +82,32 @@ def _evals_path() -> Path:
 
 
 def _proposals_dir() -> Path:
+    """rubric-update 提案ドラフトの書込先。env override > plugin-root (既定)。
+
+    既定を plugin-root 配下に保つことで maintainer の読取フロー (proposals/ 直読み)
+    を壊さない。read-only install での fallback は呼び出し側 (main) が担う。
+    """
+    override = os.environ.get("SKILL_CREATOR_PROPOSALS_DIR")
+    if override:
+        return Path(override).resolve()
     return (
         _plugin_root()
         / "skills"
         / "run-skill-rubric-governance"
         / "proposals"
     )
+
+
+def _candidate_proposals_dirs() -> list[Path]:
+    """書込先候補を優先順で返す (3 段 fallback)。
+
+    (a) 既定 = plugin-root 配下 proposals/ (dev 既存挙動・maintainer 読取互換)
+    (b) plugin-root が書込不能なら user state 領域へ退避
+    env override 明示時はそれを単独で使う。
+    """
+    if os.environ.get("SKILL_CREATOR_PROPOSALS_DIR"):
+        return [_proposals_dir()]
+    return [_proposals_dir(), _state_fallback_root() / "proposals"]
 
 
 def _date_of(ts: Any) -> str | None:
@@ -371,21 +419,29 @@ def main() -> int:
     top_findings = _top_finding_categories(evals)
     proposal = _render_proposal(anomalies, top_findings, summary)
 
-    out_dir = _proposals_dir()
-    try:
-        out_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        sys.stderr.write(f"[aggregate-evals] proposals dir creation failed: {exc}\n")
-        return 1
-
     today = _dt.date.today().isoformat()
+    filename = f"{today}-rubric-update.md"
+
+    # 3 段 fallback: 書込可能な最初の候補へ。全滅なら (c) silent no-op exit 0。
     # 同日複数発火に備え、内容ハッシュではなく単純な upsert (上書き) でドラフトを更新。
-    target = out_dir / f"{today}-rubric-update.md"
-    try:
-        target.write_text(proposal, encoding="utf-8")
-    except OSError as exc:
-        sys.stderr.write(f"[aggregate-evals] write failed: {exc}\n")
-        return 1
+    last_exc: OSError | None = None
+    for out_dir in _candidate_proposals_dirs():
+        if not _dir_is_writable(out_dir):
+            continue
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            target = out_dir / filename
+            target.write_text(proposal, encoding="utf-8")
+            sys.stderr.write(f"[aggregate-evals] proposal -> {target}\n")
+            return 0
+        except OSError as exc:
+            last_exc = exc
+            continue
+    # どこにも書けない (read-only install 等): クラッシュさせず no-op で握る。
+    if last_exc is not None:
+        sys.stderr.write(f"[aggregate-evals] no writable sink, skipped: {last_exc}\n")
+    else:
+        sys.stderr.write("[aggregate-evals] no writable sink, skipped\n")
     return 0
 
 

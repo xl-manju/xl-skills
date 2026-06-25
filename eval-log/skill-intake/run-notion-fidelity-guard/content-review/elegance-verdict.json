@@ -2,20 +2,26 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-notion-fidelity-guard",
-    "skill_md_sha256": "042c6374d392d8c66ca2ba52b143e4001e2508fd3ff1800c94cb887ccbea0c7b"
+    "skill_md_sha256": "e342b50a1e83eb17970625340b0dfb30561ed407e9232f180dd1f49103685a73"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review",
-  "reviewed_at": "2026-06-07T08:21:00Z",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "20260607-conformance elegant-review (30思考法×3 analyst 独立分析) の対象として run-notion-fidelity-guard を検証。本 PR での変更点: (1) rubric_refs から実在しない run-skill-intake-aggregator を除去し [ref-output-routing] へ、(2) Key Rules / 関連の責務委譲先・canonical SoT 所有者記述を deprecated aggregator から run-skill-intake へ付け替え、(3) section_canonical_map.json への参照を移設後 plugin 直下 references/ へ rewrite、(4) SKILL bash 例を ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/ へ統一 (G2)、(5) scripts/extract-canonical-snapshot.py の canonical map 解決を repo 相対から plugin-root(__file__ parents[3]) 相対へ是正し install 後も解決可能に。4条件: 矛盾なし=responsibility_refs(R1/R2/R3) と prompts 実在一致。漏れなし=Purpose/Gotchas + ゴール/チェックリスト整合、130 行 (<=300)。整合性=canonical SoT 所有者を run-skill-intake に一意化。依存関係整合=deprecated dir 参照ゼロ、extract-canonical の DEFAULT_SOURCE が移設後 references/section_canonical_map.json に解決 (実在確認)。残リスク無し。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "Key Rules / Gotchas / ゴールチェックリストが char_bounds 30% + required 40% + viz 30% と pass≥0.85/warn≥0.70/fail<0.70 の閾値・exit 0/1/2 写像で一貫し、IN1 の決定論判定を矛盾なく裏付けている",
+      "責務単一性(構造粒度のみ)が Key Rules 1・Gotchas 5/6・関連スキルで一貫し、intake 妥当性=run-skill-intake / Notion 公開=run-notion-intake-publish への委譲先が一意で OUT1 の越境禁止設計を満たす"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md 全文を実読し 4 条件で検証。矛盾なし=responsibility_refs(R1/R2/R3)と prompts 実在一致、char_bounds 計測=section_text_length() の単一定義。漏れなし=Purpose/Output Contract/Key Rules/Gotchas/ゴールチェックリストが pre/post-publish 双方と fail-fast≠silent-fail を網羅、約145行(<=300)。整合性=canonical SoT 所有者を run-skill-intake へ一意化、snapshot 手書き禁止を Key Rules 2 と Gotchas 1 で重複なく明記。依存関係整合=Notion API 認証情報を本スキル内で扱わず JSON 構造比較のみへ委譲先が解決可能。携帯化した feedback_contract(IN1/IN2/OUT1)が本文の評価観点と一致し adequacy 確認済み。"
 }

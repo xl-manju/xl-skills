@@ -27,6 +27,21 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 改名後の新名 SKILL.md が lint-skill-name と lint-skill-tree と validate-frontmatter を全て exit0 で通過する
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: ディレクトリ改名が git mv で履歴保持され frontmatter.name が新名へ更新され aliases に旧名が登録された不可分セットが全て満たされる
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: OUT_BASE 配下 SKILL.md 全体の pair と Skill() 旧名参照を漏れなく走査し全ヒットが新名へ更新され参照切れが残らない
+      verify_by: elegant-review
 ---
 
 # run-skill-rename
