@@ -1,5 +1,5 @@
 ---
-description: Capability (Skill/Agent/Hook/Command/Composition/Prompt/Workflow) を新規作成または更新する統一入口。run-build-skill Skill を起動し、kind に応じた scaffold とリソースを生成する。
+description: Capability (Skill/Agent/Hook/Command/Plugin-Composition/Prompt/Workflow) を新規作成または更新する統一入口。run-build-skill Skill を起動し、kind に応じた scaffold とリソースを生成する。
 argument-hint: "<kind> <name> [options]  例: skill run-foo / agent reviewer-bar / hook on-save / command deploy"
 allowed-tools: Read, Write, Edit, Bash
 name: capability-build
@@ -16,7 +16,7 @@ entrypoint: run-build-skill
 
 ## 振る舞い
 
-1. `$ARGUMENTS` を空白区切りでパース。`kind` が `skill|agent|hook|command|composition|prompt|workflow` のいずれでなければ利用可能 kind を表示して停止。
+1. `$ARGUMENTS` を空白区切りでパース。`kind` が `skill|agent|hook|command|plugin-composition|prompt|workflow` (正本 enum: `references/capability-manifest.schema.json#/definitions/commonCore.kind`) のいずれでなければ利用可能 kind を表示して停止。
 2. `name` の命名規約を `ref-skill-naming-convention` 準拠で軽く検証 (run-/ref-/assign- prefix など)。
 3. `run-build-skill` Skill を起動し、引数として `kind / name / options` を渡す。
 4. 生成後に `validate-build-trace.py` を実行し、PASS/FAIL を報告。

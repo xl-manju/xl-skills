@@ -13,12 +13,28 @@ stub 実装: plugin.json の permissions ブロックの基本構造を検査し
 from __future__ import annotations
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+
+def _resolve_repo_root() -> Path:
+    """repo_root を解決(dev/CI 層②)。
+
+    優先順: $CLAUDE_PROJECT_DIR(plugins/ を含む) → 本ファイル parents[5](同) → cwd。
+    marketplace install 環境で誤起動しても IndexError で死なずフォールバックする。
+    本スクリプトは主に dev/CI で repo 内 plugin を検査する層。install 環境で
+    個別 plugin を検査する場合は --plugin-dir でパスを明示すること。
+    """
+    env = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env and (Path(env) / "plugins").is_dir():
+        return Path(env)
+    here = Path(__file__).resolve()
+    if len(here.parents) > 5 and (here.parents[5] / "plugins").is_dir():
+        return here.parents[5]
+    return Path.cwd()
 
 
 def now_iso() -> str:

@@ -33,11 +33,17 @@ import json
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-UPSTREAM = REPO_ROOT / "creator-kit" / "skills" / "ref-skill-design-rubric" / "rubric.json"
+# scripts は plugins/skill-governance-lint/scripts/ にあるので repo root は parents[3]。
+# creator-kit→skill-creator のプラグイン移行に追従し、正本は references/ 配下。
+REPO_ROOT = Path(__file__).resolve().parents[3]
+UPSTREAM = (
+    REPO_ROOT / "plugins" / "skill-creator" / "skills" / "ref-skill-design-rubric"
+    / "references" / "rubric.json"
+)
 DERIVED = (
     REPO_ROOT
-    / "creator-kit"
+    / "plugins"
+    / "skill-creator"
     / "skills"
     / "assign-skill-design-evaluator"
     / "references"

@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 .python-version
+# Coverage バイナリ DB (実行副産物・他環境で破損するため追跡しない / 任意階層の .coverage にマッチ)
+.coverage
+.coverage.*
 
 # OS
 .DS_Store

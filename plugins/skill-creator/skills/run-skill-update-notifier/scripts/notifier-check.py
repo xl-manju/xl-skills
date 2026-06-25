@@ -88,9 +88,20 @@ def cmd_cache_status(_args) -> int:
 
 
 def cmd_refresh(args) -> int:
+    plugin_roots: list[Path] = []
+    plugin_root_arg = getattr(args, "plugin_root", None)
+    if plugin_root_arg:
+        plugin_roots.append(Path(plugin_root_arg).resolve())
     root = Path(args.plugins_root).resolve()
+    if root.exists():
+        plugin_roots.extend(sorted(p for p in root.glob("*/") if p.is_dir()))
     snapshot: dict[str, dict] = {}
-    for plugin_dir in sorted(root.glob("*/")):
+    seen: set[Path] = set()
+    for plugin_dir in plugin_roots:
+        plugin_dir = plugin_dir.resolve()
+        if plugin_dir in seen:
+            continue
+        seen.add(plugin_dir)
         name = plugin_dir.name
         changelog = plugin_dir / "CHANGELOG.md"
         latest = _extract_latest_version(changelog) if changelog.exists() else None
@@ -104,16 +115,25 @@ def cmd_refresh(args) -> int:
     return 0
 
 
+def _v(version: str) -> str:
+    """semver 文字列に `v` 接頭辞を一度だけ付ける (二重 v 化しない)。"""
+    s = str(version).strip()
+    return s if s.startswith("v") else f"v{s}"
+
+
 def _format_line(installed: str | None, latest: str | None) -> str:
-    # TODO(human): R2 notification-formatting
-    # 仕様:
-    #   - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
-    #   - それ以外 (片方欠落 / 一致) は空文字列を返す
-    #   - フォーマット規約は references/output-format.md 参照:
-    #     "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
-    #   - 先頭の `v` 接頭辞が installed/latest どちらかに既に付いている場合は二重 v 化しない
-    #   - locale 切替や ANSI カラーは出さない (純テキスト)
-    raise NotImplementedError("R2 notification-formatting is TODO(human)")
+    """更新通知行を生成する (references/output-format.md 規約)。
+
+    - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
+    - それ以外 (片方欠落 / 一致) は空文字列を返す
+    - 形式: "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
+    - `v` 接頭辞は二重化しない / 純テキスト (locale 切替・ANSI 無し)
+    """
+    if not installed or not latest:
+        return ""
+    if str(installed).strip() == str(latest).strip():
+        return ""
+    return f"(installed: {_v(installed)} / latest: {_v(latest)} — /skill-update で更新)"
 
 
 def cmd_notify(args) -> int:
@@ -144,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("cache-status")
     p_refresh = sub.add_parser("refresh")
     p_refresh.add_argument("--plugins-root", default="plugins")
+    p_refresh.add_argument("--plugin-root", help="単独 install 済み plugin root。指定時はこの plugin も snapshot 対象にする")
     p_notify = sub.add_parser("notify")
     p_notify.add_argument("--plugin", required=True)
 

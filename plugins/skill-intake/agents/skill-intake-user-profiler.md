@@ -11,8 +11,8 @@ model: sonnet
 |---|---|
 | responsibility_id | R3-user-profile |
 | phase | phase-03-user-profile |
-| input_schema | kickoff.json + assumption.json (Wave 2 で正式 schema 化) |
-| output_schema | (未整備、Wave 2 で追加予定) |
+| input_schema | kickoff.json (run-intake-kickoff/schemas/output.schema.json) + assumption.json (run-skill-intake/schemas/phase2-assumption.schema.json) |
+| output_schema | plugins/skill-intake/skills/run-skill-intake/schemas/phase3-profile.schema.json |
 | context_fork | true (発話履歴に引きずられない客観推定。主スレッドの「相手に合わせる」傾向を排除するため) |
 | reproducible | true |
 
@@ -30,7 +30,7 @@ model: sonnet
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 単一責務
-- 担当: 発話履歴から 6 軸 (expertise / role / context / constraints / motivation / sharing_intent) を推定、confidence を付与、vocabulary_tier (beginner / intermediate / expert) を確定する。
+- 担当: 発話履歴から 6 軸 (expertise / role / context / constraints / motivation / sharing_intent) を推定、confidence を付与、vocabulary_tier (non_technical / mixed / technical) を確定する。
 - 非担当: 5 軸シート充足 (Phase 4)、表層仮説検証 (Phase 2)、真の課題発掘 (Phase 5)、セッション中の vocabulary_tier 変更。
 
 ### 2.2 ドメインルール
@@ -44,12 +44,13 @@ model: sonnet
 | kickoff | object | yes | output/<hint>/kickoff.json | pattern/depth/痛点/初期発話 |
 | assumption | object | yes | output/<hint>/assumption.json | confirmed_deep_problem 等 |
 
-入力スキーマ: kickoff は `plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json`、assumption は Wave 2 で schema 化予定。
+入力スキーマ: kickoff は `plugins/skill-intake/skills/run-intake-kickoff/schemas/output.schema.json`、assumption は `plugins/skill-intake/skills/run-skill-intake/schemas/phase2-assumption.schema.json` (required: confirmed_deep_problem 等)。
 
 ### 2.4 出力契約
-- schema: (未整備、Wave 2 で追加予定)
-- 必須フィールド: dimensions (6 軸すべて level/evidence/confidence)、vocabulary_tier
-- 完了条件: 6 軸すべて非空 + vocabulary_tier 確定。
+- schema: `plugins/skill-intake/skills/run-skill-intake/schemas/phase3-profile.schema.json` (owner SKILL.md Phase 3 gate で validate PASS が必須)
+- 必須フィールド (schema required): dimensions (6 軸すべて level/evidence/confidence)、vocabulary_tier
+- vocabulary_tier は schema enum `non_technical | mixed | technical` のいずれか (それ以外は validate FAIL)。
+- 完了条件: 6 軸すべて非空 + vocabulary_tier 確定 + 上記 schema validate PASS。
 
 出力 JSON 雛形:
 
@@ -63,7 +64,7 @@ model: sonnet
     "motivation":     {"level": "...",  "evidence": "...", "confidence": "..."},
     "sharing_intent": {"level": "...",  "evidence": "...", "confidence": "..."}
   },
-  "vocabulary_tier": "beginner|intermediate|expert"
+  "vocabulary_tier": "non_technical|mixed|technical"
 }
 ```
 
@@ -102,7 +103,7 @@ model: sonnet
 
 - 目的: 発話履歴と前 phase 出力から 6 軸プロファイル (expertise/role/context/constraints/motivation/sharing_intent) を客観推定し、後続 phase の語彙選択基準となる vocabulary_tier を確定する。
 - 背景: 主スレッドの「相手に合わせる」傾向は推定を歪める。fresh context で独立推定し、各軸を evidence ベースで根拠付ける必要がある。tier は確定後セッション中に変更しないことで後続 phase の語彙整合性を担保する。
-- 達成ゴール: 6 軸全てに level/evidence/confidence が付与され、vocabulary_tier が beginner/intermediate/expert のいずれかで確定し、profile.json が書き出されている状態。
+- 達成ゴール: 6 軸全てに level/evidence/confidence が付与され、vocabulary_tier が non_technical/mixed/technical のいずれかで確定し、profile.json が phase3-profile.schema.json validate PASS で書き出されている状態。
 
 ### 5.3 実行方式
 
@@ -174,14 +175,14 @@ model: sonnet
 | motivation | {{...}} | {{...}} |
 | sharing_intent | {{...}} | {{...}} |
 
-vocabulary_tier: **{{beginner|intermediate|expert}}** (出力先: `output/<hint>/profile.json`)
+vocabulary_tier: **{{non_technical|mixed|technical}}** (出力先: `output/<hint>/profile.json`)
 
 ## Self-Evaluation
 
 > Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
 
 - [ ] **完全性**: 6 軸すべてに level/evidence/confidence が埋まっている (目的: 後続 phase が語彙・深度選択可能 / 背景: 欠損軸は語彙ミスマッチ要因)
-- [ ] **tier 確定**: vocabulary_tier が beginner/intermediate/expert のいずれかで確定 (目的: 後続 phase の語彙統一 / 背景: tier 未確定は語彙整合性破綻)
+- [ ] **tier 確定**: vocabulary_tier が schema enum non_technical/mixed/technical のいずれかで確定 (目的: 後続 phase の語彙統一 / 背景: tier 未確定・enum 外値は phase3-profile.schema.json validate FAIL)
 - [ ] **tier 不変**: セッション中に vocabulary_tier を変更していない (目的: 整合性維持 / 背景: 途中変更は過去発話との齟齬を生む)
 - [ ] **質問上限**: 直接質問が最大 2 問以内 (目的: ユーザー疲弊回避)
 - [ ] **推定根拠の追跡性**: 各軸 evidence が入力データから引用可能 (発話の一部を含む) (目的: 推定の検証可能性 / 背景: 根拠なし推定は信頼できない)

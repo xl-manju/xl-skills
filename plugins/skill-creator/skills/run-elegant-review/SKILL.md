@@ -75,7 +75,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: script
     - id: IN2
       loop_scope: inner
-      text: 各 SubAgent が出力する findings.json が集約スキーマを通過し severity tag が定義済み列挙に収まる
+      text: 各 SubAgent が出力する findings.json が集約スキーマを通過し issues[].severity が優先度列挙、condition_signal が4条件 signal 列挙に収まる
       verify_by: lint
     - id: OUT1
       loop_scope: outer
@@ -107,10 +107,10 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 - [ ] Phase 1 思考リセットを経由し `shared_state.md`（200字以内）を生成した
 - [ ] `thought_method_coverage.used + skipped_with_reason == 30`（30 思考法全て使用 or skip_reason 付き）
-- [ ] `findings[].severity == contradiction` が 0 件（矛盾なし）
-- [ ] `findings[].severity == omission` が 0 件（漏れなし）
-- [ ] `findings[].severity == inconsistency` が 0 件（整合性あり）
-- [ ] `findings[].severity == dependency_break` が 0 件（依存関係整合）
+- [ ] `fail_counts.contradiction == 0`（矛盾なし）
+- [ ] `fail_counts.omission == 0`（漏れなし）
+- [ ] `fail_counts.inconsistency == 0`（整合性あり）
+- [ ] `fail_counts.dependency_break == 0`（依存関係整合）
 - [ ] `findings.json` が `schemas/findings.schema.json` を通過する
 - [ ] proposer ≠ approver を満たす（自己承認禁止、別 SubAgent or 人間が承認）
 - [ ] max_iter 未達のまま終了時は `status: incomplete` + force_pass 禁止で human_review へ差し戻した
@@ -164,7 +164,7 @@ options:
 
 ### 完了条件（4 条件 → 観測 signal）
 
-各条件の PASS signal は上記ゴールシーク Checklist（`findings[].severity == <tag>` 件数 = 0）と下記「検証 4 条件」テーブルを正本とする。`smell` は警告枠（PASS を妨げない）。判定は `scripts/validate-paradigm-coverage.py` で機械実行。
+各条件の PASS signal は上記ゴールシーク Checklist（`fail_counts.<signal> == 0`）と下記「検証 4 条件」テーブルを正本とする。`issues[].severity` は low/medium/high/critical の優先度、`condition_signal` は contradiction/omission/inconsistency/dependency_break/smell の機械観測 signal として分離する。`smell` は警告枠（PASS を妨げない）。判定は `scripts/validate-paradigm-coverage.py` と `verdict.json` で機械実行。
 
 ---
 
@@ -191,7 +191,7 @@ CONST_002（30 種全使用）は **「全種が finding を出す or `skip_reas
 
 ## 検証 4 条件
 
-| # | 条件 | severity tag | 検査手法 |
+| # | 条件 | condition_signal | 検査手法 |
 |---|------|---|------|
 | C1 | 矛盾なし (Consistency) | `contradiction` | claim graph で contradiction edge 検出 |
 | C2 | 漏れなし (Completeness) | `omission` | required-element checklist 全件 PASS |
@@ -230,7 +230,7 @@ CONST_002（30 種全使用）は **「全種が finding を出す or `skip_reas
 
 - **担当**: `elegant-improvement-executor`（必要時 `delegate-codex-skill-review` へ委譲、B5）
 - **入力**: Phase 2 全 SubAgent の findings 集約
-- **操作**: 依存 DAG 生成（B3, `findings[].location` から自動構築）→ 優先順位決定（severity contradiction > omission > inconsistency > dependency_break > smell）→ 独立対象は並列・依存ありは直列で改善 → `auto_fixable=true` は自動 commit / `false` は提案のみ → 4 条件再検証（max_iter=3）
+- **操作**: 依存 DAG 生成（B3, `findings[].location` または `paradigm_findings[].issues[].location` から自動構築）→ 優先順位決定（`issues[].severity`: critical > high > medium > low）→ 独立対象は並列・依存ありは直列で改善 → `auto_fixable=true` は自動 commit / `false` は提案のみ → 4 条件再検証（max_iter=3）
 - **出力**: `schemas/findings.schema.json` 準拠の `findings.json` 最終版 + 改善 PR ブランチ
 - **完了判定 signal**: 4 条件 PASS（contradiction/omission/inconsistency/dependency_break 全て 0 件）
 - **失敗時アクション**:

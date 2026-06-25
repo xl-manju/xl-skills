@@ -35,13 +35,13 @@ related_artifacts:
   - file: ../schemas/phase-output.schema.json
     topic: Phase1/2/3 間 handoff の共通入出力スキーマ
     read_when: フェーズ間データ受け渡しの形式を確認するとき
-  - file: ../prompts/phase1-reset.md
+  - file: ../prompts/R1-phase1-reset.md
     topic: Phase1 elegant-reset-observer 起動プロンプト
     read_when: Phase1 の責務・layers・self_evaluation を確認するとき
-  - file: ../prompts/phase2-parallel.md
+  - file: ../prompts/R2-phase2-parallel.md
     topic: Phase2 並列3エージェント起動プロンプト
     read_when: Phase2 並列起動・思考法割当・独立性ルールを確認するとき
-  - file: ../prompts/phase3-execute.md
+  - file: ../prompts/R3-phase3-execute.md
     topic: Phase3 elegant-improvement-executor 起動プロンプト
     read_when: Phase3 のパッチ適用範囲・収束判定・safety_valve を確認するとき
 owner_agents:

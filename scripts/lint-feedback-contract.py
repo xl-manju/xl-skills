@@ -79,8 +79,27 @@ def _all_skills() -> set[tuple[str, str]]:
 
 
 def _read_kind(text: str) -> str | None:
-    m = re.search(r"^kind:\s*([a-z-]+)\s*(?:#.*)?$", text, re.M)
-    return m.group(1) if m else None
+    return FC.read_kind(text)  # kind 抽出は SSOT の単一実装に委譲 (lint 間の正規表現乖離を排除)
+
+
+def _fallback_warnings(plugin: str, skill: str, fc: dict) -> list[str]:
+    """criteria が brief 非導出のフォールバック既定 (同語反復) のままなら WARN を返す。
+
+    機構 (lint) は criteria の「存在」を fail-closed 保証するが「内容の per-skill 性」は
+    LLM 層の責務。ただしフォールバック既定の残存だけは機械検出して可視化し、
+    content-review が見落とした空洞 criteria を CI で surface する (Goodhart 対策)。
+    """
+    criteria = fc.get("criteria")
+    if not isinstance(criteria, list):
+        return []
+    warns: list[str] = []
+    for item in criteria:
+        if isinstance(item, dict) and FC.is_fallback_text(item.get("text")):
+            warns.append(
+                f"{plugin}/{skill}: criteria[{item.get('id', '?')}] が brief 非導出の"
+                " フォールバック既定文のまま (per-skill 評価基準へ具体化推奨)"
+            )
+    return warns
 
 
 def _check_skill(plugin: str, skill: str) -> list[str]:
@@ -119,15 +138,30 @@ def main() -> int:
 
     targets = _git_changed_skills(args.base) if args.changed_only else _all_skills()
     violations: list[str] = []
+    warnings: list[str] = []
     checked = 0
     for plugin, skill in sorted(targets):
         md = PLUGINS_DIR / plugin / "skills" / skill / "SKILL.md"
         if not md.is_file():
             continue
-        kind = _read_kind(md.read_text(encoding="utf-8"))
+        text = md.read_text(encoding="utf-8")
+        kind = _read_kind(text)
         if kind in LOOP_KINDS:
             checked += 1
+            fc = FC.extract_frontmatter_feedback_contract(text)
+            if isinstance(fc, dict):
+                warnings.extend(_fallback_warnings(plugin, skill, fc))
         violations.extend(_check_skill(plugin, skill))
+
+    if warnings:
+        print(f"[WARN] lint-feedback-contract: {len(warnings)} fallback criteria (非 fail)")
+        for w in warnings:
+            print(f"  ~ {w}")
+        print(
+            "  この WARN は brief 既定文(fallback)の残存を示す。content-review が PASS でも"
+            " per-skill 性が空洞の可能性。criteria.text を当該スキル固有の検証対象へ書き換え推奨。"
+        )
+        print()
 
     if violations:
         print(f"[FAIL] lint-feedback-contract: {len(violations)} violation(s)")

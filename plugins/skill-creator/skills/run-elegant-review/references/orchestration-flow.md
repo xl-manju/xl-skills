@@ -15,12 +15,12 @@
 ┌──────────┐ ┌──────────┐ ┌──────────┐
 │ Agent 2  │ │ Agent 3  │ │ Agent 4  │
 │ 論理+構造│ │ メタ+発想│ │ Sys+戦略 │
-│ 9思考法  │ │ 9思考法  │ │ 12思考法 │
+│ 10思考法 │ │ 9思考法  │ │ 11思考法 │
 └──────────┘ └──────────┘ └──────────┘
         │          │          │
         └──────────┴──────────┘
                    ▼
-        scripts/validate-paradigm-coverage.py (==30)
+        scripts/validate-paradigm-coverage.py {{review_workspace}}/findings.json (used + skipped_with_reason == 30)
                    │
                    ▼
         scripts/build-paradigm-scorecard.py
@@ -47,7 +47,7 @@
 - 3ループでも 4条件未達なら `escalate-to-human` イベント発火
 
 ## ファイル受け渡し
-- Phase1出力: `{{review_workspace}}/phase1.json`
+- Phase1出力: `{{review_workspace}}/raw_observations.json` + `{{review_workspace}}/shared_state.md`
 - Phase2出力: `{{review_workspace}}/phase2-agent{2,3,4}.json`
 - 集約: `{{review_workspace}}/findings.json`
 - 最終: 対象ディレクトリ直下に `findings.json` + `review-<type>.md`

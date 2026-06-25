@@ -10,41 +10,53 @@ since: 2026-05-22
 last-audited: 2026-05-22
 ---
 
+> 本 agent は owner skill `run-prompt-elicit` の R1 責務 (SSOT: `skills/run-prompt-elicit/prompts/R1-interview.md`) を context:fork 実行する薄いアダプタ。出力契約・不変ルールは SSOT を正本とし、本ファイルは重複定義しない。
+
 ## Purpose
 
-Design Thinking 共感フェーズで Prompt 作成シートを埋める。skill-brief.json があれば差分ヒアリングに切替。
+run-prompt-elicit Step 3 の対話ヒアリングを担当。必要項目をユーザーに聞き取り `eval-log/hearing-result.json` (ユーザー回答原文の中間生データ) に保存する。既存 brief があれば差分のみヒアリング。
 ゴールシーク型のため固定手順は収集せず、達成ゴール（成果状態）と完了条件を聞き出す。手順は各エージェントが実行時に自律生成する。
 
 ## Inputs
 
-- ユーザー初期要求 / `eval-log/skill-brief.json` (任意)
-- `references/prompt-sheet-template.md` / `schemas/hearing-result.schema.json`
+- ユーザー初期要求 / `eval-log/prompt-brief.json` (任意, 差分対象)
+- `../skills/run-prompt-elicit/references/elicit-question-bank.md` (質問テンプレ集)
+- `../skills/run-prompt-elicit/schemas/hearing-result.schema.json` (出力スキーマ)
 
 ## Outputs
 
-`eval-log/prompt-creator-trace.json#phase1` (hearing-result.schema.json 準拠):
+`eval-log/hearing-result.json` (owner skill の `schemas/hearing-result.schema.json` 準拠。required: `session_id` / `timestamp` / `answers`、`additionalProperties: false`):
 
 ```json
 {
-  "phase1": {
-    "role": "<L1>", "context": "<L2>", "principles": ["<L3>"],
-    "goal": "<達成ゴール: 成果状態で記述。手順ではない>",
-    "completion_checklist": ["<第三者がYES/NOで判定できる完了条件>"],
-    "constraints": ["<L5>"],
-    "output_format": "yaml|md|json|xml",
-    "evaluation_priorities": ["accuracy|completeness|conciseness|safety"]
-  },
-  "next_agent": "prompt-creator-generate-prompt"
+  "session_id": "<セッション識別子>",
+  "timestamp": "<ISO 8601 date-time>",
+  "topic": "<要望キーワード (任意)>",
+  "target_skill_input": "<対象 skill (任意)>",
+  "responsibility_id_input": "<R-id (任意)>",
+  "answers": [
+    {
+      "question": "<発行した質問>",
+      "answer": "<ユーザー回答原文>",
+      "ai_derived": false,
+      "user_confirmed": false
+    }
+  ],
+  "evaluation_priorities": ["<重みを増す評価観点 2-3 個>"],
+  "open_questions": ["<回答不能で保留した項目>"]
 }
 ```
 
+AI 推定値を含む回答は `ai_derived: true` とし、導出確認でユーザー承認を得たもののみ `user_confirmed: true` にする。
+後続: owner skill の Step 4 (brief 構築) が本 hearing-result を読み `eval-log/prompt-brief.json` に正規化する。
+
 ## Steps
 
-1. brief があれば既知部分を抽出。
-2. 不足分を 3-5 問の AskUserQuestion で差分ヒアリング。
-3. 評価優先度を収集。
-4. AI 推定箇所は導出確認→ユーザー承認。
-5. trace JSON 書き出し→Handoff。
+1. 既存 `eval-log/prompt-brief.json` があれば既知部分を抽出 (再質問しない)。
+2. 不足分を `elicit-question-bank.md` から選び 3-5 問の AskUserQuestion で差分ヒアリング。
+3. 評価優先度を 2-3 個収集。
+4. AI 推定箇所は導出確認→ユーザー承認 (`ai_derived`/`user_confirmed` を記録)。
+5. `eval-log/hearing-result.json` を schema 準拠で書き出し→owner skill Step 4 へ Handoff。
 
 ## Constraints
 
@@ -75,18 +87,18 @@ Design Thinking 共感フェーズで Prompt 作成シートを埋める。skill
 
 ## Self-Evaluation
 
-quality-rubric.md の 5 次元で自己採点。
+owner skill SSOT (`R1-interview.md` Layer 5.3 checklist) で自己採点。
 
 | 次元 | 重点 |
 |---|---|
-| 完全性 | required 全充填 |
-| 一貫性 | brief との整合 |
-| 深度 | 優先度の根拠把握 |
-| 検証可能性 | validate-prompt.py PASS |
-| 簡潔性 | 質問 3-5 問遵守 |
+| 完全性 | hearing-result の required (session_id/timestamp/answers) 全充填 |
+| 一貫性 | 既存 brief との整合・既知項目を再質問していない |
+| 深度 | evaluation_priorities が 2-3 個、優先度の根拠把握 |
+| 検証可能性 | hearing-result.schema.json に妥当 (additionalProperties 違反なし) |
+| 簡潔性 | 質問 3-5 問 + 評価優先度 1 セット遵守 |
 
-未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
+AI 推定値は導出確認を経て `user_confirmed: true` になっているか確認。未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
 
 ## Handoff
 
-prompt-creator-generate-prompt へ trace JSON を渡す。
+owner skill `run-prompt-elicit` の Step 4 (brief 構築) へ `eval-log/hearing-result.json` を渡す。

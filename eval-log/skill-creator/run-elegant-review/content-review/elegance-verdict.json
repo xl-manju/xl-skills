@@ -2,7 +2,7 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-elegant-review",
-    "skill_md_sha256": "7855e1377cdb69514c92d7b66b87da8b192e16e5c9c3257d1a1ec447a7d88445"
+    "skill_md_sha256": "6883d5777d768f500a9df813a1acb14e0fb9c9e2cb8f7f4cec6f9917cf023e38"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -19,8 +19,8 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "携帯化した feedback_contract の4基準が本文の既存正本(30思考法カバレッジ機械検証 / findings集約スキーマ / 検証4条件テーブル / proposer非イコールapprover節)と1対1で対応し新規の主張を持ち込んでおらず矛盾ゼロ",
-      "inner基準を validate-paradigm-coverage.py と findings.schema.json という実在の機械検査へ接地し outer基準を4条件PASSとproposer非イコールapproverへ接地したため verify_by 列挙(script/lint/elegant-review/evaluator)と本文の検査手法が整合している"
+      "severity の二軸分離(issues[].severity=low/medium/high/critical の優先度ラベル / condition_signal=contradiction/omission/inconsistency/dependency_break/smell の機械観測 signal)が frontmatter IN2・schema_refs 注記(G2)・完了条件節・検証4条件テーブル列見出し・Phase3 優先順位の5箇所で一貫適用され、旧来の severity tag 単軸混在を解消して矛盾ゼロ",
+      "二軸モデルが schema 実装と一致する: findings.schema.json#/definitions/paradigm_finding/issues[].severity の enum=[low,medium,high,critical]、同 condition_signal の enum=[contradiction,omission,inconsistency,dependency_break,smell]、finding.schema.json は severity を持たず condition_signal のみ(責務分割)を実 enum で確認。本文の主張が schema に裏付けられ依存断絶なし"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -28,5 +28,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "read-only検証: SKILL.md 本文(ゴールシークChecklist / 30思考法カタログ / 検証4条件 / proposer非イコールapprover節 / Gotchas)と新規 frontmatter feedback_contract を逐一照合。IN1=used足すskipped_with_reason==30はChecklist及びGotchas1と一致、IN2=findings集約スキーマ通過はschema_refs及び出力契約と一致、OUT1=4条件全PASS+force_pass禁止human_review差戻しは検証4条件テーブル及び停止条件3と一致、OUT2=自己承認禁止はC4節と一致。携帯基準は本文正本の再表現でありadequacy十分、矛盾/欠落/不整合/依存断絶/smell いずれもゼロ。"
+  "notes": "read-only二段確認: SKILL.md 本文と frontmatter feedback_contract を逐一照合し、さらに参照 schema の実 enum を機械検証。今回差分=severity 二軸分離(issues[].severity 優先度 / condition_signal 機械観測 signal)と Checklist の fail_counts.<signal>==0 化、検証4条件テーブル列を condition_signal へ改称、Phase3 優先順位を issues[].severity(critical>high>medium>low)へ更新。IN1=used+skipped_with_reason==30 は Checklist 及び Gotchas1 と一致、IN2=issues[].severity が優先度列挙・condition_signal が4条件 signal 列挙に収まる主張は findings.schema.json/finding.schema.json の実 enum と一致、OUT1=4条件全PASS+force_pass禁止human_review差戻しは検証4条件テーブル及び停止条件3と一致、OUT2=自己承認禁止はC4節と一致。矛盾/欠落/不整合/依存断絶/smell いずれもゼロ。PASS 維持。"
 }

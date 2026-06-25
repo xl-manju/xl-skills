@@ -2,12 +2,12 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "cd5528e79be44639ec724801aa9661c6cfd66560fa2d55eb973d6d3f6259e9fc"
+    "skill_md_sha256": "022e17741e5312920e3f9bc79916aa681199755b1ad34b7e47f4c7e6e19c1e22"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator-equivalent",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-24",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
@@ -19,9 +19,9 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "BD-003(本文300行上限)を実測で順守: frontmatterは81行目で終わり本文は82-300行=219行と上限内。Step12圧縮が行数余裕を回復させた",
-      "Key Rule#17と同型のSSOTポインタ方式でStep12を1段落+references/content-review-protocol.md参照へ統合し『本文に再掲しない＝SSOT』を明記。本文から外した4詳細(run-elegant-review reset→3並列→改善 Phase / feedback_contract inner-outer正負FB / hook queue+skill_md_sha256検査 / max_iter=3→INCOMPLETE+human_review)はreference側に欠落なく全て現存",
-      "FM/NM/BD系の高severityルール(name=run-build-skill一致, ## Purpose & Output Contract と ## Gotchas 存置, descriptionは〜とき発動条件のみ)を維持し圧縮で破損していない"
+      "ハーネス・カバレッジ仕様の正本を doc/harness-coverage-spec.md 単一に保ち、SKILL.md 完了チェックリストと R1-scaffold.md は同正本を参照する記述に留めて重複定義を増やしていない(SSOT 維持)",
+      "ref-kind を criteria/content-review から除外しつつ source-traceability + ref-review verdict という別軸へ振り替え、品質ゲートを kind 適合に保ったまま『無検証 kind』を作らない(Goodhart 的ゲート回避を防止)",
+      "カバレッジ検証は既存 scripts/validate-llm-coverage.py と eval-log/coverage/ 規約へ接続し、新規サブシステムを増やさず fail-closed 経路を再利用している"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -29,5 +29,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "Step12のSSOTポインタ化編集をrubric観点でgenuine検証。実ファイルを読み、BD-003(本文219行)/BD-001/BD-002/FM-001..004/NM-001をPASS確認。reference側に移管詳細の欠落なし。high severity finding 0件。なお既存verdict(elegance/rubric)は旧SHA 2b4cb72...を保持しており本再生成で現行SHA 37211c3...へ更新する必要があった点が、lint-content-review.pyのsha256一致要件を満たす上で本verdict更新の根拠。被採点物への改変は一切行っていない(read-only)。 [propagation] frontmatter feedback_contract(IN1/IN2/OUT1/OUT2)を携帯化し criteria_evaluated を同期。"
+  "notes": "rubric観点で今回差分(kind 別ハーネス・カバレッジ80%ゲート + ref source-traceability パスの完了チェックリスト追加 / R1-scaffold の全 kind 一般化)を再評価。SSOT=doc/harness-coverage-spec.md 単一正本を参照し本文に再掲しない。評価分離=ref を別軸へ振替え無検証 kind を作らない。変数化/fail-closed lint/回帰テスト基盤(validate-llm-coverage)へ接続。Step3.5 の frontmatter+trace 二重固定明文化と lint-feedback-contract 配線追記も SSOT(feedback_contract_ssot.py)経路の再利用で増設なし。本文226行(P0-2 300行以下)・lint-skill-tree exit0。新規サブシステム増設なし、high severity finding 0件。PASS 維持。"
 }

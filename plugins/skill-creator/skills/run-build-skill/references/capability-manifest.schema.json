@@ -74,10 +74,10 @@
                 "additionalProperties": false,
                 "required": ["id", "loop_scope", "text", "verify_by"],
                 "properties": {
-                  "id": { "type": "string", "pattern": "^(IN|OUT|C)[0-9]+$" },
+                  "id": { "type": "string", "pattern": "^(IN|OUT|C)[0-9]+$", "$comment": "正本: repo-root scripts/feedback_contract_ssot.py の CRITERIA_ID_RE。値変更時は同モジュールと同期すること(この pattern は再掲)。" },
                   "loop_scope": { "type": "string", "enum": ["inner", "outer"] },
                   "text": { "type": "string", "minLength": 1 },
-                  "verify_by": { "type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"] },
+                  "verify_by": { "type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"], "$comment": "正本: repo-root scripts/feedback_contract_ssot.py の CRITERIA_VERIFY_BY。値変更時は同モジュールと同期すること(この enum は再掲)。" },
                   "threshold": { "type": "string" },
                   "weight": { "type": "number", "minimum": 0 }
                 }
@@ -153,7 +153,7 @@
       "properties": {
         "kind": { "const": "command" },
         "argument-hint": { "type": "string", "description": "/command <hint> の <hint> 部分。" },
-        "allowed-tools": { "type": "array", "items": { "type": "string" } },
+        "allowed-tools": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ], "description": "string(カンマ区切り) か array。scripts/skill-schema.json と同一定義。" },
         "entrypoint": { "type": "string", "description": "実体ロジックを持つ Skill name。command は薄いラッパに保つ。" }
       },
       "required": ["argument-hint", "allowed-tools"]

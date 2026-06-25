@@ -2,7 +2,7 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "cd5528e79be44639ec724801aa9661c6cfd66560fa2d55eb973d6d3f6259e9fc"
+    "skill_md_sha256": "022e17741e5312920e3f9bc79916aa681199755b1ad34b7e47f4c7e6e19c1e22"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -14,7 +14,7 @@
     "smell": 0
   },
   "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-24",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
@@ -26,8 +26,8 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "Step12 を1段落要約+references/content-review-protocol.md への正本ポインタに圧縮し、本文再掲を排してSSOT原則を強化した",
-      "圧縮で外した4箇条(elegant-review Phase1/2/3+evaluator起動と保存先 / feedback_contract inner-outer×正負 / hook queue化+Stop block+sha256一致検査 / --skip-content-review+max_iter=3 INCOMPLETE+human_review)の実体が全て reference 側に存在し情報欠落ゼロを確認した"
+      "完了チェックリストに『ハーネス・カバレッジ仕様を kind 別に満たす(scripts機能テスト/loop criteria/ref source-traceability)』を毎回必達項目として追加し、品質ゲートを kind 適合の検証へ一般化した。doc/harness-coverage-spec.md(31-41行)と SKILL.md 項目と R1-scaffold.md(42-45行)が同一パス・同一文言で三者整合している",
+      "ref(辞書型/参照型)を『全ゲート除外』でなく『source-traceability(source/source-tier/last-audited/audit-trigger + ref-review verdict)という ref 専用カバレッジパス』へ振り替え、既存の feedback_contract.skip_reason(behavioral criteria 免除)と矛盾せず補完関係として両立させた"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -35,5 +35,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "read-only検証: SKILL.md Step12 圧縮後本文と content-review-protocol.md を逐一照合。4箇条の実体は reference 側(Agent起動例+verdict保存先+Phase reset→3並列→改善 / Inner-Outerループ表+正負フィードバック / queue化+Stop decision:block+sha256一致 / --skip-content-review+max_iter=3→INCOMPLETE+human_review)に全存在。圧縮は再掲削減によるelegance改善で、矛盾/欠落/不整合/依存断絶/smell いずれもゼロ。 [propagation] frontmatter feedback_contract(IN1/IN2/OUT1/OUT2)を携帯化し criteria_evaluated を同期。"
+  "notes": "今回の差分(完了チェックリストへ kind 別ハーネス・カバレッジ80%ゲート + ref-kind source-traceability パス追加 / R1-scaffold のカバレッジルールを全 kind へ一般化)を 4 条件で genuine 再評価。矛盾なし=ref 専用パスは既存 skip_reason(behavioral 免除)と補完で衝突しない(spec 41行で『除外≠無検証』と明記)。漏れなし=scripts/loop/ref/assign/other 各 kind にカバレッジ軸が割当済。整合性=SKILL.md↔R1-scaffold↔doc/harness-coverage-spec が同一パス文言で一致。依存整合=参照先(doc/harness-coverage-spec.md, scripts/validate-llm-coverage.py, eval-log/coverage/, scripts/lint-feedback-contract.py)は全て実在(再確認済)。出力契約に P0-2 上限(本文300行以下)を明文化し Step3.5 に frontmatter+trace 二重固定/lint-feedback-contract 配線を追記した今回差分も上記4条件と整合。本文226行(P0-2 300行以下)・lint-skill-tree exit0。PASS 維持。"
 }

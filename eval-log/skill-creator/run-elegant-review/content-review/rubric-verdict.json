@@ -2,7 +2,7 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-elegant-review",
-    "skill_md_sha256": "7855e1377cdb69514c92d7b66b87da8b192e16e5c9c3257d1a1ec447a7d88445"
+    "skill_md_sha256": "6883d5777d768f500a9df813a1acb14e0fb9c9e2cb8f7f4cec6f9917cf023e38"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -28,5 +28,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "read-only検証: assign-skill-design-evaluator観点で SKILL.md を採点。命名(run接頭辞+kebab)/description trigger形式/frontmatter必須キー/goal-seek正本ポインタ/出力契約スキーマ固定/proposer非イコールapprover の各 rubric 項目を満たす。新規 frontmatter の4基準IDは手順導出の全集合(IN1/IN2/OUT1/OUT2)と一致し criteria_evaluated と突合可能。規範採点上の high severity 問題は検出されず PASS。"
+  "notes": "read-only検証: assign-skill-design-evaluator観点で SKILL.md を採点。命名(run接頭辞+kebab)/description trigger形式/frontmatter必須キー/goal-seek正本ポインタ/出力契約スキーマ固定/proposer非イコールapprover の各 rubric 項目を満たす。今回差分(severity の二軸分離 issues[].severity↔condition_signal、Checklist fail_counts 化、検証4条件テーブル列改称、Phase3 優先順位更新)は語彙の責務分割(優先度ラベル vs 機械観測 signal)を明確化し規範観点で改善。frontmatter の4基準ID(IN1/IN2/OUT1/OUT2)は手順導出の全集合と一致し criteria_evaluated と突合可能。規範採点上の high severity 問題は検出されず PASS 維持。"
 }

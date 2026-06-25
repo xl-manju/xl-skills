@@ -7,7 +7,8 @@
   - LLM 層 (本 lint の対象外): 評価実行自体はローカル Claude Code で run-elegant-review +
             assign-skill-design-evaluator を SubAgent 起動して行う (リモート CI コスト回避)
 
-ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない。
+ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない
+(dogfooding 境界の SSOT = scripts/feedback_contract_ssot.py:is_content_review_exempt)。
 
 Usage:
   python3 scripts/lint-content-review.py --changed-only [--base origin/main]
@@ -28,7 +29,9 @@ EVAL_LOG = ROOT / "eval-log"
 sys.path.insert(0, str(ROOT / "scripts"))
 import feedback_contract_ssot as FC  # noqa: E402
 REQUIRED_VERDICTS = ("elegance-verdict.json", "rubric-verdict.json")
-EXEMPT_PLUGINS = set()
+# dogfooding 除外境界は SSOT (FC.is_content_review_exempt) が単一正本。
+# content-review は生成器自身も除外しない (常に False) ため集合は空のままだが、
+# 判定は SSOT 述語へ委譲しリテラル散在を排除する。
 EXEMPT_KINDS = {"ref"}
 
 
@@ -77,8 +80,7 @@ def _read_kind(plugin, skill):
         text = md.read_text(encoding="utf-8")
     except OSError:
         return None
-    m = re.search(r"^kind:\s*([a-z]+)\s*$", text, re.M)
-    return m.group(1) if m else None
+    return FC.read_kind(text)  # kind 抽出は SSOT の単一実装に委譲 (lint 間の乖離を排除)
 
 
 def _skill_sha256(plugin, skill):
@@ -209,7 +211,7 @@ def main():
     # filter
     filtered = []
     for plugin, skill in sorted(targets):
-        if plugin in EXEMPT_PLUGINS:
+        if FC.is_content_review_exempt(plugin):
             continue
         kind = _read_kind(plugin, skill)
         if kind in EXEMPT_KINDS:

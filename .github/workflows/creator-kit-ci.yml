@@ -39,8 +39,14 @@ jobs:
       - name: Verify skill-intake contracts (enum SSOT / vendored SSOT / plugin packages)
         run: |
           python3 scripts/contract-intake-enum-ssot.py
-          python3 scripts/lint-intake-vendored-ssot.py
+          python3 scripts/lint-vendored-ssot.py
           python3 scripts/validate-plugin-packages.py
+
+      # 単独 install ポータビリティ不変条件: runtime hook script が import-time に自 plugin
+      # 外を fail-closed 依存 (失敗時 raise) しないことを静的検査する。plugin だけを
+      # marketplace から install しても全フックが exit 0 を維持する保証を CI でガードする。
+      - name: Verify runtime hook portability (no import-time fail-closed cross-plugin dep)
+        run: python3 scripts/lint-runtime-portability.py
 
       # marketplace install ポータビリティ不変条件: 任意の install 先 (cwd 非依存) で
       # vendor/python の jinja2 等が __file__ 相対で import 解決でき、plugin が

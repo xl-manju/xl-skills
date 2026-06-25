@@ -10,7 +10,7 @@ allowed-tools:
   - Skill
 kind: run
 user-invocable: true
-effect: notion-mutation
+effect: external-mutation  # Notion ページ PATCH = 外部変更 (run-notion-intake-publish と同値)
 source: plugins/skill-intake
 source-tier: internal
 last-audited: 2026-05-24

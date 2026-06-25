@@ -1,1 +1,33 @@
-{"target":{"plugin":"skill-intake","skill":"run-intake-revise","skill_md_sha256":"57e00127dcb39b6d430b159f86144d36a3fff4fbc8f354e0d4cedb20b0c008fb"},"review_kind":"rubric","verdict":"PASS","reviewer":"assign-skill-design-evaluator","reviewed_at":"2026-06-24T00:00:00Z","iterations":1,"human_review_required":false,"feedback_loop":{"loop_scope":"both","criteria_evaluated":["IN1","IN2","OUT1"],"positive_feedback":["frontmatter(name=dir, kind=run, allowed-tools)と本文使用ツールが一致し description に有効な日本語トリガ(〜したいとき/〜したいとき)を保持","responsibility_refs/schema_refs/manifest が全て解決し、SKILL↔R1-main↔workflow-manifest↔output.schema 間で exit code と必須フィールドが整合(IN1/IN2 の検証可能性を担保)","本文 92 行(<300)で Purpose & Output Contract / Gotchas を備え、OUT1 の責務集中(PATCH 上書き固定)が構造的に明確"],"negative_feedback":[],"iteration":1,"iteration_limit":3,"hook_trigger":"manual","next_action":"none"},"notes":"ref-skill-design-rubric 観点で SKILL.md を実読し rubric 適合を確認。FM(name=dir/run- prefix/有効 description)/BD(Purpose & Gotchas 有・本文短)/NM(dirname==name)/PD いずれも問題なし。導出した IN1/IN2/OUT1 は本文の Key Rules・完了チェックリスト・exit code 表に直接根拠を持ち、機械検証(lint/script)と elegant-review への割当が適切。重大問題なし genuine PASS。"}
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-revise",
+    "skill_md_sha256": "2a052fdf3b42a21368c55f2e2003bd22f90927088716d22dd9e5f01c9b71486f"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1"
+    ],
+    "positive_feedback": [
+      "frontmatter(name=dir, kind=run, allowed-tools)と本文使用ツールが一致し description に有効な日本語トリガ(〜したいとき/〜したいとき)を保持",
+      "responsibility_refs/schema_refs/manifest が全て解決し、SKILL↔R1-main↔workflow-manifest↔output.schema 間で exit code と必須フィールドが整合(IN1/IN2 の検証可能性を担保)",
+      "本文 92 行(<300)で Purpose & Output Contract / Gotchas を備え、OUT1 の責務集中(PATCH 上書き固定)が構造的に明確"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "ref-skill-design-rubric 観点で SKILL.md を実読し rubric 適合を確認。FM(name=dir/run- prefix/有効 description)/BD(Purpose & Gotchas 有・本文短)/NM(dirname==name)/PD いずれも問題なし。導出した IN1/IN2/OUT1 は本文の Key Rules・完了チェックリスト・exit code 表に直接根拠を持ち、機械検証(lint/script)と elegant-review への割当が適切。重大問題なし genuine PASS。",
+  "notes_amend": "sha updated for effect enum bugfix notion-mutation->external-mutation; evaluation unchanged"
+}
