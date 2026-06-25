@@ -514,6 +514,180 @@ def test_postal_api_404_is_miss_not_error(monkeypatch):
     assert r["attempts"] and all(a["result"] == "miss" for a in r["attempts"])
 
 
+def test_postal_api_town_variants():
+    """_town_variants は町域を「具体→粗」で候補化し、小字「字○○」/大字を段階剥離する。
+
+    日本郵便の町域DBは大字粒度までで小字は照合に通らないため、素の町域に加え小字/大字を
+    削ったバリアントを並べる。字も大字も無い町域は元の1件のみ (無駄な再照会をしない)。
+    """
+    # 小字「字下鳥ノ巣」を削った町域を後段に追加。
+    assert postal_api._town_variants("北京田字下鳥ノ巣") == ["北京田字下鳥ノ巣", "北京田"]
+    # 先頭「大字」を削る (小字は無いので2件)。
+    assert postal_api._town_variants("大字菱池") == ["大字菱池", "菱池"]
+    # 大字+小字の両方: 4 段 (素 → 大字付き小字削り → 大字削り → 大字+小字削り)。
+    assert postal_api._town_variants("大字北京田字下鳥ノ巣") == [
+        "大字北京田字下鳥ノ巣", "大字北京田", "北京田字下鳥ノ巣", "北京田"]
+    # 字も大字も無い町域は元の1件のみ。
+    assert postal_api._town_variants("霞が関") == ["霞が関"]
+    # 空は空 (照会クエリを作らない)。
+    assert postal_api._town_variants("") == []
+
+
+def test_postal_api_koaza_fallback_hits_town_level():
+    """小字付き住所は素の町域で 404 (miss) でも、小字を削った町域バリアントで確定する。
+
+    報告ケース再現 (山形県鶴岡市北京田字下鳥ノ巣)。素の town_name は町域DBに無く miss、
+    小字を削った '北京田' で町域一致の単一候補が取れ、フォールバック段で 997-0053 を確定する。
+    """
+    def _search_fn(query):
+        town = query.get("town_name")
+        if town and "北京田字下鳥ノ巣" in town:
+            return ([], None)  # 小字残りは町域DBに無い → miss
+        if town == "北京田":
+            return ([{"zip_code": "9970053", "pref_name": "山形県",
+                      "city_name": "鶴岡市", "town_name": "北京田"}], 3)
+        return ([], None)
+
+    r = postal_api.lookup_postal("山形県鶴岡市北京田字下鳥ノ巣23番地1", _search_fn=_search_fn)
+    assert r["value"] == "997-0053"
+    # フォールバック段 (小字剥離後) で取れたことを pattern で可視化する。
+    hit = [a for a in r["attempts"] if a["result"] == "hit"]
+    assert len(hit) == 1
+    assert hit[0]["pattern"] == "structured_town_trimmed"
+
+
+def test_postal_api_koaza_fallback_diverging_zips_stays_empty():
+    """町域へ削った結果 zip が割れるケースは空欄を保つ (誤値非混入の回帰ガード)。
+
+    小字を削った '北京田' に同名で zip 違いの複数候補が返ると pick_best が確定せず、
+    フォールバックを足しても誤値を入れない非対称コスト原則を維持する。
+    """
+    def _search_fn(query):
+        town = query.get("town_name")
+        if town == "北京田":
+            return ([{"zip_code": "9970053", "pref_name": "山形県",
+                      "city_name": "鶴岡市", "town_name": "北京田"},
+                     {"zip_code": "9970063", "pref_name": "山形県",
+                      "city_name": "鶴岡市", "town_name": "北京田"}], 3)
+        return ([], None)
+
+    r = postal_api.lookup_postal("山形県鶴岡市北京田字下鳥ノ巣23番地1", _search_fn=_search_fn)
+    assert r["value"] == ""
+
+
+def test_postal_api_town_variant_no_extra_query_when_no_koaza():
+    """字を含まない町域では剥離バリアント照会をしない (無駄な照会をしない)。
+
+    '丸の内' は字も大字も無いため structured クエリは1回だけ投げられ、
+    structured_town_trimmed pattern は attempts に出ない (early-return で hit)。
+    """
+    seen: list[dict] = []
+
+    def _search_fn(query):
+        seen.append(query)
+        if query.get("town_name") == "丸の内":
+            return ([{"zip_code": "1000005", "pref_name": "東京都",
+                      "city_name": "千代田区", "town_name": "丸の内"}], 3)
+        return ([], None)
+
+    r = postal_api.lookup_postal("東京都千代田区丸の内1-1-1", _search_fn=_search_fn)
+    assert r["value"] == "100-0005"
+    # 構造化クエリ (town_name='丸の内') は1回のみ。
+    structured_seen = [q for q in seen if q.get("town_name")]
+    assert len(structured_seen) == 1
+    # 剥離バリアント段の pattern は記録されない。
+    assert all(a["pattern"] != "structured_town_trimmed" for a in r["attempts"])
+
+
+def test_postal_api_oaza_fallback_hits_town_level():
+    """大字付き住所は素の町域 (大字○○) で miss でも、大字を削った町域で確定する。
+
+    盲点ケース (愛知県額田郡幸田町大字菱池) の lookup 統合検証。素の town_name='大字菱池' が
+    町域DBに無く miss、先頭『大字』を削った '菱池' で単一候補が取れフォールバック段で確定する。
+    """
+    def _search_fn(query):
+        town = query.get("town_name")
+        if town == "菱池":
+            return ([{"zip_code": "4440124", "pref_name": "愛知県",
+                      "city_name": "額田郡幸田町", "town_name": "菱池"}], 3)
+        return ([], None)  # '大字菱池'・freeword は町域DBに無い → miss
+
+    r = postal_api.lookup_postal("愛知県額田郡幸田町大字菱池1", _search_fn=_search_fn)
+    assert r["value"] == "444-0124"
+    hit = [a for a in r["attempts"] if a["result"] == "hit"]
+    assert len(hit) == 1 and hit[0]["pattern"] == "structured_town_trimmed"
+
+
+def test_postal_api_pick_best_prefix():
+    """pick_best_prefix は最長前方一致を一意確定で選ぶ: 最長選択 / 不一致・zip割れ・空は None。"""
+    cands = [{"zip_code": "0010023", "town_name": "北23条西"},
+             {"zip_code": "0010024", "town_name": "北24条西"}]
+    # 入力住所の先頭に一致する最長の町域 (北24条西) を採る。
+    best = postal_api.pick_best_prefix(cands, "北24条西2丁目")
+    assert best is not None and postal_api._zip_of(best) == "0010024"
+    # 前方一致する町域が無い → None。
+    assert postal_api.pick_best_prefix([{"zip_code": "1", "town_name": "美原町"}], "北京田下鳥ノ巣") is None
+    # 最長一致群の zip が割れる → 確定しない (誤値を入れない)。
+    split = [{"zip_code": "9970053", "town_name": "北京田"},
+             {"zip_code": "9970063", "town_name": "北京田"}]
+    assert postal_api.pick_best_prefix(split, "北京田下鳥ノ巣") is None
+    # 空候補・空 rest → None。
+    assert postal_api.pick_best_prefix([], "北京田") is None
+    assert postal_api.pick_best_prefix(cands, "") is None
+
+
+def _city_list_stub(city_towns):
+    """{pref,city} 照会では市の町域一覧 (level=2) を、town_name 厳密指定では一致時のみ hit を返す
+    日本郵便 addresszip の挙動模擬 (小字付き等の未登録 town は miss)。"""
+    def _search_fn(query):
+        if query.get("freeword"):
+            return ([], None)
+        town = query.get("town_name")
+        if town is None:  # {pref,city} のみ → 町域一覧
+            return ([{"zip_code": z, "town_name": t} for t, z in city_towns], 2)
+        hit = [(t, z) for t, z in city_towns if t == town]
+        return ([{"zip_code": hit[0][1], "town_name": town}], 3) if hit else ([], None)
+    return _search_fn
+
+
+def test_postal_api_prefix_match_fallback_unmarked_koaza():
+    """「字」マーカーの無い文字列末尾 (北京田下鳥ノ巣) も、市区町村前方一致で町域を確定する。
+
+    town_name='北京田下鳥ノ巣' は町域DBに無く structured も _town_variants も miss だが、
+    {都道府県+市} の町域一覧の '北京田' が入力住所の最長前方一致で拾える。
+    """
+    stub = _city_list_stub([("北京田", "9970053"), ("美原町", "9970099")])
+    r = postal_api.lookup_postal("山形県鶴岡市北京田下鳥ノ巣5", _search_fn=stub)
+    assert r["value"] == "997-0053"
+    hit = [a for a in r["attempts"] if a["result"] == "hit"]
+    assert len(hit) == 1 and hit[0]["pattern"] == "structured_city_prefix_match"
+
+
+def test_postal_api_prefix_match_recovers_numeric_town():
+    """町域名に数字を含む住所 (北24条西2丁目) も前方一致で救う (_strip_banchi 誤切りの最終救済)。
+
+    _strip_banchi が町域を '北' に誤切りし structured/freeword とも miss でも、町域一覧の
+    '北24条西' が入力住所の最長前方一致で拾える (短い前方一致 '北23条西' 等には化けない)。
+    """
+    stub = _city_list_stub([("北23条西", "0010023"), ("北24条西", "0010024"), ("北25条西", "0010025")])
+    r = postal_api.lookup_postal("北海道札幌市北区北24条西2丁目", _search_fn=stub)
+    assert r["value"] == "001-0024"
+    hit = [a for a in r["attempts"] if a["result"] == "hit"]
+    assert len(hit) == 1 and hit[0]["pattern"] == "structured_city_prefix_match"
+
+
+def test_postal_api_prefix_match_diverging_zips_stays_empty():
+    """前方一致の最長群で zip が割れる町域一覧は空欄を保つ (前方一致でも誤値を入れない)。"""
+    def _search_fn(query):
+        if query.get("town_name") is None and not query.get("freeword"):
+            return ([{"zip_code": "9970053", "town_name": "北京田"},
+                     {"zip_code": "9970063", "town_name": "北京田"}], 2)
+        return ([], None)
+
+    r = postal_api.lookup_postal("山形県鶴岡市北京田下鳥ノ巣", _search_fn=_search_fn)
+    assert r["value"] == ""
+
+
 def test_no_hardcoded_absolute_paths_in_scripts():
     """scripts に環境固有の絶対パス (/Users /home /private 等) が混入していない (移植性回帰)。
 
