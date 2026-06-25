@@ -524,7 +524,7 @@ def test_postal_api_town_variants():
     assert postal_api._town_variants("北京田字下鳥ノ巣") == ["北京田字下鳥ノ巣", "北京田"]
     # 先頭「大字」を削る (小字は無いので2件)。
     assert postal_api._town_variants("大字菱池") == ["大字菱池", "菱池"]
-    # 大字+小字の両方: 4 段 (素 → 大字付き小字削り → 大字削り → 大字+小字削り)。
+    # 大字+小字の両方: 4バリアント (素 → 大字付き小字削り → 大字削り → 大字+小字削り)。
     assert postal_api._town_variants("大字北京田字下鳥ノ巣") == [
         "大字北京田字下鳥ノ巣", "大字北京田", "北京田字下鳥ノ巣", "北京田"]
     # 字も大字も無い町域は元の1件のみ。
@@ -849,13 +849,13 @@ def test_validate_per_field_origin_required_and_web_needs_url():
     assert any("(g)" in e and "phone_number" in e for e in errs), errs
 
 
-def test_validate_legacy_record_without_source_by_field_uses_old_gate():
-    """旧形式 (source_by_field 無し) は現行検査へ縮退する (後方互換 gating)。"""
+def test_validate_legacy_record_without_source_by_field_rejects_nonempty_postal():
+    """旧形式 record の非空郵便番号は出典不明として reject する (書き込みゲート)。"""
     remark_phrases = set(remarks.load_templates().values())
     rec = _canonical_record()
     del rec["source_by_field"]
-    # 旧形式: web 確度 + source_urls 非空 → PASS (per-field 検査は適用されない)。
-    assert vcm.validate_row(rec, 0, remark_phrases) == []
+    errs = vcm.validate_row(rec, 0, remark_phrases)
+    assert any("非空 postal_code" in e and "source_by_field" in e for e in errs), errs
 
 
 # --- 本文同期: URL 非減少マージ + pagination (B: URL喪失バグ修復) ----------------
@@ -1645,6 +1645,120 @@ def test_enrich_outputs_missing_fields_and_attempts():
                                "reject_reason": ""}]
 
 
+def test_enrich_preserves_all_japanpost_sub_attempts(monkeypatch):
+    """postal_api の内部 attempts は3件を超えても欠落させない (prefix hit の観測性)。"""
+    monkeypatch.setattr(
+        enrich_company, "postal_from_address",
+        lambda address, company_name="": {
+            "value": "997-0053",
+            "certainty": enrich_company.CERTAINTY_PUBLIC_FETCHED,
+            "remark_key": "",
+            "source_url": postal_api.JAPANPOST_VERIFY_URL,
+            "attempts": [
+                {"source": "japanpost", "pattern": "structured_pref_city_town",
+                 "result": "miss", "reject_reason": "該当する住所なし (HTTP 404)"},
+                {"source": "japanpost", "pattern": "structured_town_trimmed",
+                 "result": "miss", "reject_reason": "該当する住所なし (HTTP 404)"},
+                {"source": "japanpost", "pattern": "freeword_no_banchi",
+                 "result": "miss", "reject_reason": "該当する住所なし (HTTP 404)"},
+                {"source": "japanpost", "pattern": "structured_city_prefix_match",
+                 "result": "hit", "reject_reason": ""},
+            ],
+        },
+    )
+    rec = enrich_company.enrich(SAMPLE_ENTITY, SAMPLE_WEB_FINDINGS)
+    postal_attempts = [a for a in rec["attempts"] if a["field"] == "postal_code"]
+    assert [a["pattern"] for a in postal_attempts] == [
+        "structured_pref_city_town",
+        "structured_town_trimmed",
+        "freeword_no_banchi",
+        "structured_city_prefix_match",
+    ]
+
+
+# 大字+小字ケースの snapshot: i>=1 が全て pattern='structured_town_trimmed' に潰れ、
+# その中で miss が hit に先行する (`_town_variants('大字北京田字下鳥ノ巣')` =
+# ['大字北京田字下鳥ノ巣','大字北京田','北京田字下鳥ノ巣','北京田'] のうち '北京田' のみ命中)。
+# (field, source, pattern) 単位 dedup を通すと hit が先行 miss に潰れ postal_code を miss と
+# 誤記録する実バグ経路。冪等スナップショット転記なら hit が残る。
+_TOWN_TRIMMED_HIT_SNAPSHOT = [
+    {"source": "japanpost", "pattern": "structured_pref_city_town",
+     "result": "miss", "reject_reason": "一意確定不能または未一致"},
+    {"source": "japanpost", "pattern": "structured_town_trimmed",
+     "result": "miss", "reject_reason": "一意確定不能または未一致"},
+    {"source": "japanpost", "pattern": "structured_town_trimmed",
+     "result": "miss", "reject_reason": "一意確定不能または未一致"},
+    {"source": "japanpost", "pattern": "structured_town_trimmed",
+     "result": "hit", "reject_reason": ""},
+]
+
+
+def test_enrich_keeps_town_trimmed_hit_after_leading_misses(monkeypatch):
+    """同一 pattern 'structured_town_trimmed' が miss→hit の系列でも hit を欠落させない。
+
+    CORE-02 (テスト盲点) を塞ぐ実バグ経路。大字+小字 (大字北京田字下鳥ノ巣) の lookup は
+    剥離バリアントが全て同一 pattern へ潰れ、miss が hit に先行する。(field, source, pattern)
+    dedup を通すと先行 miss が hit を握り潰し postal_code を miss と誤記録する (修正前 RED)。
+    冪等スナップショット転記なら hit が1件残る (修正後 GREEN)。
+    """
+    monkeypatch.setattr(
+        enrich_company, "postal_from_address",
+        lambda address, company_name="": {
+            "value": "997-0053",
+            "certainty": enrich_company.CERTAINTY_PUBLIC_FETCHED,
+            "remark_key": "",
+            "source_url": postal_api.JAPANPOST_VERIFY_URL,
+            "attempts": [dict(a) for a in _TOWN_TRIMMED_HIT_SNAPSHOT],
+        },
+    )
+    rec = enrich_company.enrich(SAMPLE_ENTITY, SAMPLE_WEB_FINDINGS)
+    postal_attempts = [a for a in rec["attempts"] if a["field"] == "postal_code"]
+    # スナップショットが verbatim (4件) で転記され、hit が1件残る。
+    assert [a["pattern"] for a in postal_attempts] == [
+        "structured_pref_city_town",
+        "structured_town_trimmed",
+        "structured_town_trimmed",
+        "structured_town_trimmed",
+    ]
+    hits = [a for a in postal_attempts if a["result"] == "hit"]
+    assert len(hits) == 1, postal_attempts
+    assert hits[0]["pattern"] == "structured_town_trimmed"
+    # 値の整合 (確定郵便番号が attempts の hit と一致)。
+    assert rec["fields"]["postal_code"] == "997-0053"
+
+
+def test_enrich_japanpost_snapshot_not_duplicated_cross_pass(monkeypatch):
+    """2 パス運用で同一 postal snapshot を引き継いでも japanpost attempts が二重化しない。
+
+    1 パス目の postal_code/japanpost attempts を entity.attempts へ引き継いだ 2 パス目 enrich で、
+    冪等スナップショット置換 (既存 japanpost postal 行を全除去してから転記) により件数が
+    保たれる (cross-pass 二重記録の回帰ガード)。
+    """
+    monkeypatch.setattr(
+        enrich_company, "postal_from_address",
+        lambda address, company_name="": {
+            "value": "997-0053",
+            "certainty": enrich_company.CERTAINTY_PUBLIC_FETCHED,
+            "remark_key": "",
+            "source_url": postal_api.JAPANPOST_VERIFY_URL,
+            "attempts": [dict(a) for a in _TOWN_TRIMMED_HIT_SNAPSHOT],
+        },
+    )
+    pass1 = enrich_company.enrich(SAMPLE_ENTITY, SAMPLE_WEB_FINDINGS)
+    pass1_postal = [a for a in pass1["attempts"] if a["field"] == "postal_code"]
+    assert len(pass1_postal) == len(_TOWN_TRIMMED_HIT_SNAPSHOT)
+
+    # 1 パス目の attempts を entity へ引き継いで 2 パス目を回す。
+    entity2 = dict(SAMPLE_ENTITY)
+    entity2["attempts"] = [dict(a) for a in pass1["attempts"]]
+    pass2 = enrich_company.enrich(entity2, SAMPLE_WEB_FINDINGS)
+    pass2_postal = [a for a in pass2["attempts"] if a["field"] == "postal_code"]
+    # 二重化しない (snapshot 件数のまま) で hit も1件保持。
+    assert len(pass2_postal) == len(_TOWN_TRIMMED_HIT_SNAPSHOT), pass2_postal
+    assert [a["pattern"] for a in pass2_postal] == [a["pattern"] for a in pass1_postal]
+    assert sum(1 for a in pass2_postal if a["result"] == "hit") == 1
+
+
 def test_enrich_attempts_dedupe_and_max(monkeypatch):
     """同一 (field, source, pattern) の再試行はスキップ、field あたり MAX=3 で打ち切り。"""
     attempts: list = []
@@ -1682,6 +1796,18 @@ def test_validate_certainty_cap_and_origin_whitelist():
         "origin": "web", "url": "https://example.co.jp/zip"}
     errs = vcm.validate_row(web_postal, 0, remark_phrases)
     assert any("許可段外" in e and "postal_code" in e for e in errs), errs
+    # 許可 enum 内でも、非空郵便番号の origin は japanpost のみ。
+    user_postal = _canonical_record()
+    user_postal["source_by_field"]["postal_code"] = {"origin": "user_input", "url": ""}
+    errs = vcm.validate_row(user_postal, 0, remark_phrases)
+    assert any("非空 postal_code" in e and "japanpost" in e for e in errs), errs
+    # 確度・検証 URL も japanpost 由来契約と一致している必要がある。
+    bad_postal_meta = _canonical_record()
+    bad_postal_meta["certainty_by_field"]["postal_code"] = "未確定(要確認)"
+    bad_postal_meta["source_by_field"]["postal_code"]["url"] = "https://example.co.jp/zip"
+    errs = vcm.validate_row(bad_postal_meta, 0, remark_phrases)
+    assert any("属性別確度" in e and "postal_code" in e for e in errs), errs
+    assert any("検証URL" in e and "postal_code" in e for e in errs), errs
     # 上限以内 (origin=gbizinfo の『公的データ取得』等) は FAIL しない (正準 record)。
     assert vcm.validate_row(_canonical_record(), 0, remark_phrases) == []
 

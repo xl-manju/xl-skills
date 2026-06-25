@@ -70,9 +70,9 @@ Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称
 - **precondition gate**: gBizINFO トークン未登録は fail-closed (exit 2。企業同定の必須入力)。`--upsert` / backfill 本実行では Notion token / DB ID も fail-closed。日本郵便 client_id・secret_key は郵便番号取得用の任意追加設定であり、未登録時は郵便番号だけ空欄 + 備考へ縮退して他項目の処理を継続する (**プロキシ経由なら `proxy_url` で代替**され client_id/secret_key はクライアントに不要)。**送信元IPは自動検出で解決するため gate に含めず**、登録IPとのズレは実行時に 401 で顕在化し `postal_api_unauthorized` 備考で surface する。障害時は取れた項目だけ書き、中間結果を JSONL 退避して次回リプレイ可能にする (縮退)。
 - **live スキーマ preflight**: upsert / backfill は書き込み前に Notion API GET database の live スキーマを `references/notion-db-schema.json` (生成元正本: `company-master-columns.md` の8列定義) と照合し、必須8列の欠落・型不一致・『情報の確かさ』select 4オプション不一致・API 不達は**書き込まず fail-closed** (構造化エラー)。プロセス内キャッシュで多重照会を回避する。
 - **レート制限/リトライ**: Notion API の 429/5xx は `Retry-After` 尊重の指数バックオフで最大5回まで自動リトライし、上限超過は構造化エラー (`NotionAPIRetryExhausted`) で fail-closed。backfill は行単位縮退のため、レート超過・中断時も処理済み行は確定済み・失敗行は replay JSONL へ退避済みで、次回実行で再開できる。
-- **郵便番号**: 日本郵便 addresszip API (V2 逆引き) で取得する。`scripts/postal_api.py` が構造化検索 (pref/city/town) → freeword の2段で照会し、`pick_best` がマッチングレベルと候補 zip 収束で一意確定したもののみ採用する (誤値を入れない)。一括 DL データは廃止。
+- **郵便番号**: 日本郵便 addresszip API (V2 逆引き) で取得する。`scripts/postal_api.py` が構造化検索 (pref/city/town。town は素の町域→小字/大字を段階剥離した複数バリアント) → freeword → 市区町村一覧の最長前方一致の3段で照会し、`pick_best` / `pick_best_prefix` がマッチングレベル・最長一致・候補 zip 収束で一意確定したもののみ採用する (誤値を入れない)。一括 DL データは廃止。詳細な fallback tier 正本は `references/data-sources.md`。
 - **責務分離 (Web検索)**: 電話番号・住所のみ入力時の会社名候補の Web 検索は **Claude が goal-seek ループで実施**し、結果 (値+URL) を `enrich_company.py --web-findings <json>` へ渡す。**Python は検索せず検証・整形のみ** (電話は `verify_phone` が市外局番×都道府県を軽量クロスチェック)。
-- **フォールバック多段化 (fallback tier 正本 = `references/data-sources.md`)**: 一次手段で取得できない属性は tier 順 (tier1 gBizINFO 検索パターン複数化 → tier2 日本郵便 addresszip API → tier3 WebSearch → tier4 空欄+引き継ぎ) に**属性×許可段ホワイトリスト内**で試行する。**確度昇格禁止** (origin → 確度上限は validate (g) が機械照合)。enrich/resolve は `missing_fields[]` + `attempts[]` (`{field, source, pattern, result, reject_reason}`) を出力し、同一 `(source, pattern)` の再試行は機械スキップ・`MAX_ATTEMPTS_PER_FIELD=3` で有限停止する。
+- **フォールバック多段化 (fallback tier 正本 = `references/data-sources.md`)**: 一次手段で取得できない属性は tier 順 (tier1 gBizINFO 検索パターン複数化 → tier2 日本郵便 addresszip API → tier3 WebSearch → tier4 空欄+引き継ぎ) に**属性×許可段ホワイトリスト内**で試行する。**確度昇格禁止** (origin → 確度上限は validate (g) が機械照合)。enrich/resolve は `missing_fields[]` + `attempts[]` (`{field, source, pattern, result, reject_reason}`) を出力し、同一 `(source, pattern)` の再試行は機械スキップ・`MAX_ATTEMPTS_PER_FIELD=3` で有限停止する (日本郵便 `postal_api` の sub-attempts は1回の決定論呼び出しの完結スナップショットとして冪等に全件転記する。`note_attempt` の gap-driven dedup/上限は Web/agent 専用)。
 - **信頼キー不変条項**: Web 検索由来の住所での再 resolve (`--address-provenance web`) は 2 要素一致でも**自動確定しない** (候補列挙へ降格・確度上限『ネット検索(要確認)』)。**再 resolve は最大 1 回**とし、再 resolve で得た法人番号が初回確定値と不一致なら自動確定禁止 (候補列挙 + 人間裁定へ)。
 - **配布同梱依存**: 実行コードは標準ライブラリ優先。外部 Python ライブラリが必要な場合は plugin-root `vendor/` に同梱し、`scripts/bootstrap_plugin.py` で `sys.path` に追加する。ユーザーの手動 `pip install` を前提にしない。現状の Python 実装に外部依存はない。
 - **プラグイン構成**: build/backfill の 2 Skill に加え、`commands/` (起動導線), `agents/` (SubAgent 分担), `hooks/` (機密ガード), plugin-root 集約の共有 `scripts/`・`references/`・`prompts/` (実装と SSOT・両 skill 共有), `vendor/` (同梱依存) を含む配布単位として扱う。manifest は `.claude-plugin/plugin.json`。
@@ -98,7 +98,7 @@ Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称
 - [ ] 自動確定は法人番号一致 or 会社名+住所2要素一致時のみとし、一意確定不能は『未確定(要確認)』で空欄保留し備考に原因を定型記録した
 - [ ] 取得できない属性は `data-sources.md` の fallback tier 表の**定義済み全段 (許可段ホワイトリスト内) を試行し尽くしてから**空欄保留し、`missing_fields[]` / `attempts[]` を記録した (確度昇格なし・同一 `(source,pattern)` 再試行なし)
 - [ ] Web 由来住所での再 resolve は最大1回・自動確定なし (法人番号が初回と不一致なら候補列挙へ降格) を守った
-- [ ] 住所→郵便番号を日本郵便 addresszip API (構造化検索→freeword の2段・一意確定のみ採用) で `NNN-NNNN`・『公的データ取得』で出力した
+- [ ] 住所→郵便番号を日本郵便 addresszip API (`data-sources.md` tier2 の3段フォールバック・一意確定のみ採用) で `NNN-NNNN`・『公的データ取得』で出力した
 - [ ] 電話番号は Claude が Web 検索し結果を `--web-findings` で渡し、Python(`verify_phone`)が市外局番×都道府県をクロスチェック、不整合・未取得は空欄+要確認にし備考へ定型記録した
 - [ ] 住所を都道府県起点に正規化し、会社名(通称)と正式名称(登記名)を別属性で保持した
 - [ ] 取得失敗項目は『備考』へ `remarks-templates.md` の定型文言で記録し、複数失敗は改行区切りで列挙した
@@ -223,7 +223,7 @@ PY
 
 以下は品質バグ / 設計矛盾として特定済みのもの。**実データ・API トークン無しでは検証困難なものは別 PR に分離**する (offline で検証可能と判明したものはその時点で対処し解消済みを明記する)。
 
-1. **郵便番号逆引きの一意確定律速 (A4-SYSTEM-01)** — **日本郵便 addresszip API へ移行済み (2026-06-18)**: 旧方式 (郵便番号データの一括 DL + 大口事業所個別番号の第二索引) を廃し、日本郵便公式 API (V2) の逆引きへ一本化した (`scripts/postal_api.py`)。構造化検索 (pref/city/town) → freeword の2段で照会し、`pick_best` がマッチングレベルと候補 zip 収束で一意確定したもののみ採用する (誤値を入れない非対称コスト原則は `pick_best` 単独で担保)。残課題は実 API キー登録後の一意確定率実測のみ (`doctor --probe` + dry-run で実測蓄積後に別 PR)。
+1. **郵便番号逆引きの一意確定律速 (A4-SYSTEM-01)** — **日本郵便 addresszip API へ移行済み (2026-06-18)**: 旧方式 (郵便番号データの一括 DL + 大口事業所個別番号の第二索引) を廃し、日本郵便公式 API (V2) の逆引きへ一本化した (`scripts/postal_api.py`)。現行は構造化検索 (pref/city/town。小字/大字の段階剥離を含む) → freeword → 市区町村一覧の最長前方一致の3段で照会し、`pick_best` / `pick_best_prefix` が一意確定したもののみ採用する (誤値を入れない非対称コスト原則)。残課題は実 API キー登録後の一意確定率実測のみ (`doctor --probe` + dry-run で実測蓄積後に別 PR)。
 2. **backfill が validate_row を迂回 (VERT-01)** — **解消済み (2026-06-10)**: `validate_row` は純 offline 決定論で API 疎通不要と判明したため本 PR で対処した。`backfill.py` は PATCH 前に `validate_enriched` (= `validate_company_master.validate_row`) を実行し、違反行は PATCH せず deferred + replay 退避へ回す (単発 upsert と対称の検証ゲート)。offline 回帰テストを `tests/test_company_master.py` に追加済み。
 3. **gBizINFO 実装 V1 固定 vs data-sources.md の V2 優先記述の矛盾 (DEDUCT-01)** — **完全解消 (2026-06-10 実トークン疎通で実証)**: `references/data-sources.md` を実装 (V1 採用・正本 `resolve_company.py` の `GBIZINFO_BASE`) に一本化したうえ、実トークンで V1=HTTP 200 / V2=HTTP 404 を確認した。`https://info.gbiz.go.jp/hojin/v2/` は存在せず「V2 優先」の旧記述自体が誤りだったため、移行判断は不要 (V1 が唯一の動作エンドポイント)。
 4. **derive_overall_certainty の保守的設計の意図明記 (A4-VALUE-01)** — **解消済み (2026-06-10)**: 『情報の確かさ』値域節 (`references/company-master-columns.md`) に「最も弱い属性に合わせる保守的設計=非対称コスト原則の意図的反映であり、確度を高く見せる方向の変更は禁止」を明記した。

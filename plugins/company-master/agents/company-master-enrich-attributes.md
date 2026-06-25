@@ -66,7 +66,7 @@ resolve 済みの確定/候補企業に対し、6属性 (会社名・正式名�
 ### 完了チェックリスト (Checklist)
 
 - [ ] 入力エンティティ (`Inputs`) を検証した
-- [ ] 住所→郵便番号を日本郵便 addresszip API (構造化検索→freeword の2段・一意確定のみ採用) で `NNN-NNNN` (8文字)・『公的データ取得』で出力した
+- [ ] 住所→郵便番号を日本郵便 addresszip API (`data-sources.md` tier2 の3段フォールバック・一意確定のみ採用) で `NNN-NNNN` (8文字)・『公的データ取得』で出力した
 - [ ] 電話番号は Web 検索で候補+URL を取得し `enrich_company.py --web-findings` へ渡して市外局番×都道府県を検証した
 - [ ] **gap-driven 試行**: `missing_fields` の各属性について、`attempts` に**無い** `(source, pattern)` のみ Web 検索した (同一パターンの再試行なし・属性あたり最大3手段で打ち切り)
 - [ ] Web 検索は許可段ホワイトリスト (`data-sources.md` fallback tier 表) 内のみで行った (**郵便番号は Web 検索しない**)
