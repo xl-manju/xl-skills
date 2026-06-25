@@ -37,6 +37,10 @@ references/governance-params.json
 .mf-kessai-config.json
 !.mf-kessai-config.example.json
 
+# notion-gmail-send: 本文全文/宛先/messageId を含む plan・journal は git 管理外 (PII 仕様書 §12)
+eval-log/notion-gmail-send/
+**/plan-*.json
+
 # Session-local artifacts
 output/
 .claude/handoff/
