@@ -2,13 +2,13 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-check",
-    "skill_md_sha256": "323e617711b7a8a50d6acfef9370245ec74df4db8cc0b4c594e368080b11e86c"
+    "skill_md_sha256": "c2928579976398bccd5c59a65b1fd24da87c79c3121eb4908052f46f62d1cb26"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "run-elegant-review-subagent-team",
   "reviewed_at": "2026-06-25",
-  "iterations": 1,
+  "iterations": 2,
   "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
@@ -21,15 +21,15 @@
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "二段確認を「指示」ではなく物理境界(collect=未検証JSON / finalize=確定JSON 別ファイル + sink の fail-closed exit2)で機構強制しており、Sycophancy/誤検出の混入を構造的に防いでいる。dev同期merge後も Key Rule 5『二段確認必須(標準フロー)』として導線維持(IN2)。",
-      "merge で導入された『支払サイクル=年間払い かつ初回契約月から12ヶ月以内だけを機械が自動抑制/月払い・空欄・不明は fail-safe で候補に残す』(横断不変条件・Key Rule 6,7)が、契約終了等の人間判断列を機械が消さない既存不変条件と矛盾なく整合し、誤抑制を fail-safe 側へ倒している。",
-      "月次履歴モデルの merge 移行(`__monthly_summary__` 集計行/DBプロパティ件数 → 各顧客ページ本文 table block・自然キー period_ym)が Purpose/Flow/R4/Checklist/Key Rule 4/Gotcha 5 へ一貫伝播し、片側更新ドリフトが残っていない。"
+      "二段確認の物理境界(collect=未検証JSON / finalize=確定JSON 別ファイル + sink の fail-closed exit2)は merge 後も Key Rule 5 として導線維持され、IN2(確定リスト不在で exit 2)が本文・R4-sink・Flow と整合している。",
+      "Key Rule 7 の方針(全体トータル/件数を持たず Notion ビューのフィルタ件数で代替/月次フローは参照専用=検知のみ・列削除は db-setup へ集約という責務分離/whitelist 外の新名集計列は『集計列の疑い』として検知し削除はしない=WARN-not-FAIL)が、実装(lib/notion_invoice_sink.py の suspect_summary_extras/residual_extra_columns/warn_residual_summary_columns + upsert 戻り昇格)と genuine 一致し、L4.4 管理列不可侵・Gotcha 7・R4-sink L5.3 完了チェックリスト6番目とも矛盾なく整合している。前 iteration で検出した dependency_break が独立実装者により解消された。",
+      "本文行数は frontmatter 除き 92 行で BD-003(<=300)を維持。検知ゲートが read-only(GET 専用)で実装され、参照専用保証が文書だけでなく実体でも担保された(OUT1 の参照専用要件の実装裏付け)。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "dev同期merge(git diff 67425a0..HEAD)後の現 SKILL.md を全文実読し、本スキル固有 criteria(IN1=差集合検知の issue_date 帰属と月またぎ正当性 / IN2=確定リスト不在 fail-closed の物理境界 / OUT1=collect→verify→finalize→sink + Notion 冪等 upsert の責務分割の過不足)で4条件を採点した。merge の主要変更=(a)入力に backfill(`--backfill --from/--to`)追加、(b)月次履歴を集計行から各顧客ページ本文 table block へ移行、(c)年間契約期間の自動抑制(`suppress_annual_period_gaps`)導入、(d)旧『ゴールシーク配線』(intermediate.jsonl アンカー)節の削除、(e)相対パス→`$CLAUDE_PLUGIN_ROOT` 化。本文記述を実装で検証: `lib/mfk_invoice_diff.py` に suppress_annual_period_gaps/billing_lifecycle が存在し period_ym ラベル==今月の不変条件を実装、`lib/notion_invoice_sink.py` が 1顧客=1ページ upsert と本文 table の period_ym 自然キー upsert(旧『判定』ヘッダ後方互換含む)を実装、`scripts/check_invoice_gaps.py` に backfill/--force-unverified が実装済で SKILL の記述と一致。【矛盾0】Purpose『issue_date 帰属の差集合』『顧客ID単独キー 1顧客=1ページ』が Flow・R4・Key Rule 3/4・Gotcha 4 と整合し相互背反なし。【漏れ0】OUT1 が要求する collect→verify→finalize→sink・Notion 冪等 upsert・参照専用二層・候補0件月の確認済み履歴(table 行)・年間契約 fail-safe がすべて本文に反映。【整合0】fail-closed exit2 / hook guard / GET 専用 lib の記述が SKILL/script/manifest/prompt 間で一貫。【依存破壊0】削除された旧 goal-seek 配線への参照が本文・Checklist・Resources に残存せず、Key Rule が 1-9 へ連番再採番されダングリング無し。Additional Resources の `$CLAUDE_PLUGIN_ROOT/...` パス先(ref-mf-kessai-api/lib/hooks/agents)も実在を確認。4条件すべて 0 で PASS。"
+  "notes": "iteration 1 で検出した本物の dependency_break(Key Rule 7 が約束する『集計列の疑い』検知の実装本体が lib/notion_invoice_sink.py から欠落し、verify_db_schema.py が ImportError でクラッシュ・対象テスト FAIL・upsert 戻りに residual/suspect_summary 未昇格で検知が死んだ経路)が、独立実装者の修正で解消されたことを iteration 2 として genuine 再検証した。SKILL.md は不変(sha c2928579… 据え置き)。実装照合(私自身が実行して確認): (1) lib/notion_invoice_sink.py に suspect_summary_extras(363行)/residual_extra_columns(382行)/warn_residual_summary_columns(404行) が実装され、import dir(m) に3関数とも存在。(2) verify_db_schema.py の `import verify_db_schema` が ImportError なく成功(IMPORT OK を実行確認)。(3) upsert() は書き込み完了後 497-506 行で warn_residual_summary_columns を1回だけ GET-only 発火し、戻り値に residual/extra/suspect_summary を昇格(check_invoice_gaps.py:474-476 の _warn_residual_to_screen が読むキーが供給され死んだ経路が解消)。(4) pytest plugins/mf-kessai-invoice-check/tests/ = 290 passed / 2 skipped / 0 failed、coverage 94.15%(notion_invoice_sink.py 93%)。私が iteration 1 で見た 18 FAIL は全解消(suspect/residual/summary 系 19 件 passed を個別確認)。【列削除なし=GET専用の確認(指示の必須ゲート)】検知ブロック 363-446 行に PATCH/DELETE/POST は一切なし(grep でヒットは docstring 説明文のみ)。warn_residual_summary_columns は `_req('GET', f'/databases/{id}')` のみで、db_id 欠落/GET 失敗時は (None,None) を返し本体を止めず・列も触らない(挙動確認: warn(None,...) → (None,None))。suspect_summary_extras は集計語(日本語 総計/合計/小計/集計/サマリ/件数/トータル + 英語 total/sum/count 大小無視)を部分一致で拾い、正当列(任意メモ/担当者/社内コード)は空を返す(挙動確認済)。residual_extra_columns は schema.deprecated_properties 登録済みを residual・未知列を extra に分類(挙動確認: 全体トータル→residual / 月次サマリ・任意メモ→extra)。これらは Key Rule 7 の『検知のみ・WARN-not-FAIL・列削除しない・参照専用・列削除は db-setup の責務』と genuine 一致。【4条件再採点】矛盾0/漏れ0/不整合0/dependency_break0(解消)/smell0。OUT1(参照専用の保証を最適に反映)が文書だけでなく GET 専用実装で実体担保され、IN1/IN2 も merge 後の本文・実装で維持。全条件 0 で PASS・human_review 不要。"
 }

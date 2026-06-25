@@ -15,6 +15,7 @@ import datetime
 import json
 import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -336,6 +337,114 @@ def _run_id(checked_at):
     return "mfk-" + checked_at.replace(":", "").replace("-", "").replace("+", "").replace(".", "")
 
 
+# --- backward remediation: 月次フローの read-only 旧サマリ/余剰列 検知ゲート ----------------
+#  forward 生成防止 (sink/schema/test) と対をなす、過去に DB へ手動で作られ残った旧サマリ/集計列を
+#  月次 upsert 後に **read-only (GET 専用)** で検知し /run-mf-invoice-db-setup 再実行へ誘導する。
+#  列削除/ PATCH/DELETE は決してしない (参照専用が中核保証)。検知は WARN-not-FAIL で、
+#  正当な追加列の偽陽性による恒常 FAIL (オオカミ少年) を避ける。
+
+_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..",
+    "skills", "run-mf-invoice-db-setup", "schemas", "notion-db-schema.json",
+)
+
+# 集計語 (日本語 + 英語)。列名にこの語が含まれれば「集計列の疑い」とみなす。
+# whitelist (deprecated 固定名) に載らない**新名の集計列**を拾うための語彙。
+# 日本語: 総計/合計/小計/集計/サマリ/件数/トータル, 英語: total/sum/count (大小無視)。
+_SUMMARY_WORDS_JA = ("総計", "合計", "小計", "集計", "サマリ", "件数", "トータル")
+_SUMMARY_WORDS_EN = ("total", "sum", "count")
+
+
+def _load_default_schema():
+    with open(_SCHEMA_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def suspect_summary_extras(extra):
+    """extra (schema 未知の余剰列名リスト) から「集計列の疑い」がある列だけを sorted で返す純関数。
+
+    whitelist (deprecated 固定名) に載らない新名の集計列を、列名に集計語を含むかで拾う。
+    日本語語彙 (総計/合計/小計/集計/サマリ/件数/トータル) は部分一致、英語語彙 (total/sum/count)
+    は大小無視の部分一致。集計語を含まない正当な追加列 (任意メモ/担当者/社内コード等) は拾わない
+    (偽陽性を出さない)。空/None は空リスト。FAIL/削除はしない (検知のみ)。
+    """
+    if not extra:
+        return []
+    suspects = []
+    for name in extra:
+        s = str(name)
+        lower = s.lower()
+        if any(w in s for w in _SUMMARY_WORDS_JA) or any(w in lower for w in _SUMMARY_WORDS_EN):
+            suspects.append(s)
+    return sorted(suspects)
+
+
+def residual_extra_columns(props, schema):
+    """live DB の properties を schema と突き合わせ、schema 外の列を residual/extra に分類する純関数。
+
+    residual: schema["deprecated_properties"] に登録済みの**既知の旧サマリ/集計列**
+              (全体トータル/レコード種別等)。db-setup 再実行で掃除すべき列。
+    extra:    schema にも deprecated にも無い**手動追加の未知列** (任意メモ等)。
+
+    schema["properties"] に存在する現行列はどちらにも入れない。列削除はしない (検知のみ)。
+    """
+    known = set(schema.get("properties", {}).keys())
+    deprecated = set(schema.get("deprecated_properties", []))
+    residual, extra = [], []
+    for name in props.keys():
+        if name in known:
+            continue
+        if name in deprecated:
+            residual.append(name)
+        else:
+            extra.append(name)
+    return sorted(residual), sorted(extra)
+
+
+def warn_residual_summary_columns(database_id, token, schema=None, stream=None):
+    """upsert 後の read-only 検知ゲート。live DB を GET し残骸列を検知して stream へ WARN 出力する。
+
+    GET /databases/{id} だけを行い (列削除/PATCH/DELETE は一切しない)、schema 外の列を
+    residual (deprecated 既知集計列) / suspect (集計疑い extra) / other (schema 未知の正当列)
+    の 3 分類で別行に出し、/run-mf-invoice-db-setup 再実行へ誘導する。
+    WARN-not-FAIL: 検知のみで本体を止めない。
+
+    返り値:
+      (residual, extra)  検知できたとき。stream には残骸があった分類だけ 1 行ずつ出力。
+      (None, None)       db_id 未解決 (GET せずスキップ) または GET 失敗 (best-effort で握り潰し)。
+    """
+    if stream is None:
+        stream = sys.stderr
+    if not database_id:
+        return None, None
+    try:
+        res = _req("GET", f"/databases/{database_id}", token)
+    except Exception:
+        # Notion 不通等は検知のみスキップ (本体の月次フローを残骸検知失敗で止めない)。
+        return None, None
+    if schema is None:
+        try:
+            schema = _load_default_schema()
+        except Exception:
+            return None, None
+    props = res.get("properties") or {}
+    residual, extra = residual_extra_columns(props, schema)
+    suspect = suspect_summary_extras(extra)
+    others = sorted(set(extra) - set(suspect))
+    if residual:
+        stream.write(
+            f"WARN 旧サマリ/集計列が DB に残存: {residual} "
+            f"→ /run-mf-invoice-db-setup を再実行して掃除してください (集計は持たない設計)。\n")
+    if suspect:
+        stream.write(
+            f"WARN 集計列の疑いがある追加列: {suspect} "
+            f"→ 意図的でなければ /run-mf-invoice-db-setup を再実行して掃除してください (集計は持たない設計)。\n")
+    if others:
+        stream.write(
+            f"     (参考: schema 未知の追加列: {others})\n")
+    return residual, extra
+
+
 def upsert(database_id, rows, token=None, period_ym=None, checked_at=None):
     """rows を customer_id キーで冪等 upsert。作成/更新件数を返す。
 
@@ -384,4 +493,14 @@ def upsert(database_id, rows, token=None, period_ym=None, checked_at=None):
             })
             _ = res  # 新規ページは作成時に table を同梱済み。追加処理不要。
             created += 1
-    return {"created": created, "updated": updated, "period_ym": period_ym, "run_id": run_id}
+
+    # 書き込み完了後に read-only 検知ゲートを 1 回だけ発火 (列削除はしない=参照専用)。
+    # 過去 DB に残った旧サマリ/集計列を検知し戻り値へ昇格する。GET 失敗は best-effort で握り潰される。
+    residual, extra = warn_residual_summary_columns(database_id, token)
+    residual = residual or []
+    extra = extra or []
+    suspect_summary = suspect_summary_extras(extra)
+    return {
+        "created": created, "updated": updated, "period_ym": period_ym, "run_id": run_id,
+        "residual": residual, "extra": extra, "suspect_summary": suspect_summary,
+    }
