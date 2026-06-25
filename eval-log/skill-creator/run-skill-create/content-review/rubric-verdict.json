@@ -2,14 +2,21 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-skill-create",
-    "skill_md_sha256": "43b0d7a6b9316661768abc4f47b39cf84ad59128298370d65bc4e5c5e22cc235"
+    "skill_md_sha256": "b337e23994501d979461485490f0e891f786a0a7908a7e3fbc76e5ac26fb9f58"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-25",
   "iterations": 1,
   "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": [
@@ -19,9 +26,9 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "FM 系の高 severity ルールを維持: name=run-skill-create 一致、## Purpose & Output Contract / ## Key Rules / ## Gotchas を存置、description は発動条件のみ。frontmatter への feedback_contract 追加で既存キー(allowed-tools/kind/pair/responsibility_refs 等)を破損していない",
-      "携帯した criteria は inner 各1件以上+outer 各1件以上(IN1/IN2/OUT1/OUT2)で SSOT 制約(id=^(IN|OUT|C)[0-9]+$ / verify_by enum / loop_scope inner-outer 両方)を満たし、本スキルの目的=ゲートあり品質保証フロー orchestrator から導出され固定テンプレートの流用でない",
-      "verify_by の割当が機械層(IN1=lint, IN2=script)と判断層(OUT1=elegant-review, OUT2=evaluator)に二層分離され、二層分離原則と整合する"
+      "FM 系 high/medium ルールを維持: name=run-skill-create が ^(run|ref|assign|wrap|delegate)- に一致し len<=60 (FM-001 PASS)、description は 〜とき トリガ2個で 。 終止 (FM-002/003 PASS)、内部動作動詞なし (FM-004 PASS)、する形で開始 (FM-005 PASS)",
+      "BD 系を維持: ## Purpose & Output Contract (BD-001 PASS)、## Gotchas (BD-002 PASS) を存置。merge で本文に純増があったが frontmatter 除外本文行数=125 行で 300 行上限を十分に下回る (BD-003 high PASS)。description の2発動条件は body の Step1 elicit / 品質保証フロー手順に1:1 対応 (BD-004 PASS)",
+      "携帯した criteria は SSOT 制約(id=^(IN|OUT|C)[0-9]+$ / verify_by enum / loop_scope inner-outer 両在)を満たし、verify_by が機械層(IN1=lint, IN2=script)と判断層(OUT1=elegant-review, OUT2=evaluator)に二層分離され、本スキルの目的=ゲートあり品質保証フロー orchestrator から導出された固定テンプレ非流用の基準である"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -29,5 +36,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric 観点で frontmatter feedback_contract 携帯化を genuine 検証。実ファイルを読み FM-001..004 / NM-001 を PASS 確認。criteria 4件は本スキル固有の制御層責務(P0 lint+manifest exit0 / handoff・build-trace schema 準拠 / ゲート前停止+context:fork / evaluator findings+elegant C1-C4)を反映し、SSOT(scripts/feedback_contract_ssot.py)の id pattern・verify_by enum・inner-outer 両在を充足、text にコロン無しで YAML 妥当。adequacy 上の重大問題(矛盾/欠落/テンプレ流用)は無く high severity finding 0件。被採点物への改変は frontmatter キー追加のみ(本文 read-only)。 [propagation] frontmatter feedback_contract(IN1/IN2/OUT1/OUT2)を携帯化し criteria_evaluated を同期。"
+  "notes": "ref-skill-design-rubric/references/rubric.json (v1.3.0) を読み、dev同期merge後の現 SKILL.md (sha256 b337e23994...) を kind=skill として genuine 採点。applies_to_kinds=skill/* の全 high-severity ルールを実検証: FM-001(name パターン+長さ) PASS / BD-001(## Purpose & Output Contract) PASS / BD-003(本文125行<=300) PASS / NM-001(ディレクトリ basename==name) PASS。medium: FM-002/003/004/005, BD-002/004, NM-002, PD-002 すべて PASS。low: NM-003, PD-001, RG-001 PASS。KL-001..005 は knowledge/ ディレクトリも frontmatter.knowledge_loop も無いため存在ゲートで無条件 PASS(skip)。agent/hook/command/plugin-composition/prompt/workflow 固有ルールは applies_to_kinds 不一致で非適用。merge 差分(禁則行追加 / governance チェック項目書換 / ゴールシーク6ステップ化 / Elegant Review 正本是正 / Step 4a.5 pkg-check 追加 / findings.schema.json 再分類)は adequacy を損なわず、テンプレ流用・description↔body 乖離・節欠落はいずれも無し。high severity finding 0件で PASS。被採点物への改変なし(read-only 検証)。"
 }

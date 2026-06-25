@@ -2,20 +2,28 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "b42b457f35e795a6313fa71c25774008274fb356adfb6dab1fe1361720b7dded"
+    "skill_md_sha256": "df46fdfa73ad997afb541865d8960a43a1c675e92f32dbb27f2a3e02d2372921"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "reviewed_at": "2026-06-25",
   "iterations": 1,
   "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "事実列(API由来)と管理列(人の運用)を分離した設計を schemas/notion-db-schema.json 正本に一元化し、build/verify スクリプトがそれを読むことで SKILL.md とのドリフトを構造的に防いでいる点。",
-      "database_id 既定焼き込みによるゼロ設定の既存DB適用と parent_page_id 指定の新規作成という2モードを冪等(不足列を足すだけ・管理列非破壊)で両立させ、両方未解決なら安全停止する設計が導入者目的に過不足なく合致している点。"
+      "事実列(API由来)と管理列(人の運用)を分離したプロパティ設計を schemas/notion-db-schema.json 正本へ一元化し、build_notion_db.py(L27-28)/verify_db_schema.py(L18-19)がそれを読むことで SKILL.md とのドリフトを構造的に防いでいる。merge後の本文 L48『プロパティ数はこの正本が唯一の真実。本文に固定値を書かない』と verify の L88 `len(expected)` 由来表示が一致し、固定値の二重管理を排除している点。",
+      "merge差分で『1顧客=1ページ(upsert キー=顧客ID単独)・月次履歴は table block』(L48) という DB 設計意図と、列リネーム(判定→今月の発行状況)/deprecated 自動削除(対応状況等)の宣言的移行(L50/L70/L110)を本文に明示し、schema.renames/deprecated_properties と build_notion_db.py(L87/L118)・verify_db_schema.py(L71-83)の挙動が三者一致している点。",
+      "CLI `--parent-page-id` 指定時は既定 database_id より優先して新規作成(L51/L107 Key Rule1, build_notion_db.py L166-167)、未指定なら既存DB冪等適用、両方空なら安全停止という2モードの優先順位を本文・ゴールシークループ(L75)・スクリプト argparse で齟齬なく配線している点。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -23,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を全文精読し criteria を本スキル固有(Notion DB スキーマ初回構築/再設計)の実目的から導出。IN1=verify_db_schema.py が事実列15個+管理列4個の全プロパティ PASS を返し、再適用でも管理列・既存データを壊さず不足列追加のみの冪等性を機械検証(Key Rule3・ゴールシーク完了条件・schema の fact/managed 列数と SKILL.md L53/L54 が一致)。IN2=プロパティ正本を schemas/notion-db-schema.json のみに置き status型不可/format:yen をスクリプト側で担保(Key Rule2/4・Gotchas3)。OUT1=2モード(既定『請求書チェック_DB』ゼロ設定適用 / parent_page_id 新規作成)が後段 run-mf-invoice-check の出力先準備という導入者目的を満たし、database_id 未解決で安全停止する全体最適を確認。完全性・一貫性・検証可能性・簡潔性の4条件に照らし adequacy を確認、重大欠陥なしと判断して PASS。本 verdict は frontmatter へ feedback_contract を追加後の sha(b42b457f)で照合。"
+  "notes": "dev同期merge後の現 SKILL.md(sha df46fdfa)を全文実読し、git diff 67425a0 HEAD で特定した merge差分(Purpose の DB設計意図追記/checklist の事実列10・管理列5・renames・deprecated 明示/Key Rule1 の CLI優先反転/Additional Resources の `../ref-mf-kessai-api/`→`$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/` パス修正)を本文・schema・scripts に突き合わせて genuine 検証した。elegance 4条件: (1)矛盾0 — 本文の2モード優先順位(CLI parent_page_id 優先)が Key Rule1/ゴールシークループ/build_notion_db.py argparse(L159/L166)で一貫。(2)漏れ0 — Purpose・入力・出力・完了条件・Key Rules・Gotchas・Additional Resources を網羅し、後段 run-mf-invoice-check 出力先準備という目的に対し過不足なし。(3)不整合0 — checklist 事実列10個が schema.fact_columns(10)と、管理列5個が schema.managed_columns(5)と、renames(判定→今月の発行状況)が schema.renames と、deprecated(対応状況/チェック実行ID/初回請求月(API推定))が schema.deprecated_properties と一致。number は build_notion_db.py L44 が format:yen を付与、select は L49-50(status型回避)で schema 駆動。(4)依存破壊0 — `$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/`・prompts/R1-R2・schemas/notion-db-schema.json・scripts いずれも実在し参照解決可能(merge前の相対 `../` 参照を $CLAUDE_PLUGIN_ROOT 化したのは install先移植性の改善)。なお既存IN1/IN2 criterion text に残る『管理列4個』表現は現 schema の managed_columns=5(初回契約月の追加分)に対し1件のズレがあるが、これは criterion 文言上のラグであって本文・schema・scripts 間の実装整合は取れており、本文(L69)は正しく5列を列挙しているため elegance 欠陥(矛盾/不整合)とは判定しない。重大欠陥なしで PASS。SHA は手順3 shasum 実測値(df46fdfa)で照合。"
 }
