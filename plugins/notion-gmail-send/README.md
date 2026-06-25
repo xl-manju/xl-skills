@@ -139,13 +139,13 @@ python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.js
 
 ## 想定送信規模と大量送信（canary 運用）
 
-- **想定規模**: 本 plugin は個別差し込みの一斉送信を **〜数百件** 程度まで安全に扱う設計。dry-run が `本文true × 宛先true` の直積を全件 plan 化し、`send_campaign.py` が承認済み plan の全単位を1通ずつ順に送る。
+- **想定規模**: 本 plugin は個別差し込みの一斉送信を **〜数百件** 程度まで安全に扱う設計。dry-run が `本文true × 宛先true` の直積を全件 plan 化し、`send-campaign.py` が承認済み plan の全単位を1通ずつ順に送る。
 - **これを超える規模では分割（canary）送信を推奨**: まず少数だけ送って検品し、問題なければ残りを送る。`/run-notion-gmail-dry-run --canary 3`（または `--limit 3`）は送信可能 unit の安定順先頭だけを plan 化し、その限定後の件数・`plan_hash`・確認語に承認を束縛する。より厳密に対象者を選ぶ場合は **送信元DBの ✅ フラグで対象を絞る**:
   1. メール送信先_DBで、まず少数の宛先だけ `送信対象=✅` にする。
   2. `/run-notion-gmail-dry-run --canary 3` → 全件プレビュー目視 → `/run-notion-gmail-send` で承認・送信し、到達・本文・From・CC を検品する。
   3. 問題なければ残りの宛先を `送信対象=✅` にして、再度 dry-run → 承認 → 送信する。
   - 冪等ログは **content ベース dedup（`{本文page_id}:{宛先page_id}:{content_hash}`・campaign_id 非依存）** なので、2回目以降に対象を広げて再実行しても**既に送った単位は機構で skip** され二重送信にならない（同一内容を意図して再送する場合のみ `--allow-resend`）。
-- **Gmail API の日次送信 quota に注意**: 大量送信は1ユーザー/日あたりの送信上限に達することがある。`send_campaign.py` は quota 到達を検知すると **安全停止（exit 3）し、未送信の単位を `reserved` に戻して次回実行で自動再開**する。上限に達しないよう、上記の ✅ フラグ分割で **日をまたいで小分け**に送るのが安全。
+- **Gmail API の日次送信 quota に注意**: 大量送信は1ユーザー/日あたりの送信上限に達することがある。`send-campaign.py` は quota 到達を検知すると **安全停止（exit 3）し、未送信の単位を `reserved` に戻して次回実行で自動再開**する。上限に達しないよう、上記の ✅ フラグ分割で **日をまたいで小分け**に送るのが安全。
 
 ---
 

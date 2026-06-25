@@ -118,7 +118,7 @@ impersonate ユーザー以外の From で送るなら、その alias を **impe
 
 ## 7. 実API検証（setup doctor / --probe）の使い方
 
-`lib/setup_doctor.py` は本送信を行わず、config / Keychain / 送信ログDB ID / Gmail 認証を横断診断する。`--probe` を付けた場合のみ、実 API で DWD / gmail.send / sendAs alias を動的検証する。live-send 経路 `run-notion-gmail-send/scripts/send_campaign.py` も起動時に自動で `probe_api=True` を呼ぶため、手順1〜6が正しければ本送信前に G1 が自動検証される。
+`lib/setup_doctor.py` は本送信を行わず、config / Keychain / 送信ログDB ID / Gmail 認証を横断診断する。`--probe` を付けた場合のみ、実 API で DWD / gmail.send / sendAs alias を動的検証する。live-send 経路 `run-notion-gmail-send/scripts/send-campaign.py` も起動時に自動で `probe_api=True` を呼ぶため、手順1〜6が正しければ本送信前に G1 が自動検証される。
 
 単体で確認したいとき（**install 形態を問わず動く推奨手段は、チャットで Claude に「doctor を実行して」と頼む**こと。Claude が plugin 同梱の `$CLAUDE_PLUGIN_ROOT/lib/setup_doctor.py` を解決する）:
 

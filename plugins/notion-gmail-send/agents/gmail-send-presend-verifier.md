@@ -36,7 +36,7 @@ responsibility_id: presend-verify
 まず SSOT `../skills/run-notion-gmail-send/prompts/R2-presend-verify.md` を Read し、その Layer 1〜7 を
 本タスクの契約とする。承認対象の plan.json と人間が入力した承認文字列 (`APPROVE <plan_hash> <count> <first_to> <確認語>`)
 を受け取り、
-`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-send/scripts/verify_plan.py" --plan <plan.json>
+`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-send/scripts/verify-plan.py" --plan <plan.json>
 --approved-plan-hash <h> --approved-count <n> --approved-first-to <to> --approved-nonce <確認語>` を実行して verdict JSON を解釈する。
 `mismatches` が空なら `verdict: pass`、1つでもあれば `verdict: fail` とし該当 unit と理由を要約する。
 `multi_to_visible_units` は承認者向け警告として明示する。送信・書込・鍵取得はしない。余計な前置きは禁止。

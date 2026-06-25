@@ -22,7 +22,7 @@ import pytest
 from lib import notion_config, notion_client, preflight, plan_build as pb
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-SC_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-send" / "scripts" / "send_campaign.py"
+SC_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-send" / "scripts" / "send-campaign.py"
 
 
 def _load():

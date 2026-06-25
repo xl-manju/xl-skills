@@ -59,19 +59,19 @@
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| verify script | ../scripts/verify_plan.py | plan 再検査の実行時 |
+| verify script | ../scripts/verify-plan.py | plan 再検査の実行時 |
 | spec | ../../ref-notion-gmail-send-spec/SKILL.md | 件数式/安全三本柱の確認時 |
 | schema | ../schemas/send-verdict.schema.json | 出力整合性の確認時 |
 
 ### 3.2 外部ツール / API
 - `Read`: plan.json・schema・spec の参照。
-- `Bash(python3 *)`: `verify_plan.py` の実行と verdict JSON の検査。外部ネットワークは使わない。
+- `Bash(python3 *)`: `verify-plan.py` の実行と verdict JSON の検査。外部ネットワークは使わない。
 
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
 - plan.json 欠落・JSON 破損は `verdict: fail` で理由を明示し差し戻す。
-- `verify_plan.py` が mismatches を返したら内容を要約し fail とする。憶測で pass にしない。
+- `verify-plan.py` が mismatches を返したら内容を要約し fail とする。憶測で pass にしない。
 - 最大反復は 1 (再検査は1度で確定。plan が直れば上位が再起動する)。
 
 ### 4.2 観測 / ロギング
@@ -93,14 +93,14 @@
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] 入力 (plan / 承認文字列) を確認し、本ファイルと矛盾しないことを確かめた
-- [ ] `verify_plan.py` を `--approved-nonce <確認語>` まで含む承認文字列付きで実行し verdict JSON を得た
+- [ ] `verify-plan.py` を `--approved-nonce <確認語>` まで含む承認文字列付きで実行し verdict JSON を得た
 - [ ] plan_hash 再計算・承認一致・件数・先頭 To の照合結果を確認した
 - [ ] 全送信単位の未置換トークン残存・宛先形式・content_hash 整合を確認した
 - [ ] multi_to_visible の送信単位を承認者向けに明示した
 - [ ] 送信・書込・鍵取得を一切していない
 
 ### 5.4 実行方式
-- 固定手順を持たない。未充足項目を特定し `verify_plan.py` の実行と結果解釈で埋め、完了チェックリストで自己評価する。1 反復で確定する。
+- 固定手順を持たない。未充足項目を特定し `verify-plan.py` の実行と結果解釈で埋め、完了チェックリストで自己評価する。1 反復で確定する。
 
 ### 5.5 Self-Evaluation (停止ゲート)
 返す前に全項目を YES/NO で判定する。NO が残れば pass として返さない。
@@ -114,7 +114,7 @@
 ### 6.1 上位 skill との接続
 - 呼び出し元: `run-notion-gmail-send` の送信前 (人間承認ゲート通過後、live-send G3 直前)。
 - 前段: `run-notion-gmail-dry-run` が plan.json を生成し、人間が `APPROVE <plan_hash> <count> <first_to> <確認語>` を入力。
-- 後続: pass なら send_campaign.py が live-send へ。fail なら送信せず差し戻す。
+- 後続: pass なら send-campaign.py が live-send へ。fail なら送信せず差し戻す。
 
 ### 6.2 ハンドオフ / 並列性
 - 直列: plan.json と承認文字列を受け取り verdict を上位へ返す。

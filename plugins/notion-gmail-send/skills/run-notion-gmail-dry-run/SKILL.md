@@ -17,6 +17,21 @@ source: doc/run-notion-gmail-send-仕様と検証メモ.md
 source-tier: internal
 last-audited: 2026-06-24
 audit-trigger: source-update
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 宛先解決が「送信対象=false 除外 → メールを送らない=true 抑制(最優先) → プロ人材メール空 invalid_to → プロ人材重複は created_time 降順(tie=page_id 降順)で最新1件のみ残す dedup」の順序で決定論的に処理されることを test_recipient_resolution で機械検証できる。
+      verify_by: test
+    - id: IN2
+      loop_scope: inner
+      text: build-plan が「本文true × 宛先解決後」の直積を生成し plan_hash/content_hash と承認 nonce を後付け観測メタ(cc_suppressed 等)に非依存で算出し、1通も送信せず local-artifact のみ出力することを test_build_plan で機械検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: dry-run が「送信前に全件を目視プレビューさせ機械照合可能な APPROVE 文字列契約を live-send へ渡す(誤送信の停止点)」というユーザー目的を過不足なく満たし、--canary/--limit の少数検品が不可逆送信の承認契約を崩さないことを run-elegant-review の4条件で確認する。
+      verify_by: elegant-review
 ---
 
 # run-notion-gmail-dry-run
@@ -34,7 +49,7 @@ Notion 2DB（メール本文DB / メール送信先_DB）を入力に、`本文t
 
 ## End-to-End Flow
 
-`scripts/build_plan.py` が以下を決定論的に実行する（LLM 判断不要の本体）。
+`scripts/build-plan.py` が以下を決定論的に実行する（LLM 判断不要の本体）。
 
 ```
 [1 取得]  config notion_gmail_send.source.{body_db,recipient_db} を解決し DB1/DB2 を REST 取得
@@ -50,7 +65,7 @@ Notion 2DB（メール本文DB / メール送信先_DB）を入力に、`本文t
 実行コマンド:
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-dry-run/scripts/build_plan.py"
+python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-dry-run/scripts/build-plan.py"
 # DB override / 出力先指定が必要なときのみ:
 #   --db1 <body_db_id> --db2 <recipient_db_id> --out <plan.json> --config <.notion-config.json>
 #   --canary 3   # 少数検品用。限定後の count/plan_hash/確認語で承認を束縛する
@@ -79,7 +94,7 @@ Notion APIキーは Keychain `notion-api-key.xl-skills`（**GET のみ**。Gmail
 - [ ] 送信可能 0通のとき「メッセージ対象✅ かつ `{{}}` 入り本文の記入」を運用者へ促した
 
 ### ゴールシークループ
-1. `build_plan.py` を実行し、第1段件数・`plan.json`・全件プレビュー・`APPROVE` 文字列を得る。
+1. `build-plan.py` を実行し、第1段件数・`plan.json`・全件プレビュー・`APPROVE` 文字列を得る。
 2. プレビューを目視し、未充足のチェックリスト項目があれば原因を特定する。
    - `exit 2`（config/接続/Keychain エラー）→ `.notion-config.json` の `notion_gmail_send.source` または `--db1/--db2`、Keychain `notion-api-key.xl-skills` を確認して再実行。
    - 送信可能 0通 → DB1 のメッセージ対象✅ ページに `{{}}` 入り本文を記入して再実行（チェックリスト最終項目）。
@@ -135,7 +150,7 @@ PY
 
 ## Additional Resources
 
-- `scripts/build_plan.py` — dry-run plan 構築の決定論本体（DB取得→直積→置換→組立→hash→plan.json）
+- `scripts/build-plan.py` — dry-run plan 構築の決定論本体（DB取得→直積→置換→組立→hash→plan.json）
 - `../../lib/render_substitute.py` — `{{}}` 置換と未置換/危険値検出（§5）
 - `../../lib/message_assemble.py` — From/To/CC 写像・カンマ分割・MIME 組立・アドレス検証（§6）
 - `../../lib/plan_build.py` — `campaign_id`/`content_hash`/`plan_hash`/冪等キー/`finalize_plan`（§4）

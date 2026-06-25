@@ -25,6 +25,21 @@ responsibility_refs:
   - prompts/R2-presend-verify.md
 schema_refs:
   - schemas/send-verdict.schema.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: live-send が --approved-plan-hash と dry-run の plan_hash 不一致時に Gmail API を呼ばず fail-closed で停止し、send_guard が件数偽装・未置換トークン・From 不整合・確認語 nonce 不一致を全て検出することを test_send_campaign / test_preflight で機械検証できる。
+      verify_by: test
+    - id: IN2
+      loop_scope: inner
+      text: 冪等ログが「本文page_id:宛先page_id:content_hash」(campaign 非依存)キーで reserved→sent/unknown 遷移し、再実行・別実行の二重送信を防ぎ、送信成功後のログ失敗を unknown_needs_reconcile として自動再送しないことを test_idempotent_log で機械検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: 不可逆なメール送信を「承認済み plan・人間承認ゲート・事前予約つき冪等ログ」の三本柱で安全化する設計がユーザー目的を最適に反映し、preflight→reserve→guard→send→log→report の責務分割と送信時 suppress 再検証(承認件数を超えない)が過不足ないことを run-elegant-review の4条件で確認する。
+      verify_by: elegant-review
 ---
 
 # run-notion-gmail-send
@@ -43,7 +58,7 @@ dry-run で生成・承認された `plan.json` の各送信単位を、live-sen
 [1 dry-run]   Skill(run-notion-gmail-dry-run) → plan.json + APPROVE文字列 + 全件プレビュー
 [2 承認]      人間が差し込み後フル本文を目視 → APPROVE <plan_hash> <count> <first_to> <確認語> を入力
 [3 二段確認]  Task(gmail-send-presend-verifier, context:fork) が plan を独立再計算で検査
-[4 preflight] send_campaign.py が G1認証/G2依存実体/G3整合を fail-closed 検証
+[4 preflight] send-campaign.py が G1認証/G2依存実体/G3整合を fail-closed 検証
 [5 予約+送信] 各単位を Notion へ reserved 事前予約 → send_guard 通過 → Gmail 送信 → sent/unknown 更新
 [6 レポート]  日本語送信レポート (sent/skip/error/要照合)
               ↑ Gmail 直接送信は hook(guard-gmail-send.py)が補助遮断、正本は send_guard
@@ -63,13 +78,13 @@ dry-run で生成・承認された `plan.json` の各送信単位を、live-sen
 各責務の停止条件詳細は `prompts/Rn` を正本 (SSOT) とし、本節は俯瞰のみ示す (片側更新ドリフト回避)。
 - **R1 orchestrate** (`prompts/R1-orchestrate.md`): preflight 統括・dry-run 委譲・`APPROVE <plan_hash> <count> <first_to> <確認語>` 形式の人間承認受領・送信可否判断・最終レポート生成。
 - **R2 presend-verify** (`prompts/R2-presend-verify.md` / agent `gmail-send-presend-verifier`): context:fork で plan を独立再検査 (plan_hash/件数/先頭To/未置換トークン/宛先形式)。
-- 決定論本体: `scripts/send_campaign.py`(reserve→send_guard→Gmail→log) / `scripts/verify_plan.py`(二段確認の計算) / `../../lib/`。
+- 決定論本体: `scripts/send-campaign.py`(reserve→send_guard→Gmail→log) / `scripts/verify-plan.py`(二段確認の計算) / `../../lib/`。
 
 ### 完了チェックリスト (Checklist)
 - [ ] `run-notion-gmail-dry-run` で plan.json と APPROVE文字列・全件プレビューを得た
 - [ ] 人間が差し込み後フル本文を目視し `APPROVE <plan_hash> <count> <first_to> <確認語>` を完全一致で入力した
 - [ ] `Task(gmail-send-presend-verifier)` (context:fork) の verdict が pass (plan_hash/件数/先頭To/未置換/宛先 整合)
-- [ ] `send_campaign.py` の preflight G1(認証)/G2(送信ログDB・本文true≥1)/G3(承認整合) が全 PASS
+- [ ] `send-campaign.py` の preflight G1(認証)/G2(送信ログDB・本文true≥1)/G3(承認整合) が全 PASS
 - [ ] 各送信単位を送信ログDBへ reserved 事前予約し、既存 sent/reserved/unknown は自動再送しなかった
 - [ ] `send_guard` 通過後のみ Gmail 送信し、sent / unknown_needs_reconcile を記録した
 - [ ] quota 安全停止時は残件を reserved のまま次回再開対象にした
@@ -80,7 +95,7 @@ dry-run で生成・承認された `plan.json` の各送信単位を、live-sen
 1. plan.json が無ければ `run-notion-gmail-dry-run` を起動し plan と APPROVE文字列を得る。
 2. 人間に全件プレビューを目視させ、`APPROVE <plan_hash> <count> <first_to> <確認語>` を受領する。承認なしに次へ進まない。
 3. `Task(gmail-send-presend-verifier)` を context:fork で起動し plan を独立再検査。fail なら送信せず差し戻す。
-4. `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-send/scripts/send_campaign.py" --plan <plan.json> --approved-plan-hash <h> --approved-count <n> --approved-first-to <to> --approved-nonce <確認語>` を実行（意図的再送のみ `--allow-resend`）。決定論セルフチェック・preflight 未充足なら誘導 (GCP手順/db-setup/本文記入) し中断。
+4. `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-send/scripts/send-campaign.py" --plan <plan.json> --approved-plan-hash <h> --approved-count <n> --approved-first-to <to> --approved-nonce <確認語>` を実行（意図的再送のみ `--allow-resend`）。決定論セルフチェック・preflight 未充足なら誘導 (GCP手順/db-setup/本文記入) し中断。
 5. 全 checklist 充足で完了。quota 停止 (exit 3) なら再実行で残件継続。
 
 ### ゴールシーク配線
@@ -109,8 +124,8 @@ quota 安全停止後の再開や verify FAIL 後の再試行で多周回する�
 
 ## Additional Resources
 
-- `scripts/send_campaign.py` — live-send 本体 (preflight→reserve→send_guard→Gmail→log→report)
-- `scripts/verify_plan.py` — 送信前二段確認の独立再計算
+- `scripts/send-campaign.py` — live-send 本体 (preflight→reserve→send_guard→Gmail→log→report)
+- `scripts/verify-plan.py` — 送信前二段確認の独立再計算
 - `prompts/R1-orchestrate.md` / `prompts/R2-presend-verify.md` — 責務プロンプト
 - `../ref-notion-gmail-send-spec/` — データ契約・安全設計の参照正本
 - `../run-notion-gmail-dry-run/` — plan.json と APPROVE文字列を生成する前段

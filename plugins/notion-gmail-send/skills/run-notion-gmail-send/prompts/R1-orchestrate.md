@@ -21,7 +21,7 @@
 - 人間承認 (`APPROVE <plan_hash> <count> <first_to> <確認語>` 完全一致) なしに本送信フェーズへ進まない。
 - 安全の正本は `lib/send_guard.py` (gmail_client 内蔵)。本責務は guard を迂回する送信経路を作らない。
 - 送信前に context:fork の `gmail-send-presend-verifier` で二段確認する (Sycophancy 防止)。
-- 外部実体 (認証/送信ログDB/本文記入) 未充足は send_campaign.py の preflight が fail-closed で止める。本責務はその結果を尊重し、1通も送らず誘導する。
+- 外部実体 (認証/送信ログDB/本文記入) 未充足は send-campaign.py の preflight が fail-closed で止める。本責務はその結果を尊重し、1通も送らず誘導する。
 
 ### 1.2 倫理ガード
 - 秘密値 (API キー / SA 鍵) を表示・ログ出力しない。承認文字列・plan_hash は表示してよい。
@@ -31,12 +31,12 @@
 
 ### 2.1 責務 (Single Responsibility)
 - 担当: preflight 統括・dry-run 委譲・`APPROVE` 形式の人間承認受領とパース・二段確認 agent 起動・送信可否判断・例外介入・最終レポート生成。
-- 非担当: 実送信 (`send_campaign.py`)・置換/組立 (`lib`)・認証検証/予約/ログ (`preflight`/`idempotent_log`)。
+- 非担当: 実送信 (`send-campaign.py`)・置換/組立 (`lib`)・認証検証/予約/ログ (`preflight`/`idempotent_log`)。
 
 ### 2.2 ドメインルール
 - 承認文字列は `APPROVE <plan_hash> <count> <first_to> <確認語>` を完全一致でパースする。1 トークンでも欠ければ承認不成立。
 - 二段確認 verdict が fail なら送信せず差し戻す。
-- send_campaign.py の exit code を解釈する: 0=完了 / 1=preflight中断 / 2=設定エラー / 3=quota安全停止(部分送信・再開可)。
+- send-campaign.py の exit code を解釈する: 0=完了 / 1=preflight中断 / 2=設定エラー / 3=quota安全停止(部分送信・再開可)。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -55,11 +55,11 @@
 |---|---|---|
 | dry-run skill | ../../run-notion-gmail-dry-run/SKILL.md | plan が無い時 |
 | verify agent | ../../../agents/gmail-send-presend-verifier.md | 二段確認の起動時 |
-| send script | ../scripts/send_campaign.py | live-send 実行時 |
+| send script | ../scripts/send-campaign.py | live-send 実行時 |
 | spec | ../../ref-notion-gmail-send-spec/SKILL.md | 安全三本柱/件数式の確認時 |
 
 ### 3.2 外部ツール / API
-- `Bash(python3 *)`: dry-run / send_campaign.py の実行。`Task`: 二段確認 agent の context:fork 起動。`Read`/`Write`: plan・レポート。
+- `Bash(python3 *)`: dry-run / send-campaign.py の実行。`Task`: 二段確認 agent の context:fork 起動。`Read`/`Write`: plan・レポート。
 
 ## Layer 4: 共通ポリシー層
 
@@ -89,7 +89,7 @@
 - [ ] plan.json と APPROVE文字列を得た (無ければ dry-run へ誘導)
 - [ ] 承認文字列を完全一致でパースし plan_hash/count/first_to を抽出した
 - [ ] 二段確認 agent の verdict が pass
-- [ ] send_campaign.py を実行し exit code を解釈した
+- [ ] send-campaign.py を実行し exit code を解釈した
 - [ ] preflight 未充足/エラー時は送信せず誘導した
 - [ ] 日本語送信レポートを提示した
 

@@ -163,7 +163,7 @@ def test_fetch_recipient_send_state_maps_flags():
 
 # ============ build_plan integration: To=pro, CC=本文CC+秘書, 抑制/重複記録 ============
 def _load_build_plan():
-    bp_path = PLUGIN_ROOT / "skills" / "run-notion-gmail-dry-run" / "scripts" / "build_plan.py"
+    bp_path = PLUGIN_ROOT / "skills" / "run-notion-gmail-dry-run" / "scripts" / "build-plan.py"
     spec = importlib.util.spec_from_file_location("build_plan_under_test_rr", bp_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

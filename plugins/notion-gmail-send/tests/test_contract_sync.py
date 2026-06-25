@@ -18,7 +18,7 @@ from lib import idempotent_log as ilog
 from lib import notion_client as nc
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-SETUP_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-sendlog-setup" / "scripts" / "setup_send_log_db.py"
+SETUP_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-sendlog-setup" / "scripts" / "setup-send-log-db.py"
 SCHEMA_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-send" / "schemas" / "send-verdict.schema.json"
 REF_SKILL = PLUGIN_ROOT / "skills" / "ref-notion-gmail-send-spec" / "SKILL.md"
 SPEC_DETAIL = PLUGIN_ROOT / "skills" / "ref-notion-gmail-send-spec" / "references" / "spec-detail.md"

@@ -206,6 +206,14 @@ PENDING_RENAME_PATHS = {
     # mf_invoice_names.py: enrich/csv_match が `import mf_invoice_names` する名寄せ正規化の
     # 共有 module (SSOT)。同上の §4.3 例外 (Python import 上 underscore 必須)。
     "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_names.py",
+    # notion-gmail-send 初回投入: §4.3 (kebab-case) は満たすが verb が ALLOWED_VERBS 外。
+    # send (一斉送信実行) / verify (送信前再検査) / setup (送信ログ DB 冪等構築) は許可動詞に
+    # 対応語が無いため、許可動詞化 (allowed-list 拡張 or build/validate 系へのリネーム) は
+    # SKILL.md/prompts/agent/README/test 参照と同時に実施する後続 Change Governance PR まで
+    # PENDING。emit-observable / notion-submit-improvement と同種の「新 verb pending」扱い。
+    "plugins/notion-gmail-send/skills/run-notion-gmail-send/scripts/send-campaign.py",
+    "plugins/notion-gmail-send/skills/run-notion-gmail-send/scripts/verify-plan.py",
+    "plugins/notion-gmail-send/skills/run-notion-gmail-sendlog-setup/scripts/setup-send-log-db.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

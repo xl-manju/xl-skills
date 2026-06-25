@@ -18,6 +18,17 @@ source: doc/run-notion-gmail-send-仕様と検証メモ.md
 source-tier: internal
 last-audited: 2026-06-24
 audit-trigger: source-update
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 送信元2DBの品質監査が空本文・未知/廃止トークン(deprecated_token)・不正アドレス・プロ人材重複・空差し込み値を検出し、Notion へ一切書き込まず(conversation-output)skip 予測のみを提示することを test_notion_mock / test_core_logic の audit テスト群で機械検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: 「送信前にデータ品質を点検し送信時に skip される行を事前に可視化する(参照専用)」というユーザー目的を過不足なく満たし、dry-run/send の preflight 判定基準と監査観点が整合することを run-elegant-review の4条件で確認する。
+      verify_by: elegant-review
 ---
 
 # run-notion-gmail-source-audit

@@ -80,7 +80,7 @@ STEP 1〜9（プロジェクト・SA・JSON 鍵・DWD）が済んでいる前提
 G1 は2段階で認証を fail-closed 検証する（`lib/preflight.gate_g1_auth(config, from_addr, probe_api=...)`）:
 
 - `probe_api=False`（既定・dry-run 相当）: Keychain の Notion 鍵と SA 鍵の**存在**だけを `probe_*()` で確認する。鍵の値は取得しない。
-- `probe_api=True`（live-send 相当・**setup doctor --probe 型の実API動的検証**）: SA 鍵を実際にロードし、`GmailClient` を生成して **DWD impersonate + gmail.send + sendAs alias を実 API で検証**する。live-send 経路 `skills/run-notion-gmail-send/scripts/send_campaign.py` が起動時に `probe_api=True` で呼ぶ。
+- `probe_api=True`（live-send 相当・**setup doctor --probe 型の実API動的検証**）: SA 鍵を実際にロードし、`GmailClient` を生成して **DWD impersonate + gmail.send + sendAs alias を実 API で検証**する。live-send 経路 `skills/run-notion-gmail-send/scripts/send-campaign.py` が起動時に `probe_api=True` で呼ぶ。
 
 > 本送信前に単体確認したい場合は doctor を使う。**install 形態を問わず動く推奨手段は、チャットで Claude に「doctor を --probe で実行して」と頼む**こと（Claude が plugin 同梱の `$CLAUDE_PLUGIN_ROOT/lib/setup_doctor.py` を解決する）。repo を clone した開発者は自分のターミナルで `python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.json --probe --from <送信元アドレス>` を直接打てる（この repo 相対パスは clone 済みのときのみ有効。marketplace install では作業フォルダに `plugins/` が無い）。実体は `gate_g1_auth(..., probe_api=True)`。
 

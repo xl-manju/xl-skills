@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/plugins/notion-gmail-send/run-notion-gmail-send/schemas/send-verdict.schema.json",
   "title": "Gmail Send Preflight Verdict",
-  "description": "gmail-send-presend-verifier / verify_plan.py が返す送信前二段確認の判定。verdict=fail は送信を止める。",
+  "description": "gmail-send-presend-verifier / verify-plan.py が返す送信前二段確認の判定。verdict=fail は送信を止める。",
   "type": "object",
   "additionalProperties": false,
   "required": ["verdict"],

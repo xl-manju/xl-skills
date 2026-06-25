@@ -15,7 +15,7 @@
 """PreToolUse hook: 承認フローを迂回した Gmail 直接送信を Bash 経路で遮断する (補助防御の第1層)。
 
 射程: Bash tool の command 文字列、および他 tool の tool_input JSON に gmail.googleapis.com と
-messages/send パターンが現れ、かつ正規の送信スクリプト (send_campaign.py) 経由でない場合に exit 2
+messages/send パターンが現れ、かつ正規の送信スクリプト (send-campaign.py) 経由でない場合に exit 2
 で拒否する。curl / python -c 等で承認 plan_hash を通さず直接送る操作を止める。
 
 注意 (保証範囲の正直な明示・仕様書 §10): 本 hook は『Bash 経由の素の HTTP コマンド』を捕捉する
@@ -30,7 +30,7 @@ import sys
 
 _HOST = "gmail.googleapis.com"
 # 正規の送信経路。これを含む Bash コマンドは承認フロー (send_guard 内蔵) を通るため許可する。
-_SANCTIONED = "send_campaign.py"
+_SANCTIONED = "send-campaign.py"
 _SEND_PATTERNS = [
     r"messages/send",
     r"users/[^/\s]+/messages/send",
@@ -56,7 +56,7 @@ def main():
         sys.stderr.write(
             "[guard-gmail-send] 承認フローを迂回した Gmail 直接送信は禁止です。"
             "送信は run-notion-gmail-dry-run で plan を作り、人間承認 (APPROVE <plan_hash> <count> <first_to>) の後に "
-            "run-notion-gmail-send (send_campaign.py / send_guard 内蔵) 経由で行ってください。\n"
+            "run-notion-gmail-send (send-campaign.py / send_guard 内蔵) 経由で行ってください。\n"
         )
         return 2
     return 0

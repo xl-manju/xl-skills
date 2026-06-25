@@ -20,7 +20,7 @@ from pathlib import Path
 from lib import notion_client, notion_config, secrets
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-BP_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-dry-run" / "scripts" / "build_plan.py"
+BP_PATH = PLUGIN_ROOT / "skills" / "run-notion-gmail-dry-run" / "scripts" / "build-plan.py"
 
 
 def _load_build_plan():

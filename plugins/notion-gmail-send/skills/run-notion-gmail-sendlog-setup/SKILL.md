@@ -19,6 +19,17 @@ source: doc/run-notion-gmail-send-仕様と検証メモ.md
 source-tier: internal
 last-audited: 2026-06-24
 audit-trigger: source-update
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 送信ログDBの構築が §9 schema に対し冪等(additive-only)で、不足プロパティと select 選択肢のみを追加し既存プロパティ・既存データを破壊的に変更しないことを test_contract_sync で機械検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: 「送信ログDBを仕様 schema と照合し不足分だけ安全に補う」というユーザー目的を満たし、--apply 適用前に追加差分を提示し send 系スキルが依存する冪等キー基盤を過不足なく用意する責務設計を run-elegant-review の4条件で確認する。
+      verify_by: elegant-review
 ---
 
 # run-notion-gmail-sendlog-setup
@@ -33,19 +44,19 @@ audit-trigger: source-update
 
 ## End-to-End Flow
 
-決定論的本体は `scripts/setup_send_log_db.py` が担い、本スキルは差分の解釈・適用可否判断・config 反映の案内を担う (二層分離)。
+決定論的本体は `scripts/setup-send-log-db.py` が担い、本スキルは差分の解釈・適用可否判断・config 反映の案内を担う (二層分離)。
 
 1. **差分確認 (dry-run・既定)** — `--apply` 無しで現状と §9 期待 schema を照合し、不足プロパティ・型不一致・title rename 提案を表示する (副作用なし)。差分があれば exit 1。
 
    ```bash
-   python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-sendlog-setup/scripts/setup_send_log_db.py" \
+   python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-sendlog-setup/scripts/setup-send-log-db.py" \
      --db-id <送信ログDBのid>   # 省略時は config databases.gmail-send-log.db_id から解決
    ```
 
 2. **適用 (apply)** — 差分を確認のうえ `--apply` を付け、`PATCH /databases` で不足プロパティ追加と title rename を実行する。型不一致は自動修正せず手動確認に差し戻す。
 
    ```bash
-   python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-sendlog-setup/scripts/setup_send_log_db.py" \
+   python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-sendlog-setup/scripts/setup-send-log-db.py" \
      --db-id <送信ログDBのid> --apply   # 省略時は config databases.gmail-send-log.db_id から解決
    ```
 
@@ -59,7 +70,7 @@ audit-trigger: source-update
 送信ログDB (`databases.gmail-send-log.db_id` で解決可能) が仕様書 §9 schema と完全整合し、dry-run 差分が0で、`run-notion-gmail-send` の冪等ログ書き込みが構造的に成立する状態。
 
 ### 目的・背景 (Why)
-不可逆なメール送信を**二重送信させない**ためには、冪等キーで検索→reserved→sent/unknown を記録する送信ログDBが必須 (§2 三本柱の一つ)。送信ログDBの schema が欠けると preflight G2 が解決できず live-send は fail-closed で止まる (§10/§13)。本スキルはその依存実体を **db-setup として先行確定**し、送信フェーズが「DB ID 不在で詰む」ことなく「整わなければ送らない」を両立させる土台を作る。schema は `setup_send_log_db.py` 内 `EXPECTED` 定数が正本で、本スキルはそれとの差分を解消する。
+不可逆なメール送信を**二重送信させない**ためには、冪等キーで検索→reserved→sent/unknown を記録する送信ログDBが必須 (§2 三本柱の一つ)。送信ログDBの schema が欠けると preflight G2 が解決できず live-send は fail-closed で止まる (§10/§13)。本スキルはその依存実体を **db-setup として先行確定**し、送信フェーズが「DB ID 不在で詰む」ことなく「整わなければ送らない」を両立させる土台を作る。schema は `setup-send-log-db.py` 内 `EXPECTED` 定数が正本で、本スキルはそれとの差分を解消する。
 
 ### 完了チェックリスト (二値)
 - [ ] 送信ログDB id が `--db-id` または config `databases.gmail-send-log.db_id` で解決できる
@@ -109,7 +120,7 @@ PY
 1. **追加のみ・既存非破壊**: 不足プロパティと select 選択肢の追加だけを行い、既存プロパティ・データ・記入値は変更しない。再実行しても冪等。
 2. **title は「冪等キー」**: 検索キー title が `冪等キー` でなければ rename を提案・適用する。冪等キーは `{本文page_id}:{宛先page_id}:{content_hash}` を格納する (§9)。`campaign_id` は含めず、意図的再送時だけ `--allow-resend` が suffix を付ける。
 3. **型不一致は自動修正しない**: 期待型と現状型が食い違うプロパティは `--apply` でも変更せず、内訳を提示して手動是正へ差し戻す。
-4. **schema 正本は1か所**: 期待プロパティ定義は `setup_send_log_db.py` 内 `EXPECTED` 定数のみ。status/reason_code の選択肢は `lib/idempotent_log.py` の enum 定数を参照する (二重定義を作らない)。
+4. **schema 正本は1か所**: 期待プロパティ定義は `setup-send-log-db.py` 内 `EXPECTED` 定数のみ。status/reason_code の選択肢は `lib/idempotent_log.py` の enum 定数を参照する (二重定義を作らない)。
 5. **db_id 解決順**: `--db-id` 明示 > config `databases.gmail-send-log.db_id`。両方無ければ exit 2 で停止し、db_id の指定を促す。
 
 ## Gotchas
@@ -122,7 +133,7 @@ PY
 
 ## Additional Resources
 
-- `scripts/setup_send_log_db.py` — schema 照合・不足追加・title rename・config 案内 (期待 schema の正本 `EXPECTED`)
+- `scripts/setup-send-log-db.py` — schema 照合・不足追加・title rename・config 案内 (期待 schema の正本 `EXPECTED`)
 - `../../lib/idempotent_log.py` — status/reason_code enum 定数と reserved→sent/unknown の冪等ログ本体
 - `../../lib/notion_config.py` — `databases.gmail-send-log.db_id` 解決 (`.notion-config.json` ローダー)
 - `../../lib/notion_client.py` — `update_database` (PATCH /databases) ほか Notion REST ラッパ
