@@ -24,6 +24,22 @@ reference_refs:
   - ../run-build-skill/references/goal-seek-paradigm.md
 completeness_exempt:
   - "prompts: ゴール抽出の単一責務 skill。出力契約は schemas/goal-spec.schema.json に集約され、責務分割が不要なため R-id 単位プロンプトを持たない。推定手順はゴールシークループで都度生成する。"
+  - "manifest: ゴールシークループで手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。"
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成した eval-log/goal-spec.json が schemas/goal-spec.schema.json 検証を通過し purpose/background/goal/checklist が全て非空で checklist が1件以上であること(## 検証 の機械チェックで担保)。
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: goal が観測可能な完了形の1文で checklist が二値判定可能な受入基準のみで構成され「Edit で X する」等の手順を一切混入させず 達成手順生成は run-goal-seek へ責務分離されている設計であること。
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: ユーザーに追加質問せず情報不足でも停止せず 合理的な仮定を constraints か open_questions に明示して実行可能な spec を必ず出すユーザー負担最小化の設計が ゴール抽出という目的を最適に反映していること。
+      verify_by: elegant-review
 ---
 
 # run-goal-elicit
@@ -68,7 +84,7 @@ completeness_exempt:
 - [ ] **C5**: `eval-log/goal-spec.json` が `schemas/goal-spec.schema.json` 検証を通過した
 
 ### ゴールシークループ
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有の差分のみ記す:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップに従う。ただし Anchor Step (Step 5: 中間成果物スナップショット) は適用除外 (出力が `goal-spec.json` 1 点の単発完結で、周回ドリフトの余地が小さいため)。本スキル固有の差分のみ記す:
 - Step 1 で会話履歴・`topic`・関連ファイル・直近 diff から「仮想ヒアリング結果」を作る。
 - Step 2 で複数の候補ゴールを内部比較し、最も制約充足度が高い 1 件を `goal` に採用する。
 - 推定根拠が弱い項目は `constraints` に仮定として残し、未確定だが実行を止めるべきでない事項だけ `open_questions` に記録する。
@@ -79,11 +95,17 @@ completeness_exempt:
 python3 - "$PWD/eval-log/goal-spec.json" "$PWD/plugins/skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json" <<'PY'
 import json, sys
 spec = json.load(open(sys.argv[1], encoding="utf-8"))
-req = ["purpose", "background", "goal", "checklist"]
+schema = json.load(open(sys.argv[2], encoding="utf-8"))
+req = schema["required"]  # schema 正本から required を実読 (ハードコード drift 防止)
 missing = [k for k in req if not spec.get(k)]
 assert not missing, f"必須欠落: {missing}"
 assert len(spec["checklist"]) >= 1, "checklist は1件以上必要"
-print("goal-spec.json OK")
+# checklist 各項目のキー照合: schema items.required + verify_by (主要ルール5: run-goal-seek 決定論検査の前提)
+item_req = set(schema["properties"]["checklist"]["items"]["required"]) | {"verify_by"}
+for i, item in enumerate(spec["checklist"]):
+    lack = item_req - set(item)
+    assert not lack, f"checklist[{i}] キー欠落: {sorted(lack)}"
+print(f"goal-spec.json OK (required={req} / checklist {len(spec['checklist'])} 項目キー照合済)")
 PY
 ```
 

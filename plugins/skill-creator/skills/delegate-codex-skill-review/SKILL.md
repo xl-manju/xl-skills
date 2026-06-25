@@ -31,6 +31,25 @@ reference_refs:
   - references/resource-map.yaml
 script_refs:
   - scripts/check-codex-installed.py
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: check-codex-installed.py が exit0 か未導入exit2 を判定し未導入時は任意拡張と案内して BLOCK し Node や npm を推奨しないこと
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: 書き出す eval-log/delegate-codex-request.json が io-contract.schema.json に準拠し target_skill_path と rubric パスと任意実行コマンド例を含むこと
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: 自セッションでスコアを付けず採点と結果保存を codex 実行ユーザー管理に委ね Sycophancy を避ける委譲境界が保たれていること
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: codex CLI を標準フローの必須依存にせず Node や npm や shell を opt-in cross-check に留める内製と委譲の補完関係が崩れていないこと
+      verify_by: evaluator
 ---
 
 # delegate-codex-skill-review
@@ -83,7 +102,7 @@ codex CLI を標準フローの必須依存にしないまま、任意実行用�
 
 ### ゴールシークループ
 
-正本の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。固有差分: codex 実行自体はループ外（ユーザーが任意で行う）。本 Skill のループは「入力準備が io-contract を満たす」まで回し、委譲結果を自セッションで再評価しない。
+正本の 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し）に従う。固有差分: codex 実行自体はループ外（ユーザーが任意で行う）。本 Skill のループは「入力準備が io-contract を満たす」まで回し、委譲結果を自セッションで再評価しない。
 
 ### 局面カタログ（順序は都度判断）
 
@@ -94,13 +113,16 @@ codex CLI を標準フローの必須依存にしないまま、任意実行用�
   ```
   exit 2 が返ったら BLOCK。標準フローではなく任意拡張であることを案内して停止。
 - **target 検証**: `target_skill_path` が存在し SKILL.md であることを確認。
-- **任意実行コマンドの提示**:
+- **任意実行コマンドの提示** (正本 `references/codex-connection.md`):
 
   ```bash
-  codex review --input "$TARGET_PATH" --rubric plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json \
-    > eval-log/delegate-codex-review.json
+  codex --prompt "$(cat plugins/skill-creator/skills/delegate-codex-skill-review/prompts/R2-codex-review.md)" \
+        --context-file eval-log/delegate-codex-request.json \
+        --output-format text \
+        --approval-mode yolo \
+        > eval-log/delegate-codex-response.json
   ```
-  このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
+  codex に subcommand は無く `--prompt` 直接指定。rubric (`ref-skill-design-rubric/references/rubric.json` の critical axis) は R2 プロンプト本文へ焼き込み、別フラグでは渡さない。このコマンドは自動実行しない。codex CLI を導入済みのユーザーが任意で実行する。
 - **結果提示**: 書き出した JSON のサマリをユーザーに返す。修正判断は委ねる。
 
 ## Gotchas

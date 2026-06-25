@@ -34,11 +34,12 @@
     },
     "phase2_output": {
       "type": "object",
-      "required": ["paradigm_findings", "four_conditions", "variable_abstraction"],
+      "required": ["paradigm_findings", "four_conditions", "variable_abstraction", "thought_method_coverage"],
       "properties": {
-        "paradigm_findings": {"type": "array", "minItems": 30, "maxItems": 30},
+        "paradigm_findings": {"type": "array", "minItems": 0, "maxItems": 30},
         "four_conditions": {"type": "object"},
         "variable_abstraction": {"type": "array"},
+        "thought_method_coverage": {"type": "object"},
         "agent_outputs": {"type": "object", "properties": {"elegant-logical-structural-analyst": {"type": "object"}, "elegant-meta-divergent-analyst": {"type": "object"}, "elegant-system-strategic-analyst": {"type": "object"}}}
       }
     },

@@ -18,7 +18,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-18
-version: 0.1.0
+version: 0.1.0  # version=配布 semver / spec_version=仕様世代タグ (定義は workflow-manifest.json _comment 参照)
 manifest: workflow-manifest.json
 spec_version: "2.0"
 responsibility_refs:
@@ -38,7 +38,7 @@ schema_refs:
   - schemas/verdict.schema.json
 rubric_refs:
   - ref-skill-design-rubric
-  - references/elegant-4-conditions.json
+  - references/4-conditions.json        # 4 条件の唯一正本 (elegant-4-conditions.json は後方互換 redirect)
 reference_refs:
   - references/30-paradigms-full.md
   - references/thought-methods.yaml
@@ -66,6 +66,25 @@ source_refs:
 source-tier: internal
 last-audited: 2026-05-23
 audit-trigger: quarterly
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 1周回内で30思考法が全種 finding を出すか skip_reason を残し used 足す skipped_with_reason が30に到達する
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: 各 SubAgent が出力する findings.json が集約スキーマを通過し issues[].severity が優先度列挙、condition_signal が4条件 signal 列挙に収まる
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: 矛盾なし 漏れなし 整合性あり 依存関係整合の4条件が全 PASS かつ未達時は force_pass せず human_review へ差し戻す
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: 改善案の承認を同一 context が行わず別 SubAgent または人間が独立採点する proposer 非イコール approver を満たす
+      verify_by: evaluator
 ---
 
 # run-elegant-review (v2)
@@ -88,17 +107,17 @@ audit-trigger: quarterly
 
 - [ ] Phase 1 思考リセットを経由し `shared_state.md`（200字以内）を生成した
 - [ ] `thought_method_coverage.used + skipped_with_reason == 30`（30 思考法全て使用 or skip_reason 付き）
-- [ ] `findings[].severity == contradiction` が 0 件（矛盾なし）
-- [ ] `findings[].severity == omission` が 0 件（漏れなし）
-- [ ] `findings[].severity == inconsistency` が 0 件（整合性あり）
-- [ ] `findings[].severity == dependency_break` が 0 件（依存関係整合）
+- [ ] `fail_counts.contradiction == 0`（矛盾なし）
+- [ ] `fail_counts.omission == 0`（漏れなし）
+- [ ] `fail_counts.inconsistency == 0`（整合性あり）
+- [ ] `fail_counts.dependency_break == 0`（依存関係整合）
 - [ ] `findings.json` が `schemas/findings.schema.json` を通過する
 - [ ] proposer ≠ approver を満たす（自己承認禁止、別 SubAgent or 人間が承認）
 - [ ] max_iter 未達のまま終了時は `status: incomplete` + force_pass 禁止で human_review へ差し戻した
 
 ### ゴールシークループ
 
-正本 5 ステップ（現状評価→手順生成→実行→検証→反復、既定 5 周 / max_iter=3）に従う。固有差分: ループ本体は Phase 1→2→3 を SubAgent へ context fork して回し（親へは最終成果物 + handoff のみ返す）、Phase 1/2 は read-only、write は Phase 3 限定。判定は `scripts/validate-paradigm-coverage.py` で機械実行。下記 Phase 群は順序固定の手順ではなく、未達条件を埋める局面カタログとして都度選ぶ。
+正本 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復、既定 5 周 / max_iter=3）に従う。固有差分: ループ本体は Phase 1→2→3 を SubAgent へ context fork して回し（親へは最終成果物 + handoff のみ返す）、Phase 1/2 は read-only、write は Phase 3 限定。判定は `scripts/validate-paradigm-coverage.py` で機械実行。下記 Phase 群は順序固定の手順ではなく、未達条件を埋める局面カタログとして都度選ぶ。
 
 ---
 
@@ -145,7 +164,7 @@ options:
 
 ### 完了条件（4 条件 → 観測 signal）
 
-各条件の PASS signal は上記ゴールシーク Checklist（`findings[].severity == <tag>` 件数 = 0）と下記「検証 4 条件」テーブルを正本とする。`smell` は警告枠（PASS を妨げない）。判定は `scripts/validate-paradigm-coverage.py` で機械実行。
+各条件の PASS signal は上記ゴールシーク Checklist（`fail_counts.<signal> == 0`）と下記「検証 4 条件」テーブルを正本とする。`issues[].severity` は low/medium/high/critical の優先度、`condition_signal` は contradiction/omission/inconsistency/dependency_break/smell の機械観測 signal として分離する。`smell` は警告枠（PASS を妨げない）。判定は `scripts/validate-paradigm-coverage.py` と `verdict.json` で機械実行。
 
 ---
 
@@ -172,7 +191,7 @@ CONST_002（30 種全使用）は **「全種が finding を出す or `skip_reas
 
 ## 検証 4 条件
 
-| # | 条件 | severity tag | 検査手法 |
+| # | 条件 | condition_signal | 検査手法 |
 |---|------|---|------|
 | C1 | 矛盾なし (Consistency) | `contradiction` | claim graph で contradiction edge 検出 |
 | C2 | 漏れなし (Completeness) | `omission` | required-element checklist 全件 PASS |
@@ -211,7 +230,7 @@ CONST_002（30 種全使用）は **「全種が finding を出す or `skip_reas
 
 - **担当**: `elegant-improvement-executor`（必要時 `delegate-codex-skill-review` へ委譲、B5）
 - **入力**: Phase 2 全 SubAgent の findings 集約
-- **操作**: 依存 DAG 生成（B3, `findings[].location` から自動構築）→ 優先順位決定（severity contradiction > omission > inconsistency > dependency_break > smell）→ 独立対象は並列・依存ありは直列で改善 → `auto_fixable=true` は自動 commit / `false` は提案のみ → 4 条件再検証（max_iter=3）
+- **操作**: 依存 DAG 生成（B3, `findings[].location` または `paradigm_findings[].issues[].location` から自動構築）→ 優先順位決定（`issues[].severity`: critical > high > medium > low）→ 独立対象は並列・依存ありは直列で改善 → `auto_fixable=true` は自動 commit / `false` は提案のみ → 4 条件再検証（max_iter=3）
 - **出力**: `schemas/findings.schema.json` 準拠の `findings.json` 最終版 + 改善 PR ブランチ
 - **完了判定 signal**: 4 条件 PASS（contradiction/omission/inconsistency/dependency_break 全て 0 件）
 - **失敗時アクション**:
@@ -288,11 +307,5 @@ emit event の具体例 (4 条件 FAIL / safety_valve_fired=true 双方) は `re
 
 ## Additional Resources
 
-30 思考法の 1-2 行適用テンプレは `references/thought-methods.yaml` に外部化（D2、本文再掲せず SubAgent 起動時に該当カテゴリを引用渡し）。正本一覧は frontmatter (`reference_refs / schema_refs / script_refs / source_refs`) 参照。以下は人間向けナビ要約:
-
-- references: 30 思考法定義 / 4 条件 / agent 役割 / orchestration flow / convergence policy / variable contract / amplified patterns / observable emit examples
-- schemas: `finding` (機械観測 signal 単数) / `findings` (集約 wrapper) / `phase-output` / `verdict`
-- scripts: `build-paradigm-scorecard.py` / `validate-paradigm-coverage.py` / `emit-observable.py`
-- examples: `example-review-output.md` / `safety-valve-fired-verdict.json`
-- 関連 skill: `run-plugin-package-check` (Step 5) / `assign-skill-design-evaluator` (Step 6) / `delegate-codex-skill-review` / `ref-pkg-contract` / `ref-skill-design-rubric`
-- 設計書: 09 / 17 / 25 §runbook Step 5.5 / 26 §dogfooding / 27 §8.5 governance-log / 30 / 35 §observables / 36
+- 正本一覧は frontmatter (`reference_refs` / `schema_refs` / `script_refs` / `source_refs`) と `references/resource-map.yaml` (schemas / scripts / examples / related_skills / source_docs § ポインタ含む read_when 付き索引) を参照。
+- 30 思考法の 1-2 行適用テンプレは `references/thought-methods.yaml` に外部化 (D2、本文再掲せず SubAgent 起動時に該当カテゴリを引用渡し)。

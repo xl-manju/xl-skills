@@ -20,11 +20,17 @@
 
 | event | timing |
 |---|---|
+| `SessionStart` | セッション開始時 |
 | `UserPromptSubmit` | ユーザー入力直後 |
 | `PreToolUse` | tool 実行前 |
 | `PostToolUse` | tool 実行直後 |
-| `Stop` | 会話終了 |
+| `Stop` | メイン agent の応答終了時 |
+| `SubagentStop` | subagent (Task tool) の応答終了時 |
+| `PreCompact` | context compaction 実行前 |
+| `SessionEnd` | セッション終了時 |
 | `Notification` | 通知時 |
+
+※ `UserPromptExpansion` は存在しない (公式イベント外。配線しても発火しない)。
 
 設定: `~/.claude/settings.json` の `hooks` キー。
 Skill 内 `hooks/<event>.py` を参照させる構成も可。新規 hook は Python stdlib 実装を正本にする。

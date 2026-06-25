@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-initial-month-enrich",
+    "skill_md_sha256": "3caeaace4455f94ff992130c8fd6e2cecf6bc6da91afce555915622e87ca6ce1"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "notes": "frontmatter に per-skill 評価基準 (feedback_contract: IN1/IN2/OUT1) を携帯化した版 (SHA 3caeaa..) を本文込みで再評価し、elegance 4条件 (矛盾/漏れ/整合/依存) を全て充足したため PASS。本文は前回 PASS 版から不変 (追加は frontmatter feedback_contract ブロックのみ)。【矛盾 0】Purpose (最古発行月→Notion 初期推定値・差分のみ・最終確定は人) と Key Rules/Gotchas に相互矛盾なし。frontmatter L6 `argument-hint: \"[--plan] [--limit N]\"`・L7 `arguments: [plan, limit]` は --csv フラグを含まず、本文 L32/L47 の『CSV パスは mf_invoice_csv_match.py に位置引数 (--csv フラグではない)』および実装 (csv_match.py L77 `path = sys.argv[1]`) と完全整合。--plan/--limit は enrich.py の実 argparse フラグ (L69-70) と 1:1。【漏れ 0】2経路 (CSV 軽量=OAuth不要 / OAuth 無人) と配布境界 (コードは全員配布・実行は OAuth トークン保持の取得担当のみ)、fail-closed 停止条件、最終確定は人、を網羅。新規 criteria IN1/IN2/OUT1 はそれぞれ名寄せ正規化・差分のみ+fail-closed・全体目的整合を検証対象にしており本文の主張を過不足なく被覆。【整合 0】名寄せ正規化は mf_invoice_names.norm (法人格除去+全半角統一+空白除去+小文字化) が単一正本で csv_match.py L24 / enrich.py L28 が共有 import、本文 Key Rule 5 (会社名正規化) と一致。差分のみは enrich.needs_enrichment が AUTH_COL 空判定 (L64)、CSV 経路の fail-closed は mfk-gap-verified.json 不在で exit 2 (csv_match.py L112-117) で本文 L50/Gotchas と整合。OAuth 秘密は Keychain stdin 渡しで argv 露出回避 (前回検証済・本文不変)。【依存 0】lib 参照 (notion_invoice_sink._req/_notion_token・mfk_api.load_config) 実在、$CLAUDE_PLUGIN_ROOT 優先解決で install 位置非依存。feedback_contract.criteria の verify_by (test/test/elegant-review) は scripts/feedback_contract_ssot.py の enum 内で lint-feedback-contract --all が exit0。【smell (非blocking)】references/oauth-setup.md の PKCE『任意』記載と mf_invoice_oauth.py の PKCE 未実装の表現差が残る (現行フロー無影響・低)。blocking 欠陥は無いため honest PASS。",
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "frontmatter に IN1/IN2/OUT1 の per-skill 評価基準を携帯化し、名寄せ正規化 (IN1)・差分のみ+fail-closed (IN2)・全体目的整合と2経路/配布境界 (OUT1) を本文の主張と 1:1 で検証対象化",
+      "名寄せ正規化が mf_invoice_names.norm の単一正本で csv_match/enrich 双方が共有 import し、別 ID の会社名突合ロジックの二重定義を排除",
+      "差分のみ (AUTH_COL 空欄判定) と CSV 経路の fail-closed (mfk-gap-verified.json 不在で exit 2) で再実行コストを抑えつつ未検証顧客への書き込みを防ぐ設計が本文と実装で整合"
+    ],
+    "negative_feedback": [
+      "oauth-setup.md の PKCE『任意』記載と mf_invoice_oauth.py の PKCE 未実装の表現差 (smell・低・blocking ではない)"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
+}

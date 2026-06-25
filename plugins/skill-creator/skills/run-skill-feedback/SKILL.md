@@ -38,10 +38,35 @@ last-audited: 2026-05-25
 audit-trigger: on-change
 manifest: workflow-manifest.json
 completeness_exempt:
-  - "prompts: 対話手順 SSOT は doc/notion-schema/skill-list.schema.json#feedback_protocol (Notion §7 と同一正本)。本 SKILL.md は schema を参照し scripts/notion-submit-improvement.py へ橋渡しするのみ。prompt-creator の R-id 単位 7 層プロンプトは適用外 (二重定義禁止 [[project_ssot_dedup_mechanism]])。"
+  - "prompts: 対話手順は doc/notion-schema/skill-list.schema.json#feedback_protocol 正本 (Notion §7 と同一) から本文に展開している (初見実行の自己完結性のため)。整合は scripts/lint-feedback-protocol.py で発火条件と参照経路を検証。prompt-creator の R-id 単位 7 層プロンプトは適用外 (二重定義禁止 [[project_ssot_dedup_mechanism]])。"
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 発火条件と同定フローと対話項目が skill-list.schema.json の feedback_protocol を唯一の正本として派生し lint-feedback-protocol が SKILL.md と派生物の整合を exit0 で通過する
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: token と DB ID は notion_config の require_or_skip 経由(CLI > env > per-repo config > Keychain)でのみ解決され Claude の応答や log や context に一切露出しない
+      verify_by: lint
+    - id: IN3
+      loop_scope: inner
+      text: 改善要望投入前に対象プラグインのスキル一覧 DB 登録を dry-run で確認し未登録なら投入せず中断するため孤児レコードが生成されない
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: 目的逆算の同定フローが省略されず利用者がプラグイン名やスキル名を知らない前提で目的ヒアリングと現状仕様提示を経て対象スキルが正しく同定され文脈ズレ要望を防ぐ設計になっている
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: 利用者発端のフィードバックループが摩擦最小で起動でき収集した構造化要望が improvement-request schema 準拠で時系列ログ性質(重複除去を AI 判定しない)を保つ妥当な対話設計である
+      verify_by: evaluator
 ---
 
 # run-skill-feedback
+
+> **配布注記**: 本 skill の `script_refs` / `schema_refs` は repo-root 配置 (`scripts/`, `doc/notion-schema/`) に依存する。distribution: repo-bundled 前提 (単独配布非対応)。
 
 ## Purpose & Output Contract
 
@@ -51,7 +76,7 @@ completeness_exempt:
 
 ## 発火条件 (SSOT)
 
-発火条件・対話項目・状態遷移は `doc/notion-schema/skill-list.schema.json` の `feedback_protocol` を唯一の正本 (SSOT) とする。本 SKILL.md / `scripts/notion-upsert-plugin.py` / Notion スキル一覧ページ本文 §7 の三者は全てこの正本から派生し、`scripts/lint-feedback-protocol.py` が整合を機械検証する。
+発火条件・対話項目・状態遷移は `doc/notion-schema/skill-list.schema.json` の `feedback_protocol` を唯一の正本 (SSOT) とする。本 SKILL.md / `scripts/notion-upsert-plugin.py` / Notion スキル一覧ページ本文 §7 の三者は全てこの正本から派生する。整合の保証範囲: 発火条件・参照経路は `scripts/lint-feedback-protocol.py` で機械検証、対話文面の逐語一致は対象外 (正本変更時は本文を手動同期する)。
 
 具体的な発火条件 (schema `feedback_protocol.firing_conditions` 抜粋):
 - プラグインを使って「ここが分かりにくい」と感じた

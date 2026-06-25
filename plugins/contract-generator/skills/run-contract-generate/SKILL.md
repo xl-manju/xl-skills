@@ -22,6 +22,21 @@ source: doc/参考Skill/contract-generator/ + output/contract-generator-v2/(conc
 source-tier: internal
 last-audited: 2026-05-30
 audit-trigger: on-change
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成後の Docs/別紙に未置換プレースホルダ(`●`/`XXXX`/第6条記の空欄)が一切残っていないこと(docx_fill.py 末尾の残存チェックで機械検証)。
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: 差込は黄色 run(highlight_color==YELLOW)のみを対象とし、法務承認済 .docx の条文本文・レイアウトを改変しないこと(validate.py 差込前検証+アンカー機械抽出で担保)。
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: draft の停止条件が「Docs黄色版生成+Slack通知+台帳draft化」までに限定され、PDF確定/completed書戻し(run-contract-finalize)・ひな形追従(run-template-sync)へ責務分離されている設計が、契約書作成負荷削減という目的を最適に反映していること。
+      verify_by: elegant-review
 ---
 
 # run-contract-generate

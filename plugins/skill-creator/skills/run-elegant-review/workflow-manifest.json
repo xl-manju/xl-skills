@@ -28,7 +28,7 @@
       "subagent": "elegant-reset-observer",
       "context": "fork",
       "parallel": false,
-      "prompt": "./prompts/phase1-reset.md",
+      "prompt": "./prompts/R1-phase1-reset.md",
       "input": {
         "source": "input_contract.target",
         "schema": "./schemas/phase-output.schema.json#/definitions/phase1_input",
@@ -39,12 +39,14 @@
         ]
       },
       "output": {
-        "artifact": "shared_state.md",
+        "artifacts": ["raw_observations.json", "eval-log/<plugin>/<skill>/elegant-review/<run-id>/shared_state.md"],
+        "_comment_artifact": "log_dir 配下に固定 (SS-006: パス未固定だと completion_signal の存在判定が曖昧になる)",
         "schema": "./schemas/phase-output.schema.json#/definitions/phase1_output"
       },
       "completion_signal": {
         "type": "file-exists-and-schema-validate",
-        "files": ["shared_state.md"],
+        "files": ["raw_observations.json", "eval-log/<plugin>/<skill>/elegant-review/<run-id>/shared_state.md"],
+        "schema_file": "raw_observations.json",
         "must_include": ["purpose", "scope", "stakeholders", "concrete_values_to_abstract"]
       },
       "failure_action": {
@@ -65,7 +67,7 @@
         {"id": "elegant-system-strategic-analyst", "thought_methods_count": 11, "category": "A4"}
       ],
       "context": "fork",
-      "prompt": "./prompts/phase2-parallel.md",
+      "prompt": "./prompts/R2-phase2-parallel.md",
       "input": {
         "source": "shared_state.md + references/thought-methods.yaml",
         "schema": "./schemas/phase-output.schema.json#/definitions/phase2_input"
@@ -76,13 +78,15 @@
           "findings-phase2-meta.json",
           "findings-phase2-system.json"
         ],
-        "schema": "./schemas/findings.schema.json",
-        "aggregation": "merge into findings.json (Phase 3 input)"
+        "artifact_dir": "log_dir (eval-log/<plugin>/<skill>/elegant-review/<run-id>/) 配下に出力",
+        "schema": "./schemas/findings-partial.schema.json",
+        "_comment_schema": "per-agent 部分出力 (10/9/11 思考法) は paradigm_findings 件数制約なしの partial schema を適用 (SS-005)。集約後 findings.json のみ 30 固定の findings.schema.json (正本) を適用",
+        "aggregation": "merge into findings.json (Phase 3 input, schema: ./schemas/findings.schema.json)"
       },
       "completion_signal": {
         "type": "paradigm-coverage",
-        "command": "python3 scripts/validate-paradigm-coverage.py",
-        "rule": "thought_method_coverage.used + skipped_with_reason == 30 (B2, C1 緩和: 全種が finding or skip_reason)"
+        "command": "python3 scripts/validate-paradigm-coverage.py <log_dir>/findings.json",
+        "rule": "thought_method_coverage.used + skipped_with_reason == 30 and every skipped method has skip_reason (B2, C1 緩和)"
       },
       "failure_action": {
         "policy": "partial-continue",
@@ -98,14 +102,14 @@
       "subagent": "elegant-improvement-executor",
       "context": "fork",
       "parallel": false,
-      "prompt": "./prompts/phase3-execute.md",
+      "prompt": "./prompts/R3-phase3-execute.md",
       "input": {
         "source": "aggregated findings.json",
         "schema": "./schemas/findings.schema.json"
       },
       "steps": [
-        "step0: DAG 生成 (findings[].location + depends_on から依存グラフ構築、B3)",
-        "step1: severity 優先順位 (contradiction > omission > inconsistency > dependency_break > smell)",
+        "step0: DAG 生成 (findings[].location + depends_on または paradigm_findings[].issues[].location + depends_on から依存グラフ構築、B3)",
+        "step1: issues[].severity 優先順位 (critical > high > medium > low)。4条件 signal は condition_signal/fail_counts で別管理",
         "step2: 独立対象 parallel / 依存あり serial",
         "step3: auto_fixable=true は pre-phase3.patch 記録後に自動 commit / false は提案のみ",
         "step4: 4 条件再検証 (max_iter=options.max_iterations, default 3)",
@@ -172,7 +176,8 @@
     {"id": "subagent-system-strategic", "kind": "subagent", "name": "elegant-system-strategic-analyst", "phaseIds": ["phase2-parallel"]},
     {"id": "subagent-improvement-executor", "kind": "subagent", "name": "elegant-improvement-executor", "phaseIds": ["phase3-execute"]},
     {"id": "schema-finding", "kind": "schema", "path": "./schemas/finding.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "単数 finding (機械観測 signal: contradiction/omission/inconsistency/dependency_break/smell)"},
-    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "集約 wrapper (paradigm_findings[] + variable_abstraction + four_conditions verdict)。issues.severity は low/medium/high/critical の運用ラベルで finding.schema.json の機械観測 signal と責務分割"},
+    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase3-execute"], "_role": "集約 wrapper (paradigm_findings[] 30 固定 + variable_abstraction + four_conditions verdict)。issues.severity は low/medium/high/critical の運用ラベルで finding.schema.json の機械観測 signal と責務分割"},
+    {"id": "schema-findings-partial", "kind": "schema", "path": "./schemas/findings-partial.schema.json", "phaseIds": ["phase2-parallel"], "_role": "Phase2 per-agent 部分出力用 (paradigm_findings 件数制約なし、他は findings.schema.json と同一構造)"},
     {"id": "schema-verdict", "kind": "schema", "path": "./schemas/verdict.schema.json", "phaseIds": ["phase3-execute"]},
     {"id": "schema-phase-output", "kind": "schema", "path": "./schemas/phase-output.schema.json", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
     {"id": "ref-thought-methods", "kind": "reference", "path": "./references/thought-methods.yaml", "phaseIds": ["phase2-parallel"]},

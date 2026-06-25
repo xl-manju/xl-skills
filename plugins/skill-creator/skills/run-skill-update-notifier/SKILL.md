@@ -20,6 +20,25 @@ responsibility_refs:
 schema_refs:
   - schemas/output.schema.json
 manifest: workflow-manifest.json
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: CHANGELOG 不在・オフライン・cache 不在・権限不足・XL_SKILLS_NOTIFY=off のいずれの分岐でも例外を握りつぶし空文字列(no-op)かつ exit 0 へ倒れ Skill 実行を妨げないことを notifier-check.py の単体テストで機械検証できる(graceful degradation)。
+      verify_by: test
+    - id: IN2
+      loop_scope: inner
+      text: PostToolUse hook が tool_name=="Skill" のときだけ末尾に1行付記し Read や Bash の末尾には付かないこと、および同一 plugin の通知が last_notified_at により1セッション内で重複しないことを hook-notify-skill-end.py の単体テストで機械検証できる(filter と重複抑止)。
+      verify_by: test
+    - id: IN3
+      loop_scope: inner
+      text: 既存 manifest(plugin.json marketplace.json bundles.json skill-intake-self-updater)を一切変更せず書込先が version-snapshot.json のみに限定され Python stdlib だけで完結することを read-only 静的 lint で機械検証できる(非破壊と外部依存ゼロ)。
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: スキル全体がユーザ目的(意識せず最新版の存在に気づける非破壊な気づき提供)を最適に反映し、cache 鮮度判定・通知整形・graceful 保護層という責務分割が分岐の多い文脈で過不足なく目的に整合していることを評価できる。
+      verify_by: elegant-review
 ---
 
 # run-skill-update-notifier
@@ -48,8 +67,8 @@ manifest: workflow-manifest.json
 
 | Hook Event | Script | 役割 | exit |
 |---|---|---|---|
-| UserPromptExpansion | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
-| PostToolUse | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
+| UserPromptSubmit (matcher=`.*`) | `scripts/hook-cache-refresh.py` | 24h TTL で cache 再 scan (バックグラウンド準同期) | 0固定 |
+| PostToolUse (matcher=`Skill`) | `scripts/hook-notify-skill-end.py` | `tool_name == "Skill"` のとき末尾 1 行付記 | 0固定 |
 
 settings.json マージ案は `references/hook-wiring.md` 参照。自動 merge はしない (人間承認)。
 
@@ -84,7 +103,7 @@ cache 比較が完了し（差分有無を問わず）、`tool_name == "Skill"` 
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップに従う。本スキル固有差分:
 
 - 対象ファイル: `~/.cache/xl-skills/version-snapshot.json`（書込対象はこれのみ）、各 `plugins/*/CHANGELOG.md`（read-only）
 - 固定パス/閾値: cache 鮮度 24h TTL（時刻欠落時は `stale` 扱い）、通知書式 `(installed: ... / latest: ... — /skill-update で更新)`、抑制 `XL_SKILLS_NOTIFY=off`

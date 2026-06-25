@@ -68,7 +68,7 @@ def _repo_root(p: Path) -> Path:
 
 def skill_exists(name: str, repo: Path) -> bool:
     return (
-        (repo / "creator-kit" / "skills" / name).is_dir()
+        (repo / "plugins" / "skill-creator" / "skills" / name).is_dir()
         or (repo / ".claude" / "skills" / name).is_dir()
     )
 
@@ -81,7 +81,7 @@ def _collect_inbound_refs(repo: Path) -> set[str]:
     """
     inbound: set[str] = set()
     skill_name_re = re.compile(r"(ref|run|assign|wrap|delegate)-[a-z0-9-]+")
-    for skills_root in (repo / "creator-kit" / "skills", repo / ".claude" / "skills"):
+    for skills_root in (repo / "plugins" / "skill-creator" / "skills", repo / ".claude" / "skills"):
         if not skills_root.is_dir():
             continue
         for skill_md in skills_root.glob("*/SKILL.md"):

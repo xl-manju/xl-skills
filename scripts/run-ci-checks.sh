@@ -11,6 +11,11 @@ cd "$ROOT"
 
 FAILED=()
 PASSED=()
+WARNED=()
+
+# SS-201 段階導入: 新規拡張 plugin の既存違反は warning 止まり。
+# STRICT_ALL_PLUGINS=1 で error 化 (将来の既定化を見据えた opt-in)。
+STRICT_ALL_PLUGINS="${STRICT_ALL_PLUGINS:-0}"
 
 run() {
   local label="$1"; shift
@@ -18,6 +23,19 @@ run() {
     PASSED+=("$label")
   else
     FAILED+=("$label")
+  fi
+}
+
+# 段階導入用: 失敗しても STRICT_ALL_PLUGINS=1 でない限り warning 扱い
+run_soft() {
+  local label="$1"; shift
+  if "$@"; then
+    PASSED+=("$label")
+  elif [ "$STRICT_ALL_PLUGINS" = "1" ]; then
+    FAILED+=("$label")
+  else
+    echo "[WARN] $label failed (段階導入中: STRICT_ALL_PLUGINS=1 で error 化)" >&2
+    WARNED+=("$label")
   fi
 }
 
@@ -30,7 +48,10 @@ run "lint-external-refs"                   python3 scripts/lint-external-refs.py
 
 # ── SSOT / drift ──
 run "lint-feedback-protocol --strict"      python3 scripts/lint-feedback-protocol.py --strict
-run "lint-content-review (changed-only)"   python3 scripts/lint-content-review.py --changed-only --base origin/main
+run "lint-content-review (all)"            python3 scripts/lint-content-review.py --all
+run "lint-feedback-contract (all)"         python3 scripts/lint-feedback-contract.py --all
+run "lint-vendored-ssot"                   python3 scripts/lint-vendored-ssot.py
+run "lint-runtime-portability"             python3 scripts/lint-runtime-portability.py
 run "check-scripts-drift"                  bash scripts/check-scripts-drift.sh
 run "build-claude-symlinks --check"        python3 scripts/build-claude-symlinks.py --check
 run "lint-ssot-duplication --strict"       python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict
@@ -47,6 +68,36 @@ run "validate-frontmatter (prompt-creator)" python3 plugins/skill-governance-lin
 run "lint-skill-name (prompt-creator)"     python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-description (prompt-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-completeness (prompt-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/prompt-creator/skills
+
+# ── completeness / frontmatter (全 plugin 段階導入: SS-201) ──
+# skill-creator / prompt-creator は上の strict 行が正。その他 plugin は
+# 既存違反の棚卸しが済むまで run_soft (warning) で観測し breakage を避ける。
+for skills_dir in plugins/*/skills; do
+  [ -d "$skills_dir" ] || continue
+  plugin="$(basename "$(dirname "$skills_dir")")"
+  case "$plugin" in
+    skill-creator|prompt-creator) continue ;;  # 上で strict 検査済み
+  esac
+  run_soft "lint-skill-tree ($plugin)"         python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir "$skills_dir"
+  run_soft "lint-skill-completeness ($plugin)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir "$skills_dir"
+  run_soft "validate-frontmatter ($plugin)"    python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir "$skills_dir"
+done
+
+# ── rubric 正本-派生照合 (elegant-review run-20260610-175852 で修復・配線) ──
+# check-rubric-sync は 2026-05-24 に「チェックリスト化のみで実体未配線」のまま腐った前例があり、
+# 配線漏れ自体が今回の根本原因 (SS-205/SS-213)。strict 配線で再発を機械遮断する。
+run "check-rubric-sync (L0/L2 rubric drift)" python3 plugins/skill-governance-lint/scripts/check-rubric-sync.py
+# LS-215: governance lint scripts 自身の削除済み root (creator-kit) 残存参照を fail-closed 検出
+run "lint-stale-root-refs (governance scripts)" python3 plugins/skill-governance-lint/scripts/lint-path-canonical.py --scripts-dir plugins/skill-governance-lint/scripts
+# rubric_refs 解決検査は registry/symlink 由来の既存違反棚卸しが済むまで soft 観測
+run_soft "lint-rubric-refs-exist"          python3 plugins/skill-governance-lint/scripts/lint-rubric-refs-exist.py
+
+# ── governance-lint 回帰テスト (MD-208/LS-211/LS-215 の挙動保証) ──
+if python3 -c "import pytest" 2>/dev/null; then
+  run "pytest (governance-lint regressions)" python3 -m pytest plugins/skill-governance-lint/tests/ -q
+else
+  echo "[Warn] pytest 不在のため governance-lint 回帰テストを skip (CI では creator-kit-ci.yml が実行)"
+fi
 
 # ── knowledge loop ──
 run "lint-knowledge-loop --self-test"      python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
@@ -65,8 +116,12 @@ fi
 # ── サマリ ──
 echo
 echo "========================================"
-echo "PASS: ${#PASSED[@]} / FAIL: ${#FAILED[@]}"
+echo "PASS: ${#PASSED[@]} / WARN: ${#WARNED[@]} / FAIL: ${#FAILED[@]}"
 echo "========================================"
+if (( ${#WARNED[@]} > 0 )); then
+  echo "Warned checks (段階導入中、STRICT_ALL_PLUGINS=1 で error 化):"
+  for w in "${WARNED[@]}"; do echo "  - $w"; done
+fi
 if (( ${#FAILED[@]} > 0 )); then
   echo "Failed checks:"
   for f in "${FAILED[@]}"; do echo "  - $f"; done

@@ -53,6 +53,14 @@
       "severity_on_fail": "high"
     }
   ],
+  "severity_label_map": {
+    "_comment": "finding の機械観測 signal (finding.schema.json) → 運用ラベル (findings.schema.json issues.severity) の変換表。severity_on_fail (C1/C3→critical, C2/C4→high) と整合 (LS-010)",
+    "contradiction": "critical",
+    "inconsistency": "critical",
+    "omission": "high",
+    "dependency_break": "high",
+    "smell": "low"
+  },
   "completion": {
     "rule": "ALL conditions must PASS",
     "loop_limit": 3,

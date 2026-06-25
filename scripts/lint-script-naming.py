@@ -44,6 +44,23 @@ PENDING_RENAME_PATTERNS = [
 # 暫定例外: 個別パス (初回投入時の既存スクリプト群、33章 Change Governance 管理下)
 # リネーム計画は .claude/changelog/governance-log.jsonl 参照
 PENDING_RENAME_PATHS = {
+    # company-master (PR: 日本郵便 addresszip 移行): scripts/*.py は相互 import される
+    # Python モジュール (import notion_config / postal_api 等) のため §4.3 のハイフン命名を
+    # 適用できず underscore 許容。skill-intake の同種モジュール群と同じ PENDING 扱い
+    # (後続 Change Governance PR で一括リネーム検討。正本 skill-creator/scripts/notion_config.py も PENDING)。
+    "plugins/company-master/scripts/notion_config.py",
+    "plugins/company-master/scripts/notion_upsert.py",
+    "plugins/company-master/scripts/postal_api.py",
+    "plugins/company-master/scripts/postal_proxy.py",
+    "plugins/company-master/scripts/enrich_company.py",
+    "plugins/company-master/scripts/resolve_company.py",
+    "plugins/company-master/scripts/validate_company_master.py",
+    "plugins/company-master/scripts/company_master.py",
+    "plugins/company-master/scripts/confirm_url.py",
+    "plugins/company-master/scripts/bootstrap_plugin.py",
+    "plugins/company-master/scripts/normalize.py",
+    "plugins/company-master/scripts/remarks.py",
+    "plugins/company-master/scripts/backfill.py",
     "scripts/detect-repeated-rubric-violations.py",
     "scripts/inventory-skill-references.py",
     "scripts/skill-fixture-runner.py",
@@ -143,6 +160,15 @@ PENDING_RENAME_PATHS = {
     "scripts/sync-notion-schema.py",
     # PR #16: build-trace SSOT shim (Python import がハイフン不可のため underscore 許容、§4.3 例外)
     "plugins/skill-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
+    # feedback_contract criteria の単一 SSOT モジュール。validate-build-trace.py /
+    # lint-feedback-contract.py / lint-content-review.py から import される共有 module の
+    # ため Python import 上ハイフン不可 (§4.3 恒久例外)。
+    "scripts/feedback_contract_ssot.py",
+    # 上記正本の vendored 実体コピー (skill-creator 単独 install 用)。runtime hook /
+    # build-time validator が plugin 内で import するため、正本と byte 完全一致を要件とし
+    # underscore 名のまま固定する (リネームすると import 名が変わり byte 一致が崩れる)。
+    # byte 一致は scripts/lint-vendored-ssot.py が強制 (§4.3 恒久例外)。
+    "plugins/skill-creator/scripts/feedback_contract_ssot.py",
     # PR #17: per-repo Notion config SSOT loader (Python import 必須、§4.3 例外。
     # skill-intake 側は skill-creator 側への symlink で SSOT 維持)
     "plugins/skill-creator/scripts/notion_config.py",
@@ -170,6 +196,16 @@ PENDING_RENAME_PATHS = {
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
+    # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
+    # 実体スクリプト群。相互 import する module (api→oauth, enrich→api/oauth) で Python import 上
+    # underscore 必須のため §4.3 例外。許可動詞化は SKILL.md/README 参照と同時の後続 PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_enrich.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_api.py",
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_csv_match.py",
+    # mf_invoice_names.py: enrich/csv_match が `import mf_invoice_names` する名寄せ正規化の
+    # 共有 module (SSOT)。同上の §4.3 例外 (Python import 上 underscore 必須)。
+    "plugins/mf-kessai-invoice-check/skills/run-mf-initial-month-enrich/scripts/mf_invoice_names.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

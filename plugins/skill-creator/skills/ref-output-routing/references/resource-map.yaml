@@ -8,5 +8,5 @@ resources:
     topic: 出力先別のセキュリティ制約 (権限 / network / write 範囲)
     read_when: sink 選定がセキュリティ条項に抵触しないか確認するとき
 prompts:
-  - file: ../prompts/search-summarize.md
+  - file: ../prompts/R1-search-summarize.md
     purpose: R1 検索/要約 (query → matches[])

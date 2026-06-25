@@ -11,7 +11,7 @@ resources:
     read_when: 仕様が変わったか / いつ変わったかを確認したいとき
     status: pending-fetch
 prompts:
-  - file: ../prompts/search-summarize.md
+  - file: ../prompts/R1-search-summarize.md
     purpose: R1 検索/要約 (query → matches[] + staleness フラグ)
 schemas:
   - file: ../schemas/query-result.schema.json

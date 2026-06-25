@@ -1,0 +1,40 @@
+{
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-skill-create",
+    "skill_md_sha256": "b337e23994501d979461485490f0e891f786a0a7908a7e3fbc76e5ac26fb9f58"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "FM 系 high/medium ルールを維持: name=run-skill-create が ^(run|ref|assign|wrap|delegate)- に一致し len<=60 (FM-001 PASS)、description は 〜とき トリガ2個で 。 終止 (FM-002/003 PASS)、内部動作動詞なし (FM-004 PASS)、する形で開始 (FM-005 PASS)",
+      "BD 系を維持: ## Purpose & Output Contract (BD-001 PASS)、## Gotchas (BD-002 PASS) を存置。merge で本文に純増があったが frontmatter 除外本文行数=125 行で 300 行上限を十分に下回る (BD-003 high PASS)。description の2発動条件は body の Step1 elicit / 品質保証フロー手順に1:1 対応 (BD-004 PASS)",
+      "携帯した criteria は SSOT 制約(id=^(IN|OUT|C)[0-9]+$ / verify_by enum / loop_scope inner-outer 両在)を満たし、verify_by が機械層(IN1=lint, IN2=script)と判断層(OUT1=elegant-review, OUT2=evaluator)に二層分離され、本スキルの目的=ゲートあり品質保証フロー orchestrator から導出された固定テンプレ非流用の基準である"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "ref-skill-design-rubric/references/rubric.json (v1.3.0) を読み、dev同期merge後の現 SKILL.md (sha256 b337e23994...) を kind=skill として genuine 採点。applies_to_kinds=skill/* の全 high-severity ルールを実検証: FM-001(name パターン+長さ) PASS / BD-001(## Purpose & Output Contract) PASS / BD-003(本文125行<=300) PASS / NM-001(ディレクトリ basename==name) PASS。medium: FM-002/003/004/005, BD-002/004, NM-002, PD-002 すべて PASS。low: NM-003, PD-001, RG-001 PASS。KL-001..005 は knowledge/ ディレクトリも frontmatter.knowledge_loop も無いため存在ゲートで無条件 PASS(skip)。agent/hook/command/plugin-composition/prompt/workflow 固有ルールは applies_to_kinds 不一致で非適用。merge 差分(禁則行追加 / governance チェック項目書換 / ゴールシーク6ステップ化 / Elegant Review 正本是正 / Step 4a.5 pkg-check 追加 / findings.schema.json 再分類)は adequacy を損なわず、テンプレ流用・description↔body 乖離・節欠落はいずれも無し。high severity finding 0件で PASS。被採点物への改変なし(read-only 検証)。"
+}

@@ -15,8 +15,8 @@
       "exitHook": "validate-brief-or-intake-publish-ready",
       "resourceIds": [
         "schemas/skill-brief.schema.json",
-        "prompts/elicit.md",
-        "prompts/gate-review.md",
+        "prompts/R1-elicit.md",
+        "prompts/R2-gate-review.md",
         "scripts/validate-intake-publish-ready.py"
       ],
       "delegateSkill": "run-skill-elicit",
@@ -48,7 +48,7 @@
       "entryHook": null,
       "exitHook": "lint-manifest-contents",
       "resourceIds": [
-        "prompts/gate-review.md"
+        "prompts/R2-gate-review.md"
       ],
       "delegateSkill": null,
       "command": "python3 plugins/skill-governance-automation/scripts/build-manifest-registration-plan.py",
@@ -94,11 +94,25 @@
       "handoff": "eval-log/handoff-after_lint.json"
     },
     {
+      "id": "pkg-check",
+      "step": "4a.5",
+      "gate": null,
+      "title": "PKG completeness check (PKG-001〜015)",
+      "dependsOn": ["p0-lint"],
+      "entryHook": null,
+      "exitHook": null,
+      "condition": "kind == plugin-composition OR new_plugin_rollout",
+      "resourceIds": [],
+      "delegateSkill": "run-plugin-package-check",
+      "fatal_exit_codes": [1],
+      "handoff": "eval-log/handoff-after_pkg_check.json"
+    },
+    {
       "id": "design-evaluate",
       "step": "4b",
       "gate": null,
       "title": "設計評価 (rubric)",
-      "dependsOn": ["p0-lint"],
+      "dependsOn": ["pkg-check"],
       "entryHook": null,
       "exitHook": null,
       "resourceIds": [
@@ -120,8 +134,8 @@
       "exitHook": null,
       "condition": "new_skill OR diff_lines > 30",
       "resourceIds": [
-        "schemas/findings.schema.json",
-        "prompts/gate-review.md"
+        "../run-elegant-review/schemas/findings.schema.json",
+        "prompts/R2-gate-review.md"
       ],
       "delegateSkill": "run-elegant-review",
       "context": "fork",
@@ -138,8 +152,8 @@
       "entryHook": null,
       "exitHook": null,
       "resourceIds": [
-        "prompts/governance-decide.md",
-        "prompts/gate-review.md",
+        "prompts/R3-governance-decide.md",
+        "prompts/R2-gate-review.md",
         "schemas/handoff.schema.json"
       ],
       "delegateSkill": "run-skill-rubric-governance",

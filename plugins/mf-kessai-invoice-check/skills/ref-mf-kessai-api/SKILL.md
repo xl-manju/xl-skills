@@ -56,7 +56,8 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 ```
 
 - 月の帰属は `billing.issue_date` (請求書発行日) 基準。取引日 `date` ではない (取引は月をまたいで発行されるため)。
-- 「契約終了で今月は請求不要」かどうかは **API から判別不能**。発行漏れ候補として出し、除外判断は人が Notion の `請求要否` 列で行う (機械で消さない)。
+- 「契約終了で今月は請求不要」かどうかは **API から判別不能**。発行漏れ候補として出し、除外判断は人が Notion の `請求要否` 列で行う (この例外判断は機械化しない)。
+- 「契約ID」「初回契約月」「支払サイクル」「月払い自動更新月」は **API から直接は判別不能**。企業ごとの契約開始月は Notion 管理列 `初回契約月` に YYYY-MM、`支払サイクル` (月払い/年間払い) を人が設定する。**年間契約期間中(初回契約月から12ヶ月)の発行漏れ候補の抑制は、機械がこの記入された初回契約月を読んで自動で行う** (`billing_lifecycle`/`suppress_annual_period_gaps`)。月次チェック(sink)はこれら管理列に触れない (読むのは抑制のため、書き込みはしない)。
 
 ## 取得できる要件フィールドの対応
 
@@ -67,6 +68,7 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 | 更新日 | `/transactions` | `created_at` / `accepted_at` (明示的 `updated_at` は無い) |
 | 取引先企業名 | `/customers` | `name` (`customer_id` で名寄せ) |
 | 発行状態 | `/billings/qualified` | `status` (`invoice_issued`/`scheduled` 等) |
+| 初回契約月・支払サイクル | 直接取得不可 | Notion 管理列 `初回契約月` に YYYY-MM で手入力、`支払サイクル` を人が設定。**年間契約期間の発行漏れ抑制は機械がこの初回契約月を読んで自動判定** (`billing_lifecycle`) |
 
 ## ページネーション
 
@@ -74,7 +76,7 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 
 ## Key Rules
 
-1. **参照専用**: 本スキルは仕様の参照のみ。実行は `lib/`。請求書発行 (POST) は行わない (`run-mf-invoice-check` の PreToolUse hook で機械保証)。
+1. **参照専用**: 本スキルは仕様の参照のみ。実行は `lib/`。請求書発行 (POST) は行わない (`run-mf-invoice-check` の PreToolUse hook と GET 専用クライアントで抑止)。
 2. **一覧は qualified**: インボイスモードで `/billings` は空。必ず `/billings/qualified`。
 3. **月帰属は issue_date**: 発行漏れの語義に合う軸は発行日。
 4. **キーは Keychain**: 生値を context に載せない。
@@ -84,7 +86,7 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 1. `GET /billings` が 0件でも異常ではない (インボイスモード)。`qualified` で確認する。
 2. `updated_at` は存在しない。更新日は `created_at`/`accepted_at`/`billing_accepted_at` で代替。
 3. レート制限は spec 未記載。保守的に `limit=200` カーソル + バックオフ。
-4. 定期請求/自動延長の概念は API に無い。「20万×3」等のスケジュール判断は持てない (人が管理)。
+4. 定期請求/自動延長/初回契約月/支払サイクルの概念は API に無い。契約開始月・支払サイクルは人が Notion 管理列 (`初回契約月`/`支払サイクル`) に設定する。**年間契約期間中の発行漏れ抑制は機械がこの初回契約月を読んで自動判定する** (`billing_lifecycle`)。「20万×3」等の個別スケジュール判断や契約終了の例外は引き続き人が `請求要否` 列で管理する。
 
 ## Additional Resources
 

@@ -1,0 +1,28 @@
+{
+  "target": {
+    "plugin": "prompt-creator",
+    "skill": "run-prompt-elicit",
+    "skill_md_sha256": "a0742405c72904d337d20a7e591922898aed7bbc43b0cb559ed1ea29a3069a4e"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-24T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "ヒアリングの中核原則(導出確認なしに AI 推定を confirm 化しない / 1セッション3-5問+評価優先度に集約)が contract.invariant・Key Rules・Step 3 で一貫して反復され、後続 build が迷わず依拠できる brief を生むという Step 1 責務に直結している。",
+      "responsibility_id を target_skill responsibilities[].id と 1:1 で束縛し、不在時は confirm せず open_questions へ退避する設計により、未確定情報を事実化しない安全側のフォールバックが構造で担保されている。",
+      "batch モードで AskUserQuestion を不使用とし topic/target_skill/responsibility_id 全指定を必須化することで、対話前提と非対話前提の分岐が明確に分離され、自動化経路でのヒアリング誤起動を防いでいる。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md を全文精読し criteria を導出。完全性: Purpose & Output Contract / Key Rules / Steps(1-5) / Gotchas / Additional Resources が相互整合し、入力(topic/target_skill/responsibility_id/batch)から出力(prompt-brief.json + hearing-result.json)への流れに欠落なし。一貫性: frontmatter allowed-tools(AskUserQuestion/Task)・responsibility_refs=prompts/R1-interview.md(実在確認)・delegate agent prompt-creator-interview-user(実在確認)・schema_refs(prompt-brief / hearing-result)が整合。IN1(brief schema 妥当 + R-id 1:1 実在 / 不在は open_questions)・IN2(batch 全指定必須かつ AskUserQuestion 不使用)・OUT1(導出確認原則と3-5問集約が SKILL.md / prompt SSOT / agent アダプタまで一貫)の3基準で adequacy を確認。Step 1 ヒアリング責務として中核原則が層をまたいで一貫しており PASS。"
+}

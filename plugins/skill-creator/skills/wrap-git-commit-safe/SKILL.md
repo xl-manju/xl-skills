@@ -30,6 +30,21 @@ script_refs:
   - scripts/preflight-git-commit.py
 reference_refs:
   - references/resource-map.yaml
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: pre-commit-secret-scan.py が機密ファイル(.env credentials.json *.pem)を add 対象から検出した場合に exit 2 で BLOCK し LLM の文字列マッチに依存しない決定論検査として閉じている
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: commit_args や script に --no-verify --no-gpg-sign が含まれる場合と main master への force-push が試行された場合をいずれも決定論的に検出して BLOCK する
+      verify_by: script
+    - id: OUT1
+      loop_scope: outer
+      text: base(run-build-skill)の commit 手順を上書きせず前後フックとして被せる wrap 責務が allowed-tools と本文で一貫し L1 階層として L0 共通規約に依存する設計が崩れていない
+      verify_by: elegant-review
 ---
 
 # wrap-git-commit-safe
@@ -71,7 +86,7 @@ base の commit を上書きせず前後に安全フックを被せ、LLM の文
 
 ### ゴールシークループ
 
-正本の 5 ステップ（現状評価→手順生成→実行→検証→反復/差し戻し）に従う。固有差分は下記局面で未達チェックを埋める。決定論検査は script に寄せ、検査不合格は即 BLOCK（再試行で握り潰さない）。
+正本の 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し）に従う。固有差分は下記局面で未達チェックを埋める。決定論検査は script に寄せ、検査不合格は即 BLOCK（再試行で握り潰さない）。
 
 ### 局面カタログ（順序は都度判断）
 
@@ -94,4 +109,5 @@ base の commit を上書きせず前後に安全フックを被せ、LLM の文
 ## Additional Resources
 
 - base: `run-build-skill`
+- `templates/commit-template.md` — commit message を整形するときに Read
 - 設計書: `06-classification-and-naming.md` (wrap-* prefix), `01a-build-flow.md` Step3

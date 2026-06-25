@@ -1,11 +1,39 @@
 {
-  "target": {"plugin": "skill-creator", "skill": "run-build-skill", "skill_md_sha256": "37211c306db6d063b94e3b7354db4aa6f8d4ea14fe2a78fd032929e7ae335628"},
+  "target": {
+    "plugin": "skill-creator",
+    "skill": "run-build-skill",
+    "skill_md_sha256": "0970c62173c84b87c800842f2d8a9f96d65affe12633feb8d1d045cae87f79cd"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator-equivalent",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator-subagent",
+  "reviewed_at": "2026-06-25",
   "iterations": 1,
   "human_review_required": false,
-  "feedback_loop": {"loop_scope": "both", "criteria_evaluated": ["IN1", "OUT1", "C1", "C2", "C3", "C4"], "positive_feedback": ["BD-003(本文300行上限)を実測で順守: frontmatterは81行目で終わり本文は82-300行=219行と上限内。Step12圧縮が行数余裕を回復させた", "Key Rule#17と同型のSSOTポインタ方式でStep12を1段落+references/content-review-protocol.md参照へ統合し『本文に再掲しない＝SSOT』を明記。本文から外した4詳細(run-elegant-review reset→3並列→改善 Phase / feedback_contract inner-outer正負FB / hook queue+skill_md_sha256検査 / max_iter=3→INCOMPLETE+human_review)はreference側に欠落なく全て現存", "FM/NM/BD系の高severityルール(name=run-build-skill一致, ## Purpose & Output Contract と ## Gotchas 存置, descriptionは〜とき発動条件のみ)を維持し圧縮で破損していない"], "negative_feedback": [], "iteration": 1, "iteration_limit": 3, "hook_trigger": "manual", "next_action": "none"},
-  "notes": "Step12のSSOTポインタ化編集をrubric観点でgenuine検証。実ファイルを読み、BD-003(本文219行)/BD-001/BD-002/FM-001..004/NM-001をPASS確認。reference側に移管詳細の欠落なし。high severity finding 0件。なお既存verdict(elegance/rubric)は旧SHA 2b4cb72...を保持しており本再生成で現行SHA 37211c3...へ更新する必要があった点が、lint-content-review.pyのsha256一致要件を満たす上で本verdict更新の根拠。被採点物への改変は一切行っていない(read-only)。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "BD-003 (本文 <=300 行) を merge 後も維持 (本文 215 行)。FM-002/003 (description が発動条件のみ・trigger 2-3 個) は description 『〜とき/〜整備するときに使う』で trigger 2 個・動作詳細なしを満たす。BD-001 『## Purpose & Output Contract』/ BD-002 『## Gotchas』heading も存続",
+      "skeleton 選択表・commonCore 必須集合を本文に再掲せず schema (#/selection_rules, #/definitions/commonCore.required) を唯一正本とする SSOT ポインタ化により、rubric が嫌う重複定義(正本曖昧化)を merge 後も増やしていない"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "ref-skill-design-rubric/references/rubric.json(v1.3.0)の FM/BD/NM/PD/KL 系で merge 後の現 SKILL.md(本文215行)を再採点。SHA は実測 0970c62... に更新。FM-001(name=run-build-skill, run- prefix, kebab)/FM-002(description が 〜とき で trigger 形式)/FM-003(trigger=2 個で 2-3 範囲内)/FM-004(description に採点する/sha256/exit code 等の内部動作語なし)/FM-005(『新規作成・更新するとき』動詞起点)いずれも PASS。BD-001(『## Purpose & Output Contract』厳格一致 heading 存在)/BD-002(『## Gotchas』存在)/BD-003(本文 215<=300, P0-2 順守)/BD-004(description の 2 発動条件が本文 Step に対応)PASS。NM-001(dir名==name)/NM-002/NM-003 PASS。PD-001(references/ 多数存在)/PD-002(冒頭30行内に『## Purpose & Output Contract』+ Key Rule『禁止』)PASS。KL-001..005 は本 skill に knowledge/ ディレクトリ・frontmatter.knowledge_loop が無いため存在ゲートで無条件 PASS(skip, 誤減点なし)。merge 差分(goal-seek 5→6 ステップ化, skeleton 表 SSOT ポインタ化)は heading・命名・行数いずれにも悪影響なく、新規サブシステム増設なし。high severity finding 0 件、PASS 維持。"
 }

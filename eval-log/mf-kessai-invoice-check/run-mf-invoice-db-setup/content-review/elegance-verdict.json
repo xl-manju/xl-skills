@@ -2,20 +2,34 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-db-setup",
-    "skill_md_sha256": "184e8c6e422d601eff1876b6c0af0699a97615c38bb57e9fabd0cd833658a260"
+    "skill_md_sha256": "df46fdfa73ad997afb541865d8960a43a1c675e92f32dbb27f2a3e02d2372921"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
-    "inconsistency": 1,
+    "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 0
   },
-  "reviewer": "elegant-improvement-executor",
-  "reviewed_at": "2026-06-20T00:00:00Z",
-  "iterations": 1,
-  "human_review_required": false,
-  "notes": "4条件検証。完全性=PASS: 2モード(既存DB ensure_schema=database_id既定『請求書チェック_DB』へ不足追加+タイトルrename / 新規作成=parent_page_id配下にPOST+database_id記録)がSKILL.md L33-36・R1 prompt・build_notion_db.py main()/ensure_schema()で三位一致。管理列不可侵=Key Rule3・R1 L1.1/L4.1・ensure_schema『足りないものを足すだけ(既存option消さずmerge_select_property)』で一貫担保。チェックリストMECE=database_id解決/build/事実列15個/管理列4個/verify PASSで漏れ重複なし、SKILL.md L53事実列15個==schema fact_columns 15個、L54管理列4個==managed_columns 4個で完全一致。一貫性=おおむねPASS: build(R1)→verify(R2)の記述がSKILL.md・両prompt・schema・スクリプトで矛盾なし(verify FAIL→R1差し戻し配線も双方向一致)。検証可能性=PASS: verify_db_schema.pyのPASS条件(全期待プロパティ存在)・FAIL(欠落でexit1+欠落列提示)・stop(database_id未設定でexit2)が明示、追加列は警告(失敗扱いせず)もR2 L4.1と実装一致。簡潔性=PASS: body 81行、重複・冗長なし。inconsistency=1(非blocking): R1-build-db.md L43 入力契約表が parent_page_id required:yes と記すが、SKILL.md L38は『新規作成モードのみ・既定不要』、build_notion_db.py main()は database_id 有時parent不要の条件付き。ただしR1の実行指示(L120)とLayer5.4/4.1は『database_id有→既存利用/無→parent必要』を正しく分岐実装しており、load-bearingな実行指示は整合。L2.3表が2モード設計化前の旧『新規DB専用』前提を残した stale residual。smell=1: 同表の同件。実害(既定ゼロ設定経路)は無いため明確な欠陥に当たらずPASS維持。SKILL.md未改変。lib依存(notion_invoice_sink._notion_token/_req, mfk_api.load_config)実在・スクリプトparse OK確認済。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "事実列(API由来)と管理列(人の運用)を分離したプロパティ設計を schemas/notion-db-schema.json 正本へ一元化し、build_notion_db.py(L27-28)/verify_db_schema.py(L18-19)がそれを読むことで SKILL.md とのドリフトを構造的に防いでいる。merge後の本文 L48『プロパティ数はこの正本が唯一の真実。本文に固定値を書かない』と verify の L88 `len(expected)` 由来表示が一致し、固定値の二重管理を排除している点。",
+      "merge差分で『1顧客=1ページ(upsert キー=顧客ID単独)・月次履歴は table block』(L48) という DB 設計意図と、列リネーム(判定→今月の発行状況)/deprecated 自動削除(対応状況等)の宣言的移行(L50/L70/L110)を本文に明示し、schema.renames/deprecated_properties と build_notion_db.py(L87/L118)・verify_db_schema.py(L71-83)の挙動が三者一致している点。",
+      "CLI `--parent-page-id` 指定時は既定 database_id より優先して新規作成(L51/L107 Key Rule1, build_notion_db.py L166-167)、未指定なら既存DB冪等適用、両方空なら安全停止という2モードの優先順位を本文・ゴールシークループ(L75)・スクリプト argparse で齟齬なく配線している点。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "dev同期merge後の現 SKILL.md(sha df46fdfa)を全文実読し、git diff 67425a0 HEAD で特定した merge差分(Purpose の DB設計意図追記/checklist の事実列10・管理列5・renames・deprecated 明示/Key Rule1 の CLI優先反転/Additional Resources の `../ref-mf-kessai-api/`→`$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/` パス修正)を本文・schema・scripts に突き合わせて genuine 検証した。elegance 4条件: (1)矛盾0 — 本文の2モード優先順位(CLI parent_page_id 優先)が Key Rule1/ゴールシークループ/build_notion_db.py argparse(L159/L166)で一貫。(2)漏れ0 — Purpose・入力・出力・完了条件・Key Rules・Gotchas・Additional Resources を網羅し、後段 run-mf-invoice-check 出力先準備という目的に対し過不足なし。(3)不整合0 — checklist 事実列10個が schema.fact_columns(10)と、管理列5個が schema.managed_columns(5)と、renames(判定→今月の発行状況)が schema.renames と、deprecated(対応状況/チェック実行ID/初回請求月(API推定))が schema.deprecated_properties と一致。number は build_notion_db.py L44 が format:yen を付与、select は L49-50(status型回避)で schema 駆動。(4)依存破壊0 — `$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/`・prompts/R1-R2・schemas/notion-db-schema.json・scripts いずれも実在し参照解決可能(merge前の相対 `../` 参照を $CLAUDE_PLUGIN_ROOT 化したのは install先移植性の改善)。なお既存IN1/IN2 criterion text に残る『管理列4個』表現は現 schema の managed_columns=5(初回契約月の追加分)に対し1件のズレがあるが、これは criterion 文言上のラグであって本文・schema・scripts 間の実装整合は取れており、本文(L69)は正しく5列を列挙しているため elegance 欠陥(矛盾/不整合)とは判定しない。重大欠陥なしで PASS。SHA は手順3 shasum 実測値(df46fdfa)で照合。"
 }

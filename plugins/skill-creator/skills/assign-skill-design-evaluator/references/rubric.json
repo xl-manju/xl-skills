@@ -1,130 +1,22 @@
 {
   "version": 1,
   "rubric_id": "skill-design",
-  "rubric_version": "1.2.0",
-  "schemaVersion": 2,
-  "changelog": [
-    {"version": "1.2.0", "date": "2026-05-21", "change": "Phase 3 patch P1: 責務単位 prompt 整合 (PG-001/PG-002), bundle 登録 (BND-001 aka BD-001 in design doc), validate-plugin/build-trace gate (REG-001 aka RG-001 in design doc) を追加。既存 BD-001/RG-001 と ID 衝突回避のため BND-001/REG-001 にリネーム。weight は新規 item にのみ付与し既存 severity_weights は不変。"}
-  ],
-  "layer": "L0",
-  "threshold": 80,
-  "max_skill_md_lines": 300,
-  "trigger_count_min": 2,
-  "trigger_count_max": 3,
-  "description_no_action_detail": true,
-  "severity_weights": {
-    "high": -20,
-    "medium": -10,
-    "low": -3
-  },
+  "rubric_version": "1.3.0",
+  "layer": "L2",
+  "upstream_version_pin": "1.3.0",
+  "_doc": "設計書29 §3 L2: assign-skill-design-evaluator 固有 override (delta-only)。L0 正本 (ref-skill-design-rubric/references/rubric.json) の全コピーは保持しない。compose-rubrics.py の deep-merge は overlay に無いキーを base から継承し、rules を id 単位でマージするため、本ファイルは L0 に存在しない evaluator 固有 rule のみを宣言する。rubric_version は upstream_version_pin と同値で upstream に追随し、check-rubric-sync.py のバージョン同期モードで版ずれを検出する。",
   "upstream": [
-    "ref-skill-design-rubric/rubric.json"
+    "plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json"
   ],
   "merge_strategy": "deep-merge",
   "conflict_policy": "most-specific-wins",
   "rules": [
     {
-      "id": "FM-001",
-      "area": "frontmatter",
-      "severity": "high",
-      "check": "name matches ^(run|ref|assign|wrap|delegate)-[a-z0-9][a-z0-9-]*$ and len<=60",
-      "rationale": "第1〜5,7条: kebab-case + prefix強制で発動可能性とレイヤを保証"
-    },
-    {
-      "id": "FM-002",
-      "area": "frontmatter",
-      "severity": "medium",
-      "check": "description contains a trigger phrase (Japanese: 〜とき/〜場合/〜際/〜時 or English: Use when/Read when) and ends with period or 。",
-      "rationale": "trigger文の統一形式が読み取り精度を上げる。1.1.0より日本語推奨。"
-    },
-    {
-      "id": "FM-003",
-      "area": "frontmatter",
-      "severity": "medium",
-      "check": "trigger phrase count in description between 2 and 3 inclusive (Japanese 〜とき/〜場合/〜際/〜時 or English when-clauses)",
-      "rationale": "trigger 2-3個は誤発動と取りこぼしのスイートスポット"
-    },
-    {
-      "id": "FM-004",
-      "area": "frontmatter",
-      "severity": "medium",
-      "check": "description does NOT contain action verbs implying internals ('採点する','JSONで返す','sha256','exit code')",
-      "rationale": "動作詳細は本文化、descriptionはtoken節約のため発動条件のみ"
-    },
-    {
-      "id": "FM-005",
-      "area": "frontmatter",
-      "severity": "low",
-      "check": "description begins with a verb-like token (English verb in {Build, Score, Read, Wrap, Delegate, Generate, Rubric, Naming, Claude} OR a Japanese verb/noun phrase ending in する/行う/実行/生成/採点/評価/構築/参照/読み取り/レビュー/管理)",
-      "rationale": "動詞ベース = 何をするかが冒頭で判る。1.1.0で日本語動詞も許容。"
-    },
-    {
-      "id": "BD-001",
-      "area": "body",
-      "severity": "high",
-      "check": "body contains heading '## Purpose & Output Contract'",
-      "rationale": "出力契約の明示はScript実行モデル(28章)とテスト可能性の前提"
-    },
-    {
-      "id": "BD-002",
-      "area": "body",
-      "severity": "medium",
-      "check": "body contains heading '## Gotchas'",
-      "rationale": "反パターン提示が読み手の事故を防ぐ(08章)"
-    },
-    {
-      "id": "BD-003",
-      "area": "body",
-      "severity": "high",
-      "check": "body line count (excluding frontmatter) <= 300",
-      "rationale": "300行制約=Less is More、token効率(24章正本)"
-    },
-    {
-      "id": "BD-004",
-      "area": "body",
-      "severity": "medium",
-      "inherits_from": "ref-skill-design-rubric/rubric.json#BD-004"
-    },
-    {
-      "id": "NM-001",
-      "area": "naming",
-      "severity": "high",
-      "check": "basename of skill directory == frontmatter.name",
-      "rationale": "第7条: ディレクトリ名と name の不一致はSkill loaderが解決不能"
-    },
-    {
-      "id": "NM-002",
-      "area": "naming",
-      "severity": "medium",
-      "check": "name passes lint-skill-name.py (第1〜5,7条)",
-      "rationale": "命名規約条文の機械検証"
-    },
-    {
-      "id": "NM-003",
-      "area": "naming",
-      "severity": "low",
-      "check": "tree passes lint-skill-tree.py (第8〜13条)",
-      "rationale": "templates/ references/ scripts/ examples/ のファイル命名"
-    },
-    {
-      "id": "PD-001",
-      "area": "progressive-disclosure",
-      "severity": "low",
-      "check": "body lines <= 100 OR references/ directory exists with at least 1 file",
-      "rationale": "07章: 100行超は分割、長文はreferences配下へ"
-    },
-    {
-      "id": "RG-001",
-      "area": "governance",
-      "severity": "low",
-      "check": "output JSON includes rubric_hash (sha256 of this file)",
-      "rationale": "27章: 採点結果の再現性を保証"
-    },
-    {
       "id": "PG-001",
       "area": "prompt-generation",
       "severity": "high",
       "weight": 10,
+      "applies_to_kinds": ["skill"],
       "check": "kind in (run, assign) AND brief.responsibilities[] non-empty => plugins/<plugin>/skills/<skill>/prompts/<R-id>.yaml exists for every R-id",
       "rationale": "Phase 3: 責務単位プロンプトと SubAgent.md の 1:1 整合を物理ファイルレベルで担保"
     },
@@ -133,6 +25,7 @@
       "area": "prompt-generation",
       "severity": "medium",
       "weight": 5,
+      "applies_to_kinds": ["skill"],
       "check": "対応 SubAgent.md に '<!-- responsibility: R[0-9]+ -->' anchor が responsibilities 集合と一致して付与されている",
       "rationale": "Phase 3: anchor 集合一致で prompt-creator ループとの結合キーを保証"
     },
@@ -142,6 +35,7 @@
       "severity": "high",
       "weight": 8,
       "_design_doc_id": "BD-001",
+      "applies_to_kinds": ["skill"],
       "check": "plugins/<name>/ が新規追加された場合、.claude-plugin/bundles.json の少なくとも 1 bundle に登録されている",
       "rationale": "Phase 3: 単独 plugin の install パスが bundle なしで欠落するのを防ぐ。設計文書では BD-001 と表記するが既存 body rubric BD-001 と衝突するため BND-001 に変更"
     },
@@ -151,9 +45,9 @@
       "severity": "high",
       "weight": 7,
       "_design_doc_id": "RG-001",
+      "applies_to_kinds": ["skill"],
       "check": "scripts/validate-plugin-completeness.py と scripts/validate-build-trace.py が exit 0 で通る",
       "rationale": "Phase 3: 配布完全性と再現性トレースの 2 gate を必須化。設計文書では RG-001 表記、既存 governance RG-001 と衝突回避で REG-001"
     }
-  ],
-  "_sync_note": "upstream ref-skill-design-rubric/rubric.json 1.1.0 と同期 (governance PROP-2026-05-18-002)。差分は inherits_from で表現し、check 直書きは upstream に揃える。"
+  ]
 }

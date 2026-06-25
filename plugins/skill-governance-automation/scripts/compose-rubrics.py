@@ -34,7 +34,11 @@ def canonical_json(value: Any) -> str:
 def load_ref(ref: str) -> tuple[str, Path, dict]:
     path = Path(ref)
     if ref.startswith("ref-"):
+        # rubric.json は 2026-05-22 に各 ref-*-rubric skill の references/ 配下へ移動済。
+        # 後方互換のため root 直下も候補に残すが、references/ を優先解決する。
         candidates = [
+            Path("plugins/skill-creator/skills") / ref / "references" / "rubric.json",
+            Path(".claude/skills") / ref / "references" / "rubric.json",
             Path("plugins/skill-creator/skills") / ref / "rubric.json",
             Path(".claude/skills") / ref / "rubric.json",
         ]

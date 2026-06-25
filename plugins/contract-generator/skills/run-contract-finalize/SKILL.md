@@ -21,6 +21,21 @@ source: output/contract-generator-v2/(slack-2phase-design.md, refactor-plan.md)
 source-tier: internal
 last-audited: 2026-05-30
 audit-trigger: on-change
+feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.py)
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: ユーザーが Claude Code で finalize を実行した draft 行のみ completed 化され PDF_URL が書き戻る一方、未実行の draft 行は draft のまま保持される(pull型の誤確定なし)ことを --dry-run と台帳観測で機械検証できる。
+      verify_by: lint
+    - id: IN2
+      loop_scope: inner
+      text: 生成PDFが法務承認済書式を保ち黄色除去のみ(条文非改変)で、台帳ステータス遷移が冪等(completed 二重書き込みを起こさない)であることを finalize 単発実行で検証できる。
+      verify_by: test
+    - id: OUT1
+      loop_scope: outer
+      text: 「発火条件は Claude Code 実行のみ・Slack✅/OK は発火条件でない(pull型)」という中核ゲート設計が SKILL.md/prompt SSOT/agent アダプタ/scripts まで一貫し、確認と確定のライフサイクル分離というユーザ目的を常駐デプロイ不要・再入可能な形で最適反映している。
+      verify_by: elegant-review
 ---
 
 # run-contract-finalize

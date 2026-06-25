@@ -69,7 +69,7 @@
 |---|---|---|
 | schema | `schemas/io-contract.schema.json` | output validation |
 | request | `eval-log/delegate-codex-request.json` | metadata 突合 |
-| rubric | `../ref-skill-design-rubric/rubric.json` | critical axis 一覧 |
+| rubric | `../ref-skill-design-rubric/references/rubric.json` | critical axis 一覧 |
 
 ### 3.2 外部ツール / API
 

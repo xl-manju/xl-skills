@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/plugins/skill-creator/run-skill-create/schemas/findings.schema.json",
-  "title": "Evaluator / Elegant Review Findings",
-  "description": "assign-skill-design-evaluator および run-elegant-review が返す findings.json の共通形式。C1-C4 verdict と severity-bucket-observations を持つ。",
+  "title": "Findings Handoff Envelope",
+  "description": "run-skill-create orchestrator の handoff envelope (evaluator 集約結果の封筒)。C1-C4 verdict と severity-bucket-observations を持つ。producer 正本 (run-elegant-review が返す findings.json) は ../../run-elegant-review/schemas/findings.schema.json。",
   "type": "object",
   "additionalProperties": false,
   "required": ["skill_name", "evaluator", "verdicts", "findings"],
@@ -33,7 +33,7 @@
         "required": ["id", "severity", "bucket", "observations"],
         "properties": {
           "id": {"type": "string"},
-          "severity": {"type": "string", "enum": ["high", "medium", "low", "info"]},
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
           "bucket": {
             "type": "string",
             "description": "C1-C4 のいずれか、または rubric カテゴリ (FM-001 等)。"

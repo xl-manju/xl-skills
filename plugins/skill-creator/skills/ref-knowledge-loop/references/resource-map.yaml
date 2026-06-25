@@ -39,29 +39,29 @@ templates:
   index_search:
     label: "Index-Search型雛形"
     files:
-      - path: "index-search/knowledge/knowledge-index.json"
+      - file: "index-search/knowledge/knowledge-index.json"
         desc: "索引ファイル雛形 ({{...}} 変数)"
-      - path: "index-search/knowledge/knowledge-{{category}}.json"
+      - file: "index-search/knowledge/knowledge-{{category}}.json"
         desc: "カテゴリファイル雛形 (サンプル3エントリ)"
   router_registry:
     label: "Router-Registry型雛形"
     files:
-      - path: "router-registry/knowledge/router.json"
+      - file: "router-registry/knowledge/router.json"
         desc: "ルーターファイル雛形"
-      - path: "router-registry/knowledge/schema.json"
+      - file: "router-registry/knowledge/schema.json"
         desc: "エントリ JSON Schema"
-      - path: "router-registry/knowledge/registry.json"
+      - file: "router-registry/knowledge/registry.json"
         desc: "処理済みファイル追跡雛形"
   scripts:
     label: "Python スクリプト雛形"
     files:
-      - path: "scripts/search_knowledge.py"
+      - file: "scripts/search_knowledge.py"
         desc: "Stage1+Stage2 検索スクリプト"
-      - path: "scripts/build_index.py"
+      - file: "scripts/build_index.py"
         desc: "インデックス整合性検証・自動修正"
-      - path: "scripts/record_usage.py"
+      - file: "scripts/record_usage.py"
         desc: "§12 活用ログ記録・パターン分析 (--analyze --emit-queue / --mark-needs-update)"
-      - path: "scripts/add_entry.py"
+      - file: "scripts/add_entry.py"
         desc: "エントリ追加 (必須6フィールド検証つき・JSON手編集を排除)"
 
 lint:
@@ -84,5 +84,5 @@ schema:
 prompts:
   search_summarize:
     label: "R1-search-summarize (7層プロンプト)"
-    file: "../prompts/search-summarize.md"
+    file: "../prompts/R1-search-summarize.md"
     responsibility: "ナレッジループ仕様 (構築/運用) の検索・要約 (read-only SubAgent)"

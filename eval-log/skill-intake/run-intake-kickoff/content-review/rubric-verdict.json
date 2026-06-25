@@ -2,20 +2,26 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-kickoff",
-    "skill_md_sha256": "a8899ae72dc2960d3040e2bb34f382a933532b4287605b44b742b4e2b775e615"
+    "skill_md_sha256": "c4f0593a7813ba7e6b78a89f66977426d2afd8268c3a99933b208d70d28b280c"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 1,
-    "dependency_break": 0,
-    "smell": 1
-  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-06T10:56:10Z",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "canonical scorer render-findings-score.py (rubric-refs L0 ref-skill-design-rubric + L2 assign-skill-design-evaluator, composition_hash sha256:fc977c84..): score=97 threshold=80 passed=true, required_fixes=[] (high finding なし). FM: FM-001/002/003/004 PASS (name=run-intake-kickoff prefix+kebab, description トリガ 2件「〜とき」, action-detail 漏れなし); FM-005 low smell — description が名詞『intake』始まりで動詞始まりでない (非blocking, 任意改善). BD: BD-001『## Purpose & Output Contract』, BD-002『## Gotchas』present, BD-003 body 106行<=300 PASS; description トリガ↔body 手順 (3軸確定/AskUserQuestion直列) 整合. NM: NM-001 dirname==name, NM-002 prefix, NM-003 scripts/ は .py のみ PASS. PD: references/ 4ファイル充足 (PD-001), 冒頭に Purpose+禁則 (PD-002 ⊃ BD-001) PASS. 依存方向: prompts/R1-main.md=7層SSOT正本・SKILL.md=薄い索引で正方向, 逆転なし (PD-break 0). standalone配布健全性: scripts/validate-kickoff-json.py は symlink なし・stdlib のみ (json/sys/pathlib) で単独install自己完結. inconsistency 1 (非blocking, medium-tier): R1-main.md Layer4.1『validate-kickoff-json.py FAIL → exit 2』および workflow-manifest.json P1-P3 fatal_exit_codes[2]/P4-emit[2,3] が、実スクリプト挙動 (全FAILで return 1, exit 2/3 を出さない) と不一致. ただし SKILL.md の完了条件・ゴールシークチェックリストは『exit 0』のみ参照しており SKILL.md 本体は正確. blocking(high) 指摘ゼロのため最小差分方針に従い SKILL.md/references を編集せず (PR非膨張). 当該 exit-code 整合は本スキルの完了契約を破らないが将来 R1-main.md/manifest 側で追従修正推奨."
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "FM: name=run-intake-kickoff(run- prefix + kebab-case)、description にトリガ2件「〜とき」を含み rubric FM-001..004 PASS。BD: Purpose & Output Contract / Gotchas 見出し present、本文126行<=300 で BD PASS",
+      "criteria が SKILL.md の完了条件(IN1=schema準拠+validate exit 0)・Key Rules5(IN2=決定論的 hint)・Purpose の責務分離(OUT1)から固有に導出され固定テンプレでない。verify_by は script/lint/elegant-review で SSOT enum 適合、inner≧1+outer≧1 を満たす"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 観点(FM/BD/NM/PD)で SKILL.md を実読し検証。name=dirname 一致・run- prefix・description トリガ2件・本文見出し(Purpose/Gotchas)present・references/4ファイル充足・prompts/R1-main.md=7層SSOT正本↔SKILL.md=薄い索引の依存正方向、いずれも整合し high-tier blocking 指摘なし。今回の frontmatter feedback_contract 携帯化は criteria を本スキル固有(3軸確定・決定論的 hint・責務分離)から genuine に導出しており SSOT 制約(id pattern/verify_by enum/inner+outer)に適合。本文不変のため既存 rubric 健全性を維持。verdict=PASS。"
 }

@@ -359,6 +359,42 @@
       "source_trace": "評価ログ出力先"
     }
   ],
+  "thought_method_coverage": {
+    "used": [
+      "critical",
+      "deduction",
+      "induction",
+      "abduction",
+      "vertical",
+      "decomposition",
+      "mece",
+      "two-axis",
+      "process",
+      "meta",
+      "abstraction",
+      "double-loop",
+      "brainstorming",
+      "lateral",
+      "paradox",
+      "analogy",
+      "if",
+      "naive",
+      "systems",
+      "causal",
+      "causal-loop",
+      "trade-on",
+      "plus-sum",
+      "value-proposition",
+      "strategic",
+      "why",
+      "kaizen",
+      "hypothesis",
+      "issue",
+      "kj"
+    ],
+    "skipped_with_reason": [],
+    "total": 30
+  },
   "four_conditions": {
     "C1": {
       "verdict": "PASS",
@@ -412,7 +448,8 @@
     {
       "pattern_ref": "{{pattern_id}}",
       "reason": "...",
-      "reuse_surface": "template | rubric | lint | hook | reference | manifest | runbook | none",
+      "reuse_surface": "skill | template | script-frontmatter | hook | config | governance-log | adapter | rubric | reference | none",
+      "_comment_reuse_surface": "正本は schemas/findings.schema.json の enum、本列挙は転記 (MD-006)",
       "negative_case": "{{when_not_to_apply}}"
     }
   ],

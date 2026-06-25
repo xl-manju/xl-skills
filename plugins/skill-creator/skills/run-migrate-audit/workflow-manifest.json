@@ -36,7 +36,7 @@
       "title": "audit report 生成",
       "dependsOn": ["abstract"],
       "resourceIds": [],
-      "output_artifact": "eval-log/migrate-audit-report.json"
+      "output_artifact": ".claude/handoff/migrate-audit-<session>.json"
     }
   ],
   "fatal_exit_codes": [2, 3]

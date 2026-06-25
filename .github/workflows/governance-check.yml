@@ -28,8 +28,11 @@ jobs:
       - name: lint feedback_protocol SSOT (schema/SKILL.md/upsert 整合 - offline)
         run: python3 scripts/lint-feedback-protocol.py --strict
         continue-on-error: false
-      - name: lint content-review verdict 成果物存在 (LLM 評価のローカル実行証跡)
-        run: python3 scripts/lint-content-review.py --changed-only --base origin/main
+      - name: "lint content-review verdict 成果物存在 (全skill: 存在/PASS/sha一致/criteria突合)"
+        run: python3 scripts/lint-content-review.py --all
+        continue-on-error: false
+      - name: lint feedback_contract 携帯化 (量産先 loop-kind が frontmatter に評価基準を持つ)
+        run: python3 scripts/lint-feedback-contract.py --all
         continue-on-error: false
       - name: notion schema drift check (3DB SSOT vs Notion)
         if: ${{ env.NOTION_TOKEN != '' }}
@@ -96,6 +99,48 @@ jobs:
         continue-on-error: false
       - name: prompt-creator lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/prompt-creator/skills
+        continue-on-error: false
+      # ── company-master conformance (skill-creator 仕様準拠) ──
+      - name: company-master validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/company-master/skills
+        continue-on-error: false
+      - name: company-master lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/company-master/skills
+        continue-on-error: false
+      - name: company-master lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/company-master/skills
+        continue-on-error: false
+      - name: company-master lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/company-master/skills
+        continue-on-error: false
+      # ── contract-generator conformance (skill-creator 仕様準拠) ──
+      - name: contract-generator validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/contract-generator/skills
+        continue-on-error: false
+      - name: contract-generator lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/contract-generator/skills
+        continue-on-error: false
+      - name: contract-generator lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/contract-generator/skills
+        continue-on-error: false
+      - name: contract-generator lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/contract-generator/skills
+        continue-on-error: false
+      # ── skill-intake conformance (skill-creator 仕様準拠) ──
+      # validate-frontmatter は run-intake-revise の effect enum 違反で FAIL するため未配線。
+      # lint-plugin-lint-coverage.py の ALLOWLIST に理由付きで宣言済み (後日是正)。
+      - name: skill-intake lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/skill-intake/skills
+        continue-on-error: false
+      - name: skill-intake lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/skill-intake/skills
+        continue-on-error: false
+      - name: skill-intake lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-intake/skills
+        continue-on-error: false
+      # ── plugin lint 被覆メタ検査 (新 plugin 追加時の配線忘れを fail-closed 検出) ──
+      - name: lint plugin lint coverage (marketplace 全 plugin の lint 被覆保証)
+        run: python3 scripts/lint-plugin-lint-coverage.py
         continue-on-error: false
       - name: lint dependency direction (全プラグイン, prompt-creator cross-plugin 参照解決)
         run: python3 scripts/lint-dependency-direction.py --skills-dir plugins

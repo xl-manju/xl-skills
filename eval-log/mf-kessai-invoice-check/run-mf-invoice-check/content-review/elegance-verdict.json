@@ -2,20 +2,34 @@
   "target": {
     "plugin": "mf-kessai-invoice-check",
     "skill": "run-mf-invoice-check",
-    "skill_md_sha256": "7c7a0d2490cfcecd721ce63ee2c0dfb12816d899f51dbe6e3f589bfc9500998a"
+    "skill_md_sha256": "c2928579976398bccd5c59a65b1fd24da87c79c3121eb4908052f46f62d1cb26"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-25",
+  "iterations": 2,
+  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 2
+    "smell": 0
   },
-  "reviewer": "elegant-improvement-executor",
-  "reviewed_at": "2026-06-20T00:00:00Z",
-  "iterations": 1,
-  "human_review_required": false,
-  "notes": "4条件すべて PASS。明確な blocking 欠陥(contradiction/omission/inconsistency/dependency_break)なし。SKILL.md 不改変。【完全性】ユーザー要望(前月発行−今月発行の差集合で発行漏れ検知/Notion冪等upsert/独立context二段確認/月次サマリで0件月も確認済み履歴)が SKILL.md(Purpose/End-to-End Flow/責務サマリ R1-R4/Key Rules 1-6)に漏れなく反映。発行漏れ検知ロジック=R2 ドメインルール『発行漏れ候補=前月発行−今月発行』が SKILL/prompt/lib(mfk_invoice_diff.detect_gaps)/script collect()で一貫。完了チェックリストは R1(collect)/R3(verify)/finalize(物理境界)/R4(sink upsert)/月次サマリ/過去月参照/db-setff差し戻し を MECE 被覆。【一貫性】collect→verify→finalize→sink の責務記述が SKILL.md・workflow-manifest.json phases(collect/diff/verify/finalize/sink, dependsOn 直列)・prompts R1-R4 の Layer2/Layer6・agents/mfk-gap-verifier.md で矛盾なし。二段確認 fail-closed が三点整合: SKILL『確定リスト不在なら fail-closed(exit 2)』↔ check_invoice_gaps.py L238-242 return 2 ↔ R4-sink 出力指示。参照専用が二層(hook guard-mfk-readonly.py + lib/mfk_api.py GET専用)で SKILL Key Rule1 と一致。updated_at 非存在→created_at 代替が Gotcha3 と script docstring/detail_of()で一致。【検証可能性】具体コマンド(--collect/--finalize/--sink を $CLAUDE_PLUGIN_ROOT 絶対パスで)・停止条件(各 Rn L5.3 完了チェックリストを SSOT)・完了条件(L41)・fatal exit code 2・anchor検査 bash ブロックが実行可能形で明示。pytest 32件 PASS(test_invoice_diff/test_check_invoice_gaps/test_notion_invoice_sink/test_plugin_contract)。--finalize の schema 検証→exit2 拒否(finalize() L197-200)が R3-verify 記述と一致。【簡潔性】body 113行。完了条件詳細を prompts Rn L5.3 へ SSOT 委譲し SKILL 側再定義を避け片側ドリフトを防止。重複・未使用なし。smell 2件(いずれも非blocking, PASS不妨): (1)『ゴールシーク配線』anchor節は単発当月チェックでは no-op だが run-goal-seek 同型 SSOT として常設され、当該ユースケースに対しやや重い。明示的 no-op 注記で許容範囲。(2)PD観点で本文 113行が prompts/schemas へ分割済だが references/ ディレクトリ命名は未採用(rubric PD-001 low と連動。設計負債ではなく命名規約上の軽微点)。両 smell とも単独で PASS を妨げない。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "二段確認の物理境界(collect=未検証JSON / finalize=確定JSON 別ファイル + sink の fail-closed exit2)は merge 後も Key Rule 5 として導線維持され、IN2(確定リスト不在で exit 2)が本文・R4-sink・Flow と整合している。",
+      "Key Rule 7 の方針(全体トータル/件数を持たず Notion ビューのフィルタ件数で代替/月次フローは参照専用=検知のみ・列削除は db-setup へ集約という責務分離/whitelist 外の新名集計列は『集計列の疑い』として検知し削除はしない=WARN-not-FAIL)が、実装(lib/notion_invoice_sink.py の suspect_summary_extras/residual_extra_columns/warn_residual_summary_columns + upsert 戻り昇格)と genuine 一致し、L4.4 管理列不可侵・Gotcha 7・R4-sink L5.3 完了チェックリスト6番目とも矛盾なく整合している。前 iteration で検出した dependency_break が独立実装者により解消された。",
+      "本文行数は frontmatter 除き 92 行で BD-003(<=300)を維持。検知ゲートが read-only(GET 専用)で実装され、参照専用保証が文書だけでなく実体でも担保された(OUT1 の参照専用要件の実装裏付け)。"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "iteration 1 で検出した本物の dependency_break(Key Rule 7 が約束する『集計列の疑い』検知の実装本体が lib/notion_invoice_sink.py から欠落し、verify_db_schema.py が ImportError でクラッシュ・対象テスト FAIL・upsert 戻りに residual/suspect_summary 未昇格で検知が死んだ経路)が、独立実装者の修正で解消されたことを iteration 2 として genuine 再検証した。SKILL.md は不変(sha c2928579… 据え置き)。実装照合(私自身が実行して確認): (1) lib/notion_invoice_sink.py に suspect_summary_extras(363行)/residual_extra_columns(382行)/warn_residual_summary_columns(404行) が実装され、import dir(m) に3関数とも存在。(2) verify_db_schema.py の `import verify_db_schema` が ImportError なく成功(IMPORT OK を実行確認)。(3) upsert() は書き込み完了後 497-506 行で warn_residual_summary_columns を1回だけ GET-only 発火し、戻り値に residual/extra/suspect_summary を昇格(check_invoice_gaps.py:474-476 の _warn_residual_to_screen が読むキーが供給され死んだ経路が解消)。(4) pytest plugins/mf-kessai-invoice-check/tests/ = 290 passed / 2 skipped / 0 failed、coverage 94.15%(notion_invoice_sink.py 93%)。私が iteration 1 で見た 18 FAIL は全解消(suspect/residual/summary 系 19 件 passed を個別確認)。【列削除なし=GET専用の確認(指示の必須ゲート)】検知ブロック 363-446 行に PATCH/DELETE/POST は一切なし(grep でヒットは docstring 説明文のみ)。warn_residual_summary_columns は `_req('GET', f'/databases/{id}')` のみで、db_id 欠落/GET 失敗時は (None,None) を返し本体を止めず・列も触らない(挙動確認: warn(None,...) → (None,None))。suspect_summary_extras は集計語(日本語 総計/合計/小計/集計/サマリ/件数/トータル + 英語 total/sum/count 大小無視)を部分一致で拾い、正当列(任意メモ/担当者/社内コード)は空を返す(挙動確認済)。residual_extra_columns は schema.deprecated_properties 登録済みを residual・未知列を extra に分類(挙動確認: 全体トータル→residual / 月次サマリ・任意メモ→extra)。これらは Key Rule 7 の『検知のみ・WARN-not-FAIL・列削除しない・参照専用・列削除は db-setup の責務』と genuine 一致。【4条件再採点】矛盾0/漏れ0/不整合0/dependency_break0(解消)/smell0。OUT1(参照専用の保証を最適に反映)が文書だけでなく GET 専用実装で実体担保され、IN1/IN2 も merge 後の本文・実装で維持。全条件 0 で PASS・human_review 不要。"
 }

@@ -22,7 +22,7 @@ since: 2026-05-24
 
 # 出力
 
-10思考法それぞれについて、C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合の4条件を確認したマトリクスを返す。各思考法に少なくとも1つの `observations` を含め、問題がない条件は `issues: []` として明示する。ファイル編集はしない。
+10思考法それぞれについて1件ずつ `paradigm_findings[]` を返す。C1 矛盾なし、C2 漏れなし、C3 整合性あり、C4 依存関係整合は各 finding の `issues[]` で表現し、問題がない条件は issue を追加しない。各思考法に少なくとも1つの `observations` を含め、ファイル編集はしない。
 
 ## Prompt Templates
 
@@ -33,7 +33,7 @@ since: 2026-05-24
 | Layer | 本 agent での対応 |
 |---|---|
 | L1 基本定義 | ファイル編集禁止・read-only という不変ルール |
-| L2 ドメイン | A2 10 思考法 × C1-C4 マトリクス、`paradigm_findings[]` 出力契約 |
+| L2 ドメイン | A2 10 思考法 = 10 `paradigm_findings[]`、C1-C4 は `issues[].condition` で表現する出力契約 |
 | L3 インフラ | Read/Glob/Grep のみ |
 | L5 エージェント | 並列他 agent と独立 (中間結果非参照) |
 | L6 オーケスト | Phase 2 並列起動 → KJ 集約 → Phase 3 |
@@ -44,20 +44,20 @@ since: 2026-05-24
 - **目的**: A2 10 思考法の網羅実行を強制し、観点漏れを排除する。
 - **背景**: 思考法を 1〜2 個に絞ると、批判的視点や MECE 検証が欠落し、後段 C2 漏れなしゲートが機能しない。
 
-> 「Phase 1 の俯瞰結果を入力に、`thought-methods.yaml` の `logical_structural.methods` 10 思考法それぞれで C1/C2/C3/C4 を評価してください。`observations` を必ず 1 件以上、`issues: []` を明示し、具体値は `variable_abstraction` に分離してください。」
+> 「Phase 1 の俯瞰結果を入力に、`thought-methods.yaml` の `logical_structural.methods` 10 思考法それぞれを1件の `paradigm_findings[]` として評価してください。C1/C2/C3/C4 の違反だけを `issues[]` に追加し、問題なしなら `issues: []` を明示してください。`observations` を必ず 1 件以上含め、具体値は `variable_abstraction` に分離してください。」
 
 - 入力 placeholder: `{{phase1_output}}` (Phase 1 JSON), `{{target_path}}`
 - 依存 Layer: L2 (出力契約), L1 (read-only)
-- 出力 schema: `paradigm_findings[] = {paradigm, condition(C1-C4), status(PASS/FAIL/PARTIAL), observations[], issues[], variable_abstraction{}}`
+- 出力 schema: `paradigm_findings[] = {paradigm_id, paradigm_name, category, agent, observations[], issues[], score}`。`issues[]` は `{condition(C1-C4), severity(low|medium|high|critical), bucket, description, recommended_intervention, location?, depends_on?}`。
 
 ### Round 2: logical-structural-analyst → Phase 3 への引き渡し
 
-- **目的**: FAIL/PARTIAL 項目だけを集約に渡し、Phase 3 のパッチ対象を絞る。
+- **目的**: 10 件の paradigm finding を集約に渡し、Phase 3 のパッチ対象は `issues[]` の有無で絞る。
 - **背景**: PASS まで全件渡すと executor が無関係箇所を編集し、スコープ逸脱を起こす。
 
-> 「A2 10 思考法 × 4 条件マトリクスのうち FAIL/部分 PASS 項目を集約 findings に追加してください。並列他 agent (meta-divergent / system-strategic) の出力と KJ 法で集約後、severity ソートして Phase 3 に渡されます。」
+> 「A2 10 思考法の `paradigm_findings[]` を集約 findings に追加してください。並列他 agent (meta-divergent / system-strategic) の出力と KJ 法で集約後、`issues[].severity` でソートして Phase 3 に渡されます。」
 
-- 出力 schema: `{paradigm_findings[]}` (status != PASS のみ)、severity は orchestrator 側で付与
+- 出力 schema: `{paradigm_findings[]}` (10件すべて)。`issues[]` が空の finding は PASS 扱い、`issues[].severity` は優先度ラベル。
 - 依存 Layer: L6 (集約は orchestrator 責務)
 
 ## Self-Evaluation
@@ -66,7 +66,7 @@ since: 2026-05-24
 
 | 次元 | 観察可能な合格条件 |
 |---|---|
-| 完全性 | `paradigm_findings[]` に A2 10 思考法 × 4 条件 = 40 エントリすべて存在 (status PASS でもエントリは生成)。`paradigm` フィールドの distinct count == 10 |
+| 完全性 | `paradigm_findings[]` に A2 10 思考法 = 10 エントリすべて存在。`paradigm_id` の distinct count == 10 |
 | 一貫性 | 演繹 finding の `observations[0]` と帰納 finding の `observations[0]` が同一 raw_observation を引用する場合、status が一致 (両者矛盾なし)。MECE finding の `issues[]` に「重複」「漏れ」キーワードが混在しない |
 | 深度 | アブダクション finding の `observations[]` 要素数 >= 2 (複数仮説提示) |
 | 検証可能性 | 各 finding の `observations[]` 要素に `target_path:line` 形式の参照が 1 件以上 (grep で再現可能) |
@@ -81,4 +81,4 @@ since: 2026-05-24
 
 # Handoff
 
-run-elegant-review orchestrator に `paradigm_findings[]` (A2 10 件 × 4 条件) を返す。並列他 agent の中間結果は参照しない (独立性確保)。集約は orchestrator 側で行う。
+run-elegant-review orchestrator に `paradigm_findings[]` (A2 10 件) を返す。C1-C4 違反は各 finding の `issues[]` に格納する。並列他 agent の中間結果は参照しない (独立性確保)。集約は orchestrator 側で行う。

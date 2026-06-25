@@ -24,6 +24,64 @@ import os
 import subprocess
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+
+# dogfooding 除外境界の正本は repo-root scripts/feedback_contract_ssot.py (単一 SSOT)。
+# 散在していた制御リテラル "skill-creator" を排除し、Stop block 除外判定を SSOT 述語へ委譲する。
+#
+# このローダは Stop/Edit/Write/Skill フックから import-time に実行されるため **絶対に raise しない**。
+# raise すると単独 install (plugin だけを marketplace から install) 時に plugin 外 repo-root の
+# SSOT が見つからず import 時クラッシュし、全フックが exit≠0 で落ちる ("exit は常に 0" の設計と矛盾)。
+# 解決順: (a) env CLAUDE_PLUGIN_ROOT/scripts → (b) 上方探索 (vendored plugin 内コピーを dev/install 双方で発見)
+# → (c) 全滅時は最小 fallback。vendored コピー (plugins/skill-creator/scripts/) が常在するため
+# fallback は実質 dead code (多層防御の最終安全弁)。
+def _load_feedback_contract_ssot():
+    """feedback_contract_ssot を fail-soft に解決する (絶対に raise しない)。"""
+    import importlib.util
+
+    candidates: list[Path] = []
+    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if plugin_root:
+        candidates.append(Path(plugin_root) / "scripts" / "feedback_contract_ssot.py")
+    here = Path(__file__).resolve()
+    for ancestor in here.parents:
+        candidates.append(ancestor / "scripts" / "feedback_contract_ssot.py")
+    for cand in candidates:
+        try:
+            if cand.is_file():
+                spec = importlib.util.spec_from_file_location("feedback_contract_ssot", cand)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+        except Exception:
+            continue
+    return _fallback_feedback_contract_ssot()
+
+
+def _fallback_feedback_contract_ssot():
+    """SSOT 全滅時の最小 fallback。check-review-trigger が実際に使う述語のみ提供。
+
+    自プラグイン名を __file__ パス (plugins/<self>/skills/<skill>/scripts/) から
+    導出し、判定用リテラルを直書きせず変数比較する (dogfooding 境界判定は
+    「対象が自プラグイン自身か」であり、self-derive が意味的にも正しい)。SSOT 実装と
+    同値のため drift せず、散在リテラル禁止 (test_dogfooding_boundary) も満たす。
+    vendored コピーが常在するため通常ここには到達しない (多層防御の最終安全弁)。
+    """
+    import types
+
+    self_plugin = Path(__file__).resolve().parents[3].name
+    fc = types.SimpleNamespace()
+    fc.SELF_DOGFOODING_PLUGIN = self_plugin
+    fc.is_stop_block_exempt = lambda plugin: plugin == self_plugin
+    return fc
+
+
+_FC = _load_feedback_contract_ssot()
+
+# 後方互換エイリアス: 値は SSOT 由来 (リテラル直書きではない)。production の判定は
+# _FC.is_stop_block_exempt() を使い、この名前は外部参照 (テスト fixture 等) 向けに残す。
+SELF_EXCLUDED_PLUGIN = _FC.SELF_DOGFOODING_PLUGIN
 
 THRESHOLD = 20
 
@@ -32,10 +90,10 @@ THRESHOLD = 20
 SEMANTIC_BASENAMES = ("rubric.json", "workflow-manifest.json")
 QUEUE_RELPATH = os.path.join("eval-log", "review-queue.jsonl")
 
-# 自己ブロック除外: skill-creator 自身の変更は Stop decision:block の対象にしない。
+# 自己ブロック除外: 生成器自身の変更は Stop decision:block の対象にしない。
 # CI/pre-push の content-review lint では dogfooding 対象にするが、編集中セッションを
 # 自己ブロックすると改善不能になるため Stop hook だけ安全弁として除外する。
-SELF_EXCLUDED_PLUGIN = "skill-creator"
+# 除外判定は SSOT 述語 _FC.is_stop_block_exempt() に委譲 (リテラル散在を排除)。
 # 評価結果 (verdict) の保存先ファイル名 (content-review-protocol.md と一致)。
 REQUIRED_VERDICTS = ("elegance-verdict.json", "rubric-verdict.json")
 
@@ -50,8 +108,18 @@ def _read_stdin_json() -> dict:
         return {}
 
 
-def _git_repo_root() -> str:
-    """repo root を解決。失敗時は cwd へ fallback (queue を必ずどこかへ落とすため)。"""
+def _git_repo_root() -> str | None:
+    """queue / verdict の基準ルートを解決する。
+
+    (a) git rev-parse が成功すればその repo root (dev での従来挙動を維持)。
+    (b) 失敗時 (git 外 / 単独 install) は env CLAUDE_PLUGIN_ROOT を基準にする。
+        CLAUDE_PLUGIN_ROOT は plugin ディレクトリを指すため、eval-log を
+        その配下へ self-relative に落とし、**無関係なユーザ cwd を汚染しない**。
+    (c) どちらも無ければ None を返し、呼び出し側で queue 書込を silent skip する
+        (append-only 副作用境界の宣言と整合・exit 0 維持)。
+    旧実装は失敗時 os.getcwd() を返し、ユーザの作業ディレクトリに
+    eval-log/review-queue.jsonl を生成しうる副作用漏れがあった。
+    """
     try:
         proc = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -64,7 +132,10 @@ def _git_repo_root() -> str:
             return root
     except Exception:
         pass
-    return os.getcwd()
+    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if plugin_root and os.path.isdir(plugin_root):
+        return plugin_root
+    return None
 
 
 def _changed_paths() -> list[str]:
@@ -199,14 +270,14 @@ def _verdict_recorded_sha(root: str, plugin: str, skill: str, fname: str) -> tup
 
 def _unevaluated_or_stale(root: str, semantic_paths: list[str]) -> list[str]:
     """変更 SKILL.md のうち、verdict が欠落 or SHA 不一致 (stale) の skill を返す。
-    skill-creator 自身は Stop block では除外 (自己ブロック回避)。CI/pre-push では対象。
+    生成器自身は Stop block では除外 (自己ブロック回避)。CI/pre-push では対象。
     """
     pending: list[str] = []
     for path in semantic_paths:
         if not _is_skill_md(path):
             continue
         plugin, skill = _parse_plugin_skill(path)
-        if not plugin or not skill or plugin == SELF_EXCLUDED_PLUGIN:
+        if not plugin or not skill or _FC.is_stop_block_exempt(plugin):
             continue
         current = _sha256_file(os.path.join(root, path))
         for fname in REQUIRED_VERDICTS:
@@ -235,7 +306,8 @@ def main() -> int:
 
         # --- 出力2: queue 化 ---
         # 発火条件: (a) 変更件数が閾値以上、または (b) 評価対象 artifact を含む (件数 20 未満でも)。
-        if count >= THRESHOLD or semantic:
+        # root が None (git 外 / plugin root 不明) のときは無関係な cwd を汚さないため silent skip。
+        if root and (count >= THRESHOLD or semantic):
             if semantic:
                 reason = (
                     f"評価対象 artifact の変更を検出 ({len(semantic)} 件): "
@@ -253,7 +325,8 @@ def main() -> int:
         #         (3) skill-creator 自身の変更は対象外 (_unevaluated_or_stale 内で除外)。
         # 重い LLM はここでは実行しない。未評価/stale が残るなら Stop を差し戻し評価を促す (トリガのみ)。
         if (
-            is_stop_event
+            root
+            and is_stop_event
             and not inp.get("stop_hook_active")
             and os.environ.get("SKILL_CREATOR_NO_REVIEW_BLOCK") != "1"
         ):

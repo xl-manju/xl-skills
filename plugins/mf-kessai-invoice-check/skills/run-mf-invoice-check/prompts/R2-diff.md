@@ -32,6 +32,7 @@
 ### 2.2 ドメインルール
 - `発行漏れ候補 = 前月発行 − 今月発行` (本丸)、`継続発行 = 前月∩今月`、`今月新規 = 今月発行 − 前月発行`。
 - 継続発行のうち金額が変わったものを `amount_changed()` で抽出する。
+- **年間契約抑制 (suppress_annual)**: 発行漏れ候補のうち**支払サイクルが `年間払い` かつ初回契約月から12ヶ月以内の顧客だけ**を機械が自動抑制する (`suppress_annual_period_gaps` が Notion `初回契約月` + `支払サイクル` から `billing_lifecycle` で判定)。年間前払い期間中は月次発行が無いのが正常なため候補から除外する。`支払サイクル` が `月払い`/空欄/不明、または `初回契約月` が空/不明の顧客は従来どおり発行漏れ候補に残す (fail-safe で真の漏れを隠さない)。一方、契約終了・請求要否など API で判別できない例外判断は引き続き人が `請求要否` 列で行う。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -48,8 +49,8 @@
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| diff lib | ../../lib/mfk_invoice_diff.py | `detect_gaps()` / `amount_changed()` の実体 |
-| api spec | ../ref-mf-kessai-api/ | 判定アルゴリズム正本 |
+| diff lib | `$CLAUDE_PLUGIN_ROOT/lib/mfk_invoice_diff.py` | `detect_gaps()` / `amount_changed()` の実体 |
+| api spec | `$CLAUDE_PLUGIN_ROOT/skills/ref-mf-kessai-api/` | 判定アルゴリズム正本 |
 
 ### 3.2 外部ツール / API
 - `lib/mfk_invoice_diff.detect_gaps()` (collect スクリプト内で実行済み、純関数)。
@@ -111,4 +112,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`detect_gaps(prev_billings, curr_billings)` (collect スクリプト内で実行済み) の分類結果を確認し、`継続発行` のうち金額が変わったものを `amount_changed()` で抽出する。各候補の `verdict` は `../schemas/invoice-gap-result.schema.json` の enum `[発行漏れ候補, 継続発行, 今月新規]` から逐語引用する (補足が必要なら「継続発行(うち金額変動を検出)」とし、enum 値自体は変えない)。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。純関数のみ、前置き禁止。
+`detect_gaps(prev_billings, curr_billings)` (collect スクリプト内で実行済み) の分類結果を確認し、`継続発行` のうち金額が変わったものを `amount_changed()` で抽出する。さらに発行漏れ候補に対し `suppress_annual_period_gaps(gap_candidates, initial_contract_months, target_ym)` を適用し、**支払サイクルが `年間払い` かつ初回契約月から12ヶ月以内の顧客だけを機械抑制して候補から除外**する。`支払サイクル` が `月払い`/空欄/不明、または `初回契約月` が空/不明の顧客は fail-safe で発行漏れ候補に残す。契約終了・請求要否の例外判断は機械で消さず人が `請求要否` 列で行う。各候補の `verdict` は `../schemas/invoice-gap-result.schema.json` の enum `[発行漏れ候補, 継続発行, 今月新規]` から逐語引用する (補足が必要なら「継続発行(うち金額変動を検出)」とし、enum 値自体は変えない)。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。純関数のみ、前置き禁止。

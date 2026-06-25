@@ -1,21 +1,20 @@
 {
-  "target": {
-    "plugin": "contract-generator",
-    "skill": "run-contract-finalize",
-    "skill_md_sha256": "a09f0130c0b567122e6aa8f645676ffa159e8d2695dc83c529b722ad4c8b7ccc"
-  },
+  "target": {"plugin":"contract-generator","skill":"run-contract-finalize","skill_md_sha256":"e377c31098c4d2986d7432c6febb221acf632148030c94f8d2daac2c5a61f9fb"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-01T00:00:00Z",
+  "reviewed_at": "2026-06-24T00:00:00Z",
   "iterations": 1,
   "human_review_required": false,
-  "notes": "ref-skill-design-rubric L0 を canonical scorer (render-findings-score.py, --rubric-refs upstream ref-skill-design-rubric/rubric.json + assign-skill-design-evaluator/rubric.json) で採点。score=100 / threshold=80 / passed=true / findings=[]。passed 規約 = score>=threshold AND NOT any(high finding) を充足。前回はメタ judge で PASS だが見出しが日本語のため rubric literal 検査(英語見出し)との乖離を inconsistency=1 として残していた。今回 repo 多数派規範に揃え見出しを英語 literal へ改名(意味保持: Purpose & Output Contract=目的と出力契約 / Gotchas=注意点)。これで BD-001/BD-002 が literal 一致し乖離も解消、全 finding 消失。force_pass 不使用。PASS 内訳: FM-001(name=run-contract-finalize run-接頭辞/kebab/<=60), FM-002(trigger 句点終止), FM-003(trigger 2個=2..3), FM-004(内部動作詳細なし), FM-005(末尾 動詞), BD-001(Purpose & Output Contract 見出し存在: draft→黄色除去PDF→個人/法人フォルダ保存→Slack再共有→台帳completed の出力契約・pull型発火・境界を明記), BD-002(Gotchas 見出し存在: 誤確定防止・loop非推奨・Keychain限定), BD-003(body<=300), BD-004(description trigger↔body 手順 / prompts/R1-approve-and-finalize に1:1対応), NM-001(dir名==name), NM-002(prefix), NM-003(scripts は py のみ), PD-001(references=prompts/scripts/plugin lib を明示)。pull型整合: frontmatter prompt_ssot / SKILL.md 本文 / R1 prompt 全層で発火条件=Claude Code 実行のみ(pull型)が一貫し矛盾なし。見出し改名のみで意味内容は不変、他軸への副作用なし。"
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1","IN2","OUT1"],
+    "positive_feedback": ["name=run-contract-finalize は run-接頭辞/kebab/<=60 を満たし、description の trigger 2句が句点終止で本文手順(prompts/R1-approve-and-finalize.md)と1:1対応しており rubric の FM/BD 軸を全充足。", "Purpose & Output Contract と Gotchas の見出しが存在し、出力契約(draft→黄色除去PDF→フォルダ保存→Slack再共有→台帳completed)と誤確定防止・Keychain限定が明記され自己説明性が高い。"],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md を全文読み、ref-skill-design-rubric の FM/BD/NM/PD 各軸に照らして本skill固有に採点。導出 criteria IN1(pull型の誤確定なし・--dry-run/台帳で機械検証)/IN2(黄色除去のみ条文非改変・completed冪等)/OUT1(pull型ゲートが SKILL/prompt SSOT/agent/scripts まで一貫しユーザ目的を最適反映)を評価対象とし、いずれも adequacy を満たすことを確認。FM-001..005・BD-001..004・NM-001..003・PD-001 に high finding なく、pull型整合が frontmatter prompt_ssot・本文・R1 prompt 全層で矛盾しないため PASS。"
 }
