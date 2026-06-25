@@ -1,0 +1,26 @@
+{
+  "target": {"plugin": "notion-gmail-send", "skill": "run-notion-gmail-dry-run", "skill_md_sha256": "f9a1ec0ee5bec92ff4cbd9c8741fd519ccdfd5b3d93e76f6f8c60c181f045459"},
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-rubric-reviewer",
+  "reviewed_at": "2026-06-25",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "feedback_loop": {
+    "loop_scope": "inner",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "frontmatter 健全性: kind=run/prefix=run/effect=local-artifact が実挙動(plan.json をローカル書込・送信なし)と一致。disable-model-invocation:true + user-invocable:true が一貫、argument-hint の --db1/--db2/--out/--config/--canary が argparse 実装と完全一致、allowed-tools=[Read, Bash(python3 *)] が実使用(python3 build-plan.py)に正しく限定。description のトリガは2系統で過不足なし。",
+      "criteria 契約の検証可能性: feedback_contract の IN1/IN2 は verify_by=test、OUT1 は verify_by=elegant-review と loop_scope(inner/inner/outer)が宣言され、IN1↔test_recipient_resolution.py・IN2↔test_build_plan.py(+cc_suppressed hash 不変)・OUT1↔canary/APPROVE 契約 へ1対1で機械追跡できる。基準文が実検証手段に裏打ちされ Goodhart 耐性(観測メタを hash から除外)も明記。",
+      "出力契約の精密さ: Purpose & Output Contract が plan.json(本文全文・ローカル・git管理外・§12 PII)と stdout(APPROVE 文字列+第1段件数+全件プレビュー+multi_to_visible 警告+skipped_validation 内訳+重複除外)を機械照合可能な粒度で規定。完了条件が観測可能な成果物(件数/plan_hash/プレビュー/APPROVE/plan.json)で定義。",
+      "二層分離の遵守: 決定論本体(取得→直積→置換→組立→hash→plan.json)を script(build-plan.py)へ、多周回制御を上位 orchestrator(run-notion-gmail-send)へ委譲し、本スキルは単発 dry-run で完結する責務境界が spec-detail §6 責務一覧と整合。Key Rules/Gotchas が非エンジニア運用者の次アクション(0通時の本文記入案内・reason_code 別修正・重複点検)を具体化。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric(skill-design / evaluator-contract.md)観点で genuine 採点し閾値 80 を明確に上回ると判断、PASS。frontmatter 全フィールドが実装と一致し採点者は Write/Edit を行わず(被採点物不改変)。machine_checks 相当: plugins/notion-gmail-send 内 tests/test_build_plan.py tests/test_recipient_resolution.py = 20 passed(中央スイート非汚染)で IN1/IN2 の test verify_by が実通過、OUT1 の canary 承認契約再算出も test_canary_limits_units_bound_to_plan_hash で担保。required_fixes に相当する high finding・gate failure なし。SHA は現 SKILL.md と一致(f9a1ec0e...)。"
+}

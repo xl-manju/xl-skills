@@ -2,7 +2,7 @@
   "name": "notion-gmail-send",
   "version": "0.1.0",
   "package_mode": "bundle",
-  "description": "Notion 2DB(メール本文_DB/メール送信先_DB)を入力に、メッセージ対象✅かつ本文非空の本文を 送信対象✅かつメールを送らない☐かつプロ人材メール非空 の宛先へ {{}} 差し込み置換し、To=プロ人材/CC=秘書 で Gmail 一斉個別送信する。メールを送らない最優先抑制・プロ人材重複は最新1件のみ・送信は送信者のSentに残る。承認済みplan + 人間承認ゲート + 事前予約つき冪等ログの三本柱で不可逆送信を安全化 (ref-notion-gmail-send-spec/ref-gmail-dwd-setup + run-notion-gmail-sendlog-setup/run-notion-gmail-source-audit/run-notion-gmail-dry-run/run-notion-gmail-send の6スキル + context:fork二段確認subagent + 補助防御hook)。",
+  "description": "Notion 2DB(メール本文_DB/メール送信先_DB)を入力に、メッセージ対象✅かつ本文非空の本文を 送信対象✅かつメールを送らない☐かつプロ人材メール非空 の宛先へ {{}} 差し込み置換し、To=プロ人材/CC=秘書 で Gmail 一斉個別送信する。メールを送らない最優先抑制・プロ人材重複は最新1件のみ・送信は送信者のSentに残る。承認済みplan + 人間承認ゲート + 事前予約つき冪等ログの三本柱で不可逆送信を安全化 (ref-notion-gmail-send-spec/ref-gmail-dwd-setup + run-notion-gmail-sendlog-setup/run-notion-gmail-source-audit/run-notion-gmail-dry-run/run-notion-gmail-send の6スキル + context:fork二段確認subagent + 補助防御hook)。改善要望は `/run-skill-feedback notion-gmail-send` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
   "author": {
     "name": "xl-skills maintainers"
   },

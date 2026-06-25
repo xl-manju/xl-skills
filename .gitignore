@@ -42,8 +42,11 @@ references/governance-params.json
 .mf-kessai-config.json
 !.mf-kessai-config.example.json
 
-# notion-gmail-send: 本文全文/宛先/messageId を含む plan・journal は git 管理外 (PII 仕様書 §12)
-eval-log/notion-gmail-send/
+# notion-gmail-send: 本文全文/宛先/messageId を含む plan・journal (PII 仕様書 §12) のみ git 管理外。
+# content-review/elegant-review の verdict 等の設計メタ (PII 非含有・<skill>/content-review/ や _plugin/ 配下)
+# は governance ゲート (lint-content-review --all) が追跡を要求するため除外しない。PII は名前パターンで限定除外。
+eval-log/notion-gmail-send/plan-*.json
+eval-log/notion-gmail-send/journal-*.jsonl
 **/plan-*.json
 
 # Session-local artifacts
