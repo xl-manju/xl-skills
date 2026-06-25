@@ -192,10 +192,10 @@ def lint_one(root: Path) -> list[str]:
             f"P0-2違反: SKILL.md 本文が {body_line_count} 行 (上限 {MAX_SKILL_LINES} 行)。"
             " 超過分は references/ に分割すること（07章）"
         )
-    elif line_count > WARN_SKILL_LINES:
+    elif body_line_count > WARN_SKILL_LINES:
         # SS-203: 上限手前で事前警告 (exit 1 にしない)
         print(
-            f"[Warn]SS-203: {root.name}/SKILL.md が {line_count} 行"
+            f"[Warn]SS-203: {root.name}/SKILL.md が {body_line_count} 行"
             f" (warn 閾値 {WARN_SKILL_LINES} 超、上限 {MAX_SKILL_LINES})。"
             " 早めに references/ への分割を検討",
             file=sys.stderr,
