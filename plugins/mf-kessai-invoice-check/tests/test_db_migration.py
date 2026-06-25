@@ -8,7 +8,7 @@ FAIL として検出する。誤って現行列を削除しない安全制約も
 import build_notion_db
 import verify_db_schema
 
-DEPRECATED = ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計",
+DEPRECATED = ["レコード種別", "発行漏れ件数", "金額変動件数", "チェック件数合計", "全体トータル",
               "対応状況", "チェック実行ID", "初回請求月(API推定)"]
 
 
@@ -65,7 +65,7 @@ def test_build_deletes_deprecated_columns(monkeypatch):
     rc = build_notion_db.ensure_schema("db1", schema, "token")
     assert rc == 0
     props = captured["body"]["properties"]
-    # 旧4列のみが None (削除)。現行列は触らない。
+    # schema で明示した旧サマリ/集計列のみが None (削除)。現行列は触らない。
     assert set(props) == set(DEPRECATED)
     assert all(v is None for v in props.values())
 
@@ -108,7 +108,7 @@ def test_build_never_deletes_a_current_schema_column(monkeypatch):
     build_notion_db.ensure_schema("db1", schema, "token")
     props = captured["body"]["properties"]
     assert "顧客ID" not in props          # 現行列は守られる
-    assert set(props) == set(DEPRECATED)  # 旧4列のみ削除
+    assert set(props) == set(DEPRECATED)  # deprecated whitelist のみ削除
 
 
 # --- verify: residual 検出 ---
@@ -175,3 +175,82 @@ def test_verify_fails_on_number_format_mismatch(monkeypatch):
     existing["今月金額"]["number"]["format"] = "number"
     _patch_verify(monkeypatch, existing)
     assert verify_db_schema.main() == 1
+
+
+# --- 共有純関数: verify と sink 検知ゲートが同一の正本判定を使う (residual/extra 境界) ---
+
+def test_verify_imports_shared_residual_extra_pure_fn():
+    """verify_db_schema は lib 側 SSOT の residual_extra_columns を import して使う。"""
+    import notion_invoice_sink
+    assert verify_db_schema.residual_extra_columns is notion_invoice_sink.residual_extra_columns
+
+
+def test_residual_extra_columns_boundaries():
+    """純関数: deprecated 残存=residual、schema 未知=extra、現行のみ=両方空。"""
+    schema = verify_db_schema.load_schema()
+    clean = _existing_from_schema(schema, with_deprecated=False)
+    assert verify_db_schema.residual_extra_columns(clean, schema) == ([], [])
+
+    with_dep = _existing_from_schema(schema, with_deprecated=True)
+    residual, extra = verify_db_schema.residual_extra_columns(with_dep, schema)
+    assert residual == sorted(DEPRECATED)
+    assert extra == []
+
+    manual_summary = _existing_from_schema(schema, with_deprecated=False)
+    manual_summary["全体トータル"] = {"type": "number"}
+    residual, extra = verify_db_schema.residual_extra_columns(manual_summary, schema)
+    assert residual == ["全体トータル"]
+    assert extra == []
+
+    manual_unknown = _existing_from_schema(schema, with_deprecated=False)
+    manual_unknown["任意メモ"] = {"type": "rich_text"}
+    residual, extra = verify_db_schema.residual_extra_columns(manual_unknown, schema)
+    assert residual == []
+    assert extra == ["任意メモ"]
+
+
+# --- verify: 集計疑い extra は WARN するが exit FAIL に昇格しない (正当列を壊さない) ---
+
+def test_verify_warns_suspect_summary_extra_without_failing(monkeypatch, capsys):
+    """新名の集計列(月次サマリ)が DB に手動追加されても exit0 のまま WARN 行だけ出す。
+
+    deprecated whitelist に無い集計列は residual に乗らず extra に落ちる。これを集計列の
+    疑いとして強めに警告するが、正当な「合計確認メモ」等の偽陽性で恒常 FAIL になりオオカミ
+    少年化するのを避けるため exit code は FAIL に昇格しない (WARN 止まり)。
+    """
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["月次サマリ"] = {"type": "number", "number": {"format": "yen"}}
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 0  # FAIL に昇格しない
+    out = capsys.readouterr().out
+    assert "WARN 集計列の疑いがある追加列" in out
+    assert "月次サマリ" in out
+
+
+def test_verify_separates_suspect_and_other_extra(monkeypatch, capsys):
+    """extra を集計疑い(WARN)とその他(参考)に分けて出力し、どちらも exit0。"""
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing["総計"] = {"type": "number", "number": {"format": "yen"}}
+    existing["任意メモ"] = {"type": "rich_text"}
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 0
+    out = capsys.readouterr().out
+    # 集計疑いは WARN 行、その他は参考行に分かれる。
+    suspect_line = next(ln for ln in out.splitlines() if "集計列の疑い" in ln)
+    assert "総計" in suspect_line and "任意メモ" not in suspect_line
+    assert any("DBにのみ存在する追加列" in ln and "任意メモ" in ln for ln in out.splitlines())
+
+
+def test_verify_suspect_extra_does_not_mask_real_fail(monkeypatch, capsys):
+    """欠落など真の FAIL がある場合は集計疑い extra があっても FAIL(exit1) を維持する。"""
+    schema = verify_db_schema.load_schema()
+    existing = _existing_from_schema(schema, with_deprecated=False)
+    existing.pop("今月金額")          # 真の欠落 → FAIL
+    existing["月次サマリ"] = {"type": "number", "number": {"format": "yen"}}  # 集計疑い
+    _patch_verify(monkeypatch, existing)
+    assert verify_db_schema.main() == 1
+    out = capsys.readouterr().out
+    assert "FAIL 欠落プロパティ" in out
+    assert "WARN 集計列の疑いがある追加列" in out  # WARN も併記される

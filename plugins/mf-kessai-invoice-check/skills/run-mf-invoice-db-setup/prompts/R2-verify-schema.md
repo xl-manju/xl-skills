@@ -34,7 +34,7 @@
 | 用語 | 定義 |
 |---|---|
 | 期待プロパティ | schema の properties に定義された事実列＋管理列。これが揃っていれば PASS。 |
-| drift | schema と DB の差分。schema にあり DB に無い欠落は FAIL、DB にのみある追加列は警告。 |
+| drift | schema と DB の差分。schema にあり DB に無い欠落、および `deprecated_properties` にある既知の旧サマリ/集計列の残存は FAIL。DB にのみある未知の追加列は警告。 |
 
 ### 2.3 入力契約
 
@@ -44,7 +44,7 @@
 
 ### 2.4 出力契約
 - schema: `../schemas/notion-db-schema.json` (期待プロパティ正本)
-- 成果: 全期待プロパティ存在で PASS。drift があれば欠落・追加列を差分として明示。
+- 成果: 全期待プロパティ存在、かつ deprecated 旧サマリ/集計列の残存なしで PASS。drift があれば欠落・残存旧列・追加列を差分として明示。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -63,10 +63,11 @@
 
 ### 4.1 失敗時挙動
 - 欠落プロパティあり → FAIL。欠落を提示し `build_notion_db.py` の再実行または手動追補をユーザーに案内する。
-- DB にのみ存在する追加列は警告に留め、失敗扱いにしない (ユーザーが手動追加した列を尊重)。
+- `deprecated_properties` にある既知の旧サマリ/集計列 (例: `全体トータル`) が残存 → FAIL。`build_notion_db.py` の再実行で削除するよう案内する。
+- DB にのみ存在する未知の追加列は警告に留め、失敗扱いにしない (ユーザーが手動追加した列を尊重)。
 
 ### 4.2 観測 / ロギング
-- PASS/FAIL と、FAIL 時の欠落プロパティ・警告 (追加列) を差分として報告する。
+- PASS/FAIL と、FAIL 時の欠落プロパティ・残存旧列・警告 (未知の追加列) を差分として報告する。
 
 ### 4.3 セキュリティ
 - Notion トークンは Keychain からのみ取得し、DB を変更せず標準出力に資格情報を残さない。
@@ -79,12 +80,13 @@
 ### 5.2 ゴール定義
 - 目的: 作成済み DB が設計通りのプロパティを持つことを機械保証し、後段 upsert の書き込み先 drift を未然に検知する。
 - 背景: 手動編集や R1 の不完全実行でプロパティが欠落すると upsert が失敗する。作成後に正本と照合する検証層が必要。
-- 達成ゴール: schema の全期待プロパティが DB に存在し PASS となる状態。drift があれば差分が明示され差し戻し可能な状態。
+- 達成ゴール: schema の全期待プロパティが DB に存在し、deprecated 旧サマリ/集計列が残らず PASS となる状態。drift があれば差分が明示され差し戻し可能な状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] schema の事実列・管理列が全て DB に存在する (PASS)
 - [ ] 欠落があれば欠落プロパティが差分として提示されている (FAIL)
-- [ ] DB にのみある追加列は警告に留まり失敗扱いになっていない
+- [ ] deprecated 旧サマリ/集計列が残っていれば FAIL として提示されている
+- [ ] DB にのみある未知の追加列は警告に留まり失敗扱いになっていない
 - [ ] DB を一切変更していない (read-only)
 
 ### 5.4 実行方式
@@ -114,4 +116,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`.mf-kessai-config.json` の `notion.database_id` を検証対象に `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py"` を実行せよ。DB は変更しない (read-only)。`../schemas/notion-db-schema.json` の全期待プロパティが存在すれば PASS。欠落があれば FAIL とし欠落プロパティを提示して `build_notion_db.py` 再実行または手動追補を案内する。DB にのみある追加列は警告に留め失敗扱いにしない。前置き禁止。
+`.mf-kessai-config.json` の `notion.database_id` を検証対象に `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py"` を実行せよ。DB は変更しない (read-only)。`../schemas/notion-db-schema.json` の全期待プロパティが存在し、`deprecated_properties` の旧サマリ/集計列が残っていなければ PASS。欠落または deprecated 残存があれば FAIL とし、欠落プロパティ/残存旧列を提示して `build_notion_db.py` 再実行または手動追補を案内する。DB にのみある未知の追加列は警告に留め失敗扱いにしない。前置き禁止。

@@ -36,8 +36,10 @@ columns.md の整合ルール (a)-(h) を実判定する。SKILL.md『検証』�
           (例: origin=web なのに『公的データで確認済み』) を FAIL (Goodhart 遮断)
         * 属性×許可段ホワイトリスト (FIELD_ALLOWED_ORIGINS)。例: postal_code の
           origin=web (郵便番号の Web 取得) を FAIL
-      - 旧形式 (source_by_field 無し): 現行検査へ縮退 —『ネット検索(要確認)』行は
-        source_urls 非空 (Notion行形式は source_urls キーがある場合のみ適用)
+        * 非空 postal_code は origin=japanpost / 確度『公的データ取得』/ 日本郵便検証URLを必須化
+      - 旧形式 (source_by_field 無し): record 形式の非空 postal_code は出典不明として FAIL。
+        それ以外は現行検査へ縮退 —『ネット検索(要確認)』行は source_urls 非空
+        (Notion行形式は source_urls キーがある場合のみ適用)
   (h) 8列構成・空/未確定法人番号でキー衝突なし (行集合全体で検査)
 """
 from __future__ import annotations
@@ -89,15 +91,16 @@ ORIGIN_CERTAINTY_CAP = {
     "web": CERTAINTY_WEB,
     "none": CERTAINTY_UNRESOLVED,
 }
-# 属性 × 許可 origin ホワイトリスト (許可段)。postal_code は Web 取得不可 (日本郵便 API のみ)。
+# 属性 × 許可 origin ホワイトリスト (許可段)。postal_code は Web/ユーザー入力不可 (日本郵便 API のみ)。
 FIELD_ALLOWED_ORIGINS = {
     "company_name": {"user_input", "web", "none"},
     "official_name": {"gbizinfo", "web", "user_input", "none"},
     "address": {"gbizinfo", "web", "user_input", "none"},
-    "postal_code": {"japanpost", "user_input", "none"},
+    "postal_code": {"japanpost", "none"},
     "hojin_bango": {"gbizinfo", "web", "user_input", "none"},
     "phone_number": {"web", "user_input", "none"},
 }
+JAPANPOST_VERIFY_URL = "https://www.post.japanpost.jp/zipcode/"
 
 ATTRIBUTE_FIELDS = (
     "company_name", "official_name", "address",
@@ -255,6 +258,22 @@ def validate_row(rec: dict, idx: int, remark_phrases: set[str]) -> list[str]:
                     f"{prefix} (g) source_by_field['{field}'] は origin=web だが url が空"
                     " (ネット検索値は根拠URL必須)"
                 )
+            if field == "postal_code" and postal:
+                field_certainty = n["certainty_by_field"].get(field)
+                url = (spec.get("url") or "").strip()
+                if origin != "japanpost":
+                    errs.append(
+                        f"{prefix} (g) 非空 postal_code の origin は japanpost 必須"
+                        " (郵便番号は日本郵便 addresszip API のみ採用)"
+                    )
+                if field_certainty != CERTAINTY_PUBLIC_FETCHED:
+                    errs.append(
+                        f"{prefix} (g) 非空 postal_code の属性別確度は『{CERTAINTY_PUBLIC_FETCHED}』必須"
+                    )
+                if url != JAPANPOST_VERIFY_URL:
+                    errs.append(
+                        f"{prefix} (g) 非空 postal_code の検証URLは日本郵便固定URL必須"
+                    )
             # fallback tier 機械照合 (data-sources.md fallback tier 表 正本)。
             # (g-1) 属性×許可段ホワイトリスト: 許可されない手段で取得した値を遮断。
             if origin not in FIELD_ALLOWED_ORIGINS[field]:
@@ -274,10 +293,16 @@ def validate_row(rec: dict, idx: int, remark_phrases: set[str]) -> list[str]:
                     f"{prefix} (g) {field} の確度 '{field_certainty}' が origin={origin} の"
                     f" 上限 '{cap}' を超過 (確度昇格禁止)"
                 )
-    elif certainty == CERTAINTY_WEB and (
-        n["source_format"] == "record" or n["has_source_urls"]
-    ) and not n["confirm_url"].strip():
-        errs.append(f"{prefix} (g) 『ネット検索(要確認)』だが根拠URL(source_urls)が空")
+    else:
+        if n["source_format"] == "record" and postal:
+            errs.append(
+                f"{prefix} (g) 非空 postal_code だが source_by_field が無く出典不明"
+                " (郵便番号は origin=japanpost の新形式 record 必須)"
+            )
+        if certainty == CERTAINTY_WEB and (
+            n["source_format"] == "record" or n["has_source_urls"]
+        ) and not n["confirm_url"].strip():
+            errs.append(f"{prefix} (g) 『ネット検索(要確認)』だが根拠URL(source_urls)が空")
 
     expected_cols = (
         set(ATTRIBUTE_FIELDS) | {"情報の確かさ", "備考"}

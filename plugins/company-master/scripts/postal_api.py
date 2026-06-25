@@ -33,10 +33,17 @@
   実際の送信元グローバルIPを自動検出する (BYO: ユーザが自分のIPを調べる手間を省く)。日本郵便に
   システム登録した IP と一致している必要がある (IP 認証)。ズレると 401/403 → reject_reason `auth:`。
 
-検索戦略 (2段・M4):
-  1. 構造化検索: normalize 済み住所を pref_name / city_name / town_name に分解して投げる。
+検索戦略 (3段・M4):
+  1. 構造化検索: normalize 済み住所を pref_name / city_name / town_name に分解し、town_name は
+     素の町域 → 小字「字○○」/大字を段階剥離した町域 の順で複数回投げる (_town_variants)。
   2. freeword フォールバック: 1 で確定できないときのみ、番地を除いた住所全体を freeword で投げる。
-  どちらも pick_best で一意確定のみ採用するため、クエリ品質は再現率にのみ影響し精度には影響しない。
+  3. 市区町村前方一致フォールバック: 1-2 が全 miss のとき {pref/city} で町域一覧を取り、入力住所への
+     最長前方一致で町域を確定する (pick_best_prefix)。「字」マーカー無しの小字・枝番・カナ末尾や
+     町域名に数字を含む住所も拾える。一覧不返/不一致なら空欄に縮退するだけで誤値も回帰も生まない。
+     ※ {pref/city} 照会で実 API が町域一覧を返すか (=この段の再現率効果) は精度には無影響だが
+       未実証なので、`doctor --probe` 等で字マーカー無し住所を1件流して実機確認することを推奨。
+  いずれも pick_best / pick_best_prefix で一意確定のみ採用するため、クエリ品質は再現率にのみ影響し
+  精度には影響しない。
 
 中央プロキシモード (不特定多数・多拠点配布向け):
   `notion_config.get_postal_proxy_url()` が設定されていれば、token 発行/直叩きをせず query を
@@ -82,6 +89,9 @@ _PREFECTURES = (
 _CITY_RE = re.compile(r"(.+?市.+?区|.+?[市区町村])(.*)")
 # 番地 (丁目・番・号を含む数値以降) を落とす: NFKC 後の ASCII 数字で切る。
 _BANCHI_RE = re.compile(r"\d")
+# 小字「字○○」境界。日本郵便の町域DBは大字粒度までで小字は照合に通らないため town から削る。
+# 大字の「字」は (?<!大) で保護する（「大字北京田」の先頭字を誤って切らない）。
+_KOAZA_SPLIT_RE = re.compile(r"(?<!大)字")
 
 # token のプロセス内メモ化 (expires_in を尊重。margin 60s 手前で失効扱い)。
 _TOKEN_CACHE: dict[str, float | str] = {}
@@ -238,12 +248,11 @@ def _strip_banchi(s: str) -> str:
     return _BANCHI_RE.split(s or "", 1)[0]
 
 
-def _split_address(normalized: str) -> dict:
-    """正規化済み住所 (都道府県起点) を {pref_name, city_name, town_name} へ分解する (純関数)。
+def _city_rest(normalized: str) -> dict:
+    """正規化済み住所を {pref_name, city_name, rest} へ分解する (純関数)。
 
-    都道府県起点でない (= normalize_address が空に潰す) 住所は {} を返す。
-    town_name は番地を除いた町域。完全な分解は保証しないが、pick_best が一意確定のみ採用するため
-    分解誤りは再現率を下げるだけで誤値は生まない。
+    rest は市区町村以降の生文字列 (番地も小字も含む。前方一致フォールバック用)。
+    都道府県起点でない住所は {}、市区町村が判別できない住所は {pref_name} のみを返す。
     """
     s = (normalized or "").strip()
     pref = next((p for p in _PREFECTURES if s.startswith(p)), None)
@@ -254,12 +263,47 @@ def _split_address(normalized: str) -> dict:
     if not m:
         # 市区町村が判別できない (rest が空/番地のみ等) → 都道府県のみ
         return {"pref_name": pref}
-    city, town = m.group(1), m.group(2)
-    q = {"pref_name": pref, "city_name": city}
-    town = _strip_banchi(town).strip()
+    return {"pref_name": pref, "city_name": m.group(1), "rest": m.group(2).strip()}
+
+
+def _split_address(normalized: str) -> dict:
+    """正規化済み住所 (都道府県起点) を {pref_name, city_name, town_name} へ分解する (純関数)。
+
+    都道府県起点でない (= normalize_address が空に潰す) 住所は {} を返す。
+    town_name は番地を除いた町域。完全な分解は保証しないが、pick_best が一意確定のみ採用するため
+    分解誤りは再現率を下げるだけで誤値は生まない。
+    """
+    cr = _city_rest(normalized)
+    if "city_name" not in cr:
+        return cr  # {} または {pref_name} をそのまま返す
+    q = {"pref_name": cr["pref_name"], "city_name": cr["city_name"]}
+    town = _strip_banchi(cr["rest"]).strip()
     if town:
         q["town_name"] = town
     return q
+
+
+def _town_variants(town: str) -> list[str]:
+    """町域名を「具体→粗」の順で候補化する（番地は _strip_banchi 済み前提・純関数）。
+
+    日本郵便 addresszip の町域DBは大字（おおむね町丁目）粒度までで、小字「字○○」は照合に
+    通らず404になる。素の町域 → 小字を削った町域 → 先頭「大字」を削った町域 を具体的な順に
+    並べ、lookup_postal が miss のとき順に再照会させる。pick_best が一意確定のみ採用するため、
+    削りすぎても再現率が下がるだけで誤値は生まない（非対称コスト原則を不変に保つ）。
+    重複・空は除き、字も大字も無い町域は元の1件だけ返す（無駄な再照会を生まない）。
+    """
+    t = (town or "").strip()
+    if not t:
+        return []
+    bases = [t]
+    if t.startswith("大字"):
+        bases.append(t[len("大字"):].strip())
+    variants: list[str] = []
+    for b in bases:
+        for v in (b, _KOAZA_SPLIT_RE.split(b, 1)[0].strip()):
+            if v and v not in variants:
+                variants.append(v)
+    return variants
 
 
 def address_to_query(normalized_address: str) -> dict:
@@ -312,6 +356,29 @@ def pick_best(candidates: list[dict], level: int | None, query: dict) -> dict | 
     return None  # 曖昧 → 確定しない
 
 
+def pick_best_prefix(candidates: list[dict], rest: str) -> dict | None:
+    """市区町村レベルの町域一覧から、入力住所 rest に最長前方一致する町域を一意確定で選ぶ (純関数)。
+
+    API が返す正式町域名 (town_name) のうち rest の先頭に一致する最長のものを採り、その zip が
+    一意に収束していれば確定する。「字」マーカーの無い小字・イロハ/甲乙の枝番・カナ末尾や、
+    町域名に数字を含む住所 (北24条西 等) も、正式町域一覧との前方一致で拾える (区切り文字の無い
+    住所文字列だけからは町域境界を判定できないため、権威ある一覧側に境界判定を委ねる)。
+    誤値非混入: 「official town_name は rest の prefix」制約 + 最長一致群の zip 収束で担保。
+    曖昧 (前方一致なし/最長群の zip 割れ) は None → 呼び出し側で空欄に縮退する。
+    """
+    if not candidates or not rest:
+        return None
+    matched = [(c.get("town_name") or "", c) for c in candidates]
+    matched = [(t, c) for t, c in matched if t and rest.startswith(t)]
+    if not matched:
+        return None
+    longest = max(len(t) for t, _ in matched)
+    best = [c for t, c in matched if len(t) == longest]
+    zips = {_zip_of(c) for c in best}
+    zips.discard("")
+    return best[0] if len(zips) == 1 else None
+
+
 def lookup_postal(normalized_address: str, company_name: str = "", _search_fn=None) -> dict:
     """住所→郵便番号逆引きのエントリポイント (enrich の postal_from_address が呼ぶ決定論層)。
 
@@ -326,7 +393,17 @@ def lookup_postal(normalized_address: str, company_name: str = "", _search_fn=No
     freeword_addr = _strip_banchi((normalized_address or "").strip())
     queries: list[tuple[str, dict]] = []
     if structured.get("city_name"):
-        queries.append(("structured_pref_city_town", structured))
+        town = structured.get("town_name")
+        if town:
+            # 町域を「具体→粗（小字/大字を段階剥離）」で複数照会。先頭は従来と同一の素の町域
+            # （pattern も従来名を維持＝後方互換）。2件目以降は剥離後バリアントで再現率を補う。
+            for i, tv in enumerate(_town_variants(town)):
+                q = {"pref_name": structured["pref_name"],
+                     "city_name": structured["city_name"], "town_name": tv}
+                pattern = "structured_pref_city_town" if i == 0 else "structured_town_trimmed"
+                queries.append((pattern, q))
+        else:
+            queries.append(("structured_pref_city_town", structured))
     if freeword_addr:
         queries.append(("freeword_no_banchi", {"freeword": freeword_addr}))
     if not queries:
@@ -353,6 +430,7 @@ def lookup_postal(normalized_address: str, company_name: str = "", _search_fn=No
             token = get_token()
             return search_zip(token, q, egress_ip=egress_ip)
 
+    auth_failed = False
     for pattern, q in queries:
         try:
             addresses, level = search(q)
@@ -365,6 +443,7 @@ def lookup_postal(normalized_address: str, company_name: str = "", _search_fn=No
             attempts.append({"source": "japanpost", "pattern": pattern,
                              "result": "error", "reject_reason": f"{e.kind}: {e.detail}"})
             if e.kind == "auth":
+                auth_failed = True
                 break  # 認証失敗は後続クエリでも同じく失敗するため打ち切り
             continue
         best = pick_best(addresses, level, q)
@@ -376,6 +455,30 @@ def lookup_postal(normalized_address: str, company_name: str = "", _search_fn=No
                     "source_url": JAPANPOST_VERIFY_URL, "attempts": attempts}
         attempts.append({"source": "japanpost", "pattern": pattern,
                          "result": "miss", "reject_reason": "一意確定不能または未一致"})
+
+    # 最終フォールバック (fail-safe): ここまで全 miss でも、{都道府県+市区町村} で町域一覧を取り、
+    # 入力住所への最長前方一致で町域を確定する。「字」マーカー無しの小字・枝番・カナ末尾や、
+    # 町域名に数字を含む住所も拾える (正式町域一覧に境界判定を委ねる)。一覧が返らない/前方一致が
+    # 無ければ現状どおり空欄に縮退するだけで誤値も回帰も生まない (純増の安全な再現率補強)。
+    cr = _city_rest(normalized_address)
+    if not auth_failed and cr.get("city_name") and cr.get("rest"):
+        try:
+            addresses, _level = search({"pref_name": cr["pref_name"], "city_name": cr["city_name"]})
+        except JapanPostError as e:
+            attempts.append({"source": "japanpost", "pattern": "structured_city_prefix_match",
+                             "result": "miss" if e.kind == "notfound" else "error",
+                             "reject_reason": "該当する住所なし (HTTP 404)" if e.kind == "notfound"
+                             else f"{e.kind}: {e.detail}"})
+        else:
+            best = pick_best_prefix(addresses, cr["rest"])
+            if best:
+                attempts.append({"source": "japanpost", "pattern": "structured_city_prefix_match",
+                                 "result": "hit", "reject_reason": ""})
+                return {"value": _format_postal(_zip_of(best)),
+                        "certainty": CERTAINTY_PUBLIC_FETCHED, "remark_key": "",
+                        "source_url": JAPANPOST_VERIFY_URL, "attempts": attempts}
+            attempts.append({"source": "japanpost", "pattern": "structured_city_prefix_match",
+                             "result": "miss", "reject_reason": "市区町村一覧に前方一致する町域なし"})
 
     return {"value": "", "certainty": CERTAINTY_UNRESOLVED,
             "remark_key": "postal_code", "source_url": "", "attempts": attempts}

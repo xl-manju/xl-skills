@@ -721,3 +721,43 @@ def test_schema_required_matches_validate_rows_mandatory_keys():
         f"schema required と validate_rows 必須キーが不一致: "
         f"schema のみ={schema_required - validate_required}, "
         f"validate_rows のみ={validate_required - schema_required}")
+
+
+# --- 残骸検知の画面昇格: _warn_residual_to_screen (to-human フィードバックの出口) ---
+
+def test_warn_residual_to_screen_prints_on_residual(capsys):
+    """residual があれば⚠行を stdout に出し /run-mf-invoice-db-setup へ誘導する。"""
+    c._warn_residual_to_screen({"residual": ["全体トータル"], "suspect_summary": []})
+    out = capsys.readouterr().out
+    assert "⚠" in out
+    assert "全体トータル" in out
+    assert "/run-mf-invoice-db-setup" in out
+
+
+def test_warn_residual_to_screen_prints_on_suspect(capsys):
+    """集計疑い extra (suspect_summary) があっても⚠行を stdout に出す。"""
+    c._warn_residual_to_screen({"residual": [], "suspect_summary": ["月次サマリ"]})
+    out = capsys.readouterr().out
+    assert "⚠" in out
+    assert "月次サマリ" in out
+
+
+def test_warn_residual_to_screen_merges_residual_and_suspect(capsys):
+    """residual と suspect の両方を重複なくマージして1行で表示する。"""
+    c._warn_residual_to_screen(
+        {"residual": ["全体トータル"], "suspect_summary": ["全体トータル", "総計"]})
+    out = capsys.readouterr().out
+    assert out.count("⚠") == 1
+    assert "全体トータル" in out and "総計" in out
+
+
+def test_warn_residual_to_screen_silent_when_clean(capsys):
+    """residual も suspect も無ければ何も出さない (誤誘導しない)。"""
+    c._warn_residual_to_screen({"residual": [], "suspect_summary": []})
+    assert capsys.readouterr().out == ""
+
+
+def test_warn_residual_to_screen_silent_on_missing_keys(capsys):
+    """旧形式の upsert 戻り (新キー無し) でも KeyError にならず無出力 (後方互換)。"""
+    c._warn_residual_to_screen({"created": 1, "updated": 0})
+    assert capsys.readouterr().out == ""

@@ -464,6 +464,21 @@ def finalize(exclude_ids, in_path, out_path):
     return 0
 
 
+def _warn_residual_to_screen(upsert_result):
+    """upsert 戻りの residual/集計疑い列を画面(stdout)に昇格し掃除アクションへ誘導する。
+
+    warn_residual_summary_columns は stderr に出すが、成功サマリ(stdout)に埋もれて人が
+    掃除に気づかない経路を塞ぐ(検知→/run-mf-invoice-db-setup 再実行の to-human 到達性)。
+    read-only は変えず、表示のみ。
+    """
+    residual = upsert_result.get("residual") or []
+    suspect = upsert_result.get("suspect_summary") or []
+    flagged = sorted(set(residual) | set(suspect))
+    if flagged:
+        print(f"⚠ 旧サマリ/集計列の疑いがある列が DB に残存: {flagged} "
+              f"→ /run-mf-invoice-db-setup を再実行して掃除してください(集計は持たない設計)。")
+
+
 def main():
     p = argparse.ArgumentParser(description="MF掛け払い 月次発行漏れチェック (collect→verify→finalize→sink)")
     p.add_argument("--collect", action="store_true", help="未検証候補を取得・出力")
@@ -557,6 +572,7 @@ def main():
         r = notion_invoice_sink.upsert(db_id, rows, period_ym=ym)
         print(f"Notion upsert: created={r['created']} updated={r['updated']} "
               f"period={r['period_ym']} run_id={r['run_id']} (各顧客ページ本文の月次 table に履歴追記)")
+        _warn_residual_to_screen(r)
         return 0
 
     # 既定は collect。既定の対象月は実行日の年月 (default_target_month 参照)。

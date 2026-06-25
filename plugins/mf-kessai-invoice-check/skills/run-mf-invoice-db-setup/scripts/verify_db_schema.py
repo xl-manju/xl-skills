@@ -11,7 +11,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(_PLUGIN_ROOT, "lib"))
 from mfk_api import load_config  # noqa: E402
-from notion_invoice_sink import _notion_token, _req  # noqa: E402
+from notion_invoice_sink import (  # noqa: E402
+    _notion_token,
+    _req,
+    residual_extra_columns,
+    suspect_summary_extras,
+)
 
 
 def load_schema():
@@ -59,7 +64,6 @@ def main():
     existing_props = res.get("properties") or {}
     existing = set(existing_props.keys())
     expected = set(schema["properties"].keys())
-    deprecated = set(schema.get("deprecated_properties", []))
     stale_renames = sorted(
         old for old, new in schema.get("renames", {}).items()
         if old in existing and new in existing
@@ -67,8 +71,19 @@ def main():
     missing = sorted(expected - existing)
     type_errors = property_errors(existing_props, schema)
     # 削除されるべき旧列が残っていないか (移行の drift)。extra のうち deprecated は致命。
-    residual = sorted(deprecated & existing)
-    extra = sorted(existing - expected - deprecated)
+    residual, extra = residual_extra_columns(existing_props, schema)
+    # extra(schema 未知列)を集計疑い/その他に分ける。suspect は集計列の疑いとして強めに WARN するが
+    # FAIL には昇格しない(正当な「合計確認メモ」等の偽陽性で恒常 FAIL=オオカミ少年を避ける)。
+    suspect = suspect_summary_extras(extra)
+    others = sorted(set(extra) - set(suspect))
+
+    def _print_extra_warnings():
+        if suspect:
+            print(f"WARN 集計列の疑いがある追加列: {suspect} "
+                  f"(意図的でなければ build_notion_db.py 再実行で掃除。集計は持たない設計)")
+        if others:
+            print(f"     (参考: DBにのみ存在する追加列: {others})")
+
     if missing or residual or type_errors or stale_renames:
         if missing:
             print(f"FAIL 欠落プロパティ: {missing}")
@@ -82,12 +97,10 @@ def main():
         if stale_renames:
             print(f"FAIL 改名済みの旧プロパティが新名と併存: {stale_renames} "
                   f"(build_notion_db.py を再実行して旧列を掃除してください)")
-        if extra:
-            print(f"     (参考: DBにのみ存在する追加列: {extra})")
+        _print_extra_warnings()
         return 1
     print(f"PASS 全 {len(expected)} プロパティが存在し、旧プロパティの残存もありません。")
-    if extra:
-        print(f"     (参考: DBにのみ存在する追加列: {extra})")
+    _print_extra_warnings()
     return 0
 
 

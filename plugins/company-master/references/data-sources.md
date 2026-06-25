@@ -27,12 +27,12 @@ REST API は **V1 を採用する** (実装の正本: `scripts/resolve_company.p
 
 ## フォールバック多段化 (fallback tier 表・正本)
 
-per-field の取得は下表の tier 順で試行し、**確度ラベルは各 tier の上限を超えて付与しない** (確度昇格禁止 = フォールバックで上位ラベルを付けない。Goodhart 遮断)。定義済み全段 (下記ホワイトリスト内) を試行し尽くしてから空欄保留する。停止条件: 有限1巡・同一 `(source, pattern)` 再試行の機械スキップ・`MAX_ATTEMPTS_PER_FIELD=3` (実装正本: `enrich_company.note_attempt`)。
+per-field の取得は下表の tier 順で試行し、**確度ラベルは各 tier の上限を超えて付与しない** (確度昇格禁止 = フォールバックで上位ラベルを付けない。Goodhart 遮断)。定義済み全段 (下記ホワイトリスト内) を試行し尽くしてから空欄保留する。停止条件: 有限1巡・同一 `(source, pattern)` 再試行の機械スキップ・`MAX_ATTEMPTS_PER_FIELD=3` (Web/agent 等の外部試行上限。実装正本: `enrich_company.note_attempt`)。日本郵便 `postal_api` の sub-attempts は1回の決定論呼び出しの完結スナップショットとして冪等に全件転記する (`note_attempt` の gap-driven dedup/上限は Web/agent 専用。転記正本: `enrich_company.enrich` の郵便番号ブロック)。
 
 | tier | 手段 | 確度ラベル上限 | 備考 |
 |---|---|---|---|
 | tier1 | gBizINFO (検索パターン複数化: 原文 → 正規化名 → 法人格除去名。正本 `resolve_company.name_query_patterns` / `normalize.strip_legal_form`) | 公的データで確認済み | 自動確定条件 (法人番号一致 or 会社名+住所2要素一致) は不変 |
-| tier2 | 日本郵便 addresszip API (V2 逆引き。構造化検索 `pref_name`/`city_name`/`town_name` → `freeword`(番地除去) の2段。実装正本 `postal_api.lookup_postal`) | 公的データ取得 | `pick_best` がマッチングレベル(1=都道府県/2=市区町村/3=町域)と候補 zip 収束で一意確定したもののみ採用 (誤値を入れない非対称コスト原則)。検証 URL は日本郵便 郵便番号検索の固定 URL を共用 (weak)。認証/通信失敗時は空欄+備考へ縮退 (auth→`postal_api_unauthorized` / network→`postal_api_unavailable`) |
+| tier2 | 日本郵便 addresszip API (V2 逆引き。構造化検索（`pref_name`/`city_name`/`town_name`。`town_name` は素の町域→小字「字○○」/大字を段階剥離した複数バリアントで照会）→ `freeword`(番地除去) → `{pref/city}` 町域一覧の最長前方一致(`pick_best_prefix`。字マーカー無しの小字・枝番・カナ末尾や数字を含む町域名を拾える設計) の3段。実装正本 `postal_api.lookup_postal`) | 公的データ取得 | `pick_best`/`pick_best_prefix` がマッチングレベル(1=都道府県/2=市区町村/3=町域)と候補 zip 収束(前方一致段は最長一致+zip収束)で一意確定したもののみ採用 (誤値を入れない非対称コスト原則。前方一致段は一覧不返/不一致なら空欄に縮退するのみで誤値・回帰なし。`{pref/city}` 照会で実 API が町域一覧を返すかは再現率の実機確認対象であり、未実証でも精度には影響しない)。検証 URL は日本郵便 郵便番号検索の固定 URL を共用 (weak)。認証/通信失敗時は空欄+備考へ縮退 (auth→`postal_api_unauthorized` / network→`postal_api_unavailable`) |
 | tier3 | WebSearch (Claude が実施・Python は検証のみ) | ネット検索(要確認) | **根拠 URL 必須** (origin=web で url 空は validate FAIL → 書き込みゲート reject) |
 | tier4 | 全段不成立 | 未確定(要確認) | 空欄 + 『備考』へ定型文言 (`remarks-templates.md` の `all_tiers_exhausted` 等・試行手段を列挙) で人間へ引き継ぎ |
 
