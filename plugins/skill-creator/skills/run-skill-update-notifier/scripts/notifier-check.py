@@ -2,6 +2,7 @@
 """Skill update notifier: changelog/version cache check.
 
 非破壊原則: plugin manifest / marketplace.json / bundles.json は読み取りのみ。
+出力チャネル: 通知本体は stdout 1 行 (会話末尾付記)。診断ログのみ stderr。
 graceful degradation: 例外は握りつぶし stderr に短文を出すのみ。exit は常に 0。
 """
 from __future__ import annotations
@@ -88,20 +89,9 @@ def cmd_cache_status(_args) -> int:
 
 
 def cmd_refresh(args) -> int:
-    plugin_roots: list[Path] = []
-    plugin_root_arg = getattr(args, "plugin_root", None)
-    if plugin_root_arg:
-        plugin_roots.append(Path(plugin_root_arg).resolve())
     root = Path(args.plugins_root).resolve()
-    if root.exists():
-        plugin_roots.extend(sorted(p for p in root.glob("*/") if p.is_dir()))
     snapshot: dict[str, dict] = {}
-    seen: set[Path] = set()
-    for plugin_dir in plugin_roots:
-        plugin_dir = plugin_dir.resolve()
-        if plugin_dir in seen:
-            continue
-        seen.add(plugin_dir)
+    for plugin_dir in sorted(root.glob("*/")):
         name = plugin_dir.name
         changelog = plugin_dir / "CHANGELOG.md"
         latest = _extract_latest_version(changelog) if changelog.exists() else None
@@ -115,25 +105,30 @@ def cmd_refresh(args) -> int:
     return 0
 
 
-def _v(version: str) -> str:
-    """semver 文字列に `v` 接頭辞を一度だけ付ける (二重 v 化しない)。"""
-    s = str(version).strip()
-    return s if s.startswith("v") else f"v{s}"
+def _vprefix(version: str) -> str:
+    """先頭 `v` を正規化 (既に付いていれば二重化しない)。"""
+    v = version.strip()
+    return v if v.lower().startswith("v") else f"v{v}"
 
 
 def _format_line(installed: str | None, latest: str | None) -> str:
-    """更新通知行を生成する (references/output-format.md 規約)。
+    """R2 notification-formatting: 差分時のみ 1 行通知文字列を返す純関数。
 
-    - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
-    - それ以外 (片方欠落 / 一致) は空文字列を返す
-    - 形式: "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
-    - `v` 接頭辞は二重化しない / 純テキスト (locale 切替・ANSI 無し)
+    仕様 (references/output-format.md 準拠):
+      - installed と latest が両方あり、かつ異なるときのみ通知文字列を返す
+      - それ以外 (片方欠落 / 一致) は空文字列を返す
+      - 書式: "(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"
+      - `v` 接頭辞が既に付いている場合は二重 v 化しない
+      - locale 切替や ANSI カラーは出さない (純テキスト・日本語固定)
     """
     if not installed or not latest:
         return ""
-    if str(installed).strip() == str(latest).strip():
+    if installed.strip() == latest.strip():
         return ""
-    return f"(installed: {_v(installed)} / latest: {_v(latest)} — /skill-update で更新)"
+    return (
+        f"(installed: {_vprefix(installed)} / "
+        f"latest: {_vprefix(latest)} — /skill-update で更新)"
+    )
 
 
 def cmd_notify(args) -> int:
@@ -147,13 +142,12 @@ def cmd_notify(args) -> int:
         return 0
     try:
         line = _format_line(entry.get("installed"), entry.get("latest"))
-    except NotImplementedError:
-        # R2 未実装時は no-op (Skill 全体を壊さない)
-        return 0
     except Exception as exc:
+        # R3 graceful-degradation: 整形失敗時も Skill 全体を壊さない
         print(f"[notifier] format skipped: {exc}", file=sys.stderr)
         return 0
     if line:
+        # 出力チャネル = stdout (会話末尾付記。PostToolUse hook が拾う)
         print(line)
     return 0
 
@@ -164,7 +158,6 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("cache-status")
     p_refresh = sub.add_parser("refresh")
     p_refresh.add_argument("--plugins-root", default="plugins")
-    p_refresh.add_argument("--plugin-root", help="単独 install 済み plugin root。指定時はこの plugin も snapshot 対象にする")
     p_notify = sub.add_parser("notify")
     p_notify.add_argument("--plugin", required=True)
 

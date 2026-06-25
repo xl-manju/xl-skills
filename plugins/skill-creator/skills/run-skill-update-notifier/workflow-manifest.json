@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-skill-update-notifier",
   "skill": "run-skill-update-notifier",
-  "description": "Skill 実行末尾に最新版有無を 1 行通知する。Stop hook 経由で起動される副作用最小ワークフロー。",
+  "description": "Skill 実行末尾に最新版有無を 1 行通知する。PostToolUse(matcher=Skill) hook 経由で起動され、cache 鮮度確認は UserPromptSubmit hook が担う副作用最小ワークフロー。",
   "phases": [
     {
       "id": "load-cache",

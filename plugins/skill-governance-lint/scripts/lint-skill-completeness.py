@@ -29,7 +29,7 @@ lint-skill-tree.py が「在るファイルが正しいか」を見るのに対�
 
 kind 別必須カテゴリ (prompt-placement-convention.md / run-build-skill SKILL.md 由来):
   ref       -> references, prompts
-  run       -> prompts
+  run       -> prompts, manifest (workflow-manifest.json 実在 or completeness_exempt の2択)
   assign(評価) -> rubric, schemas, prompts
   assign(生成) -> prompts, schemas
   wrap      -> scripts, schemas
@@ -39,6 +39,7 @@ Exit 0 = ok, 1 = 欠落あり, 2 = usage error。
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -47,7 +48,8 @@ from pathlib import Path
 # role_suffix=evaluator または名前が -evaluator で終わる assign は評価系として扱う。
 REQUIRED_BY_KIND: dict[str, set[str]] = {
     "ref": {"references", "prompts"},
-    "run": {"prompts"},
+    # LS-211: run kind は workflow-manifest.json 実在 or completeness_exempt の2択
+    "run": {"prompts", "manifest"},
     "assign-evaluator": {"rubric", "schemas", "prompts"},
     "assign-generator": {"prompts", "schemas"},
     "wrap": {"scripts", "schemas"},
@@ -133,21 +135,109 @@ def parse_exempt(fm: dict) -> dict[str, str]:
     return out
 
 
-def category_satisfied(root: Path, fm: dict, category: str, exempt: dict[str, str]) -> bool:
+URL_RE = re.compile(r"^[a-z][a-z0-9+.-]*://")
+
+
+def find_repo_root(start: Path) -> Path | None:
+    """skill dir から上方向に .git / plugins を探し repo root を推定する。"""
+    cur = start.resolve()
+    for p in (cur, *cur.parents):
+        if (p / ".git").exists() or (p / "plugins").is_dir():
+            return p
+    return None
+
+
+def _strip_inline_comment(s: str) -> str:
+    """YAML 行内コメント (空白 + '#' 以降) を除去する。"""
+    return re.sub(r"\s+#.*$", "", s).strip()
+
+
+def _iter_ref_values(val: object) -> list[str]:
+    """frontmatter ref 値を文字列リスト化する (block list / inline flow list / scalar)。"""
+    if isinstance(val, list):
+        items = [_as_str(v) for v in val]
+    else:
+        s = _as_str(val)
+        if s.startswith("[") and s.endswith("]"):
+            items = [x.strip().strip('"').strip("'") for x in s[1:-1].split(",")]
+        else:
+            items = [s]
+    return [i for i in (_strip_inline_comment(x) for x in items) if i]
+
+
+def _resolve_ref(root: Path, repo_root: Path | None, ref: str) -> str:
+    """*_refs 値の実在解決。返り値: 'ok' | 'missing' | 'skip'。
+
+    MD-208: fail-open (非空なら無条件充足) を修復し、
+      (a) skill dir 相対 -> (b) repo root 相対 -> (c) plugins/*/skills/<skill名>
+    の順で解決する。URL 等の非パス値は検証対象外として skip。
+    """
+    if URL_RE.match(ref):
+        return "skip"  # URL は実在検証対象外
+    # (a) skill dir 相対 (../other-skill/... / prompts/... 等)
+    try:
+        if (root / ref).exists():
+            return "ok"
+    except OSError:
+        return "skip"
+    if repo_root is not None:
+        # (b) repo root 相対 (plugins/... 等)
+        if (repo_root / ref).exists():
+            return "ok"
+        # (c) パスでなく skill 名の場合の名前解決
+        if "/" not in ref and any(repo_root.glob(f"plugins/*/skills/{ref}")):
+            return "ok"
+    if "/" not in ref and not Path(ref).suffix:
+        # パス形状でない単語 (ラベル等) は偽陽性回避のため skip 扱い
+        return "skip"
+    return "missing"
+
+
+def category_satisfied(
+    root: Path,
+    fm: dict,
+    category: str,
+    exempt: dict[str, str],
+    repo_root: Path | None,
+    findings: list[str],
+) -> bool:
     # 3. 理由付き免除
     if category in exempt and exempt[category]:
         return True
+    # LS-211: manifest は workflow-manifest.json 実在 or 免除の2択 (*_refs 不可)
+    if category == "manifest":
+        return (root / "workflow-manifest.json").is_file()
     # prompts 限定の宣言的 skip
     if category == "prompts":
         if _as_str(fm.get("prompt_creator_policy")).lower() == "skip":
             return True
         if "use_prompt_creator" in fm and not _is_true(fm.get("use_prompt_creator")):
             return True
-    # 2. 共有正本参照
-    for key in REF_KEYS_FOR_CATEGORY.get(category, ()):  # noqa: B007
+    # 2. 共有正本参照 (MD-208: 参照先の実在まで検証)
+    has_ref = False
+    resolved_any = False
+    for key in REF_KEYS_FOR_CATEGORY.get(category, ()):
         val = fm.get(key)
-        if val:  # 非空 list / 非空 scalar
-            return True
+        if not val:
+            continue
+        for ref in _iter_ref_values(val):
+            has_ref = True
+            status = _resolve_ref(root, repo_root, ref)
+            if status == "ok":
+                resolved_any = True
+            elif status == "skip":
+                print(
+                    f"[Skip]{root.name}: {key} の非パス値 '{ref}' は実在検証対象外",
+                    file=sys.stderr,
+                )
+                resolved_any = True  # 検証不能値は従来挙動 (充足扱い) を維持
+            else:
+                findings.append(
+                    f"{root.name}: [{category}] {key} の参照 '{ref}' が解決不可"
+                    " (skill相対 / repo root相対 / plugins/*/skills/<skill名> のいずれも不存在)"
+                )
+    if has_ref and resolved_any:
+        return True  # dangling があっても findings 経由で exit 1 になる
     # 1. ローカル実在
     if category == "rubric":
         return (root / "references" / "rubric.json").is_file()
@@ -169,14 +259,28 @@ def lint_one(root: Path) -> list[str]:
         return findings  # 判定不能 (skill 以外) は対象外
     required = REQUIRED_BY_KIND.get(kind, set())
     exempt = parse_exempt(fm)
+    repo_root = find_repo_root(root)
     for category in sorted(required):
-        if not category_satisfied(root, fm, category, exempt):
-            findings.append(
-                f"{root.name}: [{kind}] 必須カテゴリ '{category}' が不在。"
-                f" 次のいずれかで解消: (1) {category}/ に実体を置く"
-                f" (2) frontmatter {REF_KEYS_FOR_CATEGORY.get(category, ('<*_refs>',))[0]}"
-                f" で共有正本を参照 (3) completeness_exempt に '{category}: <理由>' を宣言"
-            )
+        if not category_satisfied(root, fm, category, exempt, repo_root, findings):
+            if category == "manifest":
+                msg = (
+                    f"{root.name}: [{kind}] workflow-manifest.json が不在。"
+                    " 次のいずれかで解消: (1) workflow-manifest.json を置く"
+                    " (2) completeness_exempt に 'manifest: <理由>' を宣言"
+                )
+                # LS-211 段階導入: 既存 run skill の棚卸しが済むまで既定は warning。
+                # LINT_COMPLETENESS_STRICT_MANIFEST=1 で error 化 (fail-closed)。
+                if os.environ.get("LINT_COMPLETENESS_STRICT_MANIFEST", "0") == "1":
+                    findings.append(msg)
+                else:
+                    print(f"[Warn]LS-211: {msg}", file=sys.stderr)
+            else:
+                findings.append(
+                    f"{root.name}: [{kind}] 必須カテゴリ '{category}' が不在。"
+                    f" 次のいずれかで解消: (1) {category}/ に実体を置く"
+                    f" (2) frontmatter {REF_KEYS_FOR_CATEGORY.get(category, ('<*_refs>',))[0]}"
+                    f" で共有正本を参照 (3) completeness_exempt に '{category}: <理由>' を宣言"
+                )
     return findings
 
 

@@ -185,6 +185,11 @@ def main() -> int:
     if args.rubric_refs:
         refs = [Path(p).resolve() for p in args.rubric_refs]
     elif args.rubric:
+        print(
+            "DEPRECATION: --rubric is legacy single-rubric mode; "
+            "use --rubric-refs <L0> [<L1> ...] <L2> (設計書29 §7)",
+            file=sys.stderr,
+        )
         refs = [Path(args.rubric).resolve()]
     else:
         print("either --rubric or --rubric-refs required", file=sys.stderr)
@@ -194,6 +199,18 @@ def main() -> int:
         if not rp.exists():
             print(f"rubric not found: {rp}", file=sys.stderr)
             return 2
+
+    if args.rubric_refs:
+        # refs[0] は L0 正本 (ref-skill-design-rubric/references/rubric.json) 必須。
+        # 非 L0 先頭は合成順序 (L0→L1→L2) 契約違反として fail-fast する。
+        first_layer = load_rubric(refs[0]).get("layer")
+        if first_layer != "L0":
+            print(
+                f"ERROR: --rubric-refs[0] must be the L0 canonical rubric "
+                f"(layer=='L0'); got layer={first_layer!r} from {refs[0]}",
+                file=sys.stderr,
+            )
+            return 1
     rubric = compose_rubrics(refs, args.merge_strategy, args.conflict_policy)
     composition_hash = rubric.get("_composition_hash", "")
     # primary rubric hash = first (upstream) layer or only layer

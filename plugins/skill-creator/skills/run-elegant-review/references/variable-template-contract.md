@@ -40,7 +40,7 @@
 | `source_tier` | 根拠の強さを示す |
 | `trace_evidence` | 具体的な由来を示す |
 | `migration_bucket` | `doc/20` の移行先分類へ接続する |
-| `reuse_surface` | template / rubric / lint / hook / reference / manifest / runbook のどこへ昇格するかを示す |
+| `reuse_surface` | skill / template / script-frontmatter / hook / config / governance-log / adapter / rubric / reference / none のどこへ昇格するかを示す（正本は `schemas/findings.schema.json` の enum、本列挙は転記） |
 | `runtime_variant` | `doc/22` のOS差分へ接続する |
 | `dependency_assumption` | stdlib-only / optional-cli などの前提を示す |
 | `negative_case` | 適用しない条件を明示する |

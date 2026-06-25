@@ -81,6 +81,14 @@
     "consult_build_knowledge": {
       "type": "boolean",
       "description": "Loop B: 本スキル作成時に skill-creator 自身の蓄積知見 (plugins/skill-creator/knowledge/ + lessons-learned 索引) を検索して活用するか。既定 true。"
+    },
+    "with_subagent_hint": {
+      "type": "boolean",
+      "description": "決定論的 placement hint (19章 factory 障害 #6 対応)。placement_candidates に Subagent / Agent Team を含むとき true。resolve-brief-to-category.py が agent-teams category を強制し、run-build-skill に --with-subagent を推奨する。needs_independent_context と併設する (前者=配置事実、本フィールド=build フラグ推奨シグナル)。build-flags.schema.json の object 型 with_subagent とは別物 (こちらは brief 用 boolean)。"
+    },
+    "with_hooks": {
+      "type": "boolean",
+      "description": "決定論的 placement hint (19章 factory 障害 #6 対応)。placement_candidates に Hook を含むとき true。resolve-brief-to-category.py が subagent-hook-integration category を強制し、run-build-skill に --with-hooks を推奨する。needs_lifecycle_enforcement と併設する (前者=配置事実、本フィールド=build フラグ推奨シグナル)。build-flags.schema.json の object 型 with_hooks とは別物 (こちらは brief 用 boolean)。"
     }
   },
   "allOf": [

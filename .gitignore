@@ -4,9 +4,11 @@ __pycache__/
 *.pyo
 *.pyd
 .python-version
-# Coverage バイナリ DB (実行副産物・他環境で破損するため追跡しない / 任意階層の .coverage にマッチ)
+
+# Test coverage artifacts (pytest / coverage.py が生成する揮発バイナリ / 任意階層の .coverage にマッチ)
 .coverage
 .coverage.*
+htmlcov/
 
 # OS
 .DS_Store
@@ -44,6 +46,9 @@ references/governance-params.json
 output/
 .claude/handoff/
 .worktrees/
+# MF KESSAI ローカル作業スクラッチ (配布対象外・git 未追跡。eval-log に実顧客データを含むため
+# コミット禁止。運用スクリプトは plugins/.../skills/run-mf-initial-month-enrich へ移設済み)
+.mfk-run/
 # run-* スキルの transient 作業ディレクトリ (skill-tree 第13条 nested dir 禁止)
 .run/
 # skill-intake 実行中フラグ lock (hook-guard-skillgen.py が生成・解除する揮発状態)

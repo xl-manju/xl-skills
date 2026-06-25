@@ -1,0 +1,41 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-initial-month-enrich",
+    "skill_md_sha256": "2ea24f83b486125f5e3972d808f9a600808302559c48dba6fcdd62dcf39d7122"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "rubric→assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-25T00:00:00Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "notes": "rubric-id=skill-design v1.3.0, threshold=80。kind=skill 適用 rule (FM/BD/NM/PD/RG) を逐条照合。high finding 0・score=100 で PASS。【FM-001 PASS(high)】name=run-mf-initial-month-enrich は ^(run|ref|assign|wrap|delegate)-[a-z0-9-]*$ に合致、長さ27<=60。【FM-002 PASS(med)】description は trigger句『〜とき』を含み句点『。』で終端。【FM-003 PASS(med)】trigger『とき』2個で 2..3 のスイートスポット内。【FM-004 PASS(med)】description に内部動作詞 (採点する/JSONで返す/sha256/exit code) なし。【FM-005 PASS(low)】description 末尾『使う』で日本語動詞ベース許容。【BD-001 PASS(high)】見出し『## Purpose & Output Contract』を厳格一致で保持 (L26)。【BD-002 PASS(med)】『## Gotchas』在 (L73)。【BD-003 PASS(high)】frontmatter 除く本文 64 行 <= 300。【BD-004 PASS(med)】description の2 trigger (年払い顧客の一括投入 / 取得担当の初期推定値補完) が本文の2経路 (CSV 名寄せ L42 / OAuth API L52) と Purpose に 1:1 対応。【NM-001 PASS(high)】ディレクトリ basename == frontmatter.name (run-mf-initial-month-enrich)。【NM-002 PASS(med)】命名規約適合。【NM-003 PASS(low)】tree (references/oauth-setup.md・scripts/*.py) 標準構成。【PD-001 PASS(low)】本文64<=100 かつ references/ 配下にファイル在 (oauth-setup.md)。【PD-002 PASS(med)】本文冒頭30行内に『## Purpose & Output Contract』(BD-001⊂PD-002) と禁則相当の制限表現 (取得担当のみ・任意/だけ/不要/強制しない) を保持。【RG-001 PASS(low)】本 verdict は rubric_hash 相当を target.skill_md_sha256 で再現性担保 (本機構の verdict 契約準拠)。kind=skill 非適用の AG/HK/CM/PC/PR/WF rule は applies_to_kinds 不一致のため採点対象外。KL-* は frontmatter.knowledge_loop 無・knowledge/ 不在のため存在ゲートで無条件 PASS (skip)。【score】high=0,med=0,low=0 減点なし → 100 >= 80。【前回 smell の解消】frontmatter argument-hint から `--csv <path>` が除去され (現 L6 `[--plan] [--limit N]`)、CSV パスは位置引数であることが本文に明示されたため、elegance 側で REJECT 計上していた引数契約↔実装の不整合は解消済み。なお当該不整合は元々 rubric の FM/BD/NM/PD/RG いずれの check 条件にも該当せず採点 (100) には影響していない (引数契約↔script 配線の整合は rubric 対象外)。",
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "FM-001", "FM-002", "FM-003", "FM-004", "FM-005",
+      "BD-001", "BD-002", "BD-003", "BD-004",
+      "NM-001", "NM-002", "NM-003",
+      "PD-001", "PD-002",
+      "RG-001"
+    ],
+    "positive_feedback": [
+      "BD-001 厳格見出し『## Purpose & Output Contract』+ 冒頭30行に目的/出力契約/禁則を集約し PD-002 も自動充足",
+      "description が trigger 2個・句点終端・内部動作詞なしで FM-002/003/004 を同時に満たす最適形",
+      "本文64行で BD-003(<=300)/PD-001(<=100) を余裕で満たし詳細は references/oauth-setup.md へ退避"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
+}

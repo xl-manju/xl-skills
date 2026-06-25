@@ -6,6 +6,8 @@ type: reference
 
 # 共通 5 次元ルブリック
 
+> **正本注記**: 本ファイルが skill-creator 系 (生成 agent 含む) の正本。判定基準のうち `intake.json` 等 skill-intake ドメイン固有の例は対象ドメインの成果物に読み替え可。
+
 各 SubAgent は出力前に必ずこのルブリックで自己採点する。`scripts/quality_gate.py` も同基準で機械検証する。
 
 ## 5 次元

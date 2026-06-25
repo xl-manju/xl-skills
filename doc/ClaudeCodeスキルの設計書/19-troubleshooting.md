@@ -91,7 +91,7 @@ Skill factory / generator / evaluator などの量産フローを回す際に起
 | `{{build_skill}}` | build を担う Skill | `run-build-skill` |
 | `{{elicit_skill}}` | brief / 要件収集を担う Skill | `run-skill-elicit` |
 | `{{handoff_file}}` | handoff JSON | `eval-log/handoff-<step>.json` |
-| `{{handoff_schema_path}}` | handoff schema の正本 | `creator-kit/skills/run-skill-create/references/handoff-schema.json` |
+| `{{handoff_schema_path}}` | handoff schema の正本 | `plugins/skill-creator/skills/run-skill-create/schemas/handoff.schema.json` |
 | `{{trace_file}}` | build trace | `eval-log/skill-build-trace.json` |
 | `{{evaluator_skill}}` | 評価を担う Skill | `assign-skill-design-evaluator` |
 | `{{context_log_path}}` | context mode を記録する証跡 | `eval-log/docs/<NN>-*.json` |
@@ -129,12 +129,12 @@ Sample expansion: `{{factory_skill_name}}=skill-creator`, `{{create_skill}}=run-
 症状:
 
 - PostCompact 後に `Skill({{create_skill}}, args=[--resume-from=<step>])` を実行すると `{{handoff_file}}` が読めず復元できない。
-- `handoff-schema.json` の必須フィールド (`state`, `governance_decision`, `next_step`) のいずれかが欠落している。
+- `schemas/handoff.schema.json` の必須フィールド (`step`, `gate_id`, `approver`, `artifacts`, `next_phase`) のいずれかが欠落している。
 
 根本原因:
 
 - handoff 保存中に bash kill されたか、`{{runtime_skills_dir}}` と `{{source_skills_dir}}` の二重配置で schema パスがずれた。
-- `handoff-schema.json` の正本が両方の skill ディレクトリに存在し、validator が古い方を読んだ。
+- handoff schema の正本が両方の skill ディレクトリに存在し、validator が古い方 (references/handoff-schema.json は redirect stub) を読んだ。
 
 対策:
 

@@ -100,7 +100,7 @@ model: <sonnet|haiku>  # 対話系=sonnet / 決定論系=haiku
 
 ## Self-Evaluation
 
-`plugins/skill-intake/references/quality-rubric.md` の 5 次元で自己採点する。
+`plugins/skill-creator/references/quality-rubric.md` の 5 次元で自己採点する。
 
 | 次元 | 本 agent での重点 |
 |---|---|

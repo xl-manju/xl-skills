@@ -116,7 +116,7 @@ Hook/CI/CLI 化候補を JSON で出力する。
 
 ### ゴールシークループ
 
-正本 `../run-build-skill/references/goal-seek-paradigm.md` の 5 ステップに従う。本スキル固有差分:
+正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップに従う。本スキル固有差分:
 
 - 対象ファイル: 入力 CLAUDE.md/prompt（複数可・read-only / 物理削除禁止）、出力 `.claude/handoff/migrate-audit-<session>.json` と `eval-<session>.json`
 - 子 skill: `assign-skill-design-evaluator`（`pair:`、fork 起動・user-invocable:false）、引き渡し先 `run-build-skill`

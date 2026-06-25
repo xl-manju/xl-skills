@@ -54,10 +54,9 @@ def find_frontmatter(skill_md: Path) -> dict:
 
 def resolve_rubric_ref(ref: str, skill_dir: Path) -> Path:
     if ref.startswith("ref-"):
-        candidates = [
-            PROJECT_ROOT / "creator-kit" / "skills" / ref / "rubric.json",
-            PROJECT_ROOT / ".claude" / "skills" / ref / "rubric.json",
-        ]
+        # 正規パスは <skill>/references/rubric.json (lint-skill-tree が直下配置を禁止)
+        candidates = sorted(PROJECT_ROOT.glob(f"plugins/*/skills/{ref}/references/rubric.json"))
+        candidates.append(PROJECT_ROOT / ".claude" / "skills" / ref / "references" / "rubric.json")
         for c in candidates:
             if c.exists():
                 return c
@@ -80,7 +79,7 @@ def check_skill_md(skill_md: Path) -> list:
 
 def check_registry() -> list:
     failures = []
-    registry = PROJECT_ROOT / "creator-kit" / "config" / "rubric-registry.json"
+    registry = PROJECT_ROOT / "plugins" / "skill-governance-config" / "config" / "rubric-registry.json"
     if not registry.exists():
         return failures
     data = json.loads(registry.read_text(encoding="utf-8"))
@@ -100,9 +99,10 @@ def main() -> int:
     if len(sys.argv) > 1:
         targets = [Path(p) for p in sys.argv[1:]]
     else:
-        for base in [PROJECT_ROOT / "creator-kit" / "skills", PROJECT_ROOT / ".claude" / "skills"]:
-            if base.exists():
-                targets.extend(base.glob("*/SKILL.md"))
+        targets.extend(PROJECT_ROOT.glob("plugins/skill-creator/skills/*/SKILL.md"))
+        base = PROJECT_ROOT / ".claude" / "skills"
+        if base.exists():
+            targets.extend(base.glob("*/SKILL.md"))
 
     all_failures = []
     for t in targets:

@@ -72,7 +72,7 @@ forkコンテキストで動き、生成本体（run-build-skill）と context �
 
 1. **Goodhart対策**: 採点者は被採点物を改変しない（09章）。
 2. **rubric_refs 注入 (append-only)**: runner/orchestrator が L1 ドメイン rubric を CLI `--rubric-refs` で **append** する（順序: L0 → L1 → L2）。evaluator 自身は frontmatter `rubric_refs` を書き換えない（設計書29 §10 アンチパターン）。合成は `plugins/skill-governance-automation/scripts/compose-rubrics.py` に委譲し、`deep-merge / strict / override / layered`、conflict policy、schema検証、循環検出、composition hash を同一実装で扱う。未指定時は L0 + L2 のみで合成する（L1 スキップ）。
-3. **TODO(human)残置**: BD-004 は人間判断待ち。検出時は finding severity=low で `pending_human` を立てる。
+3. **TODO(human)残置**: 合成 rubric の check に TODO(human) マーカーが残る rule は採点せず `pending_human` に別建てする（score に反映しない）。
 4. **severity weights固定**: high -20 / medium -10 / low -3、初期 100。負値は 0 にクランプ。
 5. **rubric_hash必須**: 出力JSONに rubric.json の sha256 を載せる（再現性、27章）。
 
@@ -111,7 +111,7 @@ evaluator は一度の採点で完結する read-only 工程。**ループは回
       SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
     fi
   fi
-  UPSTREAM="${SKILL_DESIGN_RUBRIC:-plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json}"
+  UPSTREAM="${SKILL_DESIGN_RUBRIC:-plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json}"
   # L1: DOMAIN_RUBRIC_REFS は run-build-skill が brief.domain から rubric-registry.json 経由で空白区切りで渡す。未設定なら L0 + L2 のみ。
   L1_REFS="${DOMAIN_RUBRIC_REFS:-}"
   python3 "$SKILL_DIR/scripts/render-findings-score.py" \
@@ -142,7 +142,7 @@ evaluator は一度の採点で完結する read-only 工程。**ループは回
 
 ## Additional Resources
 
-- `references/rubric.json` — 機械可読rubric（BD-004 に TODO(human)あり）
+- `references/rubric.json` — L2 delta-only override（evaluator 固有 rule のみ。正本 rule 集合は upstream L0）
 - `references/evaluator-contract.md` — 出力JSONスキーマ・禁則
 - `scripts/render-findings-score.py` — findings→score計算
-- upstream: `ref-skill-design-rubric/rubric.json`
+- upstream: `plugins/skill-creator/skills/ref-skill-design-rubric/references/rubric.json`

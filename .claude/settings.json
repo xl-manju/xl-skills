@@ -5,7 +5,14 @@
       "Edit(.claude/skills/ref-skill-design-rubric/**)",
       "Bash(rm -rf*)",
       "Bash(git push --force*)",
-      "Bash(git push -f*)"
+      "Bash(git push -f*)",
+      "Bash(*find-generic-password*notion-api-key.xl-skills*-w*)",
+      "Bash(*find-generic-password*gbizinfo-api-token.xl-skills*-w*)",
+      "Bash(*find-generic-password*notion-api-key.xl-skills*-g*)",
+      "Bash(*find-generic-password*gbizinfo-api-token.xl-skills*-g*)",
+      "Bash(security delete-generic-password*notion-api-key.xl-skills*)",
+      "Bash(security delete-generic-password*gbizinfo-api-token.xl-skills*)",
+      "Bash(*--print-unsafe*)"
     ],
     "ask": []
   },
@@ -106,7 +113,8 @@
   "enabledPlugins": {
     "skill-creator@xl-skills": true,
     "skill-intake@xl-skills": true,
-    "contract-generator@xl-skills": true
+    "contract-generator@xl-skills": true,
+    "company-master@xl-skills": true
   },
   "_build_claude_settings": {
     "managed_hooks": [],

@@ -84,7 +84,7 @@
 - `scripts/smoke-plugin-install.sh` (PKG-010)、`smoke-plugin-uninstall.sh` (PKG-011)、`smoke-plugin-upgrade.sh` (PKG-012)
 - `scripts/validate-plugin-permissions.py` (PKG-013a〜d)
 - `scripts/aggregate-pkg-findings.py` (Step 9 集約 + observable emit)
-- 外部 lint: `../../scripts/lint-external-refs.py` (PKG-009)、`../../scripts/lint-rubric-violation.py` (PKG-015)
+- 外部 lint: `../../../skill-governance-lint/scripts/lint-external-refs.py` (PKG-009)、`../../../skill-governance-lint/scripts/lint-rubric-violation.py` (PKG-015)
 - delegate: `Skill(assign-plugin-package-evaluator, context=fork)` (PKG-002〜008/014)
 
 ## Layer 4: 共通ポリシー層

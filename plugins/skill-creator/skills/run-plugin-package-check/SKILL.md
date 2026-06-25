@@ -123,7 +123,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
 
 ### ゴールシークループ
 
-正本 5 ステップ（現状評価→手順生成→実行→検証→反復、既定 5 周）に従う。未達チェック項目を埋める最短手順をその場で生成する。下記「局面カタログ」は順序固定ではなく、その周回で未達な gate に応じて都度選ぶ。
+正本 6 ステップ（現状評価→手順生成→実行→検証→Anchor Step→反復、既定 5 周）に従う。未達チェック項目を埋める最短手順をその場で生成する。下記「局面カタログ」は順序固定ではなく、その周回で未達な gate に応じて都度選ぶ。
 
 ## 局面カタログ（順序は都度判断）
 
@@ -138,7 +138,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
    │     Skill(assign-plugin-package-evaluator, target_plugin=<name>, context=fork)
    ▼
 [Step 3] PKG-009 外部参照ゼロ
-   │     ../../scripts/lint-external-refs.py --plugin <name>
+   │     ../../../skill-governance-lint/scripts/lint-external-refs.py --skills-dir plugins/<name>/skills --fail-on-external
    ▼ (phase >= 1)
 [Step 4] PKG-010 install smoke
    │     scripts/smoke-plugin-install.sh
@@ -153,7 +153,7 @@ output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約
    │     assign-plugin-package-evaluator (delegated, --check pkg-014)
    ▼
 [Step 8] PKG-015 rubric 違反率
-   │     ../../scripts/lint-rubric-violation.py --plugin <name>
+   │     ../../../skill-governance-lint/scripts/lint-rubric-violation.py --log-dir eval-log/<name> --out eval-log/<name>/pkg-015/rubric-violation.json
    ▼
 [Step 9] findings 集約 + observable 配線
    │     scripts/aggregate-pkg-findings.py

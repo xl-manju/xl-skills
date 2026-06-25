@@ -2,7 +2,7 @@
   "name": "mf-kessai-invoice-check",
   "version": "0.1.0",
   "package_mode": "bundle",
-  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check の3スキル構成。参照専用hook・二段確認subagent・冪等Notion upsert付き)。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
+  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (本体3スキル: ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check、任意補助1スキル: run-mf-initial-month-enrich。参照専用hook・二段確認subagent・冪等Notion upsert付き)。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
   "author": {
     "name": "xl-skills maintainers"
   },
@@ -20,7 +20,8 @@
     "skills": [
       "run-mf-invoice-check",
       "run-mf-invoice-db-setup",
-      "ref-mf-kessai-api"
+      "ref-mf-kessai-api",
+      "run-mf-initial-month-enrich"
     ],
     "agents": [
       "mfk-gap-verifier"
@@ -33,7 +34,9 @@
     "network": [
       "https://api.mfkessai.co.jp",
       "https://sandbox-api.mfkessai.co.jp",
-      "https://api.notion.com"
+      "https://api.notion.com",
+      "https://invoice.moneyforward.com",
+      "https://api.biz.moneyforward.com"
     ],
     "filesystem": [
       "$CLAUDE_PLUGIN_ROOT/**",
@@ -42,7 +45,8 @@
     ],
     "secrets": [
       "macos-keychain:mfkessai-api-key.xl-skills/xl-skills",
-      "macos-keychain:notion-api-key.xl-skills/xl-skills"
+      "macos-keychain:notion-api-key.xl-skills/xl-skills",
+      "macos-keychain:mf-invoice-oauth.xl-skills/xl-skills"
     ]
   },
   "hooks": {

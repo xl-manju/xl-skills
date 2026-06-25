@@ -1,0 +1,38 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-initial-month-enrich",
+    "skill_md_sha256": "2ea24f83b486125f5e3972d808f9a600808302559c48dba6fcdd62dcf39d7122"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "elegance→elegant-improvement-executor",
+  "reviewed_at": "2026-06-25T00:00:00Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "notes": "前回 REJECT の blocking inconsistency (argument-hint の --csv フラグ未実装) が修正され、独立再検証で解消を確認したため PASS。【解消確認】frontmatter L6 は `argument-hint: \"[--plan] [--limit N]\"`・L7 は `arguments: [plan, limit]` となり `--csv` を除去。スキル配下スクリプトに `--csv` フラグは一切存在しない (grep 確認)。CSV 経路は mf_invoice_csv_match.py が位置引数 `sys.argv[1]` (L77) で受ける設計のままで、本文 L47 の正準コマンド `mf_invoice_csv_match.py <CSVパス>` および本文 L32 の追記 (『請求書一覧 CSV のパスを mf_invoice_csv_match.py に位置引数で渡す (--csv フラグではない)』) と完全整合。残る2フラグ --plan/--limit は mf_invoice_enrich.py の実 argparse フラグ (L69-70) と 1:1 で一致。よって『宣言された引数契約↔実装』の不整合は消滅。【完全性 PASS】初回契約月エンリッチの目的 (最古発行月→Notion 初期推定値・差分のみ・最終確定は人) は Purpose/Key Rules/Gotchas に網羅、CSV 軽量経路と OAuth 無人経路の2経路・配布境界も明文化 (変更なし)。【一貫性 PASS】lib 参照 (notion_invoice_sink._req/_notion_token・mfk_api.load_config) 実在、OAuth 秘密の扱いは SKILL/oauth-setup/oauth.py で一貫: client_secret は env、token 一式は Keychain へ stdin 渡し (oauth.py L72-74) で argv 露出回避、手動 curl は履歴残留で非推奨明記、--exchange の argv は10分失効 auth code のみで長命秘密でなく整合。引数契約も今回整合 (上記)。【検証可能性 PASS】完了条件 (L34)・具体コマンド (--plan/--limit/位置引数 CSV/oauth --authorize-url/--exchange/--smoke)・fail-closed 停止条件 (mfk-gap-verified.json 不在で停止) が実行可能形。【簡潔性 PASS】本文64行で簡潔、progressive disclosure (詳細を oauth-setup.md へ退避) も適切。【smell (非blocking)】oauth-setup.md L179 が PKCE を『任意』と記載する一方 oauth.py は PKCE 未実装で表現差が残る (現状フロー無影響・低)。blocking 欠陥は無いため honest PASS。",
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["completeness", "consistency", "verifiability", "conciseness"],
+    "positive_feedback": [
+      "前回指摘の引数契約↔実装の不整合を frontmatter から --csv を除去し本文で位置引数を明示することで的確に解消、--plan/--limit は実フラグと 1:1 整合",
+      "OAuth 秘密の扱いが SKILL/oauth-setup/oauth.py で一貫: refresh_token/client_secret を stdin 経由で Keychain 保存し argv 露出を回避、手動 curl は履歴残留で非推奨明記",
+      "2経路 (CSV 軽量=OAuth不要 / OAuth 無人) と配布境界 (コードは全員配布・実行は取得担当のみ) を明確に分離",
+      "fail-closed 設計 (mfk-gap-verified.json 不在で停止) と差分のみ (空欄列のみ対象) で再実行コストをゼロに抑える設計"
+    ],
+    "negative_feedback": [
+      "oauth-setup.md の PKCE『任意』記載と oauth.py の PKCE 未実装の表現差 (smell・低・blocking ではない)"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
+}

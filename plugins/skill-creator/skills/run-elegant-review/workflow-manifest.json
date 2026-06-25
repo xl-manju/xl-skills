@@ -39,12 +39,13 @@
         ]
       },
       "output": {
-        "artifacts": ["raw_observations.json", "shared_state.md"],
+        "artifacts": ["raw_observations.json", "eval-log/<plugin>/<skill>/elegant-review/<run-id>/shared_state.md"],
+        "_comment_artifact": "log_dir 配下に固定 (SS-006: パス未固定だと completion_signal の存在判定が曖昧になる)",
         "schema": "./schemas/phase-output.schema.json#/definitions/phase1_output"
       },
       "completion_signal": {
         "type": "file-exists-and-schema-validate",
-        "files": ["raw_observations.json", "shared_state.md"],
+        "files": ["raw_observations.json", "eval-log/<plugin>/<skill>/elegant-review/<run-id>/shared_state.md"],
         "schema_file": "raw_observations.json",
         "must_include": ["purpose", "scope", "stakeholders", "concrete_values_to_abstract"]
       },
@@ -77,8 +78,10 @@
           "findings-phase2-meta.json",
           "findings-phase2-system.json"
         ],
-        "schema": "./schemas/findings.schema.json",
-        "aggregation": "merge into findings.json (Phase 3 input)"
+        "artifact_dir": "log_dir (eval-log/<plugin>/<skill>/elegant-review/<run-id>/) 配下に出力",
+        "schema": "./schemas/findings-partial.schema.json",
+        "_comment_schema": "per-agent 部分出力 (10/9/11 思考法) は paradigm_findings 件数制約なしの partial schema を適用 (SS-005)。集約後 findings.json のみ 30 固定の findings.schema.json (正本) を適用",
+        "aggregation": "merge into findings.json (Phase 3 input, schema: ./schemas/findings.schema.json)"
       },
       "completion_signal": {
         "type": "paradigm-coverage",
@@ -173,7 +176,8 @@
     {"id": "subagent-system-strategic", "kind": "subagent", "name": "elegant-system-strategic-analyst", "phaseIds": ["phase2-parallel"]},
     {"id": "subagent-improvement-executor", "kind": "subagent", "name": "elegant-improvement-executor", "phaseIds": ["phase3-execute"]},
     {"id": "schema-finding", "kind": "schema", "path": "./schemas/finding.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "単数 finding (機械観測 signal: contradiction/omission/inconsistency/dependency_break/smell)"},
-    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase2-parallel", "phase3-execute"], "_role": "集約 wrapper (paradigm_findings[] + variable_abstraction + four_conditions verdict)。issues.severity は low/medium/high/critical の運用ラベルで finding.schema.json の機械観測 signal と責務分割"},
+    {"id": "schema-findings", "kind": "schema", "path": "./schemas/findings.schema.json", "phaseIds": ["phase3-execute"], "_role": "集約 wrapper (paradigm_findings[] 30 固定 + variable_abstraction + four_conditions verdict)。issues.severity は low/medium/high/critical の運用ラベルで finding.schema.json の機械観測 signal と責務分割"},
+    {"id": "schema-findings-partial", "kind": "schema", "path": "./schemas/findings-partial.schema.json", "phaseIds": ["phase2-parallel"], "_role": "Phase2 per-agent 部分出力用 (paradigm_findings 件数制約なし、他は findings.schema.json と同一構造)"},
     {"id": "schema-verdict", "kind": "schema", "path": "./schemas/verdict.schema.json", "phaseIds": ["phase3-execute"]},
     {"id": "schema-phase-output", "kind": "schema", "path": "./schemas/phase-output.schema.json", "phaseIds": ["phase1-reset", "phase2-parallel", "phase3-execute"]},
     {"id": "ref-thought-methods", "kind": "reference", "path": "./references/thought-methods.yaml", "phaseIds": ["phase2-parallel"]},

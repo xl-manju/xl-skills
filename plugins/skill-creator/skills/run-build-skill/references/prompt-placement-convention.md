@@ -102,6 +102,33 @@ plugins/prompt-creator/skills/run-prompt-creator-7layer/prompts/R1.md
 - SKILL.md の `## Additional Resources` 節に「`prompts/<id>.md` (`.md` 既定 / `.yaml` legacy) — prompt-creator が生成する責務単位 7 層プロンプト (validate-build-trace.py で sha256 検証)」のような **案内 1 行のみ** 追加可
 - SKILL.md は責務単位 prompt の内容を一切重複させない (300 行制約 + DRY)
 
+## 資産分離の no-split threshold
+
+SKILL.md 本文から新規資産ファイル (scripts/ prompts/ references/ 等) を切り出すのは、次の **いずれか** が成立する場合のみ:
+
+- **(a) 第二消費者が存在**: 切り出し先ファイルを SKILL.md 以外 (他 skill / CI / lint / agent) が参照する
+- **(b) 機械検証の対象**: sha256 突合や lint の検査対象として独立ファイルパスが必要
+- **(c) 300 行 cap 逼迫**: SKILL.md が 280 行を超え cap (300 行) に逼迫している
+
+いずれも不成立なら **インライン維持が正** (資産極少スキルへの責務分離は過剰分割であり実施しない)。適合例: `run-goal-seek` — 検証ロジックを SKILL.md `## 検証` にインライン保持し、検査ロジックの SSOT は `lint-goal-seek --self-test` と共有する。
+
+### INLINE-SSOT-TETHER 原則
+
+正本が別ファイルに存在する内容を SKILL.md にインライン埋め込みする場合 (初見実行の自己完結性などが目的)、次の 2 点を必須とする:
+
+1. 正本との一致 (または整合) を機械照合する lint が存在すること
+2. SKILL.md 側にその lint 名を明記すること
+
+適合例: `run-goal-seek` (インライン検証コードの SSOT を `lint-goal-seek --self-test` と明記)。要改善例: `run-skill-feedback` (feedback_protocol 正本の対話手順を本文展開しているが、逐語一致は lint 対象外のため保証範囲を SKILL.md に明示する)。
+
+## kind 別必須資産と充足手段 (人間向け要約)
+
+kind ごとに必須資産カテゴリが定まる (run→prompts / ref→references+prompts / wrap→scripts+schemas / assign→rubric・schemas+prompts / delegate→prompts+schemas)。各カテゴリは次の 4 手段のいずれかで充足する:
+
+1. ローカル実在、2. `*_refs` による共有正本参照、3. `completeness_exempt:` の理由付き免除、4. prompts 限定の `prompt_creator_policy: skip` / `use_prompt_creator: false`。
+
+正確な定義と判定ロジックは `plugins/skill-governance-lint/scripts/lint-skill-completeness.py` の docstring を正本とする (本節は要約のみ。全文転記は二重定義 drift を生むため禁止)。
+
 ## 再現性保証
 
 | 検証項目 | 検証主体 | 失敗時の挙動 |

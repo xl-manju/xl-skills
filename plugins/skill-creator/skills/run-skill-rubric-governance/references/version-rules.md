@@ -35,7 +35,7 @@ governance log に `emergency: true`、48時間内に事後レビュー。
 
 ## 同期義務
 
-`ref-skill-design-rubric/rubric.json` 更新時:
+`ref-skill-design-rubric/references/rubric.json` 更新時:
 1. `assign-skill-design-evaluator/references/rubric.json` も同期
 2. 両ファイルの `rubric_version` を一致させる（deep-merge upstream-source-of-truth）
 3. `rubric_hash` は自然に変わるので採点側で再計算される

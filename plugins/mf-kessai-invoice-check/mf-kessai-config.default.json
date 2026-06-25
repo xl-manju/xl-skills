@@ -5,7 +5,9 @@
   "keychain_service": "mfkessai-api-key.xl-skills",
   "keychain_account": "xl-skills",
   "notion": {
-    "_comment": "発行漏れチェック結果の出力先 Notion DB『請求書チェック_DB』。アクセスには Keychain の Notion トークン (notion-api-key.xl-skills) と、この DB への integration 接続が必要。",
-    "database_id": "38407a0c-d18c-80ec-a872-ce1a9654619f"
+    "_comment": "発行漏れチェック結果の出力先 Notion DB『請求書チェック_DB』。アクセスには Keychain の Notion トークン (keychain_service) と、この DB への integration 接続が必要。keychain_service を変えれば別 Keychain エントリから取得できる (MF 側 keychain_service と対称)。空文字は既定を上書きしない。",
+    "database_id": "38407a0c-d18c-80ec-a872-ce1a9654619f",
+    "keychain_service": "notion-api-key.xl-skills",
+    "keychain_account": "xl-skills"
   }
 }

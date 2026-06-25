@@ -14,7 +14,7 @@
 # ///
 """check-rubric-sync.py — upstream rubric と evaluator 派生 rubric の版ずれ検出.
 
-ref-skill-design-rubric/rubric.json (upstream 正本) の SHA-256 と rubric_version
+ref-skill-design-rubric/references/rubric.json (upstream 正本) の SHA-256 と rubric_version
 を計算し、assign-skill-design-evaluator/references/rubric.json と照合する。
 
 照合戦略:
@@ -33,12 +33,16 @@ import json
 import sys
 from pathlib import Path
 
-# scripts は plugins/skill-governance-lint/scripts/ にあるので repo root は parents[3]。
-# creator-kit→skill-creator のプラグイン移行に追従し、正本は references/ 配下。
+# __file__ = <repo>/plugins/skill-governance-lint/scripts/check-rubric-sync.py
 REPO_ROOT = Path(__file__).resolve().parents[3]
 UPSTREAM = (
-    REPO_ROOT / "plugins" / "skill-creator" / "skills" / "ref-skill-design-rubric"
-    / "references" / "rubric.json"
+    REPO_ROOT
+    / "plugins"
+    / "skill-creator"
+    / "skills"
+    / "ref-skill-design-rubric"
+    / "references"
+    / "rubric.json"
 )
 DERIVED = (
     REPO_ROOT

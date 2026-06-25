@@ -448,7 +448,8 @@
     {
       "pattern_ref": "{{pattern_id}}",
       "reason": "...",
-      "reuse_surface": "template | rubric | lint | hook | reference | manifest | runbook | none",
+      "reuse_surface": "skill | template | script-frontmatter | hook | config | governance-log | adapter | rubric | reference | none",
+      "_comment_reuse_surface": "正本は schemas/findings.schema.json の enum、本列挙は転記 (MD-006)",
       "negative_case": "{{when_not_to_apply}}"
     }
   ],

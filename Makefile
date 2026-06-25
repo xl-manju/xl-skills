@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
 
 # LLM_COV_SINCE: 新規スキルの coverage gate 境界日。これ以降に since された loop-kind スキルは
 # coverage-gate で <80% なら fail-closed。既存スキルは ratchet で段階的に底上げ。
@@ -17,11 +17,25 @@ sync:
 sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
-## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime ポータビリティ検証を実行する
-lint: contract-intake vendored-ssot runtime-portability
+## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime ポータビリティ + company-master vendored 検証を実行する
+lint: contract-intake vendored-ssot runtime-portability company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/company-master/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/company-master/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/company-master/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/contract-generator/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-intake/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-intake/skills
+	# skill-intake の validate-frontmatter は effect enum 違反で FAIL するため
+	# lint-plugin-lint-coverage.py の ALLOWLIST に理由付きで宣言済み (後日是正)
+	python3 scripts/lint-skill-name.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-plugin-lint-coverage.py
 
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:
@@ -31,6 +45,10 @@ vendored-ssot:
 ##   単独 install (plugin のみ install) で全フックが exit 0 を維持する不変条件を機械担保する。
 runtime-portability:
 	python3 scripts/lint-runtime-portability.py
+
+## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
+company-master-vendored:
+	python3 scripts/lint-company-master-vendored-deps.py
 
 ## contract-intake: skill-intake の enum SSOT / 軸分離 / 二重定義検出 contract test
 contract-intake:
