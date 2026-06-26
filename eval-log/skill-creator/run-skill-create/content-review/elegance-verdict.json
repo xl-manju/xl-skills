@@ -2,12 +2,12 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-skill-create",
-    "skill_md_sha256": "b337e23994501d979461485490f0e891f786a0a7908a7e3fbc76e5ac26fb9f58"
+    "skill_md_sha256": "d44b07b23684cfd09cdf221b480e2b8484b75e81386a18235f0d9dc72d5a3837"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
+  "reviewer": "run-elegant-review-subagent (independent content-review)",
+  "reviewed_at": "2026-06-26",
   "iterations": 1,
   "human_review_required": false,
   "findings_summary": {
@@ -26,15 +26,14 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "dev同期mergeで追加された冒頭 **禁則** 行(『ゲート前で必ず止まりユーザー承認なしに次フェーズへ進まない。P0 lint 失敗の自動修正は禁止。evaluator/governance reviewer は同一 context 評価禁止 (必ず context:fork)。詳細は ## Key Rules』)が OUT1 基準を本文側で二重に固定し、Key Rules#1/#4 と Gotchas#1/#2 と矛盾なく整合する",
-      "Elegant Review Protocol 正本ポインタを merge で `plugins/skill-intake/references/elegant-review-protocol.md` から `plugins/skill-creator/skills/run-elegant-review/SKILL.md` へ是正し、Additional Resources の子スキル一覧(run-elegant-review)および OUT2 の『elegant-review C1-C4 全 PASS』と参照先が一致した(依存断絶ゼロ)",
-      "findings.schema.json の再分類(『orchestrator handoff envelope。Step 5 producer 出力の正本は ../run-elegant-review/schemas/findings.schema.json』)が IN2/OUT2 の handoff・evaluator findings 契約と整合し、producer 正本の所在を明示して二重正本の曖昧さを解消している"
+      "Key Rule #6 を legacy manifest.json 経路 (build-manifest-registration-plan.py の propose→Gate2.5→--apply) と新形式 plugin.json plugin のルート2SSOT登録経路 (validate-plugin-completeness.py --fix) に責務分離し、後者を append-only・冪等・書込後自己再検証ゆえ生成フロー内で自動実行可と明示したのは、検出層(fail-closed)/予防層(--fix)の二層防御を本文側でも反映した良設計。3つの実装ファイル(workflow-manifest step3/3.5・build-manifest-registration-plan.py の legacy専用コメント・validate-plugin-completeness.py docstring)と責務境界が一致しドリフトが無い",
+      "完了チェックリストを『新規 plugin の --fix 実行+検出モード exit0』『bundles.json は --fix が bundle_targets を読み自動 append』『legacy manifest.json のみ Gate2.5承認後 --apply』の3項目へ再構成し、横展開可否ではなく plugin 形式(legacy/新形式)と新規/既存の軸で分岐させたことで、build-steps Phase G の実手順および validate-plugin-completeness.py register_missing() の bundle_targets 読取り実装と完全整合している"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "dev同期merge後の現 SKILL.md (sha256 b337e23994...) を全文 genuine 実読し、`git diff 67425a0 HEAD` の差分8点(自己相対パス注記の精緻化 / eval-log/docs deprecated 注記 / 冒頭禁則行追加 / Step 4a.5 pkg-check 追加 / governance チェック項目を workflow-manifest.json phases[id=governance].auto_approve_conditions 機械評価+governance-params.json 値正本+graceful degrade へ書換 / ゴールシーク 5→6 ステップ(Anchor Step 追加) / Elegant Review 正本ポインタ是正 / findings.schema.json 再分類+run-plugin-package-check 子スキル追記)を一つずつ本文に照合した。frontmatter の feedback_contract.criteria(IN1/IN2/OUT1/OUT2)と本文の整合: IN1=Checklist L139+Key Rule#3 の P0 lint 8本+manifest-contents 全 exit0 / IN2=Key Rule#5+Checklist L136/L144 の handoff・build-trace schema 準拠と章 coverage / OUT1=新規禁則行+Key Rules#1/#4+Gotchas#1/#2 のゲート前停止+context:fork / OUT2=Checklist L141/L142+Step 4b/5 の evaluator findings FAIL 無し+elegant-review C1-C4 全 PASS。merge は本文を強化方向にのみ変更し、新たな矛盾・欠落・不整合・依存断絶を一切導入していない。governance 書換は L143 と内部整合、findings.schema.json producer 正本ポインタは L179 と一致。4条件(矛盾/漏れ/整合/依存)すべて 0 で PASS。被採点物への改変なし(read-only 検証)。"
+  "notes": "現 SKILL.md (sha256 d44b07b... を python hashlib で独立再計算し一致確認) を frontmatter から Additional Resources まで全文 genuine 実読し、git diff origin/main...HEAD の2点差分を関連4ファイルへ照合した。(1) Key Rule #6 の書換: legacy=build-manifest-registration-plan.py / 新形式ルート marketplace.json・bundles.json=validate-plugin-completeness.py --fix(append-only・冪等・書込後自己再検証・人間PR diff最終承認)。これは workflow-manifest.json の step3 manifest-register(gate2.5・build-manifest-registration-plan.py)+step3.5 bundle-register(command=python3 scripts/validate-plugin-completeness.py --fix・comment『新規plugin...append-only自動登録し書込後自己再検証...最終承認は人間がPR diffで』)と一致。build-manifest-registration-plan.py L152-166 は『legacy manifest.json 専用・ルート2SSOT登録は責務外で validate-plugin-completeness.py --fix が担う』と明記し責務境界が同一。validate-plugin-completeness.py docstring L16-23 は既定=検出fail-closed/--fix=予防append-only自己再検証exit0冪等・人間PR承認で一致。(2) 完了チェックリストの3項目再構成: build-steps.md Phase G(L82-94)の新規plugin登録手順=validate-plugin-completeness.py --fix で marketplace.json plugins[]+bundles.json(bundle_targets)へ append-only・自己再検証 exit0・no-op冪等・検出層が最後の砦、と一致。bundles 項目の『--fix が bundle_targets を読み自動 append』は register_missing() L234-248 の manifest.get('bundle_targets') 読取り実装と一致。repo-root相対パス scripts/validate-plugin-completeness.py は冒頭注記(script起動はrepo-root cwd前提)と整合。frontmatter feedback_contract.criteria 4件は本変更で不変: IN1=Checklist L140+Key Rule#3, IN2=Key Rule#5+L136/L145, OUT1=禁則行+Key Rules#1/#4+Gotchas#1/#2, OUT2=L142/L143 で全て本文と整合。4条件(矛盾/漏れ/不整合/依存断絶)すべて0件で PASS。被採点物 SKILL.md への改変は一切なし(read-only検証)。既存verdictの SHA b337e23... は本変更前の stale であり現SHA d44b07b... で genuine 再生成した。"
 }
