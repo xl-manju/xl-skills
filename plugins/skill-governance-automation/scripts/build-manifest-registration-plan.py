@@ -150,6 +150,12 @@ def main() -> int:
     args = ap.parse_args()
 
     if not MANIFEST.exists() and PLUGIN_MANIFEST.exists():
+        # 本スクリプトは legacy manifest.json (skill-creator plugin 内) 専用。
+        # 新形式 plugin.json plugin のルート marketplace.json / bundles.json への
+        # 登録は責務外であり、`scripts/validate-plugin-completeness.py --fix`
+        # (append-only・冪等・書込後自己再検証) が担う (run-skill-create workflow-manifest
+        # step3.5 bundle-register に配線済)。ここでは plugin.json の必須キーのみ検査して
+        # proposals 空で返す (ルート2 SSOT は触らない)。
         plugin = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
         required = ("name", "version", "description")
         missing = [key for key in required if not plugin.get(key)]

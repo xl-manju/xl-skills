@@ -113,6 +113,12 @@ else
   echo "[WARN] jq 未インストールにつき manifest 検証 skip"
 fi
 
+# ── marketplace ↔ plugins / bundles 双方向整合 (MK-001..003 / BD-001) ──
+# 実体ディレクトリ起点で「全 plugin が marketplace.json + bundles.json 両方に登録」を
+# fail-closed 検査する。配線漏れで腐ると登録漏れ (notion-gmail-send 未表示) を永久に
+# 見逃す自己強化ループに陥るため hard 配線で再発を機械遮断する (F4/F5)。
+run "validate-plugin-completeness (MK/BD)" python3 scripts/validate-plugin-completeness.py
+
 # ── サマリ ──
 echo
 echo "========================================"

@@ -98,7 +98,7 @@ audit-trigger: quarterly
 3. **失敗時の停止**: P0 lint fail または evaluator FAIL なら停止し findings 提示。
 4. **context:fork**: evaluator/governance reviewer は必ず context:fork で起動 (Sycophancy 防止)。
 5. **handoff 保存**: 各ゲート通過時に `eval-log/handoff-<step>.json` を `schemas/handoff.schema.json` 準拠で残す。PostCompact hook で復元。
-6. **plugin/marketplace 登録は確認後**: 自動更新禁止。`build-manifest-registration-plan.py` の提案 → Gate 2.5 承認 → `--apply` の順。
+6. **plugin/marketplace 登録は確認後**: legacy manifest.json は `build-manifest-registration-plan.py` の提案 → Gate 2.5 承認 → `--apply` の順。新形式 plugin.json plugin のルート `marketplace.json` / `bundles.json` 登録は `scripts/validate-plugin-completeness.py --fix`（append-only・冪等・書込後自己再検証）が担い、人間が PR diff で最終承認する（破壊的変更を含まない append-only ゆえ生成フロー内で自動実行可）。
 7. **resource-map 先読み**: `references/resource-map.yaml` を最初に読み、必要ファイルのみ open。
 8. **日本語成果物ゲート**: brief の `output_language=ja` と `parameter_language_exception=true` を既定とし、本文・レビュー・完了レポートを日本語に保つ (パラメーター名・JSON キー・CLI 引数は英語)。
 9. **prompt 形式**: 新規 prompt は **Markdown (`.md`) 既定**。`prompts/<R-id>-<slug>.md` で `plugins/prompt-creator/skills/run-prompt-creator-7layer/references/seven-layer-markdown-template.md` を写経して生成。YAML は legacy のみ許容 (新規禁止、P0 lint で warn)。
@@ -134,8 +134,9 @@ audit-trigger: quarterly
 - [ ] `eval-log/skill-brief.json` が `schemas/skill-brief.schema.json` 準拠で生成され、Gate 1 承認済み
 - [ ] Notion 指定ありの場合、`python3 plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py --dir output/<hint> --page-url <url>` が exit 0。未公開・page_id 不一致・URL 欠落なら Gate 1 で停止し、skill 本体生成へ進んでいない
 - [ ] `<skill_name>/` 一式 (SKILL.md + references/ + scripts/) が `Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])` で生成され、`eval-log/skill-build-trace.json` が `schemas/build-trace.schema.json` 準拠・章 coverage 全 PASS/N/A/skip 理由付き
-- [ ] 横展開対象なら plugin/marketplace 登録が Gate 2.5 承認後 `--apply` 済み (`build-manifest-registration-plan.py`)。プロジェクト固有は未登録理由がレポートに記録されている
-- [ ] 他 plugin リソースを呼ぶ場合 `.claude-plugin/bundles.json` (`xl-skills-full`/`-minimal`/`-intake`) 登録済み。不要なら理由がレポートにある (理由なき未登録は rubric 違反)
+- [ ] **新規 plugin の場合** `python3 scripts/validate-plugin-completeness.py --fix` 実行済みで、`marketplace.json` plugins[] + `bundles.json` (`bundle_targets`) へ append-only 登録され、検出モード (`validate-plugin-completeness.py`) が exit 0。プロジェクト固有 (横展開しない) は未登録理由がレポートに記録されている
+- [ ] 他 plugin リソースを呼ぶ場合 `.claude-plugin/bundles.json` (`xl-skills-full`/`-minimal`/`-intake`) 登録済み (上記 `--fix` が `bundle_targets` を読み自動 append)。不要なら理由がレポートにある (理由なき未登録は rubric 違反)
+- [ ] (legacy manifest.json 形式のみ) plugin/marketplace 登録が Gate 2.5 承認後 `--apply` 済み (`build-manifest-registration-plan.py`)
 - [ ] P0 lint 8 本 + manifest-contents が全 exit 0 (`workflow-manifest.json phases[id=p0-lint].commands`)。`TODO`/未展開 `{{...}}`/英語仮文の残存なし (パラメーター名除く)
 - [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み
 - [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし

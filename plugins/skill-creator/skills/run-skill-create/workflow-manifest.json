@@ -58,14 +58,16 @@
       "id": "bundle-register",
       "step": 3.5,
       "gate": null,
-      "title": "bundle 登録判定",
+      "title": "marketplace + bundle 登録判定",
       "dependsOn": ["manifest-register"],
       "entryHook": null,
       "exitHook": null,
       "resourceIds": [],
       "delegateSkill": null,
-      "artifact": ".claude-plugin/bundles.json",
-      "fatal_exit_codes": []
+      "command": "python3 scripts/validate-plugin-completeness.py --fix",
+      "artifact": [".claude-plugin/marketplace.json", ".claude-plugin/bundles.json"],
+      "comment": "新規 plugin を実体ディレクトリ起点で marketplace.json + bundles.json へ append-only 自動登録し書込後自己再検証。既登録は no-op。最終承認は人間が PR diff で。検出層 (validate-plugin-completeness.py 引数なし) が CI/pre-push の最後の砦。",
+      "fatal_exit_codes": [1]
     },
     {
       "id": "p0-lint",
