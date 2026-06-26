@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: notion_upsert
-# purpose: notion_config.get_db_id('company-master')/get_token で解決した企業マスタDBへ確定法人番号キーで8列をupsertし、確認用URLはページ本文へ固定テンプレートで同期する(代替キー時は新規追記のみ)。
+# purpose: notion_config.get_db_id('company-master')/get_token で解決した企業マスタDBへ確定法人番号キーで7列をupsertし(会社名title=正式名称優先・正式名称列は統合廃止)、確認用URLはページ本文へ固定テンプレートで同期する(代替キー時は新規追記のみ)。
 # inputs:
 #   - argv: --record <json> (enrich_company の出力 + certainty/remarks/urls)
 #   - config: notion_config.get_db_id("company-master") 経由 (解決順 env COMPANY_MASTER_NOTION_DATABASE_ID -> .notion-config.json -> notion-config.fixed.json)
@@ -19,8 +19,9 @@
 DB は notion_config.get_db_id('company-master') で解決 (リテラル直書き禁止)。
 token は notion_config.get_token で取得 (共有 Keychain service)。
 
-8 列構成 (key_constraints[A] 正本): 会社名 / 正式名称 / 住所 / 郵便番号 / 法人番号 /
-電話番号 の 6 属性 + 『情報の確かさ』+ 『備考』。source/last_verified 列は追加禁止。
+7 列構成 (key_constraints[A] 正本): 会社名(title=正式名称優先・通称フォールバック) / 住所 /
+郵便番号 / 法人番号 / 電話番号 の 5 属性 + 『情報の確かさ』+ 『備考』。正式名称は独立列を廃止し
+会社名タイトルへ統合 (official_name は source_by_field で provenance 保持)。source/last_verified 列は追加禁止。
 確認用URL は DB プロパティ列ではなく**ページ本文**へ固定テンプレートで出力する
 (confirm-url-template.md 正本・confirm_url.py が展開。DB 冗長化回避・100% 同一テンプレ SSOT)。
 
@@ -54,8 +55,10 @@ import validate_company_master  # noqa: E402  (deterministic_checks a-h: 書き�
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
 
-# Notion プロパティ名 (8 列。日本語列名は Notion DB スキーマと一致させる)。
+# Notion プロパティ名 (7 列。日本語列名は Notion DB スキーマと一致させる)。
 # 確認用URL はプロパティ列でなくページ本文へ移行 (confirm_url.render_blocks)。
+# COL_OFFICIAL_NAME は DB 列を廃止 (会社名 title へ統合・R4)。旧行/旧 page payload に含まれる
+# 『正式名称』を best-effort で読むため定数だけ残す (extract_existing_fields / backfill.row_from_page)。
 COL_COMPANY_NAME = "会社名"
 COL_OFFICIAL_NAME = "正式名称"
 COL_ADDRESS = "住所"
@@ -139,7 +142,7 @@ def _api(method: str, path: str, token: str, body: dict | None = None) -> dict:
 
 # --- Notion live スキーマ preflight (fail-closed) -------------------------------
 # 期待スキーマの機械可読正本は references/notion-db-schema.json (生成元は
-# company-master-columns.md の8列定義)。書き込み前に live DB と照合し、列欠落・
+# company-master-columns.md の7列定義)。書き込み前に live DB と照合し、列欠落・
 # 型不一致・『情報の確かさ』select 4オプション不一致・禁止列・API 不達を遮断する。
 
 SCHEMA_JSON = Path(__file__).resolve().parent.parent / "references" / "notion-db-schema.json"
@@ -175,8 +178,9 @@ def preflight_schema(db_id: str, token: str) -> None:
     """Notion API GET database の live スキーマを期待スキーマと照合する。
 
     違反/API 不達は SchemaPreflightError を送出 (呼び出し元は書き込まない)。
-    照合内容: 必須8列の存在・型一致、『情報の確かさ』select 4オプションの完全一致
-    (欠落も余剰改名も不一致)、禁止列 (source/last_verified/確認用URL) の不在。
+    照合内容: 必須7列の存在・型一致、『情報の確かさ』select 4オプションの完全一致
+    (欠落も余剰改名も不一致)、禁止列 (source/last_verified/確認用URL/正式名称) と
+    任意の余剰列の不在。
     """
     expected = load_expected_schema()
     try:
@@ -210,9 +214,14 @@ def preflight_schema(db_id: str, token: str) -> None:
                     f"列 '{name}' の select オプション不一致: "
                     f"missing={missing} extra={extra} (4ラベル完全一致が必須)"
                 )
-    for name in expected.get("forbidden_properties", []):
+    expected_names = set(expected["properties"])
+    forbidden_names = set(expected.get("forbidden_properties", []))
+    for name in sorted(forbidden_names):
         if name in live_props:
-            violations.append(f"禁止列 '{name}' が live DB に存在 (8列構成違反)")
+            violations.append(f"禁止列 '{name}' が live DB に存在 (7列構成違反)")
+    extra = sorted(set(live_props) - expected_names - forbidden_names)
+    for name in extra:
+        violations.append(f"余剰列 '{name}' が live DB に存在 (7列構成違反)")
     if violations:
         raise SchemaPreflightError(violations)
 
@@ -247,14 +256,19 @@ def _plain_select(prop: dict) -> str:
 
 
 def extract_existing_fields(page: dict) -> dict:
-    """Notion page から8列の既存値を取り出す。既存非空セル保護に使う。
+    """Notion page から7列の既存値を取り出す。既存非空セル保護に使う。
 
     確認用URL はプロパティ列から廃止されページ本文へ移行したため本関数は扱わない。
+    正式名称は独立列を廃止し会社名(title)へ統合 (R4): company_name は title 文字列を読む。
+    official_name は移行期 best-effort で旧『正式名称』列があればそれ、無ければ title へフォールバック
+    する (旧行の登記名を移行 backfill で保全する・D6)。
     """
     props = page.get("properties", {})
+    title_text = _plain_title(props.get(COL_COMPANY_NAME, {}))
+    legacy_official = _plain_rich_text(props.get(COL_OFFICIAL_NAME, {}))
     return {
-        "company_name": _plain_title(props.get(COL_COMPANY_NAME, {})),
-        "official_name": _plain_rich_text(props.get(COL_OFFICIAL_NAME, {})),
+        "company_name": title_text,
+        "official_name": legacy_official or title_text,
         "address": _plain_rich_text(props.get(COL_ADDRESS, {})),
         "postal_code": _plain_rich_text(props.get(COL_POSTAL, {})),
         "hojin_bango": _plain_rich_text(props.get(COL_HOJIN_BANGO, {})),
@@ -269,8 +283,9 @@ def get_page(page_id: str, token: str) -> dict:
 
 
 def build_properties(record: dict) -> dict:
-    """8 列の Notion properties を組み立てる (空欄は出さず既存非空を保護)。
+    """7 列の Notion properties を組み立てる (空欄は出さず既存非空を保護)。
 
+    会社名(title)は official_name(登記名) 優先・通称フォールバック (R3)。正式名称は独立列を廃止。
     record は enrich_company.enrich() の出力契約に従う:
       fields / certainty_by_field / overall_certainty / remark_keys / remarks_text / source_urls。
     overall_certainty は enrich が derive_overall_certainty で導出済み、remarks_text は
@@ -285,9 +300,11 @@ def build_properties(record: dict) -> dict:
     def rich(v: str) -> dict:
         return {"rich_text": [{"text": {"content": v}}]} if v else {"rich_text": []}
 
+    # 会社名(title)は official_name(登記名) を優先表示し、無ければ company_name(通称) へフォールバック
+    # する (R3)。正式名称は独立列を廃止し本タイトルへ統合 (R4。official_name は source_by_field で保持)。
+    title_value = f.get("official_name") or f.get("company_name", "")
     props: dict = {
-        COL_COMPANY_NAME: {"title": [{"text": {"content": f.get("company_name", "")}}]},
-        COL_OFFICIAL_NAME: rich(f.get("official_name", "")),
+        COL_COMPANY_NAME: {"title": [{"text": {"content": title_value}}]},
         COL_ADDRESS: rich(f.get("address", "")),
         COL_POSTAL: rich(f.get("postal_code", "")),
         COL_HOJIN_BANGO: rich(f.get("hojin_bango", "")),
@@ -304,12 +321,15 @@ def build_fill_empty_properties(record: dict, existing: dict) -> dict:
     title(会社名) は既存が空のときのみ出す。確度/備考は、空欄属性がある場合の未確定理由を
     保持するため、既存が空なら出す。既存非空は触らない。確認用URL はプロパティ列から廃止
     (ページ本文へ移行) のため本関数は扱わず、本文同期は sync_confirm_url_body が担う。
+
+    会社名 title を既存非空でも登記名へ上書きする移行モードは backfill.patch_empty_cells が
+    オーケストレーション層で担う (本関数は『空欄補完』の意味に閉じ、非空上書きを混ぜない)。
     """
     props = build_properties(record)
     f = record.get("fields", {})
     mapping = {
-        COL_COMPANY_NAME: ("company_name", f.get("company_name", "")),
-        COL_OFFICIAL_NAME: ("official_name", f.get("official_name", "")),
+        # 会社名(title)の補完値は official_name 優先 (build_properties と同一・R3)。
+        COL_COMPANY_NAME: ("company_name", f.get("official_name") or f.get("company_name", "")),
         COL_ADDRESS: ("address", f.get("address", "")),
         COL_POSTAL: ("postal_code", f.get("postal_code", "")),
         COL_HOJIN_BANGO: ("hojin_bango", f.get("hojin_bango", "")),
@@ -365,8 +385,8 @@ def sync_confirm_url_body(page_id: str, token: str, source) -> dict:
     手順: GET children (pagination 全件) → heading『確認用URL（手動検証用）』とそれに続く
     本セクション (次の heading_2 まで or 末尾) の既存 bullet をパース →
     confirm_url.merge_entries で **URL 非減少マージ** (今回取得した出典のみ差し替え・既存の
-    出典 URL は保持。列の既存非空セル保護と対称) → 旧セクション DELETE → マージ済み
-    ブロックを PATCH children で append。同一入力での再実行は byte 一致 (冪等)。
+    出典 URL は保持。列の既存非空セル保護と対称) → マージ済みブロックを PATCH children で
+    append 成功後、旧セクション DELETE。同一入力での再実行は byte 一致 (冪等)。
 
     source は record の source_by_field (dict, 正本) または旧 source_urls (list, 後方互換)。
     失敗時は本体 (プロパティ書き込み) を落とさず {"confirm_url_body": "failed"} を返すが、
@@ -394,14 +414,15 @@ def sync_confirm_url_body(page_id: str, token: str, source) -> dict:
                     parsed = confirm_url.parse_bullet(_block_plain(blk))
                     if parsed:
                         existing_entries.append(parsed)
-            for blk in children[start:end]:
-                bid = blk.get("id")
-                if bid:
-                    _api("DELETE", f"/blocks/{bid}", token)
         merged = confirm_url.merge_entries(
             confirm_url.build_entries(source), existing_entries)
         blocks = confirm_url.render_blocks(merged)
         _api("PATCH", f"/blocks/{page_id}/children", token, {"children": blocks})
+        if start is not None:
+            for blk in children[start:end]:
+                bid = blk.get("id")
+                if bid:
+                    _api("DELETE", f"/blocks/{bid}", token)
         return {"confirm_url_body": "synced", "replaced_existing": start is not None,
                 "kept_existing_urls": sum(
                     1 for e in existing_entries

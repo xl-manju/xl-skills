@@ -50,7 +50,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: test
     - id: IN2
       loop_scope: inner
-      text: PATCH 前に validate_enriched (= validate_company_master.validate_row) を実行し、8列構成・郵便番号8文字・電話ハイフン・住所都道府県起点・確度4ラベル enum・origin→確度上限・信頼キーに違反する行は PATCH せず deferred + replay JSONL へ退避すること(validate_company_master.py が実判定)。
+      text: PATCH 前に validate_enriched (= validate_company_master.validate_row) を実行し、7列構成(正式名称は会社名 title へ統合)・郵便番号8文字・電話ハイフン・住所都道府県起点・確度4ラベル enum・origin→確度上限・信頼キーに違反する行は PATCH せず deferred + replay JSONL へ退避すること(validate_company_master.py が実判定)。
       verify_by: script
     - id: IN3
       loop_scope: inner
@@ -64,13 +64,13 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 # run-company-master-backfill
 
-> 本 skill は `run-company-master-build` と **同一プラグイン (company-master) の共有 SSOT** (plugin-root の `scripts/` `references/` `prompts/`) を `../../` で参照する。8列定義・確度4ラベル・信頼キー・検証 (`validate_company_master`) は build と完全共有し、本 skill 固有は「既存 Notion 行を起点にした空欄補完の制御」に限る。新規企業の断片入力からの同定構築は build skill の責務 (本 skill では扱わない)。
+> 本 skill は `run-company-master-build` と **同一プラグイン (company-master) の共有 SSOT** (plugin-root の `scripts/` `references/` `prompts/`) を `../../` で参照する。7列定義(正式名称は会社名 title 統合)・確度4ラベル・信頼キー・検証 (`validate_company_master`) は build と完全共有し、本 skill 固有は「既存 Notion 行を起点にした空欄補完の制御」に限る。新規企業の断片入力からの同定構築は build skill の責務 (本 skill では扱わない)。
 
 ## 目的と出力契約
 
 **既に存在する** Notion 企業マスタ DB の行を起点に、空欄列または『ネット検索(要確認)』/『未確定(要確認)』の行**だけ**を補完対象にして、企業マスタを確度付きで底上げする。新規行の作成 (断片入力 → resolve → 構築) は対象外であり、それは `run-company-master-build` が担う。
 
-出力先 DB ID は build と同じく `notion_config.get_db_id('company-master')` で解決する (env `COMPANY_MASTER_NOTION_DATABASE_ID` → repo/plugin-root `.notion-config.json` → 同梱 `notion-config.fixed.json` の順)。Notion 列 (計8列) / 確度4ラベル / 信頼キー (gBizINFO 13桁法人番号) / 確認用URL本文テンプレートは `../../references/company-master-columns.md` ほか共有 references を正本とする (build と単一 SSOT・二重定義しない)。
+出力先 DB ID は build と同じく `notion_config.get_db_id('company-master')` で解決する (env `COMPANY_MASTER_NOTION_DATABASE_ID` → repo/plugin-root `.notion-config.json` → 同梱 `notion-config.fixed.json` の順)。Notion 列 (計7列・正式名称は会社名 title 統合) / 確度4ラベル / 信頼キー (gBizINFO 13桁法人番号) / 確認用URL本文テンプレートは `../../references/company-master-columns.md` ほか共有 references を正本とする (build と単一 SSOT・二重定義しない)。
 
 **既存非空セルは上書きしない。** 補完するのは空欄列と要確認行のみ。取得不能な項目は誤値を入れず空欄 + 『未確定(要確認)』を維持し、原因を『備考』へ `../../references/remarks-templates.md` の定型文言で記録する。ネット検索由来値の根拠 URL は**ページ本文の確認用URLセクション**へ固定テンプレートで記録し、既存セクションは **URL 非減少マージ** (今回取得分のみ差し替え・既存出典 URL を喪失させない) で同期する。
 
@@ -87,7 +87,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 - **フォーマット規約**: 郵便番号 `NNN-NNNN` 8文字 / 電話番号ハイフン区切り / 住所都道府県起点 (`../../references/company-master-columns.md`)。
 - **確度4ラベル固定**: `公的データで確認済み | 公的データ取得 | ネット検索(要確認) | 未確定(要確認)` (英語コード値禁止)。
 - **信頼キー (SSOT)**: upsert 一意キーは gBizINFO 確定 13桁法人番号のみ。未確定行は代替キー (正規化会社名+住所ハッシュ) で**既存行を誤更新せず**扱う。
-- **live スキーマ preflight**: 書き込み前に Notion live スキーマを `../../references/notion-db-schema.json` と照合し、必須8列の欠落・型不一致・select 4オプション不一致・API 不達は**書き込まず fail-closed**。
+- **live スキーマ preflight**: 書き込み前に Notion live スキーマを `../../references/notion-db-schema.json` と照合し、必須7列の欠落・型不一致・select 4オプション不一致・禁止列/余剰列 (旧『正式名称』列を含む)・API 不達は**書き込まず fail-closed**。
 - **precondition gate / 認証**: Notion token・gBizINFO トークン未登録は fail-closed (exit 2)。日本郵便鍵 (client_id・secret_key) は郵便番号取得用の任意追加設定であり、未設定時は郵便番号だけ空欄 + 備考へ縮退して他項目の補完を継続する。**プロキシ経由は `proxy_url` 代替**でローカル鍵を不要にする (`backfill.precondition_gate` が単発 upsert と対称化済)。送信元IPは自動検出で解決するため gate に含めない。token は `notion_config` で解決 (独自実装しない・Keychain のみ・平文出力禁止)。
 - **フォールバック多段化 / 確度昇格禁止 / 信頼キー不変条項**: `../../references/data-sources.md` の fallback tier 表に従い、属性×許可段ホワイトリスト内のみ試行する。origin → 確度上限は `validate_company_master` (g) が機械照合する。
 
@@ -98,6 +98,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 - **2 パス運用 (Web 検索が必要な行)**: backfill は決定論で埋められる列 (法人番号→gBizINFO 属性・住所→日本郵便API 郵便番号) を **1 パス目**で自走補完し、Web 検索が要る列 (電話番号等) は出力 `needs_web_search` (page_id + `missing_fields` + `attempts`) に列挙する。Claude が許可段ホワイトリスト内で Web 検索し、`attempts` に**無い** `(source, pattern)` のみ試行のうえ `backfill --web-findings '{"<page_id>": {"phone": {...}}}'` で **2 パス目**を投入する。
 - **行単位縮退 + リプレイ**: backfill は行単位で確定/退避する。Notion API の 429/5xx は `Retry-After` 尊重の指数バックオフで最大5回リトライし、上限超過・中断時も処理済み行は確定済み・失敗行は replay JSONL へ退避済みで次回再開できる。`validate_enriched` (= `validate_company_master.validate_row`) を PATCH 前に実行し、違反行は PATCH せず deferred + replay 退避へ回す (単発 upsert と対称の検証ゲート)。
 - **`--dry-run`**: 副作用を抑えて対象行の選定だけ確認する。
+- **`--migrate-company-title` (移行モード・opt-in)**: 既存登録行の会社名 title (通称) を登記名へ移行する。正式名称列を物理削除した後はページ上の値から登記名を復元できないため、**法人番号 (13桁) を持つ行を再 resolve (gBizINFO) して登記名を取得**し、`official_name(登記名) ≠ 既存 title` のときだけ title を上書きする (title のみ既存非空保護を解除。住所/郵便/法人番号/電話の保護と alt_key は不変。既に登記名なら冪等 no-op)。法人番号なし行・登記名を確定できない行は通称のまま触らない。`--dry-run` 併用で対象を確認でき、**live への実行はユーザー判断** (既定 OFF・通称 title を保持)。
 
 ## ゴールシーク実行
 
@@ -138,7 +139,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## 検証 (deterministic checks)
 
-build と同一の `../../scripts/validate_company_master.py <records.json>` が実判定する (8列構成・郵便番号8文字・電話ハイフン・住所都道府県起点・確度4ラベル enum・空欄行は『未確定(要確認)』+ 備考定型文言・per-field 出典 origin enum・確度昇格 FAIL・信頼キー)。backfill 固有の不変条件は「既存非空セルが PATCH 前後で不変」であり、`backfill.py` が既存値を読み取り空欄列のみを PATCH 対象にすることで担保する (テストは `tests/test_company_master.py` の backfill ケース)。
+build と同一の `../../scripts/validate_company_master.py <records.json>` が実判定する (7列構成(正式名称は会社名 title 統合)・郵便番号8文字・電話ハイフン・住所都道府県起点・確度4ラベル enum・空欄行は『未確定(要確認)』+ 備考定型文言・per-field 出典 origin enum・確度昇格 FAIL・信頼キー)。backfill 固有の不変条件は「既存非空セルが PATCH 前後で不変」であり、`backfill.py` が既存値を読み取り空欄列のみを PATCH 対象にすることで担保する (テストは `tests/test_company_master.py` の backfill ケース)。
 
 ## 責務マッピング
 
@@ -157,14 +158,14 @@ build と同一の `../../scripts/validate_company_master.py <records.json>` が
 ## 設計判断ログ
 
 1. **なぜ build と別 skill か (起動独立性)**: 入力起点が「既存 Notion 行」(build は「ユーザーが渡す断片」)、実行タイミングが「運用中メンテ」(build は「新規登録時」) と独立し、2 パス Web 検索という固有 goal-seek を持つため、起動の独立性に従って分割した。詳細は build SKILL.md「設計判断ログ #1」と対。
-2. **なぜ実装を共有するか (二重実装回避)**: backfill は resolve/enrich/upsert を 100% 再利用し、独自実装は「空欄列選定 + 2 パス制御 + 行単位縮退」(= `backfill.py`) のみ。共有実装 (scripts) と SSOT (references / prompts) は plugin-root に集約し `../../` で参照する。これにより build と backfill が確度・8列・信頼キー・検証で乖離しない (単一 SSOT)。
+2. **なぜ実装を共有するか (二重実装回避)**: backfill は resolve/enrich/upsert を 100% 再利用し、独自実装は「空欄列選定 + 2 パス制御 + 行単位縮退」(= `backfill.py`) のみ。共有実装 (scripts) と SSOT (references / prompts) は plugin-root に集約し `../../` で参照する。これにより build と backfill が確度・7列・信頼キー・検証で乖離しない (単一 SSOT)。
 3. **なぜ既存非空セルを不可侵にするか**: backfill は「人が確認済みの値」を含む運用中 DB を対象にするため、自動処理で既存値を上書きすると人手の確定を破壊しうる。空欄列のみ補完 + 要確認行のみ再取得とし、誤値 >> 空欄の非対称コスト原則を運用面でも徹底する。
 
 ## 追加リソース
 
 > 共有 SSOT (scripts / references / prompts) は plugin-root に集約され、build skill と共有する。本 skill 固有は `references/resource-map.yaml` のみ。
 
-- `../../references/` — 8列定義 / 確認用URLテンプレート / データソース・確度 / 備考テンプレート (build と共有)
+- `../../references/` — 7列定義 / 確認用URLテンプレート / データソース・確度 / 備考テンプレート (build と共有)
 - `../../prompts/R1-resolve-identity.md` — resolve 同定判断の7層 prompt 正本 (build と共有)
 - `../../scripts/backfill.py` — 本 skill の中核実装 (空欄列選定・2パス制御・replay)
 - `../../scripts/notion_config.py` — DB ID・token・gBizINFO トークン解決の vendored SSOT

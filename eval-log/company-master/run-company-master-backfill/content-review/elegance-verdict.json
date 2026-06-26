@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-backfill",
-    "skill_md_sha256": "4659bb57be1b102dceed16a66bd5e55246b9797505313fee65cee01f00d39860"
+    "skill_md_sha256": "5377d116ed3100e790fd1a9ef243edd6fda8dcc801fca382724aef338385268e"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,25 +11,25 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 2
   },
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-25",
+  "reviewer": "independent-content-review-reviewer",
+  "reviewed_at": "2026-06-26",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1"],
     "positive_feedback": [
-      "frontmatter へ新規携帯した feedback_contract.criteria が本文の主張と機械実装に genuine 一致する。IN1『既存非空セル不変 + 補完対象を空欄列/要確認行に限定』は本文「### backfill 固有のルール」の不可侵条項・検証節「既存非空セルが PATCH 前後で不変」(backfill.py が既存値を読み空欄列のみ PATCH) と整合し、IN2『PATCH 前 validate_enriched = validate_company_master.validate_row ゲート + replay 退避』はチェックリスト・検証節・責務マッピングと一致、IN3『空欄列ごと最小 API 起動 + 2 パス needs_web_search/attempts』は「空欄列ごとの最小 API 起動」「2 パス運用」節と 1:1 対応する。汎用コピペでなく当該スキル固有の検証可能基準になっている。",
-      "OUT1 (outer) が「既存行起点⇄断片起点」の起動独立性・誤値>>空欄の非対称コスト・URL 非減少マージという本 skill の存在意義そのものを評価軸に据え、build との二重実装回避 (scripts/references/prompts を plugin-root 集約・../../ 参照) と矛盾しない。inner 3 件 (test/script/script) + outer 1 件 (elegant-review) の loop_scope/verify_by 配分が SSOT 制約 (inner>=1・outer>=1) を満たし内容妥当性とも噛み合っている。"
+      "今回の 8列→7列移行 (正式名称を会社名 title へ統合) の主張が実装と genuine 一致する。IN2 と本文 L67/73/90/142 の『7列構成(正式名称は会社名 title へ統合)』は notion_upsert.build_properties が会社名(title)/住所/郵便番号/法人番号/電話番号 + 情報の確かさ/備考 の正確に 7 プロパティのみ emit し COL_OFFICIAL_NAME 定数は旧行 best-effort 読取専用に残すこと、validate_company_master の JP_COL_MAP(5)+情報の確かさ/備考=REQUIRED_JP_COLS(7)、references/company-master-columns.md の7列定義、notion-db-schema.json の properties=7列 と 1:1 で噛み合う。L90 の『禁止列/余剰列 (旧『正式名称』列を含む) は fail-closed』は notion-db-schema.json の forbidden_properties に『正式名称』が明記され preflight_schema が禁止列検出で SchemaPreflightError を送出する経路で airtight に裏取りできた。",
+      "新規 --migrate-company-title (opt-in 移行モード) の opt-in 安全性が実装で確証された。argparse は action='store_true' で既定 OFF、select_backfill_targets は HOJIN_BANGO_RE(13桁) 保有行のみを移行候補化 (フラグ無しでは移行候補ゼロ)、patch_empty_cells は official_name 取得済み且つ existing title≠official のときだけ COL_COMPANY_NAME を上書きし、住所/郵便/法人番号/電話は build_fill_empty_properties の空欄補完のみ(非空保護維持)、alt_key 素材の company_name(通称) も不変、既に登記名なら no-op(冪等)。tests/test_company_master.py に overwrite/official空skip/OFF時非空title保護/select の hojin行抽出 の4回帰が存在し、本文 L101 の各主張(再resolveベース・title限定保護解除・冪等・法人番号なし行非対象・dry-run併用・live実行はユーザー判断)を機械裏付けする。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none",
-    "next_action_detail": "4 条件すべて 0。検出した唯一の smell は L116『REPLAY_LOG (repo-root、非 repo 環境では plugin-root 直下)』表現が実装の eval-log/ サブディレクトリ配置を厳密に反映しない軽微な語の緩みで、依存破壊でも矛盾でもなく PASS を妨げない。frontmatter への feedback_contract 追加で本文行数・既存節の意味は不変。改善は任意のため next_action=none。"
+    "next_action_detail": "4 条件すべて 0。smell 2 件はいずれも low で PASS を妨げない: (1) L136 の replay 退避先表現『plugin-root 直下』が実装の <root>/eval-log/ サブディレクトリ配置を厳密反映しない軽微な語の緩み(root 解決ロジック=repo-root else plugin-root・cwd 非依存は正確)、(2) L96『既に値が入っているセルは決して上書きしない』の絶対表現と L101 の opt-in title 上書き例外が同一節に併存する点。後者は L101 が『title のみ既存非空保護を解除・既定OFF・住所/郵便/法人番号/電話の保護は不変』と即座に限定し、実装も default 経路(migrate OFF)で invariant を厳守、移行は通称→登記名という誤値非導入の品質向上(誤値>>空欄と整合)であるため矛盾には至らず low smell に留める。改善は任意のため next_action=none。"
   },
-  "notes": "feedback_contract 携帯化に伴う SHA 変化 (旧 bc70309d → 新 4659bb57be1b102dceed16a66bd5e55246b9797505313fee65cee01f00d39860, shasum -a 256 実測一致) を受け genuine 再通読。frontmatter 追加分 (feedback_contract 4 criteria) と本文の整合を 4 条件で検証。(1) contradiction=0: 新 criteria IN1/IN2/IN3/OUT1 が本文「目的と出力契約」「境界」「主要ルール (build共有/backfill固有)」「ゴール」「検証」と矛盾なし。precondition gate fail-closed (Notion+gBizINFO 必須・日本郵便鍵は任意縮退・proxy_url 代替で gate 通過・送信元IP自動検出で gate 非含)、2 パス制御、REQUIRE_REVERIFY_CERTAINTIES 正本、validate_enriched エイリアスを実 scripts (backfill.py) 想定と突合し矛盾なし。(2) omission=0: 完了チェックリスト11項目が preflight fail-closed / 既存非空不可侵 / 最小API起動 / 決定論1パス / Web2パス / フォールバックホワイトリスト / validate ゲート / remarks 備考 / URL 非減少マージ / 429-5xx 指数バックオフ最大5回+replay再開 / dry-run を MECE 網羅。新 criteria は本文の核心契約を漏れなく拾う。(3) inconsistency=0: 8列・確度4ラベル・確認用URL本文記録・再取得対象 (空欄列 or 要確認行) の定義が全節で一貫。criteria の用語 (validate_enriched / needs_web_search / attempts / REQUIRE_REVERIFY_CERTAINTIES) が本文と同一語彙。(4) dependency_break=0: frontmatter の responsibility_refs(1)/reference_refs(7)/script_refs(13) と本文参照の agents(3)/command(1)/hook(1) は前回 review で ../../ 経由 dangling 0 を全数確認済、feedback_contract 追加は参照を増減しない。smell 1 件 = L116 の replay 退避先表現の軽微な語の緩み (root 解決ロジック=repo-root else plugin-root は正確で cwd 非依存も担保)。high severity 欠陥なし → PASS。本 review で SKILL.md 本文は編集していない (frontmatter への feedback_contract 追加は本タスクの所定変更)。"
+  "notes": "今回の未コミット変更(8列→7列DB移行・会社名へ official_name 統合・--migrate-company-title 追加・確認用URL本文移行追従)に即して旧 verdict(前回 feedback_contract 携帯化)の findings を全面作り直した。現 SKILL.md SHA を python3 hashlib.sha256 で再計算し 5377d116...85268e で期待値一致を確認(SHA書換偽装でなく実読再評価)。git diff main で delta を特定し、変更箇所(IN2 7列文言/L67/L73/L90/L101新規移行モード bullet/L142検証節/設計判断ログ#2)を実コードで突合した。(1) contradiction=0: 7列主張は notion_upsert.build_properties(7プロパティ emit・official列廃止)/validate_company_master(JP_COL_MAP 5+2=7・NOTION_COLUMN_FIELDS から official 除外)/columns.md(7列定義+source_by_field provenance 分離)/notion-db-schema.json(properties7+forbidden に正式名称)と全整合。--migrate-company-title は backfill.main argparse(既定OFF)→select_backfill_targets(hojin13桁候補化)→resolve_row(法人番号で再resolve)→merge_entity_defaults→enrich→validate_enriched ゲート→patch_empty_cells(official≠title時のみ title上書き・冪等)の経路で本文記述と矛盾なし。company_name を空欄判定から除外(select_backfill_targets の empty_cols が k!='company_name')する設計も恒久空欄による無限backfill回避として正しく、本文主張と非矛盾。(2) omission=0: 移行モードは主要ルール(backfill固有)へ bullet 追加・command の argument-hint にも --migrate-company-title 反映済で導線欠落なし。検証節・責務マッピングは既存契約を維持。(3) inconsistency=0: 7列/会社名 title 統合/確度4ラベル/確認用URL本文記録の語彙が frontmatter・本文・columns.md・scripts docstring・command で一貫。(4) dependency_break=0: 本 delta は script_refs/reference_refs を増減せず、参照する backfill.py/notion_upsert.py/validate_company_master.py/company-master-columns.md は全て実在し記述と一致。smell=2(L136 replay 語の緩み・L96絶対表現とL101 opt-in例外の同節併存)はいずれも low。既存の genuine elegant-review(20260626-confirm-url-name-merge: 移行モード7点全PASS・独立approver APPROVE / 20260626-confirm-url-verify: R4 live DB 正式名称列なし preflight PASS verified)とも整合し high severity 欠陥ゼロ → PASS。本 review で SKILL.md 本文は一切編集していない。"
 }

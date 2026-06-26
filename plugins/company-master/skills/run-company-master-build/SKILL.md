@@ -46,7 +46,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
   criteria:
     - id: IN1
       loop_scope: inner
-      text: "全行が計8列(6属性+『情報の確かさ』+『備考』)構成で、空欄属性を持つ行は確度=『未確定(要確認)』かつ『備考』に remarks-templates.md 準拠の定型文言が入り、非空の郵便番号 `^\\d{3}-\\d{4}$`/電話ハイフン/住所都道府県起点/法人番号13桁の形式検証を満たすこと(scripts/validate_company_master.py が exit0 で機械判定)。"
+      text: "全行が計7列(会社名title+住所/郵便番号/法人番号/電話番号+『情報の確かさ』+『備考』。正式名称は会社名へ統合)構成で、空欄属性を持つ行は確度=『未確定(要確認)』かつ『備考』に remarks-templates.md 準拠の定型文言が入り、非空の郵便番号 `^\\d{3}-\\d{4}$`/電話ハイフン/住所都道府県起点/法人番号13桁の形式検証を満たすこと(scripts/validate_company_master.py が exit0 で機械判定)。"
       verify_by: script
     - id: IN2
       loop_scope: inner
@@ -58,7 +58,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: elegant-review
     - id: OUT2
       loop_scope: outer
-      text: "断片入力からの新規構築(build)と既存行底上げ(backfill)の責務分離・確認用URLのページ本文出力(8列維持)・precondition gate の fail-closed が、起動独立性と SSOT plugin-root 集約の観点で過不足なく境界設定されていること。"
+      text: "断片入力からの新規構築(build)と既存行底上げ(backfill)の責務分離・確認用URLのページ本文出力(7列維持)・precondition gate の fail-closed が、起動独立性と SSOT plugin-root 集約の観点で過不足なく境界設定されていること。"
       verify_by: elegant-review
 ---
 
@@ -70,7 +70,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 > `notion-config.fixed.json` の `db_id` は **単独 install 自己完結のための意図的な既定値** (公開可・token 非含)。上位に `.notion-config.json` (per-repo・gitignore 原則で git 管理外) があればそれで上書きされる最下位フォールバックである。per-repo gitignore 原則との意図的差分として、本ファイルは単独配布で動かすための公開既定値として敢えて plugin に同梱コミットする (CRIT-01)。
 
-Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称(gBizINFO登記名) / 住所 / 郵便番号 / 法人番号 / 電話番号 の 6属性 + 『情報の確かさ』+ 『備考』。`source`/`last_verified`/`確認用URL` 列は追加しない。**確認用URL はページ本文に固定テンプレートで出力する** (`references/confirm-url-template.md` 正本・`scripts/confirm_url.py` が展開)。詳細は `references/company-master-columns.md` を正本とする。
+Notion 列は **計7列のみ**: 会社名(title=gBizINFO登記名/正式名称を優先表示・無ければ入力通称) / 住所 / 郵便番号 / 法人番号 / 電話番号 の 5属性 + 『情報の確かさ』+ 『備考』。**正式名称は独立列を廃止し会社名タイトルへ統合する** (company_name 通称・official_name 登記名はともに record の `source_by_field` に provenance として保持するが DB 列は会社名 1 つ=表示層と出所層の分離)。`source`/`last_verified`/`確認用URL`/`正式名称` 列は追加しない。**確認用URL はページ本文に固定テンプレートで出力する** (`references/confirm-url-template.md` 正本・`scripts/confirm_url.py` が展開)。詳細は `references/company-master-columns.md` を正本とする。
 
 高確度ソース (gBizINFO API / 日本郵便) で一意確定した値のみ自動確定し、一意確定できない項目は誤値を入れず空欄 + 『未確定(要確認)』で保留する (誤値混入回避の非対称コスト原則: 誤値 >> 空欄)。取得失敗項目は『備考』へ `references/remarks-templates.md` の定型テンプレート文言で原因を記録する (自由記述禁止・複数失敗は改行区切り)。
 
@@ -87,7 +87,7 @@ Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称
 - **信頼キー (SSOT)**: upsert 一意キーは gBizINFO が確定返却した 13桁法人番号のみ。法人番号を持たない/取得不能な行は代替キー(正規化会社名+住所ハッシュ)で仮同定し『未確定(要確認)』として**新規追記のみ**。
 - **認証**: 出力先 DB は `notion_config.get_db_id('company-master')`、token は `notion_config.get_token` で解決 (独自実装しない)。gBizINFO トークンは Keychain `gbizinfo-api-token.xl-skills` に保管しリクエストヘッダ `X-hojinInfo-api-token` で送信。郵便番号取得は日本郵便 addresszip API (Keychain `japanpost-da-api.xl-skills` の client_id/secret_key + 送信元IP の OAuth2/IP認証。送信元IPは既定で自動検出し、固定時のみ Keychain `japanpost-da-api.xl-skills`/`egress_ip`)。セットアップ手順は `references/japanpost-api-setup.md`。
 - **precondition gate**: gBizINFO トークン未登録は fail-closed (exit 2。企業同定の必須入力)。`--upsert` / backfill 本実行では Notion token / DB ID も fail-closed。日本郵便 client_id・secret_key は郵便番号取得用の任意追加設定であり、未登録時は郵便番号だけ空欄 + 備考へ縮退して他項目の処理を継続する (**プロキシ経由なら `proxy_url` で代替**され client_id/secret_key はクライアントに不要)。**送信元IPは自動検出で解決するため gate に含めず**、登録IPとのズレは実行時に 401 で顕在化し `postal_api_unauthorized` 備考で surface する。障害時は取れた項目だけ書き、中間結果を JSONL 退避して次回リプレイ可能にする (縮退)。
-- **live スキーマ preflight**: upsert / backfill は書き込み前に Notion API GET database の live スキーマを `references/notion-db-schema.json` (生成元正本: `company-master-columns.md` の8列定義) と照合し、必須8列の欠落・型不一致・『情報の確かさ』select 4オプション不一致・API 不達は**書き込まず fail-closed** (構造化エラー)。プロセス内キャッシュで多重照会を回避する。
+- **live スキーマ preflight**: upsert / backfill は書き込み前に Notion API GET database の live スキーマを `references/notion-db-schema.json` (生成元正本: `company-master-columns.md` の7列定義) と照合し、必須7列の欠落・型不一致・『情報の確かさ』select 4オプション不一致・禁止列/余剰列 (旧『正式名称』列を含む)・API 不達は**書き込まず fail-closed** (構造化エラー)。プロセス内キャッシュで多重照会を回避する。
 - **レート制限/リトライ**: Notion API の 429/5xx は `Retry-After` 尊重の指数バックオフで最大5回まで自動リトライし、上限超過は構造化エラー (`NotionAPIRetryExhausted`) で fail-closed。backfill は行単位縮退のため、レート超過・中断時も処理済み行は確定済み・失敗行は replay JSONL へ退避済みで、次回実行で再開できる。
 - **郵便番号**: 日本郵便 addresszip API (V2 逆引き) で取得する。`scripts/postal_api.py` が構造化検索 (pref/city/town。town は素の町域→小字/大字を段階剥離した複数バリアント) → freeword → 市区町村一覧の最長前方一致の3段で照会し、`pick_best` / `pick_best_prefix` がマッチングレベル・最長一致・候補 zip 収束で一意確定したもののみ採用する (誤値を入れない)。一括 DL データは廃止。詳細な fallback tier 正本は `references/data-sources.md`。
 - **責務分離 (Web検索)**: 電話番号・住所のみ入力時の会社名候補の Web 検索は **Claude が goal-seek ループで実施**し、結果 (値+URL) を `enrich_company.py --web-findings <json>` へ渡す。**Python は検索せず検証・整形のみ** (電話は `verify_phone` が市外局番×都道府県を軽量クロスチェック)。
@@ -103,7 +103,7 @@ Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称
 
 ### ゴール (Goal)
 
-業務横断で参照される信頼できる企業マスタが構築・維持された状態。各行は gBizINFO 確定の 13桁法人番号で一意同定され (取得不能時は代替キーで仮同定し『未確定(要確認)』)、6属性が『情報の確かさ』付きで保持され、フォーマット要件 (郵便番号8文字 / 電話ハイフン / 住所都道府県起点) を満たし、一意確定できない値は空欄 + 『未確定(要確認)』で保留され取得失敗原因が『備考』へ定型記録され、ネット検索由来値の根拠 URL が**ページ本文の確認用URLセクション**へ固定テンプレートで記録されている。計8列 + 確認用URLはページ本文。
+業務横断で参照される信頼できる企業マスタが構築・維持された状態。各行は gBizINFO 確定の 13桁法人番号で一意同定され (取得不能時は代替キーで仮同定し『未確定(要確認)』)、6属性が『情報の確かさ』付きで保持され、フォーマット要件 (郵便番号8文字 / 電話ハイフン / 住所都道府県起点) を満たし、一意確定できない値は空欄 + 『未確定(要確認)』で保留され取得失敗原因が『備考』へ定型記録され、ネット検索由来値の根拠 URL が**ページ本文の確認用URLセクション**へ固定テンプレートで記録されている。計7列 (正式名称は会社名 title へ統合) + 確認用URLはページ本文。
 
 ### 目的・背景 (Why)
 
@@ -119,7 +119,7 @@ Notion 列は **計8列のみ**: 会社名(入力通称を保持) / 正式名称
 - [ ] Web 由来住所での再 resolve は最大1回・自動確定なし (法人番号が初回と不一致なら候補列挙へ降格) を守った
 - [ ] 住所→郵便番号を日本郵便 addresszip API (`data-sources.md` tier2 の3段フォールバック・一意確定のみ採用) で `NNN-NNNN`・『公的データ取得』で出力した
 - [ ] 電話番号は Claude が Web 検索し結果を `--web-findings` で渡し、Python(`verify_phone`)が市外局番×都道府県をクロスチェック、不整合・未取得は空欄+要確認にし備考へ定型記録した
-- [ ] 住所を都道府県起点に正規化し、会社名(通称)と正式名称(登記名)を別属性で保持した
+- [ ] 住所を都道府県起点に正規化し、会社名(通称)と正式名称(登記名)を `source_by_field` provenance で保持した(DB 列は会社名 title へ統合=正式名称(official_name)を優先表示。別 DB 列で保持する不変条件は撤回)
 - [ ] 取得失敗項目は『備考』へ `remarks-templates.md` の定型文言で記録し、複数失敗は改行区切りで列挙した
 - [ ] 全6属性の取得由来 (`source_by_field`: origin enum 5値) を**ページ本文の確認用URLセクション**へ固定テンプレートで記録した (`web` 由来は根拠 URL 必須・既存出典は URL 非減少マージで保持)
 - [ ] `notion_config.get_db_id('company-master')` で解決した DB へ信頼キーで upsert、キー欠落時は代替キーで新規追記のみにした
@@ -168,7 +168,7 @@ PY
 - 非空の住所は都道府県名で始まる。非空の法人番号は 13桁数字。
 - 全行に『情報の確かさ』列があり値が 4ラベルのいずれか (英語enum値は0件)。
 - いずれかの属性が空欄の行は『未確定(要確認)』かつ『備考』に `remarks-templates.md` 準拠の定型文言が入っている。
-- per-field 出典 (後方互換 gating): `source_by_field` がある新形式 record は全6属性に origin (enum 5値) があり `origin=web` は url 非空。さらに fallback tier 機械照合 (正本 `data-sources.md`): origin → 確度ラベル上限 (確度昇格は FAIL) と属性×許可段ホワイトリスト (例: postal_code の origin=web は FAIL)。旧形式は『ネット検索(要確認)』行の `source_urls` 非空検査へ縮退。計8列構成である。
+- per-field 出典 (後方互換 gating): `source_by_field` がある新形式 record は全6属性に origin (enum 5値) があり `origin=web` は url 非空。さらに fallback tier 機械照合 (正本 `data-sources.md`): origin → 確度ラベル上限 (確度昇格は FAIL) と属性×許可段ホワイトリスト (例: postal_code の origin=web は FAIL)。旧形式は『ネット検索(要確認)』行の `source_urls` 非空検査へ縮退。計7列構成である (正式名称は会社名 title へ統合・official_name は provenance のみ)。
 - upsert 一意キーは gBizINFO 確定 13桁法人番号に従う (空/未確定法人番号でのキー衝突なし)。
 
 上記 (a)-(h) は `scripts/validate_company_master.py <records.json>` が実判定する (違反は非0終了 + 理由出力)。備考の定型文言検査は `references/remarks-templates.md` を正本に照合する。
@@ -205,19 +205,19 @@ PY
 
 なぜ現在の構成 (build/backfill の 2 skill + 共有 SSOT を plugin-root 集約・実体 prompt は R1 のみ・空 vendor・二段防御を references 配布) かの記録。
 
-1. **なぜ build と backfill の 2 skill か (起動独立性で分割)**: resolve / enrich / upsert は単一ゴール『信頼マスタ行を1回で構築』への直列従属で、単一 SSOT (法人番号キー / 8列 + 確認用URL本文 / 確度4ラベル) を共有するため **1 skill (本 run-company-master-build) に束ねる**。enrich と upsert は resolve 出力に強結合し独立起動の意味を持たない。一方 backfill は「断片入力からの新規構築」ではなく「**既存 Notion マスタの空欄を起点に底上げする**」別用途で、入力起点 (Notion DB ⇄ 断片情報) も実行タイミングも独立し、2 パス Web 検索という固有の goal-seek を持つため **run-company-master-backfill として独立 skill に切り出す** (contract-generator の draft/finalize が独立起動ゆえ別 skill なのと同型)。resolve/enrich/upsert を skill 分割しないのは上記の直列従属ゆえで、「分割のための分割」を避ける判断。**2026-06-10 reject を覆す差分論証**: 当時は「command/agent 層で物理分離済みゆえ新規 skill 分割は不要」と判断したが、`disable-model-invocation: false` 下では LLM 自動起動の分岐点は command でなく **skill description** であり、command 分離だけでは「新規構築」と「既存底上げ」の起動意図を Claude が自律選択できない。起動意図の分離には skill 昇格が必要、という差分が 2026-06-18 の backfill 昇格を正当化する (前提として build description から backfill 責務文言を除去し新規構築へ純化済み)。**分割の真の判定軸 = 「起動独立性 × LLM 自律 dispatch 要否」の合成**: backfill は Claude が文脈から自律起動すべき責務 (skill) だが、doctor は決定論保守で人間の明示実行で足りる (LLM 判断ループ無し → `company_master.py` のサブコマンド止まり) という非対称をこの軸が一貫説明する。
-2. **なぜ共有実装を plugin-root に集約したか (dangling 根絶)**: backfill skill は resolve/enrich/upsert の実装 (scripts)・8列定義/確度/備考テンプレート (references)・R1 同定 prompt を build skill と 100% 共有する。これらを build skill 配下に残したまま backfill skill から参照すると skill 間相対参照の dangling リスクが残るため、**共有 scripts / references / prompts を plugin-root に集約**し、両 skill が `../../`・agents が `../` で参照する単一 SSOT とした。skill 配下に残すのは skill 固有の `references/resource-map.yaml` のみ。flat import (`import notion_config` 等) のため集約後も script 内部の import は不変 (移設の影響は参照層のみ)。なお `company_master.py` は build/backfill 両 skill の**共有 wrapper** で backfill サブコマンド (`run_backfill`) も提供するため、build の `script_refs` にも `backfill.py` を**推移的依存**として宣言する (物理依存は実在するため宣言する一方、論理責務としての backfill 制御の正本は backfill skill 側であり責務マッピングには非掲載とする二層表現)。
+1. **なぜ build と backfill の 2 skill か (起動独立性で分割)**: resolve / enrich / upsert は単一ゴール『信頼マスタ行を1回で構築』への直列従属で、単一 SSOT (法人番号キー / 7列 + 確認用URL本文 / 確度4ラベル) を共有するため **1 skill (本 run-company-master-build) に束ねる**。enrich と upsert は resolve 出力に強結合し独立起動の意味を持たない。一方 backfill は「断片入力からの新規構築」ではなく「**既存 Notion マスタの空欄を起点に底上げする**」別用途で、入力起点 (Notion DB ⇄ 断片情報) も実行タイミングも独立し、2 パス Web 検索という固有の goal-seek を持つため **run-company-master-backfill として独立 skill に切り出す** (contract-generator の draft/finalize が独立起動ゆえ別 skill なのと同型)。resolve/enrich/upsert を skill 分割しないのは上記の直列従属ゆえで、「分割のための分割」を避ける判断。**2026-06-10 reject を覆す差分論証**: 当時は「command/agent 層で物理分離済みゆえ新規 skill 分割は不要」と判断したが、`disable-model-invocation: false` 下では LLM 自動起動の分岐点は command でなく **skill description** であり、command 分離だけでは「新規構築」と「既存底上げ」の起動意図を Claude が自律選択できない。起動意図の分離には skill 昇格が必要、という差分が 2026-06-18 の backfill 昇格を正当化する (前提として build description から backfill 責務文言を除去し新規構築へ純化済み)。**分割の真の判定軸 = 「起動独立性 × LLM 自律 dispatch 要否」の合成**: backfill は Claude が文脈から自律起動すべき責務 (skill) だが、doctor は決定論保守で人間の明示実行で足りる (LLM 判断ループ無し → `company_master.py` のサブコマンド止まり) という非対称をこの軸が一貫説明する。
+2. **なぜ共有実装を plugin-root に集約したか (dangling 根絶)**: backfill skill は resolve/enrich/upsert の実装 (scripts)・7列定義/確度/備考テンプレート (references)・R1 同定 prompt を build skill と 100% 共有する。これらを build skill 配下に残したまま backfill skill から参照すると skill 間相対参照の dangling リスクが残るため、**共有 scripts / references / prompts を plugin-root に集約**し、両 skill が `../../`・agents が `../` で参照する単一 SSOT とした。skill 配下に残すのは skill 固有の `references/resource-map.yaml` のみ。flat import (`import notion_config` 等) のため集約後も script 内部の import は不変 (移設の影響は参照層のみ)。なお `company_master.py` は build/backfill 両 skill の**共有 wrapper** で backfill サブコマンド (`run_backfill`) も提供するため、build の `script_refs` にも `backfill.py` を**推移的依存**として宣言する (物理依存は実在するため宣言する一方、論理責務としての backfill 制御の正本は backfill skill 側であり責務マッピングには非掲載とする二層表現)。
 3. **なぜ vendor 空が正常か**: 全 script が標準ライブラリのみで動作し外部依存ゼロのため、`vendor/` は将来用の空の受け皿で空が正常 (B1 lint が空の正当性を機械強制)。
 4. **なぜ prompt 実体が R1 のみか**: resolve は会社名/住所の曖昧候補突合という LLM 判断ループを持つため 7 層 prompt (R1) が要る。enrich / upsert は決定論 (日本郵便API 逆引き・形式検証・キー突合) + Web 検索結果入力で LLM 判断ループを持たないため 7 層 prompt 不要。
 5. **なぜ二段防御を references 配布か**: plugin は repo の `.claude/settings.json` を直接配布・上書きできないため、静的層 deny ルールは `references/settings-hardening.json` として配布し利用者がマージする (詳細は「セキュリティと権限」節)。動的層 hook は plugin.json で常時配線される。
-6. **なぜ確認用URLを DB プロパティ列でなくページ本文へ出すか**: 確認用URLは手動検証専用で行の検索・突合キーにならないため、DB 列にすると 9 列目の冗長化を招く。本文へ固定テンプレート (`confirm-url-template.md` 正本・`confirm_url.py` 展開) で出すことで DB を 8 列に保ち、create/update/backfill 全経路で 100% 同一テンプレートを冪等保証する (remarks-templates.md と同型の SSOT パターン)。当初要求『9列』からのこの差分 (8列+ページ本文URL) は**ユーザー承認済み (2026-06-10)**。
+6. **なぜ確認用URLを DB プロパティ列でなくページ本文へ出すか**: 確認用URLは手動検証専用で行の検索・突合キーにならないため、DB 列にすると冗長な追加列を招く。本文へ固定テンプレート (`confirm-url-template.md` 正本・`confirm_url.py` 展開) で出すことで DB を 7 列に保ち、create/update/backfill 全経路で 100% 同一テンプレートを冪等保証する (remarks-templates.md と同型の SSOT パターン)。当初要求『9列』からの差分 (確認用URLをページ本文化、さらに 2026-06-26 に正式名称を会社名 title へ統合し 7列化) は**ユーザー承認済み**。
 7. **なぜ中央プロキシ (postal_proxy.py) を optional-server として用意したか (配布モデル正本の確定)**: 日本郵便の送信元IP許可リストは 1鍵あたり最大10件のため、送信元IPを固定できない/拠点数>10 の環境では各クライアントが自IPを登録する BYO が IP 件数上限に達しうる。この例外ケース向けに**鍵 (client_id/secret_key) と固定送信元IPをサーバ1台に集約**する中央プロキシ (`scripts/postal_proxy.py`、標準ライブラリのみ・`postal_api` の token 発行/IP 認証/addresszip 呼び出しを再利用し直叩きと挙動一致) を `optional-postal-proxy-server` として用意し、該当クライアントだけ `proxy_url` (+任意 `proxy_token`) を設定する。**配布モデルの正本 = BYO 直結が既定 (各自が自分の `client_id`/`secret_key` + 送信元IP で日本郵便 API を直接叩く)、中央プロキシは送信元IPを固定できない/拠点数>10 で IP 上限に達する場合の例外オプトイン** (2026-06-18 にプロキシ既定で決定後、**2026-06-24 にチーム判断で BYO 直結既定へ反転**。実装 `company_master.py` が BYO 既定で動作する側を正とする)。プロキシのデプロイ/設定の正本手順は `references/postal-proxy-deploy.md`、BYO の正本は `references/japanpost-api-setup.md`。`get_postal_proxy_url` が設定されていれば `postal_api.lookup_postal` は自動でプロキシ経由になる (鍵/IP はクライアントに不要)。
 
 ## 追加リソース
 
 > 共有 SSOT (scripts / references / prompts) は **plugin-root に集約**し、build・backfill 両 skill が `../../` で参照する。skill 固有は `references/resource-map.yaml` のみ。詳細は設計判断ログ #1・#2。
 
-- `../../references/` — 8列定義 + 確認用URL本文 / 確認用URLテンプレート / データソース・確度 / 備考テンプレート (plugin-root 集約・両 skill 共有)
+- `../../references/` — 7列定義 + 確認用URL本文 / 確認用URLテンプレート / データソース・確度 / 備考テンプレート (plugin-root 集約・両 skill 共有)
 - `../../references/confirm-url-template.md` — 確認用URL ページ本文の固定テンプレート正本 (`../../scripts/confirm_url.py` が展開)
 - `../../references/README-setup.md` — Keychain 3鍵登録 (notion-api-key.xl-skills / gbizinfo-api-token.xl-skills / japanpost-da-api.xl-skills)・settings-hardening マージ・`--upsert` 挙動のセットアップ手順
 - `../../references/settings-hardening.json` — 二段防御の静的層 deny ルール (利用者が `.claude/settings.json` へマージ)
@@ -250,4 +250,4 @@ PY
 
 6. **配布モデルの確定 (BYO 直結既定)** — **戦略決定済み (2026-06-18 → 2026-06-24 反転)**: 当初 (2026-06-18) は送信元IP許可リスト上限 (1鍵最大10件) を理由に中央プロキシ既定で決定したが、**2026-06-24 にチーム判断で BYO 直結既定へ反転**した。**正本 = BYO 直結 (各自が `client_id`/`secret_key` + 送信元IP を登録し直接叩く・`references/japanpost-api-setup.md`) が既定、中央プロキシ (鍵と固定IPをサーバ集約・`scripts/postal_proxy.py` / 手順 `references/postal-proxy-deploy.md`) は送信元IPを固定できない/拠点数>10 で IP 上限に達する場合の例外オプトイン**。実装 (`company_master.py` の郵便番号取得モード表示・`notion_config.get_postal_proxy_url`) が BYO 既定側で一致。配線は `notion_config.get_postal_proxy_url/get_postal_proxy_token` + `plugin-composition.yaml` の `postal_proxy` capability 宣言で完了済み。残課題はプロキシ実 deploy 後の疎通確認のみ (別 PR)。
 
-未解消は 1・5 の実 API キー登録後の疎通確認・一意確定率実測、および 6 のプロキシ実 deploy 後の疎通確認のみ (`doctor --probe` + dry-run で蓄積後に別 PR)。なお 2026-06-10 に実トークンで E2E を実証済み: doctor 全 OK → live DB を 8列正本へ整備 (rename+型変更+2列追加) → 法人番号入力で resolve(公的データで確認済み)→enrich→validate PASS→upsert created (8列+本文確認用URL節を確認) → テスト行 archive (郵便番号の addresszip 移行は 2026-06-18)。
+未解消は 1・5 の実 API キー登録後の疎通確認・一意確定率実測、および 6 のプロキシ実 deploy 後の疎通確認のみ (`doctor --probe` + dry-run で蓄積後に別 PR)。なお 2026-06-10 に実トークンで E2E を実証済み (当時は8列構成): doctor 全 OK → live DB を当時の正本へ整備 → 法人番号入力で resolve(公的データで確認済み)→enrich→validate PASS→upsert created (本文確認用URL節を確認) → テスト行 archive (郵便番号の addresszip 移行は 2026-06-18)。2026-06-26 に正式名称列を会社名 title へ統合し 7列化 (live 列の物理削除はユーザー実施)。

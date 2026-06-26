@@ -20,7 +20,7 @@ resources:
     topic: "SubAgent 分担: 法人番号未確定行を同定する"
     read_when: 会社名/住所のみで法人番号未確定の行を同定したいとき
   - file: ../../../references/company-master-columns.md
-    topic: Notion 8列定義 + 確度4ラベル・整合ルール (build と共有正本)
+    topic: Notion 7列定義 (正式名称は会社名 title 統合) + 確度4ラベル・整合ルール (build と共有正本)
     read_when: 列構成・フォーマット規約・deterministic_checks を確認したいとき
   - file: ../../../references/data-sources.md
     topic: gBizINFO/日本郵便API/Web検索の取得方針・fallback tier・確度マッピング・信頼キー
@@ -35,7 +35,7 @@ resources:
     topic: 中央プロキシのデプロイ/設定 (送信元IPを固定できない/拠点数>10 の例外オプトイン。鍵と固定IPを1台に集約。既定は BYO 直結)
     read_when: 社内チーム/フルリモート/送信元IP>10 で郵便番号取得を中央集約したいとき
   - file: ../../../references/notion-db-schema.json
-    topic: live スキーマ preflight 用の機械可読8列スキーマ
+    topic: live スキーマ preflight 用の機械可読7列スキーマ
     read_when: preflight 照合内容を確認したいとき
   - file: ../../../references/remarks-templates.md
     topic: 取得失敗時の『備考』定型テンプレート文言 (自由記述禁止の正本)

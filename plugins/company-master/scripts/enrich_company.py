@@ -24,7 +24,7 @@ references/remarks-templates.md の定型テンプレート文言で原因を記
 per-field provenance (出典スキーマの正本): 全 6 属性の取得由来を `source_by_field`
 (= {field: {origin, url}}, origin enum = {gbizinfo, japanpost, web, user_input, none}) として
 必ず付与する (company_name=user_input 含む)。gBizINFO 由来 3 属性は法人詳細ページ URL
-(strong)、郵便番号は日本郵便 郵便番号検索の固定 URL (weak)、電話番号は Web ヒット URL を持つ。
+(strong)、郵便番号は日本郵便トップの固定 URL (weak)、電話番号は番号埋め込み Google 検索の固定 URL (weak) を持つ。
 各 field 値 dict は拡張可能 (後続のフォールバック多段化が attempts 等を併設できる)。
 `source_urls` は source_by_field から ATTRIBUTE_FIELDS 固定順 (columns.md 列順) で導出する
 派生値 (後方互換)。後段(notion_upsert)が confirm-url-template.md の定型テンプレートで
@@ -54,6 +54,7 @@ import argparse
 import json
 import re
 import sys
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -61,6 +62,7 @@ import remarks as remarks_module  # noqa: E402  (備考定型文言の正本 rem
 import normalize as normalize_module  # noqa: E402  (会社名/住所正規化の共有正本)
 import postal_api  # noqa: E402  (日本郵便 addresszip API による住所→郵便番号逆引き)
 import confirm_url as confirm_url_module  # noqa: E402  (属性表示名/列順の共有定義: FIELD_LABELS)
+import resolve_company  # noqa: E402  (gBizINFO 法人詳細ページ URL の共有正本)
 
 POSTAL_RE = re.compile(r"^\d{3}-\d{4}$")
 PHONE_RE = re.compile(r"^\d{1,4}(-\d{1,4}){1,3}$")
@@ -95,6 +97,22 @@ ORIGIN_NONE = "none"
 # フォールバック多段化の停止条件 (data-sources.md fallback tier 表 正本): field あたりの
 # 試行記録上限。同一 (source, pattern) の再試行とあわせて機械的にスキップする。
 MAX_ATTEMPTS_PER_FIELD = 3
+
+# 電話番号の確認用 URL を生成する固定検索手段の SSOT (R2)。Google で `"<電話番号>"`
+# (ダブルクォート完全一致検索) を引くクエリを唯一の定義として持ち、他所で literal 再定義しない。
+PHONE_SEARCH_BASE = "https://www.google.com/search?q="
+
+
+def phone_search_url(phone: str) -> str:
+    """電話番号の確認用 URL を Google 検索クエリで決定論生成する (固定手段・weak provenance)。
+
+    `"<電話番号>"` を urllib.parse.quote で %22+番号へエンコードし、同一番号→同一 URL の
+    byte 安定を保つ (R2)。番号内のハイフンは unreserved のため非エンコードで残る。空番号は空文字。
+    """
+    p = (phone or "").strip()
+    if not p:
+        return ""
+    return PHONE_SEARCH_BASE + urllib.parse.quote(f'"{p}"')
 
 
 def note_attempt(attempts: list[dict], field: str, source: str, pattern: str,
@@ -247,14 +265,16 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
     official_name = entity.get("official_name", "")
     address = normalize_address(entity.get("address", ""))
     gbiz_url = (entity.get("source_url") or "").strip()  # resolve 由来 (旧 replay は .get 既定)
+    if not gbiz_url and entity.get("hojin_bango"):
+        gbiz_url = resolve_company.detail_page_url(str(entity.get("hojin_bango", "")))
 
     fields: dict[str, str] = {
         "company_name": entity.get("company_name", ""),       # 入力通称を保持
         "official_name": official_name,                        # gBizINFO 登記名
         "address": address,
-        "postal_code": "",
+        "postal_code": entity.get("postal_code", ""),
         "hojin_bango": entity.get("hojin_bango", ""),
-        "phone_number": "",
+        "phone_number": entity.get("phone_number", ""),
     }
     certainty: dict[str, str] = {}
     remarks: list[str] = []
@@ -280,6 +300,18 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
     if fields["address"]:
         certainty["address"] = CERTAINTY_PUBLIC_FETCHED
         source_by_field["address"] = {"origin": ORIGIN_GBIZINFO, "url": gbiz_url}
+    if fields["postal_code"]:
+        certainty["postal_code"] = CERTAINTY_PUBLIC_FETCHED
+        source_by_field["postal_code"] = {
+            "origin": ORIGIN_JAPANPOST,
+            "url": (entity.get("postal_code_source_url") or postal_api.JAPANPOST_VERIFY_URL),
+        }
+    if fields["phone_number"]:
+        certainty["phone_number"] = CERTAINTY_WEB
+        source_by_field["phone_number"] = {
+            "origin": ORIGIN_WEB,
+            "url": phone_search_url(fields["phone_number"]),
+        }
 
     # 郵便番号 (日本郵便 addresszip API 逆引き)。検証 URL は日本郵便 郵便番号検索の固定 URL (weak)。
     if not fields["postal_code"] and fields["address"]:
@@ -314,7 +346,8 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
             else:
                 remarks.append(p["remark_key"] or "postal_code")
 
-    # 電話番号 (Claude の Web 検索結果を Python が検証・整形)。検証 URL は Web ヒット URL。
+    # 電話番号 (Claude の Web 検索結果を Python が検証・整形)。検証 URL は番号埋め込み Google
+    # 検索の固定 URL (R2・weak。per-value 根拠ページでなく『その番号を検索する手段』を提示)。
     if not fields["phone_number"]:
         phone_candidate = web_findings.get("phone")
         if phone_candidate:
@@ -332,7 +365,10 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
         if ph["value"] and PHONE_RE.match(ph["value"]):
             fields["phone_number"] = ph["value"]
             certainty["phone_number"] = ph["certainty"]
-            source_by_field["phone_number"] = {"origin": ORIGIN_WEB, "url": ph["source_url"]}
+            # origin=web 維持・url は固定の Google 検索 URL (R2)。Web ヒット URL でなく
+            # 『番号を再検索する手段』を weak provenance として持つ (doc の web 定義に整合)。
+            source_by_field["phone_number"] = {
+                "origin": ORIGIN_WEB, "url": phone_search_url(fields["phone_number"])}
         else:
             certainty["phone_number"] = CERTAINTY_UNRESOLVED
             remarks.append(ph["remark_key"] or "phone_number")

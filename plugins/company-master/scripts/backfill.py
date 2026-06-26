@@ -105,13 +105,30 @@ def append_replay(record: dict) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def select_backfill_targets(rows: list[dict]) -> list[dict]:
-    """空欄列を持つ or 要確認の行のみを対象に絞る。"""
+def select_backfill_targets(rows: list[dict], migrate_company_title: bool = False) -> list[dict]:
+    """空欄列を持つ or 要確認の行のみを対象に絞る。
+
+    company_name(通称) は会社名 title へ official_name を統合した後 (R3/R4) は独立 DB 列として
+    永続化されず enrich の補完対象でもないため、空欄判定から除外する (恒久的に空欄扱いされ全行が
+    無限 backfill 対象化するのを防ぐ・F6)。official_name も列を持たないが row_from_page で title
+    から導出されるため非空 (空欄判定に影響しない)。
+
+    移行モード (migrate_company_title=True): 有効な法人番号 (13桁) を持つ行を対象に含める。
+    正式名称列を物理削除した後は row_from_page の official_name が title (通称) へフォールバックし
+    company_name と一致するため、選定段では登記名差を判定できない (列差で判定する旧経路は
+    列削除後に常時 no-op 化する)。よって選定では『再 resolve で登記名を得られる行 = 法人番号保有行』
+    を候補化し、登記名への上書き要否 (official != 既存 title) の冪等判定は再 resolve 後の
+    patch_empty_cells に委ねる (既に title が登記名なら patch が no-op)。
+    """
     targets = []
     for row in rows:
-        empty_cols = [k for k, v in row.get("fields", {}).items() if not v]
+        f = row.get("fields", {})
+        empty_cols = [k for k, v in f.items() if not v and k != "company_name"]
         needs_reverify = row.get("certainty") in REQUIRE_REVERIFY_CERTAINTIES
-        if empty_cols or needs_reverify:
+        needs_title_migration = bool(
+            migrate_company_title and HOJIN_BANGO_RE.match(f.get("hojin_bango", "") or "")
+        )
+        if empty_cols or needs_reverify or needs_title_migration:
             targets.append({"row": row, "empty_cols": empty_cols})
     return targets
 
@@ -129,11 +146,20 @@ def _plain_select(prop: dict) -> str:
 
 
 def row_from_page(page: dict) -> dict:
-    """Notion page を backfill 対象判定用の共通 row へ変換する。"""
+    """Notion page を backfill 対象判定用の共通 row へ変換する (7 列構成・移行対応)。
+
+    正式名称列は会社名(title)へ統合 (R4) したため、company_name は title 文字列を読む。
+    official_name は best-effort で旧『正式名称』列があればそれを読むが、列を物理削除した後は
+    常に空となり title へフォールバックする (= company_name と一致)。よって既存行の登記名は
+    本関数からは復元できず、移行は select_backfill_targets が法人番号保有行を候補化し再 resolve
+    (gBizINFO) で登記名を得てから patch_empty_cells が title を上書きする経路で行う。
+    """
     props = page.get("properties", {})
+    title_text = _plain_title(props.get(notion_upsert.COL_COMPANY_NAME, {}))
+    legacy_official = _plain_rich_text(props.get(notion_upsert.COL_OFFICIAL_NAME, {}))
     fields = {
-        "company_name": _plain_title(props.get(notion_upsert.COL_COMPANY_NAME, {})),
-        "official_name": _plain_rich_text(props.get(notion_upsert.COL_OFFICIAL_NAME, {})),
+        "company_name": title_text,
+        "official_name": legacy_official or title_text,
         "address": _plain_rich_text(props.get(notion_upsert.COL_ADDRESS, {})),
         "postal_code": _plain_rich_text(props.get(notion_upsert.COL_POSTAL, {})),
         "hojin_bango": _plain_rich_text(props.get(notion_upsert.COL_HOJIN_BANGO, {})),
@@ -148,7 +174,7 @@ def row_from_page(page: dict) -> dict:
 
 
 def query_rows(db_id: str, token: str) -> list[dict]:
-    """Notion DB を全件 query し、8列共通 row に変換する (確認用URLはページ本文へ移行)。"""
+    """Notion DB を全件 query し、7列共通 row に変換する (確認用URLはページ本文へ移行)。"""
     rows: list[dict] = []
     cursor = None
     while True:
@@ -193,6 +219,9 @@ def merge_entity_defaults(row: dict, resolved: dict) -> dict | None:
     # 既存住所があり、resolve 側住所が空なら既存値を使う。resolve 側がある場合は公的値を優先する。
     if not entity.get("address") and f.get("address"):
         entity["address"] = f["address"]
+    for field in ("postal_code", "phone_number"):
+        if f.get(field):
+            entity[field] = f[field]
     # per-field provenance 伝搬: gBizINFO 法人詳細ページ URL を enrich (source_by_field) へ渡す。
     # 旧 replay の resolved/entity に source_url が無くても .get 既定で後方互換。
     entity.setdefault("source_url", resolved.get("source_url", ""))
@@ -209,13 +238,19 @@ def validate_enriched(enriched: dict) -> list[str]:
     return validate_company_master.validate_row(enriched, 0, remark_phrases)
 
 
-def patch_empty_cells(page_id: str, token: str, row: dict, enriched: dict, dry_run: bool) -> dict:
+def patch_empty_cells(page_id: str, token: str, row: dict, enriched: dict, dry_run: bool,
+                      migrate_company_title: bool = False) -> dict:
     """既存空欄セルだけ PATCH し、確認用URLはページ本文へ URL 非減少マージで冪等同期する。
 
     本文同期の入力正本は enriched.source_by_field ({field:{origin,url}})。旧形式 record は
     source_urls へフォールバック (後方互換)。今回 URL を提示できない属性の既存出典は
     sync_confirm_url_body のマージが保持する (出典 URL を本文同期で喪失させない)。
     dry-run 時は副作用を抑止し PATCH 内容だけ返す (本文同期も抑止)。
+
+    移行モード (migrate_company_title=True): official_name(登記名) 取得済み行に限り、会社名 title を
+    登記名で上書きする (title に限り既存非空セル保護を解除)。official_name 空行は触らず、住所/郵便/
+    法人番号/電話の非空保護は維持し、alt_key の素材 (company_name 通称) も不変。既に title が登記名
+    なら no-op (冪等)。
     """
     existing = dict(row.get("fields", {}))
     existing.update({
@@ -223,6 +258,12 @@ def patch_empty_cells(page_id: str, token: str, row: dict, enriched: dict, dry_r
         "remarks_text": row.get("remarks_text", ""),
     })
     props = notion_upsert.build_fill_empty_properties(enriched, existing)
+    if migrate_company_title:
+        official = (enriched.get("fields", {}) or {}).get("official_name", "")
+        if official and existing.get("company_name") != official:
+            # title は build_properties の SSOT (official_name 優先) で組み、会社名列のみ上書き対象に追加。
+            props[notion_upsert.COL_COMPANY_NAME] = (
+                notion_upsert.build_properties(enriched)[notion_upsert.COL_COMPANY_NAME])
     body = None
     if not dry_run:
         if props:
@@ -249,6 +290,12 @@ def main() -> int:
         help="page_id キーの属性別候補マップ JSON (2パス運用の再投入口。"
              "例 {\"<page_id>\": {\"phone\": {\"value\": \"03-...\", \"source_url\": \"https://...\"}}})",
     )
+    ap.add_argument(
+        "--migrate-company-title", action="store_true",
+        help="移行モード: official_name(登記名) 取得済み行の会社名 title を登記名へ上書きする "
+             "(title に限り既存非空セル保護を解除。住所/郵便/法人番号/電話の保護と alt_key は不変)。"
+             "--dry-run と併用で書き込まず対象だけ確認できる。",
+    )
     args = ap.parse_args()
     try:
         web_findings_map = json.loads(args.web_findings) if args.web_findings else {}
@@ -274,7 +321,7 @@ def main() -> int:
         return 2
 
     rows = query_rows(db_id, token)
-    targets = select_backfill_targets(rows)
+    targets = select_backfill_targets(rows, migrate_company_title=args.migrate_company_title)
     results = []
     deferred = 0
     backfilled = 0
@@ -315,7 +362,8 @@ def main() -> int:
                 append_replay(item)
                 results.append(item)
                 continue
-            patched = patch_empty_cells(row["page_id"], token, row, enriched, args.dry_run)
+            patched = patch_empty_cells(row["page_id"], token, row, enriched, args.dry_run,
+                                        migrate_company_title=args.migrate_company_title)
             if patched["action"] in {"updated", "dry-run"} and patched["patched_properties"]:
                 backfilled += 1
             item = {"page_id": row.get("page_id"), "resolved": resolved, "patch": patched,
