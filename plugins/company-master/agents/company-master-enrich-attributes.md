@@ -20,7 +20,7 @@ resolve 済みの確定/候補企業に対し、6属性 (会社名・正式名�
 - 上流 (`company-master-resolve-identity`) からの確定エンティティ JSON: `entity` (hojin_bango / official_name / address / source_url) または `candidates[]`
 - gap-driven 再試行入力 (任意・2パス運用): 前回 enrich / backfill 出力の `missing_fields[]` と `attempts[]` (`{field, source, pattern, result, reject_reason}`)。backfill 1パス目の `needs_web_search` がこの形で渡る
 - 実行スクリプト: `../scripts/enrich_company.py` (`--web-findings <json>` で Web 検索結果を受領し検証・整形)、`../scripts/notion_config.py` (トークン解決)
-- 参照: `../references/company-master-columns.md` (8列定義+確認用URL本文・確度4ラベル)、`../references/data-sources.md` (日本郵便API・gBizINFO)、`../references/japanpost-api-setup.md` (郵便番号 API のキー/IP セットアップ正本)、`../references/remarks-templates.md` (備考定型文言の正本)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)
+- 参照: `../references/company-master-columns.md` (7列定義+確認用URL本文・確度4ラベル)、`../references/data-sources.md` (日本郵便API・gBizINFO)、`../references/japanpost-api-setup.md` (郵便番号 API のキー/IP セットアップ正本)、`../references/remarks-templates.md` (備考定型文言の正本)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)
 
 ## Outputs
 
@@ -42,11 +42,11 @@ resolve 済みの確定/候補企業に対し、6属性 (会社名・正式名�
     "company_name": {"origin": "user_input", "url": ""},
     "official_name": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
     "address": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
-    "postal_code": {"origin": "japanpost", "url": "https://www.post.japanpost.jp/zipcode/"},
+    "postal_code": {"origin": "japanpost", "url": "https://www.post.japanpost.jp/"},
     "hojin_bango": {"origin": "gbizinfo", "url": "https://info.gbiz.go.jp/hojin/ichiran?hojinBango=1234567890123"},
-    "phone_number": {"origin": "web", "url": "https://..."}
+    "phone_number": {"origin": "web", "url": "https://www.google.com/search?q=%2203-1234-5678%22"}
   },
-  "source_urls": [{"attribute": "電話番号", "origin": "web", "url": "https://..."}],
+  "source_urls": [{"attribute": "電話番号", "origin": "web", "url": "https://www.google.com/search?q=%2203-1234-5678%22"}],
   "missing_fields": [],
   "attempts": [
     {"field": "postal_code", "source": "japanpost", "pattern": "addresszip", "result": "hit", "reject_reason": ""},

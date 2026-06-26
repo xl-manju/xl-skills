@@ -68,8 +68,9 @@ BASE_URL = "https://api.da.pf.japanpost.jp"
 TOKEN_PATH = "/api/v2/j/token"
 ADDRESSZIP_PATH = "/api/v2/addresszip"
 # 確定郵便番号の固定検証手段 URL (weak provenance)。API 逆引きは per-value の取得元ページが
-# 存在しないため、人間が再検証できる日本郵便 郵便番号検索の固定 URL を返す。
-JAPANPOST_VERIFY_URL = "https://www.post.japanpost.jp/zipcode/"
+# 存在しないため、人間が再検証できる日本郵便 (郵便番号検索の入口) トップ URL を返す。
+# 本値はプラグイン全体の唯一の正本 (SSOT)。他スクリプトは literal 再定義せず本定数を import する。
+JAPANPOST_VERIFY_URL = "https://www.post.japanpost.jp/"
 
 CERTAINTY_PUBLIC_FETCHED = "公的データ取得"
 CERTAINTY_UNRESOLVED = "未確定(要確認)"

@@ -11,12 +11,12 @@
 > **どこに書き込まれるか(対象読者)**
 >
 > 記録先は **XLOCAL 社内の共有 Notion 一覧表(設定済み)** です。社内で使う方は、このまま読み進めれば設定不要でその表に書き込まれます。
-> **自分の別の Notion で使いたい方**は、同じ8列の一覧表を自分で用意し(列の作り方: [`company-master-columns.md`](references/company-master-columns.md))、書き込み先を切り替えられます(Claude に「出力先の Notion データベースを ○○ に変えて」と頼むか、設定値 `COMPANY_MASTER_NOTION_DATABASE_ID` / `.notion-config.json` で指定。詳細: [`README-setup.md`](references/README-setup.md))。
+> **自分の別の Notion で使いたい方**は、同じ7列の一覧表を自分で用意し(列の作り方: [`company-master-columns.md`](references/company-master-columns.md))、書き込み先を切り替えられます(Claude に「出力先の Notion データベースを ○○ に変えて」と頼むか、設定値 `COMPANY_MASTER_NOTION_DATABASE_ID` / `.notion-config.json` で指定。詳細: [`README-setup.md`](references/README-setup.md))。
 >
 > | 使い方 | Notion DB ID | Notion 側で必要なこと |
 > |---|---|---|
 > | 社内共有DBを使う | 入力不要(同梱既定値) | 自分の Integration を共有DBの Connections に追加できる権限を持つ人に依頼、または自分で追加 |
-> | 自分のDBを使う | `COMPANY_MASTER_NOTION_DATABASE_ID` か `.notion-config.json` で指定 | 同じ8列を作り、自分の Integration をそのDBに接続 |
+> | 自分のDBを使う | `COMPANY_MASTER_NOTION_DATABASE_ID` か `.notion-config.json` で指定 | 同じ7列を作り、自分の Integration をそのDBに接続 |
 >
 > 401/403 が出る場合は、トークン登録だけでなく **Notion DB 側の Connections に Integration が追加されているか** を確認してください。
 
@@ -50,8 +50,7 @@
 
 | Notion の列 | 内容 | どこから取るか |
 |---|---|---|
-| 会社名 | あなたが入力した通称 | 入力そのまま |
-| 正式名称 | 登記上の正式な社名 | gBizINFO(経済産業省) |
+| 会社名 | 登記上の正式な社名(取れたとき)。取れなければあなたが入力した通称 | gBizINFO(経済産業省) / 入力 |
 | 住所 | 都道府県から始まる住所 | gBizINFO |
 | 郵便番号 | `123-4567` の8文字 | 日本郵便データ |
 | 法人番号 | 13桁の番号 | gBizINFO |
@@ -59,7 +58,7 @@
 | 情報の確かさ | その行がどれくらい信頼できるか(下記4種) | 自動判定 |
 | 備考 | 取れなかった項目の理由(定型文) | 自動記録 |
 
-(上記の8列に加えて、ネット検索した値の**根拠ページURL**は各企業の **Notion ページ本文**に「確認用URL（手動検証用）」として固定の見出し付きで自動記録されます。DB の列は8列のままに保ちます。)
+(「会社名」列は、登記上の正式名称が取れたときはそれを表示し、取れなかったときだけあなたの入力した通称を表示します=**正式名称は会社名列にまとめ、独立した「正式名称」列は作りません**。上記の7列に加えて、ネット検索した値の**根拠ページURL**は各企業の **Notion ページ本文**に「確認用URL（手動検証用）」として固定の見出し付きで自動記録されます。DB の列は7列のままに保ちます。)
 
 「情報の確かさ」は次の4つのいずれかが入ります(専門用語は使いません):
 
