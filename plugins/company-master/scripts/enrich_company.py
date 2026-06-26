@@ -358,10 +358,13 @@ def enrich(entity: dict, web_findings: dict | None = None) -> dict:
                 "" if ph["value"] else "形式不正または市外局番×所在地都道府県の不整合",
             )
         else:
-            # web_findings 未提供時は従来動作 (空欄 + 未確定 + remark)。試行していないため
-            # attempts には記録しない (missing_fields が agent への gap 通知になる)。
+            # web_findings に phone 候補が無い = Web検索を実施していない or 検索したが候補なし。
+            # 候補を検証して棄却した phone_number とは状態が異なるため別 remark_key を使う
+            # (備考が『検索して失敗』と誤読されるのを防ぐ。postal が attempts 種別で文言を
+            #  出し分けるのと対称に、phone も実際の試行内容に忠実な文言にする)。
+            # 試行していないため attempts には記録しない (missing_fields が agent への gap 通知)。
             ph = {"value": "", "certainty": CERTAINTY_UNRESOLVED,
-                  "remark_key": "phone_number", "source_url": ""}
+                  "remark_key": "phone_no_web_candidate", "source_url": ""}
         if ph["value"] and PHONE_RE.match(ph["value"]):
             fields["phone_number"] = ph["value"]
             certainty["phone_number"] = ph["certainty"]

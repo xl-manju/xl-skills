@@ -364,12 +364,13 @@ def test_confirm_url_merge_entries_url_nondecreasing():
 
 
 def test_remarks_ssot_parses():
-    """remarks.load_templates() が 9 キー (6属性 + postal_api_unauthorized/unavailable + all_tiers_exhausted)。"""
+    """remarks.load_templates() が 10 キー (6属性 + postal 2 区別 + phone 保留 + all_tiers_exhausted)。"""
     templates = remarks.load_templates()
-    assert len(templates) == 9
+    assert len(templates) == 10
     assert "all_tiers_exhausted" in templates  # fallback tier4 の定型文言 (placeholder 付き)
     assert "postal_api_unauthorized" in templates  # 日本郵便API 認証失敗 (IP未登録/鍵不正) の区別文言
     assert "postal_api_unavailable" in templates  # 日本郵便API 通信失敗 (ネットワーク/一時障害) の区別文言
+    assert "phone_no_web_candidate" in templates  # Web検索未実施/候補なし (検証棄却 phone_number と区別)
     for key, phrase in templates.items():
         assert phrase.strip(), f"remark_key {key!r} が空文言"
 
@@ -477,6 +478,44 @@ def test_enrich_unresolved_fields_get_origin_none():
     """web_findings 無し (電話未取得) でも phone_number に origin=none が必ず付く。"""
     rec = _enrich_offline(SAMPLE_ENTITY, None)
     assert rec["source_by_field"]["phone_number"] == {"origin": "none", "url": ""}
+
+
+def test_enrich_phone_unsearched_uses_pending_remark():
+    """Web検索未実施 (web_findings に phone 無し) の電話空欄は『検索して失敗』でなく保留 remark。
+
+    全レコードに『Web検索で…抽出できず』が一律に付く根因の回帰防止: 未検索/候補なしは
+    検証で棄却した phone_number とは別キー (phone_no_web_candidate) で記録し、備考が
+    『検索したが失敗した』と誤読されないことを担保する。
+    """
+    rec = _enrich_offline(SAMPLE_ENTITY, None)
+    assert "phone_no_web_candidate" in rec["remark_keys"]
+    assert "phone_number" not in rec["remark_keys"]
+    # 文言が『未検索/候補なし』を表し、検証失敗(整合不成立)の文言と混同しないこと。
+    assert "保留" in rec["remarks_text"]
+    assert "検証に失敗" not in rec["remarks_text"]
+    # 未試行なので attempts に phone の試行履歴は残さない (missing_fields が gap 通知)。
+    assert rec["missing_fields"] == ["phone_number"]
+    assert not any(a.get("field") == "phone_number" for a in rec["attempts"])
+
+
+def test_enrich_phone_searched_but_rejected_keeps_failure_remark():
+    """Web検索候補を渡して確度検証で棄却した時は従来の取得失敗 remark (phone_number) を維持。
+
+    候補が提供された = Web検索を実施した状態なので、保留 (phone_no_web_candidate) ではなく
+    『検証に失敗』を記録し、試行履歴 (attempts) にも rejected を残す。
+    """
+    rec = _enrich_offline(
+        SAMPLE_ENTITY,
+        {"phone": {"value": "not-a-phone", "source_url": "https://example.co.jp/contact"}},
+    )
+    assert rec["fields"]["phone_number"] == ""
+    assert "phone_number" in rec["remark_keys"]
+    assert "phone_no_web_candidate" not in rec["remark_keys"]
+    # 検索を実施した証跡 (rejected) が attempts に残る。
+    assert any(
+        a.get("field") == "phone_number" and a.get("result") == "rejected"
+        for a in rec["attempts"]
+    ), rec["attempts"]
 
 
 def test_enrich_preserves_existing_postal_and_phone_without_refetch(monkeypatch):
