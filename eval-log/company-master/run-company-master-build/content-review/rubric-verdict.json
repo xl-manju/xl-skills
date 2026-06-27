@@ -2,7 +2,7 @@
   "target": {
     "plugin": "company-master",
     "skill": "run-company-master-build",
-    "skill_md_sha256": "552f0aeb95b5467a376779c0a135e3c4975faaa8ed49e3e7b21d1a20eaa92f71"
+    "skill_md_sha256": "c161d9727eac0346f77db5eba267fcefac56db757d7baf9de54b54e1a14e6ecd"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,22 +14,22 @@
     "smell": 1
   },
   "reviewer": "independent-content-review-reviewer",
-  "reviewed_at": "2026-06-25",
-  "iterations": 2,
+  "reviewed_at": "2026-06-26",
+  "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "郵便番号フォールバック記述更新 (2段→3段) は本文の追加・置換のみで rubric の構造観点に影響しない: FM-001 (name=run-company-master-build, run-prefix+kebab+len23) / NM-001 (dir basename == name) / BD-003 (本文行数 <= 300) / PD-001 (references/resource-map.yaml 存在) / PD-002 (冒頭30行内に目的節+禁則) を引き続き充足。frontmatter feedback_contract は本デルタで不変で id=^(IN|OUT|C)[0-9]+$ / verify_by enum / inner+outer 各1件以上の SSOT 制約を満たす。",
-      "設計判断ログ・open_issues・責務マッピングが SSOT を plugin-root に集約する向きで明記され、build/backfill 2 skill 分割の論証 (起動独立性 × LLM 自律 dispatch) が追跡可能。出力契約の実体 (8列・確度4ラベル・per-field source_by_field・確認用URL本文) と境界 (契約書生成/与信判断/有料企業DB契約は対象外) が日本語で明示されている。郵便番号デルタもこの構造規範を踏襲し、fallback tier 正本を data-sources.md へ委譲する向き (SSOT 集約) と一貫する。"
+      "8列→7列移行デルタは既存節への語句置換 (8列→7列・5属性化・正式名称統合の説明追加) のみで rubric の構造規範に影響しない。FM-001 (name=run-company-master-build・run-prefix+kebab) / NM-001 (dir basename == name) / BD-003 (本文行数<=300。全253行=frontmatter63+本文190 で充足) / PD-001 (references/resource-map.yaml 存在) / PD-002 (冒頭30行内に目的節+日本語禁則) を引き続き充足。frontmatter feedback_contract は IN1/OUT2 の text を 7列へ更新したのみで criteria 構造 (id=^(IN|OUT|C)[0-9]+$・verify_by enum・inner/outer 各1件以上) は不変。",
+      "出力契約の実体が 7列構成 (会社名 title=登記名優先/住所/郵便番号/法人番号/電話番号 + 情報の確かさ + 備考)・確度4ラベル・per-field source_by_field(6属性 provenance)・確認用URL ページ本文へ更新され、表示層(DB列)と出所層(provenance)の分離が日本語で明示。境界 (契約書生成/与信判断/有料企業DB契約は対象外) も維持。設計判断ログ#1/#2/#6・open_issues が SSOT を plugin-root 集約する向きで一貫し、正式名称列廃止の経緯 (9列→8列→7列) が date-stamped で追跡可能。"
     ],
     "negative_feedback": [],
-    "iteration": 2,
+    "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none",
-    "next_action_detail": "rubric 観点 (FM/BD/NM/PD/KL の構造規範) では high severity の実欠陥なし。BD-001/BD-002 の英語見出しリテラル不在は確立済みキャリブレーション (姉妹 skill 同型 PASS・PD-002 の日本語禁則許容・実体充足) により localization gap=low smell へ統合分類し PASS。前回 elegance で REJECT だった postal sub-attempts 全件転記の文書-実装乖離は graft_postal_snapshot 新設で解消され elegance-verdict も PASS へ更新済み。rubric は構造規範採点のため本デルタでも PASS を維持する。"
+    "next_action_detail": "rubric 観点 (FM/BD/NM/PD/KL の構造規範) で high severity の実欠陥なし。BD-001/BD-002 の英語見出しリテラル ('Purpose & Output Contract'/'Gotchas') 不在は確立済みキャリブレーション (姉妹 skill run-company-master-backfill 同型 PASS・PD-002 の日本語禁則許容・出力契約/反パターンの実体充足) により localization gap=low smell へ統合し PASS。8列→7列デルタは見出し構造・命名・frontmatter 構造・prompt-design 層に変化を与えないため rubric は PASS を維持。"
   },
-  "notes": "前回 (iteration 1) の独立 approver 再検証 (iteration 2)。SKILL.md は不変のため SHA は 552f0aeb95b5467a376779c0a135e3c4975faaa8ed49e3e7b21d1a20eaa92f71 を shasum -a 256 で実測し据え置き確認。SHA 書換でなく rubric (FM/BD/NM/PD/KL) を genuine 再採点。\n\napplies_to_kinds=skill/'*' の各 rule を再採点: FM-001/002/004/005 PASS。FM-003: description のスラッシュ列挙は入力種別の例示で過剰トリガでない → PASS。BD-003 PASS (本文行数 <= 300・郵便番号デルタは既存節への語句追記/置換で大幅増行なし)。NM-001/002/003 PASS。PD-001 PASS (resource-map.yaml 存在)。PD-002 PASS (冒頭30行内に目的節+禁則)。RG-001 PASS。KL-001..005 は knowledge/ 不在ゲートで PASS (skip)。\n\n【BD-001/BD-002 の判定】機械スコアラは英語見出しリテラル ('Purpose & Output Contract'/'Gotchas') 不在を FAIL 報告するが、確立済みキャリブレーション (姉妹 skill run-company-master-backfill 同型 PASS・PD-002 の日本語禁則許容・出力契約/反パターンの実体充足) により localization gap=low smell(1,-3) へ統合。総合スコア概算90 >= threshold 80 → PASS。\n\n【今回デルタ・修正の rubric 影響】郵便番号フォールバック記述 (2段→3段) は本文語句の追記・置換のみ、postal 全件転記矛盾の修正は実装側 (enrich_company.py) のみで SKILL.md 本文・見出し構造・命名・frontmatter・prompt-design 層に変化なし。frontmatter feedback_contract も不変。よって rubric 構造観点は不変で PASS。\n\n【境界の明示】postal sub-attempts 全件転記の文書-実装一致は content 正確性 (4条件) の論点であり elegance-verdict.json の責務 (iteration 2 で PASS へ更新済み)。rubric は見出し/命名/層構造の規範採点でありその content 欠陥の評価責務を負わないため、本 rubric verdict は両 iteration を通じ構造観点で一貫して PASS。SKILL.md 本文は不改変。"
+  "notes": "前回 verdict は『postal sub-attempts 全件転記』変更時の rubric だったが、今回は 8列→7列移行デルタのため findings を作り直した。現 SKILL.md (sha256 c161d9727eac0346f77db5eba267fcefac56db757d7baf9de54b54e1a14e6ecd・全253行) を python3 hashlib で実測し期待値と一致確認。SHA 書換でなく rubric (FM/BD/NM/PD/KL) を genuine 再採点した。\n\napplies_to_kinds=skill/'*' の各 rule 再採点: FM-001/002/004/005 PASS。FM-003 (description 過剰トリガ): 入力種別の例示で過剰でない → PASS。BD-003 PASS (本文行数<=300。8列→7列デルタは既存節の語句置換が中心で大幅増行なし・全253行)。NM-001/002/003 PASS。PD-001 PASS (resource-map.yaml 存在)。PD-002 PASS (冒頭30行内に目的+禁則)。RG-001 PASS。KL-001..005 は knowledge/ 不在ゲートで skip PASS。\n\n【BD-001/BD-002 判定】機械スコアラは英語見出しリテラル不在を FAIL 報告し得るが、確立済みキャリブレーション (姉妹 skill 同型 PASS・PD-002 日本語禁則許容・出力契約/反パターンの実体充足) により localization gap=low smell(1) へ統合。総合スコア概算 >= threshold 80 → PASS。\n\n【今回デルタの rubric 影響】8列→7列移行 (正式名称を会社名 title へ統合・確認用URL 見直し・--migrate-company-title はバックフィル側) は本文語句の追記・置換のみで、SKILL.md の見出し構造・命名・frontmatter 構造・prompt-design 層 (PD-001/002) に変化なし。frontmatter feedback_contract も criteria 構造不変 (IN1/OUT2 の text のみ 7列へ更新)。7列の content 正確性 (DB列・preflight・validate との一致) は elegance-verdict.json の責務であり本 rubric は構造規範を採点する分業。よって rubric 構造観点は不変で PASS。SKILL.md 本文は不改変。"
 }

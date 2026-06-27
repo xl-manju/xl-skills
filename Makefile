@@ -35,7 +35,12 @@ lint: contract-intake vendored-ssot runtime-portability company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/mf-kessai-invoice-check/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/mf-kessai-invoice-check/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/mf-kessai-invoice-check/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/notion-gmail-send/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/notion-gmail-send/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/notion-gmail-send/skills
 	python3 scripts/lint-plugin-lint-coverage.py
+	# marketplace ↔ plugins / bundles 双方向整合 (MK-001..003 / BD-001) を fail-closed 検査
+	python3 scripts/validate-plugin-completeness.py
 
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:

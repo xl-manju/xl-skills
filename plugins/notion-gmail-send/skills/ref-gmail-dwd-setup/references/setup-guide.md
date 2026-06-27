@@ -64,7 +64,7 @@ SA 鍵 JSON をファイルとして残さず、Keychain の generic-password �
 ```bash
 # SA 鍵 JSON の中身をそのまま Keychain に格納（service/account は任意の識別名）
 security add-generic-password \
-  -s "gmail-sa.xl-skills" \
+  -s "google-sa.xl-skills" \
   -a "xl-skills" \
   -w "$(cat /path/to/sa-key.json)"
 
@@ -75,7 +75,7 @@ rm -P /path/to/sa-key.json
 登録確認（秘密値の private_key は表示せず、type と client_email だけ確認する）:
 
 ```bash
-security find-generic-password -s "gmail-sa.xl-skills" -a "xl-skills" -w \
+security find-generic-password -s "google-sa.xl-skills" -a "xl-skills" -w \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["type"], d["client_email"])'
 # => service_account automation@your-domain.co.jp
 ```
@@ -95,7 +95,7 @@ security find-generic-password -s "gmail-sa.xl-skills" -a "xl-skills" -w \
   },
   "notion_gmail_send": {
     "sender": {
-      "sa_keychain": { "service": "gmail-sa.xl-skills", "account": "xl-skills" },
+      "sa_keychain": { "service": "google-sa.xl-skills", "account": "xl-skills" },
       "impersonate": "automation@your-domain.co.jp"
     }
   }

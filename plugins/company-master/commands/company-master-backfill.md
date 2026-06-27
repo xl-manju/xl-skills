@@ -1,7 +1,7 @@
 ---
 name: company-master-backfill
 description: 固定 Notion 企業マスタ DB の空欄列・要確認行だけを再取得対象にして backfill する。
-argument-hint: "[--dry-run]"
+argument-hint: "[--dry-run] [--web-findings <json>] [--migrate-company-title]"
 allowed-tools: Read, Bash, Skill
 entrypoint: run-company-master-backfill
 ---

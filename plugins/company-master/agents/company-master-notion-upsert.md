@@ -17,9 +17,9 @@ enrich 済みレコードを固定 Notion 企業マスタ DB へ安全に反映�
 
 ## Inputs
 
-- 上流 (`company-master-enrich-attributes`) からの補完結果 JSON: `fields` / `certainty_by_field` / `overall_certainty` / `remarks_text` / `source_urls`
-- 実行スクリプト: `../scripts/notion_upsert.py` (DB ID 解決・キー突合・8列upsert・確認用URL本文同期)、`../scripts/confirm_url.py` (確認用URL本文テンプレート展開)、`../scripts/notion_config.py` (DB ID/token 解決の vendored SSOT)、`../scripts/backfill.py` (空欄列補完経路)
-- 参照: `../references/company-master-columns.md` (8列定義+確認用URL本文)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)、`../references/README-setup.md` (Notion/gBizINFO 必須鍵、日本郵便任意鍵、upsert 挙動)
+- 上流 (`company-master-enrich-attributes`) からの補完結果 JSON: `fields` / `certainty_by_field` / `overall_certainty` / `remarks_text` / `source_by_field`。`source_urls` は `source_by_field` から導出される legacy/派生値で、正入力として扱わない。
+- 実行スクリプト: `../scripts/notion_upsert.py` (DB ID 解決・キー突合・7列upsert(会社名title=正式名称優先)・確認用URL本文同期)、`../scripts/confirm_url.py` (確認用URL本文テンプレート展開)、`../scripts/notion_config.py` (DB ID/token 解決の vendored SSOT)、`../scripts/backfill.py` (空欄列補完経路)
+- 参照: `../references/company-master-columns.md` (7列定義+確認用URL本文)、`../references/confirm-url-template.md` (確認用URL本文テンプレートの正本)、`../references/README-setup.md` (Notion/gBizINFO 必須鍵、日本郵便任意鍵、upsert 挙動)
 
 ## Outputs
 
@@ -29,14 +29,14 @@ enrich 済みレコードを固定 Notion 企業マスタ DB へ安全に反映�
 
 ```json
 {
-  "action": "upsert",
+  "action": "created",
   "page_id": "abcd1234-...",
   "key": "1234567890123",
   "next_agent": null
 }
 ```
 
-`action` は `upsert | create | skip` のいずれか。
+`action` は実装 (`notion_upsert.py`) の戻り値に合わせて `created | updated | skipped | rejected` のいずれか。
 
 ## ゴールシーク実行
 <!-- 固定手順を書かない。Goal+Checklist を宣言し、手順は実行時に都度生成する。詳細: run-build-skill references/goal-seek-paradigm.md -->
@@ -81,7 +81,7 @@ enrich 済みレコードを固定 Notion 企業マスタ DB へ安全に反映�
 | 次元 | 本 agent での重点 |
 |---|---|
 | 完全性 | upsert/create/skip の全分岐 (法人番号確定×既存行有無の組合せ) を漏れなく処理しているか |
-| 一貫性 | 信頼キー (gBizINFO 13桁法人番号) の SSOT 定義と突合キーが矛盾なく、8列定義 + 確認用URLページ本文に整合しているか |
+| 一貫性 | 信頼キー (gBizINFO 13桁法人番号) の SSOT 定義と突合キーが矛盾なく、7列定義 (正式名称は会社名 title 統合) + 確認用URLページ本文に整合しているか |
 | 深度 | 既存非空セル保護・法人番号未確定行の誤更新回避という安全側ガードを十分に効かせているか |
 | 検証可能性 | DB ID/token が notion_config 経由で解決され、precondition gate (exit 2) が機械的に発火する形か |
 | 簡潔性 | 決定論判定に LLM 推論を挟まず、親へは action/page_id/key の最小要約のみ返しているか |

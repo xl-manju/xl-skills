@@ -22,7 +22,7 @@ REST API は **V1 を採用する** (実装の正本: `scripts/resolve_company.p
 |---|---|
 | 公的データで確認済み | gBizINFO で 13桁法人番号により一意確定した正式名称・所在地・法人番号 |
 | 公的データ取得 | 日本郵便API等の公的データで一意確定した値 (例: 住所→郵便番号) |
-| ネット検索(要確認) | Web検索由来の推定値 (電話番号 / 会社名推定)。根拠 URL をページ本文の確認用URLセクション (`confirm-url-template.md` 正本) へ必須記録 |
+| ネット検索(要確認) | Web検索由来の推定値 (電話番号 / 会社名推定)。検証用 URL (per-value 根拠ページ URL **または** 固定検索手段 URL=電話番号は番号埋め込み Google 検索) をページ本文の確認用URLセクション (`confirm-url-template.md` 正本) へ必須記録 |
 | 未確定(要確認) | 一意確定不能で空欄保留した項目。『備考』へ remarks-templates の定型文言を記録 |
 
 ## フォールバック多段化 (fallback tier 表・正本)
@@ -32,8 +32,8 @@ per-field の取得は下表の tier 順で試行し、**確度ラベルは各 t
 | tier | 手段 | 確度ラベル上限 | 備考 |
 |---|---|---|---|
 | tier1 | gBizINFO (検索パターン複数化: 原文 → 正規化名 → 法人格除去名。正本 `resolve_company.name_query_patterns` / `normalize.strip_legal_form`) | 公的データで確認済み | 自動確定条件 (法人番号一致 or 会社名+住所2要素一致) は不変 |
-| tier2 | 日本郵便 addresszip API (V2 逆引き。構造化検索（`pref_name`/`city_name`/`town_name`。`town_name` は素の町域→小字「字○○」/大字を段階剥離した複数バリアントで照会）→ `freeword`(番地除去) → `{pref/city}` 町域一覧の最長前方一致(`pick_best_prefix`。字マーカー無しの小字・枝番・カナ末尾や数字を含む町域名を拾える設計) の3段。実装正本 `postal_api.lookup_postal`) | 公的データ取得 | `pick_best`/`pick_best_prefix` がマッチングレベル(1=都道府県/2=市区町村/3=町域)と候補 zip 収束(前方一致段は最長一致+zip収束)で一意確定したもののみ採用 (誤値を入れない非対称コスト原則。前方一致段は一覧不返/不一致なら空欄に縮退するのみで誤値・回帰なし。`{pref/city}` 照会で実 API が町域一覧を返すかは再現率の実機確認対象であり、未実証でも精度には影響しない)。検証 URL は日本郵便 郵便番号検索の固定 URL を共用 (weak)。認証/通信失敗時は空欄+備考へ縮退 (auth→`postal_api_unauthorized` / network→`postal_api_unavailable`) |
-| tier3 | WebSearch (Claude が実施・Python は検証のみ) | ネット検索(要確認) | **根拠 URL 必須** (origin=web で url 空は validate FAIL → 書き込みゲート reject) |
+| tier2 | 日本郵便 addresszip API (V2 逆引き。構造化検索（`pref_name`/`city_name`/`town_name`。`town_name` は素の町域→小字「字○○」/大字を段階剥離した複数バリアントで照会）→ `freeword`(番地除去) → `{pref/city}` 町域一覧の最長前方一致(`pick_best_prefix`。字マーカー無しの小字・枝番・カナ末尾や数字を含む町域名を拾える設計) の3段。実装正本 `postal_api.lookup_postal`) | 公的データ取得 | `pick_best`/`pick_best_prefix` がマッチングレベル(1=都道府県/2=市区町村/3=町域)と候補 zip 収束(前方一致段は最長一致+zip収束)で一意確定したもののみ採用 (誤値を入れない非対称コスト原則。前方一致段は一覧不返/不一致なら空欄に縮退するのみで誤値・回帰なし。`{pref/city}` 照会で実 API が町域一覧を返すかは再現率の実機確認対象であり、未実証でも精度には影響しない)。検証 URL は日本郵便トップ (郵便番号検索の入口) の固定 URL `https://www.post.japanpost.jp/` を共用 (weak。URL 単独では値を再確認できない=受容済み trade-off)。認証/通信失敗時は空欄+備考へ縮退 (auth→`postal_api_unauthorized` / network→`postal_api_unavailable`) |
+| tier3 | WebSearch (Claude が実施・Python は検証のみ) | ネット検索(要確認) | **検証用 URL 必須** (origin=web で url 空は validate FAIL → 書き込みゲート reject)。電話番号は per-value 根拠ページの代わりに番号埋め込み Google 検索 URL (`enrich_company.phone_search_url`) を固定手段として持つ (weak。doc の web 定義=per-value 根拠URL または固定検索URL) |
 | tier4 | 全段不成立 | 未確定(要確認) | 空欄 + 『備考』へ定型文言 (`remarks-templates.md` の `all_tiers_exhausted` 等・試行手段を列挙) で人間へ引き継ぎ |
 
 ### 属性 × 許可 tier ホワイトリスト

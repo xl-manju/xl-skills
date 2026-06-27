@@ -24,6 +24,14 @@ validate-frontmatter) の対象 plugin が Makefile / CI yml に per-plugin 手�
 skill を所有する全 plugin が 3 種 lint の `--skills-dir` 対象に含まれることを
 fail-closed で強制する (新 plugin 追加忘れをここで fail させる)。
 
+起点バイアスの依存関係 (elegant-review 20260626-ngs-mechanization):
+  本スクリプトは marketplace.json 起点で巡回するため、marketplace 未登録の
+  新 plugin は被覆判定の母集合に入らず素通りする (「漏れが漏れを隠す」自己強化
+  ループの構造要素)。この盲点は `scripts/validate-plugin-completeness.py` の
+  MK-001 (実体ディレクトリ起点で marketplace 未登録を fail-closed 検出) が
+  上流ゲートとして塞ぐ前提。両者は必ずセットで CI 配線すること
+  (validate-plugin-completeness を外す/弱めると本 lint の盲点が復活する)。
+
 被覆判定の定義:
   - 対象 plugin: marketplace.json 登録済み かつ skills/ 配下に実体 (非 symlink)
     の skill ディレクトリ (SKILL.md 持ち) を 1 つ以上所有するもの。

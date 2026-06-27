@@ -12,6 +12,7 @@
         "contract-generator",
         "company-master",
         "mf-kessai-invoice-check",
+        "notion-gmail-send",
         "skill-governance-config",
         "skill-governance-lint",
         "skill-governance-hooks",

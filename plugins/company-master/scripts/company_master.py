@@ -136,6 +136,9 @@ def run_backfill(args: argparse.Namespace) -> int:
     argv = ["backfill.py"]
     if args.dry_run:
         argv.append("--dry-run")
+    # 移行モード: official_name(登記名) 取得済み行の会社名 title を登記名へ上書きする (opt-in)。
+    if getattr(args, "migrate_company_title", False):
+        argv.append("--migrate-company-title")
     # 2 パス運用の再投入口: 1 パス目の needs_web_search を agent が Web 検索した結果を伝搬。
     if getattr(args, "web_findings", None):
         argv += ["--web-findings", args.web_findings]
@@ -213,12 +216,12 @@ def _doctor_check_notion_reach(db_id: str, notion_token: str | None) -> list[dic
         notion_upsert.preflight_schema(db_id, notion_token)
         return [_doctor_item(
             "OK", "Notion 到達 + schema preflight",
-            "DB アクセス可・live スキーマは 8列定義 (notion-db-schema.json) と一致",
+            "DB アクセス可・live スキーマは 7列定義 (notion-db-schema.json) と一致",
         )]
     except notion_upsert.SchemaPreflightError as e:
         return [_doctor_item(
             "FAIL", "Notion 到達 + schema preflight", "; ".join(e.violations),
-            "README 5-4 の Integration 接続と、references/company-master-columns.md の8列定義に DB を合わせる",
+            "README 5-4 の Integration 接続と、references/company-master-columns.md の7列定義に DB を合わせる",
         )]
 
 
@@ -431,6 +434,10 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command")
     backfill_parser = sub.add_parser("backfill", help="Notion 企業マスタの空欄を backfill")
     backfill_parser.add_argument("--dry-run", action="store_true")
+    backfill_parser.add_argument(
+        "--migrate-company-title", action="store_true",
+        help="移行モード: official_name(登記名) 取得済み行の会社名 title を登記名へ上書き "
+             "(title のみ非空保護解除・alt_key 不変。--dry-run 併用で確認のみ)")
     # SUPPRESS: 未指定時に top-level --web-findings の値 (run_one 用) を上書きしない。
     backfill_parser.add_argument("--web-findings", dest="web_findings",
                                  default=argparse.SUPPRESS,

@@ -23,13 +23,13 @@ resources:
     topic: 外部 Python ライブラリをプラグイン配下に同梱する運用ルール
     read_when: 標準ライブラリ以外の依存を追加する必要が出たとき
   - file: ../../../references/company-master-columns.md
-    topic: Notion 8列定義 (6属性+情報の確かさ+備考) + 確認用URLはページ本文 と確度4ラベル・整合ルール
+    topic: Notion 7列定義 (会社名title=正式名称優先+住所/郵便番号/法人番号/電話番号+情報の確かさ+備考) + 確認用URLはページ本文 と確度4ラベル・整合ルール
     read_when: 列構成・フォーマット規約・deterministic_checks を確認したいとき (正本)
   - file: ../../../references/confirm-url-template.md
     topic: 確認用URL ページ本文の固定テンプレート (heading/intro/bullet_with_url/bullet_no_url/body_no_fields の5要素正本)
     read_when: 確認用URL本文のレンダリング文言を確認したいとき (confirm_url.py が展開する正本)
   - file: ../../../references/notion-db-schema.json
-    topic: Notion live スキーマ preflight 用の機械可読8列スキーマ (生成元正本は company-master-columns.md)
+    topic: Notion live スキーマ preflight 用の機械可読7列スキーマ (生成元正本は company-master-columns.md)
     read_when: 列改名・型変更・確度 select オプション変更時に preflight 照合内容を更新するとき
   - file: ../../../references/data-sources.md
     topic: gBizINFO/日本郵便API/Web検索の取得方針・認証・確度マッピング・信頼キー定義

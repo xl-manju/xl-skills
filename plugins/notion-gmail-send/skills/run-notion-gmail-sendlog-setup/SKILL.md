@@ -60,7 +60,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
      --db-id <送信ログDBのid> --apply   # 省略時は config databases.gmail-send-log.db_id から解決
    ```
 
-3. **config 焼き込み案内** — `--write-config` で `databases.gmail-send-log.db_id` の設定スニペットを提示する。`.notion-config.json` は repo-root・gitignore 対象のため手動で追記する。
+3. **config 焼き込み案内** — `--write-config` で `databases.gmail-send-log.db_id` の設定スニペットを提示する。`.notion-config.json` は作業フォルダ（`$CLAUDE_PROJECT_DIR` 直下・clone は repo-root）・gitignore 対象のため手動で追記する。
 
 4. **再 dry-run** — 適用後に手順1を再実行し、差分0 (`✅ schema は期待と整合済み`) を確認する。
 
@@ -126,7 +126,7 @@ PY
 ## Gotchas
 
 1. **Notion integration 未接続**: 対象DBに integration が共有されていないと `404 object_not_found`。Notion MCP は未共有のため REST 直叩き (`notion-api-key.xl-skills`) を使う。
-2. **`.notion-config.json` は gitignore 対象**: `--write-config` はスニペット提示のみで自動書き込みしない。repo-root に手動追記する (秘匿値を git に乗せない)。
+2. **`.notion-config.json` は gitignore 対象**: `--write-config` はスニペット提示のみで自動書き込みしない。作業フォルダ（`$CLAUDE_PROJECT_DIR` 直下・clone は repo-root）に手動追記する (秘匿値を git に乗せない)。
 3. **select 選択肢は既存温存**: status/reason_code は既存選択肢に不足分を**マージ**追加する。既存の独自選択肢は消さない。
 4. **dry-run の exit code**: 差分ありは exit 1 (整合済みは 0)。CI で「差分0」をゲートにする場合はこの戻り値を使う。
 5. **このDBは送信フローの前提**: ここが整わないと `run-notion-gmail-send` の preflight G2 が fail-closed で送信を止める。送信前に本スキルで差分0にしておく。

@@ -7,15 +7,35 @@ skills/ agents/ commands/ hooks/ をまとめて配布する。本スクリプ�
   1. plugin ディレクトリに含まれる SKILL.md / agents/*.md / commands/*.md /
      hooks 定義 を列挙
   2. .claude-plugin/plugin.json の hooks 宣言と実体ファイルの整合
-  3. README / .claude/ symlink との照合 (任意)
+  3. ルート .claude-plugin/marketplace.json plugins[] への登録 (MK-001..003) と
+     .claude-plugin/bundles.json への登録 (BD-001) を「実体ディレクトリ起点」で検査
 
-を行い、配布時に欠落するアセットがないことを保証する。
+を行い、配布時に欠落するアセットがないこと・マーケットプレイス/バンドル登録漏れが
+ないことを保証する。
+
+二層防御:
+  - 既定 (引数なし): 検出のみ。未登録があれば exit 1 で fail-closed (CI の最後の砦)。
+  - ``--fix``: 予防。未登録 plugin を marketplace.json / bundles.json へ
+    **append-only** (既存エントリの値を一切書き換えず追記のみ) で自動登録し、書込後に
+    自分の検出を再実行して exit 0 を保証する。skill-creator の生成フロー
+    (build-steps Phase G / workflow-manifest step3.5) から呼ばれ、「作るたびに必ず
+    登録される」を機械保証する。既登録なら no-op (冪等)。最終的な登録是非は人間が
+    PR diff で承認する。
+    なお append の実装は2ファイルで非対称: marketplace.json は tags インライン整形を
+    保つため**バイト単位のテキスト挿入** (既存バイトを 1 byte も触らない)、bundles.json は
+    元から標準 2-space 整形なので ``json.dumps(indent=2)`` で round-trip 再シリアライズ
+    する (既存 plugin 名の集合は不変=値レベル append-only、整形は再正規化されうる)。
+
+検出 (validate) と予防 (--fix) を同一ファイルに同居させ、両者が単一 SSOT として
+drift しないようにしている。
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
+import re
 import shlex
 import sys
 
@@ -23,6 +43,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PLUGINS_DIR = ROOT / "plugins"
 BUNDLES_JSON = ROOT / ".claude-plugin" / "bundles.json"
+MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
 
 
 def load_bundle_members() -> set[str]:
@@ -34,6 +55,24 @@ def load_bundle_members() -> set[str]:
         for p in b.get("plugins", []):
             members.add(p)
     return members
+
+
+def load_marketplace_entries() -> dict[str, str]:
+    """marketplace.json plugins[] を {name: source} の dict で返す。
+
+    bundles loader と対称的に、ルート .claude-plugin/marketplace.json を
+    SSOT として読む。name -> source のマップを返すことで、登録漏れ (MK-001) /
+    source 実在 (MK-002) / source basename 一致 (MK-003) の各検査に供する。
+    """
+    if not MARKETPLACE_JSON.exists():
+        return {}
+    data = json.loads(MARKETPLACE_JSON.read_text())
+    entries: dict[str, str] = {}
+    for p in data.get("plugins", []):
+        name = p.get("name")
+        if name is not None:
+            entries[name] = p.get("source", "")
+    return entries
 
 
 def collect(plugin_dir: pathlib.Path) -> dict:
@@ -50,7 +89,12 @@ def collect(plugin_dir: pathlib.Path) -> dict:
     return out
 
 
-def validate(plugin_name: str, data: dict, bundle_members: set[str]) -> list[str]:
+def validate(
+    plugin_name: str,
+    data: dict,
+    bundle_members: set[str],
+    marketplace_entries: dict[str, str],
+) -> list[str]:
     errs: list[str] = []
     m = data["manifest"]
     if m is None:
@@ -88,29 +132,184 @@ def validate(plugin_name: str, data: dict, bundle_members: set[str]) -> list[str
     if plugin_name not in bundle_members:
         errs.append(f"{plugin_name}: not registered in any .claude-plugin/bundles.json bundle (BD-001/BND-001)")
 
+    # MK-001: 実体ディレクトリがあるのに marketplace.json plugins[].name に未登録 →
+    # /plugin install のマーケットプレイス一覧に出ない (表示漏れの直接原因)。
+    if plugin_name not in marketplace_entries:
+        errs.append(f"{plugin_name}: not registered in .claude-plugin/marketplace.json plugins[] (MK-001)")
+    else:
+        source = marketplace_entries[plugin_name]
+        # MK-002: marketplace エントリの source が実ディレクトリとして存在するか。
+        source_dir = (ROOT / source).resolve() if source else None
+        if not source or source_dir is None or not source_dir.is_dir():
+            errs.append(f"{plugin_name}: marketplace.json source '{source}' is not an existing directory (MK-002)")
+        # MK-003: source パスの basename が directory 名と一致するか (独立検査)。
+        # name フィールド == directory 名 は上の汎用検査 (manifest.name != directory)
+        # と marketplace_entries の引き方で既に担保されるため、ここは source が
+        # 別ディレクトリを指す取り違えを捕捉する。
+        src_base = pathlib.PurePosixPath(source.rstrip("/")).name if source else ""
+        if src_base != plugin_name:
+            errs.append(
+                f"{plugin_name}: marketplace.json source basename '{src_base}' != directory name (MK-003)"
+            )
+
     return errs
 
 
-def main() -> int:
-    if not PLUGINS_DIR.exists():
-        print(f"ERROR: {PLUGINS_DIR} not found", file=sys.stderr)
-        return 2
+# --- 予防層: --fix (append-only 自動登録) ------------------------------------
 
+def _marketplace_entry_block(name: str, manifest: dict) -> str:
+    """marketplace.json plugins[] へ挿入する 1 エントリを既存スタイル
+    (indent 4 / tags インライン) のテキストで生成する。値は json.dumps で
+    エスケープし、ensure_ascii=False で日本語をそのまま残す。
+    """
+    desc = manifest.get("description", "")
+    ver = manifest.get("version", "0.0.0")
+    cat = manifest.get("category", "productivity")
+    tags = manifest.get("tags") or manifest.get("keywords") or []
+    j = lambda v: json.dumps(v, ensure_ascii=False)
+    return "\n".join([
+        "    {",
+        f'      "name": {j(name)},',
+        f'      "source": {j(f"./plugins/{name}")},',
+        f'      "description": {j(desc)},',
+        f'      "version": {j(ver)},',
+        f'      "category": {j(cat)},',
+        f'      "tags": {j(tags)}',
+        "    }",
+    ])
+
+
+def _insert_marketplace_entry(text: str, block: str) -> tuple[str, bool]:
+    """plugins[] の閉じ括弧 (``\\n  ]``) の直前に block を append する。
+    既存バイトを一切書き換えない真の append-only。marker 不在なら (text, False)。
+
+    非空 plugins[] (多行整形) は閉じ ``\\n  ]`` の直前へ挿入する。空 plugins[]
+    (``"plugins": []``、新規 marketplace.json 等) は配列を展開して最初の要素にする。
+    """
+    marker = "\n  ]"
+    idx = text.rfind(marker)
+    if idx != -1:
+        return text[:idx] + ",\n" + block + text[idx:], True
+    m = re.search(r'"plugins"\s*:\s*\[\s*\]', text)
+    if m:
+        return text[:m.start()] + '"plugins": [\n' + block + "\n  ]" + text[m.end():], True
+    return text, False
+
+
+def register_missing() -> tuple[list[str], bool]:
+    """実体ディレクトリ起点で未登録 plugin を marketplace.json / bundles.json へ
+    append-only 登録する。戻り値 (actions, changed)。
+    既存エントリは不変更・既登録は no-op (冪等)。
+    """
+    actions: list[str] = []
+    mk_entries = load_marketplace_entries()
+    mk_text = MARKETPLACE_JSON.read_text() if MARKETPLACE_JSON.exists() else None
+    bundles_data = json.loads(BUNDLES_JSON.read_text()) if BUNDLES_JSON.exists() else {"bundles": []}
+    changed_mk = False
+    changed_bd = False
+
+    for plugin_dir in sorted(PLUGINS_DIR.iterdir()):
+        if not plugin_dir.is_dir() or plugin_dir.name.startswith("."):
+            continue
+        name = plugin_dir.name
+        manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
+        if not manifest_path.exists():
+            continue
+        manifest = json.loads(manifest_path.read_text())
+
+        # marketplace.json (テキスト挿入で append-only)
+        if mk_text is not None and name not in mk_entries:
+            block = _marketplace_entry_block(name, manifest)
+            mk_text, ok = _insert_marketplace_entry(mk_text, block)
+            if ok:
+                mk_entries[name] = f"./plugins/{name}"
+                changed_mk = True
+                default_note = (
+                    "" if (manifest.get("category") and manifest.get("tags"))
+                    else "  [category/tags はデフォルト値。PR で要確認]"
+                )
+                actions.append(f"marketplace.json: + {name}{default_note}")
+
+        # bundles.json (bundle_targets を真実源として該当 bundle へ append)
+        targets = manifest.get("bundle_targets") or manifest.get("bundles") or []
+        for bundle_name in targets:
+            bundle = next(
+                (b for b in bundles_data.get("bundles", []) if b.get("name") == bundle_name),
+                None,
+            )
+            if bundle is None:
+                actions.append(
+                    f"bundles.json: ! bundle '{bundle_name}' が存在せず {name} を登録不可 (手動で bundle 作成要)"
+                )
+                continue
+            if name not in bundle.get("plugins", []):
+                bundle.setdefault("plugins", []).append(name)
+                changed_bd = True
+                actions.append(f"bundles.json[{bundle_name}]: + {name}")
+
+    if changed_mk and mk_text is not None:
+        MARKETPLACE_JSON.write_text(mk_text)
+    if changed_bd:
+        BUNDLES_JSON.write_text(json.dumps(bundles_data, ensure_ascii=False, indent=2) + "\n")
+    return actions, (changed_mk or changed_bd)
+
+
+def run_check() -> tuple[list[str], list[str]]:
+    """全 plugin を走査し (summary_lines, all_errs) を返す。検出のみ・副作用なし。"""
     bundle_members = load_bundle_members()
+    marketplace_entries = load_marketplace_entries()
     all_errs: list[str] = []
-    summary = []
+    summary: list[str] = []
     for plugin_dir in sorted(PLUGINS_DIR.iterdir()):
         if not plugin_dir.is_dir() or plugin_dir.name.startswith("."):
             continue
         data = collect(plugin_dir)
-        errs = validate(plugin_dir.name, data, bundle_members)
-        all_errs.extend(errs)
+        all_errs.extend(validate(plugin_dir.name, data, bundle_members, marketplace_entries))
         summary.append(
             f"{plugin_dir.name}: skills={len(data['skills'])} "
             f"agents={len(data['agents'])} commands={len(data['commands'])} "
             f"hooks={len(data['hooks'])} scripts={len(data['scripts'])} config={len(data['config'])}"
         )
+    return summary, all_errs
 
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="未登録 plugin を marketplace.json / bundles.json へ append-only 自動登録し、書込後に再検証する (予防層)。",
+    )
+    args = parser.parse_args(argv)
+
+    if not PLUGINS_DIR.exists():
+        print(f"ERROR: {PLUGINS_DIR} not found", file=sys.stderr)
+        return 2
+
+    if args.fix:
+        actions, changed = register_missing()
+        if actions:
+            print("--fix actions (append-only):")
+            for a in actions:
+                print(f"  {a}")
+        else:
+            print("--fix: 登録漏れなし (no-op)")
+        # 書込後に必ず自己再検証して exit 0 を保証する。残違反があれば surface。
+        summary, all_errs = run_check()
+        if all_errs:
+            for e in all_errs:
+                print(f"VIOLATION {e}", file=sys.stderr)
+            print(
+                f"--fix 後も残違反あり (VIOLATION={len(all_errs)})。"
+                "登録不可 (bundle 不在等) を手動解決すること。",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"--fix OK: {len(summary)} plugin(s) complete"
+              + (" (変更あり)" if changed else " (変更なし)"))
+        return 0
+
+    summary, all_errs = run_check()
     for line in summary:
         print(line)
     print("---")

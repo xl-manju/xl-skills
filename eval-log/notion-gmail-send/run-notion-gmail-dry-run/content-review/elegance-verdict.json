@@ -1,26 +1,39 @@
 {
-  "target": {"plugin": "notion-gmail-send", "skill": "run-notion-gmail-dry-run", "skill_md_sha256": "f9a1ec0ee5bec92ff4cbd9c8741fd519ccdfd5b3d93e76f6f8c60c181f045459"},
+  "target": {
+    "plugin": "notion-gmail-send",
+    "skill": "run-notion-gmail-dry-run",
+    "skill_md_sha256": "6628bdbb17384b695fd5ef86a8affafb3a2262f5429f8ec23879bc672de01f44"
+  },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "independent-elegance-reviewer",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-27",
   "iterations": 1,
   "human_review_required": false,
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 2
+  },
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "IN1: lib/notion_client.py resolve_recipients が「send_target=false 黙除外 → do_not_send=true 抑制(dedup前・最優先) → pro_email 空 invalid_to → created_time 降順/同時刻 page_id 降順 dedup」を決定論実装。test_recipient_resolution.py の test_suppress_before_dedup_protects_sendable_row が「抑制を dedup より先に行い生存行を巻き込まない」を機械固定、test_dedup_tiebreak_is_deterministic_on_same_created_time が tie=page_id 降順を固定。20 passed。",
-      "IN2: skills/run-notion-gmail-dry-run/scripts/build-plan.py が bodies×recips の直積を生成し pb.content_hash/plan_hash を算出。import は notion_client/notion_config/secrets/render_substitute/message_assemble/plan_build のみで gmail_client/send_guard/idempotent_log を読まず、Gmail send 呼び出しは皆無(grep 確認)＝1通も送信しない local-artifact 出力。test_build_plan_records_cc_suppressed_warning_and_hash_unaffected が観測メタ(cc_suppressed_due_to_to_overlap)を content_hash 固定7キーから除外することを pb.content_hash(u)==u['content_hash'] かつ メタ除去後も一致 で証明。",
-      "OUT1: stdout に APPROVE <plan_hash> <count> <first_to> <確認語> を出し、確認語(approval_nonce)は該当プレビュー単位の行末にのみ表示して APPROVE 行には載せない=目視しないと得られない blind-approve コスト。--canary は units を安定順先頭 N へ限定した後に finalize_plan を再実行するため plan_hash/count/first_to/nonce が限定集合へ再束縛され、test_canary_limits_units_bound_to_plan_hash が count=1/units=1/available_unit_count=3/canary_applied=True を固定＝少数検品の承認契約が全件送信へ横流れしない。",
-      "C4: SKILL.md の Additional Resources/次工程参照(lib/render_substitute.py, message_assemble.py, plan_build.py, notion_client.py, ../run-notion-gmail-send/)が全て実在し dangling 無し。ゴールシーク配線は run-goal-seek/SKILL.md 同型の original_goal 不変アンカー SSOT で循環/破綻なし。"
+      "IN1: lib/notion_client.py resolve_recipients(L275-329) が『送信対象=false 黙除外(L296-297 continue・無記録) → メールを送らない=true 抑制(L298-300・dedup より前=最優先) → プロ人材メール空 invalid_to(L302-304) → created_time 降順/同時刻 page_id 降順で最新1件 dedup(L307-327)』を決定論実装。抑制を dedup より前に置くことで『送らない最新行が代表に選ばれ生存可能な古い行を巻き込む』事故を防ぐ順序が docstring(L278-284)・spec §4(doc L88-96)・SKILL.md IN1/L85 と完全一致。test_recipient_resolution.py が test_send_target_false_is_excluded_silently / test_do_not_send_overrides_send_target / test_empty_pro_email_is_skipped / test_suppress_before_dedup_protects_sendable_row / test_dedup_keeps_newest_created_time / test_dedup_tiebreak_is_deterministic_on_same_created_time で各分岐と順序を機械固定。NFKC+strip+lower 正規化(_norm_email L248-253)は test_dedup_normalizes_case_and_width で固定。",
+      "IN2: build-plan.py(L31-33) の import は notion_client/notion_config/secrets/plan_build/plan_compose のみで gmail/send_guard/idempotent_log を一切読まず Gmail send 呼び出しは皆無=1通も送信しない local-artifact(frontmatter effect:local-artifact / write-scope:local-workspace)を維持。直積は pc.assemble_plan(plan_compose.py L99-108 の for body × for recip)へ委譲し、content_hash は plan_build._normalize の固定7キー(subject/body/from/to(sorted)/cc(sorted)/body_page_id/recipient_page_id・L35-45)のみで算出され cc_suppressed_due_to_to_overlap 等の後付け観測メタを拾わない。test_recipient_resolution.test_build_plan_records_cc_suppressed_warning_and_hash_unaffected がメタ有無で content_hash 不変を、test_build_plan.test_body_true_count_independent_of_units が直積0でも body_true_count=2 保持を、test_placeholder_config_stops_before_notion_fetch が placeholder config で Notion 接続前 exit2・plan 非生成(fail-closed)を、test_plan_compose.test_assemble_plan_matches_build_plan_output が build-plan 出力の決定論部分==assemble_plan 直呼びを plan_hash/count/first_to/各カウント/content_hash 列まで一致固定。承認 nonce(approval_nonce L66-78)も plan_hash+content_hash 由来で観測メタ非依存。",
+      "OUT1: build-plan.py が全 units をフルプレビュー出力(L133-142)し、APPROVE <plan_hash> <count> <first_to> <確認語> を出す(L130-132)。確認語は該当プレビュー単位の行末にのみ表示(L135 mark)し APPROVE 行には載せない=目視で当該単位を探さねば得られない blind-approve コスト上げ(approval_nonce / send_guard 照合)。--canary/--limit は assemble_plan(L111-112)で units を安定順(content_hash 昇順)先頭 N へ限定後 finalize_plan を再実行し plan_hash/count/first_to/nonce を限定集合へ再束縛、available_unit_count は限定前を保持(母数を見失わない)。test_build_plan.test_canary_limits_units_bound_to_plan_hash(count=1/units=1/available=3/canary_applied=True)・test_plan_compose.test_canary_selects_stable_prefix(取得順非依存の決定論)が少数検品の承認契約が全件送信へ横流れしないことを固定。SKILL.md L41 が B1 転回後の位置づけ(既定=最小確認1回・無人=--auto-approve では dry-run は必須でなく、厳格対話/canary 前の全件目視材料)を正直に明記し、APPROVE 文字列契約は厳格対話 live-send が消費する経路として整合。",
+      "C1/C2/C3/C4: C1 矛盾なし=『抑制>dedup』順序(notion_client L298 が L307 の dedup より前)・content_hash 固定7キー(plan_build._normalize と spec §4 doc L105 一致)・dry-run no-send(Gmail import 皆無)で SKILL.md/build-plan/lib/spec が一致。C2 漏れなし=完了チェックリスト(L84-94)が DB取得/抑制・重複可視化/直積/件名+本文置換/MIME組立/hash/canary/APPROVE+preview/skipped_validation 内訳/0通案内を MECE 網羅。C3 整合性=criteria IN1/IN2/OUT1 が test_recipient_resolution / test_build_plan(+test_plan_compose 委譲一致) / elegant-review に対応し本文・コード一致。C4 依存=Additional Resources の lib/script/次工程 run-notion-gmail-send が全実在(pytest 198 passed が import 成立を実証)、build-plan の plan_compose import は plan_compose.py L27-30 の try `from . import` / except `import` で相対・直接 fallback 両対応、goal-seek 配線(L106-130)は run-goal-seek 同型の original_goal 不変アンカー SSOT で循環なし。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "smell(low/非blocking): SKILL.md Additional Resources(L151-159)が plan_build.py を挙げる一方、build-plan.py が plan 構築本体を委譲する lib/plan_compose.py(assemble_plan)を列挙していない。End-to-End Flow L61 も『finalize_plan で plan 確定』と plan_build を指し plan_compose に触れない。誤誘導ではない(WHAT は正確)が、dry-run と send-campaign が同一 plan を生む共有 SSOT 化という構造の要が資源一覧に surface せず、将来保守者が委譲関係を辿りにくい。次回更新で plan_compose.py を追記すると完全。",
+      "smell(low/非blocking): build-plan.py L101 コメント『dry-run と確認0 auto-send が同一ロジックで新鮮 plan を作る SSOT』および plan_compose.py モジュール docstring(L4/L18/L135)が消費側を『確認0 auto-send』とのみ呼ぶ。spec §16 B1(2026-06-27)で既定が最小確認1回(preview→単一確認→--confirm-token・これも fresh rebuild を使う)へ転回したため、用語が narrow に古い。--auto-approve の無人確認0 モードは残存し SSOT を共有するため文言は依然 true(=false ではなく C3 blocker でない)が、最小確認1回既定も同 SSOT を通る事実が抜けており SKILL.md L41 の最新記述と用語の粒度が揃っていない。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "実装照合の結果、4条件いずれも違反なし。C1 矛盾なし: SKILL.md/build-plan.py/lib/spec-detail.md が抑制>dedup の順序・content_hash 固定7キー・no-send で完全一致。C2 漏れなし: 完了チェックリストが抑制可視化/dedup/直積/件名+本文置換/MIME組立/hash/canary/APPROVE/skipped_validation 内訳/0通案内を MECE に網羅。C3 整合性: spec-detail §3(created_time 降順・同時刻 page_id 降順・抑制最優先)と IN1 本文・コードが一致、§8 用語表でユーザー語彙と実装語彙を1対1対応。C4 依存: 参照先 lib/次工程が全実在・goal-seek アンカー循環なし。smell: なし(dry-run を不可逆送信の停止点として正しくスコープし、canary は承認契約を carry over せず再算出)。テスト実行 = plugins/notion-gmail-send 内 tests/test_build_plan.py tests/test_recipient_resolution.py で 20 passed in 0.13s(中央スイート非汚染)。build-plan.py への Gmail 送信呼び出しは grep で皆無を確認。SHA は現 SKILL.md と一致(f9a1ec0e...)。"
+  "notes": "独立 elegance approver による genuine 再採点(stale verdict SHA 19650b6a... は『確認0 auto-send 既定』を称賛=旧設計でありコピーせず破棄、現 SKILL.md を一から評価)。pytest=plugins/notion-gmail-send/tests/ 198 passed(test_recipient_resolution/test_build_plan/test_plan_compose 中心)。C1 矛盾0=PASS(抑制>dedup 順序・content_hash 固定7キー・dry-run no-send が SKILL.md/build-plan.py/lib/spec 全層で一致)。C2 漏れ0=PASS(完了チェックリスト MECE)。C3 整合性0=PASS(criteria IN1/IN2/OUT1 が各テスト・elegant-review に対応、本文とコード一致)。C4 依存破綻0=PASS(参照 lib/script/次工程 全実在・dangling なし・plan_compose import 相対/直接 fallback 両対応・goal-seek アンカー循環なし)。最小確認1回への転回(§16 B1-B6)が dry-run 側へ及ぼす波及は小さい: dry-run は元来 no-send local-artifact で、転回は send-campaign.py 側の既定送信モード(preview/exit10→--confirm-token)を変えただけ。dry-run は SKILL.md L41 で『既定/無人では必須でなく厳格対話・canary 前の全件目視材料』と再位置づけされ APPROVE 文字列契約は厳格対話 live-send 経路として温存=整合。残る2件は code コメント/資源一覧の用語・完全性 gap(共に low・非blocking)で PASS を妨げない。SHA は現 SKILL.md と read_bytes 一致(hashlib.sha256 直接計測=6628bdbb...)。"
 }

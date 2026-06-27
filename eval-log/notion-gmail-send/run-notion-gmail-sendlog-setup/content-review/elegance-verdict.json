@@ -2,12 +2,12 @@
   "target": {
     "plugin": "notion-gmail-send",
     "skill": "run-notion-gmail-sendlog-setup",
-    "skill_md_sha256": "0034b1a32b8fa044b6810136b7aec46e9a9d82e76376f135832ef53e3e3c341a"
+    "skill_md_sha256": "5b18045955ae8e906476a9d6743631a57f1abada0b9cf057f9c14201c80674e7"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "independent-elegance-reviewer",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-26",
   "iterations": 1,
   "human_review_required": false,
   "findings_summary": {
@@ -21,9 +21,9 @@
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "IN1(C1矛盾なし/C4依存整合): diff_schema が to_add(不足プロパティ)と title_rename のみを算出し既存プロパティを一切削除しない。select 選択肢は merged=既存+不足 でマージ追加し既存選択肢を温存(Gotcha3)。型不一致は mismatch に積むのみで --apply でも自動変更せず exit1 で手動是正へ差し戻す(Key Rule3)。additive-only/非破壊/冪等が構造で担保され IN1 を満たす。",
-      "OUT1(C2漏れなし/C3整合性): 既定 dry-run が現状と §9 期待 schema の差分(不足/型不一致/title rename)を提示し差分ありは exit1、--apply は明示フラグで gate(SKILL.md End-to-End Flow 手順1-4)。title='冪等キー' が send 系 idempotent_log.P_KEY と一致し冪等キー検索基盤を成立させ、db_id 解決(--db-id>config databases.gmail-send-log.db_id)が preflight G2(§10/§13)の依存実体を先行確定する。ユーザー目的『仕様 schema と照合し不足分だけ安全に補う』を過不足なく満たす。",
-      "schema 単一正本(Key Rule4): 期待プロパティは setup-send-log-db.py の EXPECTED 定数のみ、status/reason_code 選択肢は lib/idempotent_log.py の enum を参照し二重定義を作らない。EXPECTED の17プロパティが SSOT doc §9 送信ログDB schema 表(17行)と完全一致し、reason_code は test_contract_sync で REASON_OPTIONS is idempotent_log.REASON_CODES として drift を機械固定。"
+      "IN1(C1矛盾なし/C4依存整合): setup-send-log-db.py の diff_schema が to_add(不足プロパティ)と title_rename のみを算出し既存プロパティを一切削除しない。select 選択肢は既存+不足のマージ追加で温存(Gotcha3)、型不一致は mismatch に積むのみで --apply でも自動変更せず exit1 で手動是正へ差し戻す(Key Rule3)。additive-only/非破壊/冪等が構造で担保され test_contract_sync が機械固定。",
+      "OUT1(C2漏れなし/C3整合性): 既定 dry-run が §9 期待 schema との差分(不足/型不一致/title rename)を提示し差分ありは exit1、--apply は明示フラグで gate(End-to-End Flow 手順1-4)。title='冪等キー' が send 系 idempotent_log.P_KEY と一致し冪等キー検索基盤を成立させ、db_id 解決(--db-id>config databases.gmail-send-log.db_id)が preflight G2(§10/§13)の依存実体を先行確定する。ユーザー目的『仕様 schema と照合し不足分だけ安全に補う』を過不足なく満たす。",
+      "schema 単一正本(Key Rule4): 期待プロパティは setup-send-log-db.py の EXPECTED 定数のみ、status/reason_code 選択肢は lib/idempotent_log.py の enum を参照し二重定義を作らない。冪等キー定義 {本文page_id}:{宛先page_id}:{content_hash} が send 系 dedup_key と一致し、Key Rule2 が campaign_id 非含・--allow-resend 時のみ suffix 付与という send 側の content ベース冪等設計と整合的に記述。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -31,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "独立 elegance レビュア(approver≠proposer)による genuine 採点。4条件全 PASS: C1 矛盾なし(diff_schema は追加/rename のみ・破壊操作なし、reason_code=select/From=rich_text は §9 が許す select/rich_text・email/rich_text の一方を一貫採用しており矛盾でなく決定)、C2 漏れなし(dry-run 差分提示→--apply→config 焼き込み案内→再 dry-run のフロー、完了チェックリスト8項目、Gotcha5件、依存実体 G2 連結が MECE)、C3 整合性(SSOT doc §9/§10/§13 と SKILL.md/EXPECTED が整合、title='冪等キー'・冪等キー定義 {本文page_id}:{宛先page_id}:{content_hash} が send 仕様と一致)、C4 依存整合(EXPECTED→idempotent_log enum→test_contract_sync の参照鎖に循環/dangling なし、config db_id 解決順 --db-id>config、両方無ければ exit2)。テスト: cd plugins/notion-gmail-send && python3 -m pytest tests/test_contract_sync.py -q = 11 passed。IN1 は test_contract_sync(REASON_OPTIONS is SSOT・冪等キー定義 drift 固定)で機械検証、additive-only/非破壊は diff_schema の構造で保証。OUT1 は dry-run gate と G2 依存先行確定で送信フローの冪等キー基盤を過不足なく用意。本物の欠陥は検出されず PASS。"
+  "notes": "独立 elegance approver(proposer!=approver)による genuine 採点。4条件全 PASS。C1 矛盾なし(diff_schema は追加/rename のみ・破壊操作なし)、C2 漏れなし(dry-run 差分提示->--apply->config 焼き込み案内->再 dry-run、完了チェックリスト8項目、Gotcha5件、依存実体 G2 連結が MECE)、C3 整合性(SSOT doc §9/§10/§13 と SKILL.md/EXPECTED が整合、title='冪等キー'・冪等キー定義が send 仕様の content ベース dedup と一致)、C4 依存整合(EXPECTED->idempotent_log enum->test_contract_sync の参照鎖に循環/dangling なし、config db_id 解決順 --db-id>config、両方無ければ exit2)。今回の send 側変更(content ベース冪等・--allow-resend)に対して本スキルの Key Rule2 が冪等キー定義を campaign_id 非含で正しく追従しており drift なし。テスト: プラグイン全体 190 passed(test_contract_sync 含む)。本物の欠陥は検出されず PASS。SHA は現 SKILL.md と read_bytes 一致。"
 }

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # /// script
 # name: validate_company_master
-# purpose: SKILL.md『検証』とcolumns.mdの8列整合ルール(deterministic_checks a-h)をレコード/Notion行JSONに対し実判定する。確認用URLはページ本文へ移行し検査対象は source_by_field(新形式・per-field出典)/source_urls(旧形式)。
+# purpose: SKILL.md『検証』とcolumns.mdの7列整合ルール(deterministic_checks a-h)をレコード/Notion行JSONに対し実判定する。確認用URLはページ本文へ移行し検査対象は source_by_field(新形式・per-field出典)/source_urls(旧形式)。正式名称列は会社名(title)へ統合済みで列を持たない(official_nameはprovenanceのみ)。
 # inputs:
 #   - argv: <records.json> | -  (stdin)。records は record list または単一 record
-#   - format: enrich/upsert の record {fields, overall_certainty, remarks_text, source_by_field, source_urls} か Notion行相当の8列dict
+#   - format: enrich/upsert の record {fields, overall_certainty, remarks_text, source_by_field, source_urls} か Notion行相当の7列dict
 # outputs:
 #   - stdout: 検査サマリ
 #   - stderr: 違反理由 (行番号付き)
@@ -18,7 +18,7 @@
 """企業マスタ deterministic_checks 検証器。
 
 columns.md の整合ルール (a)-(h) を実判定する。SKILL.md『検証』節と build-trace の
-検証主張に対応する実体。レコード(enrich/upsert の record)または Notion 行相当の 8列 dict
+検証主張に対応する実体。レコード(enrich/upsert の record)または Notion 行相当の 7列 dict
 を入力に取り、違反を非0終了 + 理由出力で報告する。
 
 判定項目:
@@ -40,7 +40,7 @@ columns.md の整合ルール (a)-(h) を実判定する。SKILL.md『検証』�
       - 旧形式 (source_by_field 無し): record 形式の非空 postal_code は出典不明として FAIL。
         それ以外は現行検査へ縮退 —『ネット検索(要確認)』行は source_urls 非空
         (Notion行形式は source_urls キーがある場合のみ適用)
-  (h) 8列構成・空/未確定法人番号でキー衝突なし (行集合全体で検査)
+  (h) 7列構成 (正式名称列は会社名へ統合)・空/未確定法人番号でキー衝突なし (行集合全体で検査)
 """
 from __future__ import annotations
 
@@ -51,6 +51,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import remarks as remarks_module  # noqa: E402
+from postal_api import JAPANPOST_VERIFY_URL  # noqa: E402  (郵便番号検証URLの唯一の正本を参照・literal再定義しない)
 
 POSTAL_RE = re.compile(r"^\d{3}-\d{4}$")
 PHONE_RE = re.compile(r"^[\d-]*\d[\d-]*$")  # 数字を含みハイフン許容
@@ -92,26 +93,34 @@ ORIGIN_CERTAINTY_CAP = {
     "none": CERTAINTY_UNRESOLVED,
 }
 # 属性 × 許可 origin ホワイトリスト (許可段)。postal_code は Web/ユーザー入力不可 (日本郵便 API のみ)。
+# company_name は会社名タイトルへ official_name(登記名) を統合できるため gbizinfo も許可する
+# (cap=『公的データで確認済み』と整合。R3 で title=official_name or company_name)。
 FIELD_ALLOWED_ORIGINS = {
-    "company_name": {"user_input", "web", "none"},
+    "company_name": {"user_input", "web", "gbizinfo", "none"},
     "official_name": {"gbizinfo", "web", "user_input", "none"},
     "address": {"gbizinfo", "web", "user_input", "none"},
     "postal_code": {"japanpost", "none"},
     "hojin_bango": {"gbizinfo", "web", "user_input", "none"},
     "phone_number": {"web", "user_input", "none"},
 }
-JAPANPOST_VERIFY_URL = "https://www.post.japanpost.jp/zipcode/"
+# JAPANPOST_VERIFY_URL は postal_api を唯一の正本として import 済み (literal 再定義しない)。
 
+# source_by_field provenance の検査対象 6 属性。official_name は DB 列を廃し会社名タイトルへ
+# 統合 (R3/R4) したが、出所層の provenance としては残す (表示層と出所層の分離・D1)。
 ATTRIBUTE_FIELDS = (
     "company_name", "official_name", "address",
     "postal_code", "hojin_bango", "phone_number",
 )
-# Notion 行相当 (日本語列名) からの取り込みマッピング (h: 8列構成検査用)。
+# Notion 行相当 (日本語列名) からの取り込みマッピング (h: 列構成検査用)。
+# 正式名称列は廃止し会社名(title)へ official_name を統合したため 7 列構成 (会社名/住所/郵便番号/
+# 法人番号/電話番号 + 情報の確かさ/備考)。official_name は DB 列ではなく source_by_field で保持する。
 JP_COL_MAP = {
-    "会社名": "company_name", "正式名称": "official_name", "住所": "address",
+    "会社名": "company_name", "住所": "address",
     "郵便番号": "postal_code", "法人番号": "hojin_bango", "電話番号": "phone_number",
 }
 REQUIRED_JP_COLS = set(JP_COL_MAP) | {"情報の確かさ", "備考"}
+# Notion 行 (列) として空欄判定する属性 = JP_COL_MAP の値 (official_name は列でないため除外)。
+NOTION_COLUMN_FIELDS = tuple(JP_COL_MAP.values())
 
 
 def _source_urls_text(value) -> str:
@@ -139,6 +148,7 @@ def normalize_record(rec: dict) -> dict:
 
     確認用URL はページ本文へ移行したため検査対象は source_urls (record 形式)。
     Notion 行形式は確認用URL列を持たないが、source_urls キーがあれば取り込む (後方互換)。
+    正式名称列は廃止し会社名(title)へ official_name を統合したため Notion 行は 7 列構成。
     """
     source_by_field = rec.get("source_by_field")
     if not isinstance(source_by_field, dict):
@@ -152,7 +162,7 @@ def normalize_record(rec: dict) -> dict:
         remarks_text = rec.get("remarks_text", "")
         confirm_url = _source_urls_text(rec.get("source_urls"))
         has_source_urls = "source_urls" in rec
-        present_cols = set(ATTRIBUTE_FIELDS) | {"情報の確かさ", "備考"}
+        present_cols = set(fields) | {"情報の確かさ", "備考"}
         source_format = "record"
     else:
         # Notion 行相当 (日本語列名)。確認用URL列は廃止 (本文へ移行)。
@@ -222,7 +232,12 @@ def validate_row(rec: dict, idx: int, remark_phrases: set[str]) -> list[str]:
     elif ENGLISH_ENUM_RE.match(certainty):
         errs.append(f"{prefix} (e) 情報の確かさ '{certainty}' は英語enum値 (日本語ラベル必須)")
 
-    has_empty = any(not f.get(k) for k in ATTRIBUTE_FIELDS)
+    # 空欄判定の対象: record 形式は provenance 6 属性 (official_name 含む)、Notion 行形式は
+    # 実在 7 列の属性 (official_name は列でないため除外)。列を持たない属性で空欄誤検知しない。
+    empty_check_fields = (
+        ATTRIBUTE_FIELDS if n["source_format"] == "record" else NOTION_COLUMN_FIELDS
+    )
+    has_empty = any(not f.get(k) for k in empty_check_fields)
     if has_empty:
         if certainty != CERTAINTY_UNRESOLVED:
             errs.append(f"{prefix} (f) 空欄属性ありだが確度が『未確定(要確認)』でない: '{certainty}'")
@@ -257,6 +272,11 @@ def validate_row(rec: dict, idx: int, remark_phrases: set[str]) -> list[str]:
                 errs.append(
                     f"{prefix} (g) source_by_field['{field}'] は origin=web だが url が空"
                     " (ネット検索値は根拠URL必須)"
+                )
+            if origin == "gbizinfo" and f.get(field) and not (spec.get("url") or "").strip():
+                errs.append(
+                    f"{prefix} (g) source_by_field['{field}'] は origin=gbizinfo だが url が空"
+                    " (gBizINFO値は法人詳細ページURL必須)"
                 )
             if field == "postal_code" and postal:
                 field_certainty = n["certainty_by_field"].get(field)
@@ -316,7 +336,7 @@ def validate_row(rec: dict, idx: int, remark_phrases: set[str]) -> list[str]:
         missing = expected_cols - present
         extra = present - expected_cols
         if missing:
-            errs.append(f"{prefix} (h) 必須8列が不足: {', '.join(sorted(missing))}")
+            errs.append(f"{prefix} (h) 必須列が不足: {', '.join(sorted(missing))}")
         if extra:
             errs.append(f"{prefix} (h) 禁止/余剰列あり: {', '.join(sorted(extra))}")
 

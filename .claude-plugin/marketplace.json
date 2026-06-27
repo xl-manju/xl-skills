@@ -113,6 +113,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "tags": ["money-forward", "invoice", "notion", "billing", "automation"]
+    },
+    {
+      "name": "notion-gmail-send",
+      "source": "./plugins/notion-gmail-send",
+      "description": "Notion 2DB（メール本文_DB／メール送信先_DB）を入力に、抑制条件を満たした宛先へ {{}} 差し込みで Gmail 一斉個別送信。承認済み plan＋人間承認ゲート＋冪等送信ログの三本柱で不可逆送信を安全化。",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["notion", "gmail", "email", "send", "automation"]
     }
   ]
 }

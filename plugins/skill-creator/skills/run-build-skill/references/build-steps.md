@@ -79,6 +79,19 @@ score >= 80 かつ high=0 で完了。
 
 - alias 不要なら commit
 - 改名/移動なら `aliases:` を追加
+- **新規 plugin の場合**（plugins/<name>/ を新設したとき）はルート2 SSOTへの登録が必須。
+  これを怠ると `/plugin marketplace add` の一覧に出ず install もできない（表示漏れの直接原因）。
+  手順:
+  1. `python3 scripts/validate-plugin-completeness.py --fix` を実行。実体ディレクトリ起点で
+     未登録 plugin を `.claude-plugin/marketplace.json` plugins[] と
+     `.claude-plugin/bundles.json`（plugin.json の `bundle_targets`）へ **append-only** で自動登録し、
+     書込後に自己再検証して exit 0 を保証する（既登録なら no-op・冪等）。
+  2. 自動生成エントリの `category` / `tags` / `description` は plugin.json 由来またはデフォルト。
+     `[category/tags はデフォルト値。PR で要確認]` の警告が出たら plugin.json に
+     `category` / `tags` を追記するか marketplace エントリを PR diff で磨き込む。
+  3. 人間が PR diff で最終承認する（機械は登録漏れを必ず塞ぎ、表示文言の磨き込みは人間が担う二層分離）。
+  - 検出層: CI/pre-push の `validate-plugin-completeness.py`（MK-001/002/003・BD-001）が
+    登録漏れを fail-closed で止める最後の砦。`--fix` を忘れても CI で必ず検出される。
 
 ## Goodhart 罠回避
 

@@ -22,18 +22,18 @@ Notion の2つの DB を入力に、`メッセージ対象=✅ かつ 本文非�
 
 ## 2. 中心設計原則（不可逆送信の安全）
 
-本スキルの中核は「**不可逆な外部副作用（メール送信）を、承認済み plan・人間承認ゲート・事前予約つき冪等ログの三本柱で安全化する**」こと。三者は役割が異なり、混同してはならない。
+本スキルの中核は「**不可逆な外部副作用（メール送信）を、承認の所在（既定=Notionチェック✅＋preview 要約への単一確認 / 無人cron=Notionチェック✅ / 厳格対話=APPROVE）・送信前の機械的安全層・事前予約つき冪等ログで安全化する**」こと。三者は役割が異なり、混同してはならない。
 
 | 安全装置 | 守る対象 | 効く局面 | 効かない局面 |
 |---|---|---|---|
-| **承認済み plan**（`plan_hash` + `count` + `first_to` + 確認語） | dry-run と live-send の内容ずれ | 承認後の全送信 | 承認者が内容を見ていない場合 |
-| **人間承認ゲート**（dry-run 全件プレビュー目視 → 明示承認） | **初回送信の不可逆性**（誤った本文・誤った宛先を送らない） | 全送信（初回含む） | 承認後に plan 外送信を許す実装 |
-| **事前予約つき冪等ログ**（reserved → sending → sent / unknown） | **再実行時の二重送信**と送信成功後ログ失敗 | 2回目以降の再実行・障害復旧 | **初回の内容妥当性** |
+| **承認済み plan / fresh rebuild**（`plan_hash` + `count` + `first_to`、厳格対話のみ確認語） | plan.json 改竄・件数偽装・古い plan 使い回し（**実効検出は plan.json が非信頼アーティファクトとなる厳格対話モードのみ**。非対話＝既定confirm／無人cron では plan を送信直前に self-derive するため plan_hash／件数／content_hash 照合は恒真＝compose バグ検出用の defense-in-depth） | 承認後の全送信 | Notion 読取後から送信直前までの意味的なデータ変更 |
+| **承認の所在**（既定=Notion `送信対象=✅`＋preview 要約への単一確認 / 無人cron=Notion `送信対象=✅` / 厳格対話=dry-run 全件プレビュー目視 → APPROVE） | 誰に送るかの意思をデータ層（`送信対象=✅`）で固定し、既定は preview 要約への単一確認・厳格対話は APPROVE 文字列で送信を発火する | 全送信（初回含む） | 内容が意味的に正しいことの保証（既定は preview 要約＋source-audit/canary、無人cron は Notion 整備＋source-audit fail-closed、厳格対話は目視で緩和） |
+| **事前予約つき冪等ログ**（reserved → sending → sent / unknown） | **再実行時の同一Notionページ単位の二重送信**と送信成功後ログ失敗 | 2回目以降の再実行・障害復旧 | **初回の内容妥当性**、別Notionページとして作り直した同一メールアドレスへの重複 |
 
-> ⚠️ 因果ループ警告（設計に明記すること）: 「冪等があるから安全」は**初回送信の内容妥当性には成立しない**。初回の内容安全は人間承認ゲートが担保し、承認後の内容固定は `plan_hash`、再実行安全は事前予約つき冪等ログが担保する。安全装置の充実が運用者の警戒を下げ承認を機械的に通す逆説を避けるため、**承認ゲートは「差し込み後フルプレビューを目視し、機械照合可能な承認文字列を入力しないと通せない」形**にする。
+> ⚠️ 因果ループ警告（設計に明記すること）: 「冪等があるから安全」は**初回送信の内容妥当性には成立しない**。初回内容は既定では preview 要約への単一確認＋source-audit/canary、無人cron では Notion のチェック整備＋source-audit fail-closed、厳格対話では目視承認で緩和する。承認後の内容固定は `plan_hash` と送信前の決定論再計算、再実行安全は事前予約つき冪等ログが担保する。
 
 ### 送信方式の確定（ユーザー承認済み）
-**dry-run 全件プレビュー + `plan.json` 生成 → 人間が内容を目視して `APPROVE <plan_hash> <count> <first_to> <確認語>` を入力 → 一括本送信**。`<確認語>`（nonce）は dry-run が特定の送信単位のプレビュー行末にのみ表示する短コードで、その単位を目視で探さないと得られない（blind approve 防止の読解強制・S-F1）。少数検品用の **canary 段階送信は dry-run の `--canary N`／`--limit N` で採用済み**（送信可能 unit を安定順の先頭 N 件へ限定し、限定後の `plan_hash`／件数／確認語に承認を束縛する。§14 決定ログの推移注記を参照）。既定下書きモード（draft-only）は引き続き未採用。
+**既定は最小確認1回**。引数なしで `send-campaign.py` を実行すると preview（送信せず、件数／先頭To／本文先頭／抑制・skip 内訳／⚠️警告の要約 ＋ `CONFIRM_TOKEN=plan_hash` を出し **exit 10**）→ 人間の単一の送信可否確認 → `--confirm-token <plan_hash>` で再実行すると、送信直前に最新 Notion から新鮮 plan を再構築し、その `plan_hash` がトークンと一致する時のみ送信する（preview 後に Notion が変化して不一致なら **exit 11** で再 preview を促す）。重い `APPROVE`＋確認語の読解強制を、軽量な単一確認へ圧縮した（ユーザー選択＝件数に関わらず常に1回確認）。**無人 cron 用は `--auto-approve`／`--yes`** で端末確認なしの確認0（source-audit high 残存で fail-closed）。慎重運用の**厳格対話（後方互換）**は dry-run 全件プレビュー + `plan.json` 生成 → 人間が内容を目視して `APPROVE <plan_hash> <count> <first_to> <確認語>` を入力 → 一括本送信。承認の所在は Notion の `送信対象=✅`（データ層）。少数検品用の **canary 段階送信は `--canary N`（`send-campaign.py`／dry-run とも）で opt-in 採用済み（据置・既定 ON ではない）**。既定下書きモード（draft-only）は引き続き未採用。
 
 ---
 
@@ -104,7 +104,7 @@ REST API（Keychain `notion-api-key.xl-skills`）で取得済みの実構造。N
 
   > **「recipient list」の用語注記（F2）**: 旧記述の「recipient list」は独立フィールドではなく、上記の **To（`to`・sorted）／CC（`cc`・sorted）／宛先page_id（`recipient_page_id`）** の総称である。実装 `lib/plan_build._normalize` が hash 対象とするキーは `subject / body / from / to(sorted) / cc(sorted) / body_page_id / recipient_page_id` の7つで固定。`build_plan` がこの後追加する `cc_suppressed_due_to_to_overlap` 等の観測メタは `_normalize` が拾わないため **content_hash に影響しない**（決定論を維持）。
 - `plan_hash`: dry-run で生成した全送信単位（順序安定、正規化済み）の SHA-256。live-send は `--approved-plan-hash` が dry-run の `plan_hash` と一致しない限り Gmail API を呼ばない。
-- 冪等キーは `{本文page_id}:{宛先page_id}:{content_hash}`。`campaign_id` は含めず、別実行でも同一本文×同一宛先×同一内容の二重送信を止める。意図的再送時のみ `--allow-resend` が campaign suffix を付ける。同一宛先行のメール列に複数アドレスがある場合も、その宛先行に対する1送信単位として扱う。
+- 冪等キーは `{本文page_id}:{宛先page_id}:{content_hash}`。`campaign_id` は含めず、別実行でも同一本文ページ×同一宛先ページ×同一内容の二重送信を止める。宛先を別Notionページとして作り直した場合は別単位。意図的再送時のみ `--allow-resend` が campaign suffix を付ける。同一宛先行のメール列に複数アドレスがある場合も、その宛先行に対する1送信単位として扱う。
 - `plan.json` には本文全文を含めるが、保存場所はローカル作業領域のみ（git 管理外推奨）。Notion ログには本文全文を保存せず `content_hash` と件名を保存する。
 
 ### 件数式（2段に分離 — C4 依存整合）
@@ -151,13 +151,13 @@ REST API（Keychain `notion-api-key.xl-skills`）で取得済みの実構造。N
 
 | 層 | 担当 | 内容 |
 |---|---|---|
-| **run-skill（オーケストレータ／ラッパ）** | prompt 要 | preflight 検証の統括、dry-run 全件プレビューの提示、`plan_hash` 承認文字列の受領、送信前二段確認の起動、例外介入、最終レポート生成 |
+| **run-skill（オーケストレータ／ラッパ）** | prompt 要 | preflight 検証の統括、既定confirm 送信の起動（preview 要約提示→人間の単一確認→`--confirm-token` 再実行）、無人 cron（`--auto-approve`）の起動、厳格対話時のdry-run提示・`APPROVE`承認文字列受領・送信前二段確認の起動、例外介入、最終レポート生成 |
 | **決定論的本体（script）** | prompt 不要 | Notion 取得・抽出、差し込み置換、メッセージ組立、`plan.json` 生成、script 内 `send_guard()`、Gmail 個別送信、事前予約つき冪等ログ |
 
 ### 責務一覧（skill-brief.responsibilities へ反映）
 | id | desc | prompt_required |
 |---|---|---|
-| `orchestrate` | goal-seek 制御・preflight 統括・送信可否判断・`APPROVE <plan_hash> <count> <first_to> <確認語>` 形式の人間承認受領・最終レポート生成 | true |
+| `orchestrate` | goal-seek 制御・preflight 統括・送信可否判断・既定confirm 送信起動（preview→単一確認→`--confirm-token`）・無人 cron 起動・厳格対話時の`APPROVE <plan_hash> <count> <first_to> <確認語>`形式の人間承認受領・最終レポート生成 | true |
 | `preflight-verify` | 認証/ドメイン/依存実体/本文充足を fail-closed 検証（§10）。送信前二段確認（context:fork で宛先・件数・plan_hash・未置換トークン残存を再検査） | true |
 | `notion-fetch` | DB1/DB2 を REST 取得し本文 true / 宛先 true を抽出（script） | false |
 | `render-substitute` | 本文コードブロック**および件名**の `{{}}` トークンを宛先DB値で置換、未置換 fail-closed（script） | false |
@@ -174,10 +174,10 @@ REST API（Keychain `notion-api-key.xl-skills`）で取得済みの実構造。N
 1. dry-run preflight（Notion取得・本文true/宛先true・置換・本文抽出を fail-closed 検証）
 2. 送信単位生成（§4 直積・本文true×宛先true）
 3. 差し込み置換（§5）＋メッセージ組立（§6）
-4. `plan.json` 生成（`campaign_id` / `content_hash` / `plan_hash`）と dry-run 全件プレビュー提示
+4. `plan.json` 生成（`campaign_id` / `content_hash` / `plan_hash`）。対話モードでは dry-run 全件プレビュー提示
 5. live-send preflight（§10 G1/G2/G3: 認証・送信ログDB・From/sendAs・plan_hash 一致）
-6. 人間承認ゲート（`APPROVE <plan_hash> <count> <first_to> <確認語>` 完全一致） ── 承認なしに本送信へ進まない
-7. 送信前二段確認（context:fork：宛先/件数/plan_hash/未置換トークン残存を再検査、fail-closed）
+6. 承認ゲート（既定confirm: 引数なし preview で要約＋`CONFIRM_TOKEN=plan_hash` を出し送信せず **exit 10** → 人間の単一確認 → `--confirm-token <plan_hash>` 再実行で新鮮 plan の plan_hash 一致時のみ送信、不一致は **exit 11** で再 preview / 無人cron: `--auto-approve`／`--yes` で Notion `送信対象=✅` を承認として plan から self-derive（source-audit high で fail-closed） / 厳格対話: `APPROVE <plan_hash> <count> <first_to> <確認語>` 完全一致）
+7. 送信前二段確認（対話モードのみ context:fork：宛先/件数/plan_hash/未置換トークン残存を再検査、fail-closed）
 8. 各送信単位を Notion 送信ログDBへ `reserved` 事前予約（既存 sent/reserved/unknown は自動再送しない）
 9. script 内 `send_guard()` 通過後に一括本送信（Gmail API・1通ずつ・quota安全停止/レート制御）
 10. Gmail 受理後、同じログ行を `sent` に更新。更新失敗時はローカル journal に `send_success_log_failed` を残し、次回は `unknown_needs_reconcile` 扱いで自動再送しない
@@ -188,7 +188,7 @@ REST API（Keychain `notion-api-key.xl-skills`）で取得済みの実構造。N
 
 ## 9. 冪等と状態
 
-- **冪等キー**: `{本文page_id}:{宛先page_id}:{content_hash}`。送信ログDBの一意キーとして検索し、同一キーが `sent` なら再送しない。`campaign_id` は含めず、意図的再送時のみ `--allow-resend` が campaign suffix を付ける。
+- **冪等キー**: `{本文page_id}:{宛先page_id}:{content_hash}`。送信ログDBの一意キーとして検索し、同一キーが `sent` なら再送しない。`campaign_id` は含めず、意図的再送時のみ `--allow-resend` が campaign suffix を付ける。別Notionページとして作り直した宛先は別単位として扱う。
 - **実行モード**: `dry-run` / `live-send`。dry-run は Gmail API を呼ばない。
 - **送信状態 enum（副作用段階）**: `planned` / `reserved` / `sending` / `sent` / `skipped_idempotent` / `skipped_validation` / `error` / `unknown_needs_reconcile`
   - `planned` = dry-run plan に含まれるが送信予約前
@@ -237,7 +237,7 @@ dry-run preflight と live-send preflight は分離する。dry-run は送信ロ
 | **G0 dry-run** | Notion 2DB 読取、本文コードブロック抽出、置換、plan_hash 算出。Gmail/ログDBは不要 | 送信せず dry-run レポートだけ返す。本文0通は本文記入を促す |
 | **G1 認証** | Keychain SA鍵を `security` で列挙確認し、JSON を安全にロードできることを検証。`shonai.inc` の DWD + `gmail.send` 承認、From の `sendAs` alias を**実APIで動的検証**（doctor --probe 型） | 送信せず中断。`doc/GCP-Gmail送信設定手順.md` へ誘導 |
 | **G2 依存実体** | 送信ログDB ID が `.notion-config.json` の `databases.gmail-send-log.db_id` で解決可能か。送信可能な本文が1通以上あるか（本文 true ≥ 1） | DB ID 不在は db-setup へ差し戻し。本文0通は本文記入を促し送信せず終了 |
-| **G3 送信直前** | `approved_plan_hash == plan_hash`、承認 count/first_to 一致、未置換 `{{}}` トークン残存・宛先件数・From 整合を機械検査（script 内 `send_guard()` + context:fork 二段確認） | 該当送信単位を `skipped_validation`、全体不整合なら中断 |
+| **G3 送信直前** | `approved_plan_hash == plan_hash`、承認 count/first_to 一致、未置換 `{{}}` トークン残存・宛先件数・From 整合を機械検査（script 内 `send_guard()`。context:fork 二段確認は対話モードのみ） | 該当送信単位を `skipped_validation`、全体不整合なら中断 |
 
 ### hook と script guard の責務境界
 - `hook_events: ["PreToolUse"]` は run-skill が外部 tool 経由で Gmail 送信を呼ぶ場合の補助防御である。
@@ -365,6 +365,36 @@ skill-creator が `eval-log/skill-brief.json` を v2 化する際の主要差分
 | C-1 | **送信時 suppress 再検証**: 承認後に Notion で抑制された宛先への追い越し送信を live-send が再取得して差し引く（subtract-only） |
 
 実装前に3アナリストが独立検出し是正した critical: (1) `created_time` が未抽出で dedup 入力が不在、(2) `assemble` の CC正規化が未実装で設計前提が偽、(3) 抑制→dedup の順序未固定で抑制行が代表に選ばれ生存行を巻き込む事故、(4) dry-run 凍結後の「送らない」追い越し送信。テスト 114 本全通過（dedup/suppress/CC/送信時再検証を含む）。
+
+### 2026-06-26 改修（確認0 auto-send モードの追加・elegant-review 30思考法/4条件 再適用）
+ユーザー要望「自動化したい。確認事項（対話的確認）を最大限省略し最悪0に。Notion のチェックを承認とみなしたい」に応え、**承認の所在を「端末の APPROVE 文字列」から「Notion のチェック（データ層）」へ移設**した。思考リセット→論理構造/メタ発想/システム戦略 を並列 SubAgent で適用し、3アナリスト独立収束で設計を確定。**ユーザー選択＝「全件即送信（真の0）」**（canary は opt-in・既定は確認0で全 ✅ 宛先へ即送信）。
+
+| ID | 内容 |
+|---|---|
+| A1 | **2モード化**: `run-notion-gmail-send` を 既定=引数なしauto（確認0、`--auto-approve` は後方互換）／`--plan`+`--approved-*`（対話・後方互換）の2モードに。auto は端末入力ゼロ。 |
+| A2 | **承認 tuple の self-derive**: auto は送信直前に最新 Notion から新鮮 plan を構築し、`approved_plan_hash/count/first_to` を plan から自己導出。人間の APPROVE 入力のみ bypass し、**per-unit guard loop（Class A）は必ず通す**。 |
+| A3 | **Class A / Class B 分離**: send_guard 8フィールドを「改竄検出・人間非依存（plan_hash 再計算/件数/先頭To/reserved/未置換/From/content dedup/C-1）＝Class A」と「人間内容承認（approved_* 束縛/nonce 読解強制）＝Class B」に分離。**auto で失う機械安全は0**。Class B（承認の所在）は Notion チェックへ再配置。**nonce は auto モードで撤去**（`enforce_nonce=False`・`actual_nonce=""` で send_guard が照合スキップ）。 |
+| A4 | **fresh rebuild**: auto は古い plan.json を使い回さず `lib/plan_compose.compose_plan` で送信直前に最新状態から plan を再構築。dry-run と同一ロジック（`assemble_plan`）を共有し決定論的に一致。送信直前 suppress 再検証は `plan.source.recipient_db` に束縛する。 |
+| A5 | **source-audit auto-gate**: auto は送信前に `lib/mail_db_audit.run_full_audit` を実行し **high severity 残存なら1通も送らず fail-closed**（人間目視がない確認0の入口防御）。空本文/未知トークン/To/From不正/空差し込み値を行レベルで阻止。秘書CC不正など medium は該当 unit skip。 |
+| A6 | **canary は opt-in**: `--canary N` で安定順先頭 N 件のみ送信。残りは再実行で content dedup（campaign 非依存）が既送を skip して送信。canary 判定は plan_hash でなく content-dedup キー基準（canary slice 後は plan_hash≠full）。 |
+| A7 | **二段確認は対話モード限定**: fork verifier は人間 APPROVE 文字列を独立入力に取る装置。auto は入力が無く proposer==approver になるため使わず、決定論セルフチェック（units→plan_hash/件数/content_hash 再計算）が独立検証を担う。 |
+
+正直な明示（残余リスク）: 確認0は「構文 valid だが意味的に誤った本文」を機械では止められない。これは canary（実メール検品）＋ source-audit ＋ Notion `送信対象=✅` の熟慮で緩和する設計トレードオン（ユーザー受容済み）。`送信対象=✅` は永続・帰属・時刻つきで、揮発的な端末 APPROVE 文字列より監査性はむしろ高い。完全無人 cron（通知チャネル/no-LLM 起動）は別リスククラスとして**明示 defer**。テスト 190 本全通過（auto happy/Class A 各層/source-audit gate/canary dedup/subtract-only を含む `test_auto_send.py`・`test_plan_compose.py`）。
+
+### 2026-06-27 elegant-review: 確認0既定 → 最小確認1回既定へ転回
+
+ユーザーが elegant-review の確認で **「件数に関わらず常に1回確認」「canary は opt-in 据置」** を選択したことを受け、2026-06-26 に確定した確認0 auto-send 既定（A1-A7）を**最小確認1回 既定**へ転回した。3アナリスト（論理構造／メタ発想／システム戦略）が独立に収束し、proposer≠approver で確定した（前項までの確認0設計は歴史として保全し、本項で上書きの転回点を記録する）。
+
+| ID | 内容 |
+|---|---|
+| B1 | **既定を最小確認1回へ**: 引数なしで preview（要約＋`CONFIRM_TOKEN=plan_hash` を出し送信せず **exit 10**）→ 人間の単一の送信可否確認 → `--confirm-token <plan_hash>` で再実行し、送信直前に再構築した新鮮 plan の `plan_hash` がトークン一致時のみ送信。preview 後に Notion が変化して不一致なら **exit 11** で再 preview。重い `APPROVE`＋確認語の読解強制を軽量な単一確認へ圧縮。 |
+| B2 | **無人確認0を温存**: `--auto-approve`／`--yes` を cron 用の確認0（端末確認なし）として残置。source-audit high 残存で fail-closed。 |
+| B3 | **doc 正直化**: plan_hash／件数／content_hash 照合（旧称 Class A の plan 改竄検出）は**非対話（既定confirm／無人cron）では self-derive ゆえ恒真**（＝compose バグ検出用の defense-in-depth）であり、plan 改竄の実効検出は plan.json が非信頼アーティファクトとなる厳格対話モードのみ。非対話の実効独立検証は source-audit／fresh rebuild／C-1／From 検証／content dedup が担う、と §2 安全三本柱表に明記。 |
+| B4 | **source-audit gate 階層化**: 既定 preview は high を ⚠️ 警告として要約に列挙し全停止しない（該当 unit は送信時 per-unit skip）。無人 cron のみ high で fail-closed（人間がループに居る既定＝警告／無人＝fail-closed の原則的非対称）。 |
+| B5 | **C-1 を非対話で fail-closed 化**: 送信時 suppress 再検証は非対話3モード共通で効き、承認後に Notion 側で抑制された宛先を subtract-only で差し引く（承認件数を超えて送らない）。 |
+| B6 | **F6 二段フラグ見送り**: membership／execute の二段フラグはユーザー判断で不採用。`送信対象=✅` を承認兼トリガとする現設計を維持。 |
+
+承認の所在は引き続き Notion `送信対象=✅`（データ層・永続・帰属・時刻つき）。canary は opt-in 据置（既定 ON ではない）。実装は `send-campaign.py`（preview/exit 10・11、`--confirm-token`、`--auto-approve`／`--yes`、3モード直交）に反映済み・テスト通過済み。
 
 ---
 
