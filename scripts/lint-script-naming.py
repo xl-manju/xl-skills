@@ -194,6 +194,15 @@ PENDING_RENAME_PATHS = {
     # verify/build の kebab 化は SKILL.md/prompts/README/manifest/test 参照と同時に
     # 実施する後続 Change Governance PR まで PENDING。
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
+    # reconcile_invoices.py: 月次1コマンド orchestrator。tests/test_reconcile_invoices.py から
+    # `import reconcile_invoices` される module のため §4.3 例外 (ハイフン不可)。許可動詞化
+    # (reconcile→diff/build 等) は SKILL.md/README/manifest/test 参照と同時に実施する後続
+    # Change Governance PR まで PENDING (check_invoice_gaps.py と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/reconcile_invoices.py",
+    # build_reconcile_dbs.py: reconcile DB1/DB2 冪等 find-or-create ビルダー。
+    # tests/test_build_reconcile_dbs.py から `import build_reconcile_dbs` される module のため
+    # §4.3 例外 (ハイフン不可)。許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/scripts/build_reconcile_dbs.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの

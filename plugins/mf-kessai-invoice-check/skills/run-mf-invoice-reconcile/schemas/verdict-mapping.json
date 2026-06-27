@@ -1,0 +1,181 @@
+{
+  "title": "判定語彙SSOT (internal_verdict → judge_label/ai_check/warning_class)",
+  "description": "run-mf-invoice-reconcile の唯一の判定語彙SSOT。engine(lib/mfk_reconcile.py)が emit する内部verdictと、sink(lib/notion_reconcile_sink.py)が DB2『判定』selectへ書く日本語ラベル・AIチェック可否・警告クラスを一元定義する。engineとsinkは双方このJSONをimportし、CHECK_VERDICTS={ai_check:true} / 判定select options={judge_label distinct} はここから派生する(別ファイルへ二重定義しない)。parity test で engine emit ⊆ mappings を担保。warning_class は重大>警告>情報>なし の4段。出典: design.verdict_mapping (15) + buildspec H1(REVIEW_METERED)/K1(REVIEW_DATA_INCOMPLETE)。 さらに sheet_label は請求確認シート『判定』selectへ片方向ミラーする5値投影(未照合/AIの確認OK/対象外/要確認/発行漏れ)。ORPHANはシート行が無いため null(投影しない)。GAP→発行漏れ/MATCH_*→AIの確認OK/SUPPRESS_*→対象外/REVIEW_*→要確認。 action_hint は請求確認シート『確認ポイント』列へ書く『何を確認すべきか』の定型ガイダンス(AIの確認OK/対象外は空=確認不要のため記述なし)。行固有の警告詳細(警告列)と書き戻し層で連結する。",
+  "warning_classes": [
+    "なし",
+    "情報",
+    "警告",
+    "重大"
+  ],
+  "mappings": [
+    {
+      "internal_verdict": "MATCH_MONTHLY",
+      "judge_label": "発行確認OK",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "AIの確認OK",
+      "action_hint": "",
+      "generation": "月払い/単発開始月/分割対象月/隔月請求月 の当月期待に対し名寄せMF供給が金額一致。契約ID境界内で複数シート行の期待額合計(現行単価×期待明細数)がMF 1明細と一致する集約請求も含む。"
+    },
+    {
+      "internal_verdict": "MATCH_ANNUAL",
+      "judge_label": "発行確認OK",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "AIの確認OK",
+      "action_hint": "",
+      "generation": "年間払い/年間一括更新 の一括請求月(elapsed==0 または 年間一括更新でelapsed%12==0)に年額一括(qty≒12 または amount≒単価×初回年間月数)を検出。"
+    },
+    {
+      "internal_verdict": "MATCH_ENDED_FINAL",
+      "judge_label": "発行確認OK(最終請求)",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "AIの確認OK",
+      "action_hint": "",
+      "generation": "契約終了月 end かつ 終了月<=対象月<=終了月+1(最終請求月)で当該契約のMF実績あり。役務の翌月に発行される最終請求書(月またぎ発行)で過剰請求ではない。終了月+2以降の請求は REVIEW_ENDED_BUT_BILLED へ。"
+    },
+    {
+      "internal_verdict": "SUPPRESS_ANNUAL",
+      "judge_label": "対象外(年間前払い)",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "対象外",
+      "action_hint": "",
+      "generation": "年間払い 0<elapsed<12、または 年間一括更新 elapsed%12!=0。年間前払い期間中で当月の月次請求なしが正常。監査証跡として生成。"
+    },
+    {
+      "internal_verdict": "SUPPRESS_ENDED",
+      "judge_label": "対象外(契約終了)",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "対象外",
+      "action_hint": "",
+      "generation": "契約終了月endが設定され T>=end かつ 当該契約のMF実績が当月に無い。契約終了で非請求が正常。"
+    },
+    {
+      "internal_verdict": "SUPPRESS_ONESHOT",
+      "judge_label": "対象外(単発)",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "対象外",
+      "action_hint": "",
+      "generation": "支払サイクル=単発 で elapsed>0(開始月で計上済)。"
+    },
+    {
+      "internal_verdict": "SUPPRESS_OFFMONTH",
+      "judge_label": "対象外(非請求月)",
+      "ai_check": true,
+      "warning_class": "なし",
+      "sheet_label": "対象外",
+      "action_hint": "",
+      "generation": "分割完了(elapsed>=分割回数) または 隔月の非請求月(elapsed%2==1)。当月は請求対象外。"
+    },
+    {
+      "internal_verdict": "GAP",
+      "judge_label": "発行漏れ",
+      "ai_check": false,
+      "warning_class": "重大",
+      "sheet_label": "発行漏れ",
+      "action_hint": "MF掛け払いに当月の発行実績がありません。請求を発行すべきか(または別方法で請求済みか)確認してください。",
+      "generation": "当月期待行に対し名寄せMF供給が皆無(金額不一致のMF供給すら無い)。B1: 金額のみ不一致は GAP でなく REVIEW_AMOUNT_MISMATCH へ。"
+    },
+    {
+      "internal_verdict": "ORPHAN",
+      "judge_label": "要マスタ登録",
+      "ai_check": false,
+      "warning_class": "重大",
+      "sheet_label": null,
+      "action_hint": "MF実績はあるが請求確認シートに未登録です。契約マスタへ登録してください。",
+      "generation": "逆方向。MF実績にあり当月マスタ有効契約に名寄せできない顧客。方向=逆方向orphan で独立行を生成。"
+    },
+    {
+      "internal_verdict": "REVIEW_ENDED_BUT_BILLED",
+      "judge_label": "要確認(過剰請求)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "契約終了月を過ぎていますが当月にMF請求があります。過剰請求(請求停止漏れ)でないか確認してください。",
+      "generation": "契約終了月MのM+2以降に当該契約のMF実績が当月に存在(最終請求月より後の過剰請求)。終了月〜M+1のMF実績は MATCH_ENDED_FINAL。『要確認』に潰さず独立ラベル。"
+    },
+    {
+      "internal_verdict": "REVIEW_AMOUNT_MISMATCH",
+      "judge_label": "要確認(金額差)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "シートの期待金額とMF発行金額が一致しません。正しい金額を確認してください。",
+      "generation": "B1: 名寄せMF供給が存在し金額のみ不一致(typo帯域外)。例 鳥善 確認357k↔MF215k。GAPに落とさない。"
+    },
+    {
+      "internal_verdict": "REVIEW_AMOUNT_TYPO",
+      "judge_label": "要確認(金額差)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "金額の桁ミスの可能性があります(MF発行額と不一致)。金額表記を確認してください。",
+      "generation": "区切り桁異常(例 50,0000=500000→50000)で /10 候補がMF供給と一致。typo疑い。"
+    },
+    {
+      "internal_verdict": "REVIEW_QTY_MISMATCH",
+      "judge_label": "要確認(数量差)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "期待件数よりMF発行件数が少ないです。差分の発行漏れがないか確認してください。",
+      "generation": "F1: 契約ID境界で 期待件数(Σ期待明細数) > MF供給件数(dedup後)。presence充足後、発行済み証跡を保持しつつ REVIEW_QTY_MISMATCH に降格し AI確認済みにはしない。想定漏れ額=差件数×単価。偽陰性封鎖条件(岩本鉄工所/大橋諒祐)。"
+    },
+    {
+      "internal_verdict": "REVIEW_ANNUAL_BILLING_MONTH",
+      "judge_label": "要確認(年間一括未確認)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "当月開始の年間契約で年額一括の発行をまだ検出できていません。一括請求の発行を確認してください。",
+      "generation": "E1: 年間払い/年間一括更新 かつ elapsed==0 かつ MF一括未検出。当月開始の年間契約=保留。GAP(発行漏れ断定)に落とさない。"
+    },
+    {
+      "internal_verdict": "REVIEW_NO_AMOUNT",
+      "judge_label": "要確認(金額未記載)",
+      "ai_check": false,
+      "warning_class": "情報",
+      "sheet_label": "要確認",
+      "action_hint": "シートの確認内容に金額の記載がありません。確認内容へ金額を追記してください。",
+      "generation": "確認内容に金額記載が無く年間シグナルも無い(照合主キー不在)。"
+    },
+    {
+      "internal_verdict": "REVIEW_METERED",
+      "judge_label": "要確認(従量)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "従量(都度)請求のため金額が一定でありません。当月の件数・金額を個別に確認してください。",
+      "generation": "H1: 支払サイクル=従量(都度)。期待額が件数依存で不定のため常にREVIEW(✓化しない)。例 ツネマツ 45,000円/件。"
+    },
+    {
+      "internal_verdict": "REVIEW_DATA_INCOMPLETE",
+      "judge_label": "要確認(データ不備)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "支払サイクルが年間/分割等(非月払い)に明示設定されていますが契約開始日が空欄で展開できません。月払いでよければ支払サイクル欄を空(=月払い既定)に戻すか、契約開始日を補完してください。",
+      "generation": "K1: 人手設定の非月払いサイクル(年間/隔月/分割/単発等)かつ契約開始日空欄でelapsed算出不能=展開不能。マスタ不備。✓化しない。期間も契約開始日も未記入で支払サイクル列も空なら月払いfallback。build_contracts本番経路では start=None の非月払いを月払いへ降格するため未到達。DB1で非月払いを明示設定し開始日が空の人手override時のみ発火。"
+    },
+    {
+      "internal_verdict": "REVIEW_PENDING",
+      "judge_label": "要確認(保留)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "契約未締結・確認内容や金額の未記載などで請求要否を判定できません。内容を確認してください。",
+      "generation": "ステータス=保留(infer_cycle=None: 確認内容空欄/未締結/未確定、業務委託費が月額下限未満、金額未記載、請求なし注記)。判定なしのままだとシート上で不可視になり請求漏れを見落とす恐れがあるため、要確認として可視化し保留理由を確認ポイント(action_hint+warning)へ書く。"
+    }
+  ],
+  "sheet_labels": [
+    "未照合",
+    "AIの確認OK",
+    "対象外",
+    "要確認",
+    "発行漏れ"
+  ]
+}

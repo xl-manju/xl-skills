@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-reconcile",
+    "skill_md_sha256": "d9a2504ac052a628e5279098537a6facfb990a2452ac06cbb166f6b392e9d1e3"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-26",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "FM-001/FM-002/FM-003/FM-004: name=run-mf-invoice-reconcile が ^(run|ref|assign|wrap|delegate)- 合致・24字<=60、description は日本語 trigger ちょうど2個(『双方向照合したいとき』『発行網羅性を検証し記録を残したいとき』)で句点終止、exit code/sha256/JSON 等の内部動作語を含まず適合。",
+      "BD-001/BD-003: 『## Purpose & Output Contract』を厳格一致 heading として保持し、frontmatter フェンス(1-49行)除く本文 92 行で high の<=300 を大幅に下回る(python 実測)。BD-002『## Gotchas』も存在。BD-004 は description の2 trigger が End-to-End Flow/Key Rules/ゴールシークループへ 1:1 対応。",
+      "OUT1/責務分割: collect(R1 GET index)→sync-master+reconcile(R2)→verify(R3 独立context subagent)→sink(R4 DB1/DB2 非破壊upsert)の4責務が過不足なく、書込境界(R4)・独立検証(R3)・参照専用取得(R1)を別責務化。MF参照専用は hook+GET専用lib の二層、履歴非破壊は当月限定query+人間対応済み凍結、入力は請求確認シートのみ自動移管が SKILL/prompts/manifest/feedback_contract 間で整合。PG-001(R1-R4 prompt 物理存在)/PG-002(agents/mfk-reconcile-verifier.md に <!-- responsibility: R3 --> anchor)/BND-001(.claude-plugin/bundles.json に plugin 登録済)も適合。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric=ref-skill-design-rubric/references/rubric.json v1.3.0(L0, applies_to_kinds=skill/* 群)+ assign-skill-design-evaluator/references/rubric.json v1.3.0(L2 overlay)を kind=run の本 SKILL.md(sha d9a2504a…一致)と prompts/R1-R4・workflow-manifest.json・agents/mfk-reconcile-verifier.md に対し genuine 採点。【high】FM-001=PASS / BD-001(『## Purpose & Output Contract』厳格一致)=PASS / BD-003(本文92行<=300, python 計数)=PASS / NM-001(dir==name=run-mf-invoice-reconcile)=PASS / KL-001(knowledge/ 不在・knowledge_loop frontmatter 不在ゲートで skip)=PASS / L2 PG-001(responsibilities R1-R4 全てに prompts/Rn.md 実在、本repo は .yaml でなく .md 7層SSOT 規約)=PASS / BND-001(bundles.json default bundle に mf-kessai-invoice-check 登録、かつ plugin は新規でなく既存)=PASS。【medium】FM-002/003(trigger 2個・句点)=PASS / FM-004(内部動作語なし)=PASS / BD-002(## Gotchas)=PASS / BD-004(description↔body 1:1)=PASS / NM-002=PASS / PD-002(冒頭30行内に ## Purpose 見出し+禁則『請求確認シートのみ』、BD-001⊂PD-002 包含で自動充足)=PASS / PG-002(agent に responsibility: R3 anchor)=PASS。【low】FM-005(action 句『双方向照合したい…検証し記録を残したい』)=PASS / NM-003(prompts/schemas tree 命名規約逸脱なし)=PASS / PD-001(本文92<=100 かつ prompts/schemas 委譲)=PASS / RG-001(本 verdict は指定フォーマット準拠で rubric_hash フィールドは持たないが rubric_version=1.3.0 を notes に明記, low severity)=非減点 / KL-002..005(knowledge/ 不在で skip)=PASS。high severity 未達=0。verdict-mapping.json を判定語彙 SSOT とし emit⊆mappings を parity test で機構保証、DB2 sink の当月限定・過去月不可侵・人間対応済み凍結の非破壊性が R4 L1/L4.4 と Key Rule 5/8 で一貫しており IN1(双方向照合分類)/IN2(語彙ドリフト防止+履歴非破壊)/OUT1(目的反映と責務分割妥当性)の rubric 軸はいずれも整合。total 閾値80を満たし PASS(REG-001 のCI完全性validatorはplugin-package評価器の領域で本content-review範囲外・plugin既存ゆえ配布欠落なし)。"
+}

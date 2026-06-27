@@ -16,12 +16,27 @@ import json
 import os
 import re
 import sys
-import time
-import urllib.error
-import urllib.request
+# time / urllib は本モジュール自身では未使用だが、既存テストが sink.time.sleep /
+# sink.urllib.request.urlopen を monkeypatch する (_req は notion_transport から
+# re-export) ため、属性面の後方互換として import を保持する。
+import time  # noqa: F401  (back-compat: tests patch sink.time.sleep)
+import urllib.error  # noqa: F401
+import urllib.request  # noqa: F401  (back-compat: tests patch sink.urllib.request.urlopen)
 
-NOTION_API = "https://api.notion.com/v1"
-NOTION_VERSION = "2022-06-28"
+# Notion HTTP transport は notion_transport.py を単一正本 (SSOT) とし、本モジュールは
+# 既存の公開名・挙動を不変に保つため re-export する。他モジュール/テストが
+# notion_invoice_sink._req / ._notion_token 等を参照しているため re-export は必須。
+from notion_transport import (  # noqa: F401  (re-export: 公開名・挙動を不変に保つ)
+    NOTION_API,
+    NOTION_VERSION,
+    _notion_account,
+    _notion_cfg,
+    _notion_service,
+    _notion_token,
+    _req,
+    _rich_text_plain,
+    _select_name,
+)
 
 # 本文 table block の固定列定義 (1行=1対象年月)。順序がセル順を規定する。
 TABLE_COLUMNS = ["対象年月", "今月の発行状況", "前月金額", "今月金額", "確認済み日時"]
@@ -30,81 +45,6 @@ TABLE_COLUMNS = ["対象年月", "今月の発行状況", "前月金額", "今�
 # 月次履歴 table を取りこぼし、二重 table を append する事故が起きる。これを防ぐ。
 TABLE_COLUMNS_LEGACY = ["対象年月", "判定", "前月金額", "今月金額", "確認済み日時"]
 TABLE_WIDTH = len(TABLE_COLUMNS)
-
-
-def _notion_cfg(cfg=None):
-    """cfg の notion セクション (dict) を返す。
-
-    cfg を明示渡し (空 dict 含む) ならその notion セクション、cfg=None (未指定) なら
-    load_config() を遅延 import で読む。import 失敗時は空 dict (= env+default のみで解決)。
-    """
-    if cfg is not None:
-        return cfg.get("notion") or {}
-    try:
-        from mfk_api import load_config  # 遅延 import (実行経路により lib が後付け sys.path)
-        return (load_config() or {}).get("notion") or {}
-    except Exception:
-        return {}
-
-
-def _notion_service(cfg=None):
-    """env(NOTION_KEYCHAIN_SERVICE) > config(notion.keychain_service) > default の順で解決。
-
-    MF キー側 (mfk_keychain._service) と同じ共通リゾルバ resolve_service を共有し、解決規則を
-    対称化する。cfg 未指定なら load_config() を遅延 import で読み、config から Notion service を
-    設定可能にする (MF 側 keychain_service と対称)。
-    """
-    from mfk_keychain import DEFAULT_NOTION_SERVICE, resolve_service
-    return resolve_service(
-        "NOTION_KEYCHAIN_SERVICE", _notion_cfg(cfg).get("keychain_service"), DEFAULT_NOTION_SERVICE)
-
-
-def _notion_account(cfg=None):
-    """env(NOTION_KEYCHAIN_ACCOUNT) > config(notion.keychain_account) > default の順で解決。"""
-    from mfk_keychain import DEFAULT_ACCOUNT, resolve_service
-    return resolve_service(
-        "NOTION_KEYCHAIN_ACCOUNT", _notion_cfg(cfg).get("keychain_account"), DEFAULT_ACCOUNT)
-
-
-def _notion_token(cfg=None):
-    """Notion API トークンを取得して生値 (文字列) を返す。
-
-    解決順: env(NOTION_API_KEY) > Keychain(service/account)。service/account は
-    env > config(notion.keychain_service/account) > default の順で `_notion_service`/
-    `_notion_account` が解決する (MF 側と対称)。シグネチャは引数省略可で従来の引数なし呼出と
-    互換。Keychain 取得は mfk_keychain.fetch_secret (MF 側と同一の共通コア) を経由する。
-    """
-    env = os.environ.get("NOTION_API_KEY")
-    if env and env.strip():
-        return env.strip()
-    service = _notion_service(cfg)
-    account = _notion_account(cfg)
-    from mfk_keychain import fetch_secret
-    token = fetch_secret(service, account)
-    if not token:
-        raise RuntimeError(f"Notion token lookup failed (service={service}, account={account})")
-    return token
-
-
-def _req(method, path, token, body=None):
-    url = NOTION_API + path
-    data = json.dumps(body).encode() if body is not None else None
-    for attempt in range(4):
-        req = urllib.request.Request(url, data=data, method=method)
-        req.add_header("Authorization", f"Bearer {token}")
-        req.add_header("Notion-Version", NOTION_VERSION)
-        req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return json.loads(r.read().decode())
-        except urllib.error.HTTPError as e:
-            body_text = e.read().decode("utf-8", "replace")
-            if e.code in {429, 502, 503, 504} and attempt < 3:
-                retry_after = e.headers.get("Retry-After")
-                delay = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else 2 ** attempt
-                time.sleep(min(delay, 8))
-                continue
-            raise RuntimeError(f"Notion {method} {path}: HTTP {e.code} {body_text}")
 
 
 def _find_page(database_id, customer_id, token):
@@ -120,24 +60,6 @@ def _find_page(database_id, customer_id, token):
             f"重複ページ検出: 顧客ID={customer_id} が {len(items)}件存在。"
             "手動で重複を解消してから再実行してください (顧客ID は一意のはず)。")
     return items[0]["id"] if items else None
-
-
-def _rich_text_plain(prop):
-    """Notion rich_text プロパティを plain text へ連結する (空/欠落は '')。"""
-    if not isinstance(prop, dict):
-        return ""
-    return "".join(
-        (rt.get("text") or {}).get("content") or rt.get("plain_text") or ""
-        for rt in (prop.get("rich_text") or [])
-    )
-
-
-def _select_name(prop):
-    """Notion select プロパティの name を返す (空/欠落は '')。"""
-    if not isinstance(prop, dict):
-        return ""
-    sel = prop.get("select") or {}
-    return sel.get("name") or ""
 
 
 def fetch_initial_contract_months(database_id, token=None):

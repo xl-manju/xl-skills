@@ -155,3 +155,78 @@ def suppress_annual_period_gaps(gap_candidates, initial_contract_months, target_
         life = billing_lifecycle(initial_month, target_ym, payment_cycle)
         (in_annual if life["in_annual_period"] else real_gaps).append(cid)
     return sorted(real_gaps), sorted(in_annual)
+
+
+# --- 拡張支払サイクル (MECE6値 + 従量) の純関数 --------------------------------
+# 仕様 (ユーザー確定 2026-06-26 / design wi22zpkq2): 支払サイクルは DB1 の単一列で
+# 1契約=1値を明示設定する (推測しない)。年周期 = ANNUAL_MONTHS=12 固定。既存
+# CADENCE_ANNUAL / CADENCE_MONTHLY / billing_lifecycle は byte 一致を維持し
+# (run-mf-invoice-check の年間抑制回帰を壊さない)、ここでは追加サイクルの当月判定だけを
+# 純関数 (副作用なし・月粒度・day破棄) で additive に提供する。入力 elapsed は
+# months_elapsed(契約開始日, 対象月) が返す月通し番号の差 (int / None)。
+#
+#   月払い (CADENCE_MONTHLY)             : 毎月                        ... 呼び出し側 (常に対象)
+#   年間払い (CADENCE_ANNUAL)            : 初年度のみ一括→翌年月額      ... billing_lifecycle
+#   年間一括更新 (CADENCE_ANNUAL_RENEWAL): 毎年更新で再び年間一括(ThinkTank型) ... annual_renewal_period
+#   単発 (CADENCE_ONESHOT)               : 開始月のみ                   ... oneshot_active
+#   分割 (CADENCE_SPLIT)                 : 開始月から連続Nヶ月           ... split_active
+#   隔月 (CADENCE_BIMONTHLY)             : 開始月パリティで1ヶ月おき       ... bimonthly_active
+#   従量(都度) (CADENCE_METERED)         : 期待額不定で常に要確認         ... 展開規則は呼び出し側
+
+CADENCE_ANNUAL_RENEWAL = "年間一括更新"
+CADENCE_ONESHOT = "単発"
+CADENCE_SPLIT = "分割"
+CADENCE_BIMONTHLY = "隔月"
+CADENCE_METERED = "従量(都度)"
+
+
+def annual_renewal_period(elapsed):
+    """年間一括更新サイクルの当月種別を返す (毎年更新で再び年間一括する ThinkTank型)。
+
+    elapsed = months_elapsed(契約開始日, 対象月) (月通し番号の差, day破棄)。
+    返り値:
+      'lump'    : 更新月 (elapsed>=0 かつ elapsed%12==0) → 期待=年額一括 (MATCH_ANNUAL/GAP)
+      'prepaid' : 年間前払い期間中 (elapsed>=0 かつ elapsed%12!=0) → 対象外 (SUPPRESS_ANNUAL)
+      None      : 判定不能 (elapsed=None) / 契約開始前 (elapsed<0)。
+                  fail-safe: 呼び出し側で抑制せず要確認/データ不備として扱える。
+
+    『年間払い』(CADENCE_ANNUAL, 初年度のみ一括→翌年月額) とは別物。月額へは移行せず
+    毎年 lump が再来する。年周期は ANNUAL_MONTHS=12 固定。
+    """
+    if elapsed is None or elapsed < 0:
+        return None
+    return "lump" if elapsed % ANNUAL_MONTHS == 0 else "prepaid"
+
+
+def oneshot_active(elapsed):
+    """単発サイクル: 開始月 (elapsed==0) のみ当月対象。他月は対象外 (SUPPRESS_ONESHOT)。
+
+    elapsed が None (開始日不明) なら False を返す (None==0 は False ゆえ非クラッシュ)。
+    非月払いサイクルで開始日空欄は呼び出し側がデータ不備 REVIEW として扱う。
+    """
+    return elapsed == 0
+
+
+def split_active(elapsed, n):
+    """分割サイクル: 開始月から連続Nヶ月 (0<=elapsed<n) が当月対象。
+
+    n = 分割回数 (DB1『分割回数』)。範囲外 (elapsed>=n=分割完了) や
+    elapsed/n が None なら False (対象外/データ不備として呼び出し側が扱う)。
+    """
+    if elapsed is None or n is None:
+        return False
+    return 0 <= elapsed < n
+
+
+def bimonthly_active(elapsed, start_parity=0):
+    """隔月サイクル: 開始月パリティに一致する月 (elapsed%2==start_parity) が当月対象。
+
+    elapsed>=0 かつ (elapsed%2)==(start_parity%2) で請求月。請求月リストの手入力は
+    不要で契約開始日からの elapsed パリティで決定論的に判定する (design 隔月規則)。
+    start_parity 既定 0 = 開始月そのものを請求月とする (elapsed 偶数月が請求月)。
+    elapsed/start_parity が None なら False。start_parity は %2 で正規化するので
+    開始月の絶対通し番号をそのまま渡しても良い。
+    """
+    if elapsed is None or start_parity is None:
+        return False
+    return elapsed >= 0 and (elapsed % 2) == (start_parity % 2)

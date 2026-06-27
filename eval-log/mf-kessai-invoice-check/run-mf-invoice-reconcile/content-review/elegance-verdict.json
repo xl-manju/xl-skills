@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-reconcile",
+    "skill_md_sha256": "d9a2504ac052a628e5279098537a6facfb990a2452ac06cbb166f6b392e9d1e3"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent-team",
+  "reviewed_at": "2026-06-26",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "IN1(双方向照合)が実装と test で genuine に裏付く: lib/mfk_reconcile.py の reconcile()(843行)が順方向 classify()(680行)+逆方向 detect_orphans()(804行)を返し、orchestrator(scripts/reconcile_invoices.py:360-366)が順方向=当月 contracts・orphan=全月 contracts_all を構造的に分離して result['orphans'] を上書き。presence-based の数量差降格 quantity_downgrade()(760行)は MATCH を潰さず REVIEW_QTY_MISMATCH へ倒す。test_mfk_reconcile.py の test_iwamoto_false_negative_to_qty_mismatch / test_torizen_amount_mismatch_not_gap / test_orphans_members_and_shape / test_kojima_not_falsely_matched / test_cross_client_evidence_blocks_false_match が当該分岐を機械検証(SKILL Key Rule 3/4 と整合)。",
+      "IN2(判定語彙SSOT parity + 履歴非破壊)が実体担保: verdict-mapping.json を唯一の SSOT とし judge_label()/check_verdicts() が派生(ハードコードなし)。test_verdict_mapping_parity.py:31 test_engine_emits_only_mapped_verdicts が engine emit ⊆ mappings を静的抽出で fail-fast 検証(STALE 等 mapping 余剰は subset 規則上許容)。notion_reconcile_sink.upsert_monthly() は query_month()(95行)で対象年月==target のみ取得し過去月を構造的に不可侵、人間対応済み==true を frozen skip、PATCH 時に title と人間対応済み列に触れない。test_notion_reconcile_sink.py の test_past_month_is_untouched / test_query_month_filters_to_target_only / test_frozen_when_human_done_true / test_unconfirmed_row_is_patched_without_human_flag が SKILL Key Rule 5/8 と一致。",
+      "OUT1(ユーザ目的の反映と責務分割)が過不足なし: 入力=請求確認シートのみで DB1/DB2 は自動移管(sheet_to_master.build_contracts/infer_cycle がサイクル自動推定・ユーザー非入力)、参照専用は二層(hooks/guard-mfk-readonly.py + lib に MF 変更系関数を構造的に持たない GET 専用)、レート間隔は notion_transport._write_gap()/MFK_NOTION_WRITE_GAP(既定0.34)で実装。collect→sync-master→reconcile→verify(独立 context subagent mfk-reconcile-verifier)→sink の5段が manifest/prompts/実装で step 番号・dependsOn・fail-closed exit2 まで一貫。schema_refs(4)・responsibility_refs(R1-R4)・manifest・agent・hook いずれも実在(ls 確認)。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "genuine 評価の実施記録(架空評価ではない)。【実際に読了】SKILL.md(142行・frontmatter feedback_contract IN1/IN2/OUT1 焼き込み確認)、prompts/R1-collect.md・R2-reconcile.md・R3-verify.md・R4-sink.md(7層・各 L5.3 完了チェックリストが SSOT 正本である旨と SKILL 俯瞰サマリの分担が整合)、workflow-manifest.json(5 phase + guard)、scripts/reconcile_invoices.py(445行・薄い orchestrator・run() で順方向=当月/orphan=全月 分離を実配線)、lib/mfk_reconcile.py(940行)・lib/sheet_to_master.py(446行)・lib/notion_reconcile_sink.py(212行)・lib/notion_transport.py(191行)、tests/ の test 関数名一覧、schemas/(4 ファイル ls)、agents/mfk-reconcile-verifier.md・hooks/guard-mfk-readonly.py(ls 実在)、フォーマット参照の既 PASS verdict(run-mf-invoice-check)。【pytest 実行結果】指示の 4 ファイル(test_mfk_reconcile.py / test_verdict_mapping_parity.py / test_notion_reconcile_sink.py / test_sheet_to_master.py)を 2 回実行=いずれも 87 passed / 0 failed(1 回目は repo 全体 conftest の --cov-fail-under=80 が --cov ターゲット未指定で TOTAL 0% により最終 exit 非0=coverage ゲートのみ、test 自体は 87 passed。2 回目は -o addopts='' でゲート除去し 87 passed/0.20s。test 失敗ゼロにつき IN1/IN2 の裏付け成立)。【SHA】shasum -a256 = d9a2504...e9d1e3 で指定値と一字一致(対象 SKILL を評価したことを確認)。【4 条件採点】矛盾0: frontmatter(双方向/presence-based/履歴非破壊/MFK_NOTION_WRITE_GAP/順方向=当月・orphan=全月)↔本文↔R1-R4↔manifest↔実装が一致、step 番号(R2=Step2+3, R3=Step4, R4=Step5)も manifest と一致。漏れ0: Key Rules9 / Gotchas6 が参照専用二層・二層分離・presence-based・履歴非破壊・二段確認(dry-run 物理境界)・レート間隔・人間専用列・判定SSOT を網羅、完了条件は prompts L5.3 を SSOT とし片側再定義を避ける設計で重複漏れともになし。不整合0: 判定語彙は verdict-mapping.json→judge_label() で日本語ラベルに一貫変換、パス(schemas/lib/prompts)とプロパティ名(notion_reconcile_sink PROP_* が monthly-check-db.schema.json と一致)整合。dependency_break0: 約束機能(双方向=reconcile/detect_orphans、presence-based=quantity_downgrade、履歴非破壊=query_month+frozen skip、MF参照専用=guard hook+GET専用lib、レート=_write_gap、順方向当月/orphan全月=orchestrator の contracts vs contracts_all)の実装本体が全て実在、schema_refs/responsibility_refs/manifest/agent/hook も実在。smell0。【非ブロッキング観測(finding には計上せず)】R3 L5.5 完了ゲートの『入力行をすべてレビュー対象(GAP/ORPHAN/REVIEW_AMOUNT_MISMATCH)または passthrough(MATCH_*/SUPPRESS_*)へ分類した』という二分割の文言は、他の REVIEW_*(QTY_MISMATCH/AMOUNT_TYPO/METERED/DATA_INCOMPLETE/ENDED_BUT_BILLED/ANNUAL_BILLING_MONTH/NO_AMOUNT/STALE)を列挙に含まない。ただし R3 L2.1 が責務を当該3判定の誤検出排除に明示限定し、他 REVIEW_* は『API で判別できない業務判断には踏み込まない』として未改変で人間へ素通しする設計が genuine に成立しており(LLM プロンプトで機械的 partition を強制していないため機能破綻なし)、語彙の網羅表現上の精密さの問題にとどまる=cosmetic。4 条件いずれの defect にも当たらないため finding=0 とし、将来の文言改善候補として記録するのみ。全条件 0 かつ pytest 87 passed につき verdict=PASS・human_review 不要。"
+}

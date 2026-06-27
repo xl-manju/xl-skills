@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 """lib/mfk_invoice_diff.py の純関数を単体テストする (pytest, API不要)。"""
 from mfk_invoice_diff import (
+    CADENCE_ANNUAL,
+    CADENCE_ANNUAL_RENEWAL,
+    CADENCE_BIMONTHLY,
+    CADENCE_METERED,
+    CADENCE_MONTHLY,
+    CADENCE_ONESHOT,
+    CADENCE_SPLIT,
     amount_changed,
+    annual_renewal_period,
+    bimonthly_active,
     billing_lifecycle,
     detect_gaps,
     months_elapsed,
+    oneshot_active,
+    split_active,
     suppress_annual_period_gaps,
 )
 
@@ -140,3 +151,101 @@ def test_suppress_annual_legacy_month_only_mapping_is_failsafe():
     real, in_annual = suppress_annual_period_gaps(["c1"], {"c1": "2026-06"}, "2026-06")
     assert real == ["c1"]
     assert in_annual == []
+
+
+# --- 拡張支払サイクル定数 (MECE6値 + 従量) ------------------------------------
+
+def test_extended_cadence_constants():
+    """新サイクル定数の値が design SSOT (MECE6値+従量) と一致する。"""
+    assert CADENCE_MONTHLY == "月払い"
+    assert CADENCE_ANNUAL == "年間払い"
+    assert CADENCE_ANNUAL_RENEWAL == "年間一括更新"
+    assert CADENCE_ONESHOT == "単発"
+    assert CADENCE_SPLIT == "分割"
+    assert CADENCE_BIMONTHLY == "隔月"
+    assert CADENCE_METERED == "従量(都度)"
+
+
+def test_extended_cadence_enum_is_mece_distinct():
+    """6サイクル + 従量 が互いに重複しない distinct 値である。"""
+    vals = [CADENCE_MONTHLY, CADENCE_ANNUAL, CADENCE_ANNUAL_RENEWAL,
+            CADENCE_ONESHOT, CADENCE_SPLIT, CADENCE_BIMONTHLY, CADENCE_METERED]
+    assert len(set(vals)) == len(vals)
+
+
+# --- 年間一括更新 (毎年 elapsed%12==0 で再一括, ThinkTank型) -------------------
+
+def test_annual_renewal_lump_on_update_months():
+    """elapsed が 12 の倍数 (更新月) は 'lump' = 年額一括。"""
+    for e in (0, 12, 24, 36):
+        assert annual_renewal_period(e) == "lump"
+
+
+def test_annual_renewal_prepaid_between_updates():
+    """更新月以外 (0<elapsed<12 等) は 'prepaid' = 年間前払い期間中。"""
+    for e in (1, 6, 11, 13, 23):
+        assert annual_renewal_period(e) == "prepaid"
+
+
+def test_annual_renewal_failsafe_none_and_before_contract():
+    """elapsed=None (判定不能) / 負 (契約開始前) は None (fail-safe, 抑制しない)。"""
+    assert annual_renewal_period(None) is None
+    assert annual_renewal_period(-1) is None
+    assert annual_renewal_period(-12) is None
+
+
+# --- 単発 (開始月のみ) --------------------------------------------------------
+
+def test_oneshot_active_only_on_start_month():
+    """単発は elapsed==0 (開始月) のみ対象。"""
+    assert oneshot_active(0) is True
+    assert oneshot_active(1) is False
+    assert oneshot_active(12) is False
+
+
+def test_oneshot_active_none_and_negative_is_inactive():
+    """elapsed=None / 負は対象外 (非クラッシュ)。"""
+    assert oneshot_active(None) is False
+    assert oneshot_active(-1) is False
+
+
+# --- 分割 (開始月から連続Nヶ月) ----------------------------------------------
+
+def test_split_active_within_n_months():
+    """0<=elapsed<n は対象、n 以上は分割完了で対象外。"""
+    assert [split_active(e, 3) for e in range(5)] == [True, True, True, False, False]
+
+
+def test_split_active_failsafe_none_and_zero_n():
+    """elapsed/n=None や n<=0 は False。"""
+    assert split_active(None, 3) is False
+    assert split_active(1, None) is False
+    assert split_active(0, 0) is False
+    assert split_active(-1, 3) is False
+
+
+# --- 隔月 (開始月パリティで1ヶ月おき) ----------------------------------------
+
+def test_bimonthly_active_even_elapsed_default_parity():
+    """既定 start_parity=0 では elapsed 偶数月 (0,2,4..) が請求月。"""
+    assert [bimonthly_active(e) for e in range(5)] == [True, False, True, False, True]
+
+
+def test_bimonthly_active_odd_parity():
+    """start_parity=1 では elapsed 奇数月が請求月。"""
+    assert bimonthly_active(1, 1) is True
+    assert bimonthly_active(2, 1) is False
+
+
+def test_bimonthly_active_parity_normalized_mod2():
+    """start_parity は %2 正規化されるので開始月の絶対通し番号を渡しても良い。"""
+    # 開始月の絶対通し番号が奇数 (例 24313) → parity 1 と等価
+    assert bimonthly_active(1, 24313) is True
+    assert bimonthly_active(0, 24313) is False
+
+
+def test_bimonthly_active_failsafe_none_and_negative():
+    """elapsed=None / 負 / start_parity=None は False。"""
+    assert bimonthly_active(None) is False
+    assert bimonthly_active(-2) is False
+    assert bimonthly_active(2, None) is False

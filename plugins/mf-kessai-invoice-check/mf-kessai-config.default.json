@@ -8,6 +8,10 @@
     "_comment": "発行漏れチェック結果の出力先 Notion DB『請求書チェック_DB』。アクセスには Keychain の Notion トークン (keychain_service) と、この DB への integration 接続が必要。keychain_service を変えれば別 Keychain エントリから取得できる (MF 側 keychain_service と対称)。空文字は既定を上書きしない。",
     "database_id": "38407a0c-d18c-80ec-a872-ce1a9654619f",
     "keychain_service": "notion-api-key.xl-skills",
-    "keychain_account": "xl-skills"
+    "keychain_account": "xl-skills",
+    "_comment_reconcile": "月次照合 orchestrator (scripts/reconcile_invoices.py) が読む 3 DB id。請求確認シート (sheet_db_id)・契約マスタ DB1 (reconcile_db1_id)・月次チェック DB2 (reconcile_db2_id)。空欄のままだと orchestrator は fail-closed で停止する。実 DB id は同階層の .mf-kessai-config.json (gitignore) に記入するか、環境変数 MFK_SHEET_DB_ID / MFK_RECONCILE_DB1_ID / MFK_RECONCILE_DB2_ID、または --sheet-db/--db1/--db2 で指定する。",
+    "sheet_db_id": "",
+    "reconcile_db1_id": "",
+    "reconcile_db2_id": ""
   }
 }
