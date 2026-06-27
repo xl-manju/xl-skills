@@ -13,6 +13,7 @@ PLUGIN_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 RUNTIME_DIRS = [
     "lib",
     "hooks",
+    "scripts",
     "skills/run-mf-invoice-check/scripts",
     "skills/run-mf-invoice-db-setup/scripts",
     "skills/run-mf-initial-month-enrich/scripts",
@@ -33,8 +34,9 @@ def test_plugin_manifest_bundle_contract():
         "run-mf-invoice-db-setup",
         "ref-mf-kessai-api",
         "run-mf-initial-month-enrich",
+        "run-mf-invoice-reconcile",
     ]
-    assert manifest["entry_points"]["agents"] == ["mfk-gap-verifier"]
+    assert manifest["entry_points"]["agents"] == ["mfk-gap-verifier", "mfk-reconcile-verifier"]
     assert manifest["entry_points"]["hooks"] == ["guard-mfk-readonly"]
     # Claude Code 予約フィールド (skills/agents/commands) はトップレベルに置かない。
     # entry_points で宣言し、詳細メタは各 SKILL.md / agents/*.md frontmatter が SSOT。
@@ -144,6 +146,7 @@ def test_scripts_are_executable_for_install_smoke():
         "hooks/guard-mfk-readonly.py",
         "lib/mfk_api.py",
         "lib/mfk_keychain.py",
+        "scripts/reconcile_invoices.py",
         "skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
         "skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
         "skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",

@@ -2,7 +2,7 @@
   "name": "mf-kessai-invoice-check",
   "version": "0.1.0",
   "package_mode": "bundle",
-  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (本体3スキル: ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check、任意補助1スキル: run-mf-initial-month-enrich。参照専用hook・二段確認subagent・冪等Notion upsert付き)。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
+  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する (本体4スキル: ref-mf-kessai-api + run-mf-invoice-db-setup + run-mf-invoice-check + run-mf-invoice-reconcile〔請求確認シート基準の双方向照合〕、任意補助1スキル: run-mf-initial-month-enrich。参照専用hook・二段確認subagent・冪等Notion upsert付き)。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: skill-creator/skills/run-skill-feedback、symlink 配備)。",
   "author": {
     "name": "xl-skills maintainers"
   },
@@ -21,10 +21,12 @@
       "run-mf-invoice-check",
       "run-mf-invoice-db-setup",
       "ref-mf-kessai-api",
-      "run-mf-initial-month-enrich"
+      "run-mf-initial-month-enrich",
+      "run-mf-invoice-reconcile"
     ],
     "agents": [
-      "mfk-gap-verifier"
+      "mfk-gap-verifier",
+      "mfk-reconcile-verifier"
     ],
     "hooks": [
       "guard-mfk-readonly"

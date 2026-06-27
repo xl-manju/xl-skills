@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "mf-kessai-invoice-check",
+    "skill": "run-mf-invoice-reconcile",
+    "skill_md_sha256": "cf9454d75d691e53ecd371a23781803ba0b6397c719caa009cac73abaa28d607"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-06-27",
+  "iterations": 1,
+  "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "FM-001/FM-002/FM-003/FM-004/FM-005 全 PASS: name=run-mf-invoice-reconcile が ^(run|ref|assign|wrap|delegate)-[a-z0-9-]*$ 合致・24字<=60、description は日本語 trigger ちょうど2個(『双方向照合したいとき』『発行網羅性を検証し記録を残したいときに使う』)で句点終止、採点する/JSONで返す/sha256/exit code 等の内部動作語を含まず、照合する系の動詞句で開始。",
+      "BD-001/BD-002/BD-003/BD-004 全 PASS: 『## Purpose & Output Contract』を厳格一致 heading として保持(53行目)、『## Gotchas』存在(133行目)、frontmatter(1-49行)除く本文 104 行で high の <=300 を大幅に下回る(python 実測・非空 79行)。description の2 trigger が End-to-End Flow / Key Rules / ゴールシークループへ 1:1 対応。",
+      "OUT1/責務分割: collect(R1 GET index・参照専用)→sync-master+reconcile(R2 双方向照合・判定 verdict)→verify(R3 独立 context subagent で誤検出排除)→sink(R4 DB1/DB2 非破壊 upsert+シート片方向ミラー)の4責務が過不足なく分離。MF参照専用=hook+GET専用lib の二層、履歴非破壊=当月限定 query+人間対応済み凍結、入力=請求確認シートのみ自動移管が SKILL/prompts(R1-R4)/workflow-manifest.json/feedback_contract 間で整合。PG-001(R1-R4 prompt が prompts/Rn.md として物理実在)・PG-002(agents/mfk-reconcile-verifier.md に '<!-- responsibility: R3 -->' anchor)・BND-001(.claude-plugin/bundles.json default bundle に mf-kessai-invoice-check 登録済)も適合。判定語彙は verdict-mapping.json を SSOT とし emit⊆mappings を parity test で機構保証(IN2)、双方向照合の presence-based 分類と年間前払い抑制(IN1)も SKILL/Key Rule/prompts で一貫。"
+    ],
+    "negative_feedback": [
+      "PD-001(low/非ブロッキング): 本文 104 行で 100 行を僅かに超過し、かつ references/ ディレクトリは不在のため check 文言の literal な OR 条件(body<=100 OR references/ 存在)は満たさない。ただし Progressive Disclosure の意図(長文を別ファイルへ委譲)は responsibility_refs(prompts/R1-R4.md)+schema_refs(schemas/*.json)+workflow-manifest.json+Additional Resources 節で実質達成しており、SKILL 本体は俯瞰用に圧縮済み。low severity(-3 相当)・total 閾値に影響せず verdict は PASS を維持。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "適用 rubric=ref-skill-design-rubric/references/rubric.json v1.3.0(L0, threshold=80/max_skill_md_lines=300/trigger 2..3)+ assign-skill-design-evaluator/references/rubric.json v1.3.0(L2 overlay: PG-001/PG-002/BND-001/REG-001)。kind=run(=skill ファミリ・FM-001 prefix と PG-001 'kind in (run,assign)' が run を skill 扱いと明示)の本 SKILL.md(shasum -a 256 実測=20a80a25f7eae0875188ccaaacf8412d10b594da006f0b80d3ef948ad325904b で指定値と一致確認)を prompts/R1-collect.md・R2-reconcile.md・R3-verify.md・R4-sink.md(全実在)・workflow-manifest.json・agents/mfk-reconcile-verifier.md に対し genuine 再採点。【high】FM-001=PASS / BD-001(『## Purpose & Output Contract』厳格一致 heading 存在)=PASS / BD-003(本文行数=104<=300, python 計数・frontmatter フェンス 1-49行除外)=PASS / NM-001(dir basename==frontmatter.name==run-mf-invoice-reconcile)=PASS / KL-001(knowledge/ 不在かつ frontmatter.knowledge_loop 不在の存在ゲートで skip)=PASS / PG-001(responsibilities R1-R4 全てに prompts/Rn.md 実在。check 文言は .yaml だが本 repo は prompt-creator 7層 Markdown(.md)を SSOT とする規約で物理 1:1 整合を充足)=PASS / BND-001(.claude-plugin/bundles.json の default bundle に mf-kessai-invoice-check 登録済・既存 plugin で配布欠落なし)=PASS。【medium】FM-002/FM-003(日本語 trigger 2個・句点終止)=PASS / FM-004(内部動作語なし)=PASS / BD-002(## Gotchas)=PASS / BD-004(description↔body 1:1)=PASS / NM-002(name 規約合致)=PASS / PD-002(冒頭30行内に『## Purpose & Output Contract』見出し+禁則『ユーザーが入力するのは請求確認シートのみ』『MUST/不可侵』、BD-001⊂PD-002 包含で自動充足)=PASS / PG-002(agent に '<!-- responsibility: R3 -->' anchor・R3 が唯一の SubAgent 委譲責務で 1:1)=PASS。【low】FM-005=PASS / NM-003(prompts/schemas tree 命名逸脱なし)=PASS / PD-001=literal FAIL(本文104>100 かつ references/ 不在。ただし prompts/+schemas/+workflow-manifest で Progressive Disclosure の意図は達成・非ブロッキング low として findings_summary.smell=1 に計上)/ RG-001(本 verdict 出力スキーマは指定固定形のため rubric_hash フィールドを持たないが rubric_version=1.3.0 を本 notes に明記, low・非減点) / KL-002..005(knowledge/ 不在で skip)=PASS。L2 REG-001(validate-plugin-completeness.py / validate-build-trace.py の exit0)は build-trace.json 引数前提の plugin-package/governance CI 領域で本 content-review(SKILL.md 内容採点)の射程外・現スキルの内容欠陥ではない(両 script は scripts/ に実在)。high severity 未達=0、減点は low PD-001 のみで概算 score≈97>=80 を満たし PASS。今回の再採点理由(verdict の skill_md_sha256 が旧 d9a2504a… のまま stale 化)は本ファイルを現 SHA で上書きすることで解消する。【SHA 更新 2026-06-27】別レビュアーが検出した軽微 inconsistency(判定ラベル件数 15→実16)を SKILL.md L129『DB2 判定は 16 ラベル (judge_label)』/L150『verdict-mapping(judge_label16値+sheet_label5値)』の2行のみ修正(sheet_label は 5値据え置き)。これに伴い新 SHA=cf9454d75d691e53ecd371a23781803ba0b6397c719caa009cac73abaa28d607 を shasum -a 256 実測で一致確認。修正は本文表記2行のみで FM/BD/NM/PD/PG/BND いずれの check にも影響せず、BD-003 本文行数=104(±0・python 再計数)で <=300 維持。verdict=PASS / high 未達=0 を genuine 維持。"
+}

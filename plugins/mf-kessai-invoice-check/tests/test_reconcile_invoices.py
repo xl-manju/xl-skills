@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""scripts/reconcile_invoices.py (月次1コマンド orchestrator) の単体テスト。
+
+MF掛け払い (mfk_api) と Notion (notion_transport._req / _notion_token) は全て mock し、
+実ネットワークを一切叩かない。golden 入力 (tests/fixtures の 2606 実データ) を Notion ページ
+形へ再構成して sheet query を mock し、本物の lib (build_contracts / reconcile / build_sink_rows)
+を一気通貫で走らせて配線を検証する。
+
+検証する不変条件:
+  - fail-closed : DB id 欠落 / target 不正 / step 依存違反 で exit 2。
+  - dry-run     : 書き込み関数 (upsert_master / upsert_monthly) が一度も呼ばれない。
+  - apply       : 各 step が canonical 順で実行され、sink へ渡る順方向 rows に
+                  contract_page_id が解決済み。
+  - collect     : mfk_api を mock し /billings/qualified→/transactions→/customers から
+                  raw mf を組み立てる (ネットワーク無し)。
+"""
+import json
+import os
+
+import pytest
+
+import mfk_reconcile
+import notion_reconcile_sink
+import notion_transport
+import reconcile_invoices as O
+import sheet_to_master
+
+FX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+TARGET = "2606"
+
+
+def _load(name):
+    with open(os.path.join(FX, name), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+@pytest.fixture(scope="module")
+def sheet_rows():
+    return _load("notion_2606.json")
+
+
+@pytest.fixture(scope="module")
+def mf_json():
+    return _load("mf_2606.json")
+
+
+# ---------------------------------------------------------------------------
+# golden 入力 → Notion ページ / MF API 応答 への再構成 (mock の素材)
+# ---------------------------------------------------------------------------
+def _row_to_page(row, i):
+    """請求確認シート行 dict を Notion ページ形へ。取引先=title, 他=rich_text。"""
+    def rt(v):
+        return {"rich_text": [{"plain_text": v or "", "text": {"content": v or ""}}]}
+
+    return {
+        "id": row.get("page_id") or f"sheet-{i}",
+        "properties": {
+            "取引先": {"title": [{"plain_text": row.get("取引先", ""),
+                               "text": {"content": row.get("取引先", "")}}]},
+            "商品": rt(row.get("商品", "")),
+            "確認内容": rt(row.get("確認内容", "")),
+            "契約開始日": rt(row.get("契約開始日", "")),
+            "契約終了月": rt(row.get("契約終了月", "")),
+        },
+    }
+
+
+def _fake_notion_req(sheet_db, sheet_pages, sheet_writes=None):
+    """sheet_db の query + シート書き戻し (判定列追加 + 行 PATCH) に応答する fake _req。
+
+    sheet_writes(dict) を渡すと page_id→PATCH props を記録し、書き戻し内容を検証できる。
+    GET /databases は『判定』列が未存在の状態を返し、ensure_judgment_property に作成させる。
+    """
+    def req(method, path, token, body=None):
+        if method == "POST" and path == f"/databases/{sheet_db}/query":
+            return {"results": sheet_pages, "has_more": False}
+        if method == "GET" and path == f"/databases/{sheet_db}":
+            return {"properties": {"取引先": {"type": "title"}, "AI確認": {"type": "checkbox"}}}
+        if method == "PATCH" and path == f"/databases/{sheet_db}":
+            return {}  # 判定 select 列の追加 (冪等)
+        if method == "PATCH" and path.startswith("/pages/"):
+            if sheet_writes is not None:
+                sheet_writes[path.split("/pages/")[1]] = (body or {}).get("properties", {})
+            return {}
+        raise AssertionError(f"想定外の Notion 呼び出し: {method} {path}")
+    return req
+
+
+def _fake_mfk(mf_json):
+    """mfk_api.iter_all / get を mf fixture から再構成して返す mock 群。
+
+    iter_all('/billings/qualified') : 各顧客の各 billing_id を 1 billing として yield。
+    get('/transactions')            : billing_id に属する明細を transaction_details 化。
+    get('/customers')               : ids → name 解決。
+    """
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        assert path == "/billings/qualified"
+        assert params["status"] == "invoice_issued"
+        for cid, c in mf_json["customers"].items():
+            seen = []
+            for ln in c["lines"]:
+                if ln["billing_id"] not in seen:
+                    seen.append(ln["billing_id"])
+            for bid in seen:
+                yield {"id": bid, "customer_id": cid,
+                       "issue_date": "2026-06-15", "status": "invoice_issued"}
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/transactions":
+            bid = params["billing_id"]
+            details = []
+            for c in mf_json["customers"].values():
+                for ln in c["lines"]:
+                    if ln["billing_id"] == bid:
+                        details.append({"description": ln["desc"], "amount": ln["amount"],
+                                        "unit_price": ln["unit_price"], "quantity": ln["qty"]})
+            return {"items": [{"transaction_details": details}]}
+        if path == "/customers":
+            ids = params["ids"]
+            return {"items": [{"id": cid, "name": mf_json["customers"][cid]["name"]}
+                              for cid in ids if cid in mf_json["customers"]]}
+        raise AssertionError(f"想定外の MF 呼び出し: {path}")
+
+    return iter_all, get
+
+
+class _AllPages(dict):
+    """どの契約IDに対しても 'pg-<cid>' を返す page_id マップ (apply の解決を模す)。"""
+    def get(self, key, default=None):
+        return f"pg-{key}"
+
+
+@pytest.fixture
+def wired(monkeypatch, sheet_rows, mf_json):
+    """orchestrator の外部 I/O を全 mock し、書き込み呼び出しを記録する。"""
+    sheet_db = "sheetdb"
+    pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
+    sheet_writes = {}
+    monkeypatch.setattr(notion_transport, "_notion_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(notion_transport, "_req",
+                        _fake_notion_req(sheet_db, pages, sheet_writes))
+    iter_all, get = _fake_mfk(mf_json)
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    monkeypatch.setattr(O, "load_orchestrator_config", lambda *a, **k: {"notion": {}})
+
+    calls = {"master": [], "monthly": []}
+
+    def fake_master(contracts, db1, token, req=None):
+        calls["master"].append({"contracts": contracts, "db1": db1})
+        return {"created": len(contracts), "updated": 0, "failed": []}
+
+    def fake_monthly(rows, db2, target_ym, token, req=None):
+        calls["monthly"].append({"rows": rows, "db2": db2, "target_ym": target_ym})
+        return {"created": len(rows), "updated": 0, "frozen": 0, "failed": 0}
+
+    monkeypatch.setattr(sheet_to_master, "upsert_master", fake_master)
+    monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", fake_monthly)
+    monkeypatch.setattr(sheet_to_master, "_existing_contract_ids",
+                        lambda *a, **k: _AllPages())
+    return {"sheet_db": sheet_db, "calls": calls, "sheet_writes": sheet_writes}
+
+
+def _args(sheet_db, **over):
+    base = dict(sheet_db=sheet_db, db1="db1", db2="db2")
+    base.update(over)
+    return ["--target", TARGET, "--sheet-db", base["sheet_db"],
+            "--db1", base["db1"], "--db2", base["db2"]]
+
+
+# ---------------------------------------------------------------------------
+# fail-closed
+# ---------------------------------------------------------------------------
+def test_missing_db_ids_exit2(monkeypatch):
+    # config 空 + env 無し + 引数無し → 必須 DB id が解決できず exit 2。
+    for env in ("MFK_SHEET_DB_ID", "MFK_RECONCILE_DB1_ID", "MFK_RECONCILE_DB2_ID"):
+        monkeypatch.delenv(env, raising=False)
+    monkeypatch.setattr(O, "load_orchestrator_config", lambda *a, **k: {"notion": {}})
+    assert O.main(["--target", TARGET]) == 2
+
+
+def test_invalid_target_exit2():
+    assert O.main(["--target", "2699"]) == 2   # 99 月は不正
+    assert O.main(["--target", "abc"]) == 2
+    assert O.main([]) == 2                      # --target 未指定
+
+
+def test_unknown_step_exit2(monkeypatch):
+    monkeypatch.setattr(O, "load_orchestrator_config", lambda *a, **k: {"notion": {}})
+    assert O.main(["--target", TARGET, "--steps", "bogus"]) == 2
+
+
+def test_step_dependency_violation_exit2(monkeypatch):
+    monkeypatch.setattr(O, "load_orchestrator_config", lambda *a, **k: {"notion": {}})
+    # reconcile には sync-master + collect が必要。
+    assert O.main(["--target", TARGET, "--steps", "reconcile",
+                   "--sheet-db", "s", "--db1", "d1", "--db2", "d2"]) == 2
+    # sink には reconcile が必要。
+    assert O.main(["--target", TARGET, "--steps", "sync-master,collect,sink",
+                   "--sheet-db", "s", "--db1", "d1", "--db2", "d2"]) == 2
+
+
+def test_db_id_from_config_keys(monkeypatch, capsys):
+    # config の notion.* キーから解決され (引数省略でも) collect 単独は DB id 不要で通る。
+    monkeypatch.setattr(O, "load_orchestrator_config",
+                        lambda *a, **k: {"notion": {"sheet_db_id": "S", "reconcile_db1_id": "D1",
+                                                    "reconcile_db2_id": "D2"}})
+    iter_all, get = _fake_mfk(_load("mf_2606.json"))
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    assert O.main(["--target", TARGET, "--steps", "collect"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# dry-run / apply
+# ---------------------------------------------------------------------------
+def test_dry_run_no_writes(wired, capsys):
+    rc = O.main(_args(wired["sheet_db"]))
+    assert rc == 0
+    # 書き込み関数は一度も呼ばれない。
+    assert wired["calls"]["master"] == []
+    assert wired["calls"]["monthly"] == []
+    out = capsys.readouterr().out
+    assert "DRY-RUN" in out
+    assert "[collect]" in out and "[sync-master]" in out
+    assert "[reconcile]" in out and "[sink]" in out
+
+
+def test_apply_runs_all_steps_and_resolves_page_id(wired):
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    assert rc == 0
+    # 各 step の書き込みが 1 回ずつ実行された。
+    assert len(wired["calls"]["master"]) == 1
+    assert len(wired["calls"]["monthly"]) == 1
+    master = wired["calls"]["master"][0]
+    assert master["db1"] == "db1"
+    assert len(master["contracts"]) > 0
+    monthly = wired["calls"]["monthly"][0]
+    assert monthly["db2"] == "db2"
+    assert monthly["target_ym"] == TARGET
+    rows = monthly["rows"]
+    forward = [r for r in rows if r["direction"] == "順方向"]
+    assert forward, "順方向 row が生成されていない"
+    # 順方向 row は全て contract_page_id が解決されている (apply 時 DB1 query で 契約ID→page_id)。
+    assert all(r.get("contract_page_id") for r in forward)
+    assert all(r["contract_page_id"] == f"pg-{r['contract_id']}" for r in forward)
+
+
+def test_apply_stops_before_db2_when_db1_upsert_failed(wired, monkeypatch, capsys):
+    def failed_master(contracts, db1, token, req=None):
+        return {"created": 0, "updated": 0,
+                "failed": [{"契約ID": contracts[0]["契約ID"], "error": "boom"}]}
+
+    monkeypatch.setattr(sheet_to_master, "upsert_master", failed_master)
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    assert rc == 2
+    assert wired["calls"]["monthly"] == []
+    err = capsys.readouterr().err
+    assert "DB1 upsert failed; DB2 sink skipped" in err
+
+
+def test_apply_sink_rows_have_judge_labels(wired):
+    O.main(_args(wired["sheet_db"]) + ["--apply"])
+    rows = wired["calls"]["monthly"][0]["rows"]
+    assert all(r.get("judge_label") for r in rows)
+    # orphan 行は relation 無し・mf_customer_id を持つ。
+    orphans = [r for r in rows if r["direction"] == "逆方向orphan"]
+    if orphans:
+        assert all(r.get("contract_page_id") is None for r in orphans)
+        assert all(r.get("mf_customer_id") for r in orphans)
+
+
+def test_apply_writes_back_judgment_to_sheet(wired):
+    # apply 時、forward rows の 5値判定 + AI確認 + 確認ポイント が請求確認シート各行へ書き戻され、
+    # 契約開始日/契約終了月は空欄セルのみ派生値で自動補完される。
+    O.main(_args(wired["sheet_db"]) + ["--apply"])
+    writes = wired["sheet_writes"]
+    assert writes, "シートへの書き戻しが発生していない"
+    allowed = {"判定", "AI確認", "確認ポイント", "契約開始日", "契約終了月"}
+    human_forbidden = {"チェック済み", "確認内容", "取引先", "商品", "年月"}
+    labels = set()
+    for props in writes.values():
+        # 機械が触るのは判定/AI確認/確認ポイント(+空欄日付の自動補完)のみ。人間列には触れない。
+        assert set(props) <= allowed, f"想定外の列を書いた: {set(props) - allowed}"
+        assert not (set(props) & human_forbidden), f"人間列に触れた: {set(props) & human_forbidden}"
+        labels.add(props["判定"]["select"]["name"])
+        assert isinstance(props["AI確認"]["checkbox"], bool)
+    # 5値のうち実データに出るラベルだけが書かれる (DB2 の15ラベルでなく5値投影)。
+    assert labels <= {"AIの確認OK", "対象外", "要確認", "発行漏れ"}
+
+
+def test_apply_skips_sheet_writeback_when_db2_failed(wired, monkeypatch, capsys):
+    def failed_monthly(rows, db2, target_ym, token, req=None):
+        wired["calls"]["monthly"].append({"rows": rows, "db2": db2, "target_ym": target_ym})
+        return {"created": 0, "updated": 0, "frozen": 0, "failed": 1}
+
+    monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", failed_monthly)
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+
+    assert rc == 2
+    assert wired["sheet_writes"] == {}
+    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+
+
+def test_apply_skips_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys):
+    def frozen_monthly(rows, db2, target_ym, token, req=None):
+        wired["calls"]["monthly"].append({"rows": rows, "db2": db2, "target_ym": target_ym})
+        return {"created": 0, "updated": 0, "frozen": 1, "failed": 0}
+
+    monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", frozen_monthly)
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+
+    assert rc == 2
+    assert wired["sheet_writes"] == {}
+    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+
+
+def test_apply_aborts_when_verdict_mapping_missing(wired, monkeypatch, capsys):
+    monkeypatch.setattr(mfk_reconcile, "load_verdict_mapping", lambda *a, **k: {})
+
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+
+    assert rc == 2
+    assert wired["calls"]["monthly"] == []
+    assert wired["sheet_writes"] == {}
+    assert "verdict-mapping.json could not be loaded" in capsys.readouterr().err
+
+
+def test_dry_run_does_not_write_sheet(wired):
+    O.main(_args(wired["sheet_db"]))  # --apply 無し
+    assert wired["sheet_writes"] == {}, "dry-run でシートへ書き戻してはいけない"
+
+
+def test_steps_subset_sync_master_only(wired):
+    # sync-master 単独 (apply) → DB1 upsert のみ・DB2 upsert は起きない。
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--steps", "sync-master"])
+    assert rc == 0
+    assert len(wired["calls"]["master"]) == 1
+    assert wired["calls"]["monthly"] == []
+
+
+# ---------------------------------------------------------------------------
+# 純関数ユニット (橋渡し / 抽出 / 解決)
+# ---------------------------------------------------------------------------
+def test_month_range_iso():
+    assert O._month_range_iso("2606") == ("2026-06-01", "2026-06-30")
+    assert O._month_range_iso("2602") == ("2026-02-01", "2026-02-28")
+
+
+def test_extract_sheet_row():
+    page = {
+        "id": "pg-1",
+        "properties": {
+            "取引先": {"title": [{"plain_text": "X社"}]},
+            "商品": {"select": {"name": "業務委託費"}},
+            "確認内容": {"rich_text": [{"plain_text": "月額300,000円"}]},
+            "契約開始日": {"date": {"start": "2026-05-01"}},
+            "契約終了月": {"number": 2606},
+        },
+    }
+    row = O._extract_sheet_row(page)
+    assert row["取引先"] == "X社"
+    assert row["商品"] == "業務委託費"
+    assert row["確認内容"] == "月額300,000円"
+    assert row["契約開始日"] == "2026-05-01"
+    assert row["契約終了月"] == "2606"
+    assert row["page_id"] == "pg-1"
+
+
+def test_prop_to_text_handles_missing():
+    assert O._prop_to_text(None) == ""
+    assert O._prop_to_text({}) == ""
+    assert O._prop_to_text({"select": None}) == ""
+    assert O._prop_to_text({"date": None}) == ""
+    assert O._prop_to_text({"number": None}) == ""
+
+
+def test_resolve_db_ids_precedence(monkeypatch):
+    cfg = {"notion": {"sheet_db_id": "cfgS", "reconcile_db1_id": "cfgD1",
+                      "reconcile_db2_id": "cfgD2"}}
+    args = type("A", (), {"sheet_db": None, "db1": None, "db2": None})()
+    monkeypatch.delenv("MFK_SHEET_DB_ID", raising=False)
+    monkeypatch.delenv("MFK_RECONCILE_DB1_ID", raising=False)
+    monkeypatch.delenv("MFK_RECONCILE_DB2_ID", raising=False)
+    assert O.resolve_db_ids(cfg, args) == ("cfgS", "cfgD1", "cfgD2")
+    # env が config を上書きする。
+    monkeypatch.setenv("MFK_SHEET_DB_ID", "envS")
+    assert O.resolve_db_ids(cfg, args)[0] == "envS"
+    # 引数が最優先。
+    args.sheet_db = "argS"
+    assert O.resolve_db_ids(cfg, args)[0] == "argS"
+
+
+def test_required_db_ids():
+    # dry-run (apply=False): 実際に DB を触らない step は DB id を要求しない。
+    # sync-master のシート読取だけ sheet_db を要求 (db1/db2 は --apply 時のみ)。
+    assert O.required_db_ids({"collect"}, False) == set()
+    assert O.required_db_ids({"sync-master"}, False) == {"sheet_db"}
+    assert O.required_db_ids({"sink"}, False) == set()
+    assert O.required_db_ids(set(O.ALL_STEPS), False) == {"sheet_db"}
+    # apply (apply=True): 書き込み/page_id 解決で db1/db2 が必要になる。
+    assert O.required_db_ids({"collect"}, True) == set()
+    assert O.required_db_ids({"sync-master"}, True) == {"sheet_db", "db1"}
+    assert O.required_db_ids({"sink"}, True) == {"db1", "db2"}
+    assert O.required_db_ids(set(O.ALL_STEPS), True) == {"sheet_db", "db1", "db2"}
+
+
+def test_collect_mf_builds_raw(monkeypatch, mf_json):
+    iter_all, get = _fake_mfk(mf_json)
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf(TARGET, cfg={})
+    assert "customers" in raw
+    assert len(raw["customers"]) == len(mf_json["customers"])
+    # 会社名が解決され、明細が line 化されている。
+    sample = next(iter(raw["customers"].values()))
+    assert sample["name"]
+    assert sample["lines"]
+    assert {"desc", "amount", "unit_price", "qty", "billing_id"} <= set(sample["lines"][0])
+
+
+def test_build_sink_rows_maps_forward_and_orphan():
+    result = {
+        "rows": [
+            {"direction": "順方向", "契約ID": "X/田中/業務委託費", "verdict": "MATCH_MONTHLY",
+             "現行単価": 300000, "期待明細数": 1, "warning": "",
+             "evidence": {"amount": 300000, "billing_id": "B1"}},
+            {"direction": "順方向", "契約ID": "Y//業務委託費", "verdict": "GAP",
+             "現行単価": 50000, "期待明細数": 1, "warning": "発行漏れ", "evidence": None},
+        ],
+        "orphans": [
+            {"direction": "逆方向orphan", "MF顧客ID": "C9", "verdict": "ORPHAN",
+             "amount": 88000, "warning": "要マスタ登録",
+             "services": [{"amount": 88000, "billing_id": "B9"}]},
+        ],
+    }
+    page_map = {"X/田中/業務委託費": "pg-1"}
+    rows = O.build_sink_rows(result, page_map)
+    assert len(rows) == 3
+    f0 = rows[0]
+    assert f0["contract_id"] == "X/田中/業務委託費"
+    assert f0["contract_page_id"] == "pg-1"
+    assert f0["expected_amount"] == 300000
+    assert f0["matched_amount"] == 300000
+    assert f0["mf_billing_id"] == "B1"
+    assert f0["judge_label"]  # verdict-mapping から導出 (空でない)
+    assert f0["ai_check"] is True
+    f1 = rows[1]
+    assert f1["contract_page_id"] is None  # マップに無い → 未解決
+    assert f1["matched_amount"] is None
+    assert f1["ai_check"] is False
+    orphan = rows[2]
+    assert orphan["direction"] == "逆方向orphan"
+    assert orphan["contract_id"] is None
+    assert orphan["mf_customer_id"] == "C9"
+    assert orphan["matched_amount"] == 88000
+    assert orphan["mf_billing_id"] == "B9"
+    assert orphan["ai_check"] is False
+
+
+def test_parse_steps():
+    assert O._parse_steps(None) == set(O.ALL_STEPS)
+    assert O._parse_steps("collect") == {"collect"}
+    with pytest.raises(ValueError):
+        O._parse_steps("nope")
+    with pytest.raises(ValueError):
+        O._parse_steps("reconcile")          # 依存欠落
+    with pytest.raises(ValueError):
+        O._parse_steps("sync-master,collect,sink")  # sink に reconcile 無し
+
+
+def test_find_local_config(tmp_path, monkeypatch):
+    # 親探索: 子ディレクトリから上方向に .mf-kessai-config.json を見つける。
+    (tmp_path / "a").mkdir()
+    cfg = tmp_path / ".mf-kessai-config.json"
+    cfg.write_text("{}", encoding="utf-8")
+    assert O._find_local_config(str(tmp_path / "a")) == str(cfg)
+    # 見つからない場合は None (存在しない隔離ディレクトリ)。
+    empty = tmp_path / "x" / "y"
+    empty.mkdir(parents=True)
+    assert O._find_local_config(str(empty)) == str(cfg)  # 上方向に tmp_path の cfg を発見
+
+
+def test_needs_notion():
+    assert O._needs_notion({"sync-master"}, apply=False) is True
+    assert O._needs_notion({"sink"}, apply=True) is True
+    assert O._needs_notion({"sink"}, apply=False) is False
+    assert O._needs_notion({"collect"}, apply=True) is False
