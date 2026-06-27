@@ -1,26 +1,41 @@
 {
-  "target": {"plugin": "notion-gmail-send", "skill": "run-notion-gmail-dry-run", "skill_md_sha256": "f9a1ec0ee5bec92ff4cbd9c8741fd519ccdfd5b3d93e76f6f8c60c181f045459"},
+  "target": {
+    "plugin": "notion-gmail-send",
+    "skill": "run-notion-gmail-dry-run",
+    "skill_md_sha256": "6628bdbb17384b695fd5ef86a8affafb3a2262f5429f8ec23879bc672de01f44"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "independent-rubric-reviewer",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-27",
   "iterations": 1,
   "human_review_required": false,
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
   "feedback_loop": {
-    "loop_scope": "inner",
+    "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "frontmatter 健全性: kind=run/prefix=run/effect=local-artifact が実挙動(plan.json をローカル書込・送信なし)と一致。disable-model-invocation:true + user-invocable:true が一貫、argument-hint の --db1/--db2/--out/--config/--canary が argparse 実装と完全一致、allowed-tools=[Read, Bash(python3 *)] が実使用(python3 build-plan.py)に正しく限定。description のトリガは2系統で過不足なし。",
-      "criteria 契約の検証可能性: feedback_contract の IN1/IN2 は verify_by=test、OUT1 は verify_by=elegant-review と loop_scope(inner/inner/outer)が宣言され、IN1↔test_recipient_resolution.py・IN2↔test_build_plan.py(+cc_suppressed hash 不変)・OUT1↔canary/APPROVE 契約 へ1対1で機械追跡できる。基準文が実検証手段に裏打ちされ Goodhart 耐性(観測メタを hash から除外)も明記。",
-      "出力契約の精密さ: Purpose & Output Contract が plan.json(本文全文・ローカル・git管理外・§12 PII)と stdout(APPROVE 文字列+第1段件数+全件プレビュー+multi_to_visible 警告+skipped_validation 内訳+重複除外)を機械照合可能な粒度で規定。完了条件が観測可能な成果物(件数/plan_hash/プレビュー/APPROVE/plan.json)で定義。",
-      "二層分離の遵守: 決定論本体(取得→直積→置換→組立→hash→plan.json)を script(build-plan.py)へ、多周回制御を上位 orchestrator(run-notion-gmail-send)へ委譲し、本スキルは単発 dry-run で完結する責務境界が spec-detail §6 責務一覧と整合。Key Rules/Gotchas が非エンジニア運用者の次アクション(0通時の本文記入案内・reason_code 別修正・重複点検)を具体化。"
+      "frontmatter 適合: kind=run/prefix=run/effect=local-artifact/disable-model-invocation:true/user-invocable:true が『送信せず plan.json をローカル生成する dry-run』と整合。build-plan.py は Gmail を一切 import せず notion REST GET + plan.json ローカル書込のみ(write-scope: local-workspace)のため effect=local-artifact が実挙動と一致。description『送信せず内容を確認したいとき』が無送信プレビューの目的を正確宣言。",
+      "argument-hint↔argparse 一致: hint [--db1 <id>][--db2 <id>][--out <plan.json>][--config <path>][--canary <N>] は build-plan.py の add_argument(--out/--db1/--db2/--config/--canary) と一対一で phantom 引数なし。--limit は --canary の dest 別名で本文(--canary/--limit)に明記。allowed-tools=[Read, Bash(python3 *)] は実使用に限定。",
+      "criteria 検証可能性と test 接地: IN1(loop_scope=inner,verify_by=test) は test_recipient_resolution.py の test_send_target_false_is_excluded_silently / test_do_not_send_overrides_send_target / test_empty_pro_email_is_skipped / test_dedup_keeps_newest_created_time / test_suppress_before_dedup_protects_sendable_row / test_dedup_tiebreak_is_deterministic_on_same_created_time が『除外→送らない最優先→invalid_to→created_time降順(tie=page_id降順)dedup』の順序を機械検証し resolve_recipients の docstring 順序1-4 と一致。IN2(inner,test) は test_build_plan.py(body_true_count独立/canary境界=plan_hash束縛/db override/placeholder stop) + test_build_plan_records_cc_suppressed_warning_and_hash_unaffected が『観測メタ(cc_suppressed)非依存の hash 算出・local-artifact のみ・無送信』を検証。OUT1(outer,verify_by=elegant-review) はユーザー目的レベルの停止点契約を 4条件へ委ねるのが妥当。pytest 198 passed。",
+      "single-responsibility と二層分離: SKILL.md=俯瞰/決定論本体=scripts/build-plan.py。取得→直積→置換→組立→hash→plan.json の決定論手順を script に集約し、送信は次工程 run-notion-gmail-send へ分離、多周回制御は上位 orchestrator へ委譲。dry-run は read-only(Notion GET + plan.json 書込)1責務に集中。",
+      "SSOT 規律: build-plan.py(行102)が pc.assemble_plan() へ委譲し dry-run と確認0 auto-send(send-campaign.py)が同一 plan 構築ロジック(plan_compose.py)を共有。古い plan.json 使い回しによる鮮度漏れを避け content_hash/plan_hash の決定論を二重ロジックで壊さない設計。片側更新ドリフトが機構で封鎖。",
+      "fail-closed の正直さ: Key Rules #3 が未置換 {{}}(unresolved_token)/危険ヘッダ(unsafe_header)/不正アドレス(invalid_to,invalid_cc)を skipped_validation で除外し warning 止まりにしない旨を誇張なく明示し、実装(_classify_unit が reason を返し skip)と一致。dry-run 自体は無送信ゆえ『fail-closed=plan からの単位除外+件数計上』として正直にスコープ。",
+      "2026-06-27 転回(§16 B1-B6)追従: Purpose が『既定の最小確認1回・無人確認0(--auto-approve)では dry-run は必須でなく、厳格対話/canary 前の全件目視材料』と新既定を正しく反映。旧 confirmless-default 前提の stale 記述なし。OUT1 の APPROVE 文字列契約は厳格対話(後方互換)パスへ正しくスコープされ、既定の CONFIRM_TOKEN/exit10-11 経路と矛盾しない。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "smell(low/非blocking): build-plan.py(行101-102)が plan 構築の正本である共有 SSOT lib/plan_compose.py(assemble_plan)へ委譲しているのに、SKILL.md Additional Resources(行151-159)は plan_build.py までしか掲載せず plan_compose.py が未掲載。dangling-ref(挙げた参照が全実在)ではないが、『plan 構築の正本=plan_compose.py』という SSOT 構造が資源一覧へ反映されておらず保守トレーサビリティが軽微に不足。前 verdict でも指摘済みの低 smell が現 SKILL.md(SHA 6628bdbb)でも未解消であることを独立再確認した。閾値80を割らず PASS は維持、次回更新で Additional Resources へ plan_compose.py 追記を推奨。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric(skill-design / evaluator-contract.md)観点で genuine 採点し閾値 80 を明確に上回ると判断、PASS。frontmatter 全フィールドが実装と一致し採点者は Write/Edit を行わず(被採点物不改変)。machine_checks 相当: plugins/notion-gmail-send 内 tests/test_build_plan.py tests/test_recipient_resolution.py = 20 passed(中央スイート非汚染)で IN1/IN2 の test verify_by が実通過、OUT1 の canary 承認契約再算出も test_canary_limits_units_bound_to_plan_hash で担保。required_fixes に相当する high finding・gate failure なし。SHA は現 SKILL.md と一致(f9a1ec0e...)。"
+  "notes": "rubric(skill-design)5軸を実体接地で独立 genuine 採点し閾値80を上回ると判断、PASS。SHA256=6628bdbb17384b695fd5ef86a8affafb3a2262f5429f8ec23879bc672de01f44 は現 SKILL.md の read_bytes と一致(旧 verdict の 19650b... は stale)。(1)frontmatter: run/run/local-artifact/disable-model-invocation/user-invocable が無送信 dry-run と整合・Gmail 非 import を実コードで確認。(2)argument-hint↔argparse は5引数一対一・phantom 無し・description が無送信確認を宣言。(3)criteria↔test 一対一: IN1=test_recipient_resolution(順序6テスト)/IN2=test_build_plan+cc非依存hashテスト/OUT1=elegant-review(outer 妥当)、pytest 198 passed。(4)single-responsibility=dry-run plan 生成1責務・送信は次工程分離・本体は script。(5)SSOT=plan_compose.assemble_plan を dry-run/auto-send 共有で片側ドリフト機構封鎖。fail-closed は skipped_validation で正直。high finding なし。唯一の low smell(Additional Resources の plan_compose 未掲載)は PASS 非妨害。criteria_evaluated=[IN1,IN2,OUT1] は frontmatter feedback_contract と一致。"
 }

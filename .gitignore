@@ -35,7 +35,9 @@ references/governance-params.json
 .google-config.json
 
 # Per-repo Notion config (DB IDs / keychain service identity) - see plugins/skill-creator/references/notion-per-repo-setup.md
+# 検証用 config (.notion-config.test.json など .notion-config.<env>.json) は配布対象外。本番のみ example で配布。
 .notion-config.json
+.notion-config.*.json
 !.notion-config.example.json
 
 # Per-repo MF KESSAI config (base_url / keychain service identity / Notion DB id) - see plugins/mf-kessai-invoice-check/README.md
@@ -48,6 +50,10 @@ references/governance-params.json
 eval-log/notion-gmail-send/plan-*.json
 eval-log/notion-gmail-send/journal-*.jsonl
 **/plan-*.json
+# auto-send が書き出す bare 名 (plan.json / journal.jsonl) も PII を含むため除外。
+# glob plan-*.json はハイフン無しの plan.json にマッチしないため明示する。
+eval-log/notion-gmail-send/plan.json
+eval-log/notion-gmail-send/journal.jsonl
 
 # Session-local artifacts
 output/

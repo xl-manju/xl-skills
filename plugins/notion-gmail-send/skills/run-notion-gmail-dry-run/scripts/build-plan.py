@@ -22,7 +22,6 @@ plan.json は本文全文を含むためローカル作業領域のみに書き�
 from __future__ import annotations
 
 import argparse
-import datetime
 import json
 import sys
 from pathlib import Path
@@ -30,59 +29,29 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN_ROOT))
 from lib import (  # noqa: E402
-    notion_client, notion_config, secrets,
-    render_substitute as rs, message_assemble as ma, plan_build as pb,
+    notion_client, notion_config, secrets, plan_build as pb, plan_compose as pc,
 )
 
 
-def _combine_cc(body_cc_raw: str, hisho_email: str) -> str:
-    """本文CC + 秘書CC を結合した cc_raw 文字列にする (重複/To除外は assemble が正規化)。
+def _print_config_missing_help(config_path: str | None) -> None:
+    """config 不在で停止したとき、前進手段 (scaffold / 貼り付け雛形) を案内する。
 
-    結合は dry-run でここ1回だけ確定し plan.json の cc_list に焼く。live-send は再結合しない
-    (content_hash の決定論を二重ロジックで壊さないため。仕様書 §6)。
+    停止 (exit 2) は維持しつつ、デッドエンドにせず次の一歩を示す。placeholder は解決不能なので
+    案内に従って生成しても、実値を埋めるまで1通も送信されない (fail-closed 維持)。
     """
-    return ",".join(p for p in (body_cc_raw or "", hisho_email or "") if p.strip())
-
-
-def _classify_unit(body: dict, recip: dict) -> tuple[dict | None, str | None]:
-    """1組(本文×宛先)を送信単位に変換する。skip 時は (None, reason_code)。
-
-    To=プロ人材メール、CC=本文CC + 秘書(cc秘書)メール (仕様書 §6)。
-    """
-    values = notion_client.values_for_recipient(recip)
-    if rs.unsafe_value_keys(values):
-        return None, "unsafe_header"
-    subject_out, un_s = rs.substitute(body["subject"], values)
-    body_out, un_b = rs.substitute(body["body"], values)
-    unresolved = list(dict.fromkeys(un_s + un_b))
-    if unresolved:
-        return None, "unresolved_token"
-    cc_raw = _combine_cc(body["cc_raw"], recip.get("hisho_email", ""))
-    asm = ma.assemble(subject_out, body_out, body["from_addr"], recip["pro_email"], cc_raw)
-    if asm["invalid_addrs"]:
-        reason = "invalid_cc" if all(a.startswith("cc:") for a in asm["invalid_addrs"]) else "invalid_to"
-        return None, reason
-    # To と重複して CC から除外されたアドレス (秘書addr==プロ人材To 等) を可視化する。
-    # 除外自体は normalize_cc の安全側挙動 (同一人物2通回避) で変えない。プレビュー警告のみ。
-    cc_suppressed = ma.cc_suppressed_by_to(ma.parse_comma_addrs(cc_raw), asm["to_list"])
-    unit = {
-        "subject": subject_out,
-        "body": body_out,
-        "from_addr": body["from_addr"],
-        "to_list": asm["to_list"],
-        "cc_list": asm["cc_list"],
-        "raw": asm["raw"],
-        "multi_to_visible": asm["multi_to_visible"],
-        "cc_suppressed_due_to_to_overlap": cc_suppressed,
-        "body_page_id": body["page_id"],
-        "recipient_page_id": recip["page_id"],
-    }
-    unit["content_hash"] = pb.content_hash(unit)
-    return unit, None
-
-
-def _stable_units(units: list[dict]) -> list[dict]:
-    return sorted(units, key=lambda u: (u["content_hash"], u.get("body_page_id", ""), u.get("recipient_page_id", "")))
+    target = notion_config.scaffold_target_path(config_path)
+    print("\n設定ファイル (.notion-config.json) がまだありません。次のいずれかで設定してください:", file=sys.stderr)
+    print(f"  1) 値が分かっていれば一発生成: doctor --init --body-db <id> --recipient-db <id> "
+          f"--log-db <id> --impersonate <addr>  → {target} に実値入り config を作成", file=sys.stderr)
+    print(f"  2) まず雛形だけ: doctor --init  → {target} に placeholder を書き出し、後で <...> を実値で埋める",
+          file=sys.stderr)
+    print("  3) config を作らず計画だけ先に見る: --db1 <本文DB id> --db2 <送信先DB id> を両方指定して再実行 "
+          "(read-only・送信しない)", file=sys.stderr)
+    print(f"  4) 手書きする場合は下記を {target} に保存し <...> を実値で埋める:", file=sys.stderr)
+    print(notion_config.skeleton_json(), file=sys.stderr)
+    print("※ db_id は Notion ページURL末尾の32桁。API鍵/SA鍵は config でなく Keychain に登録する。",
+          file=sys.stderr)
+    print("詳しい手順は README『セットアップ 2. 設定ファイル』を参照。", file=sys.stderr)
 
 
 def main() -> int:
@@ -99,17 +68,27 @@ def main() -> int:
         return 2
 
     try:
-        cfg = notion_config.load_config(args.config)
-        source = (cfg.get("notion_gmail_send") or {}).get("source") or {}
-        db1 = args.db1 or source.get("body_db")
-        db2 = args.db2 or source.get("recipient_db")
+        db1 = args.db1
+        db2 = args.db2
+        if not (db1 and db2):
+            cfg = notion_config.load_config(args.config)
+            source = (cfg.get("notion_gmail_send") or {}).get("source") or {}
+            db1 = db1 or source.get("body_db")
+            db2 = db2 or source.get("recipient_db")
         if not db1 or not db2:
             print("[ERROR] body_db / recipient_db が未解決 (config notion_gmail_send.source または --db1/--db2)", file=sys.stderr)
             return 2
+        db1 = notion_config.require_resolved_value(db1, "body_db")
+        db2 = notion_config.require_resolved_value(db2, "recipient_db")
         client = notion_client.NotionClient(secrets.get_notion_api_key())
         bodies, body_skipped = notion_client.fetch_bodies_true(client, db1)
         resolution = notion_client.fetch_recipients_true(client, db2)
-    except (notion_config.ConfigError, secrets.KeychainError, notion_client.NotionError) as e:
+    except notion_config.ConfigError as e:
+        print(f"[ERROR] dry-run preflight 失敗: {e}", file=sys.stderr)
+        if notion_config.find_config_path(args.config) is None:
+            _print_config_missing_help(args.config)
+        return 2
+    except (secrets.KeychainError, notion_client.NotionError) as e:
         print(f"[ERROR] dry-run preflight 失敗: {e}", file=sys.stderr)
         return 2
 
@@ -117,41 +96,13 @@ def main() -> int:
     recip_skipped = resolution["skipped"]        # プロ人材メール空
     suppressed = resolution["suppressed"]        # メールを送らない=✅ (送信対象より優先)
     duplicate_dropped = resolution["duplicate_dropped"]  # プロ人材重複で除外された古い行
-
     first_stage = len(bodies) * len(recips)
-    campaign_id = pb.generate_campaign_id()
-    units: list[dict] = []
-    skipped: list[dict] = []
-    for body in bodies:
-        for recip in recips:
-            unit, reason = _classify_unit(body, recip)
-            if reason:
-                skipped.append({"body_page_id": body["page_id"], "recipient_page_id": recip["page_id"],
-                                "subject": body["subject"], "to": recip["pro_email"], "reason_code": reason})
-                continue
-            # dedup キーは content ベース (campaign_id 非依存) で別実行の二重送信も機構で防ぐ。
-            unit["idempotency_key"] = pb.dedup_key(unit["body_page_id"], unit["recipient_page_id"], unit["content_hash"])
-            units.append(unit)
 
-    available_units = len(units)
-    if args.canary is not None and args.canary < available_units:
-        units = _stable_units(units)[:args.canary]
-    plan = pb.finalize_plan(campaign_id, units)
-    plan.update({
-        "generated_at": datetime.datetime.now().astimezone().isoformat(),
-        "first_stage_count": first_stage,
-        "body_true_count": len(bodies),       # 本文 true(メッセージ対象✅かつ非空) 行数。G2.body の正しい母数
-        "recipient_true_count": len(recips),  # 宛先(送信対象✅かつ送らない☐かつプロ人材非空・dedup後) 行数
-        "available_unit_count": available_units,
-        "canary_limit": args.canary,
-        "canary_applied": args.canary is not None and args.canary < available_units,
-        "source": {"body_db": db1, "recipient_db": db2},
-        "skipped": skipped,
-        "suppressed": suppressed,                # メールを送らない=✅ で抑制した宛先
-        "duplicate_dropped": duplicate_dropped,  # プロ人材重複で除外した古い行
-        "body_skipped": body_skipped,
-        "recipient_skipped": recip_skipped,
-    })
+    # plan 構築は plan_compose に委譲 (dry-run と確認0 auto-send が同一ロジックで新鮮 plan を作る SSOT)。
+    plan = pc.assemble_plan(bodies, body_skipped, resolution, db1=db1, db2=db2, canary=args.canary)
+    campaign_id = plan["campaign_id"]
+    skipped = plan["skipped"]
+    available_units = plan["available_unit_count"]
 
     config_path = notion_config.find_config_path(args.config)
     out = args.out or str(Path(config_path.parent if config_path else ".")

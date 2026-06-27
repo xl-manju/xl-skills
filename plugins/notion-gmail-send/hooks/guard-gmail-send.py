@@ -55,7 +55,8 @@ def main():
     if any(re.search(p, lowered) for p in _SEND_PATTERNS):
         sys.stderr.write(
             "[guard-gmail-send] 承認フローを迂回した Gmail 直接送信は禁止です。"
-            "送信は run-notion-gmail-dry-run で plan を作り、人間承認 (APPROVE <plan_hash> <count> <first_to>) の後に "
+            "確認0で送る場合は run-notion-gmail-send、慎重運用では "
+            "run-notion-gmail-dry-run で plan を作って APPROVE 後に "
             "run-notion-gmail-send (send-campaign.py / send_guard 内蔵) 経由で行ってください。\n"
         )
         return 2
