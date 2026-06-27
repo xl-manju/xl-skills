@@ -126,7 +126,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 6. **二段確認 (dry-run が物理境界)**: 既定は dry-run (集計のみ・書き込みゼロ)。`--apply` で初めて DB へ書き込む。判定内訳を dry-run で確認してから適用する導線を標準にする (誤投入防止)。
 7. **Notion 書込はレート間隔付き**: 一括投入は Notion のレート制限で弾かれるため、書き込み系 (POST/PATCH/PUT/DELETE) は `notion_transport._write_gap` が `MFK_NOTION_WRITE_GAP` (既定 0.34 秒) を挟む。GET は間隔なし。page_id 重複除去で二重 archive を防ぐ。
 8. **AI確認と人間確認を分離**: DB2 の `AI確認済み` checkbox は `verdict-mapping.json` の `ai_check` から機械が更新する。`人間対応済み` checkbox は人が対応完了を記録する列で、AI は新規時 false 初期化以外は書かない (frozen 判定の入力に使う)。
-9. **判定ラベルは SSOT**: 内部 verdict→日本語ラベル/AIチェック可否/警告クラス/シート5値の対応は `schemas/verdict-mapping.json` を唯一の正本とし、engine emit ⊆ mappings を parity test で機械保証する (別表記を作らない)。DB2『判定』は 15 ラベル (judge_label)、シート『判定』は 5 値 (sheet_label) と別軸で、いずれも同一 SSOT から派生する。
+9. **判定ラベルは SSOT**: 内部 verdict→日本語ラベル/AIチェック可否/警告クラス/シート5値の対応は `schemas/verdict-mapping.json` を唯一の正本とし、engine emit ⊆ mappings を parity test で機械保証する (別表記を作らない)。DB2『判定』は 16 ラベル (judge_label)、シート『判定』は 5 値 (sheet_label) と別軸で、いずれも同一 SSOT から派生する。
 10. **シート書き戻しは片方向ミラー**: 判定 SoR=DB2 (裏方台帳)。請求確認シートの『判定』(5値select=未照合/AIの確認OK/対象外/要確認/発行漏れ・色付き)・『AI確認』・『確認ポイント』(rich_text=何を確認すべきか) は DB2 から決定論的に再計算した投影で、`--apply` 時に当月 forward rows を各シート行へ冪等 PATCH する。機械が触れるのは**この 3 列のみ**で人間列『チェック済み』『確認内容』は不可侵。`確認ポイント` は verdict 定型ガイダンス (verdict-mapping.json の `action_hint` SSOT) + 行固有の警告詳細を連結 (AIの確認OK/対象外は空で stale を消す)。stale は再実行で自己修復。ORPHAN (逆方向・シート行なし) は投影しない。保留/未締結契約は `REVIEW_PENDING` として『判定=要確認』に投影し、理由を『確認ポイント』へ書く。**未照合 (シート『判定』空欄) の発生基準**: 当月 (対象年月) に登録された行は保留契約も含め必ず判定が付くため、シート『判定』が空欄に残るのは「その行が当月照合の対象でない (対象月以外の年月の行・当月シートに登録の無い行)」場合のみ。経理は当月の年月でフィルタして確認する (空欄=当月対象外であり判定漏れではない)。
 11. **DB は作り直さず更新 (find-or-create)**: `build_reconcile_dbs.py` は config の reconcile_db1_id/db2_id が実在すれば再利用 (不足列だけ冪等追加)・欠落時のみ parent_page_id 配下へ作成し id を保存する。月次運用で DB を新規作成しない (重複・断片化防止)。履歴は DB1=最新状態 / DB2=対象年月キーで月別積層 の二層で保全。
 
@@ -147,7 +147,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 - `$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py` — 月次 1 コマンド orchestrator (--target/--apply/--steps、既定 dry-run)
 - `$CLAUDE_PLUGIN_ROOT/scripts/build_reconcile_dbs.py` — DB1/DB2 冪等 find-or-create ビルダー (id 再利用・欠落時のみ作成)
 - `prompts/R1-collect.md`〜`R4-sink.md` — 責務プロンプト
-- `schemas/` — reconcile-result / verdict-mapping(判定SSOT・judge_label15値+sheet_label5値) / contract-master-db / monthly-check-db
+- `schemas/` — reconcile-result / verdict-mapping(判定SSOT・judge_label16値+sheet_label5値) / contract-master-db / monthly-check-db
 - `$CLAUDE_PLUGIN_ROOT/lib/` — mfk_reconcile(照合engine・sheet_label派生) / sheet_to_master(シート→契約マスタ・_sheet_row_ids) / notion_reconcile_sink(DB2非破壊upsert) / notion_sheet_writeback(シート判定書き戻し) / notion_transport(レート間隔) / mfk_api / mfk_keychain
 - `$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-readonly.py` — 参照専用ガード
 - `$CLAUDE_PLUGIN_ROOT/agents/mfk-reconcile-verifier.md` — 二段確認 subagent
