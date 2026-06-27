@@ -1,6 +1,6 @@
 ---
 name: gmail-send-presend-verifier
-description: 送信直前にplan.jsonを独立contextで再検査し誤送信を防ぎたいときに使う。
+description: 厳格対話モード専用。送信直前にplan.jsonを独立contextで再検査し誤送信を防ぎたいときに使う。
 kind: agent
 tools: Read, Bash(python3 *)
 model: sonnet
@@ -24,7 +24,7 @@ responsibility_id: presend-verify
 |---|---|
 | name | gmail-send-presend-verifier |
 | skill | run-notion-gmail-send |
-| responsibility | presend-verify 送信前二段確認 |
+| responsibility | presend-verify 送信前二段確認（厳格対話モード専用） |
 | ssot | ../skills/run-notion-gmail-send/prompts/R2-presend-verify.md |
 | output_schema | ../skills/run-notion-gmail-send/schemas/send-verdict.schema.json |
 | isolation | fork (親 context の自己肯定バイアスを持ち込まない) |
@@ -34,7 +34,7 @@ responsibility_id: presend-verify
 <!-- responsibility: presend-verify -->
 
 まず SSOT `../skills/run-notion-gmail-send/prompts/R2-presend-verify.md` を Read し、その Layer 1〜7 を
-本タスクの契約とする。承認対象の plan.json と人間が入力した承認文字列 (`APPROVE <plan_hash> <count> <first_to> <確認語>`)
+本タスクの契約とする。本 agent は厳格対話モード専用であり、既定の最小確認1回・無人確認0(--auto-approve)モードでは起動しない。承認対象の plan.json と人間が入力した承認文字列 (`APPROVE <plan_hash> <count> <first_to> <確認語>`)
 を受け取り、
 `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-notion-gmail-send/scripts/verify-plan.py" --plan <plan.json>
 --approved-plan-hash <h> --approved-count <n> --approved-first-to <to> --approved-nonce <確認語>` を実行して verdict JSON を解釈する。

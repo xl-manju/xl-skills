@@ -50,7 +50,7 @@ def check(
     `approved_nonce` と一致しない限り送信させない (S-F1: blind approve 防止の読解強制)。
     """
     if not approved_plan_hash:
-        raise SendGuardError("no_approval", "承認 plan_hash が空。人間承認ゲート未通過。")
+        raise SendGuardError("no_approval", "承認 plan_hash が空。承認ゲート未通過。")
     if approved_plan_hash != plan_hash:
         raise SendGuardError("plan_hash_mismatch", "承認 plan_hash と現在の plan_hash が不一致。")
     if int(approved_count) != int(actual_count):

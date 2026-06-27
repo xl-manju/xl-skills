@@ -2,12 +2,12 @@
   "target": {
     "plugin": "notion-gmail-send",
     "skill": "run-notion-gmail-sendlog-setup",
-    "skill_md_sha256": "0034b1a32b8fa044b6810136b7aec46e9a9d82e76376f135832ef53e3e3c341a"
+    "skill_md_sha256": "5b18045955ae8e906476a9d6743631a57f1abada0b9cf057f9c14201c80674e7"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "independent-rubric-reviewer",
-  "reviewed_at": "2026-06-25",
+  "reviewed_at": "2026-06-26",
   "iterations": 1,
   "human_review_required": false,
   "findings_summary": {
@@ -18,11 +18,12 @@
     "smell": 0
   },
   "feedback_loop": {
-    "loop_scope": "inner",
+    "loop_scope": "both",
     "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "frontmatter 規律: kind=run/prefix=run 整合、effect=external-mutation が --apply の DB schema 変更(write-scope: notion-db-schema)と一致、allowed-tools=Read/Write/Bash(python3 *) が二層分離(script 本体)と整合、disable-model-invocation:true で user-invocable な db-setup として適切。feedback_contract に IN1(verify_by:test)/OUT1(verify_by:elegant-review)が SSOT(scripts/feedback_contract_ssot.py)準拠で焼き込み済み。",
-      "二層分離(rubric): 決定論本体を setup-send-log-db.py(差分照合/不足追加/title rename/config 案内)、解釈・適用可否判断・config 反映案内を run-skill が担う分離が明示され、schema 正本=EXPECTED 単一・選択肢正本=idempotent_log enum の単一 SSOT が Key Rule4 と test_contract_sync で機械担保。Purpose & Output Contract/完了条件/Gotcha が運用者向けに具体的。"
+      "frontmatter 規律: kind=run/prefix=run 整合、effect=external-mutation が --apply の DB schema 変更と一致、allowed-tools=Read/Write/Bash(python3 *) が二層分離(script 本体)と整合、disable-model-invocation:true で user-invocable な db-setup として適切。feedback_contract に IN1(verify_by:test)/OUT1(verify_by:elegant-review)が SSOT 準拠で焼き込み済み。",
+      "二層分離(rubric): 決定論本体を setup-send-log-db.py(差分照合/不足追加/title rename/config 案内)、解釈・適用可否判断・config 反映案内を run-skill が担う分離が明示され、schema 正本=EXPECTED 単一・選択肢正本=idempotent_log enum の単一 SSOT が Key Rule4 と test_contract_sync で機械担保。Purpose & Output Contract/完了条件/Gotcha が運用者向けに具体的。",
+      "出力契約と冪等性: 既定 dry-run 差分提示->--apply gate->config 焼き込み案内->再 dry-run(差分0)のフローが exit code(差分あり=1/整合=0)で機械ゲート可能。title='冪等キー'・db_id 解決(--db-id>config)が send 系 preflight G2 の冪等キー基盤を過不足なく先行確定し、冪等キー定義が send の content ベース dedup(campaign_id 非含)と一致。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -30,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "独立 rubric レビュア(approver≠proposer)による genuine 採点。skill-design rubric 観点(frontmatter 妥当性/二層分離/SSOT 単一化/出力契約明示/ゴールシーク配線/dangling ref なし)で違反 0。IN1: setup-send-log-db.py の diff_schema が additive-only(to_add+title_rename のみ・削除なし)・select マージ温存・型不一致非破壊(手動差し戻し)で冪等、test_contract_sync(REASON_OPTIONS is idempotent_log.REASON_CODES、冪等キー定義 drift 固定)で機械検証=PASS。OUT1: 既定 dry-run の差分提示→--apply gate→config 焼き込み案内→再 dry-run(差分0)のフローと、title='冪等キー'・db_id 解決が send 系 preflight G2 の冪等キー基盤を過不足なく先行確定し、ユーザー目的を満たす責務設計=PASS。Additional Resources の相対参照(../../lib/*, ../ref-notion-gmail-send-spec/)は実在し dangling なし。テスト 11 passed。本物の欠陥なし。"
+  "notes": "独立 rubric approver(proposer!=approver)による genuine 採点。skill-design rubric 観点(frontmatter 妥当性/二層分離/SSOT 単一化/出力契約明示/ゴールシーク配線/dangling ref なし)で違反 0。IN1: diff_schema が additive-only(to_add+title_rename・削除なし)・select マージ温存・型不一致非破壊で冪等、test_contract_sync(REASON_OPTIONS is idempotent_log.REASON_CODES、冪等キー定義 drift 固定)で機械検証=PASS。OUT1: dry-run gate と G2 依存先行確定が冪等キー基盤を過不足なく用意する責務設計=PASS。今回 send 側が content ベース冪等へ進化したが本スキルの冪等キー定義(campaign_id 非含・--allow-resend suffix)が正しく追従し drift なし。Additional Resources の相対参照(../../lib/*, ../ref-notion-gmail-send-spec/)は実在し dangling なし。criteria_evaluated=[IN1,OUT1] は frontmatter feedback_contract と一致。プラグイン全体 190 passed。本物の欠陥なし。SHA は現 SKILL.md と read_bytes 一致。"
 }

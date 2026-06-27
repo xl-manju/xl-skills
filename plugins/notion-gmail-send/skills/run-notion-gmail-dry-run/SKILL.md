@@ -38,9 +38,9 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Purpose & Output Contract
 
-Notion 2DB（メール本文DB / メール送信先_DB）を入力に、`本文true × 宛先(解決後)` の直積で送信単位を生成し、`{{}}` トークンを差し込み置換のうえ MIME 組立して `plan.json` と全件プレビューを出力する **dry-run 専用スキル**。**Gmail API は呼ばず1通も送信しない**。送信前に「何が・誰に・どんな本文で」送られるかを安全に何度でも確認する独立価値を持つ（仕様書 §2 人間承認ゲートの前提となる目視材料を作る）。
+Notion 2DB（メール本文DB / メール送信先_DB）を入力に、`本文true × 宛先(解決後)` の直積で送信単位を生成し、`{{}}` トークンを差し込み置換のうえ MIME 組立して `plan.json` と全件プレビューを出力する **dry-run 専用スキル**。**Gmail API は呼ばず1通も送信しない**。送信前に「何が・誰に・どんな本文で」送られるかを安全に何度でも確認する独立価値を持つ。既定の最小確認1回・無人確認0(--auto-approve)では必須ではなく、厳格対話モードや canary 前の全件目視材料として使う（既定モードは send-campaign.py の preview がコンパクト要約を出すが、dry-run は全件フルプレビューを出す）。
 
-**入力**: なし（既定）。任意で `--db1 <id>` / `--db2 <id>`（config の DB を override）、`--out <path>`（plan.json 出力先）、`--canary <N>` / `--limit <N>`（少数検品用に送信可能 unit を安定順の先頭 N 件へ限定）。
+**入力**: なし（既定）。任意で `--db1 <id>` / `--db2 <id>`（config の DB を override。両方指定時は `.notion-config.json` 不在でも dry-run 可）、`--out <path>`（plan.json 出力先）、`--canary <N>` / `--limit <N>`（少数検品用に送信可能 unit を安定順の先頭 N 件へ限定）。
 **出力**:
 - `plan.json`（本文全文を含むためローカル作業領域 `eval-log/notion-gmail-send/` のみ・git 管理外。Notion ログには保存しない。§12 PII）
 - 標準出力に承認文字列 `APPROVE <plan_hash> <count> <first_to> <確認語>` ＋ 第1段件数 ＋ 全件プレビュー（差し込み後の件名/本文抜粋/To/CC・`multi_to_visible` 警告・`skipped_validation` 内訳・プロ人材重複除外）
@@ -79,7 +79,7 @@ Notion APIキーは Keychain `notion-api-key.xl-skills`（**GET のみ**。Gmail
 本文true×宛先true の全送信単位が差し込み置換・MIME組立まで完了し、`content_hash`/`plan_hash` 付きの `plan.json` と全件プレビューと `APPROVE <plan_hash> <count> <first_to> <確認語>` 文字列が提示され、運用者が送信前に内容を目視確認できる状態。**送信は一切行わない。**
 
 ### 目的・背景 (Why)
-不可逆な外部副作用（メール送信）の前に、誤った本文・誤った宛先を構造的に検出して止める安全材料を作る（§2 三本柱のうち「人間承認ゲートが目視する対象」を生成する工程）。送信ログDBが未確定でも第1段件数（本文true×宛先true）は常に算出でき（G0）、本文が0通でも「記入すべきもの」を運用者へ示せる。安全装置の充実が警戒を下げる逆説を避けるため、承認は機械照合可能な `APPROVE` 文字列を必須にする。
+不可逆な外部副作用（メール送信）の前に、誤った本文・誤った宛先を構造的に検出して止める安全材料を作る。送信ログDBが未確定でも第1段件数（本文true×宛先true）は常に算出でき（G0）、本文が0通でも「記入すべきもの」を運用者へ示せる。対話モードでは、承認を機械照合可能な `APPROVE` 文字列に束縛する。
 
 ### 完了チェックリスト (Checklist)
 - [ ] DB1/DB2 を取得し、本文true（メッセージ対象✅ かつ 本文非空）/ 宛先（送信対象✅ かつ 送らない☐ かつ プロ人材メール非空・重複は最新 `created_time` 1件、同時刻は `page_id` 降順）を抽出した
@@ -96,7 +96,7 @@ Notion APIキーは Keychain `notion-api-key.xl-skills`（**GET のみ**。Gmail
 ### ゴールシークループ
 1. `build-plan.py` を実行し、第1段件数・`plan.json`・全件プレビュー・`APPROVE` 文字列を得る。
 2. プレビューを目視し、未充足のチェックリスト項目があれば原因を特定する。
-   - `exit 2`（config/接続/Keychain エラー）→ `.notion-config.json` の `notion_gmail_send.source` または `--db1/--db2`、Keychain `notion-api-key.xl-skills` を確認して再実行。
+   - `exit 2`（config/接続/Keychain エラー）→ `.notion-config.json` の `notion_gmail_send.source`、または config をまだ作らずに計画だけ見たい場合は `--db1/--db2` の両方、Keychain `notion-api-key.xl-skills` を確認して再実行。
    - 送信可能 0通 → DB1 のメッセージ対象✅ ページに `{{}}` 入り本文を記入して再実行（チェックリスト最終項目）。
    - `skipped_validation` 多数 → reason_code（`unresolved_token`/`unsafe_header`/`invalid_to`/`invalid_cc`）別に Notion 元データを修正して再実行。
    - `⚠️ プロ人材重複` → 同一人物への重複送信防止のため宛先DBの重複ページを点検する。
@@ -140,7 +140,7 @@ PY
 
 ## Gotchas
 
-1. `--db1/--db2` 未指定時は config `notion_gmail_send.source.{body_db,recipient_db}` から DB を解決する。両方未解決なら `exit 2`。
+1. `--db1/--db2` を両方指定したときは config を読まずに DB を解決する（read-only dry-run のため）。片方でも未指定なら config `notion_gmail_send.source.{body_db,recipient_db}` で不足分を補い、両方未解決なら `exit 2`。
 2. `--out` 未指定時の plan.json 既定は `<config親>/eval-log/notion-gmail-send/plan-<campaign_id>.json`。
 3. To が複数アドレスの単位は `multi_to_visible=true`（受信者が互いのアドレスを見られる）。プレビューで `⚠️` 警告し承認 echo 対象に含める（§6）。
 4. 本文コードブロックは最初の非空 `code` block のみ採用。複数非空なら `multiple_body_code_blocks` として本文除外（暗黙連結しない。§3）。

@@ -21,12 +21,22 @@ fail-closed (body_fetch_failed) させる。本文テンプレートは最初の
 from __future__ import annotations
 
 import json
+import time
 import unicodedata
 import urllib.error
 import urllib.request
 
 API_BASE = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
+
+# レート制御 (Notion API は公称 平均3 req/sec。超過すると 429 で受理されない)。
+# 送信ログDBへの reserve→mark_sending→mark_sent は1単位で複数回書き込むため、
+# 件数が増えると密になり 429 を招く。予防的に最小呼び出し間隔を空けてプッシュする
+# (一定間隔。過度には空けない＝公称制限を守る最小限)。バーストで弾かれた時のための
+# 429 リトライ (Retry-After 尊重) は予防スロットルを補完する保険。
+DEFAULT_MIN_INTERVAL_SEC = 0.34   # ≈ 2.94 req/sec。公称 3 req/sec の安全側。
+DEFAULT_MAX_RETRIES = 5           # 429 を受けたときの最大再試行回数。
+RETRY_BACKOFF_CAP_SEC = 10.0      # Retry-After / 指数バックオフの上限 (際限なく待たない)。
 
 # DB1「メール本文_DB」プロパティ名 (本 plugin 専用の固定列。任意2DBへの汎用化・config上書きは未実装＝非目的)
 P_SUBJECT = "件名"
@@ -47,10 +57,35 @@ class NotionError(Exception):
 
 
 class NotionClient:
-    def __init__(self, api_key: str, version: str = NOTION_VERSION, timeout: int = 30):
+    def __init__(self, api_key: str, version: str = NOTION_VERSION, timeout: int = 30,
+                 min_interval_sec: float = DEFAULT_MIN_INTERVAL_SEC,
+                 max_retries: int = DEFAULT_MAX_RETRIES):
         self._api_key = api_key
         self._version = version
         self._timeout = timeout
+        # レート制御。min_interval_sec=0 で無効化できる (テスト/単発呼び出し用)。
+        self._min_interval = max(0.0, min_interval_sec)
+        self._max_retries = max(0, max_retries)
+        self._last_request_ts = 0.0  # time.monotonic() 基準の最終送信時刻 (初期0で初回は待たない)
+
+    def _throttle(self) -> None:
+        """前回送信から _min_interval 秒に満たなければ不足分だけ sleep し、一定間隔でプッシュする。"""
+        if self._min_interval > 0:
+            wait = self._min_interval - (time.monotonic() - self._last_request_ts)
+            if wait > 0:
+                time.sleep(wait)
+        self._last_request_ts = time.monotonic()
+
+    def _retry_after_sec(self, http_error: urllib.error.HTTPError, attempt: int) -> float:
+        """429 の Retry-After ヘッダ(秒)を尊重する。無ければ指数バックオフ (上限 cap)。"""
+        ra = http_error.headers.get("Retry-After") if http_error.headers else None
+        if ra:
+            try:
+                return min(float(ra), RETRY_BACKOFF_CAP_SEC)
+            except (TypeError, ValueError):
+                pass
+        base = self._min_interval if self._min_interval > 0 else 1.0
+        return min(base * (2 ** attempt), RETRY_BACKOFF_CAP_SEC)
 
     def _request(self, method: str, path: str, body: dict | None = None) -> dict:
         url = f"{API_BASE}{path}"
@@ -59,18 +94,26 @@ class NotionClient:
         req.add_header("Authorization", f"Bearer {self._api_key}")
         req.add_header("Notion-Version", self._version)
         req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            detail = ""
+        attempt = 0
+        while True:
+            self._throttle()  # 各試行の直前に最小間隔を確保 (リトライ時も間隔を守る)
             try:
-                detail = e.read().decode("utf-8")[:300]
-            except Exception:
-                pass
-            raise NotionError(f"{method} {path} -> HTTP {e.code}: {detail}") from None
-        except (urllib.error.URLError, TimeoutError) as e:
-            raise NotionError(f"{method} {path} 接続失敗: {e}") from None
+                with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as e:
+                # 429 (レート超過) は受理されていない=安全に再試行できる。Retry-After を尊重。
+                if e.code == 429 and attempt < self._max_retries:
+                    time.sleep(self._retry_after_sec(e, attempt))
+                    attempt += 1
+                    continue
+                detail = ""
+                try:
+                    detail = e.read().decode("utf-8")[:300]
+                except Exception:
+                    pass
+                raise NotionError(f"{method} {path} -> HTTP {e.code}: {detail}") from None
+            except (urllib.error.URLError, TimeoutError) as e:
+                raise NotionError(f"{method} {path} 接続失敗: {e}") from None
 
     # ---- 低レベル ----
     def retrieve_database(self, db_id: str) -> dict:

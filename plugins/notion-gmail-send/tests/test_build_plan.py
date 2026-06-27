@@ -91,3 +91,49 @@ def test_canary_limits_units_bound_to_plan_hash(monkeypatch, tmp_path):
     assert plan["available_unit_count"] == 3
     assert plan["canary_limit"] == 1
     assert plan["canary_applied"] is True
+
+
+def test_db_overrides_do_not_require_config(monkeypatch, tmp_path):
+    bp = _load_build_plan()
+    def _load_config(path=None):
+        raise AssertionError("both --db1 and --db2 were provided; config must not be loaded")
+    monkeypatch.setattr(notion_config, "load_config", _load_config)
+    monkeypatch.setattr(notion_config, "find_config_path", lambda path=None: None)
+    monkeypatch.setattr(secrets, "get_notion_api_key", lambda: "key")
+    monkeypatch.setattr(notion_client, "NotionClient", lambda key: object())
+    bodies = [{"page_id": "b1", "subject": "件名", "body": "本文", "from_addr": "f@x.com", "cc_raw": ""}]
+    recips = [{"page_id": "r1", "name": "A", "company": "X", "pro_email": "a@x.com",
+               "hisho_email": "", "created_time": "2026-06-23T09:03:00.000Z"}]
+    seen = {}
+    def _fetch_bodies(client, db):
+        seen["db1"] = db
+        return bodies, []
+    def _fetch_recipients(client, db):
+        seen["db2"] = db
+        return {"recipients": recips, "skipped": [], "suppressed": [], "duplicate_dropped": []}
+    monkeypatch.setattr(notion_client, "fetch_bodies_true", _fetch_bodies)
+    monkeypatch.setattr(notion_client, "fetch_recipients_true", _fetch_recipients)
+
+    out = tmp_path / "plan.json"
+    monkeypatch.setattr("sys.argv", ["build_plan", "--db1", "body-db", "--db2", "recipient-db", "--out", str(out)])
+    assert bp.main() == 0
+
+    plan = json.loads(out.read_text(encoding="utf-8"))
+    assert seen == {"db1": "body-db", "db2": "recipient-db"}
+    assert plan["source"] == {"body_db": "body-db", "recipient_db": "recipient-db"}
+    assert plan["count"] == 1
+
+
+def test_placeholder_config_stops_before_notion_fetch(monkeypatch, tmp_path):
+    bp = _load_build_plan()
+    monkeypatch.setattr(notion_config, "load_config", lambda path=None: notion_config.CONFIG_SKELETON)
+    monkeypatch.setattr(notion_config, "find_config_path", lambda path=None: tmp_path / ".notion-config.json")
+    monkeypatch.setattr(secrets, "get_notion_api_key",
+                        lambda: (_ for _ in ()).throw(AssertionError("Notion key must not be read")))
+    monkeypatch.setattr(notion_client, "NotionClient",
+                        lambda key: (_ for _ in ()).throw(AssertionError("Notion client must not be created")))
+
+    out = tmp_path / "plan.json"
+    monkeypatch.setattr("sys.argv", ["build_plan", "--out", str(out)])
+    assert bp.main() == 2
+    assert not out.exists()

@@ -137,6 +137,24 @@ def audit_recipient_db(client, db2_id: str) -> dict:
             "suppressed": suppressed, "duplicate_dropped": duplicate_dropped, "issues": issues}
 
 
+def run_full_audit(client, db1_id: str, db2_id: str) -> dict:
+    """本文DB/宛先DB/schema/cross の全監査を集約し、issues と high severity を返す (集約 SSOT)。
+
+    `run-notion-gmail-source-audit`(CLI) と確認0 auto-send の事前ゲートが**同一の判定**を使うための
+    単一関数。high severity issue が1件でもあれば auto-send は送信前に fail-closed する根拠になる。
+
+    Returns {all_issues, high, body_rep, recip_rep, recip_schema, cross}
+    """
+    body_rep = audit_body_db(client, db1_id)
+    recip_rep = audit_recipient_db(client, db2_id)
+    recip_schema = audit_recipient_db_schema(client, db2_id)
+    cross = cross_audit(body_rep["used_tokens"], recip_rep["recipients"])
+    all_issues = body_rep["issues"] + recip_rep["issues"] + recip_schema["issues"] + cross
+    high = [i for i in all_issues if i.get("severity") == "high"]
+    return {"all_issues": all_issues, "high": high, "body_rep": body_rep,
+            "recip_rep": recip_rep, "recip_schema": recip_schema, "cross": cross}
+
+
 def cross_audit(used_tokens: list[str], recipients: list[dict]) -> list[dict]:
     """本文が使うトークンに対し、宛先の対応値が空な組を未置換リスクとして洗い出す。"""
     issues: list[dict] = []

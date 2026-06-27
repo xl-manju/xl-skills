@@ -93,7 +93,7 @@ REST API（Keychain `notion-api-key.xl-skills`）で取得。Notion MCP は 404�
 
 ## 送信ログDB schema と冪等（§9）
 
-- **冪等キー**（title）: `{本文page_id}:{宛先page_id}:{content_hash}`。検索キーとして使う。`campaign_id` は含めず、別実行でも同一本文×同一宛先×同一内容の二重送信を止める。意図的再送時だけ `--allow-resend` が campaign suffix を付ける。
+- **冪等キー**（title）: `{本文page_id}:{宛先page_id}:{content_hash}`。検索キーとして使う。`campaign_id` は含めず、別実行でも同一本文ページ×同一宛先ページ×同一内容の二重送信を止める。宛先を別Notionページとして作り直した場合は別単位。意図的再送時だけ `--allow-resend` が campaign suffix を付ける。
 - 解決元: `.notion-config.json` の `databases.gmail-send-log.db_id`。
 - Notion は一意制約を持たないため、送信前に検索 → 0件なら create reserved / 1件なら状態判定 / 2件以上は `duplicate_log_key` で fail-closed。
 
@@ -168,11 +168,11 @@ dry-run preflight と live-send preflight を分離する。dry-run は送信ロ
 
 | 安全装置 | 守る対象 | 効く局面 | 効かない局面（正直な明示） |
 |---|---|---|---|
-| 承認済み plan（plan_hash・units から決定論再計算で束縛） | dry-run と live-send の内容ずれ・plan.json 改竄・件数偽装・raw 改変 | 承認後の全送信（`send_campaign` が送信前に units→plan_hash/件数/content_hash を再計算照合し raw も都度再生成） | — |
-| 人間承認ゲート（dry-run 全件目視 → 明示承認 + 確認語） | 誤本文・誤宛先の**送信を止める停止点**。確認語で blind approve のコストを上げる | 全送信（初回含む） | **人間が内容を実際に読み理解したことの保証**（機構では強制不能。確認語は該当単位の目視を促すのみ） |
-| 事前予約つき冪等ログ（content ベース dedup・reserved→sending→sent/unknown） | 再実行・**別実行（別 campaign）**の二重送信、送信成功後ログ失敗 | 2回目以降・別実行・障害復旧 | 意図的再送（`--allow-resend` で明示）。初回の内容妥当性 |
+| 承認済み plan（plan_hash・units から決定論再計算で束縛） | plan.json 改竄・件数偽装・raw 改変（**厳格対話モード**＝plan.json が非信頼アーティファクトとなる経路で実効） | 厳格対話の承認後送信（`send_campaign` が units→plan_hash/件数/content_hash を再計算照合し raw も都度再生成） | **非対話(preview/confirm/cron)では承認 tuple が同一プロセス内 self-derive ゆえこの照合は恒真＝defense-in-depth(compose バグ検出)で plan 改竄保護価値は持たない。confirm は plan_hash を CONFIRM_TOKEN へ束縛・非対話の実効独立検証は source-audit/fresh rebuild/C-1/From検証/content dedup** |
+| 承認（既定=Notion `送信対象=✅` + preview 要約への単一確認 / 無人cron=Notion `送信対象=✅` / 厳格対話=dry-run 全件目視 → 明示承認 + 確認語） | 誰に送るかの意思をデータ層または APPROVE 文字列で固定する。厳格対話の確認語は blind approve のコストを上げる | 全送信（初回含む） | **内容が意味的に正しいことの保証**（機構では強制不能。既定は preview 要約＋Notion 整備＋source-audit＋canary で緩和、厳格対話は目視で緩和） |
+| 事前予約つき冪等ログ（Notionページ単位の content ベース dedup・reserved→sending→sent/unknown） | 再実行・**別実行（別 campaign）**での同一本文ページ×同一宛先ページ×同一内容の二重送信、送信成功後ログ失敗 | 2回目以降・別実行・障害復旧 | 別Notionページとして作り直した同一メールアドレスへの重複、意図的再送（`--allow-resend` で明示）。初回の内容妥当性 |
 
-> ⚠️ 因果ループ警告: 「冪等があるから安全」は**初回送信の内容妥当性には成立しない**。初回内容は人間承認ゲート（目視）、承認後の内容固定は `plan_hash`＋送信前の決定論再計算、再実行・別実行の二重送信防止は content ベース冪等ログが担保する。
+> ⚠️ 因果ループ警告: 「冪等があるから安全」は**初回送信の内容妥当性には成立しない**。初回内容は既定(最小確認1回)では preview 要約＋Notion のチェック整備＋source-audit/canary、厳格対話では目視承認で緩和する。承認後の内容固定は厳格対話の `plan_hash`＋送信前の決定論再計算（非対話は fresh rebuild と confirm モードの CONFIRM_TOKEN 束縛）、再実行・別実行の二重送信防止は content ベース冪等ログが担保する。
 >
 > 正直な限界: 承認文字列の機械照合は「plan が承認時から改竄されていない」ことを保証するが、「人間が本文を読み理解した」ことは保証できない（机上で強制不能）。確認語（dry-run が特定単位のプレビュー行末にのみ表示）はその単位を目視で探させ blind approve のコストを上げる緩和策であり、comprehension の証明ではない。最終的な内容妥当性は承認者の全件プレビュー目視に依存する。
 

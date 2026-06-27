@@ -11,7 +11,7 @@
 |---|---|
 | name | R2-presend-verify |
 | skill | run-notion-gmail-send |
-| responsibility | presend-verify 送信前二段確認 (1 prompt = 1 責務 = 1 agent) |
+| responsibility | presend-verify 送信前二段確認 (対話モード専用 / 1 prompt = 1 責務 = 1 agent) |
 | prompt_type | sub-agent |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | ../schemas/send-verdict.schema.json |
@@ -112,7 +112,7 @@
 ## Layer 6: オーケストレーション層 (ゴールシーク制御)
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: `run-notion-gmail-send` の送信前 (人間承認ゲート通過後、live-send G3 直前)。
+- 呼び出し元: `run-notion-gmail-send` の厳格対話モード送信前 (人間承認ゲート通過後、live-send G3 直前)。既定の最小確認1回・無人確認0(--auto-approve)モードでは起動しない。
 - 前段: `run-notion-gmail-dry-run` が plan.json を生成し、人間が `APPROVE <plan_hash> <count> <first_to> <確認語>` を入力。
 - 後続: pass なら send-campaign.py が live-send へ。fail なら送信せず差し戻す。
 

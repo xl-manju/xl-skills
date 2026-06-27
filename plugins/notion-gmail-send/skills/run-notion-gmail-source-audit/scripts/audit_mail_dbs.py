@@ -40,24 +40,27 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        cfg = notion_config.load_config(args.config)
-        source = (cfg.get("notion_gmail_send") or {}).get("source") or {}
-        db1 = args.db1 or source.get("body_db")
-        db2 = args.db2 or source.get("recipient_db")
+        db1 = args.db1
+        db2 = args.db2
+        if not (db1 and db2):
+            cfg = notion_config.load_config(args.config)
+            source = (cfg.get("notion_gmail_send") or {}).get("source") or {}
+            db1 = db1 or source.get("body_db")
+            db2 = db2 or source.get("recipient_db")
         if not db1 or not db2:
             print("[ERROR] body_db / recipient_db 未解決 (config notion_gmail_send.source または --db1/--db2)", file=sys.stderr)
             return 2
+        db1 = notion_config.require_resolved_value(db1, "body_db")
+        db2 = notion_config.require_resolved_value(db2, "recipient_db")
         client = notion_client.NotionClient(secrets.get_notion_api_key())
-        body_rep = audit.audit_body_db(client, db1)
-        recip_rep = audit.audit_recipient_db(client, db2)
-        recip_schema = audit.audit_recipient_db_schema(client, db2)  # DB2 schema 層 (廃止列残存・要件1(d))
-        cross = audit.cross_audit(body_rep["used_tokens"], recip_rep["recipients"])
+        full = audit.run_full_audit(client, db1, db2)  # CLI と auto-send 事前ゲートで同一判定を共有
     except (notion_config.ConfigError, secrets.KeychainError, notion_client.NotionError) as e:
         print(f"[ERROR] 監査失敗: {e}", file=sys.stderr)
         return 2
 
-    all_issues = body_rep["issues"] + recip_rep["issues"] + recip_schema["issues"] + cross
-    high = [i for i in all_issues if i.get("severity") == "high"]
+    body_rep, recip_rep, recip_schema, cross = full["body_rep"], full["recip_rep"], full["recip_schema"], full["cross"]
+    all_issues = full["all_issues"]
+    high = full["high"]
 
     if args.json:
         print(json.dumps({
