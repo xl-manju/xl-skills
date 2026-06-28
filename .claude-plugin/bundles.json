@@ -4,10 +4,8 @@
   "bundles": [
     {
       "name": "xl-skills-full",
-      "description": "Recommended. All plugins for the full skill-creator → prompt-creator → governance → distribution pipeline, plus end-user productivity plugins (contract-generator, mf-kessai-invoice-check) and the company-master enrichment plugin.",
+      "description": "Recommended. All distributable plugins: the end-user business outcomes (contract-generator, mf-kessai-invoice-check, company-master, notion-gmail-send) plus the governance foundation and the non-engineer intake flow.",
       "plugins": [
-        "skill-creator",
-        "prompt-creator",
         "skill-intake",
         "contract-generator",
         "company-master",
@@ -23,19 +21,9 @@
       ]
     },
     {
-      "name": "xl-skills-minimal",
-      "description": "Just enough to author skills: skill-creator + prompt-creator. No governance, no intake, no Notion publishing.",
-      "plugins": [
-        "skill-creator",
-        "prompt-creator"
-      ]
-    },
-    {
       "name": "xl-skills-intake",
-      "description": "Non-engineer elicitation flow + Notion publishing. Includes skill-creator so generated briefs can flow through.",
+      "description": "Non-engineer elicitation flow that turns plain-language requests into Notion-published briefs, backed by Keychain secrets management.",
       "plugins": [
-        "skill-creator",
-        "prompt-creator",
         "skill-intake",
         "skill-governance-secrets"
       ]

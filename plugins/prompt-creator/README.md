@@ -7,9 +7,9 @@
 ## 目次
 
 1. [動作要件](#1-動作要件)
-2. [インストール (ローカル marketplace 経由)](#2-インストール-ローカル-marketplace-経由)
-3. [インストール (GitHub 経由・チーム共有)](#3-インストール-github-経由チーム共有)
-4. [インストール確認](#4-インストール確認)
+2. [セットアップ (clone 開発環境)](#2-セットアップ-clone-開発環境)
+3. [チーム共有](#3-チーム共有)
+4. [利用確認](#4-利用確認)
 5. [使い方](#5-使い方)
 6. [skill-creator との連携](#6-skill-creator-との連携)
 7. [構成ファイル一覧](#7-構成ファイル一覧)
@@ -38,9 +38,9 @@
 
 ---
 
-## 2. インストール (ローカル marketplace 経由)
+## 2. セットアップ (clone 開発環境)
 
-ローカルに clone した状態で試す手順です。**まずこちらで動作確認することを推奨します**。
+prompt-creator は `distributable: false` の開発基盤 plugin です。marketplace 一覧・配布 bundle には出ず、`/plugin install` の対象ではありません。利用する場合はリポジトリを clone し、repo 内の正本を `.claude/` symlink 経由で使います。
 
 ### 手順 2-1. リポジトリを clone
 
@@ -56,67 +56,32 @@ git clone https://github.com/xl-manju/xl-skills.git
 cd xl-skills
 ```
 
-### 手順 2-2. Claude Code で marketplace を追加
+### 手順 2-2. 開発用 symlink を同期
 
-Claude Code の対話セッション内で次を実行します。
-
-```text
-/plugin marketplace add /絶対パス/to/xl-skills
-```
-
-> 例 (macOS):
-> ```text
-> /plugin marketplace add /Users/yourname/dev/xl-skills
-> ```
-
-### 手順 2-3. prompt-creator を install
-
-```text
-/plugin install prompt-creator@xl-skills
-```
-
-### 手順 2-4. 依存 plugin を install (推奨)
-
-prompt-creator は `skill-creator` から呼ばれる前提のため、合わせて install してください。
-
-```text
-/plugin install skill-creator@xl-skills
-/plugin install skill-governance-lint@xl-skills
+```bash
+make sync
 ```
 
 ---
 
-## 3. インストール (GitHub 経由・チーム共有)
+## 3. チーム共有
 
-チーム全員に同じ plugin を配布する場合の手順です。
+チームで prompt-creator を使う場合も marketplace 配布ではなく、同じリポジトリを clone した開発環境で使います。`.claude/` 配下は `make sync` で `plugins/prompt-creator/` の正本へ symlink されます。
 
-### 手順 3-1. GitHub repository から直接 marketplace 追加
+### 手順 3-1. 最新化
 
-```text
-/plugin marketplace add xl-manju/xl-skills --scope project
+```bash
+git pull
+make sync
 ```
 
-| scope オプション | 効果                                                             |
-| ---------------- | ---------------------------------------------------------------- |
-| `--scope project` | `.claude/settings.json` に記録され、リポジトリを clone したチーム全員に共有 |
-| `--scope user`   | 自分のユーザー設定にのみ記録 (個人利用)                           |
-| `--scope local`  | このマシンの該当プロジェクトでのみ有効 (一時利用)                 |
+### 手順 3-2. チームメンバー側の作業
 
-### 手順 3-2. install
-
-```text
-/plugin install prompt-creator@xl-skills --scope project
-/plugin install skill-creator@xl-skills --scope project
-/plugin install skill-governance-lint@xl-skills --scope project
-```
-
-### 手順 3-3. チームメンバー側の作業
-
-`main` を pull すれば `.claude/settings.json` に marketplace 情報が同期されているので、各自の Claude Code が自動で marketplace を認識します。各メンバーは手動 install 不要 (自動有効化されない場合のみ `/plugin install ...` を実行)。
+各メンバーは clone 済み worktree で `make sync` を実行します。配布ユーザー向けの marketplace install では prompt-creator は利用できません。
 
 ---
 
-## 4. インストール確認
+## 4. 利用確認
 
 Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見えれば成功です。
 
@@ -259,17 +224,13 @@ python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usag
 
 ## 9. トラブルシューティング
 
-### Q1. `/plugin install prompt-creator@xl-skills` で plugin が見つからない
+### Q1. marketplace に prompt-creator が出ない
 
-```text
-/plugin marketplace list
-```
-
-で marketplace が登録されているか確認。出ない場合は [手順 2-2](#手順-2-2-claude-code-で-marketplace-を追加) を再実行。
+正常です。prompt-creator は `distributable: false` のため marketplace 一覧・配布 bundle・`/plugin install` の対象外です。利用する場合は [セットアップ](#2-セットアップ-clone-開発環境) のとおり repo を clone して `make sync` を実行してください。
 
 ### Q2. `/skill` に `run-prompt-creator-7layer` が出ない
 
-Claude Code を再起動 (`Ctrl+C` → `claude`) して `/plugin list` で `prompt-creator: enabled` を確認。
+Claude Code を再起動 (`Ctrl+C` → `claude`) し、`.claude/skills/run-prompt-creator-7layer` が正本へ symlink されているか確認。
 
 ### Q3. script 実行で `python3: command not found` / モジュールエラー
 
@@ -309,21 +270,12 @@ ls -l plugins/prompt-creator/LOGS.md plugins/prompt-creator/skills/run-prompt-cr
 ```bash
 cd /path/to/xl-skills
 git pull
-```
-
-Claude Code 内で:
-
-```text
-/plugin marketplace update xl-skills
-/plugin update prompt-creator@xl-skills
+make sync
 ```
 
 ### アンインストール
 
-```text
-/plugin uninstall prompt-creator@xl-skills
-/plugin marketplace remove xl-skills
-```
+prompt-creator は marketplace install されないため、通常のアンインストール操作はありません。使わない場合は clone 済み worktree から離れるか、`.claude/` symlink を再生成・削除してください。
 
 ---
 

@@ -1,5 +1,6 @@
 {
   "name": "skill-creator",
+  "distributable": false,
   "version": "1.1.0",
   "description": "Claude Code Capability (Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow) を作成・評価・統治するメタプラグイン",
   "author": {

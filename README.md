@@ -52,18 +52,23 @@ Claude Code セッションを起動し、以下を打ちます。
 
 ## Step 2: plugin をインストールする
 
-用途に合わせて選んでください。**まずは最小構成から始めることをおすすめします。**
+用途に合わせて選んでください。**まずは 1 つだけ入れて試すことをおすすめします。**
 
-### 2a. 最小構成 (Skill を作りたいだけ)
+> ℹ️ **marketplace から配布される plugin は 12 件です。** Skill 作成基盤の `skill-creator` / `prompt-creator` は `distributable: false` を宣言しており marketplace 一覧に出ません (`/plugin install` できません)。これらは社内で Skill / plugin を量産するための開発基盤で、利用は repo を clone した環境に限ります → [開発者向け: skill-creator / prompt-creator](#開発者向け-skill-creator--prompt-creator-clone-時のみ)。
+
+### 2a. まず 1 つ試す (最小構成)
+
+用途に最も近い plugin を 1 つ入れます。例として、非エンジニアからヒアリングして要件をまとめる `skill-intake` を入れる場合:
 
 ```text
-/plugin install skill-creator@xl-skills
-/plugin install prompt-creator@xl-skills
+/plugin install skill-intake@xl-skills
 ```
+
+> 他の入門向きの例: 企業情報の補完なら `company-master`、請求書の発行漏れチェックなら `mf-kessai-invoice-check`。配布 plugin の一覧と役割は [Part 3](#part-3-plugin-一覧と役割) を参照。
 
 ### 2b. 標準構成 (品質検査も使う)
 
-最小構成 + governance (運用検査) を追加:
+2a で入れた plugin に加えて governance (運用検査) を追加:
 
 ```text
 /plugin install skill-governance-config@xl-skills
@@ -71,15 +76,11 @@ Claude Code セッションを起動し、以下を打ちます。
 /plugin install skill-governance-hooks@xl-skills
 ```
 
-### 2c. フル構成 (全部入り)
+### 2c. フル構成 (配布 plugin を全部入れる)
 
-すべての plugin をまとめて入れる場合は **bundle (束)** を使います。
+配布対象の 12 plugin を入れるには、`/plugin install <name>@xl-skills` を plugin ごとに繰り返します (一覧は [Part 3](#part-3-plugin-一覧と役割))。
 
-```text
-/plugin install xl-skills-full@xl-skills
-```
-
-> **bundle (バンドル)**: 複数の plugin を 1 行でまとめて入れるためのセット。`xl-skills-minimal` / `xl-skills-intake` などもあります。
+> **bundle (バンドル)について**: `xl-skills-full` (配布 12 件) / `xl-skills-intake` (skill-intake + skill-governance-secrets) という一括導入セットの定義はありますが、これを 1 行で展開する手段 (`/skill-creator:install-bundle` スラッシュコマンド・`scripts/install-bundle.sh`) はいずれも **repo を clone した開発環境専用**です ([開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ) 参照)。clone していない配布ユーザは上記のとおり 1 つずつ install してください。
 
 ✅ **確認**:
 
@@ -91,25 +92,47 @@ Claude Code セッションを起動し、以下を打ちます。
 
 ## Step 3: 動作確認
 
-Claude Code セッション内で以下を打ち、補完候補に出ることを確認します。
+インストールした plugin のスラッシュコマンドが補完候補に出ることを確認します。例えば `skill-intake` を入れたなら、Claude Code セッション内で次を打ち始めます。
 
 ```text
-/skill-creator:run-skill-create
+/intake
 ```
 
-実行が始まれば成功。一旦キャンセル (`Ctrl-C` または「やめる」と返答) して構いません。
+補完候補に `/intake` (名前空間付きでは `/skill-intake:intake`) が表示されれば成功です。実際に最後まで実行する必要はありません (始めた場合は `Ctrl-C` または「やめる」でキャンセルして構いません)。
 
 ## Step 4: アップデート / アンインストール
 
 ```text
 # アップデート
 /plugin marketplace update xl-skills
-/plugin update skill-creator@xl-skills
+/plugin update skill-intake@xl-skills
 
 # アンインストール
-/plugin uninstall skill-creator@xl-skills
+/plugin uninstall skill-intake@xl-skills
 /plugin marketplace remove xl-skills
 ```
+
+## 開発者向け: skill-creator / prompt-creator (clone 時のみ)
+
+Skill 作成基盤の **skill-creator** (Skill を設計・評価・統治する司令塔) と **prompt-creator** (7 層プロンプトを生成) は `distributable: false` を宣言しており、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象になりません**。社内で新しい Skill / plugin を量産するための開発基盤で、利用するにはリポジトリを clone します。
+
+```bash
+git clone https://github.com/xl-manju/xl-skills.git
+cd xl-skills
+claude
+```
+
+clone した worktree では、`plugins/` 配下の正本が `.claude/` の symlink を通してそのまま使えます (symlink は `make sync` で生成・更新)。skill-creator / prompt-creator のスラッシュコマンドや agent は、この状態で直接呼び出せます (marketplace への install は不要)。
+
+配布対象の 12 plugin もまとめて入れたい場合は、この clone 環境でだけ bundle helper が使えます。
+
+```bash
+# clone 環境でのみ利用可
+#   slash command: /skill-creator:install-bundle xl-skills-full
+bash scripts/install-bundle.sh xl-skills-full
+```
+
+> **`distributable: false` とは**: その plugin が marketplace 一覧・配布 bundle に現れず、`/plugin install <name>@xl-skills` の対象にもならないことを示すフラグです。リポジトリには実体・lint 対象として存在しますが配布はされません。つまり **「配布 ≠ リポジトリ存在」**。該当するのは `distributable: false` を宣言した plugin (現時点では skill-creator / prompt-creator) です。
 
 ## トラブルシュート
 
@@ -189,13 +212,17 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 
 `xl-skills` には複数の plugin が入っており、それぞれ役割が分かれています。「料理に例えると」のイメージで読んでください。
 
-## 中核 plugin (まず入れる)
+## まず入れる plugin (配布対象)
 
 | plugin | 役割 | 料理例 |
 |---|---|---|
-| **skill-creator** | Skill (作業手順書) を作る・更新する・評価する司令塔 | レシピを設計するシェフ |
-| **prompt-creator** | Skill の中で使う「AI への指示文」を 7 層構造で作る | 調味料の配合表を作る人 |
 | **skill-intake** | 非エンジニアからヒアリングして Skill 要件を引き出す | お客様の好みを聞き取る接客係 |
+| **company-master** | 会社名/住所/法人番号の断片から企業情報を補完し Notion へ登録 | 名刺から会社情報を調べる調査係 |
+| **contract-generator** | 業務委託契約書をひな形と台帳から半自動で量産 | ひな形に沿って書類を作る事務 |
+| **mf-kessai-invoice-check** | マネーフォワード掛け払いの請求書発行漏れを月次でチェック | 請求のやり忘れを見張る経理 |
+| **notion-gmail-send** | Notion 2DB を入力に Gmail を一斉個別送信 | 宛名を差し替えて一斉送付する受付 |
+
+> Skill 作成基盤の **skill-creator** / **prompt-creator** はここには出ません。配布対象外 (`distributable: false`、開発者が clone した時のみ使用) です → [開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ)。
 
 ## 運用検査 plugin (品質を保つ)
 
@@ -219,10 +246,11 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 
 ## どれを入れるべきか?
 
-- **試してみたいだけ** → `skill-creator` + `prompt-creator` の 2 つ
-- **チームで使う・品質を保ちたい** → 上記 + `skill-governance-config` / `lint` / `hooks` の 3 つ
-- **非エンジニアからヒアリングしたい** → `skill-intake` を追加
-- **全部試したい** → bundle `xl-skills-full` で一括
+- **まず 1 つ試したい** → 用途に近い plugin を 1 つ (例: `skill-intake` / `company-master`)
+- **非エンジニアからヒアリングしたい** → `skill-intake`
+- **チームで Skill の品質を保ちたい** → `skill-governance-config` / `lint` / `hooks`
+- **配布 plugin を全部** → 12 plugin を 1 つずつ install (一括導入 helper は clone 環境のみ)
+- **Skill / plugin を新規に量産したい (開発者)** → repo を clone し skill-creator / prompt-creator を使う → [開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ)
 
 ---
 
@@ -327,13 +355,15 @@ plugins/my-plugin/
 {
   "name": "xl-skills",
   "plugins": [
-    {"name": "skill-creator", "source": "./plugins/skill-creator"},
-    {"name": "skill-intake",  "source": "./plugins/skill-intake"}
+    {"name": "skill-intake",   "source": "./plugins/skill-intake"},
+    {"name": "company-master", "source": "./plugins/company-master"}
   ]
 }
 ```
 
 Claude Code は `/plugin marketplace add xl-manju/xl-skills` を実行すると、この `marketplace.json` を読み、`plugins/` 配下から実体をキャッシュにコピーします。
+
+> `distributable: false` を宣言した plugin (skill-creator / prompt-creator) は、この一覧 (=配布目録) に登録されないため `/plugin install` の対象になりません。リポジトリには `plugins/` 配下に実体として存在しますが配布はされない、という区別です ("配布 ≠ リポジトリ存在")。
 
 ## 4.4 `.claude/` と `~/.claude/` の役割
 
@@ -389,7 +419,7 @@ Claude Code セッション起動時:
 
 # 運用メモ (上級者向け)
 
-- `plugins/` は配布対象の **正本**。
+- `plugins/` は plugin 実体の **正本**。配布対象は `.claude-plugin/marketplace.json` / `.claude-plugin/bundles.json` と各 manifest の `distributable` で決まります。
 - `doc/`, `eval-log/`, `.claude/` は設計・評価・ローカル運用のためのディレクトリで、配布対象には含まれません。
 - plugin はインストール時にキャッシュへコピーされるため、plugin root の外側を `../` で参照しないでください。
 - 他 plugin と共有したい共通ファイルは、marketplace 内の sibling plugin として置くか、同一 plugin 内に取り込んでください。

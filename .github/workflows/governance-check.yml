@@ -94,6 +94,9 @@ jobs:
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
         continue-on-error: false
       # ── prompt-creator conformance (skill-creator 仕様準拠) ──
+      # NOTE: skill-creator / prompt-creator は distributable:false (marketplace 非配布 = 層 A-internal) だが、
+      #   リポジトリ実体として lint / CI 対象であり続ける。配布除外と品質検査は独立した関心事であり
+      #   ("配布 ≠ リポジトリ存在")、以下の conformance step を残すことに矛盾はない。
       - name: prompt-creator validate frontmatter (commonCore + SemVer)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/prompt-creator/skills
         continue-on-error: false

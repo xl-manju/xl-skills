@@ -132,7 +132,8 @@ def test_scan_plugin_reads_version_desc_and_skills(tmp_path):
         "---\ndescription: A skill\nkind: run\n---\n## Purpose\nPurp A\n",
         encoding="utf-8",
     )
-    (plugin / "plugin.json").write_text(
+    (plugin / ".claude-plugin").mkdir()
+    (plugin / ".claude-plugin" / "plugin.json").write_text(
         json.dumps({"version": "9.9", "description": "plug desc"}), encoding="utf-8"
     )
     info = mod.scan_plugin(plugin)
@@ -151,6 +152,22 @@ def test_scan_plugin_no_plugin_json_keeps_empty_version(tmp_path):
     assert info["version"] == ""
     assert info["plugin_desc"] == ""
     assert info["skills"] == []
+
+
+def test_scan_plugin_distributable_false_uses_clone_only_instruction(tmp_path):
+    plugin = tmp_path / "internal"
+    (plugin / ".claude-plugin").mkdir(parents=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({
+            "version": "1.0",
+            "description": "internal plugin",
+            "distributable": False,
+        }),
+        encoding="utf-8",
+    )
+    info = mod.scan_plugin(plugin)
+    assert info["distributable"] is False
+    assert info["install_cmd"] == "非配布: repo clone 環境で make sync を実行して利用"
 
 
 def test_scan_plugin_ignores_non_directory_entries(tmp_path):
@@ -209,6 +226,7 @@ def test_build_page_children_structure():
     info = {
         "version": "1.0",
         "plugin_desc": "desc",
+        "distributable": True,
         "install_cmd": "/plugin install foo",
         "skills": [
             {
@@ -252,6 +270,7 @@ def test_build_page_children_handles_empty_skill_list():
     info = {
         "version": "",
         "plugin_desc": "",
+        "distributable": True,
         "install_cmd": "/plugin install empty",
         "skills": [],
     }

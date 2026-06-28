@@ -9,7 +9,7 @@ Usage:
   python3 scripts/notion-upsert-plugin.py --plugin skill-creator --dry-run
 
 挙動:
-  1. plugins/<name>/ を走査して skills/ 一覧・version (plugin.json/marketplace.json) を取得
+  1. plugins/<name>/ を走査して skills/ 一覧・version (.claude-plugin/plugin.json) を取得
   2. Notion スキル一覧 DB を プラグイン名 TITLE で検索
   3. ヒット → ページプロパティ + 本文 (含まれるスキル節) を更新
      なし → 新規作成
@@ -104,15 +104,20 @@ def _parse_frontmatter(path: Path):
 
 def scan_plugin(plugin_dir: Path):
     """plugins/<name>/ から version / skills / 詳細 frontmatter を抽出"""
-    info = {"version":"", "plugin_desc":"", "skills":[],
+    info = {"version": "", "plugin_desc": "", "skills": [], "distributable": True,
             "install_cmd": f"/plugin install {plugin_dir.name}"}
-    pj = plugin_dir / "plugin.json"
+    pj = plugin_dir / ".claude-plugin" / "plugin.json"
+    if not pj.exists():
+        pj = plugin_dir / "plugin.json"
     if pj.exists():
         try:
             d = json.loads(pj.read_text())
             info["version"] = d.get("version", "")
             info["plugin_desc"] = d.get("description", "")
+            info["distributable"] = d.get("distributable", True) is not False
         except Exception: pass
+    if not info["distributable"]:
+        info["install_cmd"] = "非配布: repo clone 環境で make sync を実行して利用"
     skills_dir = plugin_dir / "skills"
     if skills_dir.is_dir():
         for s in sorted(skills_dir.iterdir()):
@@ -243,8 +248,11 @@ def build_page_children(plugin_name, info):
         blocks.append(p("(トリガーが各スキルに設定されたら自動的にここへ表示されます)"))
 
     # ── ④ インストール方法 ──
-    blocks.append(h2("🚀 インストール方法"))
-    blocks.append(p("Claude Code で以下のコマンドを実行してください:"))
+    blocks.append(h2("🚀 インストール方法" if info.get("distributable", True) else "🚀 利用方法"))
+    if info.get("distributable", True):
+        blocks.append(p("Claude Code で以下のコマンドを実行してください:"))
+    else:
+        blocks.append(p("このプラグインは marketplace / bundle 配布対象外です。リポジトリを clone した開発環境で利用してください:"))
     blocks.append(code(info["install_cmd"]))
     blocks.append(callout("ℹ️",
         "Claude Code 本体が未導入の場合は先に https://claude.com/claude-code から導入してください。", "gray_background"))
