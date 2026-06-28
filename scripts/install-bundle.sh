@@ -3,7 +3,6 @@
 #
 # Usage:
 #   bash scripts/install-bundle.sh xl-skills-full
-#   bash scripts/install-bundle.sh xl-skills-minimal
 #
 # Reads .claude-plugin/bundles.json and runs `claude plugin install <name>@xl-skills`
 # for each plugin in the bundle. Idempotent — already-installed plugins skip silently.

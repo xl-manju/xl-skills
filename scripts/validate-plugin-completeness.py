@@ -13,6 +13,18 @@ skills/ agents/ commands/ hooks/ をまとめて配布する。本スクリプ�
 を行い、配布時に欠落するアセットがないこと・マーケットプレイス/バンドル登録漏れが
 ないことを保証する。
 
+manifest に ``"distributable": false`` を宣言した plugin は「実体は保持するが
+marketplace/bundle には非登録 (社内専用)」を意味する。この場合 MK-001/BD-001 の
+登録漏れ検査は適用せず、逆に登録が残っていれば MK-004 (marketplace に登録残存) /
+BD-002 (bundle に登録残存) を違反として検出する (放置すると意図せず配布される)。
+``--fix`` も非配布 plugin の自動登録を skip する。未宣言は True 扱い (fail-closed)。
+
+さらに恒久非配布 (社内専用) の plugin は固有名 denylist ``NEVER_DISTRIBUTE`` で
+二重に固定する。フラグ駆動の MK-004 逆ガードは ``distributable`` フラグが true へ
+漂流/欠落すると無効化されるため、固有名検査が「フラグの値に依存せず "distributable":
+false の明示宣言が無ければ fail-closed で違反」とすることで漂流時も再配布を阻止する
+多層防御。``--fix`` もこの固有名を自動登録対象から除外する。
+
 二層防御:
   - 既定 (引数なし): 検出のみ。未登録があれば exit 1 で fail-closed (CI の最後の砦)。
   - ``--fix``: 予防。未登録 plugin を marketplace.json / bundles.json へ
@@ -44,6 +56,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 PLUGINS_DIR = ROOT / "plugins"
 BUNDLES_JSON = ROOT / ".claude-plugin" / "bundles.json"
 MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
+
+# 恒久非配布 (社内専用・層 A-internal) の固有名 denylist。これらは distributable
+# フラグの値に関わらず marketplace/bundle へ出てはならない。フラグが誤って true 化/
+# 削除されても (= フラグ駆動の MK-004 逆ガードが無効化されても) この固有名検査が
+# fail-closed で再配布を阻止する多層防御。配布化する正当な決定が出た場合のみ本集合から外す。
+NEVER_DISTRIBUTE = frozenset({"skill-creator", "prompt-creator"})
 
 
 def load_bundle_members() -> set[str]:
@@ -129,28 +147,51 @@ def validate(
     if not has_any_asset:
         errs.append(f"{plugin_name}: plugin contains no assets — empty distribution")
 
-    if plugin_name not in bundle_members:
-        errs.append(f"{plugin_name}: not registered in any .claude-plugin/bundles.json bundle (BD-001/BND-001)")
+    # distributable:false = 実体は保持するが marketplace/bundle へは非登録 (社内専用)。
+    # 未宣言は True 扱い (fail-closed): 登録漏れを既定で違反にする。
+    distributable = m.get("distributable", True)
 
-    # MK-001: 実体ディレクトリがあるのに marketplace.json plugins[].name に未登録 →
-    # /plugin install のマーケットプレイス一覧に出ない (表示漏れの直接原因)。
-    if plugin_name not in marketplace_entries:
-        errs.append(f"{plugin_name}: not registered in .claude-plugin/marketplace.json plugins[] (MK-001)")
+    # NEVER_DISTRIBUTE 固有名不変条件 (フラグ漂流の最後の砦)。distributable フラグの
+    # 値に依存せず、恒久非配布 plugin が "distributable": false を明示宣言していなければ
+    # fail-closed で違反にする。is not False により true / キー欠落(None) / その他を全て捕捉。
+    if plugin_name in NEVER_DISTRIBUTE and m.get("distributable") is not False:
+        errs.append(
+            f"{plugin_name}: internal-only plugin must explicitly declare "
+            f'"distributable": false but got distributable='
+            f"{m.get('distributable', '<missing>')!r} (NEVER-DISTRIBUTE)"
+        )
+
+    if distributable:
+        if plugin_name not in bundle_members:
+            errs.append(f"{plugin_name}: not registered in any .claude-plugin/bundles.json bundle (BD-001/BND-001)")
+
+        # MK-001: 実体ディレクトリがあるのに marketplace.json plugins[].name に未登録 →
+        # /plugin install のマーケットプレイス一覧に出ない (表示漏れの直接原因)。
+        if plugin_name not in marketplace_entries:
+            errs.append(f"{plugin_name}: not registered in .claude-plugin/marketplace.json plugins[] (MK-001)")
+        else:
+            source = marketplace_entries[plugin_name]
+            # MK-002: marketplace エントリの source が実ディレクトリとして存在するか。
+            source_dir = (ROOT / source).resolve() if source else None
+            if not source or source_dir is None or not source_dir.is_dir():
+                errs.append(f"{plugin_name}: marketplace.json source '{source}' is not an existing directory (MK-002)")
+            # MK-003: source パスの basename が directory 名と一致するか (独立検査)。
+            # name フィールド == directory 名 は上の汎用検査 (manifest.name != directory)
+            # と marketplace_entries の引き方で既に担保されるため、ここは source が
+            # 別ディレクトリを指す取り違えを捕捉する。
+            src_base = pathlib.PurePosixPath(source.rstrip("/")).name if source else ""
+            if src_base != plugin_name:
+                errs.append(
+                    f"{plugin_name}: marketplace.json source basename '{src_base}' != directory name (MK-003)"
+                )
     else:
-        source = marketplace_entries[plugin_name]
-        # MK-002: marketplace エントリの source が実ディレクトリとして存在するか。
-        source_dir = (ROOT / source).resolve() if source else None
-        if not source or source_dir is None or not source_dir.is_dir():
-            errs.append(f"{plugin_name}: marketplace.json source '{source}' is not an existing directory (MK-002)")
-        # MK-003: source パスの basename が directory 名と一致するか (独立検査)。
-        # name フィールド == directory 名 は上の汎用検査 (manifest.name != directory)
-        # と marketplace_entries の引き方で既に担保されるため、ここは source が
-        # 別ディレクトリを指す取り違えを捕捉する。
-        src_base = pathlib.PurePosixPath(source.rstrip("/")).name if source else ""
-        if src_base != plugin_name:
-            errs.append(
-                f"{plugin_name}: marketplace.json source basename '{src_base}' != directory name (MK-003)"
-            )
+        # 逆ガード: 非配布宣言なのに登録が残っている = ドリフト (放置すると配布される)。
+        # MK-004: marketplace.json plugins[] に登録が残存している。
+        if plugin_name in marketplace_entries:
+            errs.append(f"{plugin_name}: distributable:false but registered in marketplace.json plugins[] (MK-004)")
+        # BD-002: いずれかの bundle に登録が残存している。
+        if plugin_name in bundle_members:
+            errs.append(f"{plugin_name}: distributable:false but registered in a bundle (BD-002)")
 
     return errs
 
@@ -216,6 +257,13 @@ def register_missing() -> tuple[list[str], bool]:
         if not manifest_path.exists():
             continue
         manifest = json.loads(manifest_path.read_text())
+
+        # 非配布 plugin (distributable:false) は marketplace/bundle へ自動登録しない。
+        # --fix が逆ガード (MK-004/BD-002) を踏む登録を生まないための断ち切り。
+        # NEVER_DISTRIBUTE は フラグが漂流 (true 化/欠落) しても --fix が自動再登録しない
+        # belt-and-suspenders: 固有名で恒久非配布を担保する。
+        if manifest.get("distributable") is False or name in NEVER_DISTRIBUTE:
+            continue
 
         # marketplace.json (テキスト挿入で append-only)
         if mk_text is not None and name not in mk_entries:

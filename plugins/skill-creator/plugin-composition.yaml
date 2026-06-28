@@ -9,7 +9,7 @@ version: 1.1.0
 owner: team-platform
 since: 2026-05-17
 last-audited: 2026-05-22
-# 単独配布非対応: .claude-plugin/bundles.json の xl-skills-full / xl-skills-minimal bundle 経由で skill-governance-lint / prompt-creator 等と同梱配布される前提 (cross-plugin 参照の成立条件)。
+# 単独配布非対応: marketplace / bundle には含めず、repo を clone した開発環境でのみ .claude/ symlink 経由で利用する。
 distribution: repo-bundled
 
 contract:
@@ -23,7 +23,7 @@ contract:
     - "rubric_refs は L0→L1→L2 deep-merge 順を保つこと (enforcement: manual。skill-governance-lint/scripts/lint-rubric-refs-exist.py は存在のみ検証し順序は未検証)"
     - "elegant-review は Phase1(reset) → Phase2(3並列分析) → Phase3(改善) の順序を保つこと (enforcement: manual)"
     - "hook の副作用境界(side_effect_scope)は manifest 上で宣言されたもののみ (enforcement: manual)"
-    - "cross-plugin 参照は .claude-plugin/bundles.json で同梱宣言された plugin に限定すること (allowed_cross_plugins: skill-intake, skill-governance-lint, skill-governance-automation, skill-governance-config, skill-governance-migration, prompt-creator) (enforcement: skill-governance-lint/scripts/lint-external-refs.py --fail-on-external)"
+    - "cross-plugin 参照は repo clone 開発環境で存在確認できる internal plugin に限定すること。skill-creator / prompt-creator は marketplace / bundle 配布対象ではない (allowed_cross_plugins: skill-intake, skill-governance-lint, skill-governance-automation, skill-governance-config, skill-governance-migration, prompt-creator) (enforcement: skill-governance-lint/scripts/lint-external-refs.py --fail-on-external)"
     - "knowledge-loop は単一機構(ref-knowledge-loop 正本)を生成物(Loop A)と skill-creator 自身(Loop B)で自己適用し、並行ストアを作らないこと(SSOT) (enforcement: run-build-skill/scripts/lint-ssot-duplication.py + lint-knowledge-loop.py)"
     - "runtime hook script は自 plugin root 外を import-time に fail-closed 依存しないこと(必須共有モジュールは plugin 内へ vendoring し byte 一致 lint で正本と同期/ローダは fail-soft で raise しない)。単独 install でも全フックが exit 0 を維持する。参照: skills/ref-cross-platform-runtime/references/runtime-portability.md (enforcement: scripts/lint-runtime-portability.py + scripts/lint-vendored-ssot.py)"
 

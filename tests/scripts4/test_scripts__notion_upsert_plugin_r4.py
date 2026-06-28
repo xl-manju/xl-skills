@@ -227,13 +227,14 @@ def test_parse_frontmatter_quoted_scalar_trigger(tmp_path):
 
 
 # ============================================================
-# scan_plugin: plugin.json 読み / skills 走査 / 壊れた plugin.json
+# scan_plugin: .claude-plugin/plugin.json 読み / skills 走査 / 壊れた plugin.json
 # ============================================================
 
 def _make_plugin(tmp_path, name="demo", version="9.9.9", skills=None):
     pdir = tmp_path / "plugins" / name
     pdir.mkdir(parents=True)
-    (pdir / "plugin.json").write_text(
+    (pdir / ".claude-plugin").mkdir()
+    (pdir / ".claude-plugin" / "plugin.json").write_text(
         json.dumps({"version": version, "description": "demo plugin"}), encoding="utf-8"
     )
     sdir = pdir / "skills"
@@ -260,22 +261,34 @@ def test_scan_plugin_reads_version_and_skills(tmp_path):
 
 def test_scan_plugin_broken_plugin_json_swallowed(tmp_path):
     pdir = tmp_path / "plugins" / "broke"
-    pdir.mkdir(parents=True)
-    (pdir / "plugin.json").write_text("{not json", encoding="utf-8")
+    (pdir / ".claude-plugin").mkdir(parents=True)
+    (pdir / ".claude-plugin" / "plugin.json").write_text("{not json", encoding="utf-8")
     info = NUP.scan_plugin(pdir)  # except 節で握りつぶし
     assert info["version"] == "" and info["skills"] == []
 
 
 def test_scan_plugin_no_skills_dir(tmp_path):
     pdir = tmp_path / "plugins" / "empty"
-    pdir.mkdir(parents=True)
-    (pdir / "plugin.json").write_text(json.dumps({"version": "1.0"}), encoding="utf-8")
+    (pdir / ".claude-plugin").mkdir(parents=True)
+    (pdir / ".claude-plugin" / "plugin.json").write_text(json.dumps({"version": "1.0"}), encoding="utf-8")
     info = NUP.scan_plugin(pdir)
     assert info["skills"] == []
     # skills_dir.iterdir で file (非 dir) はスキップされる検証
     (pdir / "skills").mkdir()
     (pdir / "skills" / "stray.txt").write_text("x")
     assert NUP.scan_plugin(pdir)["skills"] == []
+
+
+def test_scan_plugin_distributable_false_uses_clone_only_instruction(tmp_path):
+    pdir = tmp_path / "plugins" / "internal"
+    (pdir / ".claude-plugin").mkdir(parents=True)
+    (pdir / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"version": "1.0", "description": "internal", "distributable": False}),
+        encoding="utf-8",
+    )
+    info = NUP.scan_plugin(pdir)
+    assert info["distributable"] is False
+    assert info["install_cmd"] == "非配布: repo clone 環境で make sync を実行して利用"
 
 
 # ============================================================
@@ -341,7 +354,8 @@ def test_build_page_children_with_skills_full_structure():
     info = {
         "version": "1.0",
         "plugin_desc": "",
-        "install_cmd": "/plugin install skill-creator",
+        "distributable": False,
+        "install_cmd": "非配布: repo clone 環境で make sync を実行して利用",
         "skills": [
             {"name": "run-a", "desc": "Aする", "triggers": ["ta1", "ta2"],
              "argument_hint": "<x>", "kind": "run", "purpose": "目的A"},
@@ -359,16 +373,16 @@ def test_build_page_children_with_skills_full_structure():
                 for b in blocks if b["type"] == "heading_2"]
     assert any("何ができる" in h for h in headings)
     assert any("こんなときに使う" in h for h in headings)
-    assert any("インストール方法" in h for h in headings)
+    assert any("利用方法" in h for h in headings)
     assert any("含まれるスキル一覧" in h for h in headings)
     assert any("改善要望の出し方" in h for h in headings)
     assert any("困ったときは" in h for h in headings)
     # toggle が各スキル分
     toggles = [b for b in blocks if b["type"] == "toggle"]
     assert len(toggles) == 2
-    # code ブロックに install_cmd が出る
+    # code ブロックに clone-only instruction が出る
     codes = [b["code"]["rich_text"][0]["text"]["content"] for b in blocks if b["type"] == "code"]
-    assert "/plugin install skill-creator" in codes
+    assert "非配布: repo clone 環境で make sync を実行して利用" in codes
     # triggers 集約: ta1/ta2 が「こんなときに使う」bullet に
     bullets = [b["bulleted_list_item"]["rich_text"]
                for b in blocks if b["type"] == "bulleted_list_item"]

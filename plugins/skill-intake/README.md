@@ -161,10 +161,13 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.
 > `.notion-config.json` か env (`NOTION_CONFIG_PATH` / `INTAKE_NOTION_DATABASE_ID`) で上書きします
 > （セットアップは [references/notion-per-repo-setup.md](references/notion-per-repo-setup.md) §1 の単独 install 既定経路）。
 > drift 検証 lint / sync 等は repo 保守者専用で、単独 install には不要・未同梱です。
-> ただし改善要望投入 `/run-skill-feedback` は skill-creator が提供する skill のため、
-> **skill-creator を併せて install した場合のみ**利用可能です（コアフローには不要）。
-> 生成した intake.json を skill 生成へ流す `run-skill-create` も skill-creator 側の機能です。
-> フル機能を使う場合は `/install-bundle xl-skills-intake`（skill-creator 込み）を利用してください。
+> ただし改善要望投入 `/run-skill-feedback`、および生成した intake.json を Skill 本体生成へ流す
+> `run-skill-create` は、いずれも **skill-creator が提供する機能**です。skill-creator は
+> **配布対象外（`distributable: false`）** で marketplace から install できないため、これらは
+> **repo を clone した開発環境でのみ**利用できます（skill-intake のコアフロー = ヒアリング →
+> Markdown/JSON 生成 → Notion publish には不要）。つまり skill-intake が生成した brief
+> （intake.json）の**消費先である skill-creator は配布されず、clone 環境で消費**します。
+> なお `xl-skills-intake` bundle は skill-intake + skill-governance-secrets のみで、skill-creator は含みません。
 
 ### 方式A: GitHub Marketplace から install（推奨）
 

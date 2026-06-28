@@ -282,7 +282,7 @@ Code タブのチャット欄に次を入力して Enter:
 ```
 
 > 一覧に **`company-master`** が表示されれば成功です。
-> (関連プラグインをまとめて入れたい場合は、**先に skill-creator プラグインを入れたうえで** `/skill-creator:install-bundle xl-skills-full` も使えます。company-master を単独で使うならこの手順は不要です。)
+> (配布対象のプラグインをまとめて入れたい場合は、`/plugin install <name>@xl-skills` を 1 つずつ繰り返してください。`/skill-creator:install-bundle xl-skills-full` や `bash scripts/install-bundle.sh xl-skills-full` といった bundle 一括導入は、skill-creator が配布対象外のため **repo を clone した開発環境でのみ**使えます。company-master を単独で使うならこの手順は不要です。)
 
 ### 6-4. プラグインを読み込み直す
 
@@ -393,7 +393,7 @@ company-master の doctor(セットアップ診断)を実行して
 - 取得元(gBizINFO / 日本郵便 / ネット検索)と確かさの基準: [`references/data-sources.md`](references/data-sources.md)
 
 > 改善要望は Code タブで「`company-master` の○○を直してほしい」と**ふつうの言葉で伝えてください**(単独インストールでもこれだけで投入できます)。
-> (skill-creator プラグインも導入済みの場合は `/run-skill-feedback company-master` でも投入できます。`run-skill-feedback` は skill-creator 側に同梱されており、company-master 単独インストールではこのスラッシュコマンドは使えません。)
+> (開発者が repo を clone し skill-creator を使う環境では `/run-skill-feedback company-master` でも投入できます。`run-skill-feedback` は skill-creator 側に同梱されており、skill-creator は配布対象外 (`distributable: false`) のため、company-master を配布 install しただけのユーザはこのスラッシュコマンドを使えません。)
 
 ---
 

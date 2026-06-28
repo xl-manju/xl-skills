@@ -283,6 +283,35 @@ def test_validate_mk003_source_basename_mismatch(tmp_path, monkeypatch):
     assert not any("(MK-002)" in e for e in errs)  # other は実在するので MK-002 は出ない
 
 
+# --- validate: distributable:false 逆ガード (MK-004/BD-002) -------------------
+
+def test_validate_distributable_false_no_registration_required():
+    # distributable:false (社内専用) は marketplace/bundle 未登録でも
+    # 順方向の登録漏れ検査 (MK-001/BD-001) を一切出さない。
+    data = _data(
+        {"name": "p", "version": "1", "description": "d", "distributable": False},
+        skills=["run-a"],
+    )
+    errs = MOD.validate("p", data, set(), {})  # bundle / marketplace ともに未登録
+    assert not any("(MK-001)" in e for e in errs)
+    assert not any("(BD-001" in e for e in errs)
+    assert errs == []
+
+
+def test_validate_distributable_false_registered_emits_mk004_bd002():
+    # 非配布宣言なのに登録が残存 → 逆ガード MK-004 / BD-002 を出す。
+    data = _data(
+        {"name": "p", "version": "1", "description": "d", "distributable": False},
+        skills=["run-a"],
+    )
+    errs = MOD.validate("p", data, {"p"}, _mk("p"))  # bundle / marketplace 両方に残存
+    assert any("(MK-004)" in e for e in errs)
+    assert any("(BD-002)" in e for e in errs)
+    # 逆ガード中は順方向の登録漏れ検査は適用されない
+    assert not any("(MK-001)" in e for e in errs)
+    assert not any("(BD-001" in e for e in errs)
+
+
 # --- register_missing: 予防層 (--fix のコア) ---------------------------------
 
 def _setup_repo(tmp_path, monkeypatch, *, plugins, marketplace, bundles):
@@ -396,6 +425,25 @@ def test_register_missing_default_note_when_no_category_tags(tmp_path, monkeypat
     )
     actions, _ = MOD.register_missing()
     assert any("PR で要確認" in a for a in actions)
+
+
+def test_register_missing_skips_distributable_false(tmp_path, monkeypatch):
+    # distributable:false の plugin は bundle_targets を宣言していても
+    # marketplace/bundle へ自動登録されない (--fix が逆ガードを踏まない証明)。
+    mj, bj = _setup_repo(
+        tmp_path, monkeypatch,
+        plugins={"internal": {"name": "internal", "version": "0.1.0", "description": "d",
+                              "distributable": False, "bundle_targets": ["full"]}},
+        marketplace={"plugins": []},
+        bundles={"bundles": [{"name": "full", "plugins": []}]},
+    )
+    actions, changed = MOD.register_missing()
+    assert changed is False
+    assert actions == []
+    mk = json.loads(mj.read_text())
+    assert all(p["name"] != "internal" for p in mk["plugins"])
+    bd = json.loads(bj.read_text())
+    assert "internal" not in bd["bundles"][0]["plugins"]
 
 
 # --- _marketplace_entry_block / _insert_marketplace_entry (unit) -------------
@@ -534,3 +582,77 @@ def test_subprocess_runs_on_real_repo():
     # いずれにせよ summary 区切り "---" を必ず stdout に出す。
     assert proc.returncode in (0, 1)
     assert "---" in proc.stdout
+
+
+def test_real_internal_creator_plugins_are_not_distributed():
+    marketplace = MOD.load_marketplace_entries()
+    bundle_members = MOD.load_bundle_members()
+    for name in ("skill-creator", "prompt-creator"):
+        manifest_path = ROOT / "plugins" / name / ".claude-plugin" / "plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["distributable"] is False
+        assert name not in marketplace
+        assert name not in bundle_members
+
+
+# --- NEVER_DISTRIBUTE: 固有名 denylist (フラグ漂流時の fail-closed 多層防御) -----
+
+def test_never_distribute_contains_creator_plugins():
+    # 恒久非配布の固有名が denylist に焼き込まれていること。
+    assert "skill-creator" in MOD.NEVER_DISTRIBUTE
+    assert "prompt-creator" in MOD.NEVER_DISTRIBUTE
+
+
+def test_never_distribute_true_flag_drift_emits_violation():
+    # NEVER_DISTRIBUTE plugin が distributable:true へ漂流したら、フラグ駆動の逆ガードが
+    # 無効化されても固有名検査が NEVER-DISTRIBUTE 違反を出す (fail-closed)。
+    data = _data(
+        {"name": "skill-creator", "version": "1", "description": "d",
+         "distributable": True},
+        skills=["run-a"],
+    )
+    errs = MOD.validate("skill-creator", data, set(), {})
+    assert any("(NEVER-DISTRIBUTE)" in e for e in errs)
+
+
+def test_never_distribute_missing_flag_emits_violation():
+    # distributable キー欠落 (= 未宣言 True 扱い) でも NEVER-DISTRIBUTE 違反になる。
+    data = _data(
+        {"name": "prompt-creator", "version": "1", "description": "d"},
+        skills=["run-a"],
+    )
+    errs = MOD.validate("prompt-creator", data, set(), {})
+    assert any("(NEVER-DISTRIBUTE)" in e for e in errs)
+
+
+def test_never_distribute_false_flag_no_violation():
+    # 正常系: distributable:false を明示宣言していれば NEVER-DISTRIBUTE 違反は出ない。
+    data = _data(
+        {"name": "skill-creator", "version": "1", "description": "d",
+         "distributable": False},
+        skills=["run-a"],
+    )
+    errs = MOD.validate("skill-creator", data, set(), {})
+    assert not any("(NEVER-DISTRIBUTE)" in e for e in errs)
+
+
+def test_fix_does_not_register_never_distribute_on_flag_drift(tmp_path, monkeypatch, capsys):
+    # NEVER_DISTRIBUTE plugin が distributable:true へ漂流していても、--fix は
+    # marketplace.json へ自動登録せず、固有名検査の残違反で returncode 1 を返す。
+    mj, bj = _setup_repo(
+        tmp_path, monkeypatch,
+        plugins={"skill-creator": {"name": "skill-creator", "version": "0.1.0",
+                                   "description": "d", "distributable": True,
+                                   "bundle_targets": ["full"]}},
+        marketplace={"plugins": []},
+        bundles={"bundles": [{"name": "full", "plugins": []}]},
+    )
+    rc = MOD.main(["--fix"])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert any("(NEVER-DISTRIBUTE)" in line for line in err.splitlines())
+    # marketplace/bundle へは自動登録されていない (--fix が固有名を skip)
+    mk = json.loads(mj.read_text())
+    assert all(p["name"] != "skill-creator" for p in mk["plugins"])
+    bd = json.loads(bj.read_text())
+    assert "skill-creator" not in bd["bundles"][0]["plugins"]

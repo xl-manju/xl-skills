@@ -16,9 +16,15 @@
 
 層 C は恒久的な置き場ではない。層 C に新規責務を追加する場合は、移行先が層 A か層 B かを同時に記録する。
 
+#### 層 A-internal: リポジトリ実体だが marketplace 非配布
+
+層 A のうち `distributable: false` を宣言した plugin を **層 A-internal** と呼ぶ。リポジトリには実体として存在し、lint / CI / 社内利用の対象になるが、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象外**である。現時点では `plugins/skill-creator/` と `plugins/prompt-creator/` (Skill / plugin を量産するための社内開発基盤) が該当し、利用は repo を clone した環境に限る (`.claude/` symlink 経由)。
+
+この区別が示すのは **「配布 ≠ リポジトリ存在」** という原則である。ここでいう「配布」とは `.claude-plugin/marketplace.json` / `.claude-plugin/bundles.json` への登録のみを指す。公開 git repo 上にソースが物理存在することは配布とは独立であり、`distributable: false` の plugin もソースは repo に残り clone 開発に用いる。層 A-internal は「リポジトリには在るが (両 JSON へ登録しないため) 配布しない」状態を指す。現状の層 A-internal は `skill-creator` / `prompt-creator` が該当する (= `distributable: false` を宣言した plugin。固有名は `scripts/validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` でロックされ、フラグが漂流しても fail-closed で再配布を阻止する)。件数を断定しないのは、層 A-internal が増減しても本節が silent に陳腐化しないためである。
+
 ### パス列挙
 
-- `plugins/<name>/`: 層 A。plugin として配布する正本。
+- `plugins/<name>/`: 層 A。plugin として配布する正本。ただし `distributable: false` を宣言した plugin は層 A-internal (リポジトリ実体・lint 対象だが marketplace 非配布。skill-creator / prompt-creator が該当)。
 - `.claude/`: 層 B。開発環境で使う symlink、自動生成 settings、ローカル運用情報。
 - `doc/`: 層 B。設計書とタスク仕様書の正本。
 - `eval-log/`: 層 B。検証ログ、レビュー承認、移行証跡。
