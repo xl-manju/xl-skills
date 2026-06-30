@@ -81,6 +81,11 @@ eval-log/docs/
 eval-log/notion-conflicts.json
 # check-review-trigger.py が Stop hook で append する評価トリガキュー (揮発状態・タイムスタンプ含む)
 eval-log/review-queue.jsonl
+# plugin-dev-planner: run-plugin-dev-plan が生成する plan 一式 (goal-spec/progress/intermediate/
+# index/specs/handoff/plan-findings) は plugin 別 scratch 作業領域 (io-contract.md §9: gitignore 対象)。
+# elegant-review の run ログも本ツリー配下に出るため一括除外する。plugin ソースは plugins/ 配下、
+# ゴールデン実例は skills/run-plugin-dev-plan/examples/ 配下で別パス=追跡継続 (衝突なし)。
+eval-log/plugin-dev-planner/
 
 # Plugin-local runtime
 plugins/skill-intake/output/

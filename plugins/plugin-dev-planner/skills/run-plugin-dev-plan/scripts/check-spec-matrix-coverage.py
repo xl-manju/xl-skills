@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+# /// script
+# name: check-spec-matrix-coverage
+# purpose: skill-creator-spec-reflection.md の43行を読み、各行に component_kind/階層別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当spec(component)かindex(plugin-level)に存在するか検査する決定論ゲート。
+# inputs:
+#   - argv: <plan-dir> [--matrix PATH] [--index NAME] | --self-test
+# outputs:
+#   - stdout: OP/conditional/N-A 内訳件数 + OK サマリ
+#   - stderr: 未反映の適用行 violation
+#   - exit: 0=OK / 1=violation / 2=usage error
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.10"
+# ///
+"""43行マトリクスの operationalize 被覆検査 (R4 自然言語突合の機械化)。
+
+各行を {scope:component|plugin, klass:OP|conditional|N-A, applies述語, anchor} に割り当て、
+- component-scope 行: 適用述語が True の各 buildable spec に anchor(frontmatter key) が在るか
+- plugin-scope 行: index(main) の plugin_meta に anchor が在るか
+を検査する。N-A 行 (process/reference で per-spec/plugin の焼き先キーを持たない) は検査せず計数のみ。
+--self-test は reflection.md の行 id 集合と本 table の id 集合の drift を検出する。
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import specfm  # noqa: E402
+
+_DEFAULT_MATRIX = Path(__file__).resolve().parent.parent / "references" / "skill-creator-spec-reflection.md"
+_ROW_ID_RE = re.compile(r"^\|\s*([A-G]\d{1,2})\s*\|")
+
+
+# --- 適用述語 (component-scope 行のみ使用) ---
+def _always(c: dict) -> bool:
+    return True
+
+
+def _is_skill(c: dict) -> bool:
+    return c["component_kind"] == "skill"
+
+
+def _skill_loop(c: dict) -> bool:
+    return c["component_kind"] == "skill" and c["skill_kind"] in specfm.FEEDBACK_LOOP_SKILL_KINDS
+
+
+def _prompt_bearing(c: dict) -> bool:
+    return (c["component_kind"] == "skill" and c["skill_kind"] in ("run", "assign")) \
+        or c["component_kind"] == "sub-agent"
+
+
+def _feat_knowledge(c: dict) -> bool:
+    return "knowledge_loop" in c["features"]
+
+
+# --- 43行 operationalization テーブル (scope, klass, applies, anchor) ---
+# anchor は dotted path。component は spec frontmatter、plugin は index.plugin_meta を辿る。
+ROWS: dict[str, tuple[str, str, object, str | None]] = {
+    "A1": ("component", "OP", _always, "quality_gates.elegant_review"),
+    "A2": ("component", "N-A", _always, None),
+    "A3": ("component", "N-A", _always, None),
+    "A4": ("component", "N-A", _always, None),
+    "A5": ("component", "OP", _always, "quality_gates.evaluator"),
+    "A6": ("component", "N-A", _always, None),
+    # 注: A7(plugin-package-evaluator) と F5(PKG 契約) は意図的に同一 anchor `pkg_contract` を
+    # 共有する (io-contract.md plugin_meta「# A7/F5」と一致)。matrix-coverage はスロット存在のみを
+    # 見るため両行は 1 スロットで addressed 判定される。A7 vs F5 の値レベル充足の区別は
+    # check-spec-gates(値域) / content-review(内容) の責務 (機械=存在 / LLM=faithfulness の二層分離)。
+    "A7": ("plugin", "conditional", _always, "pkg_contract"),
+    "A8": ("component", "OP", _always, "quality_gates.content_review"),
+    "A9": ("component", "N-A", _always, None),
+    "A10": ("plugin", "conditional", _always, "governance"),
+    "A11": ("component", "conditional", _prompt_bearing, "prompt_layer"),
+    "B1": ("component", "conditional", _skill_loop, "feedback_contract.criteria"),
+    "B2": ("component", "N-A", _always, None),
+    "B3": ("component", "N-A", _always, None),
+    "C1": ("component", "OP", _always, "harness_coverage"),
+    "C2": ("component", "OP", _always, "harness_coverage.min"),
+    "C3": ("component", "N-A", _always, None),
+    "C4": ("component", "N-A", _always, None),
+    "D1": ("component", "conditional", _skill_loop, "goal_seek"),
+    "D2": ("component", "conditional", _skill_loop, "goal_seek"),
+    "D3": ("component", "N-A", _always, None),
+    "D4": ("component", "N-A", _always, None),
+    "D5": ("component", "conditional", _skill_loop, "goal_seek"),
+    "D6": ("plugin", "conditional", _always, "feedback_deploy"),
+    "E1": ("component", "conditional", _is_skill, "skill_name"),
+    "E2": ("component", "conditional", _is_skill, "kind"),
+    "E3": ("component", "N-A", _always, None),
+    "E4": ("component", "N-A", _always, None),
+    "E5": ("component", "conditional", _prompt_bearing, "prompt_layer"),
+    "E6": ("component", "conditional", _prompt_bearing, "prompt_layer"),
+    "F1": ("component", "OP", _always, "quality_gates.p0_lint"),
+    "F2": ("component", "OP", _always, "quality_gates.build_trace"),
+    "F3": ("plugin", "OP", _always, "distribution"),
+    "F4": ("plugin", "OP", _always, "distribution.bundles"),
+    "F5": ("plugin", "conditional", _always, "pkg_contract"),
+    "F6": ("plugin", "OP", _always, "ci"),
+    "F7": ("plugin", "conditional", _always, "ssot_dedup"),
+    "G1": ("component", "conditional", _feat_knowledge, "knowledge_loop"),
+    "G2": ("component", "conditional", _is_skill, "combinators"),
+    "G3": ("component", "N-A", _always, None),
+    "G4": ("component", "N-A", _always, None),
+    "G5": ("component", "N-A", _always, None),
+    "G6": ("component", "N-A", _always, None),
+}
+
+
+# --- 分類の行 ID 集合を固定 (件数 drift でなく集合入替も検出する) ---
+EXPECTED_OP = {"A1", "A5", "A8", "C1", "C2", "F1", "F2", "F3", "F4", "F6"}
+EXPECTED_CONDITIONAL = {
+    "A7", "A10", "F5", "F7", "D6", "B1", "D1", "D2", "D5",
+    "A11", "E5", "E6", "E1", "E2", "G1", "G2",
+}
+EXPECTED_NA = {
+    "A2", "A3", "A4", "A6", "A9", "B2", "B3", "C3", "C4",
+    "D3", "D4", "E3", "E4", "G3", "G4", "G5", "G6",
+}
+
+
+def classify_counts() -> dict[str, int]:
+    counts = {"OP": 0, "conditional": 0, "N-A": 0}
+    for _scope, klass, _ap, _anchor in ROWS.values():
+        counts[klass] += 1
+    return counts
+
+
+def current_classification() -> dict[str, str]:
+    """行 id -> klass の現行マッピングを返す。"""
+    return {rid: klass for rid, (_s, klass, _a, _an) in ROWS.items()}
+
+
+def membership_drift(classification: dict[str, str] | None = None) -> list[str]:
+    """各クラスの行 ID 集合が固定集合と完全一致するかを検査する。
+
+    件数 {10,16,17} が保たれたまま OP↔N-A を 1:1 入替するような分類すり替えを
+    集合差で検出する (件数 only ガードの穴を塞ぐ)。
+    """
+    c = classification if classification is not None else current_classification()
+    op = {r for r, k in c.items() if k == "OP"}
+    cond = {r for r, k in c.items() if k == "conditional"}
+    na = {r for r, k in c.items() if k == "N-A"}
+    errs: list[str] = []
+    for name, got, exp in (("OP", op, EXPECTED_OP), ("conditional", cond, EXPECTED_CONDITIONAL), ("N-A", na, EXPECTED_NA)):
+        if got != exp:
+            errs.append(f"{name} 集合 drift: 余分={sorted(got - exp)} 欠落={sorted(exp - got)}")
+    return errs
+
+
+def parse_matrix_ids(md_text: str) -> list[str]:
+    """reflection.md のテーブル行から行 id を抽出する。"""
+    return [m.group(1) for line in md_text.splitlines() if (m := _ROW_ID_RE.match(line))]
+
+
+def _has(d: object, dotted: str) -> bool:
+    """dotted path のキーが「焼き先として addressed」かを返す。
+
+    matrix-coverage は「焼き先スロットが反映されているか」を見る (値域の正否は
+    check-spec-gates の責務)。明示的に置かれた空コンテナ ([] / {}) は addressed と
+    みなす (例: 非配布プラグインの distribution.bundles==[] は『非登録』を明示済み)。
+    欠落・None・空文字のみ未反映とする。
+    """
+    cur = d
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return cur is not None and cur != ""
+
+
+def spec_context(fm: dict) -> dict:
+    return {
+        "component_kind": str(fm.get("component_kind", "")).strip(),
+        "skill_kind": str(fm.get("kind", "")).strip(),
+        "features": set(fm.get("features", []) or []),
+    }
+
+
+def check_spec_coverage(fm: dict) -> list[str]:
+    """1 component spec に対し、適用される component-scope 行で未反映の行 id を返す。"""
+    ctx = spec_context(fm)
+    missing: list[str] = []
+    for rid, (scope, klass, applies, anchor) in ROWS.items():
+        if scope != "component" or klass == "N-A" or anchor is None:
+            continue
+        if applies(ctx) and not _has(fm, anchor):
+            missing.append(f"{rid} (anchor={anchor})")
+    return missing
+
+
+def check_plugin_coverage(plugin_meta: dict) -> list[str]:
+    """index の plugin_meta に対し、未反映の plugin-scope 行 id を返す。"""
+    missing: list[str] = []
+    for rid, (scope, klass, _applies, anchor) in ROWS.items():
+        if scope != "plugin" or klass == "N-A" or anchor is None:
+            continue
+        if not _has(plugin_meta, anchor):
+            missing.append(f"{rid} (plugin anchor={anchor})")
+    return missing
+
+
+def collect_specs(specs_dir: Path) -> list[Path]:
+    return [p for p in sorted(specs_dir.glob("*.md")) if p.stem not in {"index", "main"}]
+
+
+def run(plan_dir: Path, index_name: str) -> tuple[int, list[str], dict[str, int]]:
+    counts = classify_counts()
+    index_path = plan_dir / index_name
+    if not index_path.is_file():
+        return 2, [f"index が見つからない: {index_path}"], counts
+    specs = collect_specs(plan_dir)
+    if not specs:
+        return 2, [f"タスク仕様書が見つからない: {plan_dir}"], counts
+    findings: list[str] = []
+    for p in specs:
+        fm = specfm.parse_frontmatter(p.read_text(encoding="utf-8"))
+        for m in check_spec_coverage(fm):
+            findings.append(f"{p.name}: 適用行 {m} の焼き先が未反映")
+    index_fm = specfm.parse_frontmatter(index_path.read_text(encoding="utf-8"))
+    plugin_meta = index_fm.get("plugin_meta", {})
+    if not isinstance(plugin_meta, dict):
+        plugin_meta = {}
+    for m in check_plugin_coverage(plugin_meta):
+        findings.append(f"{index_name}: plugin-level 行 {m} の焼き先が未反映")
+    return (1 if findings else 0), findings, counts
+
+
+def self_test(matrix_path: Path) -> tuple[int, list[str]]:
+    if not matrix_path.is_file():
+        return 2, [f"matrix not found: {matrix_path}"]
+    ids = set(parse_matrix_ids(matrix_path.read_text(encoding="utf-8")))
+    table = set(ROWS)
+    msgs: list[str] = []
+    if ids - table:
+        msgs.append(f"reflection.md に table 未登録の行: {sorted(ids - table)}")
+    if table - ids:
+        msgs.append(f"table にあるが reflection.md に無い行: {sorted(table - ids)}")
+    if len(table) != 43:
+        msgs.append(f"table 行数 {len(table)} != 43")
+    msgs.extend(membership_drift())  # 件数不変の OP↔N-A 入替も検出 (集合完全一致ガード)
+    return (1 if msgs else 0), msgs
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="43行マトリクスの operationalize 被覆を検証する")
+    ap.add_argument("plan_dir", nargs="?", help="plan ディレクトリ")
+    ap.add_argument("--matrix", default=str(_DEFAULT_MATRIX), help="reflection.md パス")
+    ap.add_argument("--index", default="index.md", help="index ファイル名")
+    ap.add_argument("--self-test", action="store_true", help="table と reflection.md の drift 検査")
+    args = ap.parse_args(argv)
+
+    if args.self_test:
+        code, msgs = self_test(Path(args.matrix))
+        if code == 0:
+            sys.stdout.write("OK: 43行 table と reflection.md が一致 (drift なし)\n")
+            return 0
+        for m in msgs:
+            sys.stderr.write(m + "\n")
+        return code
+
+    if not args.plan_dir:
+        sys.stderr.write("usage: check-spec-matrix-coverage.py <plan-dir> | --self-test\n")
+        return 2
+    plan_dir = Path(args.plan_dir)
+    if not plan_dir.is_dir():
+        sys.stderr.write(f"not a directory: {plan_dir}\n")
+        return 2
+    code, findings, counts = run(plan_dir, args.index)
+    sys.stdout.write(
+        f"matrix 分類: OP={counts['OP']} / conditional={counts['conditional']} / N-A={counts['N-A']} (計 {sum(counts.values())})\n"
+    )
+    if code == 0:
+        sys.stdout.write("OK: 適用される全マトリクス行の焼き先が反映済み\n")
+        return 0
+    if code == 2:
+        for m in findings:
+            sys.stderr.write(m + "\n")
+        return 2
+    for m in findings:
+        sys.stderr.write(m + "\n")
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

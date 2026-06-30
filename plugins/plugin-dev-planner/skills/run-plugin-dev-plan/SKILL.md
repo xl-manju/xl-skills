@@ -1,0 +1,295 @@
+---
+name: run-plugin-dev-plan
+description: プラグイン構想からタスク仕様書群と依存top-sort順のindexを生成したいとき、後段のrun-skill-createへ渡す前段の開発計画を立てたいときに使う。
+disable-model-invocation: false
+user-invocable: true
+argument-hint: "[plugin-concept?] [--mode create|update] [--force-13] [--out-dir <path>]"
+arguments: [plugin_concept, mode, force_13, out_dir]
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash(python3 *)
+  - Skill
+  - Agent
+kind: run
+prefix: run
+effect: local-artifact
+owner: team-platform
+since: 2026-06-29
+version: 0.1.0
+source: doc/ClaudeCodeスキルの設計書/
+source-tier: internal
+last-audited: 2026-06-29
+audit-trigger: quarterly
+responsibility_refs:
+  - prompts/R1-elicit-goal.md
+  - prompts/R2-decompose-components.md
+  - prompts/R3-emit-specs.md
+  - prompts/R4-verify-traceability.md
+script_refs:
+  - scripts/check-plugin-goal-spec.py
+  - scripts/verify-index-topsort.py
+  - scripts/detect-unassigned.py
+  - scripts/check-spec-frontmatter.py
+  - scripts/check-spec-gates.py
+  - scripts/check-spec-matrix-coverage.py
+  - scripts/check-surface-inventory.py
+  - scripts/check-build-handoff.py
+  - scripts/check-plugin-surface-audit.py
+  - scripts/render-spec-skeleton.py
+  - scripts/specfm.py
+reference_refs:
+  - references/component-domain.md
+  - references/phase-lifecycle.md
+  - references/io-contract.md
+  - references/plugin-creator-contract.md
+  - references/purpose-driven-requirements.md
+  - references/skill-creator-spec-reflection.md
+  - ../../../skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md
+agent_refs:
+  - ../../agents/plugin-dev-plan-elicitor.md
+  - ../../agents/plugin-dev-plan-architect.md
+  - ../../agents/plugin-dev-plan-evaluator.md
+command_refs:
+  - ../../commands/plugin-dev-plan.md
+hook_refs:
+  - ../../hooks/hook-validate-plugin-plan.py
+harness_refs:
+  - ../../EVALS.json
+  - ../../plugin-composition.yaml
+schema_refs:
+  - schemas/plugin-goal-spec.schema.json
+completeness_exempt:
+  - "manifest: ゴールシークループで P1-P8 の手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。フェーズ定義は references/phase-lifecycle.md を共有正本として参照する。"
+goal_seek:
+  engine: inline
+  fork: subagent
+  plan_dir: eval-log/plugin-dev-planner/<plugin-slug>
+  spec: <PLAN_DIR>/goal-spec.json
+  progress: <PLAN_DIR>/run-plugin-dev-plan-progress.json
+  intermediate: <PLAN_DIR>/run-plugin-dev-plan-intermediate.jsonl
+  max_loops: 5
+feedback_contract: # per-skill 評価基準(SSOT=plugins/skill-creator/scripts/feedback_contract_ssot.py)。content-review verdict の criteria_evaluated と突合
+  max_iterations: 3
+  criteria:
+    - id: IN1
+      loop_scope: inner
+      text: 生成した index.md が依存 top-sort 順で全タスク仕様書を列挙し verify-index-topsort.py と detect-unassigned.py が未配置 0 件で exit0 通過する
+      verify_by: script
+    - id: IN2
+      loop_scope: inner
+      text: 生成した各 buildable spec が component_kind 別構造契約と core 規律 quality_gates(p0_lint/build_trace/elegant_review C1-C4/content_review/evaluator)+harness_coverage(block) を携帯し check-spec-frontmatter.py・check-spec-gates.py・check-spec-matrix-coverage.py が exit0 通過する
+      verify_by: lint
+    - id: OUT1
+      loop_scope: outer
+      text: 目的ドリブン要件定義(goal-spec)から導いた分解が UBM 固有物のみ除外し skill-creator ネイティブ規律を漏れなく伝播して run-elegant-review の C1-C4 を全 PASS する
+      verify_by: elegant-review
+    - id: OUT2
+      loop_scope: outer
+      text: 各タスク仕様書が skill-brief.schema.json 主要フィールドへ無加工で写せ後段 run-skill-create へそのまま投入できる粒度であると fork した evaluator が確認する
+      verify_by: evaluator
+---
+
+# run-plugin-dev-plan
+
+> **配布注記**: 本 skill の cross-skill `reference_refs` (`../../../skill-creator/...goal-seek-paradigm.md`) は repo-bundled 前提。plugin-dev-planner は `distributable:false` フラグで marketplace/bundles へ登録しない (`scripts/validate-plugin-completeness.py` が distributable:false プラグインの非登録を機械強制)。これは単一フラグによる非配布であり、`NEVER_DISTRIBUTE` denylist による二重ロック (skill-creator/prompt-creator 専用) とは別。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。
+
+## 目的と出力契約
+
+プラグイン構想 1 件を、目的ドリブンで単一責務にライフサイクル分解し、`run-skill-create` が段階実行できる **N 本のタスク仕様書 + index(main)** に変換する前段の計画スキル。各仕様書は skill-creator のネイティブ評価基準を frontmatter で携帯し、index は plugin-creator の manifest / marketplace / cachebuster / validation 契約を `plugin_meta` で携帯する。
+
+- **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)、`--mode create|update`、任意 `--out-dir <path>`。
+- **出力**: **決定論的に解決される plan ディレクトリ** (既定 `eval-log/plugin-dev-planner/<plugin-slug>/`・`--out-dir` で上書き・正本 `references/io-contract.md` §9) へ (1) `goal-spec.json` (2) N 本のタスク仕様書 (Markdown / frontmatter は io-contract 契約) (3) `index.md`(main) = 依存 top-sort 順目次 + 本数根拠 + 完了条件 (4) `component-inventory.json` (5) `handoff-run-plugin-dev-plan.json` / `plan-findings.json`。同一構想は常に同一出力先 (再現性)。
+- **完了条件**: `check-plugin-goal-spec.py` が R1 goal-spec + plugin 固有アンカーを検証し、同梱 core 5 scripts / 6 invocations が全 exit0 (top-sort 全列挙 / unassigned 0 件 / criteria・harness≥80% 携帯 / plugin_meta 値域 / 43 行反映 self-test + PLAN) に加え、`check-surface-inventory.py` が 5種検討証跡と plugin-level surface 採否を、`check-build-handoff.py` が `handoff-run-plugin-dev-plan.json` の build routing / `build_kind` / `build_args` / manifest draft を、`check-plugin-surface-audit.py` が `plugins/` 配下の現物 surface 棚卸しを exit0 検証する。skill-creator 仕様 43 行と plugin-creator 物理契約が反映され、elegant-review C1-C4 全 PASS の設計が記述されている。
+
+## 13 の扱い (透明化 + ユーザー要求の尊重)
+
+ユーザーが「13 個のタスク仕様書」「Phase 1-13」等の**具体的な本数/段数**を求めた場合、その要求を**黙殺せず必ず可視化する**。順序は「①尊重 → ②既定 → ③逃げ道」:
+
+1. **① 尊重 (常時)**: ユーザーが本数を口にしたら `requested_count`(=ユーザー由来の希望本数) を `component-inventory.json` と `index.md` の本数根拠に**必ず記録**する。R1 elicitor が会話履歴から検出し `goal-spec.constraints` に残す。要求が無ければ `requested_count: null`。
+2. **② 既定 (本数は導出)**: 既定の本数は構成要素数 N と依存 DAG から導出した `derived_count`。`requested_count` と `derived_count` を index に**並記**し、差があれば理由(例「あなたの 13 は旧 Phase1-13 読替で、本構想の構成要素は N=5」)を本数根拠に明示する。一方を他方で上書きしない。
+3. **③ 逃げ道 (`--force-13`)**: 「13 本固定」がユーザー要件の核だと判明した場合は `--force-13` で導出を上書きし**ちょうど 13 本**を出力する。理由を `constraints` と index 本数根拠に記録する。
+
+| 表現 | 既定の扱い | 透明化 |
+|---|---|---|
+| 機能開発 Phase 1-13 | `references/phase-lifecycle.md` でプラグイン開発 P1-P8 に読み替え | `requested_count`=13 として記録 |
+| 13 本の本数指定 | 既定は構成要素数 N から `derived_count` を導出 | `requested_count`=13 / `derived_count`=N を index に並記 |
+| 13 本固定が必須要件 | `--force-13` で 13 本固定に上書き | 理由を `constraints` + 本数根拠に記録 |
+
+目的は「ユーザーの 13 を無視して N を押し付けること」でも「機械的に 13 本作ること」でもなく、**ユーザーの要求を可視化したうえで過不足ない本数を導出し、必要なら 13 本固定も選べる**こと。`--force-13` の意味論は「component spec 本数=13 の固定」であり、各 spec の構造は component_kind 別契約のまま (UBM 流の Phase1-13 実行台本そのものではない点は phase-lifecycle.md §読替で明示)。Phase1-13 の読み物ビューが必要な場合は、N 本の component spec とは別の renderer/view として扱い、水増し spec で component taxonomy を壊さない。
+
+## 境界
+
+入力=プラグイン構想 1 件。出力=計画 (タスク仕様書群 + index) のみ。**実プラグイン/実コードは生成せず、各仕様書を `run-skill-create` へ委譲する**。分析材料 (UBM-Hyogo 配下) は read-only 抽出のみで fork/複製しない。配布登録動作は一切しない。4 層分離 (L0 構想 / L1 run-skill-create / L2 本スキル / L3 仕様書群+index / L4 実 build) の正本は `references/component-domain.md`。
+
+## 主要ルール
+
+1. **目的ドリブン (単語置換でない)**: UBM 機能開発固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し、skill-creator ネイティブ規律 (TDD/評価/goal-seek/feedback-contract) は漏れなく後段へ伝播する。**DROP 列挙の正本は `references/phase-lifecycle.md` §7 読替表**、目的ドリブン精神の正本は `references/purpose-driven-requirements.md`。
+2. **5 buildable 構成要素 + plugin-level surfaces を分岐生成 (skill 偏重を解消)**: component spec は skill/sub-agent/slash-command/hook/script の 5 種を `component_kind` で宣言し、kind 別 frontmatter 契約を携帯する。加えて plugin-level surface として harness/eval、plugin manifest、plugin-composition、references/config/assets の要否を index の `plugin_meta` と `component-inventory.json` に記録する。本数 N は構成要素数に依存して変動する。正本 `references/component-domain.md` / `references/io-contract.md`。
+3. **成果物本数は N component specs + index**: P1-P8 は process phase であり横断内容は `index.md` の章・完了条件・`plugin_meta` に集約する。独立した横断仕様書は作らない。`N` は `component-inventory.json` の buildable component 本数のみ。
+4. **plugin-creator 物理契約を index に集約**: `.claude-plugin/plugin.json`、manifest name と folder name の一致、TODO placeholder 禁止、personal marketplace default、policy.installation/authentication/category、update cachebuster、`validate-plugin-completeness.py` 実行を `plugin_meta` に焼く。正本 `references/plugin-creator-contract.md`。
+5. **評価基準を frontmatter へ operationalize**: 全 buildable spec が core 規律 `quality_gates`(p0_lint(kind別)/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) + `harness_coverage`(block: min≥80/kind_pass) を携帯し `check-spec-gates.py` が機械検証する。参照ポインタでなく具体キーへ焼く。条件付き規律 (feedback_contract criteria/goal_seek/prompt_layer/knowledge_loop/combinators) は kind/feature でゲート、plugin 階層規律 (manifest/marketplace/配布/bundles/PKG/governance/CI/SSOT) は index の `plugin_meta` へ焼く。焼き先正本は `references/skill-creator-spec-reflection.md` の 43 行マトリクス (operationalize 状況は `check-spec-matrix-coverage.py` が検査)。**品質ゲートだけでなく成果物評価 (purpose-acceptance) も焼く**: skill loop kind の `feedback_contract.criteria` は当該 spec の goal/checklist 由来 (汎用ゲート言い換えへの退化を `check-spec-frontmatter.py` の purpose-traceability が機械検出)、index に「受入確認 (build 後の見方)」章を持たせ build 後に「組み上がった実プラグインが purpose を満たすか」を確認できる trace を通す (実行は L4・plan は契約として焼くのみ)。正本 `references/io-contract.md` §10「成果物評価の境界」。
+6. **現状数値非焼込**: 「≥80% を満たす設計」を要件化し、harness 現状未達数値は仕様書へ焼かない (Goodhart 回避)。
+7. **schema parity**: skill-kind 仕様書は `skill-brief.schema.json` 主要 14 フィールド相当へ無加工で写せる粒度にする (`references/io-contract.md`)。
+8. **配置非依存・変数化**: 具体値は直書きせず `{{PROJECT_ROOT}}`/`$CLAUDE_PLUGIN_ROOT`/self-relative で表現する。Python 標準ライブラリ正本 (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。
+9. **update は差分のみ**: `--mode update` は Edit 差分。全書き換え禁止。
+
+## ゴールシーク実行
+
+> 本スキルは固定手順ではなく、下記ゴールへ向けて完了チェックリストの未達項目を埋める手順を都度生成して反復する。正本: `../../../skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md`。
+
+> **形状と手順の直交 (中心原則・「ひな形」論の解)**: goal-seek paradigm が廃するのは**固定手順 (process)** であって**固定出力形状 (output shape)** ではない。両者は直交する。よって本スキルは (a) 各タスク仕様書の **frontmatter 形状を `specfm` + lint + ゴールデン例で凍結**し (検査可能な骨格)、(b) 本文 prose は判断を要するため**形状を解放**しつつ、(c) 本文にも **§9 の床 (空セクションを弾く)** を敷く。手書きの穴埋め skeleton ファイルは置かない。必要な場合は `scripts/render-spec-skeleton.py` が `specfm` の正本から最小 skeleton を生成する (形状の正本は frontmatter=specfm、本文は床付きの自由記述)。つまり「ひな形が無い」のでなく「ひな形を実行可能 schema + lint + 生成 skeleton + 例として持つ」のが本方式。正本 `references/io-contract.md` §9/§10。
+
+### ゴール (Goal)
+
+プラグイン構想 1 件から、依存 top-sort 順の index と N 本のタスク仕様書が生成され、各仕様書が skill-brief 主要フィールドと skill-creator 評価基準 (4 条件 / feedback_contract criteria / harness≥80% / content-review) を frontmatter で携帯し、unassigned-task 0 件で完結している状態。
+
+### 目的・背景 (Why)
+
+既存の機能開発用 task-specification-creator は UBM 固有物に強結合で、単語置換では破綻する。固定手順は構想ごとに前提が崩れるため、ゴール (= 評価基準を携帯した計画一式) とチェックリストを到達点に固定し、手順は未達項目から都度導出する。これにより多様なプラグイン構想を同一基盤で再現性高く計画化し、skill-creator 規律を後段へ漏れなく伝播できる。
+
+### 完了チェックリスト (Checklist)
+
+- [ ] R1: 構想から目的駆動の plugin-goal-spec (purpose/background/goal/二値 checklist + target_plugin_slug/plan_dir/requested_count/force_13) を確定し `check-plugin-goal-spec.py` が exit0
+- [ ] R2: 構想を 5 構成要素へ単一責務分解し本数 N と依存 DAG (循環なし) を導出した
+- [ ] R3: per-component タスク仕様書 (× N) と index(main) を生成した
+- [ ] 各仕様書が component_kind を宣言し kind 別構造契約を携帯している (skill 偏重なし)
+- [ ] index が plugin-creator 物理契約 (`manifest` / `marketplace` / cachebuster / validate_plugin) を `plugin_meta` に携帯している
+- [ ] 各 buildable spec が core 規律 quality_gates + harness_coverage(block) を携帯している
+- [ ] skill loop kind の仕様書が feedback_contract criteria を inner+outer 各 1 件以上携帯している (現状値は焼かない)
+- [ ] skill loop kind の criteria が当該 spec の goal/checklist 由来 (purpose-acceptance) で汎用ゲート言い換えに退化していない + index に「受入確認 (build 後の見方)」章がある (成果物評価の operationalize)
+- [ ] index が依存 top-sort 順で全タスク仕様書を列挙し plugin_meta (plugin 階層規律) を持つ
+- [ ] unassigned-task (未配置) が 0 件である
+- [ ] R4: 適用される skill-creator 仕様 43 行の焼き先が反映され、elegant-review C1-C4 全 PASS の設計が記述されている
+- [ ] 同梱 core 5 scripts / 6 invocations (`verify-index-topsort` / `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage --self-test` / `check-spec-matrix-coverage PLAN`) が全 exit0
+- [ ] `check-surface-inventory.py <PLAN_DIR>/component-inventory.json` が exit0 で、5種検討証跡と plugin-level surface 採否が検証済み
+- [ ] `check-build-handoff.py <PLAN_DIR>/handoff-run-plugin-dev-plan.json` が exit0 で、各 component の builder / build_kind / build_args / build_target / envelope draft/gap が検証済み
+- [ ] plugin-dev-planner 自身の dogfood では `check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner` が exit0 で、現物 plugin surface が横断棚卸し済み
+
+### ゴールシークループ
+
+正本 `goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本スキル固有の差分:
+
+- 現状評価は上記チェックリストの未達項目を対象にし、それを埋める局面を下記「局面カタログ」から選ぶ (順序は都度判断)。
+- 検証は決定論検査 (同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code) を優先する。
+- ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
+- ループ本体は親セッションで直接回さず `Agent` ツールで SubAgent に fork し、親へは最終成果物パスと handoff 要約のみ返す。R*.md は prompt 正本 (SSOT) として維持し、plugin root の 3 agent (`agents/plugin-dev-plan-{elicitor,architect,evaluator}.md`) を **prompt-creator 仕様準拠の薄いアダプタ**として使う (各 agent は owner_skill=run-plugin-dev-plan / responsibility_id で SSOT を指し、本文に責務を重複定義しない)。R 責務と 1:1 対応: **elicitor=R1** (goal-spec 確定・`isolation:inherit` で会話履歴保持。R1 は推定に親 context を要するため fork しない)、**architect=R2/R3** (surface 分解 + 仕様書生成・`isolation:fork`)。**R4 (4条件と決定論ゲートの独立評価) は独立 skill `assign-plugin-plan-evaluator` (kind=assign) へ委譲し**、その R1(evaluate) を **evaluator agent** (`isolation:fork`/read-only) が fork 実行する (proposer≠approver を skill 分離で構造保証)。pipeline は elicitor→architect→(assign-plugin-plan-evaluator→)evaluator の単方向 handoff。Bash 依存検証は親が実行し結果を fork 先へ事実として渡す (背景 SubAgent は権限承認待ちで停止しうるため)。
+
+### ゴールシーク配線
+
+- **PLAN_DIR 解決**: R1 は `target_plugin_slug` (= `specfm.plan_slug(対象plugin名)`) と任意 `out_dir` を先に確定し、`PLAN_DIR` = `specfm.plan_output_dir(target_plugin_slug, out_dir)` で解決する。既定は `eval-log/plugin-dev-planner/<plugin-slug>/`。以降の全成果物はこの plugin 別ディレクトリ配下へ置く。
+- **goal-spec ロード**: `<PLAN_DIR>/goal-spec.json` をロード (無ければ R1 が会話履歴・構想文から推定生成)。R1 は `target_plugin_slug` / `out_dir` / `plan_dir` を goal-spec に書き、全 goal-seek 周回で不変にする (再現性アンカー=同一構想は常に同一 `PLAN_DIR`)。
+- **周回 progress**: 各周回の checklist 状態を `<PLAN_DIR>/run-plugin-dev-plan-progress.json` に記録する。
+- **中間成果物アンカー (必須)**: 各周回末に `<PLAN_DIR>/run-plugin-dev-plan-intermediate.jsonl` へ 5 要素 (`original_goal`=全周回不変・`current_goal_snapshot`・`delta_from_original`・`merged_directive_for_next`・`drift_signal`) を 1 行 append する。次周回 Step2 (手順生成) は直前の `merged_directive_for_next` と `original_goal` を必須入力として読み、AI が単独で再導出しない。初回は `progress.original_goal_hash` に SHA-256 を固定し以降全周回で照合 (改竄検知で停止)。
+
+### ゴールシーク検証
+
+```bash
+# 中間成果物アンカーの機械検査 + plan 決定論検査 (PLAN_DIR / SKILL_DIR は cwd から解決)
+python3 - "$PLAN_DIR/run-plugin-dev-plan-intermediate.jsonl" "$PLAN_DIR/run-plugin-dev-plan-progress.json" <<'PY'
+import json, sys, os, hashlib
+inter_path, prog_path = sys.argv[1], sys.argv[2]
+required_keys = {"iteration","original_goal","current_goal_snapshot","delta_from_original","merged_directive_for_next","drift_signal"}
+prog = json.load(open(prog_path, encoding="utf-8")) if os.path.exists(prog_path) else {}
+if not os.path.exists(inter_path):
+    assert prog.get("iteration", 0) == 0, "intermediate.jsonl 不在だが周回実行済 (anchor jsonl 必須)"
+    print("intermediate.jsonl 未生成 (ループ未実行)")
+else:
+    lines = [l for l in open(inter_path, encoding="utf-8").read().splitlines() if l.strip()]
+    first = None
+    for i, line in enumerate(lines):
+        e = json.loads(line)
+        assert not (required_keys - e.keys()), f"intermediate[{i}] 必須キー不足"
+        if i == 0:
+            first = e["original_goal"]
+            h = hashlib.sha256(first.encode()).hexdigest()
+            assert prog.get("original_goal_hash") in (None, h), "original_goal_hash drift"
+        assert e["original_goal"] == first, f"intermediate[{i}] anchor 不変性違反"
+    print(f"intermediate 検査 OK: {len(lines)} 行 / anchor 不変")
+PY
+# plan 決定論ゲート (PLAN_DIR を計画出力先に設定して実行)
+python3 "$SKILL_DIR/scripts/check-plugin-goal-spec.py" "$PLAN_DIR/goal-spec.json" # R1 goal-spec + plugin 固有アンカー
+python3 "$SKILL_DIR/scripts/verify-index-topsort.py" "$PLAN_DIR"
+python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"
+python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"   # component_kind 別構造 + core 規律
+python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"          # quality_gates + harness 深掘り
+python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test            # 43 行 table drift
+python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"            # 適用行の焼き先反映 + OP/conditional/N-A 内訳
+python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json" # 5種検討証跡 + surface 採否
+python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json" # L3→L4 routing / build_kind / manifest draft
+# plugin-dev-planner 自身の dogfood (現物 surface 横断棚卸し・PLAN_DIR でなく plugins/ を対象)
+python3 "$SKILL_DIR/scripts/check-plugin-surface-audit.py" --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner
+```
+
+## 局面カタログ (順序は都度判断)
+
+固定順序ではなく、ゴールシークループが未達チェックリスト項目に応じて選ぶ局面群。各局面の詳細プロンプトは `prompts/<R-id>.md` (7 層 Markdown 正本) へ委譲する。
+
+### 局面: 目的ドリブン要件定義 (R1)
+
+`prompts/R1-elicit-goal.md`。構想から purpose/background/goal/二値 checklist を `goal-spec.json` に固める。**purpose/background/goal/checklist の抽出は既存 `run-goal-elicit` (skill-creator・汎用 schema=goal-spec.schema.json) へ委譲し再実装しない** (DRY)。R1 は委譲結果へ plugin 固有アンカー (`target_plugin_slug` / `plan_dir` / `requested_count` / `force_13`) を加え、専用 `schemas/plugin-goal-spec.schema.json` + `scripts/check-plugin-goal-spec.py` で検証する。追加質問せず仮定を constraints/open_questions に明示。正本 `references/purpose-driven-requirements.md`。
+
+### 局面: コンポーネント分解 (R2)
+
+`prompts/R2-decompose-components.md`。capability 列挙 + SRP 分割線 → 5 構成要素写像で `component_kind` 確定 (skill のみ skill `kind` sub-field) → hierarchy/pattern → 依存 DAG。本数 N (= buildable component spec 本数) と導出根拠を `component-inventory.json` に記録。P1-P8 横断規律は別 spec にせず index へ集約する。正本 `references/component-domain.md` / `references/phase-lifecycle.md`。
+
+### 局面: 仕様書 + index 生成 (R3)
+
+`prompts/R3-emit-specs.md`。per-component 仕様書 (× N) を component_kind 別契約で生成し、core 規律 (quality_gates/harness block) + 条件付き規律を frontmatter へ焼く。index(main) に top-sort 目次 + `plugin_meta` (plugin 階層規律) を焼く。キー契約は `references/io-contract.md`、焼き先正本は `references/skill-creator-spec-reflection.md` の 43 行。
+
+### 局面: トレーサビリティ検証 (R4)
+
+`prompts/R4-verify-traceability.md` (評価ロジックの正本は独立 skill `assign-plugin-plan-evaluator` の `prompts/R1-evaluate.md` へ昇格)。**R4 は `assign-plugin-plan-evaluator` (kind=assign・user-invocable:false・context:fork) へ委譲**し、同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を実行して top-sort・unassigned 0 件・component_kind 別構造・quality_gates/harness・43 行 operationalize 被覆 (OP/conditional/N-A 内訳)・5種検討証跡・L3→L4 routing/build_kind/build_args・manifest draft を機械検証する (自然言語突合しない)。評価器は plan を書き換えず `<PLAN_DIR>/plan-findings.json` のみ返す (proposer≠approver)。NG は R3 へ差し戻す (最大 3 周)。
+
+## ハンドオフ (component_kind でルーティング)
+
+- **skill-kind 仕様書** → `run-skill-create`(L1) へ 1 本ずつ投入し L4 実 build を委譲 (run-skill-create は skill 専用)。
+- **sub-agent / slash-command / hook 仕様書** → `run-build-skill` の Capability kind dispatch で生成 (sub-agent→`kind=agent` または `--with-subagent` / slash-command→`kind=command` / hook→`kind=hook` または `--with-hooks`)。run-build-skill の 7 kind = skill/agent/hook/command/plugin-composition/prompt/workflow。単独 run-skill-create 投入はしない。本 plugin 自身にも `agents/`、`commands/`、`hooks/` の実体を持たせ、単一 skill だけの plan にならないことを dogfood する。
+- **script 仕様書** → **run-build-skill に `script` kind は無い**。スクリプトは親 skill の build で `scripts/` + `tests/` として生成される (独立 Capability でなく skill 付随物)。計画上は依存元 skill に紐付ける。
+- **harness/eval 仕様** → `EVALS.json` と `plugin-composition.yaml` に集約し、mechanical と llm_eval の両方を持つ。個別 component_kind に無理に押し込まない。
+- **plugin envelope (外殻) 仕様** → N 個の capability を 1 つの plugin に束ねる**外殻の生成 owner を明示する** (skill 偏重・component だけの plan にしないための要):
+  - `plugin-composition.yaml` → `run-build-skill kind=plugin-composition` または `/skill-creator:plugin-compose` が生成・更新する。
+  - `.claude-plugin/plugin.json` (manifest) と `.claude-plugin/marketplace.json` (配布登録) → **現状これを単独で自動生成する skill は無い** (`plugin-compose` は composition.yaml のみ、`run-build-skill` は capability 単位)。よって index の `plugin_meta.manifest` / `plugin_meta.marketplace` を**契約 spec として焼いた上で、生成手段が未整備な点を `open_issues` に gap として必ず記録する** (「envelope 生成器 未整備 → 手動 or 将来 scaffold skill」)。生成後の検証は `scripts/validate-plugin-completeness.py` (manifest name↔folder 一致 / TODO placeholder 禁止 / distributable 整合) が担う。さらに **layperson-complete のため R3 は `<PLAN_DIR>/envelope-draft/plugin.json` に具体値入りの「貼れる」 manifest ドラフト** (manifest name↔folder 一致・TODO placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する (実 `plugins/` には書かない = build 境界を侵さない)。これにより唯一 builder を持たない envelope について、利用者は契約(値域宣言)だけでなく貼れる実体ドラフトを得て、最後の手動ステップを専門知識なしに完了できる。
+  - `.mcp.json` / `.app.json` (MCP / app connector) → **現状これを単独生成する skill は無い**。要否を `component-inventory.json` の `plugin_level_surfaces.mcp_app_connector` で判定し、必要時は index の `plugin_meta.manifest` に契約を焼いて生成器未整備を `open_issues` に gap 記録する (manifest/marketplace と同じ envelope owner 明示)。不要なら `omitted_reason` を残す。MCP server が**構想の中核**となる場合は buildable taxonomy の対象外 (5 buildable に MCP スロットは無い) ゆえ「形式 PASS だが中核が空」になりうる既知制約として R1 elicitor 段で早期開示する (正本 `references/component-domain.md` の境界節)。
+  - **ボイラープレート/scaffold skill の要否と capability-gap の構造化起票**: 外殻生成が頻出なら別 skill (例 `run-plugin-scaffold`) へ昇格する価値があるが、本 plan の責務は「計画」であり scaffold skill の新設自体は本 plugin のスコープ外。**envelope/MCP 生成器の不在は per-plan の freetext `open_issues` で各 plan ごとに繰り返し記録するのでなく、`/run-skill-feedback plugin-dev-planner` 経由で skill-creator への 1 回限りの構造化 capability-gap として起票し**、以後の plan は当該既知チケットを参照する (同型 gap が全 plan へ線形増殖するのを止める)。個別 plan の `open_issues` / `index.md` 本数根拠にも要否判断を残しユーザーへ可視化する。
+- **PR / feature→main は本スキルの責務外 (下流の人手操作)**: 計画(L3)も `run-skill-create`(L1 build)も PR を作らない。最終仕様書が `phase-lifecycle.md` §7 P13 を言及する場合も「build 完了後に人手が feature→main する (`make validate` + `pytest` 緑が前提)」という note に留め、評価ゲート化しない (`references/io-contract.md` §10 と整合・ユーザー意図「PR/Cloudflare/IPC は今回スコープ外」)。
+- `<PLAN_DIR>/handoff-run-plugin-dev-plan.json` に**解決済み `PLAN_DIR`** (= `specfm.plan_output_dir`)・component_kind 別ルーティング・各コンポーネントの **`builder` / `build_kind` / `build_args` / `build_target`** (skill→`run-skill-create`/`build_kind=skill`、sub-agent→`run-build-skill`/`build_kind=agent`、slash-command→`run-build-skill`/`build_kind=command`、hook→`run-build-skill`/`build_kind=hook`、script→`parent-skill-build`/`build_kind=script`)・envelope owner・draft_path・gap/approval reason・達成チェックリストを出力する。`scripts/check-build-handoff.py` が spec 実在・top-sort・builder/build_kind/build_args 整合・manifest draft 実在/JSON/name/TODO 禁止・envelope gap reason を検証する。これにより計画(L3)と実体(L4)は分離しつつ「どの仕様書がどこで実体になるか」を追跡できる。本スキルは投入も build もしない。
+
+## 注意 (Gotchas)
+
+- **実プラグインを作らない**: 成果物は計画 (タスク仕様書群 + index) のみ。実コード/実プラグイン生成と混同しない (build は `run-skill-create` へ委譲)。
+- **cwd 前提**: lint・同梱スクリプト起動は repo-root cwd 前提。skill 資産は self-relative / `$CLAUDE_PLUGIN_ROOT` で参照し、具体値を直書きしない。
+- **symlink 同期**: `.claude/skills/run-plugin-dev-plan` は symlink 派生。build/更新後に `make sync` を忘れると古い版が動く。
+- **非配布フラグの漂流**: `distributable:false` は単一フラグ。`true` へ変えると配布対象化するため変更時は要注意 (同等の fail-closed 二重ロックが要るなら `validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` への追加を検討)。
+- **scripts 規約**: Python 標準ライブラリのみ (.sh/.js 新規禁止・scripts 内 `yaml` import 禁止)。
+- **全書き換え禁止**: `--mode update` は Edit 差分のみ。
+- **Goodhart 回避**: harness 現状未達の実数値を仕様書へ焼かない (「≥80% を満たす設計」を要件化する)。
+- **criteria を品質ゲートの言い換えに退化させない (成果物評価の核)**: `feedback_contract.criteria` は当該 spec の goal/checklist 由来の受入条件 (purpose-acceptance) にする。「P0 lint exit0」「elegant-review C1-C4 PASS」のみだと purpose を一度も検証せず**全ゲート PASS だが purpose 未達の空プラグイン**を許す (緑のパラドクス)。`check-spec-frontmatter.py` の purpose-traceability が「goal/checklist 語彙ゼロ参照」を fail-closed で弾く (意味の正否=criterion が purpose を正しく受入検証するかは evaluator の意味判定に残す二層分離)。skeleton 生成器 (`specfm.minimal_frontmatter`) も purpose 由来雛形を吐くので、実 spec では domain purpose へ置換する。
+- **上流 (skill-creator) ドリフトの検知方針 (DEF-1/DEF-1b)**: 43 行マトリクスが引用する skill-creator 規律の鮮度は、**実ドリフト検知**で担保する — skill 増減=`test_completeness_proof_enumerates_all_skill_creator_skills`・引用 rule-ID 実在=`test_matrix_rows_cite_real_rubric_rule_ids`・`plugins/` 引用パス存在=`test_matrix_rows_cite_existing_plugin_paths` の 3 機械辺が、上流の改名/移動/skill 増減を CI 時点で fail させる。**カレンダー (last-audited から N 日) ベースの freshness ゲートは敢えて設けない** (コード無変更で CI が時限崩壊する time-bomb・アンチパターンゆえ)。実ドリフト検知はカレンダー期限より強い信号 (実際に変わった瞬間に発火) で、これが calendar-WARN を代替する。意味ラベルの faithfulness・しきい値値・既存 skill 内部の規律変化のみ `audit-trigger: quarterly` の人手再監査 + 独立 SubAgent 二段確認に委ねる (機械化は Goodhart)。正本 `references/skill-creator-spec-reflection.md` §14.1「機械保証の射程」。
+- **hook の責務境界**: `hooks/hook-validate-plugin-plan.py` は同梱 `examples/sample-plan` (生きた手本) の drift 検出器であり、`eval-log` 配下に生成される**実 plan の製品ゲートではない**。実生成 plan の 4 条件検証は `assign-plugin-plan-evaluator` (context:fork) が担う (proposer≠approver)。hook へ製品検証を背負わせない。
+- **自己検証の CI 配線 (dogfooding)**: 本 plugin の tests (`skills/run-plugin-dev-plan/tests`) は `creator-kit-ci.yml` の per-plugin pytest で、conformance lint は `governance-check.yml` の plugin-dev-planner block で CI 実走する (`tests/test_ci_integration.py` が配線存在を機械固定)。**PR 前提条件**: 両 skill の content-review verdict (`eval-log/plugin-dev-planner/<skill>/content-review/{elegance,rubric}-verdict.json`) を `run-elegant-review` + `assign-skill-design-evaluator` で genuine 生成すること (`lint-content-review.py --all` が fail-closed・SHA 手書換は偽装ゆえ禁止)。
+
+## 配置先
+
+| 用途 | 出力先 |
+|---|---|
+| 本スキル資産 | `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/` |
+| 計画成果物 (タスク仕様書 + index + inventory) | 既定 **`eval-log/plugin-dev-planner/<plugin-slug>/`** (repo-root/`$CLAUDE_PROJECT_DIR` 相対)。`<plugin-slug>` は R1 が `goal-spec.target_plugin_slug` に固定し全周回で不変。`--out-dir <path>` で上書き。解決の正本 = `specfm.plan_output_dir()` / 規約は `references/io-contract.md` §9 |
+| goal-seek 作業領域 | `<PLAN_DIR>/goal-spec.json` / `<PLAN_DIR>/run-plugin-dev-plan-{progress.json,intermediate.jsonl}` / `<PLAN_DIR>/handoff-run-plugin-dev-plan.json` / `<PLAN_DIR>/plan-findings.json`。plugin ごとに同一ディレクトリへ閉じ込め、global `eval-log/` 直下へ散らさない |
+
+`.claude/skills/run-plugin-dev-plan` は symlink 派生。build/更新後は `make sync` で `.claude/` へ展開する。
+
+## 追加リソース
+
+- `references/component-domain.md` — 5 構成要素定義 + 用語集 + 4 層分離 (§4/§12)
+- `references/phase-lifecycle.md` — 13→8 フェーズ読替表と 8 フェーズ定義 (§7/§8)
+- `references/io-contract.md` — 入出力契約と検証接続 / evidence (§9/§10)
+- `references/plugin-creator-contract.md` — `.claude-plugin/plugin.json` / marketplace / cachebuster / validation 契約
+- `references/purpose-driven-requirements.md` — 目的ドリブン要件定義 (§13)
+- `references/skill-creator-spec-reflection.md` — skill-creator 仕様 反映マトリクス全 43 行 (§14)
+- `references/resource-map.yaml` — task category → 参照 references
+- `examples/sample-plan/` — **ゴールデン出力の実例** (構想「notion-task-sync」を 5 構成要素=skill/sub-agent/slash-command/hook/script へ分解した index.md + 各 spec + component-inventory.json + handoff-run-plugin-dev-plan.json + envelope-draft/plugin.json)。同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を全 exit0 で通る生きた手本。R3 生成時の形状参照・新規利用者の到達点確認に使う (`tests/test_examples_golden.py` が回帰固定)
+- `scripts/` — 検証 9 本 (`check-plugin-goal-spec` / `verify-index-topsort` / `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage` / `check-surface-inventory` / `check-build-handoff` / `check-plugin-surface-audit`) + skeleton renderer (`render-spec-skeleton`) + 共有 SSOT `specfm.py`。`tests/` に機能テスト (行カバレッジ ≥80%)

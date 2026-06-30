@@ -164,6 +164,10 @@ PENDING_RENAME_PATHS = {
     # lint-feedback-contract.py / lint-content-review.py から import される共有 module の
     # ため Python import 上ハイフン不可 (§4.3 恒久例外)。
     "scripts/feedback_contract_ssot.py",
+    # repo 全域テスト探索の単一 SSOT モジュール (elegant-review 2026-06-30 / LS-F1)。
+    # lint-test-discovery-coverage.py と tests/test_lint_test_discovery_coverage.py から
+    # `import discover_repo_tests` される共有 module のため Python import 上ハイフン不可 (§4.3 恒久例外)。
+    "scripts/discover_repo_tests.py",
     # 上記正本の vendored 実体コピー (skill-creator 単独 install 用)。runtime hook /
     # build-time validator が plugin 内で import するため、正本と byte 完全一致を要件とし
     # underscore 名のまま固定する (リネームすると import 名が変わり byte 一致が崩れる)。

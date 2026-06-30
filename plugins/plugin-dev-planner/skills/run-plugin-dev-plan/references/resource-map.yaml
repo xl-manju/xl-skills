@@ -1,0 +1,69 @@
+# resource-map: task category -> 読むべき references。
+# context 予算を守るため、フェーズ/責務に応じて必要な reference のみ open する
+# (一括ロード禁止)。本ファイルは references/ が 3 ファイル以上のとき必須 (P1-2)。
+version: 1
+
+task_categories:
+  R1-elicit-goal:
+    description: 構想から goal-spec を固める (目的ドリブン要件定義)
+    read:
+      - references/purpose-driven-requirements.md
+      - references/plugin-creator-contract.md
+      - prompts/R1-elicit-goal.md
+  R2-decompose-components:
+    description: 5 buildable 構成要素 + plugin-level surfaces へ単一責務分解し本数 N を導出
+    read:
+      - references/component-domain.md
+      - references/phase-lifecycle.md
+      - ../../agents/plugin-dev-plan-architect.md
+      - prompts/R2-decompose-components.md
+  R3-emit-specs:
+    description: per-component タスク仕様書 + index を生成し評価基準を携帯させる
+    read:
+      - references/io-contract.md
+      - references/plugin-creator-contract.md
+      - references/skill-creator-spec-reflection.md
+      - prompts/R3-emit-specs.md
+  R4-verify-traceability:
+    description: skill-creator 仕様反映と 4 条件・unassigned 0 件を検証
+    read:
+      - references/skill-creator-spec-reflection.md
+      - references/io-contract.md
+      - references/plugin-creator-contract.md
+      - ../../agents/plugin-dev-plan-evaluator.md
+      - prompts/R4-verify-traceability.md
+
+deterministic_checks:
+  - scripts/verify-index-topsort.py   # C4: index top-sort 全列挙・循環なし
+  - scripts/check-plugin-goal-spec.py # R1: plugin-goal-spec + target_plugin_slug/plan_dir/force_13 アンカー
+  - scripts/detect-unassigned.py      # C2/C4: buildable component の未配置 0 件 + 必須セクション
+  - scripts/check-spec-frontmatter.py # C2/C3: component_kind 別構造 + criteria/harness 携帯
+  - scripts/check-spec-gates.py       # C2/C3: quality_gates / plugin_meta 値域検証
+  - scripts/check-spec-matrix-coverage.py # C3: 43 行 skill-creator 仕様反映 (self-test + PLAN の 2 invocations)
+  - scripts/check-surface-inventory.py # C2: 5 component_kind 検討証跡 + plugin-level surface 採否
+  - scripts/check-build-handoff.py    # C4/C5: L3→L4 build routing / builder / envelope gap 検証
+  - scripts/check-plugin-surface-audit.py # 現物 plugins/ 配下の skill/agent/command/hook/script/test 等 surface 横断棚卸し
+  - scripts/render-spec-skeleton.py   # specfm 正本から最小 skeleton を生成
+
+plugin_surfaces:
+  skills:
+    - ../../skills/run-plugin-dev-plan/SKILL.md
+    - ../../skills/assign-plugin-plan-evaluator/SKILL.md
+  agents:
+    - ../../agents/plugin-dev-plan-elicitor.md
+    - ../../agents/plugin-dev-plan-architect.md
+    - ../../agents/plugin-dev-plan-evaluator.md
+  commands:
+    - ../../commands/plugin-dev-plan.md
+  hooks:
+    - ../../hooks/hook-validate-plugin-plan.py
+  harness:
+    - ../../EVALS.json
+  composition:
+    - ../../plugin-composition.yaml
+  examples:
+    - examples/sample-plan/component-inventory.json
+    - examples/sample-plan/index.md
+    - examples/sample-plan/handoff-run-plugin-dev-plan.json
+
+goal_seek_paradigm: ../../../skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md

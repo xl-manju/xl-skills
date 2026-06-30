@@ -119,6 +119,12 @@ fi
 # 見逃す自己強化ループに陥るため hard 配線で再発を機械遮断する (F4/F5)。
 run "validate-plugin-completeness (MK/BD)" python3 scripts/validate-plugin-completeness.py
 
+# ── test discovery coverage (全 test が CI 実行で到達するか) ──
+# elegant-review 2026-06-30 (LS-F1/SS-02/SS-05): tests/・plugins/ 以外 (scripts/・doc/・
+# repo-root 直下) に置いた test は CI の探索 2 機構の境界外で無言未実行になりうる。
+# 実 test 集合 ⊆ CI 到達集合 を fail-closed 検査し silent-skip を loud failure 化する。
+run "lint-test-discovery-coverage"         python3 scripts/lint-test-discovery-coverage.py
+
 # ── サマリ ──
 echo
 echo "========================================"
