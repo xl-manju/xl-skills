@@ -1,0 +1,116 @@
+{
+  "version": "0.1.0",
+  "owner": "team-platform",
+  "purpose": "Map deterministic plan gates and the two semantic checks to the four evaluator conditions.",
+  "conditions": {
+    "C1": {
+      "id": "no_contradiction",
+      "label": "矛盾なし",
+      "pass_when": [
+        "check-build-handoff exits 0",
+        "semantic_contract_conflict_count is 0"
+      ]
+    },
+    "C2": {
+      "id": "no_missing",
+      "label": "漏れなし",
+      "pass_when": [
+        "detect-unassigned exits 0",
+        "check-spec-frontmatter exits 0",
+        "check-spec-gates exits 0",
+        "check-surface-inventory exits 0",
+        "semantic_surface_omission_count is 0"
+      ]
+    },
+    "C3": {
+      "id": "consistent",
+      "label": "整合性あり",
+      "pass_when": [
+        "check-spec-frontmatter exits 0",
+        "check-spec-gates exits 0",
+        "check-spec-matrix-coverage --self-test exits 0",
+        "check-spec-matrix-coverage PLAN exits 0"
+      ]
+    },
+    "C4": {
+      "id": "dependency_integrity",
+      "label": "依存関係整合",
+      "pass_when": [
+        "verify-index-topsort exits 0",
+        "detect-unassigned exits 0",
+        "check-build-handoff exits 0"
+      ]
+    }
+  },
+  "deterministic_gates": [
+    {
+      "id": "G1",
+      "name": "verify-index-topsort",
+      "conditions": ["C4"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G2",
+      "name": "detect-unassigned",
+      "conditions": ["C2", "C4"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G3",
+      "name": "check-spec-frontmatter",
+      "conditions": ["C2", "C3"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G4",
+      "name": "check-spec-gates",
+      "conditions": ["C2", "C3"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G5",
+      "name": "check-spec-matrix-coverage-self-test",
+      "conditions": ["C3"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G6",
+      "name": "check-spec-matrix-coverage-plan",
+      "conditions": ["C3"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G7",
+      "name": "check-surface-inventory",
+      "conditions": ["C2"],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G8",
+      "name": "check-build-handoff",
+      "conditions": ["C1", "C4"],
+      "severity_on_fail": "high"
+    }
+  ],
+  "semantic_checks": [
+    {
+      "id": "S1",
+      "name": "contract-conflict",
+      "conditions": ["C1"],
+      "severity_on_fail": "high",
+      "source": "handoff route builder and plugin_meta contract meaning"
+    },
+    {
+      "id": "S2",
+      "name": "plugin-level-surface-coverage",
+      "conditions": ["C2"],
+      "severity_on_fail": "high",
+      "source": "component-inventory.plugin_level_surfaces"
+    }
+  ],
+  "global_thresholds": {
+    "high_max": 0,
+    "medium_max": 2,
+    "all_deterministic_gates_exit0": true
+  }
+}
