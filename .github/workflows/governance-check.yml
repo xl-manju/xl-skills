@@ -147,6 +147,26 @@ jobs:
       - name: skill-intake lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-intake/skills
         continue-on-error: false
+      # ── plugin-dev-planner conformance (skill-creator 仕様準拠・dogfooding) ──
+      # NOTE: plugin-dev-planner は distributable:false (marketplace 非配布 = 層 A-internal) で
+      #   lint-plugin-lint-coverage.py の required 集合 (marketplace 起点) には入らないが、
+      #   自分が生成 plan へ課す skill-creator 規律を自分自身へも適用する dogfooding として
+      #   conformance lint を明示配線する (配布除外と品質検査は独立した関心事)。
+      - name: plugin-dev-planner validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/plugin-dev-planner/skills
+        continue-on-error: false
+      - name: plugin-dev-planner lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/plugin-dev-planner/skills
+        continue-on-error: false
+      - name: plugin-dev-planner lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/plugin-dev-planner/skills
+        continue-on-error: false
+      - name: plugin-dev-planner lint skill completeness (kind別必須サポート資産)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/plugin-dev-planner/skills
+        continue-on-error: false
+      - name: plugin-dev-planner live surface audit (skills/agents/commands/hooks/scripts/tests)
+        run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner
+        continue-on-error: false
       # ── plugin lint 被覆メタ検査 (新 plugin 追加時の配線忘れを fail-closed 検出) ──
       - name: lint plugin lint coverage (marketplace 全 plugin の lint 被覆保証)
         run: python3 scripts/lint-plugin-lint-coverage.py

@@ -164,6 +164,10 @@ PENDING_RENAME_PATHS = {
     # lint-feedback-contract.py / lint-content-review.py から import される共有 module の
     # ため Python import 上ハイフン不可 (§4.3 恒久例外)。
     "scripts/feedback_contract_ssot.py",
+    # repo 全域テスト探索の単一 SSOT モジュール (elegant-review 2026-06-30 / LS-F1)。
+    # lint-test-discovery-coverage.py と tests/test_lint_test_discovery_coverage.py から
+    # `import discover_repo_tests` される共有 module のため Python import 上ハイフン不可 (§4.3 恒久例外)。
+    "scripts/discover_repo_tests.py",
     # 上記正本の vendored 実体コピー (skill-creator 単独 install 用)。runtime hook /
     # build-time validator が plugin 内で import するため、正本と byte 完全一致を要件とし
     # underscore 名のまま固定する (リネームすると import 名が変わり byte 一致が崩れる)。
@@ -230,6 +234,27 @@ PENDING_RENAME_PATHS = {
     "plugins/notion-gmail-send/skills/run-notion-gmail-send/scripts/send-campaign.py",
     "plugins/notion-gmail-send/skills/run-notion-gmail-send/scripts/verify-plan.py",
     "plugins/notion-gmail-send/skills/run-notion-gmail-sendlog-setup/scripts/setup-send-log-db.py",
+    # plugin-dev-planner 初回投入: §4.3 (kebab-case) は満たすが verb が ALLOWED_VERBS 外。
+    # check (構造/ゲート検証) / verify (top-sort 検証) / evaluate (plan 評価) / detect (未配置検出) は
+    # 許可動詞 (validate/lint 等) に機械置換すると SKILL.md(script_refs)/prompts/manifest/test/CI
+    # (governance-check.yml・build-steps.md)/golden examples の参照を一括改名する必要があり、
+    # 参照整合の原子性のため後続 Change Governance PR で同時実施する (mf-kessai / notion-gmail-send /
+    # prompt-creator と同種の「新規 plugin 初回投入時の verb pending」扱い)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-goal-spec.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-frontmatter.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-gates.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-surface-inventory.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
+    "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",
+    # specfm.py: check-spec-*.py / render-spec-skeleton.py / tests が `import specfm` する
+    # kind→必須キーの共有 SSOT module。Python import 上ハイフン不可のため <verb>-<target> 形に
+    # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・
+    # feedback_contract_ssot.py / discover_repo_tests.py と同列)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/specfm.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

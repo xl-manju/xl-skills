@@ -1,0 +1,107 @@
+{
+  "plan_dir": "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
+  "target_plugin_slug": "notion-task-sync",
+  "mode": "create",
+  "requested_count": null,
+  "force_13": false,
+  "derived_count": 5,
+  "routes": [
+    {
+      "id": "C05",
+      "component_kind": "script",
+      "name": "validate-sync-payload.py",
+      "spec": "C05-script.md",
+      "depends_on": [],
+      "builder": "parent-skill-build",
+      "build_kind": "script",
+      "build_args": {
+        "parent_skill": "run-notion-task-sync",
+        "script_path": "scripts/validate-sync-payload.py"
+      },
+      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/validate-sync-payload.py",
+      "status": "planned"
+    },
+    {
+      "id": "C04",
+      "component_kind": "hook",
+      "name": "guard-destructive-sync",
+      "spec": "C04-hook.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "build_args": {
+        "kind": "hook",
+        "name": "guard-destructive-sync"
+      },
+      "build_target": "plugins/notion-task-sync/hooks/guard-destructive-sync.py",
+      "status": "planned"
+    },
+    {
+      "id": "C01",
+      "component_kind": "skill",
+      "name": "run-notion-task-sync",
+      "spec": "C01-skill.md",
+      "depends_on": ["C05"],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-notion-task-sync",
+        "kind": "run"
+      },
+      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/",
+      "status": "planned"
+    },
+    {
+      "id": "C02",
+      "component_kind": "sub-agent",
+      "name": "notion-sync-verifier",
+      "spec": "C02-subagent.md",
+      "depends_on": ["C01"],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "notion-sync-verifier"
+      },
+      "build_target": "plugins/notion-task-sync/agents/notion-sync-verifier.md",
+      "status": "planned"
+    },
+    {
+      "id": "C03",
+      "component_kind": "slash-command",
+      "name": "sync-tasks",
+      "spec": "C03-command.md",
+      "depends_on": ["C01"],
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "build_args": {
+        "kind": "command",
+        "name": "sync-tasks"
+      },
+      "build_target": "plugins/notion-task-sync/commands/sync-tasks.md",
+      "status": "planned"
+    }
+  ],
+  "envelope": {
+    "manifest": {
+      "owner": "plugin-scaffold",
+      "status": "external_gap",
+      "build_target": "plugins/notion-task-sync/.claude-plugin/plugin.json",
+      "draft_path": "envelope-draft/plugin.json",
+      "gap_reason": "manifest scaffold executor は現時点で本 planner の外部。後段 run-plugin-dev-build または scaffold skill が消費する"
+    },
+    "marketplace": {
+      "owner": "plugin-scaffold",
+      "status": "manual-user-gated",
+      "build_target": ".claude-plugin/marketplace.json",
+      "approval_reason": "配布登録はユーザー承認後に実行する"
+    }
+  },
+  "open_issues": [
+    {
+      "id": "GAP-ENVELOPE-001",
+      "severity": "medium",
+      "text": "plugin envelope executor is external to run-plugin-dev-plan"
+    }
+  ]
+}

@@ -1,9 +1,14 @@
 # ハーネス・カバレッジ仕様 (Harness Coverage Spec)
 
-> ステータス (2026-06-24, `make harness-coverage` が唯一の現状値正本): 全12軸 (6種別×2軸) 計測済 + gate 配線済。
-> **達成 12/12 軸 — 総合 `spec_met=true` (ハーネス仕様 充足)**。
-> 本 doc の数値は更新時にずれ得るため、確定値は常に `python3 scripts/validate-harness-coverage.py` を正とする。
+> ステータス (2026-06-30 更新, `make harness-coverage` が唯一の現状値正本): 全12軸 (6種別×2軸) 計測済。
+> coverage gate は CI に **WARN (非ブロック) で配線済** (creator-kit-ci.yml; 既存債務 backfill 後に blocking 化する ratchet)。
+> **総合 `spec_met=false` (未達軸あり)**。達成軸数・未達内訳は drift するため本 doc に数値を焼かず、
+> 確定値は常に `python3 scripts/validate-harness-coverage.py` (= `make harness-coverage`) の出力を唯一の正とする。
 > 数値は一切水増ししない (未計測=未計測、低カバレッジ=低カバレッジで報告 / Goodhart 回避)。全て genuine な実テスト/実レビューで到達。
+>
+> 注 (elegant-review 2026-06-30 / MD-03): 旧 header は「達成 12/12・spec_met=true・gate 配線済」と
+> 断定していたが、body (§6/§8) の FAIL 記述および実 CI に gate 未配線だった事実と矛盾していた。
+> header を機械出力 SSOT へ委譲し断定数値を除去 (status drift の構造的封じ込め)。
 
 ## 1. 仕様 (Requirement)
 

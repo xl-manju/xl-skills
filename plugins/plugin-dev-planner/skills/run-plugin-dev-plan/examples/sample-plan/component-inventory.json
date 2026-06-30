@@ -1,0 +1,22 @@
+{
+  "plugin_concept": "notion-task-sync — タスク台帳を Notion DB へ冪等同期するプラグイン",
+  "requested_count": null,
+  "force_13": false,
+  "derived_count": 5,
+  "derivation": "capability(同期/検証/手動起動/事故防止/形式検査) を SRP 分割 → 5 構成要素。ユーザーは本数を指定していない (requested_count=null) ため、構成要素数 N=5 から derived_count を導出。13 固定要求があれば requested_count に記録し index 本数根拠へ並記する。",
+  "considered_component_kinds": ["skill", "sub-agent", "slash-command", "hook", "script"],
+  "components": [
+    {"id": "C05", "component_kind": "script",        "name": "validate-sync-payload.py", "depends_on": [], "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/validate-sync-payload.py"},
+    {"id": "C04", "component_kind": "hook",          "name": "guard-destructive-sync",   "depends_on": [], "build_target": "plugins/notion-task-sync/hooks/guard-destructive-sync.py"},
+    {"id": "C01", "component_kind": "skill", "kind": "run", "name": "run-notion-task-sync", "depends_on": ["C05"], "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/"},
+    {"id": "C02", "component_kind": "sub-agent",     "name": "notion-sync-verifier",     "depends_on": ["C01"], "build_target": "plugins/notion-task-sync/agents/notion-sync-verifier.md"},
+    {"id": "C03", "component_kind": "slash-command", "name": "sync-tasks",               "depends_on": ["C01"], "build_target": "plugins/notion-task-sync/commands/sync-tasks.md"}
+  ],
+  "plugin_level_surfaces": {
+    "manifest": {"required": true, "path": ".claude-plugin/plugin.json"},
+    "composition": {"required": true, "path": "plugin-composition.yaml"},
+    "harness_eval": {"required": true, "path": "EVALS.json"},
+    "references_config_assets": {"required": true, "record_in": "index.plugin_meta.ssot_dedup"},
+    "mcp_app_connector": {"required": false, "omitted_reason": "Notion sync は既存 Skill/Bash 経路で扱い MCP/app connector を新設しない"}
+  }
+}

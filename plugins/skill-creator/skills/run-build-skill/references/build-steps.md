@@ -92,6 +92,34 @@ score >= 80 かつ high=0 で完了。
   3. 人間が PR diff で最終承認する（機械は登録漏れを必ず塞ぎ、表示文言の磨き込みは人間が担う二層分離）。
   - 検出層: CI/pre-push の `validate-plugin-completeness.py`（MK-001/002/003・BD-001）が
     登録漏れを fail-closed で止める最後の砦。`--fix` を忘れても CI で必ず検出される。
+- **plugin 全体 plan / 複数 surface を扱う場合**は、`plugin-dev-planner` の現物 surface 監査を
+  Python gate として実行する。これは `skills/` だけでなく `agents/` / `commands/` /
+  `hooks/` / `scripts/` / `tests/` / `references/` / `config/` / `assets/` /
+  `schemas/` / `vendor/` / MCP/app connector / `EVALS.json` /
+  `plugin-composition.yaml` / `.claude-plugin/plugin.json` を横断棚卸しし、skill-creator が
+  surface を取りこぼしていないかを機械的に確認する。report には `ownership`
+  (owned/symlink) も出るため、共有 surface と実所有 surface を分けて判断できる。
+  ```bash
+  python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py \
+    --plugins-dir plugins \
+    --strict-manifest \
+    --expect-plan-ready <plugin-name>
+  ```
+  `--expect-plan-ready` は plugin-dev-planner のように全 surface を dogfood すべき plugin に使う。
+  一般 plugin ではまず JSON/summary を確認し、不要 surface は plan の
+  `plugin_level_surfaces.<surface>.omitted_reason` または handoff の `envelope` に理由を残す。
+- **新規 skill / agent / command を追加・改名したとき**は `.claude/` への symlink 展開が必須
+  （`.claude/{skills,agents,commands}/<name>` は symlink 派生。SKILL.md「build 完了契約」§ と対）。
+  これを怠ると Claude Code が新規 surface を認識せず `/<command>` や SubAgent 起動が unresolved になる
+  （手動 `ln -s` 1 本のみで `make sync` を飛ばすと残り surface が欠落する drift が実際に発生）。
+  手順:
+  1. `bash scripts/sync-skills-to-claude.sh --apply`（`make sync` 可。唯一の生成器
+     `scripts/build-claude-symlinks.py` を冪等呼出）を実行し、新規 skill/agent/command を
+     `.claude/{skills,agents,commands}/` へ symlink 展開する。**手動 `ln -s` 禁止**（SSOT 生成器のみが正本経路）。
+  2. `.claude/{skills,agents,commands}` は tracked のため生成 symlink を `git add` する（未追跡だと CI が赤のまま）。
+  3. build 工程内に別途 symlink 生成を再実装しない（生成器が SSOT・34章 §symlink 戦略）。
+  - 検出層: CI/pre-push の `build-claude-symlinks.py --check`（orphan/broken/欠落 を fail-closed 検出）。
+    `--apply` を忘れても CI で必ず検出される。
 
 ## Goodhart 罠回避
 
