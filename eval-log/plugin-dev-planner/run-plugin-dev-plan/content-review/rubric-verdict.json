@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "plugin-dev-planner",
+    "skill": "run-plugin-dev-plan",
+    "skill_md_sha256": "4952a5294642b1f437e369682d69048b7e10973d0975187e95b1375a328c08c1"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-06-30T13:55:36Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "SRP が範例的: 責務=「構想→N component spec + index への目的ドリブン分解」に限定し、境界節で実 build(run-skill-create)・配布登録・実コード生成を明示除外。L0-L4 の 4 層分離(component-domain §4)が crisp で、R4 評価ロジックを別 skill assign-plugin-plan-evaluator(kind=assign・user-invocable:false) へ昇格し proposer≠approver を skill 分離で構造保証している(R1-evaluate.md 実在確認)。",
+      "再現性機構がリポジトリ屈指の堅牢さ: 11 scripts の決定論ゲートが golden example(examples/sample-plan)で全 exit0(本レビューで実走)、241 tests を CI cwd(plugin root)から緑確認、check-spec-matrix-coverage --self-test が 43 行 drift 検出、goal-seek 中間成果物アンカー(intermediate.jsonl + original_goal SHA256 照合)で改竄検知。frontmatter=specfm(SSOT)で形状凍結、本文=床付き自由記述という『形状と手順の直交』の解が明快。",
+      "frontmatter 完全性が高い: responsibility_refs/script_refs/reference_refs/agent_refs/command_refs/hook_refs/harness_refs/schema_refs を全列挙し全件 dangling 0、goal_seek ブロック・feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer)・completeness_exempt を rationale 付きで宣言。Goodhart 回避(harness 現状値非焼込)を主要ルール6 + Gotchas に明文化。",
+      "skill-creator 量産規律の伝播が監査可能: skill-creator-spec-reflection.md が全 43 行を 1:1 収録し、さらに skill-creator 全 31 skill(実体28+symlink3)を {反映済/含意済/意図的除外+理由} で列挙して完全性を証明(循環論法を解消)。DROP(UBM固有=IPC/Cloudflare/スクショ/PR)と transform(TDD/カバレッジ精神)を phase-lifecycle §7 で正本化し『単語置換でない目的ドリブン』を担保。機械保証の射程(列挙/ID/参照先 vs 意味ラベルは四半期監査)を over-claim せず開示。",
+      "envelope owner gap の透明化が誠実: 唯一 builder を持たない plugin envelope(manifest/marketplace)について、契約(plugin_meta 値域宣言)+ 貼れる実体ドラフト(envelope-draft/plugin.json, manual-apply)+ 生成器未整備の構造化 capability-gap 起票、の三段で over-claim せず gap を可視化している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric=ref-skill-design-rubric/references/rubric.json(threshold 80)で kind=skill 適用ルール(FM-001..005/BD-001..004/NM-001..003/PD-001..002)を全 PASS と判定。FM-001..004=frontmatter 必須キー(name/description/kind/version/owner 等)完備。BD-001(## 目的と出力契約)/BD-002(## 注意 (Gotchas))/PD-002 は日本語見出し+禁則語(必ず)で確立済み localization 校正(グローバル指示『出力は全て日本語』と整合・localization gap=low)。BD-003=本文 200 行(≤300)を実測。BD-004=description 発動条件↔本文手順の 1:1 整合(構想→計画生成のトリガと局面カタログ R1-R4 が対応)。NM-001=dir 名 run-plugin-dev-plan == frontmatter.name 一致。横断 kind ルール(AG/HK/CM/PC/PR/WF)は本評価対象が SKILL(kind=skill)のため非適用、KL-* は knowledge_loop 不在ゆえ skip-PASS。非ブロッキングの低位観察(いずれも確立 convention-PASS ゆえ smell 計上せず): (1) FM-005『動詞始まり』は当 repo 慣行『〜とき…使う』trigger-first 体裁・全 sibling skill 共通の確立スタイル。(2) RG-001 rubric_hash は content-review-verdict.schema(additionalProperties:false)が当該キーを持たず本 verdict 形式の対象外(SKILL.md 設計の瑕疵でない)。決定論ゲート実走で IN1(verify-index-topsort/detect-unassigned exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage exit0)を golden で実検証、OUT1(目的ドリブン DROP/transform 分離 + 43 行完全性証明で C1-C4 設計妥当)・OUT2(io-contract §9 が skill-brief base required 14 逐語+allOf 条件付きを写し test_schema_parity で固定)を設計レベルで妥当と確認。high/medium severity 違反 0・推定 score≥97/100 ≥80 で PASS。既存 verdict から変更: skill_md_sha256 を 4952a52 へ更新、本文行数 199→200 訂正、test 実走数 233→241 訂正、reviewed_at 更新。"
+}

@@ -83,9 +83,14 @@ eval-log/notion-conflicts.json
 eval-log/review-queue.jsonl
 # plugin-dev-planner: run-plugin-dev-plan が生成する plan 一式 (goal-spec/progress/intermediate/
 # index/specs/handoff/plan-findings) は plugin 別 scratch 作業領域 (io-contract.md §9: gitignore 対象)。
-# elegant-review の run ログも本ツリー配下に出るため一括除外する。plugin ソースは plugins/ 配下、
-# ゴールデン実例は skills/run-plugin-dev-plan/examples/ 配下で別パス=追跡継続 (衝突なし)。
-eval-log/plugin-dev-planner/
+# elegant-review の run ログ (_plugin/ scratch・<skill>/elegant-review/) も本ツリー配下に出るため除外する。
+# plugin ソースは plugins/ 配下、ゴールデン実例は skills/run-plugin-dev-plan/examples/ 配下で別パス=追跡継続。
+# ただし content-review verdict (eval-log/<plugin>/<skill>/content-review/) は lint-content-review.py --all が
+# CI で要求する成果物のため追跡を継続する (skill-intake と同じ ignore-all → content-review 再include 方式)。
+eval-log/plugin-dev-planner/**
+!eval-log/plugin-dev-planner/*/
+!eval-log/plugin-dev-planner/*/content-review/
+!eval-log/plugin-dev-planner/*/content-review/**
 
 # Plugin-local runtime
 plugins/skill-intake/output/
