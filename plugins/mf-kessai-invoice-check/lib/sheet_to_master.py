@@ -257,12 +257,16 @@ def to_date(raw):
 
 
 def _end_yymm(row: dict, content: str):
-    """契約終了月 (YYMM) を 契約終了月列 → 確認内容『（YYMM終了）』の順で拾う。無ければ None。"""
+    """契約終了月 (YYMM) は明示列だけを採用する。無ければ None。
+
+    確認内容の自由文にある『（2605終了）』等は、請求メモ・明細単位の終了・Slack 転記を含み、
+    正式な契約終了情報とは限らない。ここから契約終了月を推定すると、根拠のない終了扱いで
+    請求漏れを隠すため採用しない。
+    """
     col = (row.get("契約終了月") or "").strip()
     if re.fullmatch(r"\d{4}", col):
         return col
-    m = re.search(r"[（(](\d{4})\s*終了[)）]", content or "")
-    return m.group(1) if m else None
+    return None
 
 
 def _status(cycle, end_yymm, content: str, target_ym: str) -> str:

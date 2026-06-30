@@ -25,7 +25,7 @@ def _b(cid, amount, status="invoice_issued"):
 
 
 def test_gap_candidates():
-    """前月発行・今月未発行が発行漏れ候補になる。"""
+    """前月取引あり・今月取引なしが発行漏れ候補になる。"""
     r = detect_gaps([_b("A", 100), _b("B", 200)], [_b("A", 100)])
     assert r["gap_candidates"] == ["B"]
     assert r["continuing"] == ["A"]

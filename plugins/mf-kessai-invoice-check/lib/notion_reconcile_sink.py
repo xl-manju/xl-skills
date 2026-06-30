@@ -111,7 +111,18 @@ def query_month(db2_id, target_ym, token, req=None):
         }
         if cursor:
             body["start_cursor"] = cursor
-        res = req("POST", f"/databases/{db2_id}/query", token, body)
+        try:
+            res = req("POST", f"/databases/{db2_id}/query", token, body)
+        except RuntimeError as e:
+            # 対象年月 select に target_ym option が未作成 (その月を初めて処理する初回) の場合、
+            # Notion は select フィルタで存在しない option を validation_error(HTTP 400) にする。
+            # その月の DB2 行はまだ存在しない (既存ゼロ) ので空を返す。最初の行を POST する際に
+            # option が自動作成され、以降の query は通る。対象年月以外の 400 は握りつぶさず再送出。
+            msg = str(e)
+            if ("HTTP 400" in msg and "select option" in msg
+                    and "not found" in msg and PROP_TARGET_YM in msg):
+                return []
+            raise
         for page in res.get("results", []):
             pid = page.get("id")
             if pid and pid not in out:  # page_id dedup

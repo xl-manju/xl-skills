@@ -33,7 +33,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
   criteria:
     - id: IN1
       loop_scope: inner
-      text: 発行漏れ候補が「前月発行−今月発行」の差集合として issue_date 帰属で正しく算出され、月またぎ発行(例 5月取引→6月発行)も誤判定しないことを pytest(test_invoice_diff の detect_gaps)で機械検証できる。
+      text: 発行漏れ候補が「前月取引−今月取引」の差集合として transaction.date 帰属で正しく算出され、月またぎ発行(例 6月取引→7月発行)も誤判定しないことを pytest で機械検証できる。
       verify_by: test
     - id: IN2
       loop_scope: inner
@@ -49,7 +49,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Purpose & Output Contract
 
-前月発行・今月未発行の取引先（発行漏れ候補）を MF掛け払い API から差集合で洗い出し、商品名・前月/今月金額・取引先企業名を突合して Notion DB に冪等 upsert し、画面にも要確認リストを表示する。upsert キーは顧客ID単独で 1 顧客=1 ページ。既存顧客は月が変わっても同じページを更新し、未登録顧客だけ新規ページを作成する（月ごとの重複ページは作らない）。月次履歴は各顧客ページ本文の table block に蓄積する。候補0件の月も全チェック対象顧客の行が table に残り確認済み月を記録する。
+前月取引・今月取引の取引先（発行漏れ候補）を MF掛け払い API から差集合で洗い出し、商品名・前月/今月金額・取引先企業名を突合して Notion DB に冪等 upsert し、画面にも要確認リストを表示する。月帰属は `transaction.date` (取引日・月末締め) 基準で、発行日が翌月月初でも対象月の請求として扱う。upsert キーは顧客ID単独で 1 顧客=1 ページ。既存顧客は月が変わっても同じページを更新し、未登録顧客だけ新規ページを作成する（月ごとの重複ページは作らない）。月次履歴は各顧客ページ本文の table block に蓄積する。候補0件の月も全チェック対象顧客の行が table に残り確認済み月を記録する。
 
 **入力**: `month`（任意。既定は実行日の年月を「今月」とし、比較する前月はその1つ前を自動算出。例: 2026年6月中は 対象年月=2026-06、今月金額=2026-06、前月金額=2026-05）。過去月の範囲一括投入は `--backfill --from YYYY-MM --to YYYY-MM` (両端含む・月昇順、`--month` と排他)
 **出力**: 発行漏れ候補が Notion DB に反映 (1 顧客=1 ページ) + 各顧客ページ本文の月次履歴 table に当月行を upsert + 画面に要確認リスト。
@@ -72,7 +72,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 ## ゴールシーク実行
 
 ### ゴール (Goal)
-前月発行−今月発行の差集合（発行漏れ候補）が商品名/金額/取引先企業名つきで Notion DB に冪等 upsert され、独立 context の subagent で誤検出を排除した要確認リストが画面に提示された状態。
+前月取引−今月取引の差集合（発行漏れ候補）が商品名/金額/取引先企業名つきで Notion DB に冪等 upsert され、独立 context の subagent で誤検出を排除した要確認リストが画面に提示された状態。
 
 ### 目的・背景 (Why)
 発行漏れの早期発見。チェック漏れは取引先との信頼低下に直結するため、月次で機械的に差集合を洗い出す。契約終了等の除外は API で判別できないため人が請求要否列で管理し、機械では消さない。誤検出を防ぐため候補は独立 context で二段確認する。
@@ -122,7 +122,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 1. `database_id` 未設定なら `run-mf-invoice-db-setup` を先に実行。
 2. MF APIキーと Notion トークンは別 Keychain entry。
 3. `updated_at` は無いので更新日は `created_at` で代替。
-4. 月をまたぐ発行（5月取引→6月発行）があるため判定軸は必ず `issue_date`。
+4. 月をまたぐ発行（6月取引→7月発行）があるため、判定軸は必ず `transaction.date`。`issue_date` は取得窓として対象月初〜翌月末を over-fetch するために使う。
 5. 過去月の見方・要対応ビューの作り方は README『過去月の状態を確認する』節を参照。月次履歴は各顧客ページを開き本文 table block (対象年月/今月の発行状況/前月金額/今月金額/確認済み日時) で確認。DB は顧客一覧 (最新月スナップショット) として使う。
 6. 過去月の範囲一括投入 (backfill) は `--backfill --from YYYY-MM --to YYYY-MM` で範囲 (両端含む) を月昇順に collect→sink で回す。複数月を自動で回すため対話 verify は挟めず `--month` の単月フローとは排他。既定では未検証の `発行漏れ候補` は投入せず、継続発行/今月新規のみ履歴化する。発行漏れ候補まで履歴 table に残す必要がある場合だけ `--force-unverified` を明示する。
 7. **全体トータル/件数は持たない設計**。集計は Notion DB ビューのフィルタ件数 (例: `今月の発行状況 = 発行漏れ候補` で絞った行数) で代替し、サマリ列を手動で足さない。`--sink` は upsert 後に live DB を read-only GET して旧サマリ列・余剰列の残存を検知し、残っていれば stderr で `/run-mf-invoice-db-setup` 再実行を誘導する (検知のみ・列削除はしない=参照専用維持)。旧サマリ列や `全体トータル` 列が残っていたら db-setup を再実行して掃除する。月次フローは参照専用(検知のみ・列削除しない)を中核保証とし、列削除は db-setup の責務に集約する(責務分離。月次が勝手に列を消すと人が意図的に足した列の破壊や参照専用保証の崩壊を招く)。deprecated 登録の既知集計列(全体トータル等)は db-setup で自動削除/verify で FAIL。whitelist に無い新名の集計列(総計/月次サマリ等)は『集計列の疑い』として検知され画面/verify で掃除誘導される(削除はしない)。

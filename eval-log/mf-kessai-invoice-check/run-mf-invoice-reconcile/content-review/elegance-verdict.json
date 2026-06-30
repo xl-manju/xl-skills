@@ -1,35 +1,10 @@
 {
-  "target": {
-    "plugin": "mf-kessai-invoice-check",
-    "skill": "run-mf-invoice-reconcile",
-    "skill_md_sha256": "cf9454d75d691e53ecd371a23781803ba0b6397c719caa009cac73abaa28d607"
-  },
-  "review_kind": "elegance",
-  "verdict": "PASS",
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-06-27",
-  "iterations": 2,
-  "human_review_required": false,
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
-  "feedback_loop": {
-    "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "IN1(双方向照合)は実装と test で genuine に裏付く。reconcile()(lib/mfk_reconcile.py:952)が順方向 classify()(:767)+逆方向 detect_orphans()(:913)を返し、orchestrator(scripts/reconcile_invoices.py:378-384)が順方向=当月 contracts(query_sheet_rows に target_ym)・orphan=全月 contracts_all(target_ym 無しで全件 query→build_contracts)を構造的に分離して result['orphans'] を上書きする。presence-based の数量差降格 quantity_downgrade()(:860)は MATCH_MONTHLY を保ったまま REVIEW_QTY_MISMATCH へ倒し(集約請求は _aggregated_billing で降格除外)、名寄せは find_mf_match()(:518)単一入口・取引先境界 _boundary_customers()(:474)で供給分割。年間前払い抑制は _classify_annual()(:722)/_classify_annual_renewal()(:748)が SUPPRESS_ANNUAL を emit。新記述 MATCH_ENDED_FINAL(契約終了月+1の最終請求を過剰請求にしない)は classify():800-811 が emit、REVIEW_PENDING(保留契約)は classify():790-794 が emit する。test_mfk_reconcile.py を含む対象5ファイル 118 passed/0 failed で当該分岐が機械検証されている。",
-      "IN2(判定語彙SSOT parity + 履歴非破壊)は実体担保。verdict-mapping.json を唯一の SSOT とし judge_label()/check_verdicts()/sheet_label()/action_hint()(lib/mfk_reconcile.py:135-176)が派生(ハードコードなし)。parity は双方向で test_verdict_mapping_parity.py:31 test_engine_emits_only_mapped_verdicts(emit ⊆ mappings)+ :42 test_mapping_has_no_dead_spec_verdicts(dead-spec 0=実質 emit==mappings)が静的抽出で fail-fast 検証し両方 PASS。新記述の action_hint SSOT は verdict-mapping.json の各 mapping に action_hint 欄が実在し、test_action_hint_present_for_actionable_verdicts(:112)で発行漏れ/要確認/要マスタ登録は非空・AIの確認OK/対象外は空を機械検証。判定 select options の SSOT 整合は test_monthly_schema_judge_options_match_mapping(:124)が DB2 schema options(16)==mapping distinct judge_label(16)を検証し PASS。履歴非破壊は notion_reconcile_sink.upsert_monthly()(:191)が query_month()(:97)で 対象年月==target のみ取得(過去月は構造的に query 対象外)、人間対応済み==true を frozen skip(:219-222)、_build_props(creating=False)(:125)が title と人間対応済み列に触れない。test_notion_reconcile_sink.py が当該不変条件を検証(118 passed に含む)。",
-      "OUT1(ユーザ目的の反映と責務分割)は過不足なし。入力=請求確認シートのみで DB1/DB2 は自動移管(sheet_to_master.build_contracts()/infer_cycle()(:189-232)が支払サイクルを自動推定・ユーザー非入力)。MF 参照専用は二層(hooks/guard-mfk-readonly.py 実在 + lib に MF 変更系関数を構造的に持たない)。Notion 書込レート間隔は notion_transport._write_gap()(:52)/MFK_NOTION_WRITE_GAP(既定0.34)で実装。新記述 build_reconcile_dbs.py の find-or-create は _ensure_db()(:126-143)が config の id を _resolve()(:90)で実在確認→再利用(_ensure_schema が不足列のみ冪等追加)、欠落時のみ _create()→id 保存で重複作成しない。シート書き戻しの『確認ポイント』列は notion_sheet_writeback.py:PROP_NOTE='確認ポイント'(:30)+ensure_note_property()(:93)+compose_note()(:103)+writeback()(:152)が PATCH。collect→sync-master→reconcile→verify(独立 context subagent)→sink の5段が workflow-manifest.json の step1-5・dependsOn・agents/mfk-reconcile-verifier.md(isolation:fork・prompt_ssot=R3-verify.md の薄アダプタ)と一貫。"
-    ],
-    "negative_feedback": [],
-    "iteration": 2,
-    "iteration_limit": 3,
-    "hook_trigger": "manual",
-    "next_action": "none"
-  },
-  "notes": "genuine 再評価記録(iteration 2・架空評価ではない)。【前 iteration で検出した defect の解消確認】iteration 1(SHA 20a80a25...)で検出した唯一の defect=inconsistency『SKILL.md L129/L150 の judge_label 件数 15 が SSOT(verdict-mapping.json distinct judge_label=16・monthly-check-db.schema.json 判定 options=16)と不一致』が、SKILL.md 修正で解消済。二段確認で実ファイルを grep 検証: L129『DB2「判定」は 16 ラベル (judge_label)』・L150『verdict-mapping(判定SSOT・judge_label16値+sheet_label5値)』へ更新され、verdict-mapping.json の distinct judge_label=16(python 計数)と整合(矛盾解消)。sheet_label 5値は実測5で据え置き正。【SHA一致確認】shasum -a 256 plugins/mf-kessai-invoice-check/skills/run-mf-invoice-reconcile/SKILL.md = cf9454d75d691e53ecd371a23781803ba0b6397c719caa009cac73abaa28d607 で指定の新 SHA と一字一致(前 SHA 20a80a25... から修正を反映)。【差分影響範囲の再確認】変更は L129/L150 の数値 2 箇所のみ(grep で 15→16 を確認)。これは parity test が機械検証する schema==mapping(双方16)へ散文を追従させた修正であり、engine/lib/schema/test の実装層には一切手を入れていない。よって iteration 1 で確認済みの 4 条件評価(双方向照合・presence-based・履歴非破壊・確認ポイント・MATCH_ENDED_FINAL・REVIEW_PENDING・find-or-create・参照専用・レート間隔・5段フロー一貫)は不変で、新たな defect は導入されていない。【pytest(iteration 1 実施分の記録)】指定5ファイル(test_mfk_reconcile.py / test_verdict_mapping_parity.py / test_notion_reconcile_sink.py / test_notion_sheet_writeback.py / test_sheet_to_master.py)を `-o addopts=''` で 118 passed / 0 failed。SKILL.md の散文数値修正は test 対象外のため結果不変。【4条件採点根拠】contradiction0: frontmatter↔本文↔R1-R4↔manifest↔実装の方向(順方向=当月/orphan=全月)・presence-based・履歴非破壊・参照専用・レート間隔・step 番号(R2=Step2+3・R3=Step4・R4=Step5)が一致。omission0: Key Rules 11 / Gotchas 8 が参照専用二層・二層分離・双方向・presence-based・履歴非破壊・二段確認(dry-run 物理境界)・レート間隔・AI/人間列分離・判定SSOT・find-or-create・シート片方向ミラー(確認ポイント/REVIEW_PENDING/未照合発生基準)を網羅、完了条件は prompts L5.3 を SSOT とし片側再定義を回避。inconsistency0: 前 iteration の judge_label 件数ドリフト(15→16)が L129/L150 修正で解消、SSOT(16)と一致。dependency_break0: 約束機能(双方向=reconcile/detect_orphans、presence-based=quantity_downgrade、履歴非破壊=query_month+frozen skip、確認ポイント=notion_sheet_writeback、MF参照専用=guard hook+GET専用lib、レート=_write_gap、find-or-create=build_reconcile_dbs)の実装本体が全て実在、schema_refs(4)/responsibility_refs(R1-R4)/manifest/agent/hook も実在。smell0。【結論】4 条件すべて 0 defect・pytest 118 passed につき verdict=PASS・human_review 不要。"
+  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-reconcile", "skill_md_sha256": "bfb31cf99db43dfa49541f1e9f0d1fd69a4bcfb278d7c86b548612351a2f6698"},
+  "review_kind": "elegance", "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent", "reviewed_at": "2026-06-30T00:00:00Z",
+  "iterations": 1, "human_review_required": false,
+  "feedback_loop": {"loop_scope": "both", "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": ["判定語彙の SSOT 一本化が SKILL.md・schema・実コードで完全一致する。verdict-mapping.json は internal_verdict 19件→judge_label distinct 17件・sheet_label 5値(空欄=未照合 含む)を一元定義し、SKILL.md は固定数を埋め込まず『judge_label distinct』『5値(sheet_label)』と動的派生で記述する。旧記述の『16』『17』固定残骸は grep でゼロ、engine emit ⊆ mappings の parity 主張も実装と整合し語彙ドリフトを機構で封じている。", "シート書き戻しの非破壊境界が Key Rule 10・R4-sink・notion_sheet_writeback の三者で寸分違わず一致する。機械が常時上書きするのは判定/AI確認/確認ポイントの3列のみ・契約開始日は空欄セルのみ期間派生補完・契約終了月は非補完・人間列不可侵、が writeback の空欄ガードと PROP_END 不参照で物理担保され、保守系(clear/backfill)も契約終了月を根拠なき伝播リスクとして一貫除外している。"], "negative_feedback": [],
+    "iteration": 1, "iteration_limit": 3, "hook_trigger": "Stop", "next_action": "none"},
+  "notes": "SKILL.md 全文を実読し新 SHA=bfb31cf9... を実コマンドで取得。4条件を genuine 検証: (1)矛盾なし=`--verified` ゲートは reconcile_invoices.py L529 `a.apply and 'sink' in steps and not a.verified → exit 2` で、SKILL.md の『DB2/シート反映を含む(=sink)--apply は --verified 必須』と整合(sync-master 単体 apply が DB1 のみ書く設計と矛盾せず)。月帰属=transaction.date(取引日)軸も R1-collect と collect_mf(date 欠落時のみ issue_date 縮退+警告)で一致。(2)漏れなし=完了チェックリスト・5値投影・REVIEW_PENDING の要確認昇格・ORPHAN 非投影まで網羅。(3)整合性=distinct judge_label を実測=17(mappings 19→distinct 17)・sheet_label は mappings 4行+空欄『未照合』で5値、固定数値の取り残しゼロ。契約開始日補完/契約終了月クリアの記述は writeback/clear_unsupported_end_dates/backfill_sheet_contract_dates の実装と完全一致。(4)依存整合=Files 節の scripts4/lib7/schema4/agent/hook/manifest 全て実在を確認、欠落ゼロ。blocking 欠陥なしにつき PASS。"
 }

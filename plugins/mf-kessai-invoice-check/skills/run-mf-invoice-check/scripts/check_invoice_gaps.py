@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """月次発行漏れチェック実行スクリプト。
 
-  --collect  : 前月/今月の発行済み請求を取得→差集合→商品名/金額/企業名突合→未検証候補JSON出力
+  --collect  : 前月/今月の取引月ベースの発行済み請求を取得→差集合→商品名/金額/企業名突合→未検証候補JSON出力
   --finalize : verify(subagent)が確定した結果を確定リストへ昇格 (誤検出 customer_id を除外)
   --sink     : 確定リストを Notion DB に冪等 upsert (確定リスト不在なら fail-closed で停止)
 
 月は --month YYYY-MM (既定: 実行日の年月)。比較する前月はその1つ前を自動算出。
-対象年月(period_ym)ラベルは今月と一致させる。例: 2026-06-30 23:59 までは
-対象年月=2026-06、今月金額=2026-06、前月金額=2026-05。
+対象年月(period_ym)ラベルは今月と一致させる。月帰属は transaction.date (取引日) 基準。
+例: 2026-06-30 取引・2026-07-01 発行の請求は対象年月=2026-06。
 全て GET (参照専用)。MF APIへの POST/PATCH/DELETE は PreToolUse hook で遮断される。
 
 出力先は install パス非依存に解決する (F2 ポータビリティ)。lib import に使う _PLUGIN_ROOT は
@@ -154,6 +154,33 @@ def month_range(ym):
     return f"{y:04d}-{m:02d}-01", f"{y:04d}-{m:02d}-{last:02d}"
 
 
+def issue_fetch_range_for_transaction_month(ym):
+    """取引月 ym 用の issue_date 取得窓。
+
+    月帰属は transaction.date (取引日・月末締め) 基準。対象月取引分は翌月月初に発行される
+    ため、/billings/qualified は対象月初〜翌月末で over-fetch し、後段で transaction.date に
+    よって対象月だけへ絞る。
+    """
+    y, m = map(int, ym.split("-"))
+    first = f"{y:04d}-{m:02d}-01"
+    ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
+    nlast = calendar.monthrange(ny, nm)[1]
+    return first, f"{ny:04d}-{nm:02d}-{nlast:02d}"
+
+
+def _iso_to_month(iso_date):
+    """ISO 日付 (YYYY-MM-DD / YYYY-MM) → YYYY-MM。空/不正は None。"""
+    m = re.match(r"\s*(\d{4})-(\d{2})", str(iso_date or ""))
+    return f"{m.group(1)}-{m.group(2)}" if m else None
+
+
+def _amount_to_int(v):
+    try:
+        return int(float(str(v).replace(",", "").replace("，", "")))
+    except (TypeError, ValueError):
+        return 0
+
+
 def prev_month(ym):
     y, m = map(int, ym.split("-"))
     m -= 1
@@ -175,10 +202,52 @@ def default_target_month(today=None):
 
 
 def fetch_issued(ym):
-    first, last = month_range(ym)
-    return list(iter_all("/billings/qualified", {
+    """取引月 ym の発行済み billing を返す。
+
+    API の一覧絞り込みは issue_date しかないため対象月初〜翌月末で over-fetch し、
+    各 billing の /transactions を全ページ取得して transaction.date が ym の取引だけを残す。
+    例: 2026-06 分は transaction.date=2026-06-30 を採用し、issue_date=2026-07-01 でも
+    6月分として扱う。transaction.date 欠落時だけ transaction.issue_date → billing.issue_date
+    へ縮退する。この場合のみ発行日基準となるため、当月取引でも date 欠落かつ翌月発行だと
+    翌月へ帰属し当月集合から外れうる (縮退は取りこぼしを防ぐ向きとは限らない)。縮退が起きた
+    件数は stderr に1行警告する (silent ではなく可視化。FAIL にはしない)。
+    """
+    first, last = issue_fetch_range_for_transaction_month(ym)
+    billings = iter_all("/billings/qualified", {
         "issue_date_from": first, "issue_date_to": last, "status": "invoice_issued",
-    }))
+    })
+    out = []
+    fallback_count = 0
+    for b in billings:
+        bid = b.get("id")
+        total = 0
+        has_target_transaction = False
+        # /transactions は1 billing で 200 件を超えうるため iter_all で全ページ走査する
+        # (単発取得だと 201 件目以降を黙って捨て、対象月取引がそこにある billing が脱落する)。
+        txs = list(iter_all("/transactions", {"billing_id": bid})) if bid else []
+        for t in txs:
+            txn_month = _iso_to_month(t.get("date"))
+            if txn_month is None:  # date 欠落 → 発行日基準へ縮退 (当月取引が翌月へ帰属しうる)
+                fallback_count += 1
+                txn_month = (_iso_to_month(t.get("issue_date"))
+                             or _iso_to_month(b.get("issue_date")))
+            if txn_month is not None and txn_month != ym:
+                continue
+            has_target_transaction = True
+            details = t.get("transaction_details") or []
+            if details:
+                total += sum(_amount_to_int(d.get("amount")) for d in details)
+            else:
+                total += _amount_to_int(t.get("amount") or b.get("amount"))
+        if has_target_transaction:
+            row = dict(b)
+            row["amount"] = total
+            out.append(row)
+    if fallback_count:
+        sys.stderr.write(
+            f"[check] 警告: {ym} で transaction.date 欠落により発行日基準へ縮退した取引 "
+            f"{fallback_count}件 (当月取引が翌月へ帰属し当月集合から外れる恐れ)。\n")
+    return out
 
 
 def billings_by_customer(billings):
