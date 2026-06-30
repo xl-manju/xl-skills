@@ -4,8 +4,9 @@
 シートの『判定』『AI確認』はそこから決定論的に再計算した 5 値投影にすぎない (片方向ミラー)。
 stale は再実行で自己修復する (冪等)。経理は『判定=発行漏れ』など色付き select の保存ビュー 1 枚で回せる。
 
-『確認ポイント』(rich_text) には verdict ごとの「何を確認すべきか」を行固有の警告詳細つきで書く
-(要確認/発行漏れ で経理が次に何をすべきか分かるようにする。AIの確認OK/対象外 は空文字で stale を消す)。
+『確認ポイント』(rich_text) には verdict ごとの「何を確認すべきか/なぜ対象外か」を行固有の警告
+詳細つきで書く (要確認/発行漏れ で次の対応が分かり、対象外 でなぜ対象外かが分かるようにする。
+『AIの確認OK』(MATCH_*) のみ空文字で stale を消す=確認不要の緑。集約MATCHの warning も漏らさない)。
 
 非破壊規律 (managed 列):
   - 機械が常時上書きするのは『判定』(select) ・『AI確認』(checkbox) ・『確認ポイント』(rich_text) の 3 列。
@@ -106,16 +107,20 @@ def ensure_note_property(sheet_db_id, token, req):
 def compose_note(verdict, warning, mapping=None):
     """『確認ポイント』本文 = verdict 定型ガイダンス + 行固有の警告詳細。
 
-    ai_check(確認OK/対象外 に投影される verdict)は warning があっても必ず空文字を返す
-    (Request3)。集約請求の MATCH_MONTHLY は engine(quantity_downgrade)が verdict を保ちつつ
-    warning="MF 1明細に期待N件分が集約…" を付すが、判定が『AIの確認OK』である以上シートの
-    確認ポイントには漏らさない。warning は DB2『警告』列に別途残るため情報は失われない
-    (関心の分離)。要確認/発行漏れ系は定型ガイダンス + 行固有警告を返す。警告がガイダンスに
-    未包含なら全角括弧で連結する (数量差の想定漏れ額等の行固有情報を残す)。
+    分岐軸は sheet_label。『AIの確認OK』(=MATCH_*)だけ常に空文字を返す(確認不要・緑)。これは
+    集約請求の MATCH_MONTHLY が engine(quantity_downgrade)で warning="MF 1明細に期待N件分が
+    集約…" を持っても、判定が『AIの確認OK』である以上シートの確認ポイントへ漏らさないため
+    (warning は DB2『警告』列に別途残るので情報は失われない=関心の分離)。
+
+    『対象外』(SUPPRESS_*)はなぜ対象外か(年間前払い/契約終了/単発/非請求月)の理由を
+    確認ポイントへ出す(ユーザー決定2: 全対象外に理由明記)。『要確認』『発行漏れ』系は定型
+    ガイダンス + 行固有警告を返す。警告がガイダンスに未包含なら全角括弧で連結する(取消日時・
+    取消前金額・数量差の想定漏れ額等の行固有情報を残す)。
     """
     mp = mapping if mapping is not None else mfk_reconcile.load_verdict_mapping()
-    # ai_check(AIの確認OK/対象外)は warning の有無に関わらず空 = stale を消す (Request3)。
-    if mfk_reconcile.is_check_verdict(verdict, mp):
+    # 緑(AIの確認OK=MATCH_*)だけ warning の有無に関わらず空 = stale を消す(集約MATCHの
+    # warning 漏洩防止)。対象外/要確認/発行漏れ は理由・確認事項を確認ポイントへ出す。
+    if mfk_reconcile.sheet_label(verdict, mp) == "AIの確認OK":
         return ""
     hint = mfk_reconcile.action_hint(verdict, mp)
     w = (warning or "").strip()
@@ -129,8 +134,9 @@ def build_writeback(forward_rows, mapping=None):
 
     sheet_label が None (ORPHAN/未定義) の行は投影しない。1 契約=複数シート行は全行へ展開する。
     同一 page_id が複数契約に現れることは契約境界キー上ないが、保険で重複除去する。
-    note は『確認ポイント』本文 (AIの確認OK/対象外は空 = stale を消す)。start(契約開始日 ISO)
-    は空欄セルの自動補完候補 (派生値。writeback が空欄のみ書く)。契約終了月は補完しない。
+    note は『確認ポイント』本文。AIの確認OK(MATCH_*)だけ空にして stale を消し、対象外
+    (SUPPRESS_*)・要確認・発行漏れは理由/確認事項を出す。start(契約開始日 ISO) は空欄セルの
+    自動補完候補 (派生値。writeback が空欄のみ書く)。契約終了月は補完しない。
     """
     mp = mapping if mapping is not None else mfk_reconcile.load_verdict_mapping()
     out, seen = [], set()

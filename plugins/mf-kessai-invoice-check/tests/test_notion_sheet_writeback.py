@@ -124,18 +124,58 @@ def test_compose_note_combines_hint_and_warning():
     assert wb.compose_note("GAP", "") == mfk_reconcile.action_hint("GAP")
 
 
-def test_compose_note_ai_check_suppresses_nonempty_warning():
-    # Request3 回帰防止: 集約請求の MATCH_MONTHLY は verdict を保ちつつ engine が warning を
-    # 付すが、判定『AIの確認OK』ゆえシート確認ポイントには漏らさず必ず空を返す。
-    assert mfk_reconcile.is_check_verdict("MATCH_MONTHLY") is True
+def test_compose_note_only_green_suppresses_nonempty_warning():
+    # 分岐軸は sheet_label。緑(AIの確認OK=MATCH_*)だけ warning を漏らさず空を返す
+    # (集約請求の MATCH_MONTHLY は verdict を保ちつつ engine が warning を付すが、シート
+    #  確認ポイントには漏らさない=漏洩防止の核)。
     aggregated_warning = "MF 1明細に期待2件分が集約されているため数量差に降格しない"
+    assert mfk_reconcile.sheet_label("MATCH_MONTHLY") == "AIの確認OK"
     assert wb.compose_note("MATCH_MONTHLY", aggregated_warning) == ""
-    # 対象外 (SUPPRESS 系) も ai_check のため warning 付きで空。
+    assert wb.compose_note("MATCH_ANNUAL", "情報") == ""
+    # 対象外 (SUPPRESS 系) は ai_check=true でも『なぜ対象外か』の理由を確認ポイントへ出す
+    # (決定2: 分岐軸が is_check_verdict → sheet_label に変わった)。
     assert mfk_reconcile.is_check_verdict("SUPPRESS_ENDED") is True
-    assert wb.compose_note("SUPPRESS_ENDED", "契約終了済みだが当月MF実績あり (情報)") == ""
-    # 一方 要確認/発行漏れ系 (非 ai_check) は warning を確認ポイントへ残す (漏らさないのは ai_check のみ)。
+    assert wb.compose_note("SUPPRESS_ENDED", "") == mfk_reconcile.action_hint("SUPPRESS_ENDED")
+    assert wb.compose_note("SUPPRESS_ENDED", ""), "対象外の理由が空になってはいけない"
+    # 要確認/発行漏れ系 (非 ai_check) は warning を確認ポイントへ残す。
     assert mfk_reconcile.is_check_verdict("REVIEW_QTY_MISMATCH") is False
     assert wb.compose_note("REVIEW_QTY_MISMATCH", "行固有メモ") != ""
+
+
+def test_compose_note_suppress_shows_each_reason():
+    # 決定2: 全対象外(SUPPRESS_*)は『なぜ対象外か』の理由を確認ポイントへ出す(空にしない)。
+    for v in ("SUPPRESS_ANNUAL", "SUPPRESS_ENDED", "SUPPRESS_ONESHOT", "SUPPRESS_OFFMONTH"):
+        note = wb.compose_note(v, "")
+        assert note == mfk_reconcile.action_hint(v)
+        assert note, f"{v} の対象外理由が空"
+
+
+def test_compose_note_review_canceled_combines_hint_and_warning():
+    # 要確認(取消): 定型ガイダンス + 取消日時/取消前金額の行固有警告を全角括弧で連結する。
+    warn = "取消日: 2026-06-25T17:39:45+09:00 / 取消前金額: 70,000円"
+    note = wb.compose_note("REVIEW_CANCELED", warn)
+    assert mfk_reconcile.action_hint("REVIEW_CANCELED") in note
+    assert "取消前金額: 70,000円" in note
+    assert mfk_reconcile.sheet_label("REVIEW_CANCELED") == "要確認"
+
+
+def test_compose_note_review_txn_not_passed_combines_hint_and_warning():
+    # 要確認(取引未確定): 定型ガイダンス + status/金額の行固有警告を確認ポイントに残す。
+    warn = "MF取引状態: examining / 金額: 70,000円"
+    note = wb.compose_note("REVIEW_TXN_NOT_PASSED", warn)
+    assert mfk_reconcile.action_hint("REVIEW_TXN_NOT_PASSED") in note
+    assert "examining" in note and "70,000円" in note
+    assert mfk_reconcile.sheet_label("REVIEW_TXN_NOT_PASSED") == "要確認"
+
+
+def test_compose_note_suppress_ended_with_cancellation_warning():
+    # 対象外(契約終了)でも取消注記 warning があれば確認ポイントに取消理由が出る (WARN-not-FAIL)。
+    # engine の cancellation_note が warning へ注記し、compose_note が {hint}（{warning}）で流す。
+    warn = "当月MFに取消取引あり: 取消前金額 90,000円 / 取消日 2026-06-25T17:39:45+09:00"
+    note = wb.compose_note("SUPPRESS_ENDED", warn)
+    assert mfk_reconcile.sheet_label("SUPPRESS_ENDED") == "対象外"
+    assert mfk_reconcile.action_hint("SUPPRESS_ENDED") in note  # 対象外理由は残る
+    assert "取消取引あり" in note and "取消前金額 90,000円" in note  # 取消理由も確認ポイントに出る
 
 
 def test_ensure_note_property_creates_when_missing():

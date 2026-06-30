@@ -50,7 +50,7 @@
 
 ### 2.4 出力契約
 - schema: `../schemas/monthly-check-db.schema.json` (DB2) / `../schemas/contract-master-db.schema.json` (DB1)。`判定` ラベル (DB2=judge_label distinct / シート=sheet_label 5値) と `AI確認(済み)` は `../schemas/verdict-mapping.json` SSOT で導出する (engine emit ⊆ mappings)。
-- 出力: DB1 契約マスタへ契約ID キーで冪等 upsert (created/updated/failed) + DB2 月次チェックへ方向別キーで非破壊 upsert (created/updated/frozen/failed) + 請求確認シートへ『判定』5値+『AI確認』書き戻し (判定列状態/更新行数/failed) + 画面に投入件数 (dry-run は contract_page_id 解決件数を含む投入対象件数) サマリ。
+- 出力: DB1 契約マスタへ契約ID キーで冪等 upsert (created/updated/failed) + DB2 月次チェックへ方向別キーで非破壊 upsert (created/updated/frozen/failed) + 請求確認シートへ『判定』5値+『AI確認』+『確認ポイント』書き戻し (判定列状態/更新行数/failed) + 画面に投入件数 (dry-run は contract_page_id 解決件数を含む投入対象件数) サマリ。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -107,7 +107,7 @@
 - [ ] `人間対応済み`=true の行を凍結 (skip) した
 - [ ] `AI確認済み` が verdict-mapping.json の `ai_check` から派生している
 - [ ] `確認内容`/`警告` の改行 (`\n`) を保持して投入した
-- [ ] DB2 upsert に failed/frozen が無い場合だけ、請求確認シート各行へ『判定』(5値=sheet_label) + 『AI確認』 + 『確認ポイント』(action_hint+警告) を片方向ミラー書き戻しした (forward rows のみ・ORPHAN 投影せず。保留/未締結は REVIEW_PENDING として要確認投影)
+- [ ] DB2 upsert に failed が無い場合、請求確認シート各行へ『判定』(5値=sheet_label) + 『AI確認』 + 『確認ポイント』(action_hint+警告) を片方向ミラー書き戻しした (forward rows のみ・ORPHAN 投影せず。保留/未締結は REVIEW_PENDING として要確認投影。frozen 行は DB2 を上書きしないが、シートの現在判定/確認ポイント投影は継続)
 - [ ] シート書き戻しで人間列『チェック済み』『確認内容』『取引先』『商品』と『契約終了月』に触れていない (機械は『判定』『AI確認』『確認ポイント』3列を常時 PATCH し、空欄の『契約開始日』だけ派生補完)
 - [ ] Notion 書込にレート間隔 (MFK_NOTION_WRITE_GAP) を挟んだ / page_id 重複除去で二重 archive を防いだ
 - [ ] DB id (db1/db2) 未設定なら exit 2 で fail-closed した
@@ -145,6 +145,6 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 DB1 契約マスタは `sheet_to_master.upsert_master` で契約IDキーの冪等 upsert を行う。DB2 月次発行チェックは `notion_reconcile_sink.upsert_monthly` で当月行だけを方向別キー (順方向=`{契約ID}_{ym}` / orphan=`ORPHAN_{MF顧客ID}_{ym}`) により非破壊 upsert する。過去月は query 対象外、`人間対応済み`=true は frozen skip、更新時は nullable な事実列を明示クリアして前回の MF 証跡や警告を stale に残さない。
 
-判定ラベルと `AI確認済み` は `../schemas/verdict-mapping.json` SSOT から導出し、別表記・別条件を作らない。DB2 upsert に failed/frozen が無い場合だけ、判定 SoR=DB2 から請求確認シート各行へ `notion_sheet_writeback.writeback` で『判定』(5値=sheet_label) + 『AI確認』 + 『確認ポイント』を片方向ミラー書き戻しする。人間列『チェック済み』『確認内容』『取引先』『商品』と『契約終了月』は不可侵、空欄の『契約開始日』だけ派生補完できる。ORPHAN は投影しない。保留/未締結契約は `REVIEW_PENDING` として『判定=要確認』に投影し、理由を『確認ポイント』へ書く。
+判定ラベルと `AI確認済み` は `../schemas/verdict-mapping.json` SSOT から導出し、別表記・別条件を作らない。DB2 upsert に failed が無い場合、判定 SoR=DB2 から請求確認シート各行へ `notion_sheet_writeback.writeback` で『判定』(5値=sheet_label) + 『AI確認』 + 『確認ポイント』を片方向ミラー書き戻しする。`確認ポイント` は `AIの確認OK` のみ空、対象外/要確認/発行漏れは `action_hint + warning` を書く。取消では status/取消日時/取消前金額、0円取消では status/商品名由来の取消状態が警告・確認ポイントに残る。**`対象外` (契約終了/前払い/単発/off-cycle) でも当月境界に取消があれば engine の `cancellation_note` が `warning` へ取消注記を併記し、`compose_note` が `{hint}（{warning}）` で対象外行の確認ポイントへ取消理由を出す** (verdict/sheet_label は据え置き=WARN-not-FAIL・書き戻し層は不改修)。人間列『チェック済み』『確認内容』『取引先』『商品』と『契約終了月』は不可侵、空欄の『契約開始日』だけ派生補完できる。ORPHAN は投影しない。保留/未締結契約は `REVIEW_PENDING` として『判定=要確認』に投影し、理由を『確認ポイント』へ書く。frozen 行は DB2 を上書きしないが、シートの現在判定/確認ポイント投影は継続する。
 
 DB1/DB2 が未構築なら `scripts/build_reconcile_dbs.py` (冪等 find-or-create) で用意する。MF API は GET のみ。Notion 書込は `notion_transport._write_gap` が `MFK_NOTION_WRITE_GAP` のレート間隔を挟む。DB id 未設定なら exit 2 で fail-closed する。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を立案→実行→自己評価→全項目充足まで反復する。出力は DB1/DB2 の created/updated/frozen/failed 件数と対象年月のサマリのみ、前置き禁止。

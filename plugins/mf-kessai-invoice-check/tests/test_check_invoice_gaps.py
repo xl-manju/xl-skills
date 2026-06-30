@@ -340,6 +340,54 @@ def test_fetch_issued_warns_on_date_fallback(monkeypatch, capsys):
     assert "2026-06" in err
 
 
+def test_fetch_issued_skips_canceled_transactions(monkeypatch, capsys):
+    """取消(status=canceled)取引は発行集合へ計上しない(取消前金額が継続発行/今月新規へ化けない)。"""
+    billings = [{"id": "b1", "customer_id": "c1", "amount": 0,
+                 "status": "invoice_issued", "issue_date": "2026-07-01"}]
+    txs = [
+        {"date": "2026-06-30", "status": "passed",
+         "transaction_details": [{"description": "有効", "amount": 100}]},
+        {"date": "2026-06-30", "status": "canceled",
+         "canceled_at": "2026-06-25T17:39:45+09:00",
+         "transaction_details": [{"description": "取消", "amount": 9999}]},
+    ]
+
+    def fake_iter(path, params):
+        if path == "/billings/qualified":
+            return iter(billings)
+        if path == "/transactions":
+            return iter(txs)
+        raise AssertionError(path)
+
+    monkeypatch.setattr(c, "iter_all", fake_iter)
+    rows = c.fetch_issued("2026-06")
+    assert [r["customer_id"] for r in rows] == ["c1"]
+    # 取消前金額 9999 は加算されず、有効分 100 のみ。
+    assert rows[0]["amount"] == 100
+    err = capsys.readouterr().err
+    assert "取消 (canceled) 取引 1件" in err
+    assert "2026-06" in err
+
+
+def test_fetch_issued_all_canceled_billing_dropped(monkeypatch):
+    """billing 内の対象月取引が全て取消なら has_target_transaction=False で発行集合から脱落する。"""
+    billings = [{"id": "b1", "customer_id": "c1", "amount": 0,
+                 "status": "invoice_issued", "issue_date": "2026-07-01"}]
+    txs = [{"date": "2026-06-30", "status": "canceled",
+            "canceled_at": "2026-06-25T17:39:45+09:00",
+            "transaction_details": [{"description": "取消", "amount": 9999}]}]
+
+    def fake_iter(path, params):
+        if path == "/billings/qualified":
+            return iter(billings)
+        if path == "/transactions":
+            return iter(txs)
+        raise AssertionError(path)
+
+    monkeypatch.setattr(c, "iter_all", fake_iter)
+    assert c.fetch_issued("2026-06") == []  # 全取消 billing は発行集合に出ない
+
+
 def test_collect_rows_have_no_initial_billing_key(monkeypatch):
     """collect が返す rows に削除した initial_billing_month_estimated キーが残らない。"""
     prev = [_billing("same", 500)]
