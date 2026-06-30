@@ -45,6 +45,20 @@
 ```
 → 商品名(`description`)・金額(`amount`/`unit_price`×`quantity`)・更新日(`created_at`)を突合。
 
+#### 2.3.1 取消(canceled)取引の形状（本番 2026-05・8件で確認）
+取消された取引は **transaction 層にのみ** 取消情報が出る（billing keys には出ない）。
+```json
+{"id":"...","billing_id":"...","amount":2310000,"date":"2026-05-31","status":"canceled",
+ "canceled_at":"2026-06-25T17:39:45+09:00",
+ "transaction_details":[{"description":"<商品名>（…）","amount":2310000,"unit_price":2310000,"quantity":1}]}
+```
+- `status` が `"canceled"`（通常は `"passed"`）。← 取消判定シグナル(SSOT)。
+- `canceled_at`（ISO8601+TZ）に取消日時。`passed` 取引には無い想定。
+- `amount` と `transaction_details[].amount/unit_price/quantity` は **取消前金額を保持**（0化されない・商品名も読める）。
+- 対応する `billing.amount == 0`（billing 集計のみ0）。**`billing.status` は `invoice_issued` のまま**。
+- したがって status を無視すると取消前金額が有効供給に化け、発行確認OK（MATCH）に誤判定する。`run-mf-invoice-reconcile` は status=canceled を別バケットへ隔離し、有効供給ゼロかつ取消ありの当月期待を **要確認(取消)** で可視化する。`run-mf-invoice-check`（簡易差集合）は canceled を発行集合から除外する（最小 correctness）。
+- `status` の有効供給判定は **ホワイトリスト方式**（`active = passed / 空 / None`）。`canceled` 以外でも `passed` でない状態（審査中・否決・取引停止・未処理 等）は非active として隔離し、有効供給ゼロかつそれらが存在する当月期待を **要確認(取引未確定)** で可視化する（発行漏れ＝赤への silent 誤分類を防ぐ前向き防御。現データでは `passed`/`canceled` のみ出現）。
+
 ## 3. 発行漏れ判定 擬似コード
 
 ```python
@@ -52,13 +66,13 @@ def detect_gaps(prev_billings, curr_billings):
     P = {b["customer_id"] for b in prev_billings if b["status"] == "invoice_issued"}
     C = {b["customer_id"] for b in curr_billings if b["status"] == "invoice_issued"}
     return {
-        "gap_candidates": P - C,   # 前月発行・今月未発行 = 発行漏れ候補 ★本丸
+        "gap_candidates": P - C,   # 前月取引あり・今月取引なし = 発行漏れ候補 ★本丸
         "continuing":     P & C,   # 継続発行 (金額変動を amount で検出)
         "new_this_month": C - P,   # 今月新規
     }
 ```
 
-- 月帰属は `issue_date` 基準。
+- 月帰属の軸は **`transaction.date` 基準（取引日＝月末締め）**。当月取引分（例「6月分」＝取引日 2026/06/30）の請求書は翌月月初に発行される（発行日＝翌月）ため、`issue_date` で当月内に絞ると当月取引分を取りこぼし・前月取引分を誤混入する。月次フローは `issue_date` 窓を翌月末まで広げて over-fetch し、`transaction.date` が当月のものだけを採用して当月帰属を確定する。1 transaction に複数役務月の明細（例「4月分」「5月分」）が混在する場合は `transaction.date` を代表帰属とする。
 - `gap_candidates` の各 customer は `/customers?ids=` で企業名、`/transactions?billing_id=`(前月billing) で商品名・前月金額を解決。
 - **年間契約期間中(初回契約月から12ヶ月)の発行漏れ候補は機械が自動抑制する** (Notion 管理列 `初回契約月` を読み `billing_lifecycle` で判定、年間前払い期間中は月次発行が無いのが正常)。`初回契約月` は API で取得できないため人が YYYY-MM で記入し、機械はそれを読んで抑制に用いる。初回契約月が空/不明の顧客は fail-safe で候補に残す。
 - 「契約終了で今月不要」は API で判別不能 → 候補として出し、除外は Notion `請求要否` 列で人が判断 (この例外判断は機械化しない)。
@@ -70,8 +84,11 @@ def detect_gaps(prev_billings, curr_billings):
 | `customer_id` | string | billings/transactions | 差集合キー・名寄せキー |
 | `name` | string | customers | 取引先企業名 |
 | `amount` | int | billings/transactions | 金額(税込) |
-| `issue_date` | date | billings | 発行月の判定軸 |
+| `date` | date | transactions | 取引日(月末締め)。**月帰属の判定軸**(当月分の確定に使う) |
+| `issue_date` | date | billings | over-fetch 取得窓([当月初..翌月末])に使う。月帰属の判定軸ではない(帰属確定は `transaction.date`) |
 | `status` | enum | billings | `invoice_issued`/`scheduled`/`account_transfer_notified`/`stopped` |
+| `status` | enum | transactions | `passed`(有効) / `canceled`(取消)。**取消判定シグナル**。取消は別バケットへ隔離 |
+| `canceled_at` | datetime | transactions | 取消日時(ISO+TZ)。`status=canceled` のみ存在。取消前金額は `amount` に保持される |
 | `invoice_ids` | string[] | billings | 発行済み請求書の実体(発行確証) |
 | `transaction_details[].description` | string | transactions | 商品名 |
 | `unit_price`/`quantity` | int | transactions | 単価×数量(継続/期間明細) |

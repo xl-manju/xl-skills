@@ -182,28 +182,49 @@ def test_detail_of_empty_billing_id_short_circuits(monkeypatch):
 # ===================== fetch_issued (iter_all を stub) =====================
 
 def test_fetch_issued_passes_date_window(monkeypatch):
+    # 月帰属=transaction.date 改修: issue_date 窓は対象月初〜翌月末で over-fetch し、
+    # 各 billing の /transactions を transaction.date で対象月へ絞る。
     captured = {}
 
     def fake_iter_all(path, params=None):
+        if path == "/transactions":
+            return iter([{"date": "2026-06-30",
+                          "transaction_details": [{"description": "6月分", "amount": 0}]}])
         captured["path"] = path
         captured["params"] = params
-        return iter([{"customer_id": "c1", "status": "invoice_issued"}])
+        return iter([{"id": "b1", "customer_id": "c1", "status": "invoice_issued"}])
 
     monkeypatch.setattr(CIG, "iter_all", fake_iter_all)
     out = CIG.fetch_issued("2026-06")
     assert captured["path"] == "/billings/qualified"
     assert captured["params"]["issue_date_from"] == "2026-06-01"
-    assert captured["params"]["issue_date_to"] == "2026-06-30"
+    assert captured["params"]["issue_date_to"] == "2026-07-31"
     assert captured["params"]["status"] == "invoice_issued"
-    assert out == [{"customer_id": "c1", "status": "invoice_issued"}]
+    assert [r["customer_id"] for r in out] == ["c1"]
 
 
 # ===================== collect (全 API を stub) =====================
 
 def _wire_collect(monkeypatch, prev_billings, curr_billings, names_map):
-    """fetch_issued/resolve_names/detail_of を月別 stub で配線する。"""
+    """fetch_issued/resolve_names/detail_of を月別 stub で配線する。
+
+    fetch_issued は transaction.date 基準へ改修されたため /billings/qualified に加え各 billing の
+    /transactions も stub する。billing ごとに対象月 (prev=2026-05 / curr=2026-06) の取引を 1 件返し、
+    明細金額の合計を元 billing の amount に一致させて、fetch_issued の amount 再計算後も
+    prev_amount/curr_amount の期待値を保つ。
+    """
+    txn_by_billing = {}
+    for b in prev_billings:
+        txn_by_billing[b["id"]] = ("2026-05", b.get("amount", 0))
+    for b in curr_billings:
+        txn_by_billing[b["id"]] = ("2026-06", b.get("amount", 0))
+
     def fake_iter_all(path, params=None):
-        # issue_date_from の月で前月/今月を見分ける
+        if path == "/transactions":
+            month, amount = txn_by_billing.get(params["billing_id"], ("2026-06", 0))
+            return iter([{"date": f"{month}-15",
+                          "transaction_details": [{"description": "明細", "amount": amount}]}])
+        # /billings/qualified: issue_date_from の月で前月/今月を見分ける
         if params["issue_date_from"].startswith("2026-05"):
             return iter(prev_billings)
         return iter(curr_billings)

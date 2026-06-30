@@ -121,8 +121,9 @@ def load_verdict_mapping(path=None):
                     # 請求確認シート『判定』selectへ片方向ミラーする5値投影(SSOT)。
                     # ORPHAN はシート行が無いため null。キー欠落も None で fail-soft。
                     "sheet_label": m.get("sheet_label"),
-                    # 請求確認シート『確認ポイント』へ書く『何を確認すべきか』定型ガイダンス
-                    # (確認OK/対象外は空文字)。行固有の警告は書き戻し層で連結する。
+                    # 請求確認シート『確認ポイント』へ書く『何を確認すべきか』定型ガイダンス。
+                    # 空文字にするのは確認不要の MATCH_* のみ。SUPPRESS_* は対象外理由を出す。
+                    # 行固有の警告は書き戻し層で連結する。
                     "action_hint": m.get("action_hint", ""),
                 }
     except (OSError, ValueError):
@@ -148,7 +149,8 @@ def sheet_label(verdict, mapping=None):
     """internal_verdict → 請求確認シート『判定』selectの5値(AIの確認OK/対象外/要確認/発行漏れ)。
 
     ORPHAN(逆方向・シート行なし)や未定義は None を返し、書き戻し側で投影スキップする。
-    DB2『判定』(judge_label・15値)とは別軸の5値投影で、SSOT は verdict-mapping.json の sheet_label。
+    DB2『判定』(judge_label・SSOT由来の多値)とは別軸の5値投影で、
+    SSOT は verdict-mapping.json の sheet_label。
     """
     mp = mapping if mapping is not None else load_verdict_mapping()
     return mp.get(verdict, {}).get("sheet_label")
@@ -157,7 +159,8 @@ def sheet_label(verdict, mapping=None):
 def action_hint(verdict, mapping=None):
     """internal_verdict → 請求確認シート『確認ポイント』の定型ガイダンス(何を確認すべきか)。
 
-    確認OK/対象外 (MATCH_*/SUPPRESS_*) は空文字。SSOT は verdict-mapping.json の action_hint。
+    確認OK(MATCH_*)のみ空文字。対象外(SUPPRESS_*)は「なぜ対象外か」を必ず返す。
+    SSOT は verdict-mapping.json の action_hint。
     行固有の警告詳細 (数量差の想定漏れ額・データ不備の理由等) は書き戻し層で連結する。
     """
     mp = mapping if mapping is not None else load_verdict_mapping()
@@ -287,6 +290,21 @@ def category(text):
     return "other"
 
 
+# ============================================================================
+# 契約終了の根拠注記 (確認内容/備考) — SSOT (生成辺 classify / 再同期辺 writeback 共有)
+# ============================================================================
+# 明示的な終了表現のみを採り、曖昧語「まで」(例『2605まで継続予定』) は誤検出回避のため
+# 含めない。この判定を engine(本モジュール)の唯一の正本とし、notion_sheet_writeback /
+# clear_unsupported_end_dates / classify が全てこれを参照する(規約の二重定義を構造的に禁ずる)。
+_END_BASIS_PAT = re.compile(
+    r"[（(]\s*\d{4}\s*年?\s*終了\s*[)）]|契約終了|請求終了|請求なし|解約|終了月")
+
+
+def has_end_basis(content):
+    """確認内容/備考に契約終了の根拠 (明示的な終了注記) があるか。"""
+    return bool(_END_BASIS_PAT.search(content or ""))
+
+
 def _expected_categories(contract):
     """契約の商品/確認内容から MF 明細 category の期待集合を返す。
 
@@ -300,6 +318,11 @@ def _expected_categories(contract):
         cats.add("biz")
     if "ThinkTank" in text or "100億" in text:
         cats.add("thinktank")
+        # 100億ThinkTankトライアル(利用料)は、MF desc が「トライアル」を含むため category() が
+        # trial を返す (評価順で ThinkTank より トライアル が先)。ThinkTank 期待に trial を許容
+        # しないと、実際に発行済みの ¥50,000 を no_supply と誤判定して偽GAPになる (2605 実データで
+        # ひふみ/セント/特殊高所技術 が誤発行漏れ判定された事象。金額一致で本契約と区別される)。
+        cats.add("trial")
     if "チイキズカン" in text and ("利用料" in text or "サービス利用" in text):
         cats.add("riyo")
     if "初期導入" in text or "初期費用" in text:
@@ -359,20 +382,41 @@ def _dedup(seq):
 
 
 # ============================================================================
-# MF インデックス (行二重化 dedup・立替/負額/0円 除外)
+# MF インデックス (行二重化 dedup・立替/負額/0円 除外・取消の隔離)
 # ============================================================================
+def _is_active_status(s):
+    """MF transaction.status が有効供給か(active = passed / 空 / None のホワイトリスト)。
+
+    'canceled'(取消)や未知 status は非active として services から除外する。取消取引の
+    transaction.amount は取消前金額を保持するため、status を無視すると取消前金額が有効供給化し
+    MATCH(発行確認OK)に化けて取消が不可視になる。これを防ぐホワイトリスト判定の核。
+    """
+    return (s or "").lower() in ("", "passed")
+
+
 def build_mf_index(mf):
-    """MF JSON を {customer_id: {cust, names, services}} へ。
+    """MF JSON を {customer_id: {cust, names, services, inactive}} へ。
 
     - billing_id+desc+amount で API二重化(同一明細の重複出現)を dedup。
-    - 立替(tatekae)・負額(値引)・0円明細は services から除外(=不課税/相殺分は判定対象外)。
-    - names は会社名 + 明細括弧内エンドクライアント名(NFKC)。company 境界判定は cust(会社名)を使う。
+    - active な立替(tatekae)・負額(値引)・0円明細は services から除外(=不課税/相殺分は判定対象外)。
+    - 非active(status が passed/空/None でない)の 0円以上の明細は services に入れず inactive
+      バケットへ隔離する。billing.amount=0 でも status=canceled かつ商品名/description が残る
+      取消証跡はここで捨てない。amount が None(MF集計で金額欠落)でも、非active かつ desc が残る
+      明細は 0 円へ正規化して inactive へ残す(「商品名はあるのに金額0」の取消が status 判定前の
+      amt None 早期除外で GAP 誤分類に消えるのを防ぐ=0円残置を amt None へ拡張)。各 inactive 明細は
+      status(verbatim)と canceled_at を保持し、
+      取消(canceled)/審査中・否決・停止等(その他非passed)を呼出側(_set_inactive_verdict)が
+      REVIEW_CANCELED / REVIEW_TXN_NOT_PASSED へ出し分ける。
+    - names は会社名 + 明細括弧内エンドクライアント名(NFKC)。active/inactive 双方の括弧名を
+      names へ入れて境界照合を補助する。company 境界判定は cust(会社名)を使う。
     """
     idx = {}
     for cid, c in mf["customers"].items():
         cust = c.get("name") or cid
         seen = set()
+        seen_inactive = set()
         services = []
+        inactive = []
         names = {normalize(cust)}
         for ln in c.get("lines", []):
             amt = ln.get("amount")
@@ -381,7 +425,34 @@ def build_mf_index(mf):
             pn = mf_paren_name(desc)
             if pn:
                 names.add(normalize(pn))
-            if amt is None or amt <= 0 or cat == "tatekae":
+            st = ln.get("status")
+            if cat == "tatekae":
+                continue
+            if not _is_active_status(st):
+                # 非active(取消/審査中/否決/停止等)は有効供給に入れず inactive バケットへ隔離する。
+                # silent に捨てると有効供給ゼロ時に GAP(発行漏れ)へ誤分類され取消等が不可視になるため、
+                # status を保持して可視化(canceled→REVIEW_CANCELED / その他→REVIEW_TXN_NOT_PASSED)。
+                # 0円でも description がある canceled 取引は「商品名はあるのに金額0」の取消証跡なので残す。
+                # 負額(値引/相殺)は除外。amount None も desc があれば 0 円へ正規化して残す(status 判定前の
+                # amt None 早期 continue で取消が GAP へ消えるのを防ぐ。desc 無しは識別不能ゆえ捨てる)。
+                if amt is not None and amt < 0:
+                    continue
+                if amt is None:
+                    if not desc:
+                        continue
+                    amt = 0
+                key = (ln.get("billing_id"), desc, amt)
+                if key not in seen_inactive:
+                    seen_inactive.add(key)
+                    inactive.append({
+                        "amount": amt, "unit_price": ln.get("unit_price"),
+                        "qty": ln.get("qty"), "category": cat, "desc": desc,
+                        "paren": pn, "billing_id": ln.get("billing_id"),
+                        "status": (st or ""), "canceled_at": ln.get("canceled_at"),
+                    })
+                continue
+            # active(有効供給): 金額欠落(None)・0円以下(不課税/相殺)は services から除外。
+            if amt is None or amt <= 0:
                 continue
             key = (ln.get("billing_id"), desc, amt)  # API二重化を畳む
             if key in seen:
@@ -392,7 +463,7 @@ def build_mf_index(mf):
                 "qty": ln.get("qty"), "category": cat, "desc": desc,
                 "paren": pn, "billing_id": ln.get("billing_id"),
             })
-        idx[cid] = {"cust": cust, "names": names, "services": services}
+        idx[cid] = {"cust": cust, "names": names, "services": services, "inactive": inactive}
     return idx
 
 
@@ -515,17 +586,97 @@ def _annual_year_amounts(contract):
 # ============================================================================
 # 名寄せ単一入口 (find_mf_match) — 全 verdict 経路がここを通る (J1)
 # ============================================================================
+def _inactive_result(scoped_inactive, company_supply):
+    """有効供給ゼロ時の非active供給を inactive_only 結果へ畳む(代表=最大 amount の非active明細)。
+
+    代表明細は status を保持するので、呼出側(_set_inactive_verdict)が
+    取消(canceled)→REVIEW_CANCELED / その他非passed→REVIEW_TXN_NOT_PASSED を出し分けられる。
+    """
+    rep_cust, rep = max(scoped_inactive, key=lambda cc: cc[1].get("amount") or 0)
+    return {"status": "inactive_only", "evidence": {"cust": rep_cust, **rep},
+            "boundary_supply": company_supply, "cross_evidence": None}
+
+
+def _is_annual_lump_supply(svc, year_amounts):
+    """年間一括相当の明細か(active/inactive 共通)。
+
+    annual mode の inactive 判定は「非activeが1件でもある」では広すぎる。active 側の年額一括
+    判定と同じ条件に絞り、年間前払い期間中の小額取消を REVIEW_CANCELED に誤昇格させない。
+    """
+    return (
+        svc.get("category") in _ANNUAL_LUMP_CATEGORIES
+        and ((svc.get("qty") or 0) >= _ANNUAL_LUMP_QTY
+             or (svc.get("amount") or 0) >= _ANNUAL_LUMP_AMOUNT)
+    ) or svc.get("amount") in year_amounts
+
+
+def _scoped_inactive(boundary, ec_norms, expected_cats):
+    """名寄せ境界内の非active(取消/審査中/否決/停止等)供給を endclient/category スコープで絞る。
+
+    find_mf_match の inactive 絞り込みと cancellation_note の取消注記が同一スコープを共有する
+    ための純ヘルパ(重複定義を排し、両者の境界判定がドリフトしないようにする)。返り値は
+    [(cust, inactive_entry)] で、services と同じ endclient/category スコープ規則を適用する。
+    """
+    company_inactive = [(c["cust"], cs) for _, c in boundary for cs in c.get("inactive", [])]
+    ec_inactive = [(cust, cs) for cust, cs in company_inactive
+                   if _svc_matches_endclient(cs, ec_norms)]
+    inactive_cands = ec_inactive if ec_inactive else company_inactive
+    inactive_category = [
+        (cust, cs) for cust, cs in inactive_cands
+        if not expected_cats or cs.get("category") in expected_cats
+    ]
+    return inactive_category if expected_cats else inactive_cands
+
+
+# cancellation_note が対象外/終了根拠なし行へ付ける取消注記のマーカー語(SSOT)。
+# orchestrator (reconcile_invoices.py) が取消バランスの K 件数を数える際にこの定型語を参照し、
+# 別ファイルへリテラルを二重定義しない(マーカー文言のドリフト防止)。
+CANCEL_NOTE_MARKER = "取消取引あり"
+
+
+def cancellation_note(contract, mf_index):
+    """当該契約の名寄せ境界に非active(取消/未確定)供給があれば確認ポイント用の1フレーズを返す。
+
+    抑制verdict(対象外=SUPPRESS_* / 終了根拠なし=REVIEW_ENDED_NO_BASIS)が確定した行に、当月MFの
+    取消事実を併記するための副作用なし純ヘルパ。境界・endclient/category スコープは find_mf_match の
+    scoped_inactive と同一(_scoped_inactive 共有)。代表は最大 amount の非active明細。文言は
+    _set_inactive_verdict の warning 生成と同型: 取消(canceled)は取消前金額/取消日、その他非passed は
+    状態/金額を出す。amount が None/0 でも取消の事実は必ず出す。該当無しは ""。
+    取消注記は必ず CANCEL_NOTE_MARKER を含む(orchestrator の取消バランス集計が参照する SSOT)。
+    """
+    boundary, _confirmed = _boundary_customers(contract, mf_index)
+    ec_norms = _endclient_norms(contract)
+    expected_cats = _expected_categories(contract)
+    scoped = _scoped_inactive(boundary, ec_norms, expected_cats)
+    if not scoped:
+        return ""
+    _cust, rep = max(scoped, key=lambda cc: cc[1].get("amount") or 0)
+    st = (rep.get("status") or "").lower()
+    amt = rep.get("amount")
+    if st == "canceled":
+        ca = rep.get("canceled_at")
+        if amt:
+            return f"当月MFに{CANCEL_NOTE_MARKER}: 取消前金額 {amt:,}円 / 取消日 {ca or '不明'}"
+        return f"当月MFに{CANCEL_NOTE_MARKER}(金額0=取消前不明) / 取消日 {ca or '不明'}"
+    label = rep.get("status") or "不明"
+    if amt:
+        return f"当月MFに未確定取引あり: 状態 {label} / 金額 {amt:,}円"
+    return f"当月MFに未確定取引あり: 状態 {label}"
+
+
 def find_mf_match(contract, mf_index, mode="monthly"):
     """契約 × MF実績 の照合を行う唯一の入口。境界解決→金額/年額/存在 判定。
 
     mode:
       'monthly'  : 当月期待(月払い/単発開始月/分割対象月/隔月請求月/年間払い13ヶ月目〜)。
       'annual'   : 年間一括(lump)検出(年間払い elapsed==0 / 年間一括更新 lump月)。
-      'presence' : 当該契約の MF実績の有無のみ(REVIEW_ENDED_BUT_BILLED 判定用)。
+      'presence' : 当該契約の MF実績(有効供給)の有無のみ(REVIEW_ENDED_BUT_BILLED 判定用)。
+                   非active(取消等)供給は presence では無視する(終了契約の取消で inactive_only を
+                   発火させない=終了抑制 SUPPRESS_ENDED のまま)。
 
     返り値 dict:
-      status   : 'match'|'typo'|'amount_mismatch'|'cross_client'|'no_supply'
-      evidence : 一致した {cust, **svc} or None
+      status   : 'match'|'typo'|'amount_mismatch'|'cross_client'|'inactive_only'|'no_supply'
+      evidence : 一致した {cust, **svc} or None(inactive_only は代表非active明細=最大amount・status保持)
       boundary_supply : 境界内(会社/ID)の (cust, svc) 全件
       cross_evidence  : 境界外で同名人物が別会社に請求されている証跡(J1, status=cross_client時)
 
@@ -534,7 +685,13 @@ def find_mf_match(contract, mf_index, mode="monthly"):
       typo            → REVIEW_AMOUNT_TYPO(/10 桁typo 候補が一致)
       amount_mismatch → REVIEW_AMOUNT_MISMATCH(B1: 名寄せ供給ありで金額のみ不一致)
       cross_client    → 別会社で同名請求あり(J1: MATCH 扱いしない。呼出側は GAP+証跡で要確認化)
+      inactive_only   → REVIEW_CANCELED(取消) / REVIEW_TXN_NOT_PASSED(審査中・否決・停止等)。
+                        有効供給ゼロかつ同一境界に非active(passed以外)供給あり。代表の status で出し分け。
       no_supply       → GAP(名寄せ供給が皆無)
+
+    inactive_only ゲート: 有効(active)scoped_candidates が空のときのみ scoped_inactive を見る。
+    有効供給が期待を満たす/金額のみ不一致なら従来判定(match/typo/amount_mismatch)を維持し、
+    非active供給で上書きしない(同月再発行済みケースの誤要確認を防ぐ)。presence モードでは発火しない。
     """
     boundary, _confirmed = _boundary_customers(contract, mf_index)
     ec_norms = _endclient_norms(contract)
@@ -548,6 +705,10 @@ def find_mf_match(contract, mf_index, mode="monthly"):
     ]
     scoped_candidates = category_candidates if expected_cats else candidates
 
+    # 非active(取消/審査中/否決/停止等)供給も services と同じ endclient/category スコープで絞る
+    # (自境界の非active証跡)。cancellation_note と同一スコープを共有 (_scoped_inactive)。
+    scoped_inactive = _scoped_inactive(boundary, ec_norms, expected_cats)
+
     if mode == "presence":
         if scoped_candidates:
             cust, svc = scoped_candidates[0]
@@ -559,12 +720,17 @@ def find_mf_match(contract, mf_index, mode="monthly"):
     if mode == "annual":
         year_amounts = _annual_year_amounts(contract)
         for cust, svc in scoped_candidates:
-            is_lump = svc["category"] in _ANNUAL_LUMP_CATEGORIES and (
-                (svc.get("qty") or 0) >= _ANNUAL_LUMP_QTY or svc["amount"] >= _ANNUAL_LUMP_AMOUNT)
-            if is_lump or svc["amount"] in year_amounts:
+            if _is_annual_lump_supply(svc, year_amounts):
                 return {"status": "match", "evidence": {"cust": cust, **svc},
                         "boundary_supply": company_supply, "cross_evidence": None}
-        # lump 未検出 → 呼出側で REVIEW_ANNUAL_BILLING_MONTH(E1, GAPにしない)
+        # 有効一括 未検出。同一境界に年額相当の非active供給があれば inactive_only(取消/未確定)。
+        annual_inactive = [
+            (cust, svc) for cust, svc in scoped_inactive
+            if _is_annual_lump_supply(svc, year_amounts)
+        ]
+        if annual_inactive:
+            return _inactive_result(annual_inactive, company_supply)
+        # lump も非active供給も無し → 呼出側で REVIEW_ANNUAL_BILLING_MONTH(E1, GAPにしない)
         return {"status": "no_supply", "evidence": None,
                 "boundary_supply": company_supply, "cross_evidence": None}
 
@@ -599,6 +765,10 @@ def find_mf_match(contract, mf_index, mode="monthly"):
     if scoped_candidates:
         return {"status": "amount_mismatch", "evidence": None,
                 "boundary_supply": company_supply, "cross_evidence": None}
+    # 有効供給ゼロ。同一境界に非active(取消/審査中/否決/停止等)供給があれば inactive_only で
+    # 可視化する(no_supply/cross_client より優先 = 自境界の非active取引は最も具体的な証跡)。
+    if scoped_inactive:
+        return _inactive_result(scoped_inactive, company_supply)
     if company_supply and expected_cats:
         return {"status": "no_supply", "evidence": None,
                 "boundary_supply": company_supply, "cross_evidence": None}
@@ -685,8 +855,32 @@ def _new_row(contract, **computed):
     return rec
 
 
+def _set_inactive_verdict(rec, match):
+    """inactive_only マッチを非active状態に応じた REVIEW 行へ落とす(状態/金額を警告へ)。
+
+    有効供給ゼロかつ同一境界に非active(passed以外)供給がある場合の共通処理。代表明細の status で
+    出し分ける: 取消(canceled)→ REVIEW_CANCELED(取消日 / 取消前金額)、審査中・否決・停止等の
+    その他非passed → REVIEW_TXN_NOT_PASSED(取引状態 / 金額)。月次/年間/年間一括更新のどの経路から
+    来ても同形の warning を確認ポイント側へ残す。
+    """
+    ev = match["evidence"] or {}
+    rec["evidence"] = match["evidence"]
+    st = (ev.get("status") or "").lower()
+    amt = ev.get("amount")
+    if st == "canceled":
+        rec["verdict"] = "REVIEW_CANCELED"
+        ca = ev.get("canceled_at")
+        rec["warning"] = (
+            f"取消日: {ca or '不明'} / 取消前金額: {amt:,}円" if amt else "MF取引が取消済み")
+    else:
+        rec["verdict"] = "REVIEW_TXN_NOT_PASSED"
+        label = ev.get("status") or "不明"
+        rec["warning"] = (
+            f"MF取引状態: {label} / 金額: {amt:,}円" if amt else f"MF取引状態: {label}")
+
+
 def _classify_monthly_expected(rec, contract, mf_index, elapsed):
-    """月次相当の当月期待を MF と突合し verdict を rec へ書く(B1 金額差分岐を含む)。
+    """月次相当の当月期待を MF と突合し verdict を rec へ書く(B1 金額差・非active分岐を含む)。
 
     elapsed が負(対象月が契約開始前)なら未開始 → SUPPRESS_OFFMONTH。
     elapsed None(開始日空欄=月払い2年目以降)は常に当月期待とする。
@@ -715,6 +909,10 @@ def _classify_monthly_expected(rec, contract, mf_index, elapsed):
         rec["evidence"] = m["cross_evidence"]
         rec["_cross_client"] = m["cross_evidence"]
         rec["warning"] = "別取引先で同名請求あり(証跡流用不可・要確認)"
+    elif st == "inactive_only":
+        # 有効供給ゼロ + 同一境界に非active供給 → 取消は REVIEW_CANCELED / その他非passed は
+        # REVIEW_TXN_NOT_PASSED(いずれも GAP でなく要確認で可視化)。
+        _set_inactive_verdict(rec, m)
     else:  # no_supply
         rec["verdict"] = "GAP"
 
@@ -737,6 +935,8 @@ def _classify_annual(rec, contract, mf_index, elapsed):
         if m["status"] == "match":
             rec["verdict"] = "MATCH_ANNUAL"
             rec["evidence"] = m["evidence"]
+        elif m["status"] == "inactive_only":
+            _set_inactive_verdict(rec, m)  # 年額相当の非active供給 → 取消/未確定で可視化
         elif elapsed == 0:
             rec["verdict"] = "REVIEW_ANNUAL_BILLING_MONTH"  # E1: 当月開始だが一括未検出
         else:
@@ -757,6 +957,9 @@ def _classify_annual_renewal(rec, contract, mf_index, elapsed):
         rec["verdict"] = "MATCH_ANNUAL"
         rec["evidence"] = m["evidence"]
         return
+    if m["status"] == "inactive_only":
+        _set_inactive_verdict(rec, m)  # 年額相当の非active供給 → 取消/未確定で可視化
+        return
     period = annual_renewal_period(elapsed)  # 'lump'|'prepaid'|None
     if period == "lump":
         rec["verdict"] = "REVIEW_ANNUAL_BILLING_MONTH"  # E1: 更新月だが一括未検出
@@ -764,11 +967,46 @@ def _classify_annual_renewal(rec, contract, mf_index, elapsed):
         rec["verdict"] = "SUPPRESS_ANNUAL"
 
 
+# 抑制verdict(対象外/終了根拠なし)に当月MFの取消注記を併記する対象。MATCH_*/REVIEW_CANCELED/
+# REVIEW_TXN_NOT_PASSED は既に取消を扱う or 確認OK のため対象外(二重注記・緑への漏洩を防ぐ)。
+_CANCEL_ANNOTATABLE = frozenset({
+    "SUPPRESS_ENDED", "REVIEW_ENDED_NO_BASIS",
+    "SUPPRESS_ONESHOT", "SUPPRESS_OFFMONTH", "SUPPRESS_ANNUAL",
+})
+
+
+def _annotate_cancellation(rec, contract, mf_index):
+    """抑制verdict 確定行に当月MFの取消注記を warning へ併記する(verdict/sheet_label は不変)。
+
+    WARN-not-FAIL: verdict は据え置き、確認ポイント本文(warning)にだけ取消事実を足す。書き戻し層
+    (notion_sheet_writeback.compose_note)が SUPPRESS_*(対象外)でも warning を確認ポイントへ
+    `{hint}（{warning}）` で流すため、「対象外」行の確認ポイントに取消理由が出る(書き戻し層は不改修)。
+    取消が黙殺される終了/前払い/off-cycle 抑制分岐を、評価分岐ごとの後付けでなく一段で横断救済する。
+    """
+    if rec.get("verdict") not in _CANCEL_ANNOTATABLE:
+        return
+    note = cancellation_note(contract, mf_index)
+    if not note:
+        return
+    existing = (rec.get("warning") or "").strip()
+    rec["warning"] = f"{existing} / {note}" if existing else note
+
+
 def classify(contracts, mf_index, target_ym):
     """有効/終了契約 × 当月の判定行を返す(順方向)。最後に F1 数量差降格を適用。
 
     評価順序: ①ステータス=保留→REVIEW_PENDING ②契約終了→SUPPRESS_ENDED/REVIEW_ENDED_BUT_BILLED
-    ③支払サイクル別展開(K1 列優先・H1 従量・E1 年間保留・B1 金額差)。
+    ③支払サイクル別展開(K1 列優先・H1 従量・E1 年間保留・B1 金額差・取消 REVIEW_CANCELED)。
+
+    REVIEW_CANCELED / REVIEW_TXN_NOT_PASSED: 月次/年間/年間一括更新の各経路で、有効(active=passed)
+    供給が期待を満たさず同一境界に非active供給があるとき発火する(GAP に落とさず要確認で可視化)。
+    非active が取消(canceled)なら REVIEW_CANCELED、審査中・否決・停止等のその他非passed なら
+    REVIEW_TXN_NOT_PASSED。終了契約の presence 判定(SUPPRESS_ENDED 等)では発火させない。
+
+    取消注記の横断併記(WARN-not-FAIL): 抑制verdict(対象外=SUPPRESS_ENDED/ANNUAL/ONESHOT/OFFMONTH・
+    終了根拠なし=REVIEW_ENDED_NO_BASIS)が確定した直後に _annotate_cancellation を呼び、当月境界に
+    取消/未確定供給があれば warning へ取消注記を併記する(verdict/sheet_label は据え置き)。これにより
+    presence モードや off-cycle/前払い抑制で黙殺されていた取消事実が、対象外行の確認ポイントにも出る。
     """
     t_idx = ym_int(target_ym)
     rows = []
@@ -793,22 +1031,41 @@ def classify(contracts, mf_index, target_ym):
             rows.append(rec)
             continue
 
-        # ② 契約終了月以降。役務の請求は翌月に発行される(月またぎ発行)ため、終了月Mの最終請求書は
-        #    M+1 に出るのが正常。終了月〜終了月+1(最終請求月)の MF 請求は MATCH_ENDED_FINAL(発行確認OK)で
-        #    過剰請求にしない。終了月+2 以降(または終了月不明の status=終了)の MF 請求のみ
+        # ② 契約終了月以降。月帰属は取引日基準 (collect_mf が transaction.date で当月取引分に絞る)。
+        #    date 健在なら終了月Mの最終役務は M に帰属し t==end で MATCH_ENDED_FINAL となる (+1 不要)。
+        #    ただし date 欠落で issue_date へ縮退した場合 (collect_mf の fallback)、終了月役務の発行は
+        #    翌月のため M+1 run に現れる。これを最終請求書として救済するため終了月〜終了月+1 の MF
+        #    請求は MATCH_ENDED_FINAL(発行確認OK)で過剰請求にしない (ユーザー確定 2026-06-29: 最終請求書
+        #    の誤検出回避を優先。終了直後月の新規役務=過剰請求がこの救済に紛れうるが許容し、終了月+2
+        #    以降を過剰請求として検知する)。終了月+2 以降(または終了月不明の status=終了)の MF 請求のみ
         #    REVIEW_ENDED_BUT_BILLED(過剰請求)。MF 無しはどの月でも SUPPRESS_ENDED(対象外)。
         if status == "終了" or (end_idx is not None and t_idx is not None and t_idx >= end_idx):
             pres = find_mf_match(contract, mf_index, mode="presence")
             if pres["status"] != "match":
-                rec["verdict"] = "SUPPRESS_ENDED"
+                # 終了根拠の照合 (ユーザー確定 2026-06-30)。契約終了月による「対象外(終了)」抑制は
+                # 確認内容/備考に終了根拠 (has_end_basis) がある場合のみ正当とする。根拠なき終了月
+                # (レガシー/誤入力の残存値) で SUPPRESS_ENDED に倒すと、本来当月請求が出るべき継続
+                # 契約の発行漏れを「対象外(灰・警告なし)」で黙って隠す。保留(REVIEW_PENDING)を要確認へ
+                # 昇格させるのと対称に、根拠なき終了も REVIEW_ENDED_NO_BASIS(要確認)で可視化する
+                # (契約終了月の列値は機械が書き換えない=非破壊)。終了根拠ありは従来どおり SUPPRESS_ENDED。
+                if has_end_basis(contract.get("備考") or contract.get("確認内容") or ""):
+                    rec["verdict"] = "SUPPRESS_ENDED"
+                else:
+                    rec["verdict"] = "REVIEW_ENDED_NO_BASIS"
+                    rec["warning"] = (
+                        "契約終了月に値があるが確認内容に終了根拠なし"
+                        "(継続契約の発行漏れの可能性・要確認)")
             elif end_idx is not None and t_idx is not None and t_idx <= end_idx + 1:
-                # 終了月〜翌月の請求 = 最終請求書(月またぎ発行)。過剰請求にしない。
+                # 終了月〜翌月の請求 = 最終請求書(終了月役務の翌月取引計上を許容)。過剰請求にしない。
                 rec["verdict"] = "MATCH_ENDED_FINAL"
                 rec["evidence"] = pres["evidence"]
             else:  # 終了月+2 以降、または終了月不明の終了ステータス = 過剰請求
                 rec["verdict"] = "REVIEW_ENDED_BUT_BILLED"
                 rec["evidence"] = pres["evidence"]
                 rec["warning"] = "契約終了後(最終請求月より後)にMF請求あり(過剰請求)"
+            # 終了抑制(SUPPRESS_ENDED)/根拠なし終了(REVIEW_ENDED_NO_BASIS)は presence モードが取消を
+            # 無視するため取消事実が消える。当月MFに取消があれば確認ポイントへ併記する(verdict据え置き)。
+            _annotate_cancellation(rec, contract, mf_index)
             rows.append(rec)
             continue
 
@@ -851,6 +1108,9 @@ def classify(contracts, mf_index, target_ym):
         else:  # 月払い(明示 or 空欄fallback)
             _classify_monthly_expected(rec, contract, mf_index, elapsed)
 
+        # off-cycle 抑制(SUPPRESS_ONESHOT/SUPPRESS_OFFMONTH)・年間前払い抑制(SUPPRESS_ANNUAL)は
+        # 当月の取消を黙殺する。当月MFに取消があれば確認ポイントへ併記する(verdict据え置き=WARN-not-FAIL)。
+        _annotate_cancellation(rec, contract, mf_index)
         rows.append(rec)
 
     quantity_downgrade(rows, mf_index)  # F1
@@ -916,12 +1176,16 @@ def detect_orphans(contracts, mf_index, target_ym):
     J1: 名寄せ境界(_boundary_customers = MF顧客ID優先→取引先会社名)で被覆集合を作り、
     残りを orphan とする。name-global 照合は使わない(design の name照合 42/82 偽orphan を回避)。
     target_ym は I/F 統一のため受けるが、mf_index は既に当月分で構築されている前提。
+
+    非active のみ(services 空・inactive のみ=取消/審査中/否決等)の顧客は orphan に出さない
+    (`c["services"]` で被覆判定するため非active は有効発行でなく要マスタ登録にしない=
+    inactive_only を逆方向で発火させない)。
     """
     matched_cids = set()
     for contract in contracts:
-        status = (contract.get("ステータス") or "有効").strip()
-        if status == "保留":
-            continue
+        # 保留契約も請求確認シートには登録済みのため orphan 被覆に含める。
+        # 除外すると同じ顧客が REVIEW_PENDING と ORPHAN の二重通知になり、
+        # 「未登録」ではないのに要マスタ登録と表示される。
         boundary, _ = _boundary_customers(contract, mf_index)
         for cid, _c in boundary:
             matched_cids.add(cid)

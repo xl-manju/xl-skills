@@ -1,8 +1,10 @@
 # マネーフォワード掛け払い 請求書発行チェック
 
-請求データをマネーフォワード掛け払い (MF KESSAI) API で確認し、**前月の発行状況**と**今月の発行漏れ**を月次でチェックして Notion で管理するためのプラグイン。
+請求データをマネーフォワード掛け払い (MF KESSAI) API で確認し、**前月取引分**と**今月取引分**を月次でチェックして Notion で管理するためのプラグイン。
 
 このドキュメントは「**プラグインをインストールし、API キー・Notion トークンを macOS Keychain に登録して月次チェックを回せる状態にする**」までのセットアップ手順です（インストール → 必要な鍵の一覧 → Step 1〜4 の順）。判定ロジック・Notion 出力・参照専用ガード・二段確認 subagent は実装済みです (下記「構成」参照)。
+
+> **「6月分の請求書」の定義**: 請求確認シート基準の照合 (`/run-mf-invoice-reconcile`) では、月帰属は発行日ではなく **取引日** です。6月分は取引日 `2026-06-30` の請求で、発行日が翌月月初 (例: `2026-07-01`) でも 6月分として拾います。API 取得は `issue_date` を対象月初〜翌月末へ広げ、最後に `/transactions` の `date` で対象月だけに絞ります。
 
 > **チームメンバーがやることは「インストール → 自分の API キー/Notion トークンを Keychain に登録 → 疎通確認」の3点だけ**です。それ以外（差集合判定・Notion 投入・年払い抑制）は自動で動きます。`初回契約月` の一括エンリッチ（別製品の OAuth 連携）は**取得担当 1 名だけ**の任意作業で、一般メンバーには不要です（→「初回契約月の埋め方」「付録」参照）。
 
@@ -13,7 +15,7 @@
 - API キーを Keychain から安全に取得 (`lib/mfk_keychain.py`)
 - MF 掛け払い API v2 への読み取り (GET) 呼び出し (`lib/mfk_api.py`)
 - 疎通確認 (`--smoke`) と任意エンドポイントの取得
-- 前月発行−今月発行の差集合で**発行漏れ候補**を検出 (`lib/mfk_invoice_diff.py`)
+- 前月取引−今月取引の差集合で**発行漏れ候補**を検出 (`lib/mfk_invoice_diff.py`)
 - 結果を Notion DB『請求書チェック_DB』へ**顧客ID単独キーで冪等 upsert** (1 顧客=1 ページ・既存顧客は同じページを更新し、未登録顧客だけ新規ページを作成。月ごとの重複ページは作らない)(`lib/notion_invoice_sink.py`)
 - 月次履歴は各顧客ページ**本文の table block** (対象年月/今月の発行状況/前月金額/今月金額/確認済み日時) に 1 行=1 対象年月で蓄積。同月再実行は行更新で冪等
 - 過去月の履歴 backfill を `--backfill --from YYYY-MM --to YYYY-MM` でサポート (両端含む・月昇順、既定では未検証の発行漏れ候補を投入しない)
@@ -82,26 +84,40 @@ Claude Desktop でも**同じスラッシュコマンド**が使えます。ア�
 
 | やりたいこと | Claude Code への一言（例・コピペ可） | 内部で動くもの |
 |---|---|---|
-| **初回: 出力先の Notion DB を準備** | `請求書チェック用の Notion DB を準備して` | `/run-mf-invoice-db-setup` |
-| **今月の発行漏れをチェック** | `先月と今月の請求書発行漏れをチェックして` | `/run-mf-invoice-check` |
-| **請求確認シートを基準にMF発行内容を照合** | `請求確認シートの内容がMoneyForwardに反映されているか確認して` | `/run-mf-invoice-reconcile --target YYMM` |
-| **月を指定してチェック** | `2026-05 の請求書発行漏れをチェックして` | `/run-mf-invoice-check --month 2026-05` |
+| **初回: 請求確認シート照合用 DB を準備** | `請求確認シート照合用のDBを準備して` | `scripts/build_reconcile_dbs.py` |
+| **初回: 簡易差集合チェック用 DB を準備** | `請求書チェック用の Notion DB を準備して` | `/run-mf-invoice-db-setup` |
+| **請求確認シートを基準にMF発行内容を照合（推奨）** | `請求確認シートの内容がMoneyForwardに反映されているか確認して` | `/run-mf-invoice-reconcile --target YYMM` |
+| **前月取引−今月取引の簡易差集合チェック** | `先月と今月の請求書発行漏れをチェックして` | `/run-mf-invoice-check` |
+| **月を指定して簡易チェック** | `2026-05 の請求書発行漏れをチェックして` | `/run-mf-invoice-check --month 2026-05` |
 | **過去月の履歴をまとめて投入 (backfill)** | `2026-03 から 2026-06 までの発行履歴を Notion に入れて` | `/run-mf-invoice-check --backfill --from 2026-03 --to 2026-06` |
 | **過去月の確認状況を Notion で見たい** | `過去にチェックした月の状況を Notion でどう見ればいい？` | 下記「過去月の状態を確認する」を案内 |
 
-- **スラッシュコマンドを直接打ってもOK**: チャット欄に `/run-mf-invoice-check` と入力すれば、同じ正規フロー（collect → verify → finalize → sink）が自動で走ります。コマンド名がうろ覚えなら「請求書の発行漏れチェックして」と日本語で言えば Claude Code が該当コマンドを選びます。
-- **月の指定は任意**: 何も言わなければ実行日の年月を「今月」として対象にします。例: 2026年6月中は 対象年月＝6月・今月金額＝6月・前月金額＝5月。特定月を見たいときは「2026-05 を」のように月を添えれば、その月を「今月」として扱います。
-- **安全**: チェックは同梱クライアントでは MF 掛け払い API を**読み取り専用**で叩くだけで、請求データを書き換えることはありません（Bash 経路の参照専用ガード + 同梱クライアントの GET 専用設計で強く抑止）。Notion への書き込みも、人が記入する管理列（初回契約月／請求要否／支払サイクル／チェック済／備考）は既存ページでは一切触れません。新規ページだけ `初回契約月` を空欄で作って未入力ビューで拾えるようにします（`支払サイクル` は初期化せず人が設定）。
+- **スラッシュコマンドを直接打ってもOK**: 通常運用は `/run-mf-invoice-reconcile --target YYMM` で dry-run を確認し、二段確認後に `/run-mf-invoice-reconcile --target YYMM --apply --verified` を実行します。簡易差集合だけ見たい場合は `/run-mf-invoice-check` を使います。
+- **対象月は明示推奨**: 請求確認シート基準の照合は `--target YYMM` (例: `2606`) を明示します。簡易差集合チェックだけは、月指定が無ければ実行日の年月を「今月」として扱います。
+- **安全**: チェックは同梱クライアントでは MF 掛け払い API を**読み取り専用**で叩くだけで、請求データを書き換えることはありません（Bash 経路の参照専用ガード + 同梱クライアントの GET 専用設計で強く抑止）。請求確認シートへの書き戻しは `判定`・`AI確認`・`確認ポイント` と、空欄の `契約開始日` 補完だけです。`チェック済み`・`確認内容`・`取引先`・`商品`・`契約終了月` は触れません。
 
-> はじめての場合は **①「請求書チェック用の Notion DB を準備して」→ ②「先月と今月の請求書発行漏れをチェックして」** の2ステップだけで回り始めます。
+> はじめての場合は **①請求確認シートDB IDを `.mf-kessai-config.json` の `notion.sheet_db_id` に設定 → ② `python3 "$CLAUDE_PLUGIN_ROOT/scripts/build_reconcile_dbs.py" --parent-page-id <page_id>` で DB1/DB2 を用意 → ③ `/run-mf-invoice-reconcile --target YYMM` で dry-run → ④二段確認後 `/run-mf-invoice-reconcile --target YYMM --apply --verified`** の順です。
 
 ### 請求確認シート基準の照合
 
-`/run-mf-invoice-reconcile --target YYMM` は、請求確認シートの `年月/取引先/商品/確認内容/契約開始日/契約終了月` を基準に、MF掛け払いの当月発行情報へ金額・商品・取引先/エンドクライアントが反映されているかを照合します。担当者が入力するのは請求確認シートだけで、契約マスタ DB1 と月次チェック DB2 はスキルが生成・移管します。
+`/run-mf-invoice-reconcile --target YYMM` は、請求確認シートの `年月/取引先/商品/確認内容/契約開始日/契約終了月` を基準に、MF掛け払いの対象月取引へ金額・商品・取引先/エンドクライアントが反映されているかを照合します。対象月の定義は **取引日 (`transaction.date`) 基準**です。例: `--target 2606` なら、取引日 `2026-06-30`・発行日 `2026-07-01` の請求を 6月分として採用し、取引日 `2026-05-31`・発行日 `2026-06-01` の請求は 6月分から除外します。担当者が入力するのは請求確認シートだけで、契約マスタ DB1 と月次チェック DB2 はスキルが生成・移管します。
+
+> **シートの『年月』も取引日 (月末締め) の月で記入してください** (例: 取引日 `2026/06/30` 締め → 年月 `2606`、`--target 2606` と一致)。順方向の発行漏れ検知は当月『年月』の行を期待集合とするため、**発行月 (翌月月初) で記入すると当月の期待集合から外れ、真の発行漏れを見逃します**。MF 側 (`transaction.date`) と同じ取引日(締め)月軸に揃えるのが原則です。
+
+MF 側の証跡は `/billings/qualified` の `status=invoice_issued` だけを採用します。`scheduled` / `account_transfer_notified` は予定・通知段階として、発行確認OKの証跡には使いません。
 
 確認内容に `期間：A〜B` がある場合、その期間は「作業開始から1年間」の根拠として扱い、初年度は年間払い、2年目以降は月払いとして判定します。期間も契約開始日も未記入の契約は原則月払いとして扱い、当月請求が MF に反映されている前提で照合します。MF側で同じ会社の複数シート行が1つの請求情報・1明細にまとまる場合も、契約ID境界内で期待額合計とMF明細額が一致すれば発行確認OKとして扱います。
 
 **シート『判定』が空欄（未照合）の行の意味**: 当月（対象年月）に登録された行は保留契約も含め**必ず判定が付きます**（保留＝『要確認』として可視化し、なぜ判定保留かは『確認ポイント』に理由を記述）。したがってシート『判定』が空欄（未照合）に残るのは、**その行が当月照合の対象でない場合**（年月が対象月と違う行、または当月シートに登録の無い行）だけです。経理は**当月の年月でフィルタ**して確認してください（空欄＝当月対象外であり、判定漏れではありません）。
+
+**判定語彙（経理向け）**: シート『判定』は 5 値（`AIの確認OK`／`対象外`／`要確認`／`発行漏れ`／未照合）の投影で、**詳しい理由は必ず『確認ポイント』列に出ます**。
+
+- **`対象外`**: 当月は請求が無いのが正常な行。なぜ対象外かを確認ポイントに明記します ──「年間前払い期間中」「契約終了済み」「単発で開始月に計上済み」「分割完了済み／隔月の非請求月」。**理由が空欄のままにはなりません**（以前は対象外の理由が見えませんでしたが、現在は必ず表示します）。**`対象外` でも当月の MF 掛け払いに取消（キャンセル）取引があれば、確認ポイントに取消理由（取消前金額・取消日）を併記します**（例：契約終了済みの会社で当月に「一度発行→取消」が起きていた場合、対象外のまま取消の事実が分かるようにします。判定の色は据え置き＝WARN-not-FAIL）。MF 掛け払いは紐づく取引が取消されると請求合計が 0 円になり商品名だけ残るため、「商品名はあるのに金額0」が取消由来であることを確認ポイントで示します。
+- **`要確認(取消)`**: MF 掛け払いで当月の請求が**取消（キャンセル）**されており、同月内に再発行されていない行。取消前金額は MF 上 0 円集計になりますが、取引自体は残っているため「発行確認OK」に化けないよう **要確認（黄）** で可視化します。金額0円でも商品名が残る `status=canceled` 取引は、対象外ではなく `要確認(取消)` です。確認ポイントに**取消日時・取消前金額**を出すので、再発行が必要か（請求不要か）を確認してください。
+- **`要確認(取引未確定)`**: MF 取引が**有効な発行（審査通過）になっていない**行（審査中・否決・取引停止など、`status` が `passed`／`canceled` 以外の状態）。取消と同様に「発行済み」へ化けないよう **要確認（黄）** で可視化し、確認ポイントに取引状態を出します。現状の取得データには出現しませんが、将来この状態が起きても発行漏れ（赤）へ誤分類せず拾うための前向きな分類です。
+- その他の `要確認(...)`（金額差／数量差／過剰請求／従量 等）・`発行漏れ` も、何を確認・対応すべきかを確認ポイントに出します。`AIの確認OK`（緑）だけは確認不要のため確認ポイントは空です。
+
+> **凍結×取消の限界**: 過去に人が確認して**凍結された行**（DB2 で「人間対応済み」または過去月）は再計算しないため、後から MF 側で取消が発生しても DB2 へは反映されません。一方シート『判定』は毎回の再実行で再計算されるため、凍結後に取消された当月行は次回実行で `要確認(取消)` に変わりうります（DB2 とシートで一時的に表示が食い違う場合があります）。
 
 ---
 
@@ -191,16 +207,18 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --smoke
 `--path` と `--param key=value` (複数可) で任意の GET を叩けます。`status` のような配列も `--param` を複数並べれば展開されます。
 
 ```bash
-# 前月(2026-05)の発行済み請求書
+# 発行済み請求書の一覧取得例。
+# 月次照合ではこの一覧を対象月初〜翌月末で広めに取り、
+# /transactions の date(取引日)で対象月に絞る。
 python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" \
   --path /billings/qualified \
-  --param issue_date_from=2026-05-01 \
-  --param issue_date_to=2026-05-31 \
+  --param issue_date_from=2026-06-01 \
+  --param issue_date_to=2026-07-31 \
   --param status=invoice_issued \
   --param limit=5
 
-# 取引(商品名 description・金額)
-python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --path /transactions --param limit=5
+# 取引(取引日 date・商品名 description・金額)
+python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --path /transactions --param billing_id=<billing_id> --param limit=5
 ```
 
 ### Python から呼ぶ
@@ -209,10 +227,10 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --path /transactions --param limit=
 import os, sys; sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "lib"))
 from mfk_api import get
 
-# 今月発行済みの請求一覧 (発行漏れ判定の母集合)
+# 6月分照合用の候補一覧。issue_date は over-fetch 窓であり、月帰属は後段の transaction.date で確定する。
 data = get("/billings/qualified", {
     "issue_date_from": "2026-06-01",
-    "issue_date_to": "2026-06-30",
+    "issue_date_to": "2026-07-31",
     "status": "invoice_issued",
     "limit": 200,
 })
@@ -229,7 +247,7 @@ for b in data["items"]:
 | 顧客一覧 (企業名 name の名寄せ) | `/customers` | `ids`, `limit`, `after` |
 | 発行済み請求一覧 (インボイスモード) | `/billings/qualified` | `issue_date_from/to`, `status`, `limit`, `after` |
 | 請求単体 (status・amount・invoice_ids) | `/billings/{id}` | — |
-| 取引・明細 (商品名 description・金額) | `/transactions` | `billing_id`, `limit`, `after` |
+| 取引・明細 (取引日 date・商品名 description・金額) | `/transactions` | `billing_id`, `limit`, `after` |
 
 > 注: この事業者はインボイス制度モードのため、一覧は `/billings`(区分記載用) ではなく **`/billings/qualified`** を使います (`/billings` は空を返す)。
 
@@ -325,23 +343,32 @@ python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_sc
 
 ## 構成 (実装済み)
 
-1. **発行漏れ判定** (`lib/mfk_invoice_diff.py`): 前月発行の `customer_id` 集合 − 今月発行の `customer_id` 集合 = 発行漏れ候補。純関数・pytest 済み。
-2. **Notion DB 出力** (`lib/notion_invoice_sink.py`): 取引先企業名・商品名・前月/今月金額・発行日・更新日・今月の発行状況を `顧客ID` 単独キーで冪等 upsert (1 顧客=1 ページ、既存顧客は月が変わっても同じページを更新し、未登録顧客だけ新規ページを作成。月ごとの重複ページは作らない)。DB プロパティはその顧客の最新月スナップショット。管理列 (初回契約月/請求要否/支払サイクル/チェック済/備考) は人の運用領域で、既存ページでは自動実行は触れない。新規ページだけ `初回契約月` を空欄初期化する (支払サイクルは初期化しない)。
-3. **月次履歴 (本文 table)**: 各顧客ページ本文の **table block** (列: 対象年月/今月の発行状況/前月金額/今月金額/確認済み日時) に 1 行=1 対象年月で蓄積。自然キー `period_ym` で当月行を upsert し、同月再実行は該当行を更新する (冪等・重複しない)。過去月の行は上書き・削除されない。候補0件の月も全チェック対象顧客 (発行漏れ+継続発行全件+今月新規) の行が collect 側で毎月記録されるため確認済み証跡が残る。サマリ行・件数集計プロパティ・paragraph 追記は持たない。DB プロパティは顧客一覧・絞り込み・並び替え用、ページ本文 table は月次推移の履歴表用。過去月の見方は上記「過去月の状態を確認する」節を参照。
-4. **スキル化** (5スキル): `ref-mf-kessai-api` (API仕様参照) / `run-mf-invoice-db-setup` (Notion DB スキーマ適用/新規構築) / `run-mf-invoice-check` (前月比差集合の簡易チェック→Notion投入) / **`run-mf-invoice-reconcile` (請求確認シート基準の双方向照合=現在の主フロー。詳細は上記「請求確認シート基準の照合」節を参照)** / `run-mf-initial-month-enrich` (任意・年払い顧客の初回契約月を一括エンリッチ。取得担当のみ→「付録」)。
-5. **参照専用ガード** (`hooks/guard-mfk-readonly.py`): Bash 経路での MF API 変更系 (POST/PUT/PATCH/DELETE や curl data 送信) を PreToolUse hook で遮断。同梱 MF クライアントも GET 専用にして二層で抑止する。MFクラウド請求書側 (OAuth) の参照専用は API クライアントの GET 専用設計で担保し、guard hook の射程は掛け払い (mfkessai.co.jp) 宛て Bash。
-6. **二段確認** (`agents/mfk-gap-verifier.md`): 発行漏れ候補を独立 context の subagent で誤検出排除してから Notion 投入。
+1. **主フロー: 請求確認シート基準の双方向照合** (`run-mf-invoice-reconcile`): 請求確認シートの当月行を期待集合、MF掛け払いの `invoice_issued` 取引を実績集合として照合します。順方向で発行漏れ・金額差・対象外を、逆方向で要マスタ登録 (orphan) を検出します。
+2. **DB1/DB2 二層台帳** (`scripts/build_reconcile_dbs.py` / `lib/notion_reconcile_sink.py`): DB1 は契約マスタ、DB2 は月次発行チェック履歴です。月次運用では DB を作り直さず、対象年月キーで当月だけ非破壊 upsert します。
+3. **請求確認シートへの片方向ミラー** (`lib/notion_sheet_writeback.py`): DB2 の判定 SoR から、当月シート行へ `判定`・`AI確認`・`確認ポイント` を書き戻します。空欄の `契約開始日` だけ派生補完し、`契約終了月` と人間列は触りません。
+4. **二段確認** (`agents/mfk-reconcile-verifier.md`): dry-run の判定内訳を独立 context の subagent で確認してから、`--apply --verified` で反映します。`--verified` なしの sink apply は fail-closed します。
+5. **簡易差集合フロー** (`run-mf-invoice-check`): 前月取引−今月取引の顧客差集合だけを Notion『請求書チェック_DB』へ入れる補助フローです。請求確認シート・契約終了・金額差・orphan まで見る通常運用では主フローを使います。
+6. **参照専用ガード** (`hooks/guard-mfk-readonly.py`): Bash 経路での MF API 変更系 (POST/PUT/PATCH/DELETE や curl data 送信) を PreToolUse hook で遮断。同梱 MF クライアントも GET 専用にして二層で抑止する。MFクラウド請求書側 (OAuth) の参照専用は API クライアントの GET 専用設計で担保し、guard hook の射程は掛け払い (mfkessai.co.jp) 宛て Bash。
 
 ### 使い方 (月次)
 
-**推奨はスラッシュコマンド経由** (install パス非依存・二段確認 subagent を含む正規フローを自動実行):
+**推奨は請求確認シート基準のスラッシュコマンド経由**です。担当者が入力する正本を請求確認シートに一本化し、契約マスタ DB1 / 月次チェック DB2 はスキルが生成・更新します。
 
 ```
-/run-mf-invoice-db-setup   # 初回のみ: 既定DB『請求書チェック_DB』にスキーマ適用 (冪等)
-/run-mf-invoice-check      # 毎月: collect → verify(subagent) → finalize → sink を統括実行
+/run-mf-invoice-reconcile --target YYMM          # dry-run: 判定内訳を確認
+/run-mf-invoice-reconcile --target YYMM --apply --verified  # 適用: 二段確認後に DB1/DB2 と請求確認シートへ反映
 ```
+
+旧来の `/run-mf-invoice-check` は、前月取引−今月取引の顧客差集合だけを Notion『請求書チェック_DB』へ入れる簡易チェックです。請求確認シートの `確認内容`・契約開始/終了・支払サイクル・金額差・orphan（MF実績はあるがシート未登録）まで確認したい通常運用では `/run-mf-invoice-reconcile` を使います。
 
 スクリプトを直接叩く場合 (デバッグ用)。`$CLAUDE_PLUGIN_ROOT` でこのプラグインの install 位置を解決するので、リポジトリ/マーケットプレースのどちらでも動きます:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target 2606
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target 2606 --apply --verified
+```
+
+旧来の簡易差集合フローを直接叩く場合:
 
 ```bash
 SK="$CLAUDE_PLUGIN_ROOT/skills"

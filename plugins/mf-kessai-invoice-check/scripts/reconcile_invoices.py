@@ -41,7 +41,7 @@ sync-master 単独でも安全に動く)。
   - --target 未指定 / YYMM 不正 → exit 2。
   - active step が要求する DB id が解決できない → exit 2 (どの id が欠落かを明示)。
   - step 依存違反 (reconcile に sync-master+collect が無い / sink に reconcile が無い) → exit 2。
-  - 既定は dry-run (集計サマリのみ・書き込みゼロ)。--apply で初めて upsert を実行する。
+  - 既定は dry-run (集計サマリのみ・書き込みゼロ)。sink を含む --apply は --verified を要求する。
   - MF API は GET のみ (本 orchestrator から POST/PATCH/DELETE は一切発行しない)。
   - Notion 書き込みは全て notion_transport._req 経由 (書き込み系レート間隔 MFK_NOTION_WRITE_GAP)。
 """
@@ -206,11 +206,27 @@ def query_sheet_rows(sheet_db, token, req, target_ym=None):
 # MF 取得 (参照専用 GET) → raw mf JSON
 # ---------------------------------------------------------------------------
 def _month_range_iso(target_ym):
-    """YYMM ('2606') → (issue_date_from, issue_date_to) の ISO 日付 (当月初〜末)。"""
+    """YYMM ('2606') → MF取得用 issue_date 窓 (issue_date_from, issue_date_to)。
+
+    月帰属は **取引日 (transaction.date, 月末締め) 基準**。当月取引分 (例 6月分=取引日
+    2026/06/30) の請求書は翌月月初に発行される (発行日=翌月) ため、issue_date を当月内に
+    絞ると当月取引分を取りこぼす。よって取得窓を [当月初 .. 翌月末] へ広げて over-fetch し、
+    collect_mf が transaction.date で当月取引分のみへ厳格フィルタする (帰属確定は取引日)。
+    """
     year = 2000 + int(target_ym[:2])
     month = int(target_ym[2:])
-    last = calendar.monthrange(year, month)[1]
-    return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{last:02d}"
+    first = f"{year:04d}-{month:02d}-01"
+    ny, nm = (year + 1, 1) if month == 12 else (year, month + 1)
+    nlast = calendar.monthrange(ny, nm)[1]
+    return first, f"{ny:04d}-{nm:02d}-{nlast:02d}"
+
+
+def _iso_to_ym(iso_date):
+    """ISO 日付 (YYYY-MM-DD / YYYY-MM) → YYMM ('2606')。空/不正は None。"""
+    m = re.match(r"\s*(\d{4})-(\d{2})", str(iso_date or ""))
+    if not m:
+        return None
+    return f"{int(m.group(1)) % 100:02d}{m.group(2)}"
 
 
 def _resolve_customer_names(customer_ids, cfg):
@@ -229,9 +245,20 @@ def collect_mf(target_ym, cfg):
     """対象月の MF掛け払い発行実績を raw mf JSON へ畳む (参照専用・副作用なし)。
 
     返り値 = {"customers": {customer_id: {"name", "lines": [{desc, amount, unit_price, qty,
-    billing_id}]}}}。build_mf_index / build_contracts の双方が消費する形。
-    /billings/qualified (status=invoice_issued) で当月発行 billing を集め、各 billing の
-    /transactions 明細 (transaction_details) を line 化、/customers で会社名を解決する。
+    billing_id, txn_date, status, canceled_at}]}}, "canceled_count": int}。build_mf_index /
+    build_contracts は "customers" を消費し、orchestrator は "canceled_count" を取消バランスの
+    可視化に使う。各 line に transaction.status(passed/canceled 等)と canceled_at を載せる。
+    canceled(取消)行も lines から削除せず status を付与して残す(build_mf_signals の
+    サイクル推定入力を byte 不変に保つ)。有効/取消の振り分けは build_mf_index 側だけが行う。
+
+    月帰属は **取引日 (transaction.date, 月末締め) 基準**。issue_date 窓を [当月初 .. 翌月末]
+    へ広げて /billings/qualified (status=invoice_issued) を over-fetch し、各 billing の
+    /transactions を取得して **transaction.date が当月 (target_ym) の取引のみ** を line 化する
+    (当月分=取引日6/30・発行7月 を捕捉し、前月分=取引日5/31・発行6月 を除外する)。
+    transaction.date が欠落する場合のみ transaction.issue_date → billing.issue_date の順へ
+    縮退する。この場合だけ発行日基準となるため、当月取引でも date 欠落かつ翌月発行だと翌月へ
+    帰属し当月集合から外れうる (縮退は取りこぼしを防ぐ向きとは限らない)。縮退が起きた件数は
+    stderr に1行警告する (silent ではなく可視化。FAIL にはしない)。
     """
     first, last = _month_range_iso(target_ym)
     billings = list(mfk_api.iter_all(
@@ -240,14 +267,28 @@ def collect_mf(target_ym, cfg):
         cfg=cfg,
     ))
     customers = {}
+    fallback_count = 0
+    canceled_count = 0
     for b in billings:
         cid = b.get("customer_id")
         bid = b.get("id")
         if not cid:
             continue
-        entry = customers.setdefault(cid, {"name": None, "lines": []})
-        tx = mfk_api.get("/transactions", {"billing_id": bid, "limit": 200}, cfg=cfg)
-        for t in tx.get("items", []):
+        for t in mfk_api.iter_all("/transactions", {"billing_id": bid}, cfg=cfg):
+            # 月帰属 = 取引日。date 欠落時のみ発行日基準へ縮退 (当月取引が翌月へ帰属しうる)。
+            txn_ym = _iso_to_ym(t.get("date"))
+            if txn_ym is None:
+                fallback_count += 1
+                txn_ym = _iso_to_ym(t.get("issue_date")) or _iso_to_ym(b.get("issue_date"))
+            if txn_ym is not None and txn_ym != target_ym:
+                continue
+            # status/canceled_at を line へ伝播する。canceled(取消)行も lines に残し
+            # (build_mf_signals の入力を不変に保つ)、有効/取消の振り分けは build_mf_index に委ねる。
+            st = t.get("status")
+            cat = t.get("canceled_at")
+            if str(st or "").lower() == "canceled":
+                canceled_count += 1
+            entry = customers.setdefault(cid, {"name": None, "lines": []})
             for d in t.get("transaction_details", []):
                 entry["lines"].append({
                     "desc": d.get("description"),
@@ -255,11 +296,23 @@ def collect_mf(target_ym, cfg):
                     "unit_price": d.get("unit_price"),
                     "qty": d.get("quantity"),
                     "billing_id": bid,
+                    "txn_date": t.get("date"),
+                    "status": st,
+                    "canceled_at": cat,
                 })
+    if fallback_count:
+        sys.stderr.write(
+            f"[collect] 警告: {target_ym} で transaction.date 欠落により発行日基準へ縮退した取引 "
+            f"{fallback_count}件 (当月取引が翌月へ帰属し当月集合から外れる恐れ)。\n")
+    if canceled_count:
+        sys.stderr.write(
+            f"[collect] {target_ym} の当月 canceled (取消) 取引 {canceled_count}件 を検出 "
+            "(要確認(取消)で可視化、または対象外(契約終了/前払い等)の場合は確認ポイントに"
+            "取消注記を併記します)。\n")
     names = _resolve_customer_names(customers.keys(), cfg)
     for cid, entry in customers.items():
         entry["name"] = names.get(cid) or cid
-    return {"customers": customers}
+    return {"customers": customers, "canceled_count": canceled_count}
 
 
 # ---------------------------------------------------------------------------
@@ -389,6 +442,44 @@ def run(target, steps, apply, sheet_db, db1, db2, cfg):
               f"{len(result['orphans'])}件")
         for verdict, n in sorted(result["summary"].items(), key=lambda kv: (-kv[1], kv[0])):
             print(f"    {verdict}: {n}")
+        # 取消/未確定可視化: 当月に非active(取消/審査中/否決等)が有効供給を欠いたまま残った契約数を
+        # 明示する(凍結ルールは不変=可視化のみ。凍結済み行は再計算しないため DB2 へは反映されないが
+        #  シートは再計算で要確認化しうる点は README/docs の限界注記を参照)。
+        canceled_n = result["summary"].get("REVIEW_CANCELED", 0)
+        if canceled_n:
+            print(f"    [取消可視化] 要確認(取消): {canceled_n}件 "
+                  "(MF取引が取消済みで同月再発行なし・再発行要否を確認)")
+        not_passed_n = result["summary"].get("REVIEW_TXN_NOT_PASSED", 0)
+        if not_passed_n:
+            print(f"    [未確定可視化] 要確認(取引未確定): {not_passed_n}件 "
+                  "(MF取引が審査中/否決/停止等で有効な発行になっていない・取引状態を確認)")
+        # 取消バランス (WARN-not-FAIL・情報表示・exit code 不変): collect が検出した当月取消件数を
+        # 要確認(取消) と 対象外等に取消注記 の内訳へ振り分けて可視化する。同月再発行や名寄せ対象外で
+        # collect 検出件数 N と内訳 (M+K) に差が出る場合があるため過大約束しない。
+        # K = warning に取消注記マーカー (mfk_reconcile.CANCEL_NOTE_MARKER=「取消取引あり」・SSOT) を
+        #     含む対象外/終了根拠なし行 (cancellation_note 由来。リテラルを二重定義しない)。
+        marker = mfk_reconcile.CANCEL_NOTE_MARKER
+        collected_canceled = mf_raw.get("canceled_count", 0) if mf_raw else 0
+        annotated_k = sum(
+            1 for r in result["rows"] if marker in (r.get("warning") or ""))
+        if collected_canceled or canceled_n or annotated_k:
+            print(f"    [取消バランス] collect検出 {collected_canceled}件 = "
+                  f"要確認(取消) {canceled_n}件 + 対象外等に取消注記 {annotated_k}件 "
+                  "(同月再発行や名寄せ対象外で N と内訳に差が出る場合あり)")
+        # 健全性検知 (read-only): 確認内容に終了根拠が無いのに契約終了月が入っている行を月次
+        # フローで可視化する。検知のみで列クリア(write)は行わず clear_unsupported_end_dates.py
+        # --apply へ委譲する (責務分離・fail-soft: exit code は変えない)。当月契約なら engine が
+        # REVIEW_ENDED_NO_BASIS(要確認)で行ごと可視化するが、当月シートに無い他月行の残存も
+        # 全シート横断 (all_rows) で件数告知し、根拠なき終了月による発行漏れ隠蔽の温存を断つ。
+        end_health = notion_sheet_writeback.plan_unsupported_end_date_clear(all_rows)
+        unsupported = end_health["stats"]["unsupported"]
+        if unsupported:
+            print(f"    [健全性] 根拠なき契約終了月: {unsupported}件 "
+                  "(継続契約の発行漏れを隠す恐れ・要是正)")
+            sys.stderr.write(
+                f"[reconcile] 警告: 確認内容に終了根拠が無いのに契約終了月が入っている行 "
+                f"{unsupported}件。継続契約を終了扱いにして発行漏れを隠す恐れがあります。"
+                "`python3 scripts/clear_unsupported_end_dates.py --apply` で是正できます。\n")
 
     if "sink" in steps:
         if fatal_apply_failure:
@@ -413,14 +504,19 @@ def run(target, steps, apply, sheet_db, db1, db2, cfg):
                 sink_rows, db2, target, token, req=notion_transport._req)
             print(f"[sink] DB2 upsert: created={r['created']} updated={r['updated']} "
                   f"frozen={r['frozen']} failed={r['failed']}")
-            if r["failed"] or r["frozen"]:
+            if r["failed"]:
                 sys.stderr.write(
-                    "[sink] DB2 upsert had failed/frozen rows; sheet writeback skipped "
-                    "to keep DB2 as SoR.\n")
+                    "[sink] DB2 upsert had failed rows; sheet writeback skipped "
+                    "to avoid projecting an incomplete SoR.\n")
                 return 2
-            # シート書き戻し (片方向ミラー): 判定/AI確認/確認ポイントを投影し、契約開始日/契約終了月の
-            # 空欄を派生値で自動補完する。current_dates=当月シートの現値で空欄セルだけ書く
-            # (人間入力の非空値・チェック済み等は不可侵)。
+            if r["frozen"]:
+                sys.stderr.write(
+                    f"[sink] DB2 upsert had frozen rows ({r['frozen']}); DB2 frozen rows were "
+                    "not overwritten, but sheet writeback will continue so current 判定/確認ポイント "
+                    "does not disappear from the operational sheet.\n")
+            # シート書き戻し (片方向ミラー): 判定/AI確認/確認ポイントを投影し、契約開始日の
+            # 空欄だけを派生値で自動補完する。契約終了月は誤推定防止のため触れない。
+            # current_dates=当月シートの現値で空欄セルだけ書く (非空値・チェック済み等は不可侵)。
             current_dates = {
                 row["page_id"]: {"契約開始日": row.get("契約開始日"),
                                  "契約終了月": row.get("契約終了月")}
@@ -455,6 +551,8 @@ def main(argv=None):
     p.add_argument("--target", help="対象月 YYMM (例: 2606)")
     p.add_argument("--apply", action="store_true",
                    help="実書き込みを行う (既定は dry-run・集計のみ)")
+    p.add_argument("--verified", action="store_true",
+                   help="dry-run と二段確認が完了済みであることを明示する。sink を含む --apply では必須")
     p.add_argument("--steps",
                    help="実行 step をカンマ区切りで指定 (既定: 全て)。"
                         f"有効値: {','.join(ALL_STEPS)}")
@@ -474,6 +572,11 @@ def main(argv=None):
         steps = _parse_steps(a.steps)
     except ValueError as e:
         sys.stderr.write(f"[reconcile] --steps エラー: {e}\n")
+        return 2
+    if a.apply and "sink" in steps and not a.verified:
+        sys.stderr.write(
+            "[reconcile] sink を含む --apply には --verified が必要です。"
+            "先に dry-run の判定内訳を subagent で二段確認してから再実行してください。\n")
         return 2
 
     cfg = load_orchestrator_config(a.config)

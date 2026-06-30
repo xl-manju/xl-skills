@@ -207,6 +207,13 @@ PENDING_RENAME_PATHS = {
     # tests/test_build_reconcile_dbs.py から `import build_reconcile_dbs` される module のため
     # §4.3 例外 (ハイフン不可)。許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
     "plugins/mf-kessai-invoice-check/scripts/build_reconcile_dbs.py",
+    # backfill_sheet_contract_dates.py / clear_unsupported_end_dates.py: 請求確認シート契約日の
+    # 保守スクリプト (独立パス・dry-run 既定)。tests/test_backfill_sheet_contract_dates.py /
+    # test_clear_unsupported_end_dates.py から `import backfill_sheet_contract_dates` /
+    # `import clear_unsupported_end_dates` される module のため §4.3 例外 (ハイフン不可)。
+    # 許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/scripts/backfill_sheet_contract_dates.py",
+    "plugins/mf-kessai-invoice-check/scripts/clear_unsupported_end_dates.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの

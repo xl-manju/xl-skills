@@ -90,22 +90,21 @@ def _fake_mfk(mf_json):
     """mfk_api.iter_all / get を mf fixture から再構成して返す mock 群。
 
     iter_all('/billings/qualified') : 各顧客の各 billing_id を 1 billing として yield。
-    get('/transactions')            : billing_id に属する明細を transaction_details 化。
+    iter_all('/transactions')       : billing_id に属する明細を transaction_details 化。
     get('/customers')               : ids → name 解決。
     """
     def iter_all(path, params=None, cfg=None, api_key=None):
-        assert path == "/billings/qualified"
-        assert params["status"] == "invoice_issued"
-        for cid, c in mf_json["customers"].items():
-            seen = []
-            for ln in c["lines"]:
-                if ln["billing_id"] not in seen:
-                    seen.append(ln["billing_id"])
-            for bid in seen:
-                yield {"id": bid, "customer_id": cid,
-                       "issue_date": "2026-06-15", "status": "invoice_issued"}
-
-    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            assert params["status"] == "invoice_issued"
+            for cid, c in mf_json["customers"].items():
+                seen = []
+                for ln in c["lines"]:
+                    if ln["billing_id"] not in seen:
+                        seen.append(ln["billing_id"])
+                for bid in seen:
+                    yield {"id": bid, "customer_id": cid,
+                           "issue_date": "2026-06-15", "status": "invoice_issued"}
+            return
         if path == "/transactions":
             bid = params["billing_id"]
             details = []
@@ -114,7 +113,11 @@ def _fake_mfk(mf_json):
                     if ln["billing_id"] == bid:
                         details.append({"description": ln["desc"], "amount": ln["amount"],
                                         "unit_price": ln["unit_price"], "quantity": ln["qty"]})
-            return {"items": [{"transaction_details": details}]}
+            yield {"date": "2026-06-30", "transaction_details": details}
+            return
+        raise AssertionError(f"想定外の MF 呼び出し: {path}")
+
+    def get(path, params=None, cfg=None, api_key=None):
         if path == "/customers":
             ids = params["ids"]
             return {"items": [{"id": cid, "name": mf_json["customers"][cid]["name"]}
@@ -226,8 +229,16 @@ def test_dry_run_no_writes(wired, capsys):
     assert "[reconcile]" in out and "[sink]" in out
 
 
-def test_apply_runs_all_steps_and_resolves_page_id(wired):
+def test_apply_with_sink_requires_verified(wired, capsys):
     rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    assert rc == 2
+    assert wired["calls"]["master"] == []
+    assert wired["calls"]["monthly"] == []
+    assert "--verified" in capsys.readouterr().err
+
+
+def test_apply_runs_all_steps_and_resolves_page_id(wired):
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
     assert rc == 0
     # 各 step の書き込みが 1 回ずつ実行された。
     assert len(wired["calls"]["master"]) == 1
@@ -252,7 +263,7 @@ def test_apply_stops_before_db2_when_db1_upsert_failed(wired, monkeypatch, capsy
                 "failed": [{"契約ID": contracts[0]["契約ID"], "error": "boom"}]}
 
     monkeypatch.setattr(sheet_to_master, "upsert_master", failed_master)
-    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
     assert rc == 2
     assert wired["calls"]["monthly"] == []
     err = capsys.readouterr().err
@@ -260,7 +271,7 @@ def test_apply_stops_before_db2_when_db1_upsert_failed(wired, monkeypatch, capsy
 
 
 def test_apply_sink_rows_have_judge_labels(wired):
-    O.main(_args(wired["sheet_db"]) + ["--apply"])
+    O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
     rows = wired["calls"]["monthly"][0]["rows"]
     assert all(r.get("judge_label") for r in rows)
     # orphan 行は relation 無し・mf_customer_id を持つ。
@@ -272,11 +283,11 @@ def test_apply_sink_rows_have_judge_labels(wired):
 
 def test_apply_writes_back_judgment_to_sheet(wired):
     # apply 時、forward rows の 5値判定 + AI確認 + 確認ポイント が請求確認シート各行へ書き戻され、
-    # 契約開始日/契約終了月は空欄セルのみ派生値で自動補完される。
-    O.main(_args(wired["sheet_db"]) + ["--apply"])
+    # 契約開始日は空欄セルのみ派生値で自動補完される。契約終了月は誤推定防止のため触らない。
+    O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
     writes = wired["sheet_writes"]
     assert writes, "シートへの書き戻しが発生していない"
-    allowed = {"判定", "AI確認", "確認ポイント", "契約開始日", "契約終了月"}
+    allowed = {"判定", "AI確認", "確認ポイント", "契約開始日"}
     human_forbidden = {"チェック済み", "確認内容", "取引先", "商品", "年月"}
     labels = set()
     for props in writes.values():
@@ -295,30 +306,30 @@ def test_apply_skips_sheet_writeback_when_db2_failed(wired, monkeypatch, capsys)
         return {"created": 0, "updated": 0, "frozen": 0, "failed": 1}
 
     monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", failed_monthly)
-    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
 
     assert rc == 2
     assert wired["sheet_writes"] == {}
-    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+    assert "DB2 upsert had failed rows" in capsys.readouterr().err
 
 
-def test_apply_skips_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys):
+def test_apply_continues_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys):
     def frozen_monthly(rows, db2, target_ym, token, req=None):
         wired["calls"]["monthly"].append({"rows": rows, "db2": db2, "target_ym": target_ym})
         return {"created": 0, "updated": 0, "frozen": 1, "failed": 0}
 
     monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", frozen_monthly)
-    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
 
-    assert rc == 2
-    assert wired["sheet_writes"] == {}
-    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+    assert rc == 0
+    assert wired["sheet_writes"], "DB2 frozen だけでシート確認ポイント全体を止めない"
+    assert "DB2 upsert had frozen rows" in capsys.readouterr().err
 
 
 def test_apply_aborts_when_verdict_mapping_missing(wired, monkeypatch, capsys):
     monkeypatch.setattr(mfk_reconcile, "load_verdict_mapping", lambda *a, **k: {})
 
-    rc = O.main(_args(wired["sheet_db"]) + ["--apply"])
+    rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
 
     assert rc == 2
     assert wired["calls"]["monthly"] == []
@@ -343,8 +354,300 @@ def test_steps_subset_sync_master_only(wired):
 # 純関数ユニット (橋渡し / 抽出 / 解決)
 # ---------------------------------------------------------------------------
 def test_month_range_iso():
-    assert O._month_range_iso("2606") == ("2026-06-01", "2026-06-30")
-    assert O._month_range_iso("2602") == ("2026-02-01", "2026-02-28")
+    # 取引日基準のため取得窓は当月初〜翌月末 (over-fetch)。当月取引(翌月発行)を捕捉する。
+    assert O._month_range_iso("2606") == ("2026-06-01", "2026-07-31")
+    assert O._month_range_iso("2602") == ("2026-02-01", "2026-03-31")
+    assert O._month_range_iso("2612") == ("2026-12-01", "2027-01-31")  # 年跨ぎ
+
+
+def test_iso_to_ym():
+    assert O._iso_to_ym("2026-06-30") == "2606"
+    assert O._iso_to_ym("2026-07-02") == "2607"
+    assert O._iso_to_ym("2026-12-01") == "2612"
+    assert O._iso_to_ym("") is None
+    assert O._iso_to_ym(None) is None
+    assert O._iso_to_ym("garbage") is None
+
+
+def test_collect_mf_attributes_by_transaction_date(monkeypatch):
+    """月帰属は取引日(transaction.date)。当月取引(翌月発行)を採用し前月取引(当月発行)を除外。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            # 取得窓が翌月末まで広がっている (over-fetch)。
+            assert params["issue_date_from"] == "2026-06-01"
+            assert params["issue_date_to"] == "2026-07-31"
+            # B_curr: 6月取引・7月発行 (当月分) / B_prev: 5月取引・6月発行 (前月分)。
+            yield {"id": "B_curr", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            yield {"id": "B_prev", "customer_id": "C2", "issue_date": "2026-06-10",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            bid = params["billing_id"]
+            if bid == "B_curr":
+                yield {"date": "2026-06-30", "issue_date": "2026-07-02",
+                       "transaction_details": [
+                           {"description": "6月分", "amount": 100000,
+                            "unit_price": 100000, "quantity": 1}]}
+                return
+            yield {"date": "2026-05-31", "issue_date": "2026-06-10",
+                   "transaction_details": [
+                       {"description": "5月分", "amount": 50000,
+                        "unit_price": 50000, "quantity": 1}]}
+            return
+        raise AssertionError(f"想定外の MF 呼び出し: {path}")
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(f"想定外の MF 呼び出し: {path}")
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    # 取引日6月(C1)は採用、取引日5月(C2)は当月発行でも除外。
+    assert "C1" in raw["customers"]
+    assert "C2" not in raw["customers"]
+    assert raw["customers"]["C1"]["lines"][0]["desc"] == "6月分"
+    assert raw["customers"]["C1"]["lines"][0]["txn_date"] == "2026-06-30"
+
+
+def test_collect_mf_fallbacks_to_issue_date_when_txn_date_missing(monkeypatch):
+    """transaction.date 欠落時は billing.issue_date へ縮退し当月発行分を取りこぼさない。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-06-15",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            # date / issue_date とも無い transaction (旧 fixture 形)。
+            yield {"transaction_details": [
+                {"description": "x", "amount": 1000, "unit_price": 1000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    assert "C1" in raw["customers"]  # issue_date 2026-06 → 2606 として採用
+
+
+def test_collect_mf_reads_all_transaction_pages(monkeypatch):
+    """各 billing の /transactions もカーソルページングで全ページ読む。"""
+    calls = []
+
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        calls.append((path, dict(params or {})))
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            assert params["billing_id"] == "B1"
+            yield {"date": "2026-06-30", "transaction_details": [
+                {"description": "page1", "amount": 1000, "unit_price": 1000, "quantity": 1}]}
+            yield {"date": "2026-06-30", "transaction_details": [
+                {"description": "page2", "amount": 2000, "unit_price": 2000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    lines = raw["customers"]["C1"]["lines"]
+    assert [line["desc"] for line in lines] == ["page1", "page2"]
+    assert any(path == "/transactions" for path, _params in calls)
+
+
+def test_collect_mf_carries_status_and_canceled_at(monkeypatch, capsys):
+    """collect_mf は line に status/canceled_at を載せ canceled 行も lines に残す。当月取消件数を stderr 可視化。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            yield {"date": "2026-06-30", "status": "passed",
+                   "transaction_details": [{"description": "有効", "amount": 100000,
+                                            "unit_price": 100000, "quantity": 1}]}
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [{"description": "取消", "amount": 200000,
+                                            "unit_price": 200000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    lines = raw["customers"]["C1"]["lines"]
+    # canceled 行も lines に残す (build_mf_signals 入力を不変に保つ)。
+    assert len(lines) == 2
+    by_desc = {ln["desc"]: ln for ln in lines}
+    assert by_desc["有効"]["status"] == "passed" and by_desc["有効"]["canceled_at"] is None
+    assert by_desc["取消"]["status"] == "canceled"
+    assert by_desc["取消"]["canceled_at"] == "2026-06-25T17:39:45+09:00"
+    assert "canceled (取消) 取引 1件" in capsys.readouterr().err
+
+
+def test_collect_mf_then_index_routes_canceled(monkeypatch):
+    """collect_mf → build_mf_index で取消は services でなく inactive バケットへ振り分けられる。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            yield {"date": "2026-06-30", "status": "passed",
+                   "transaction_details": [{"description": "有効", "amount": 100000,
+                                            "unit_price": 100000, "quantity": 1}]}
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [{"description": "取消", "amount": 200000,
+                                            "unit_price": 200000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    idx = mfk_reconcile.build_mf_index(O.collect_mf("2606", cfg={}))
+    assert [s["amount"] for s in idx["C1"]["services"]] == [100000]
+    assert [x["amount"] for x in idx["C1"]["inactive"]] == [200000]
+    assert idx["C1"]["inactive"][0]["status"] == "canceled"
+
+
+def test_reconcile_warns_unsupported_end_date(monkeypatch, capsys):
+    """月次フローが確認内容に終了根拠なき契約終了月を read-only で検知・警告する (健全性・fail-soft)。
+
+    当月契約なら engine が REVIEW_ENDED_NO_BASIS(要確認)で行ごと可視化し、全シート横断の件数も
+    『健全性』サマリ + stderr で告知する。検知のみで列クリアは行わず exit code も変えない。
+    """
+    sheet_rows = [
+        {"取引先": "継続商事", "商品": "P", "確認内容": "90,000円",
+         "契約開始日": "2501", "契約終了月": "2605", "page_id": "pg-keizoku"},
+    ]
+    sheet_db = "sheetdb"
+    pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
+    monkeypatch.setattr(notion_transport, "_notion_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(notion_transport, "_req", _fake_notion_req(sheet_db, pages))
+    iter_all, get = _fake_mfk({"customers": {}})  # MF 実績なし → SUPPRESS/REVIEW 分岐へ
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    monkeypatch.setattr(O, "load_orchestrator_config",
+                        lambda *a, **k: {"notion": {"sheet_db_id": sheet_db}})
+
+    rc = O.main(["--target", "2606", "--steps", "collect,sync-master,reconcile",
+                 "--sheet-db", sheet_db])
+    out = capsys.readouterr()
+    assert rc == 0  # fail-soft: 検知は exit code を変えない
+    assert "根拠なき契約終了月: 1件" in out.out
+    assert "clear_unsupported_end_dates.py --apply" in out.err
+    assert "REVIEW_ENDED_NO_BASIS" in out.out  # 当月契約は要確認で行ごと可視化
+
+
+def test_reconcile_no_health_warning_when_end_grounded(monkeypatch, capsys):
+    """確認内容に終了根拠ありの契約終了月は健全性警告を出さない (誤検出しない)。"""
+    sheet_rows = [
+        {"取引先": "撤退商事", "商品": "P", "確認内容": "90,000円 請求なし（2605終了）",
+         "契約開始日": "2501", "契約終了月": "2605", "page_id": "pg-tettai"},
+    ]
+    sheet_db = "sheetdb"
+    pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
+    monkeypatch.setattr(notion_transport, "_notion_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(notion_transport, "_req", _fake_notion_req(sheet_db, pages))
+    iter_all, get = _fake_mfk({"customers": {}})
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    monkeypatch.setattr(O, "load_orchestrator_config",
+                        lambda *a, **k: {"notion": {"sheet_db_id": sheet_db}})
+
+    rc = O.main(["--target", "2606", "--steps", "collect,sync-master,reconcile",
+                 "--sheet-db", sheet_db])
+    out = capsys.readouterr()
+    assert rc == 0
+    assert "健全性" not in out.out
+    assert "REVIEW_ENDED_NO_BASIS" not in out.out  # 根拠ありは SUPPRESS_ENDED のまま
+
+
+def test_reconcile_shows_cancellation_balance(monkeypatch, capsys):
+    """取消が REVIEW_CANCELED と 対象外+取消注記 に振り分けられ、取消バランス行が出る (情報表示・exit不変)。
+
+    C1(月次・取消のみ)→REVIEW_CANCELED、C2(終了根拠あり・取消のみ)→SUPPRESS_ENDED+取消注記。
+    collect検出2件 = 要確認(取消)1 + 対象外等に取消注記1 をサマリへ可視化する (WARN-not-FAIL)。
+    """
+    sheet_rows = [
+        {"取引先": "取消商事", "商品": "チイキズカン業務委託費", "確認内容": "70,000円",
+         "契約開始日": "", "契約終了月": "", "page_id": "pg-cancel"},
+        {"取引先": "終了取消商事", "商品": "P", "確認内容": "90,000円 請求なし（2605終了）",
+         "契約開始日": "2501", "契約終了月": "2605", "page_id": "pg-ended"},
+    ]
+    sheet_db = "sheetdb"
+    pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
+
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            yield {"id": "B2", "customer_id": "C2", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            if params["billing_id"] == "B1":
+                yield {"date": "2026-06-30", "status": "canceled",
+                       "canceled_at": "2026-06-25T17:39:45+09:00",
+                       "transaction_details": [
+                           {"description": "チイキズカン業務委託費（田中様 2026年6月分）",
+                            "amount": 70000, "unit_price": 70000, "quantity": 1}]}
+                return
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [
+                       {"description": "業務委託費（佐藤様 2026年6月分）",
+                        "amount": 90000, "unit_price": 90000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            names = {"C1": "取消商事", "C2": "終了取消商事"}
+            return {"items": [{"id": c, "name": names[c]} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(notion_transport, "_notion_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(notion_transport, "_req", _fake_notion_req(sheet_db, pages))
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    monkeypatch.setattr(O, "load_orchestrator_config",
+                        lambda *a, **k: {"notion": {"sheet_db_id": sheet_db}})
+
+    rc = O.main(["--target", "2606", "--steps", "collect,sync-master,reconcile",
+                 "--sheet-db", sheet_db])
+    out = capsys.readouterr()
+    assert rc == 0  # 情報表示・exit code を変えない
+    assert "canceled (取消) 取引 2件" in out.err
+    assert "[取消可視化] 要確認(取消): 1件" in out.out
+    assert "[取消バランス] collect検出 2件" in out.out
+    assert "要確認(取消) 1件 + 対象外等に取消注記 1件" in out.out
 
 
 def test_extract_sheet_row():

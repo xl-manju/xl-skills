@@ -1,6 +1,6 @@
 {
   "title": "月次発行チェック（MF発行整合チェック DB2）",
-  "description": "双方向照合の蓄積先。1行=1(契約 × 対象年月=発行月) + 逆方向orphan行。判定はDB1から展開した期待とMF実績の突合結果(verdict→judge_label は verdict-mapping.json SSOTで導出)。期待金額は判定時にスナップショット凍結し、マスタ後編集で過去月が変わらない=履歴不変の主担保。人間対応済み=true の行は同月再実行で凍結(L1)。config キー reconcile_db2_id に database_id を記録する。",
+  "description": "双方向照合の蓄積先。1行=1(契約 × 対象年月=取引月) + 逆方向orphan行。月次照合の月帰属は transaction.date 基準。判定はDB1から展開した期待とMF実績の突合結果(verdict→judge_label は verdict-mapping.json SSOTで導出)。期待金額は判定時にスナップショット凍結し、マスタ後編集で過去月が変わらない=履歴不変の主担保。人間対応済み=true の行は同月再実行で凍結(L1)。config キー reconcile_db2_id に database_id を記録する。",
   "properties": {
     "契約×年月": {
       "type": "title",
@@ -16,7 +16,7 @@
       "type": "select",
       "options": [],
       "option_format": "YYMM",
-      "description": "YYMM(=発行月)。upsertキーの一部。月ごとに動的追加(Notionが書込時に未存在optionを自動生成)のため固定列挙しない。"
+      "description": "YYMM(=取引月)。upsertキーの一部。月ごとに動的追加(Notionが書込時に未存在optionを自動生成)のため固定列挙しない。"
     },
     "方向": {
       "type": "select",
@@ -35,13 +35,16 @@
         "発行漏れ",
         "要マスタ登録",
         "要確認(過剰請求)",
+        "要確認(終了根拠なし)",
         "要確認(金額差)",
         "要確認(数量差)",
         "要確認(年間一括未確認)",
         "要確認(金額未記載)",
         "要確認(従量)",
         "要確認(データ不備)",
-        "要確認(保留)"
+        "要確認(保留)",
+        "要確認(取消)",
+        "要確認(取引未確定)"
       ],
       "options_source": "verdict-mapping.json の judge_label distinct(SSOT)。drift防止に parity test で突合する。",
       "description": "internal_verdict→judge_label のSSOTマッピングで生成。AI確認可否は別列『AI確認済み』に機械可読で残す。"
@@ -80,7 +83,7 @@
     },
     "警告": {
       "type": "rich_text",
-      "description": "分類済み警告(自由記述): 数量差(想定漏れ=差×単価)/金額差/typo/終了後請求(過剰請求)/鮮度/従量/データ不備。"
+      "description": "分類済み警告(自由記述): 数量差(想定漏れ=差×単価)/金額差/typo/終了後請求(過剰請求)/取消(取消日時・取消前金額・0円取消状態)/取引未確定(status・金額)/鮮度/従量/データ不備。"
     },
     "人間対応済み": {
       "type": "checkbox",

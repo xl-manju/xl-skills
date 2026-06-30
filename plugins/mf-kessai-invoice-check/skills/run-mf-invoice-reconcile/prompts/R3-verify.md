@@ -30,7 +30,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: dry-run (`--apply` 無し) の判定結果のうち、人間対応や自動適用に影響する判定——発行漏れ (`GAP`)・要マスタ登録 (`ORPHAN`)・金額差 (`REVIEW_AMOUNT_MISMATCH`)——を独立 context でレビューし、データ整合エラーによる誤検出を排除する。発行確認OK (`MATCH_MONTHLY` / `MATCH_ANNUAL`) と対象外 (`SUPPRESS_ANNUAL` / `SUPPRESS_ONESHOT` 等の `SUPPRESS_*`) は確認済み行として passthrough する。
+- 担当: dry-run (`--apply` 無し) の判定結果のうち、人間対応や自動適用に影響する判定——発行漏れ (`GAP`)・要マスタ登録 (`ORPHAN`)・金額差 (`REVIEW_AMOUNT_MISMATCH`)——を独立 context でレビューし、データ整合エラーによる誤検出を排除する。発行確認OK (`MATCH_MONTHLY` / `MATCH_ANNUAL`) と対象外 (`SUPPRESS_ANNUAL` / `SUPPRESS_ONESHOT` 等の `SUPPRESS_*`) は確認済み行として passthrough する。`REVIEW_CANCELED` / `REVIEW_TXN_NOT_PASSED` は除外レビュー対象ではなく、要確認として passthrough し、0円商品名ありの取消を GAP や対象外へ戻さない。
 - 非担当: MF実績取得 (R1)、双方向照合判定本体 (R2)、Notion 書込 (R4)、契約終了・請求要否など API で判別できない業務判断 (踏み込まない)。
 
 ### 2.2 ドメインルール
@@ -38,6 +38,7 @@
   - `GAP` (発行漏れ) 判定なのに、実は当月発行済み / 別名で発行済みだった (名寄せ漏れ)。
   - `ORPHAN` (要マスタ登録) 判定なのに、実は請求確認シートに登録済みだった (名寄せ漏れ)。
   - `REVIEW_AMOUNT_MISMATCH` (金額差) が、NFKC 正規化漏れ・明細二重化 (`(billing_id,desc,amount)` 重複) 由来だった。
+- `REVIEW_CANCELED` (取消) と `REVIEW_TXN_NOT_PASSED` (取引未確定) は、発行済み/対象外への自動訂正対象にしない。MF transaction status 由来の要確認として、確認ポイントへ状態・取消日時・取消前金額を残す。
 - presence-based を尊重する。該当品目が MF 実績に 1 件でも反映されていれば発行漏れにしない (数量差は誤検出ではない)。
 - 確認は憶測しない。必要なら `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` で `/billings/qualified` を GET 再取得して事実を照合する。
 - `verdict` (内部 verdict) と日本語ラベルは `verdict-mapping.json` の語彙から逐語引用し、別表記を作らない。
@@ -87,16 +88,16 @@
 - `mfk-reconcile-verifier` (isolation: fork で起動、独立 context)。
 
 ### 5.2 ゴール定義
-- 目的: dry-run の発行漏れ / orphan / 金額差からデータ整合エラーによる誤検出を排除しつつ、発行確認OK・対象外の確認済み行を passthrough する。
+- 目的: dry-run の発行漏れ / orphan / 金額差からデータ整合エラーによる誤検出を排除しつつ、発行確認OK・対象外の確認済み行、および取消/取引未確定の要確認行を passthrough する。
 - 背景: 親 context での自己レビューは Sycophancy により誤検出を見逃す。独立 context と API 再取得で根拠を機械的に確認する必要がある。
-- 達成ゴール: 発行漏れ / orphan / 金額差の各行が API 再取得で検証され、誤検出として除外すべき識別子 (順方向=`contract_id` / orphan=`mf_customer_id`) と根拠サマリが得られ、発行確認OK / 対象外行は除外対象でないと確認された状態。
+- 達成ゴール: 発行漏れ / orphan / 金額差の各行が API 再取得で検証され、誤検出として除外すべき識別子 (順方向=`contract_id` / orphan=`mf_customer_id`) と根拠サマリが得られ、発行確認OK / 対象外 / 取消 / 取引未確定行は除外対象でないと確認された状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] 入力行をすべて分類した (`GAP` / `ORPHAN` / `REVIEW_AMOUNT_MISMATCH` はレビュー対象、`MATCH_*` / `SUPPRESS_*` は passthrough)
+- [ ] 入力行をすべて分類した (`GAP` / `ORPHAN` / `REVIEW_AMOUNT_MISMATCH` はレビュー対象、`MATCH_*` / `SUPPRESS_*` / `REVIEW_CANCELED` / `REVIEW_TXN_NOT_PASSED` は passthrough)
 - [ ] `GAP` 行の「当月未発行 (別名含め発行が無い)」を API 再取得で確認した (憶測なし・presence-based)
 - [ ] `ORPHAN` 行の「請求確認シートに未登録 (名寄せ漏れでない)」を確認した
 - [ ] `REVIEW_AMOUNT_MISMATCH` 行の金額差が NFKC 正規化漏れ・明細二重化由来でないことを確認した
-- [ ] `MATCH_*` / `SUPPRESS_*` 行を誤検出除外の対象にしていない (passthrough)
+- [ ] `MATCH_*` / `SUPPRESS_*` / `REVIEW_CANCELED` / `REVIEW_TXN_NOT_PASSED` 行を誤検出除外の対象にしていない (passthrough)
 - [ ] 年間前払い抑制 (`SUPPRESS_ANNUAL`) を再判定していない・契約終了 / 請求要否の自動判定をしていない
 - [ ] MF / Notion は GET のみ・書き込みをしていない
 
@@ -105,7 +106,7 @@
 
 ### 5.5 Self-Evaluation (停止ゲート)
 返す前の停止ゲート (全て YES で完了)。**完全性**と**検証可能性**を主停止条件とする。本節が停止ゲートの SSOT 正本であり、アダプタ `mfk-reconcile-verifier.md` は本節を参照する。
-- [ ] **完全性 (YES/NO)**: 入力行をすべてレビュー対象 (`GAP` / `ORPHAN` / `REVIEW_AMOUNT_MISMATCH`) または passthrough 行 (`MATCH_*` / `SUPPRESS_*`) へ分類した
+- [ ] **完全性 (YES/NO)**: 入力行をすべてレビュー対象 (`GAP` / `ORPHAN` / `REVIEW_AMOUNT_MISMATCH`) または passthrough 行 (`MATCH_*` / `SUPPRESS_*` / `REVIEW_CANCELED` / `REVIEW_TXN_NOT_PASSED`) へ分類した
 - [ ] **検証可能性 (YES/NO)**: レビュー対象行の事実 (発行漏れ=当月未発行 / orphan=シート未登録 / 金額差=正規化・二重化非由来) を API 再取得で確認した (憶測なし・presence-based)
 - [ ] **一貫性 (YES/NO)**: `verdict` / `judge_label` を `verdict-mapping.json` から逐語引用し別表記を作らず、年間前払い抑制を再判定せず、契約終了 / 請求要否の自動判定をしていない (データ整合の誤検出排除のみ)
 - [ ] **参照専用 (YES/NO)**: MF / Notion は GET のみ・POST/PATCH/PUT/DELETE を実行していない
@@ -143,7 +144,7 @@ R2 reconcile の dry-run (`--apply` 無し) 出力の各行を `verdict` で分�
 2. `ORPHAN` (要マスタ登録): MF実績の顧客が請求確認シートに本当に未登録か。名寄せ漏れで実は登録済みでないかを確認する。
 3. `REVIEW_AMOUNT_MISMATCH` (金額差): 金額差が NFKC 正規化漏れ・明細二重化 (`(billing_id,desc,amount)` 重複) 由来でないかを確認する。
 
-`MATCH_MONTHLY` / `MATCH_ANNUAL` (発行確認OK) と `SUPPRESS_*` (対象外: 年間前払い / 契約終了 / 単発 / 非請求月) は確認済み行として passthrough し、レビュー・除外の対象にしない。年間前払い抑制は R2 で機械適用済みのため再判定しない。契約終了・請求要否など API で判別できない業務判断には踏み込まない。
+`MATCH_MONTHLY` / `MATCH_ANNUAL` (発行確認OK) と `SUPPRESS_*` (対象外: 年間前払い / 契約終了 / 単発 / 非請求月) は確認済み行として passthrough し、レビュー・除外の対象にしない。`REVIEW_CANCELED` / `REVIEW_TXN_NOT_PASSED` も要確認行として passthrough し、0円商品名ありの取消を GAP や対象外へ戻さない。年間前払い抑制は R2 で機械適用済みのため再判定しない。契約終了・請求要否など API で判別できない業務判断には踏み込まない。
 
 検証後、誤検出 (データ整合エラー) と判定した識別子を `exclude_ids` として返す。順方向は `contract_id`、orphan は `mf_customer_id` を使う。誤検出が無ければ空配列を返す。API 再取得が失敗して確定できない行は除外も確定もせず確定不能として計上する。確定リストの物質化・DB 書込は後続 sink phase (R4) が `--apply` で行う (R3 は read-only)。`verdict` / `judge_label` は `verdict-mapping.json` から逐語引用し別表記を作らない。
 
