@@ -288,7 +288,9 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
 
     集約キー = (normalize(取引先), normalize(エンドクライアント), 代表金額)。商品の表記ゆれ
     (同一エンドクライアント/同額で 業務委託費⇄ThinkTank が混在)は同一契約へ束ね、初期費用と
-    月額が別額の行は月額側へ寄せる(_recurring_amount)。期待明細数 = 集約元の行数。
+    月額が別額の行は月額側へ寄せる(_recurring_amount)。ただし集約元の商品 canon 集合は
+    内部フィールド _source_products に保持し、後段のMF明細カテゴリ照合で代表商品だけに
+    潰さない (mfk_reconcile._expected_categories が読む)。期待明細数 = 集約元の行数。
 
     各契約: 契約ID(取引先/エンドクライアント/商品canon[#枝番]) / 取引先 / 商品(canon) /
     エンドクライアント名 / 現行単価 / 契約開始日 / 契約終了月 / 請求確認シートID(代表 page_id) /
@@ -334,10 +336,14 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
         tnorm = key[0]
 
         contents = []
+        source_products = []
         for r in rows:
             t = (r.get("確認内容") or "").strip()
             if t and t not in contents:
                 contents.append(t)
+            p = shohin_canon(r.get("商品", ""))
+            if p and p not in source_products:
+                source_products.append(p)
         content_all = " ".join(contents)
 
         cycle = infer_cycle(content_all, product, amount, signals.get(tnorm))
@@ -379,8 +385,15 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
             "支払サイクル": cycle,
             "ステータス": status,
             "期待明細数": len(rows),
-            # シート『判定』書き戻し用(DB1 へは投入しない _ 接頭の内部フィールド)。
+            # `_` 接頭 = DB1 へ投入しない派生・非永続の内部フィールド (SSOT は請求確認シート)。
+            #   _sheet_row_ids   : シート『判定』書き戻しを代表1件でなく集約元全行へ投影する用。
+            #   _source_products : 集約で代表商品(商品)に潰れる前の商品 canon 集合。
+            #                      mfk_reconcile._expected_categories が商品照合のため読む。
+            # 不変条件: contract は毎 run シートから再導出される前提。DB1 由来で contract を
+            #   再構成する経路を将来足す場合、_source_products は DB1 に無いためシートから
+            #   再導出が必須 (さもなくば商品照合が代表商品へ退化する)。
             "_sheet_row_ids": sheet_row_ids,
+            "_source_products": source_products,
         })
     return contracts
 

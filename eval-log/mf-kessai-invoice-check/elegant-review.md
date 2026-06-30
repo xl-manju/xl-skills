@@ -135,3 +135,53 @@ Scope: `plugins/mf-kessai-invoice-check/`
 ### Verification
 
 - `pytest -q --no-cov plugins/mf-kessai-invoice-check/tests` -> 506 passed, 2 skipped
+
+---
+
+# Addendum: 再発明事故 + 商品照合精度 の3本柱レビュー (2026-06-30)
+
+Scope: `plugins/mf-kessai-invoice-check/` の未コミット修正セット（自然文起動の回復 / 再発明の機械遮断 / 商品照合精度の回復）。
+
+## 思考リセット・俯瞰 (Phase 1) と並列多角分析 (Phase 2)
+
+事故: ユーザーが自然文で照合を頼んだら、AI が正規エンジンを使わず自前 `reconcile_judgments.py` を書き、判定 `classify()` を `TODO(human)` で人間に丸投げした。
+根本原因: (A) `run-mf-invoice-reconcile/SKILL.md` が `disable-model-invocation: true` で自然文起動を殺していた（plugin 全 run 系のブランケット既定 true を最新 skill が継承） / (B) 自作を止める機械層が無かった（prose の「自作禁止」は出力スタイルの TODO(human) 規約に上書きされる）。
+
+3本柱: 柱1=SKILL.md `disable-model-invocation` true→false（安全は dry-run 既定 + `--apply` の `--verified` 必須ゲートで担保）/ 柱2=`hooks/guard-mfk-no-reinvent.py`（PreToolUse exit 2 で R1 TODO(human)・R2 再実装・R3 Bash 迂回を遮断）/ 柱3=`sheet_to_master`+`mfk_reconcile._expected_categories` が集約元商品集合を保持し代表商品への退化を防止。
+
+論理構造・メタ発想・システム戦略の3エージェントが独立 context で 30 思考法を適用し、findings を収束。
+
+## 最重要結論: 柱3 は偽の発行漏れ（赤）を生まない (YES/NO = NO)
+
+演繹: `_expected_categories` への集約元商品集合の追加は期待カテゴリ集合を**単調拡大するだけ**。`find_mf_match` の `scoped_candidates`（mfk_reconcile.py:711-715）は上位集合化し、MATCH を no_supply→GAP へ反転させる経路は存在しない。fail-soft（期待集合が空なら会社+金額照合へ）も成立。golden GAP=17 不変（test_mfk_reconcile.py）が経験的に裏づけ。3エージェントが同結論へ独立収束。
+
+## Phase 3 改善（実装済み・本 PR）
+
+| ID | Finding | 条件 | 対応 |
+|---|---|---|---|
+| A1 | 柱1 が将来 `true` へ回帰すると事故Aが無検知で再発（回帰防止テスト不在） | C1 矛盾 | `test_reconcile_is_model_invocable_from_natural_language` を追加し `disable-model-invocation: false` を事故リンク付きで機械固定 |
+| A2 | `商品一覧`/`_source_products` が同一リストの二重保持（無印キーは DB1 非永続で命名規約に逸脱） | C3 整合性 | 規約準拠の `_source_products` 一本へ SSOT 統一。`商品一覧` 廃止。非永続の不変条件を sheet_to_master / _expected_categories に明記し依存断線#5 の文書ギャップも閉じた |
+| A3 | guard の射程限界（信号語依存=偽陰性・構造的 backstop 不在）が未明記。allowlist が R2 のみ掛かる非対称が docstring と不一致 | C3 整合性 | guard docstring に readonly 同等の射程限界を正直明記。「正本でも R1 TODO(human) は遮断」をテスト固定 |
+| A4 | README L83 が「ふだんの言葉で頼むだけで全部動く」と全体約束するが check/db-setup/enrich は `true`（自然文非起動） | C1 矛盾 | README を「reconcile 主フローのみ自然文自動起動・他は明示スラッシュ」へ正確化 |
+
+## Deferred（実データ検証が必要・本 PR では実装しない）
+
+| ID | Finding | 理由 |
+|---|---|---|
+| D1 | カテゴリのハードフィルタ起因の残存偽GAP（柱3 とは独立の既存機構）: 会社供給はあるが全明細が期待外カテゴリ（例 `other`）に落ちると金額一致でも `no_supply→GAP`（mfk_reconcile.py:781-783）。`category()` 値域に `other` 等があるが `_expected_categories` 値域は非網羅 | カテゴリフィルタを soft-prefer へ変更する案は core 照合の挙動変更で、本番 2606 データでの GAP=17 の内訳検証が必須。trial/thinktank は点パッチ済。盲目的変更は回避 |
+| D2 | parity lint（README 一言テーブル掲載 skill ⟹ `disable-model-invocation:false`）の CI 配線 | systemic 再発の単一レバレッジだが、現状は A1 の reconcile 回帰テストで主因を固定済。governance 拡張は別 PR |
+| D3 | 商品照合語彙のハードコード（5語彙）→ シート商品名トークン直接含有への一般化、および一致強度（商品+金額 vs 金額のみ）の WARN 可視化 | 機能拡張。未知商品の出現時に金額のみ照合へ縮退する点の改善だが、現要件は充足。enhancement として保留 |
+
+## Four Conditions
+
+| Condition | Result | Evidence |
+|---|---|---|
+| 矛盾なし | PASS | A1（frontmatter 回帰固定）+ A4（README 正確化）で「自然文起動の約束 vs 設定」の矛盾を解消 |
+| 漏れなし | PASS | 事故の根本原因 A（柱1）/ B（柱2）+ 業務価値（柱3）を網羅。残存リスク D1-D3 は明示起票し silent な取りこぼしを排除 |
+| 整合性あり | PASS | A2（SSOT 一本化）+ A3（guard 射程の正直化・allowlist 非対称の明記）で命名規約・文書・実装を整合 |
+| 依存関係整合 | PASS | `_source_products` 非永続の不変条件を明記し、将来の DB1 由来 reconcile 経路に対する潜在断線#5 を文書化 |
+
+## Verification
+
+- `python3 -m pytest -q`（cwd=`plugins/mf-kessai-invoice-check/`）→ 593 passed, 2 skipped / TOTAL coverage 95.50%
+- 二段確認: 柱3 安全性の「NO」結論は報告を鵜呑みにせず `mfk_reconcile.py:711-790` のコード経路を辿って演繹的に確認

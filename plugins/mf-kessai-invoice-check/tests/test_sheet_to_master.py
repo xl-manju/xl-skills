@@ -118,7 +118,37 @@ def test_motoya_monthly_meisai3(contracts):
     assert c["支払サイクル"] == "月払い"
     assert c["期待明細数"] == 3  # ThinkTank表記2行+業務委託費1行を1契約へ統合
     assert c["商品"] == S.PROD_BIZ
+    # 集約元の商品集合は _source_products 一本に保持 (SSOT: 重複キー 商品一覧 は廃止)。
+    assert S.PROD_BIZ in c["_source_products"]
+    assert S.PROD_THINKTANK in c["_source_products"]
+    assert "商品一覧" not in c  # 非永続の重複キーが復活していないこと (回帰防止)
     assert c["現行単価"] == 330000
+
+
+def test_aggregated_contract_keeps_source_product_set():
+    rows = [
+        {
+            "取引先": "同額株式会社",
+            "商品": "チイキズカン業務委託費",
+            "確認内容": "100,000円 山田太郎",
+            "契約開始日": "",
+            "契約終了月": "",
+            "page_id": "p-biz",
+        },
+        {
+            "取引先": "同額株式会社",
+            "商品": "100億ThinkTank利用料",
+            "確認内容": "100,000円 山田太郎",
+            "契約開始日": "",
+            "契約終了月": "",
+            "page_id": "p-think",
+        },
+    ]
+    contracts = S.build_contracts(rows, mf_index=None, target_ym="2606")
+    assert len(contracts) == 1
+    assert contracts[0]["商品"] == S.PROD_BIZ
+    assert contracts[0]["_source_products"] == [S.PROD_BIZ, S.PROD_THINKTANK]
+    assert "商品一覧" not in contracts[0]  # 非永続の重複キーが復活していないこと (回帰防止)
 
 
 def test_hatada_annual(contracts):

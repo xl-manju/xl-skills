@@ -85,6 +85,16 @@ def _verdicts(rows):
     return {r["verdict"] for r in rows}
 
 
+def test_expected_categories_include_aggregated_source_products():
+    contract = {
+        "商品": "チイキズカン業務委託費",
+        "確認内容": "100,000円 山田太郎",
+        # 集約で代表商品(商品)に潰れても、集約元の商品集合 _source_products から期待カテゴリを復元。
+        "_source_products": ["チイキズカン業務委託費", "100億ThinkTank利用料"],
+    }
+    assert R._expected_categories(contract) >= {"biz", "thinktank", "trial"}
+
+
 # ============================================================================
 # 1. golden 全体スナップショット (回帰ロック)
 # ============================================================================
