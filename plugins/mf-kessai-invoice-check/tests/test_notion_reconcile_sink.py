@@ -148,6 +148,28 @@ def test_query_month_paginates_and_dedups():
     assert cursors == [None, "c2"]
 
 
+def test_query_month_returns_empty_on_missing_target_option():
+    # 新月を初めて処理する初回: 対象年月 select に target_ym option が無く Notion が
+    # validation_error(HTTP 400) を返す → その月の行はまだ存在しない(既存ゼロ)ので空を返す。
+    # 最初の行を POST する際に option が自動作成され、以降の query は通る。
+    def req(method, path, token, body=None):
+        raise RuntimeError(
+            'Notion POST /databases/db2/query: HTTP 400 {"object":"error",'
+            '"code":"validation_error","message":"select option \\"2605\\" not found '
+            'for property \\"対象年月\\". Available options: \\"2606\\"."}')
+    assert sink.query_month("db2", "2605", "tok", req=req) == []
+
+
+def test_query_month_reraises_unrelated_400():
+    # 対象年月以外の 400 は握りつぶさず再送出する (本当のエラーを隠さない)。
+    import pytest
+    def req(method, path, token, body=None):
+        raise RuntimeError('Notion POST /databases/db2/query: HTTP 400 '
+                           '{"message":"body failed validation: something else"}')
+    with pytest.raises(RuntimeError):
+        sink.query_month("db2", "2605", "tok", req=req)
+
+
 # ---------------------------------------------------------------------------
 # 確認済み凍結 (L1)
 # ---------------------------------------------------------------------------

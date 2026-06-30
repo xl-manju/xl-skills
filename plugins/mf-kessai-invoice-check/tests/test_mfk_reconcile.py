@@ -3,7 +3,7 @@
 
 golden 入力 (tests/fixtures/):
   - notion_2606.json        : 請求確認シート 95 行 (DB1 移行前の旧シート形)
-  - mf_2606.json            : MF掛け払い 当月発行実績 82 顧客 (会社名解決済・参照専用)
+  - mf_2606.json            : MF掛け払い 対象月取引実績 82 顧客 (会社名解決済・参照専用)
   - cycle_inventory_2606.json: 契約別サイクル棚卸し 68 契約 (design wi22zpkq2 の
                               validation.inventory.contracts を抽出。DB1『支払サイクル』
                               列の seed)。
@@ -369,6 +369,18 @@ def test_category_branches():
     assert R.category("チイキズカンサービス利用料") == "riyo"
     assert R.category("リーダー研修") == "training"
     assert R.category("謎の明細") == "other"
+    # 100億ThinkTankトライアルは category() では trial (評価順でトライアル優先・現状挙動を固定)。
+    assert R.category("100億ThinkTankトライアルサービス利用料") == "trial"
+
+
+def test_expected_categories_thinktank_allows_trial():
+    # ThinkTank契約の期待categoryに trial を許容し、MF desc が「トライアル」で category=trial に
+    # なる実発行済み明細を no_supply 誤判定(偽GAP)しない (2605 ひふみ/セント/特殊高所技術 の回帰防止)。
+    cats = R._expected_categories({"商品": "100億ThinkTank利用料", "確認内容": "50,000円"})
+    assert "thinktank" in cats and "trial" in cats
+    # ThinkTank を含まない契約には trial を足さない (純trial許容の漏れ防止)。
+    cats2 = R._expected_categories({"商品": "チイキズカン業務委託費", "確認内容": "70,000円"})
+    assert "trial" not in cats2
 
 
 def test_ym_int_and_months_elapsed():
@@ -444,11 +456,27 @@ def test_bimonthly_cycle_branches():
 
 
 def test_suppress_ended_when_no_mf():
+    """終了根拠あり(確認内容に終了注記)+終了月<=対象月+自社 MF 無 → SUPPRESS_ENDED(対象外)。"""
     mfi = _mf_index({"C": {"name": "他社", "lines": [_line(1)]}})
-    c = {"取引先": "撤退商事", "商品": "P", "確認内容": "90,000円",
+    c = {"取引先": "撤退商事", "商品": "P", "確認内容": "90,000円 請求なし（2605終了）",
          "支払サイクル": R.CADENCE_MONTHLY, "契約開始日": "2501", "契約終了月": "2605"}
-    rows = R.classify([c], mfi, "2606")  # 終了済 (2605<=2606), 自社 MF 無
+    rows = R.classify([c], mfi, "2606")  # 終了済 (2605<=2606), 終了根拠あり, 自社 MF 無
     assert rows[0]["verdict"] == "SUPPRESS_ENDED"
+
+
+def test_ended_no_basis_becomes_review():
+    """契約終了月に値があるが確認内容に終了根拠が無い → REVIEW_ENDED_NO_BASIS(要確認)。
+
+    根拠なき終了月(レガシー/誤入力の残存値)で SUPPRESS_ENDED に倒すと継続契約の発行漏れを
+    『対象外(灰・警告なし)』で隠す。終了根拠が無い終了月は要確認で可視化する(列値は非破壊)。
+    保留(REVIEW_PENDING)を要確認へ昇格するのと対称 (ユーザー確定 2026-06-30)。
+    """
+    mfi = _mf_index({"C": {"name": "他社", "lines": [_line(1)]}})
+    c = {"取引先": "継続商事", "商品": "P", "確認内容": "90,000円",
+         "支払サイクル": R.CADENCE_MONTHLY, "契約開始日": "2501", "契約終了月": "2605"}
+    rows = R.classify([c], mfi, "2606")  # 終了月2605<=2606 だが終了根拠なし・自社 MF 無
+    assert rows[0]["verdict"] == "REVIEW_ENDED_NO_BASIS"
+    assert "終了根拠なし" in rows[0]["warning"]
 
 
 def test_annual_caseb_migrates_to_monthly_after_12():
@@ -546,6 +574,16 @@ def test_status_pending_is_surfaced_as_review_pending():
     assert rows[0]["verdict"] == "REVIEW_PENDING"
     assert rows[0]["warning"] == "契約書が未締結/未確定"  # 保留理由が確認ポイントへ
     assert R.sheet_label("REVIEW_PENDING") == "要確認"
+
+
+def test_pending_contract_covers_mf_customer_for_orphan_detection():
+    """保留契約もシート登録済みなので、同じMF顧客をORPHAN(要マスタ登録)にしない。"""
+    mfi = _mf_index({"C": {"name": "保留商事", "lines": [_line(1)]}})
+    c = {"取引先": "保留商事", "商品": "P", "確認内容": "5/19契約書未締結",
+         "備考": "5/19契約書未締結", "ステータス": "保留"}
+    result = R.reconcile([c], mfi, "2606")
+    assert [r["verdict"] for r in result["rows"]] == ["REVIEW_PENDING"]
+    assert result["orphans"] == []
 
 
 def test_build_mf_index_dedup_and_exclusions():

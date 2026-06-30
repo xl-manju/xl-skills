@@ -148,7 +148,8 @@ def sheet_label(verdict, mapping=None):
     """internal_verdict → 請求確認シート『判定』selectの5値(AIの確認OK/対象外/要確認/発行漏れ)。
 
     ORPHAN(逆方向・シート行なし)や未定義は None を返し、書き戻し側で投影スキップする。
-    DB2『判定』(judge_label・15値)とは別軸の5値投影で、SSOT は verdict-mapping.json の sheet_label。
+    DB2『判定』(judge_label・SSOT由来の多値)とは別軸の5値投影で、
+    SSOT は verdict-mapping.json の sheet_label。
     """
     mp = mapping if mapping is not None else load_verdict_mapping()
     return mp.get(verdict, {}).get("sheet_label")
@@ -287,6 +288,21 @@ def category(text):
     return "other"
 
 
+# ============================================================================
+# 契約終了の根拠注記 (確認内容/備考) — SSOT (生成辺 classify / 再同期辺 writeback 共有)
+# ============================================================================
+# 明示的な終了表現のみを採り、曖昧語「まで」(例『2605まで継続予定』) は誤検出回避のため
+# 含めない。この判定を engine(本モジュール)の唯一の正本とし、notion_sheet_writeback /
+# clear_unsupported_end_dates / classify が全てこれを参照する(規約の二重定義を構造的に禁ずる)。
+_END_BASIS_PAT = re.compile(
+    r"[（(]\s*\d{4}\s*年?\s*終了\s*[)）]|契約終了|請求終了|請求なし|解約|終了月")
+
+
+def has_end_basis(content):
+    """確認内容/備考に契約終了の根拠 (明示的な終了注記) があるか。"""
+    return bool(_END_BASIS_PAT.search(content or ""))
+
+
 def _expected_categories(contract):
     """契約の商品/確認内容から MF 明細 category の期待集合を返す。
 
@@ -300,6 +316,11 @@ def _expected_categories(contract):
         cats.add("biz")
     if "ThinkTank" in text or "100億" in text:
         cats.add("thinktank")
+        # 100億ThinkTankトライアル(利用料)は、MF desc が「トライアル」を含むため category() が
+        # trial を返す (評価順で ThinkTank より トライアル が先)。ThinkTank 期待に trial を許容
+        # しないと、実際に発行済みの ¥50,000 を no_supply と誤判定して偽GAPになる (2605 実データで
+        # ひふみ/セント/特殊高所技術 が誤発行漏れ判定された事象。金額一致で本契約と区別される)。
+        cats.add("trial")
     if "チイキズカン" in text and ("利用料" in text or "サービス利用" in text):
         cats.add("riyo")
     if "初期導入" in text or "初期費用" in text:
@@ -793,16 +814,32 @@ def classify(contracts, mf_index, target_ym):
             rows.append(rec)
             continue
 
-        # ② 契約終了月以降。役務の請求は翌月に発行される(月またぎ発行)ため、終了月Mの最終請求書は
-        #    M+1 に出るのが正常。終了月〜終了月+1(最終請求月)の MF 請求は MATCH_ENDED_FINAL(発行確認OK)で
-        #    過剰請求にしない。終了月+2 以降(または終了月不明の status=終了)の MF 請求のみ
+        # ② 契約終了月以降。月帰属は取引日基準 (collect_mf が transaction.date で当月取引分に絞る)。
+        #    date 健在なら終了月Mの最終役務は M に帰属し t==end で MATCH_ENDED_FINAL となる (+1 不要)。
+        #    ただし date 欠落で issue_date へ縮退した場合 (collect_mf の fallback)、終了月役務の発行は
+        #    翌月のため M+1 run に現れる。これを最終請求書として救済するため終了月〜終了月+1 の MF
+        #    請求は MATCH_ENDED_FINAL(発行確認OK)で過剰請求にしない (ユーザー確定 2026-06-29: 最終請求書
+        #    の誤検出回避を優先。終了直後月の新規役務=過剰請求がこの救済に紛れうるが許容し、終了月+2
+        #    以降を過剰請求として検知する)。終了月+2 以降(または終了月不明の status=終了)の MF 請求のみ
         #    REVIEW_ENDED_BUT_BILLED(過剰請求)。MF 無しはどの月でも SUPPRESS_ENDED(対象外)。
         if status == "終了" or (end_idx is not None and t_idx is not None and t_idx >= end_idx):
             pres = find_mf_match(contract, mf_index, mode="presence")
             if pres["status"] != "match":
-                rec["verdict"] = "SUPPRESS_ENDED"
+                # 終了根拠の照合 (ユーザー確定 2026-06-30)。契約終了月による「対象外(終了)」抑制は
+                # 確認内容/備考に終了根拠 (has_end_basis) がある場合のみ正当とする。根拠なき終了月
+                # (レガシー/誤入力の残存値) で SUPPRESS_ENDED に倒すと、本来当月請求が出るべき継続
+                # 契約の発行漏れを「対象外(灰・警告なし)」で黙って隠す。保留(REVIEW_PENDING)を要確認へ
+                # 昇格させるのと対称に、根拠なき終了も REVIEW_ENDED_NO_BASIS(要確認)で可視化する
+                # (契約終了月の列値は機械が書き換えない=非破壊)。終了根拠ありは従来どおり SUPPRESS_ENDED。
+                if has_end_basis(contract.get("備考") or contract.get("確認内容") or ""):
+                    rec["verdict"] = "SUPPRESS_ENDED"
+                else:
+                    rec["verdict"] = "REVIEW_ENDED_NO_BASIS"
+                    rec["warning"] = (
+                        "契約終了月に値があるが確認内容に終了根拠なし"
+                        "(継続契約の発行漏れの可能性・要確認)")
             elif end_idx is not None and t_idx is not None and t_idx <= end_idx + 1:
-                # 終了月〜翌月の請求 = 最終請求書(月またぎ発行)。過剰請求にしない。
+                # 終了月〜翌月の請求 = 最終請求書(終了月役務の翌月取引計上を許容)。過剰請求にしない。
                 rec["verdict"] = "MATCH_ENDED_FINAL"
                 rec["evidence"] = pres["evidence"]
             else:  # 終了月+2 以降、または終了月不明の終了ステータス = 過剰請求
@@ -919,9 +956,9 @@ def detect_orphans(contracts, mf_index, target_ym):
     """
     matched_cids = set()
     for contract in contracts:
-        status = (contract.get("ステータス") or "有効").strip()
-        if status == "保留":
-            continue
+        # 保留契約も請求確認シートには登録済みのため orphan 被覆に含める。
+        # 除外すると同じ顧客が REVIEW_PENDING と ORPHAN の二重通知になり、
+        # 「未登録」ではないのに要マスタ登録と表示される。
         boundary, _ = _boundary_customers(contract, mf_index)
         for cid, _c in boundary:
             matched_cids.add(cid)

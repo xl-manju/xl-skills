@@ -9,7 +9,7 @@
     "target_ym": {
       "type": "string",
       "pattern": "^\\d{4}$",
-      "description": "対象月 YYMM(=発行月)。例 '2606'。"
+      "description": "対象月 YYMM(=取引月)。例 '2606'。月次照合では transaction.date 基準で帰属を決める。"
     },
     "rows": {
       "type": "array",

@@ -18,8 +18,10 @@
 
 ### 1.1 不変ルール
 - MF掛け払い API は GET のみ。変更系 (POST/PATCH/DELETE) は一切行わない (hook `guard-mfk-readonly.py` でも遮断)。
-- 月帰属の判定軸は必ず `issue_date` (月をまたぐ発行があるため)。当月初〜末の `issue_date` を対象とする。
-- 一覧は `/billings/qualified` (`status=invoice_issued`) を使う (インボイスモードで `/billings` は空)。
+- 月帰属の判定軸は必ず `transaction.date` (取引日・月末締め)。例: 「6月分の請求書」は取引日 `2026-06-30` の請求で、発行日が翌月月初でも 6月分として扱う。
+- 同一の取引日(締め)月軸が請求確認シートの人手入力『年月』select にも適用される (順方向 GAP 検知の期待集合キー)。シートの『年月』は取引日(月末締め)の月で記入する (例: 取引日 `2026/06/30` 締め→年月 `2606`)。発行月で記入すると当月の期待集合から外れ真の発行漏れを見逃すため、MF 側 (`transaction.date`) と軸を一致させる。
+- `/billings/qualified` は `issue_date` で取得窓を [対象月初 .. 翌月末] に広げて over-fetch し、帰属確定は `/transactions` の `transaction.date` で行う。
+- 一覧は `/billings/qualified` (`status=invoice_issued`) を使う (インボイスモードで `/billings` は空)。`scheduled` / `account_transfer_notified` は未発行または通知段階のため、発行確認OKの証跡には使わない。
 
 ### 1.2 倫理ガード
 - MF APIキーは Keychain のみ。平文出力・ログ復唱をしない。
@@ -27,11 +29,12 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 対象月 (`--target YYMM`) の MF掛け払い発行実績を参照専用 GET で全ページ取得し、照合用 MF index を作る。具体的には `/billings/qualified` (`status=invoice_issued`、`issue_date` が当月初〜末) を全ページ取得 → 各 billing の `/transactions` 明細 (`transaction_details`: description/amount/unit_price/quantity/billing_id) を line 化 → `/customers` で顧客名を解決 → `{"customers": {customer_id: {name, lines[]}}}` を `build_mf_index` へ渡す。
+- 担当: 対象月 (`--target YYMM`) の MF掛け払い実績を参照専用 GET で全ページ取得し、照合用 MF index を作る。具体的には `/billings/qualified` (`status=invoice_issued`、`issue_date` が対象月初〜翌月末) を over-fetch → 各 billing の `/transactions` を取得 → `transaction.date` が対象月の明細 (`transaction_details`: description/amount/unit_price/quantity/billing_id) だけを line 化 → `/customers` で顧客名を解決 → `{"customers": {customer_id: {name, lines[]}}}` を `build_mf_index` へ渡す。
 - 非担当: 請求確認シート→契約マスタ生成・双方向照合 (R2)、二段確認 (R3)、Notion 書込 (R4)。
 
 ### 2.2 ドメインルール
-- 月帰属の判定軸は `issue_date` (月またぎ発行があるため)。一覧は `/billings/qualified` (インボイスモードで `/billings` は空)。
+- 月帰属の判定軸は `transaction.date` (取引日・月末締め)。一覧取得の `issue_date` は API 取得窓であり、月帰属の正本ではない。`transaction.date` 欠落時だけ `transaction.issue_date` → `billing.issue_date` に fail-safe fallback する。
+- `status=invoice_issued` だけを採用する。予定・通知段階の請求を「発行済み」と誤認すると漏れを隠すため、`scheduled` / `account_transfer_notified` は必要に応じて人が確認する対象であり、MATCH 証跡にはしない。
 - カーソルページングは `limit=200` 固定 (レート対策)。`pagination.has_next` が true で `pagination.end` が空なら部分取得のまま続行せず停止する。
 - MF 明細は API 上で同一行が二重化されるため `(billing_id, desc, amount)` で dedup する前提 (dedup・立替/負額/0円除外は `build_mf_index` が担当)。
 
@@ -83,8 +86,8 @@
 - 達成ゴール: command 実行により対象月の qualified billing と各 `/transactions` 明細・`/customers` 名が全ページ取得され、`build_mf_index` で照合用 MF index (`{customer_id: {cust, names, services}}`) が構築された状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] 対象月の `/billings/qualified` (`status=invoice_issued`、`issue_date` 当月初〜末) を全ページ取得した
-- [ ] 各 billing の `/transactions` 明細 (`transaction_details`) を取得し line 化した (desc/amount/unit_price/qty/billing_id)
+- [ ] 対象月初〜翌月末の `/billings/qualified` (`status=invoice_issued`) を全ページ取得した
+- [ ] 各 billing の `/transactions` 明細 (`transaction_details`) を取得し、`transaction.date` が対象月の取引だけを line 化した (desc/amount/unit_price/qty/billing_id/txn_date)
 - [ ] `/customers` で顧客名を解決した
 - [ ] `build_mf_index` 用の `{"customers": ...}` を構築し MF index を作った
 - [ ] POST 等変更系を一切呼んでいない (GET のみ)
@@ -117,4 +120,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target <YYMM> --steps collect` を実行し、対象月の `/billings/qualified` (`status=invoice_issued`、`issue_date` 当月初〜末) を `limit=200` カーソルページングで全ページ取得する。各 billing の `/transactions` 明細を line 化し、`/customers` で顧客名を解決して `{"customers": {customer_id: {name, lines[]}}}` を組み立て、`build_mf_index` で照合用 MF index を構築させる。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ (変更系を一切呼ばない)。出力は取得件数サマリのみ、前置き禁止。
+`python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target <YYMM> --steps collect` を実行し、対象月初〜翌月末の `/billings/qualified` (`status=invoice_issued`) を `limit=200` カーソルページングで全ページ取得する。各 billing の `/transactions` 明細を取得し、月帰属は `transaction.date` で確定する。例: `--target 2606` では取引日 `2026-06-30`・発行日 `2026-07-01` の請求を 6月分として採用し、取引日 `2026-05-31`・発行日 `2026-06-01` の請求は除外する。`/customers` で顧客名を解決して `{"customers": {customer_id: {name, lines[]}}}` を組み立て、`build_mf_index` で照合用 MF index を構築させる。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ (変更系を一切呼ばない)。出力は取得件数サマリのみ、前置き禁止。

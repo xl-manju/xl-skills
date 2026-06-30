@@ -32,11 +32,11 @@ def _amount_by_customer(billings):
 
 
 def detect_gaps(prev_billings, curr_billings):
-    """前月/今月の billing 一覧から発行状況を分類して返す。
+    """前月/今月の取引月で絞り込み済み billing 一覧から発行状況を分類して返す。
 
     返り値 dict:
-      gap_candidates : 前月発行・今月未発行 (発行漏れ候補) — sorted list
-      continuing     : 前月・今月とも発行 (金額変動候補) — sorted list
+      gap_candidates : 前月取引あり・今月取引なし (発行漏れ候補) — sorted list
+      continuing     : 前月・今月とも取引あり (金額変動候補) — sorted list
       new_this_month : 今月のみ発行 — sorted list
       prev_amount    : {customer_id: 前月金額}
       curr_amount    : {customer_id: 今月金額}

@@ -6,8 +6,8 @@
   - 5値投影: GAP→発行漏れ / MATCH_*→AIの確認OK / SUPPRESS_*→対象外 / REVIEW_*→要確認。
   - ORPHAN(逆方向)はシート行が無いため投影しない (sheet_label=None)。
   - 1契約=複数シート行は全行へ展開し、重複 page_id は除去する。
-  - 非破壊: PATCH props は『判定』『AI確認』『確認ポイント』のみ
-    (日付補完は空欄だけ、人間列に触れない)。
+      - 非破壊: PATCH props は『判定』『AI確認』『確認ポイント』のみ
+    (契約開始日の補完は空欄だけ、契約終了月・人間列に触れない)。
   - ensure_judgment_property: 判定列が無ければ作成・既存optionは保持し不足5値だけ追加。
 """
 import mfk_reconcile
@@ -81,8 +81,9 @@ def test_writeback_is_nondestructive_three_columns_only():
     assert writes["pg2"]["確認ポイント"]["rich_text"][0]["text"]["content"] == ""
 
 
-def test_writeback_autofills_empty_dates_only():
-    # 契約開始日(ISO)/契約終了月(YYMM)は空欄セルのみ派生値で自動補完し、人間入力の非空値は不可侵。
+def test_writeback_autofills_empty_start_only():
+    # 契約開始日(ISO)は空欄セルのみ派生値で自動補完し、人間入力の非空値は不可侵。
+    # 契約終了月は根拠なく入ると請求漏れを隠すため、自動補完しない。
     writes = {}
     req = _fake_req(db_props={"判定": {"select": {"options": [{"name": n} for n in wb.SHEET_LABELS]}},
                               "確認ポイント": {"rich_text": {}}}, writes=writes)
@@ -93,12 +94,12 @@ def test_writeback_autofills_empty_dates_only():
         "filled": {"契約開始日": "2026/6/8", "契約終了月": "2605"},  # 非空→不可侵
     }
     wb.writeback(rows, "sheetdb", "tok", req, current_dates=current)
-    # 空欄行: 契約開始日(ISOそのまま)・契約終了月(ISO→YYMM変換)が補完される。
+    # 空欄行: 契約開始日(ISOそのまま)だけ補完される。
     assert writes["empty"]["契約開始日"]["rich_text"][0]["text"]["content"] == "2026-06-01"
-    assert writes["empty"]["契約終了月"]["rich_text"][0]["text"]["content"] == "2605"
+    assert "契約終了月" not in writes["empty"]
     # 非空行: 日付列に触れない (人間入力不可侵)。判定3列は両行とも書く。
     assert "契約開始日" not in writes["filled"] and "契約終了月" not in writes["filled"]
-    assert set(writes["empty"]) == {"判定", "AI確認", "確認ポイント", "契約開始日", "契約終了月"}
+    assert set(writes["empty"]) == {"判定", "AI確認", "確認ポイント", "契約開始日"}
     assert set(writes["filled"]) == {"判定", "AI確認", "確認ポイント"}
 
 
@@ -200,3 +201,149 @@ def test_writeback_failure_is_collected_not_raised():
     res = wb.writeback([{"verdict": "GAP", "_sheet_row_ids": ["pg1"]}], "s", "t", req)
     assert res["updated"] == 0
     assert len(res["failed"]) == 1 and res["failed"][0]["page_id"] == "pg1"
+
+
+# ---------------------------------------------------------------------------
+# 同一取引先への契約開始日 伝播 backfill (独立パス)
+# ---------------------------------------------------------------------------
+def test_plan_propagation_single_value_fills_blanks():
+    # X株式会社 / X は normalize で同一グループ。開始日は ISO 2026-06-01 で 1 種類
+    # (2606 も to_date で同値) → 空欄行へ伝播する。終了月は伝播しない。
+    rows = [
+        {"page_id": "a", "取引先": "X株式会社", "契約開始日": "2026-06-01", "契約終了月": "2608"},
+        {"page_id": "b", "取引先": "X株式会社", "契約開始日": "", "契約終了月": ""},
+        {"page_id": "c", "取引先": "X", "契約開始日": "2606", "契約終了月": ""},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert plan["updates"]["b"]["契約開始日"] == "2026-06-01"
+    assert "契約終了月" not in plan["updates"]["b"]
+    assert "契約終了月" not in plan["updates"].get("c", {})
+    # c の開始日は非空 (2606) なので touch しない。a は全非空 → updates に出ない。
+    assert "契約開始日" not in plan["updates"].get("c", {})
+    assert "a" not in plan["updates"]
+    assert plan["conflicts"] == []
+    assert plan["stats"]["start_filled"] == 1 and plan["stats"]["end_filled"] == 0
+
+
+def test_plan_propagation_conflict_blocks_fill():
+    # 同一取引先で開始日が 2 種類 (複数契約) → 伝播せず conflicts に記録 (誤伝播=請求漏れ回避)。
+    rows = [
+        {"page_id": "a", "取引先": "Y", "契約開始日": "2026-04-01", "契約終了月": ""},
+        {"page_id": "b", "取引先": "Y", "契約開始日": "2026-09-01", "契約終了月": ""},
+        {"page_id": "c", "取引先": "Y", "契約開始日": "", "契約終了月": ""},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert "契約開始日" not in plan["updates"].get("c", {})
+    assert any(cf["列"] == "契約開始日" and cf["取引先"] == "Y" for cf in plan["conflicts"])
+
+
+def test_plan_propagation_ignores_end_month_values():
+    # 終了月は値があっても伝播対象外。開始日が単一値なら開始日だけ伝播する。
+    rows = [
+        {"page_id": "a", "取引先": "W", "契約開始日": "2026-06-01", "契約終了月": "2608"},
+        {"page_id": "b", "取引先": "W", "契約開始日": "2606", "契約終了月": "2610"},
+        {"page_id": "c", "取引先": "W", "契約開始日": "", "契約終了月": ""},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert plan["updates"]["c"] == {"契約開始日": "2026-06-01"}
+    assert not any(cf["列"] == "契約終了月" for cf in plan["conflicts"])
+
+
+def test_plan_propagation_blocks_end_leak_to_continuing_contract():
+    # B-1 回帰防止: 同一取引先に「終了済(終了月2606)」と「継続中(終了月=空欄)」が混在。
+    # 契約終了月は伝播対象外なので、開始日がどうであっても終了月2606 を継続契約の空欄へ漏らさない。
+    rows = [
+        {"page_id": "ended", "取引先": "Y", "契約開始日": "2604", "契約終了月": "2606"},
+        {"page_id": "cont", "取引先": "Y", "契約開始日": "2609", "契約終了月": ""},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert "cont" not in plan["updates"], "終了月が継続契約へ漏れてはいけない"
+    assert any(cf["列"] == "契約開始日" for cf in plan["conflicts"])
+
+
+def test_plan_propagation_idempotent_when_all_filled():
+    # 全行が既に記入済み → 伝播対象ゼロ (冪等: 再実行で差分なし)。
+    rows = [
+        {"page_id": "a", "取引先": "Z", "契約開始日": "2606", "契約終了月": "2612"},
+        {"page_id": "b", "取引先": "Z", "契約開始日": "2606", "契約終了月": "2612"},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert plan["updates"] == {}
+    assert plan["conflicts"] == []
+
+
+def test_plan_propagation_ignores_blank_torihiki():
+    # 取引先が空欄の行はグループ化せず無視する (誤った全行一括伝播を防ぐ)。
+    rows = [
+        {"page_id": "a", "取引先": "", "契約開始日": "2026-06-01", "契約終了月": ""},
+        {"page_id": "b", "取引先": "", "契約開始日": "", "契約終了月": ""},
+    ]
+    plan = wb.plan_contract_date_propagation(rows)
+    assert plan["updates"] == {}
+
+
+def test_apply_propagation_writes_blank_cells_only():
+    writes = {}
+    req = _fake_req(writes=writes)
+    updates = {"p1": {"契約開始日": "2026-06-01"}, "p2": {"契約終了月": "2608"}}
+    res = wb.apply_contract_date_propagation(updates, "sheetdb", "tok", req)
+    assert res["written"] == 1 and res["failed"] == []
+    assert writes["p1"]["契約開始日"]["rich_text"][0]["text"]["content"] == "2026-06-01"
+    assert "p2" not in writes
+    # 契約開始日のみ書く (判定/AI確認/確認ポイント/契約終了月には触れない)。
+    assert set(writes["p1"]) == {"契約開始日"}
+
+
+def test_apply_propagation_failure_is_collected_not_raised():
+    def req(method, path, token, body=None):
+        if method == "PATCH" and path.startswith("/pages/"):
+            raise RuntimeError("boom")
+        raise AssertionError(path)
+    res = wb.apply_contract_date_propagation({"p1": {"契約開始日": "2026-06-01"}}, "s", "t", req)
+    assert res["written"] == 0
+    assert len(res["failed"]) == 1 and res["failed"][0]["page_id"] == "p1"
+
+
+# ---------------------------------------------------------------------------
+# 確認内容に終了根拠の無い契約終了月のクリア (健全性回復)
+# ---------------------------------------------------------------------------
+def test_has_end_basis():
+    # 明示的な終了注記は根拠あり。
+    assert wb.has_end_basis("（2605終了）") is True
+    assert wb.has_end_basis("請求なし（2604契約終了）") is True
+    assert wb.has_end_basis("8月で解約予定") is True
+    assert wb.has_end_basis("終了月: 2606") is True
+    # 終了注記なし / 曖昧語「まで」は根拠にしない (誤検出回避)。
+    assert wb.has_end_basis("300,000円\n田中太郎") is False
+    assert wb.has_end_basis("2605まで継続予定") is False
+    assert wb.has_end_basis("") is False
+
+
+def test_plan_unsupported_end_date_clear():
+    rows = [
+        {"page_id": "g", "契約終了月": "2606", "確認内容": "（2606終了）"},   # 根拠あり→残す
+        {"page_id": "u1", "契約終了月": "2606", "確認内容": "300,000円\n田中"},  # 根拠なし→クリア
+        {"page_id": "u2", "契約終了月": "2605", "確認内容": ""},              # 根拠なし→クリア
+        {"page_id": "empty", "契約終了月": "", "確認内容": "x"},              # 終了月空→対象外
+    ]
+    plan = wb.plan_unsupported_end_date_clear(rows)
+    assert set(plan["clears"]) == {"u1", "u2"}
+    assert plan["stats"] == {"with_end": 3, "grounded": 1, "unsupported": 2}
+
+
+def test_apply_end_date_clear_writes_empty_richtext():
+    writes = {}
+    req = _fake_req(writes=writes)
+    res = wb.apply_end_date_clear(["p1", "p2"], "sheetdb", "tok", req)
+    assert res["cleared"] == 2 and res["failed"] == []
+    # 契約終了月を空 rich_text で上書き (空欄化)。他列には触れない。
+    assert writes["p1"]["契約終了月"]["rich_text"] == []
+    assert set(writes["p1"]) == {"契約終了月"}
+
+
+def test_apply_end_date_clear_failure_collected():
+    def req(method, path, token, body=None):
+        raise RuntimeError("boom")
+    res = wb.apply_end_date_clear(["p1"], "s", "t", req)
+    assert res["cleared"] == 0
+    assert len(res["failed"]) == 1 and res["failed"][0]["page_id"] == "p1"

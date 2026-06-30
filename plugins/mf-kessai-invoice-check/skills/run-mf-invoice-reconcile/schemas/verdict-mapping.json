@@ -1,6 +1,6 @@
 {
   "title": "判定語彙SSOT (internal_verdict → judge_label/ai_check/warning_class)",
-  "description": "run-mf-invoice-reconcile の唯一の判定語彙SSOT。engine(lib/mfk_reconcile.py)が emit する内部verdictと、sink(lib/notion_reconcile_sink.py)が DB2『判定』selectへ書く日本語ラベル・AIチェック可否・警告クラスを一元定義する。engineとsinkは双方このJSONをimportし、CHECK_VERDICTS={ai_check:true} / 判定select options={judge_label distinct} はここから派生する(別ファイルへ二重定義しない)。parity test で engine emit ⊆ mappings を担保。warning_class は重大>警告>情報>なし の4段。出典: design.verdict_mapping (15) + buildspec H1(REVIEW_METERED)/K1(REVIEW_DATA_INCOMPLETE)。 さらに sheet_label は請求確認シート『判定』selectへ片方向ミラーする5値投影(未照合/AIの確認OK/対象外/要確認/発行漏れ)。ORPHANはシート行が無いため null(投影しない)。GAP→発行漏れ/MATCH_*→AIの確認OK/SUPPRESS_*→対象外/REVIEW_*→要確認。 action_hint は請求確認シート『確認ポイント』列へ書く『何を確認すべきか』の定型ガイダンス(AIの確認OK/対象外は空=確認不要のため記述なし)。行固有の警告詳細(警告列)と書き戻し層で連結する。",
+  "description": "run-mf-invoice-reconcile の唯一の判定語彙SSOT。engine(lib/mfk_reconcile.py)が emit する内部verdictと、sink(lib/notion_reconcile_sink.py)が DB2『判定』selectへ書く日本語ラベル・AIチェック可否・警告クラスを一元定義する。engineとsinkは双方このJSONをimportし、CHECK_VERDICTS={ai_check:true} / 判定select options={judge_label distinct} はここから派生する(別ファイルへ二重定義しない)。parity test で engine emit ⊆ mappings を担保。warning_class は重大>警告>情報>なし の4段。出典: design.verdict_mapping を起点に、追加仕様の REVIEW_METERED / REVIEW_DATA_INCOMPLETE / REVIEW_ENDED_NO_BASIS / REVIEW_PENDING などを統合。さらに sheet_label は請求確認シート『判定』selectへ片方向ミラーする5値投影(未照合/AIの確認OK/対象外/要確認/発行漏れ)。ORPHANはシート行が無いため null(投影しない)。GAP→発行漏れ/MATCH_*→AIの確認OK/SUPPRESS_*→対象外/REVIEW_*→要確認。 action_hint は請求確認シート『確認ポイント』列へ書く『何を確認すべきか』の定型ガイダンス(AIの確認OK/対象外は空=確認不要のため記述なし)。行固有の警告詳細(警告列)と書き戻し層で連結する。",
   "warning_classes": [
     "なし",
     "情報",
@@ -97,6 +97,15 @@
       "sheet_label": "要確認",
       "action_hint": "契約終了月を過ぎていますが当月にMF請求があります。過剰請求(請求停止漏れ)でないか確認してください。",
       "generation": "契約終了月MのM+2以降に当該契約のMF実績が当月に存在(最終請求月より後の過剰請求)。終了月〜M+1のMF実績は MATCH_ENDED_FINAL。『要確認』に潰さず独立ラベル。"
+    },
+    {
+      "internal_verdict": "REVIEW_ENDED_NO_BASIS",
+      "judge_label": "要確認(終了根拠なし)",
+      "ai_check": false,
+      "warning_class": "警告",
+      "sheet_label": "要確認",
+      "action_hint": "契約終了月に値がありますが確認内容に終了の記載がありません。本当に契約終了か(今月の請求が不要か)を確認してください。継続中なら契約終了月を空欄に戻してください。",
+      "generation": "契約終了月endが設定されT>=endだが確認内容/備考に終了根拠(has_end_basis)が無く、当該契約のMF実績も当月に無い。根拠なき終了月で発行漏れをSUPPRESS_ENDED(対象外)に黙って隠さず要確認で可視化する(列値は機械が書き換えない=非破壊)。終了根拠ありは従来どおりSUPPRESS_ENDED。保留(REVIEW_PENDING)を要確認へ昇格するのと対称。"
     },
     {
       "internal_verdict": "REVIEW_AMOUNT_MISMATCH",

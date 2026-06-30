@@ -21,7 +21,7 @@ allowed-tools:
 
 ## Purpose & Output Contract
 
-マネーフォワード掛け払い (MF KESSAI) API v2 の**読み取り仕様と発行漏れ判定アルゴリズムの参照正本**。`run-mf-invoice-check` / `run-mf-invoice-db-setup` が本スキルを参照して、どのエンドポイントから何を取り、どう差集合を取るかを決める。
+マネーフォワード掛け払い (MF KESSAI) API v2 の**読み取り仕様と発行漏れ判定アルゴリズムの参照正本**。`run-mf-invoice-check` / `run-mf-invoice-reconcile` / `run-mf-invoice-db-setup` が本スキルを参照して、どのエンドポイントから何を取り、どう差集合を取るかを決める。
 
 **入力**: なし (知識参照)
 **出力**: 認証方式・主要エンドポイント・フィールド・発行漏れ判定アルゴリズムの知識。実行コードは `lib/mfk_api.py` / `lib/mfk_keychain.py`。
@@ -40,22 +40,22 @@ allowed-tools:
 | 顧客一覧 (企業名名寄せ) | `GET /customers` | `ids`(最大200), `limit`(≤200), `after` | `id`, `name`, `number` |
 | 発行済み請求一覧 (インボイスモード) | `GET /billings/qualified` | `issue_date_from/to`, `status`, `limit`, `after` | `id`, `customer_id`, `amount`, `issue_date`, `status`, `invoice_ids` |
 | 請求単体 | `GET /billings/{id}` | — | 上記 + `due_date` |
-| 取引・明細 (商品名・金額) | `GET /transactions` | `billing_id`, `customer_id`, `limit`, `after` | `transaction_details[].description`, `amount`, `unit_price`, `quantity`, `created_at`, `issue_date` |
+| 取引・明細 (商品名・金額・取引日) | `GET /transactions` | `billing_id`, `customer_id`, `limit`, `after` | `date`, `transaction_details[].description`, `amount`, `unit_price`, `quantity`, `created_at`, `issue_date` |
 
 > **重要 (インボイスモードの罠)**: 区分記載用の `GET /billings` はインボイス制度モードの事業者では **0件** を返す。一覧は必ず **`GET /billings/qualified`** を使う。`GET /billings/{id}` (単体) はどちらでも有効。
 
 ## 発行漏れ判定アルゴリズム
 
 ```
-P = { b.customer_id | b in /billings/qualified(issue_date=前月, status=invoice_issued) }   # 前月発行先
-C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice_issued) }   # 今月発行先
+P = { b.customer_id | b in /billings/qualified(over-fetch) + /transactions(date=前月) }   # 前月取引先
+C = { b.customer_id | b in /billings/qualified(over-fetch) + /transactions(date=今月) }   # 今月取引先
 
-発行漏れ候補 = P − C      # 前月は発行したのに今月まだ発行がない取引先 ★本丸
-継続発行     = P ∩ C      # 金額変動はここで検出 (前月 amount vs 今月 amount)
+発行漏れ候補 = P − C      # 前月取引はあったのに今月取引がない取引先 ★本丸
+継続発行     = P ∩ C      # 金額変動はここで検出 (前月取引 amount vs 今月取引 amount)
 今月新規     = C − P
 ```
 
-- 月の帰属は `billing.issue_date` (請求書発行日) 基準。取引日 `date` ではない (取引は月をまたいで発行されるため)。
+- 月帰属の軸は **`transaction.date` (取引日・月末締め) 基準**。例: 「6月分の請求書」は取引日 `2026-06-30` の請求で、発行日が翌月月初でも 6月分として扱う。`issue_date` は対象月初〜翌月末の over-fetch 窓に使い、帰属確定には使わない。
 - 「契約終了で今月は請求不要」かどうかは **API から判別不能**。発行漏れ候補として出し、除外判断は人が Notion の `請求要否` 列で行う (この例外判断は機械化しない)。
 - 「契約ID」「初回契約月」「支払サイクル」「月払い自動更新月」は **API から直接は判別不能**。企業ごとの契約開始月は Notion 管理列 `初回契約月` に YYYY-MM、`支払サイクル` (月払い/年間払い) を人が設定する。**年間契約期間中(初回契約月から12ヶ月)の発行漏れ候補の抑制は、機械がこの記入された初回契約月を読んで自動で行う** (`billing_lifecycle`/`suppress_annual_period_gaps`)。月次チェック(sink)はこれら管理列に触れない (読むのは抑制のため、書き込みはしない)。
 
@@ -64,6 +64,7 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 | 要件 | 取得元 | フィールド |
 |---|---|---|
 | 商品名 | `/transactions` | `transaction_details[].description` |
+| 取引日(月次照合の月帰属) | `/transactions` | `date` |
 | 金額 | `/transactions` / `/billings/qualified` | `amount`, `unit_price`×`quantity` |
 | 更新日 | `/transactions` | `created_at` / `accepted_at` (明示的 `updated_at` は無い) |
 | 取引先企業名 | `/customers` | `name` (`customer_id` で名寄せ) |
@@ -78,7 +79,7 @@ C = { b.customer_id | b in /billings/qualified(issue_date=今月, status=invoice
 
 1. **参照専用**: 本スキルは仕様の参照のみ。実行は `lib/`。請求書発行 (POST) は行わない (`run-mf-invoice-check` の PreToolUse hook と GET 専用クライアントで抑止)。
 2. **一覧は qualified**: インボイスモードで `/billings` は空。必ず `/billings/qualified`。
-3. **月帰属は issue_date**: 発行漏れの語義に合う軸は発行日。
+3. **月帰属を混同しない**: 月次チェックはいずれも `transaction.date` 基準。`issue_date` は over-fetch 用の取得窓に限る。
 4. **キーは Keychain**: 生値を context に載せない。
 
 ## Gotchas
