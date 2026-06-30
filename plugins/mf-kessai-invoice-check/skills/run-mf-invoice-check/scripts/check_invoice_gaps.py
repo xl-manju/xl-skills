@@ -211,6 +211,13 @@ def fetch_issued(ym):
     へ縮退する。この場合のみ発行日基準となるため、当月取引でも date 欠落かつ翌月発行だと
     翌月へ帰属し当月集合から外れうる (縮退は取りこぼしを防ぐ向きとは限らない)。縮退が起きた
     件数は stderr に1行警告する (silent ではなく可視化。FAIL にはしない)。
+
+    取消 (status=canceled) 取引は発行集合に計上しない (最小 correctness 修正)。canceled の
+    transaction.amount は取消前金額を保持するため、status を無視すると取消前金額が継続発行/
+    今月新規へ化けて差集合が崩れる。なお本スクリプト (簡易 gap-check) では新 verdict や Notion
+    列は足さず canceled を発行集合から除くだけに留める。取消の可視化昇格 (要確認(取消)ラベル・
+    取消日時列) は双方向照合の run-mf-invoice-reconcile 側で実装済みで、gap-check への展開は
+    スコープ最小化のため別 PR へ defer する。
     """
     first, last = issue_fetch_range_for_transaction_month(ym)
     billings = iter_all("/billings/qualified", {
@@ -218,6 +225,7 @@ def fetch_issued(ym):
     })
     out = []
     fallback_count = 0
+    canceled_count = 0
     for b in billings:
         bid = b.get("id")
         total = 0
@@ -233,6 +241,10 @@ def fetch_issued(ym):
                              or _iso_to_month(b.get("issue_date")))
             if txn_month is not None and txn_month != ym:
                 continue
+            # 取消取引は有効発行に計上しない (取消前金額が継続発行/今月新規へ化けるのを防ぐ)。
+            if str(t.get("status") or "").lower() == "canceled":
+                canceled_count += 1
+                continue
             has_target_transaction = True
             details = t.get("transaction_details") or []
             if details:
@@ -247,6 +259,10 @@ def fetch_issued(ym):
         sys.stderr.write(
             f"[check] 警告: {ym} で transaction.date 欠落により発行日基準へ縮退した取引 "
             f"{fallback_count}件 (当月取引が翌月へ帰属し当月集合から外れる恐れ)。\n")
+    if canceled_count:
+        sys.stderr.write(
+            f"[check] {ym} の取消 (canceled) 取引 {canceled_count}件 を発行集合から除外しました "
+            "(取消前金額を継続発行/今月新規に計上しない)。\n")
     return out
 
 

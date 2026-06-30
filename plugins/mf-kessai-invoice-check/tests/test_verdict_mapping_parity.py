@@ -110,15 +110,20 @@ def test_sheet_label_projection_complete_and_within_5values():
 
 
 def test_action_hint_present_for_actionable_verdicts():
-    """確認ポイント(action_hint): AIの確認OK/対象外は空・要確認/発行漏れ/要マスタ登録は非空。"""
+    """確認ポイント(action_hint): 『AIの確認OK』のみ空・それ以外(対象外/要確認/発行漏れ/ORPHAN)は非空。
+
+    決定2: 全対象外(SUPPRESS_*)にも『なぜ対象外か』の理由を出す。確認不要で空にするのは
+    緑(AIの確認OK=MATCH_*)だけ。これを sheet_label を軸に機械強制する(以前は対象外も空だった)。
+    """
     mapping = R.load_verdict_mapping()
     for v, m in mapping.items():
         hint = R.action_hint(v)
-        if m["sheet_label"] in (None, "発行漏れ", "要確認") or v == "ORPHAN":
-            # ORPHAN(要マスタ登録)・発行漏れ・要確認 は何を確認/対応すべきかを必ず示す。
-            assert hint, f"{v} に action_hint(確認ポイント)が無い"
-        if m["sheet_label"] in ("AIの確認OK", "対象外"):
+        if m["sheet_label"] == "AIの確認OK":
+            # 緑(確認OK)だけは確認不要のため確認ポイントは空。
             assert hint == "", f"{v} は確認不要なのに action_hint がある: {hint!r}"
+        else:
+            # 対象外(なぜ対象外か)・要確認・発行漏れ・ORPHAN(要マスタ登録) は理由/対応を必ず示す。
+            assert hint, f"{v} に action_hint(確認ポイント)が無い (sheet_label={m['sheet_label']!r})"
 
 
 def test_monthly_schema_judge_options_match_mapping():

@@ -245,7 +245,11 @@ def collect_mf(target_ym, cfg):
     """対象月の MF掛け払い発行実績を raw mf JSON へ畳む (参照専用・副作用なし)。
 
     返り値 = {"customers": {customer_id: {"name", "lines": [{desc, amount, unit_price, qty,
-    billing_id, txn_date}]}}}。build_mf_index / build_contracts の双方が消費する形。
+    billing_id, txn_date, status, canceled_at}]}}, "canceled_count": int}。build_mf_index /
+    build_contracts は "customers" を消費し、orchestrator は "canceled_count" を取消バランスの
+    可視化に使う。各 line に transaction.status(passed/canceled 等)と canceled_at を載せる。
+    canceled(取消)行も lines から削除せず status を付与して残す(build_mf_signals の
+    サイクル推定入力を byte 不変に保つ)。有効/取消の振り分けは build_mf_index 側だけが行う。
 
     月帰属は **取引日 (transaction.date, 月末締め) 基準**。issue_date 窓を [当月初 .. 翌月末]
     へ広げて /billings/qualified (status=invoice_issued) を over-fetch し、各 billing の
@@ -264,6 +268,7 @@ def collect_mf(target_ym, cfg):
     ))
     customers = {}
     fallback_count = 0
+    canceled_count = 0
     for b in billings:
         cid = b.get("customer_id")
         bid = b.get("id")
@@ -277,6 +282,12 @@ def collect_mf(target_ym, cfg):
                 txn_ym = _iso_to_ym(t.get("issue_date")) or _iso_to_ym(b.get("issue_date"))
             if txn_ym is not None and txn_ym != target_ym:
                 continue
+            # status/canceled_at を line へ伝播する。canceled(取消)行も lines に残し
+            # (build_mf_signals の入力を不変に保つ)、有効/取消の振り分けは build_mf_index に委ねる。
+            st = t.get("status")
+            cat = t.get("canceled_at")
+            if str(st or "").lower() == "canceled":
+                canceled_count += 1
             entry = customers.setdefault(cid, {"name": None, "lines": []})
             for d in t.get("transaction_details", []):
                 entry["lines"].append({
@@ -286,15 +297,22 @@ def collect_mf(target_ym, cfg):
                     "qty": d.get("quantity"),
                     "billing_id": bid,
                     "txn_date": t.get("date"),
+                    "status": st,
+                    "canceled_at": cat,
                 })
     if fallback_count:
         sys.stderr.write(
             f"[collect] 警告: {target_ym} で transaction.date 欠落により発行日基準へ縮退した取引 "
             f"{fallback_count}件 (当月取引が翌月へ帰属し当月集合から外れる恐れ)。\n")
+    if canceled_count:
+        sys.stderr.write(
+            f"[collect] {target_ym} の当月 canceled (取消) 取引 {canceled_count}件 を検出 "
+            "(要確認(取消)で可視化、または対象外(契約終了/前払い等)の場合は確認ポイントに"
+            "取消注記を併記します)。\n")
     names = _resolve_customer_names(customers.keys(), cfg)
     for cid, entry in customers.items():
         entry["name"] = names.get(cid) or cid
-    return {"customers": customers}
+    return {"customers": customers, "canceled_count": canceled_count}
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +442,30 @@ def run(target, steps, apply, sheet_db, db1, db2, cfg):
               f"{len(result['orphans'])}件")
         for verdict, n in sorted(result["summary"].items(), key=lambda kv: (-kv[1], kv[0])):
             print(f"    {verdict}: {n}")
+        # 取消/未確定可視化: 当月に非active(取消/審査中/否決等)が有効供給を欠いたまま残った契約数を
+        # 明示する(凍結ルールは不変=可視化のみ。凍結済み行は再計算しないため DB2 へは反映されないが
+        #  シートは再計算で要確認化しうる点は README/docs の限界注記を参照)。
+        canceled_n = result["summary"].get("REVIEW_CANCELED", 0)
+        if canceled_n:
+            print(f"    [取消可視化] 要確認(取消): {canceled_n}件 "
+                  "(MF取引が取消済みで同月再発行なし・再発行要否を確認)")
+        not_passed_n = result["summary"].get("REVIEW_TXN_NOT_PASSED", 0)
+        if not_passed_n:
+            print(f"    [未確定可視化] 要確認(取引未確定): {not_passed_n}件 "
+                  "(MF取引が審査中/否決/停止等で有効な発行になっていない・取引状態を確認)")
+        # 取消バランス (WARN-not-FAIL・情報表示・exit code 不変): collect が検出した当月取消件数を
+        # 要確認(取消) と 対象外等に取消注記 の内訳へ振り分けて可視化する。同月再発行や名寄せ対象外で
+        # collect 検出件数 N と内訳 (M+K) に差が出る場合があるため過大約束しない。
+        # K = warning に取消注記マーカー (mfk_reconcile.CANCEL_NOTE_MARKER=「取消取引あり」・SSOT) を
+        #     含む対象外/終了根拠なし行 (cancellation_note 由来。リテラルを二重定義しない)。
+        marker = mfk_reconcile.CANCEL_NOTE_MARKER
+        collected_canceled = mf_raw.get("canceled_count", 0) if mf_raw else 0
+        annotated_k = sum(
+            1 for r in result["rows"] if marker in (r.get("warning") or ""))
+        if collected_canceled or canceled_n or annotated_k:
+            print(f"    [取消バランス] collect検出 {collected_canceled}件 = "
+                  f"要確認(取消) {canceled_n}件 + 対象外等に取消注記 {annotated_k}件 "
+                  "(同月再発行や名寄せ対象外で N と内訳に差が出る場合あり)")
         # 健全性検知 (read-only): 確認内容に終了根拠が無いのに契約終了月が入っている行を月次
         # フローで可視化する。検知のみで列クリア(write)は行わず clear_unsupported_end_dates.py
         # --apply へ委譲する (責務分離・fail-soft: exit code は変えない)。当月契約なら engine が
@@ -462,11 +504,16 @@ def run(target, steps, apply, sheet_db, db1, db2, cfg):
                 sink_rows, db2, target, token, req=notion_transport._req)
             print(f"[sink] DB2 upsert: created={r['created']} updated={r['updated']} "
                   f"frozen={r['frozen']} failed={r['failed']}")
-            if r["failed"] or r["frozen"]:
+            if r["failed"]:
                 sys.stderr.write(
-                    "[sink] DB2 upsert had failed/frozen rows; sheet writeback skipped "
-                    "to keep DB2 as SoR.\n")
+                    "[sink] DB2 upsert had failed rows; sheet writeback skipped "
+                    "to avoid projecting an incomplete SoR.\n")
                 return 2
+            if r["frozen"]:
+                sys.stderr.write(
+                    f"[sink] DB2 upsert had frozen rows ({r['frozen']}); DB2 frozen rows were "
+                    "not overwritten, but sheet writeback will continue so current 判定/確認ポイント "
+                    "does not disappear from the operational sheet.\n")
             # シート書き戻し (片方向ミラー): 判定/AI確認/確認ポイントを投影し、契約開始日の
             # 空欄だけを派生値で自動補完する。契約終了月は誤推定防止のため触れない。
             # current_dates=当月シートの現値で空欄セルだけ書く (非空値・チェック済み等は不可侵)。

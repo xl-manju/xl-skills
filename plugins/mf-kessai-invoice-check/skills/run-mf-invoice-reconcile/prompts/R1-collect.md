@@ -36,7 +36,7 @@
 - 月帰属の判定軸は `transaction.date` (取引日・月末締め)。一覧取得の `issue_date` は API 取得窓であり、月帰属の正本ではない。`transaction.date` 欠落時だけ `transaction.issue_date` → `billing.issue_date` に fail-safe fallback する。
 - `status=invoice_issued` だけを採用する。予定・通知段階の請求を「発行済み」と誤認すると漏れを隠すため、`scheduled` / `account_transfer_notified` は必要に応じて人が確認する対象であり、MATCH 証跡にはしない。
 - カーソルページングは `limit=200` 固定 (レート対策)。`pagination.has_next` が true で `pagination.end` が空なら部分取得のまま続行せず停止する。
-- MF 明細は API 上で同一行が二重化されるため `(billing_id, desc, amount)` で dedup する前提 (dedup・立替/負額/0円除外は `build_mf_index` が担当)。
+- MF 明細は API 上で同一行が二重化されるため `(billing_id, desc, amount)` で dedup する前提 (dedup・立替/負額/0円除外は `build_mf_index` が担当)。ただし `status=canceled` かつ description/商品名が残る0円明細は、単純な0円除外ではなく取消証跡として raw line に残し、後段で `REVIEW_CANCELED` へ可視化できるようにする。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -87,7 +87,7 @@
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] 対象月初〜翌月末の `/billings/qualified` (`status=invoice_issued`) を全ページ取得した
-- [ ] 各 billing の `/transactions` 明細 (`transaction_details`) を取得し、`transaction.date` が対象月の取引だけを line 化した (desc/amount/unit_price/qty/billing_id/txn_date)
+- [ ] 各 billing の `/transactions` 明細 (`transaction_details`) を取得し、`transaction.date` が対象月の取引だけを line 化した (desc/amount/unit_price/qty/billing_id/txn_date/status/canceled_at)
 - [ ] `/customers` で顧客名を解決した
 - [ ] `build_mf_index` 用の `{"customers": ...}` を構築し MF index を作った
 - [ ] POST 等変更系を一切呼んでいない (GET のみ)
@@ -120,4 +120,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target <YYMM> --steps collect` を実行し、対象月初〜翌月末の `/billings/qualified` (`status=invoice_issued`) を `limit=200` カーソルページングで全ページ取得する。各 billing の `/transactions` 明細を取得し、月帰属は `transaction.date` で確定する。例: `--target 2606` では取引日 `2026-06-30`・発行日 `2026-07-01` の請求を 6月分として採用し、取引日 `2026-05-31`・発行日 `2026-06-01` の請求は除外する。`/customers` で顧客名を解決して `{"customers": {customer_id: {name, lines[]}}}` を組み立て、`build_mf_index` で照合用 MF index を構築させる。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ (変更系を一切呼ばない)。出力は取得件数サマリのみ、前置き禁止。
+`python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target <YYMM> --steps collect` を実行し、対象月初〜翌月末の `/billings/qualified` (`status=invoice_issued`) を `limit=200` カーソルページングで全ページ取得する。各 billing の `/transactions` 明細を取得し、月帰属は `transaction.date` で確定する。例: `--target 2606` では取引日 `2026-06-30`・発行日 `2026-07-01` の請求を 6月分として採用し、取引日 `2026-05-31`・発行日 `2026-06-01` の請求は除外する。line には `status` / `canceled_at` / description を保持し、`status=canceled` かつ商品名が残る0円明細も取消証跡として後段へ渡す。`/customers` で顧客名を解決して `{"customers": {customer_id: {name, lines[]}}}` を組み立て、`build_mf_index` で照合用 MF index を構築させる。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。GET のみ (変更系を一切呼ばない)。出力は取得件数サマリのみ、前置き禁止。

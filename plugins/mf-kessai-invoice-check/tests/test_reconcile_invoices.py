@@ -310,10 +310,10 @@ def test_apply_skips_sheet_writeback_when_db2_failed(wired, monkeypatch, capsys)
 
     assert rc == 2
     assert wired["sheet_writes"] == {}
-    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+    assert "DB2 upsert had failed rows" in capsys.readouterr().err
 
 
-def test_apply_skips_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys):
+def test_apply_continues_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys):
     def frozen_monthly(rows, db2, target_ym, token, req=None):
         wired["calls"]["monthly"].append({"rows": rows, "db2": db2, "target_ym": target_ym})
         return {"created": 0, "updated": 0, "frozen": 1, "failed": 0}
@@ -321,9 +321,9 @@ def test_apply_skips_sheet_writeback_when_db2_frozen(wired, monkeypatch, capsys)
     monkeypatch.setattr(notion_reconcile_sink, "upsert_monthly", frozen_monthly)
     rc = O.main(_args(wired["sheet_db"]) + ["--apply", "--verified"])
 
-    assert rc == 2
-    assert wired["sheet_writes"] == {}
-    assert "DB2 upsert had failed/frozen rows" in capsys.readouterr().err
+    assert rc == 0
+    assert wired["sheet_writes"], "DB2 frozen だけでシート確認ポイント全体を止めない"
+    assert "DB2 upsert had frozen rows" in capsys.readouterr().err
 
 
 def test_apply_aborts_when_verdict_mapping_missing(wired, monkeypatch, capsys):
@@ -469,6 +469,73 @@ def test_collect_mf_reads_all_transaction_pages(monkeypatch):
     assert any(path == "/transactions" for path, _params in calls)
 
 
+def test_collect_mf_carries_status_and_canceled_at(monkeypatch, capsys):
+    """collect_mf は line に status/canceled_at を載せ canceled 行も lines に残す。当月取消件数を stderr 可視化。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            yield {"date": "2026-06-30", "status": "passed",
+                   "transaction_details": [{"description": "有効", "amount": 100000,
+                                            "unit_price": 100000, "quantity": 1}]}
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [{"description": "取消", "amount": 200000,
+                                            "unit_price": 200000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    lines = raw["customers"]["C1"]["lines"]
+    # canceled 行も lines に残す (build_mf_signals 入力を不変に保つ)。
+    assert len(lines) == 2
+    by_desc = {ln["desc"]: ln for ln in lines}
+    assert by_desc["有効"]["status"] == "passed" and by_desc["有効"]["canceled_at"] is None
+    assert by_desc["取消"]["status"] == "canceled"
+    assert by_desc["取消"]["canceled_at"] == "2026-06-25T17:39:45+09:00"
+    assert "canceled (取消) 取引 1件" in capsys.readouterr().err
+
+
+def test_collect_mf_then_index_routes_canceled(monkeypatch):
+    """collect_mf → build_mf_index で取消は services でなく inactive バケットへ振り分けられる。"""
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            yield {"date": "2026-06-30", "status": "passed",
+                   "transaction_details": [{"description": "有効", "amount": 100000,
+                                            "unit_price": 100000, "quantity": 1}]}
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [{"description": "取消", "amount": 200000,
+                                            "unit_price": 200000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    idx = mfk_reconcile.build_mf_index(O.collect_mf("2606", cfg={}))
+    assert [s["amount"] for s in idx["C1"]["services"]] == [100000]
+    assert [x["amount"] for x in idx["C1"]["inactive"]] == [200000]
+    assert idx["C1"]["inactive"][0]["status"] == "canceled"
+
+
 def test_reconcile_warns_unsupported_end_date(monkeypatch, capsys):
     """月次フローが確認内容に終了根拠なき契約終了月を read-only で検知・警告する (健全性・fail-soft)。
 
@@ -520,6 +587,67 @@ def test_reconcile_no_health_warning_when_end_grounded(monkeypatch, capsys):
     assert rc == 0
     assert "健全性" not in out.out
     assert "REVIEW_ENDED_NO_BASIS" not in out.out  # 根拠ありは SUPPRESS_ENDED のまま
+
+
+def test_reconcile_shows_cancellation_balance(monkeypatch, capsys):
+    """取消が REVIEW_CANCELED と 対象外+取消注記 に振り分けられ、取消バランス行が出る (情報表示・exit不変)。
+
+    C1(月次・取消のみ)→REVIEW_CANCELED、C2(終了根拠あり・取消のみ)→SUPPRESS_ENDED+取消注記。
+    collect検出2件 = 要確認(取消)1 + 対象外等に取消注記1 をサマリへ可視化する (WARN-not-FAIL)。
+    """
+    sheet_rows = [
+        {"取引先": "取消商事", "商品": "チイキズカン業務委託費", "確認内容": "70,000円",
+         "契約開始日": "", "契約終了月": "", "page_id": "pg-cancel"},
+        {"取引先": "終了取消商事", "商品": "P", "確認内容": "90,000円 請求なし（2605終了）",
+         "契約開始日": "2501", "契約終了月": "2605", "page_id": "pg-ended"},
+    ]
+    sheet_db = "sheetdb"
+    pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
+
+    def iter_all(path, params=None, cfg=None, api_key=None):
+        if path == "/billings/qualified":
+            yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            yield {"id": "B2", "customer_id": "C2", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            return
+        if path == "/transactions":
+            if params["billing_id"] == "B1":
+                yield {"date": "2026-06-30", "status": "canceled",
+                       "canceled_at": "2026-06-25T17:39:45+09:00",
+                       "transaction_details": [
+                           {"description": "チイキズカン業務委託費（田中様 2026年6月分）",
+                            "amount": 70000, "unit_price": 70000, "quantity": 1}]}
+                return
+            yield {"date": "2026-06-30", "status": "canceled",
+                   "canceled_at": "2026-06-25T17:39:45+09:00",
+                   "transaction_details": [
+                       {"description": "業務委託費（佐藤様 2026年6月分）",
+                        "amount": 90000, "unit_price": 90000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            names = {"C1": "取消商事", "C2": "終了取消商事"}
+            return {"items": [{"id": c, "name": names[c]} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(notion_transport, "_notion_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(notion_transport, "_req", _fake_notion_req(sheet_db, pages))
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    monkeypatch.setattr(O, "load_orchestrator_config",
+                        lambda *a, **k: {"notion": {"sheet_db_id": sheet_db}})
+
+    rc = O.main(["--target", "2606", "--steps", "collect,sync-master,reconcile",
+                 "--sheet-db", sheet_db])
+    out = capsys.readouterr()
+    assert rc == 0  # 情報表示・exit code を変えない
+    assert "canceled (取消) 取引 2件" in out.err
+    assert "[取消可視化] 要確認(取消): 1件" in out.out
+    assert "[取消バランス] collect検出 2件" in out.out
+    assert "要確認(取消) 1件 + 対象外等に取消注記 1件" in out.out
 
 
 def test_extract_sheet_row():
