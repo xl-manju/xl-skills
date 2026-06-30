@@ -587,7 +587,10 @@ def main(argv=None):
         sys.stderr.write(
             f"[reconcile] DB id が解決できません: {missing}。"
             ".mf-kessai-config.json の notion.{sheet_db_id,reconcile_db1_id,reconcile_db2_id} "
-            "を設定するか --sheet-db/--db1/--db2 で指定してください。\n")
+            "を設定するか --sheet-db/--db1/--db2 で指定してください。"
+            " (これは正規フローの fail-closed です。別スクリプトを自作せず、id を設定して "
+            "/run-mf-invoice-reconcile --target YYMM を再実行してください。"
+            "DB1/DB2 未作成なら scripts/build_reconcile_dbs.py で先に用意します。)\n")
         return 2
 
     return run(a.target, steps, a.apply, sheet_db, db1, db2, cfg)

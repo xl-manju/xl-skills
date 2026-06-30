@@ -29,7 +29,14 @@
       "mfk-reconcile-verifier"
     ],
     "hooks": [
-      "guard-mfk-readonly"
+      "guard-mfk-readonly",
+      "guard-mfk-no-reinvent"
+    ],
+    "commands": [
+      "run-mf-invoice-reconcile",
+      "run-mf-invoice-check",
+      "run-mf-invoice-db-setup",
+      "run-mf-initial-month-enrich"
     ]
   },
   "permissions": {
@@ -59,6 +66,19 @@
           {
             "type": "command",
             "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-readonly.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-no-reinvent.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-no-reinvent.py"
           }
         ]
       }

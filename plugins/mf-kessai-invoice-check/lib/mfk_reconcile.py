@@ -310,9 +310,20 @@ def _expected_categories(contract):
 
     金額だけで同一会社内の別商品を拾うと、ユーザーが求める「商品名/確認内容が含まれるか」
     の検証にならない。既存の category() 語彙を使い、商品列と確認内容から期待カテゴリを
-    導出して候補明細を絞る。未知カテゴリは空集合にして従来の会社+金額照合へ fail-soft。
+    導出して候補明細を絞る。契約集約で代表商品(商品)に潰した場合も、sheet_to_master が
+    保持する集約元の商品 canon 集合 _source_products を読むことで、元シート行の商品基準を
+    失わない (_source_products は派生・DB1 非永続: sheet_to_master.build_contracts 参照)。
+    期待集合は商品/確認内容の語彙を加えるほど単調拡大するだけなので、候補を不当に狭めて
+    MATCH を GAP へ反転させることはない。未知カテゴリは空集合にして従来の会社+金額照合へ
+    fail-soft。
     """
-    text = " ".join(str(contract.get(k) or "") for k in ("商品", "確認内容", "備考"))
+    parts = [str(contract.get(k) or "") for k in ("商品", "確認内容", "備考")]
+    src = contract.get("_source_products")
+    if isinstance(src, (list, tuple, set)):
+        parts.extend(str(v or "") for v in src)
+    elif src:
+        parts.append(str(src))
+    text = " ".join(parts)
     cats = set()
     if "業務委託" in text:
         cats.add("biz")

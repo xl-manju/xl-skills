@@ -1,7 +1,7 @@
 ---
 name: run-mf-invoice-reconcile
 description: 請求確認シートを基準にMF掛け払いの発行漏れと契約マスタ未登録を双方向照合したいとき、月次で発行網羅性を検証し記録を残したいときに使う。
-disable-model-invocation: true
+disable-model-invocation: false  # 自然文「請求確認シートの内容がMFに反映されてるか確認して」で自動起動させる。READMEが約束する自然文起動と設定を整合させるため true→false。書込安全は既定 dry-run + --apply に --verified を要求するゲートで担保 (company-master/run-company-master-build と同型: external-mutation でも model-invocable)。
 user-invocable: true
 argument-hint: "[--target YYMM] [--apply --verified] [--steps collect,sync-master,reconcile,sink]"
 arguments: [target, apply, verified, steps]
@@ -55,6 +55,8 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 担当者が「請求確認シート」(年月/取引先/商品/確認内容/契約開始日/契約終了月 を 1 明細=1 行で入力) に記録した対象月の各行を基準に、MF掛け払いの対象月取引実績 (`/billings/qualified` + `/transactions`、参照専用 GET。月帰属は `transaction.date`) と**双方向照合**する。順方向 (基準−実績) で発行漏れ・金額差を、逆方向 (実績−基準) で契約マスタ未登録 (orphan=要マスタ登録) を検出し、**契約マスタ DB1** (AI 自動生成) と**月次発行チェック DB2** (AI 生成・月次蓄積) へ非破壊 upsert する。さらに判定 SoR=DB2 から**請求確認シート各行へ『判定』(5値select)・『AI確認』(checkbox)・『確認ポイント』(rich_text=何を確認すべきか) を片方向ミラー書き戻し**し、経理がシート上で結果と次のアクションを確認できるようにする (責務分離ハイブリッド)。
 
 **ユーザーが入力するのは請求確認シートのみ**。DB1 契約マスタ・DB2 月次チェックは本スキルが自動生成・移管する (担当者の入力負荷を増やさない)。
+
+> **⚠️ AI・開発者向け — 照合/判定ロジックは実装済み・自作禁止**: 請求確認シート (年月/取引先/商品/確認内容) × MF掛け払いの照合と判定は**完成・テスト済み**。**自前の照合スクリプトを書いたり、判定 (classify 相当) を `TODO(human)` で人間に書かせたりしてはならない** (人の運用方針も `verdict-mapping.json`/`sheet_to_master` に既に encode 済み)。正本エントリは **`scripts/reconcile_invoices.py`** (月次 orchestrator、既定 dry-run)、判定エンジンは **`lib/mfk_reconcile.py`** (`reconcile()` / `classify()` / `detect_orphans()`)、判定語彙 5 値の SSOT は **`schemas/verdict-mapping.json`**。自然文で頼まれたら新規実装せず `/run-mf-invoice-reconcile --target YYMM` を **dry-run → 二段確認 (`mfk-reconcile-verifier`) → `--apply --verified`** の順で実行する。**機械強制**: `hooks/guard-mfk-no-reinvent.py` (PreToolUse) が、正本以外への照合再実装 (`def classify`/`def reconcile` 等) と本ドメインでの `TODO(human)` 書き込みを exit 2 で遮断する (prose 指示が出力スタイルに上書きされても効く機械層)。
 
 **入力**: `--target YYMM` (対象月、例 2606)。既定は dry-run (集計のみ・書き込みゼロ)、DB2/シート反映を含む `--apply` は dry-run と二段確認完了を示す `--verified` を必須にする。`--steps` でスクリプト部分実行可 (collect,sync-master,reconcile,sink)。verify は `--steps` ではなく `mfk-reconcile-verifier` SubAgent で実行する独立フェーズ。DB id は引数 > 環境変数 > `.mf-kessai-config.json` で解決。DB1/DB2 の初期構築は `scripts/build_reconcile_dbs.py` (冪等 find-or-create) で行う。
 **出力**: DB1 (契約ごとに支払サイクル/現行単価/契約期間/期待明細数) + DB2 (順方向 rows + 逆方向 orphan、判定=日本語ラベル、AI確認済み=ai_check 派生) + 請求確認シートへの『判定』5値+『AI確認』書き戻し + 画面に判定内訳サマリ。

@@ -80,7 +80,9 @@ Claude Desktop でも**同じスラッシュコマンド**が使えます。ア�
 
 ## Claude Code への頼み方（かんたん実行）
 
-コマンドや引数を覚える必要はありません。**Claude Code にふだんの言葉で頼むだけ**で、内部で適切なスラッシュコマンド／スクリプトが実行されます。下の「一言」をそのままチャット欄に打てば動きます。
+コマンドや引数を覚える必要はありません。**推奨フロー `/run-mf-invoice-reconcile`（請求確認シート基準の照合）は、ふだんの言葉で頼むだけ**で自動起動します（例「請求確認シートの内容がMFに反映されているか確認して」）。その他の補助フロー（簡易差集合チェック・DB準備・初回契約月エンリッチ）は自然文では自動起動しないので、**表の右列のスラッシュコマンドをそのまま打ってください**（一番確実です）。
+
+> **動かない・AIが自前で実装し始めたら**: 推奨フロー `/run-mf-invoice-reconcile` は自然文 (例「請求確認シートの内容がMFに反映されてるか確認して」) でも自動起動します。もし起動しない言い回しだった場合は、表の右列の**スラッシュコマンドをそのまま打てば確実**です。**照合・判定ロジックは実装済み**なので、AI が新しいスクリプトを書き始めたり、判定を `TODO(human)` で人に書かせようとしたら、それは正規フローの迂回です — `/run-mf-invoice-reconcile --target YYMM` を明示してください (正本は `scripts/reconcile_invoices.py` + `lib/mfk_reconcile.py`、機械的にも `hooks/guard-mfk-no-reinvent.py` が再実装を遮断します)。
 
 | やりたいこと | Claude Code への一言（例・コピペ可） | 内部で動くもの |
 |---|---|---|
@@ -338,6 +340,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_sc
 | `/billings` が 0 件 | インボイスモード事業者 | `/billings/qualified` を使う |
 | Notion `404 object_not_found` | DB に integration 未接続 | 上記「Notion セットアップ」2 を実施 |
 | 企業名が全て空欄 | `/customers?ids=` が解決失敗 | stderr 警告を確認 (形式は doseq `ids=A&ids=B` で検証済み) |
+| AIが自前スクリプトを作り始める / 判定を `TODO(human)` で人に書かせようとする | 正規スキルが起動せず即興実装に倒れた / 既存 `lib/mfk_reconcile.py` を未使用 | `/run-mf-invoice-reconcile --target YYMM` を明示。照合・判定は実装済み (`scripts/reconcile_invoices.py` + `lib/mfk_reconcile.py`)。再実装と `TODO(human)` は `hooks/guard-mfk-no-reinvent.py` が PreToolUse で遮断する |
 
 ---
 

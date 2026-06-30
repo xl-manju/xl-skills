@@ -37,7 +37,7 @@ def test_plugin_manifest_bundle_contract():
         "run-mf-invoice-reconcile",
     ]
     assert manifest["entry_points"]["agents"] == ["mfk-gap-verifier", "mfk-reconcile-verifier"]
-    assert manifest["entry_points"]["hooks"] == ["guard-mfk-readonly"]
+    assert manifest["entry_points"]["hooks"] == ["guard-mfk-readonly", "guard-mfk-no-reinvent"]
     # Claude Code 予約フィールド (skills/agents/commands) はトップレベルに置かない。
     # entry_points で宣言し、詳細メタは各 SKILL.md / agents/*.md frontmatter が SSOT。
     assert "skills" not in manifest
@@ -45,11 +45,88 @@ def test_plugin_manifest_bundle_contract():
     assert "commands" not in manifest
 
 
+def test_run_skills_are_exposed_as_slash_commands():
+    """各 run-* スキルに commands/ のブリッジ (entrypoint→skill) があり実体も存在する。
+
+    Claude Code はプラグインのスキルを `/<plugin>:<skill>` (名前空間付き) でしか
+    自動露出しない。短い `/run-mf-invoice-reconcile` を出すには commands/*.md が要る。
+    これが無いと install 後にスラッシュコマンドが「表示されない」(回帰防止)。
+    """
+    manifest = _json(".claude-plugin/plugin.json")
+    expected = [
+        "run-mf-invoice-reconcile",
+        "run-mf-invoice-check",
+        "run-mf-invoice-db-setup",
+        "run-mf-initial-month-enrich",
+    ]
+    assert manifest["entry_points"]["commands"] == expected
+    for cmd in expected:
+        path = os.path.join(PLUGIN_ROOT, "commands", f"{cmd}.md")
+        assert os.path.exists(path), f"commands/{cmd}.md が無い (スラッシュ非表示の原因)"
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        # frontmatter が skill へブリッジしていること (company-master と同型)。
+        assert f"name: {cmd}" in text
+        assert f"entrypoint: {cmd}" in text
+        # entrypoint 先の skill 実体が存在すること。
+        assert os.path.isdir(os.path.join(PLUGIN_ROOT, "skills", cmd))
+
+
+def _skill_frontmatter(skill_name):
+    """skills/<name>/SKILL.md の frontmatter を素朴な key: value で読む (PyYAML 非依存)。"""
+    path = os.path.join(PLUGIN_ROOT, "skills", skill_name, "SKILL.md")
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    assert text.startswith("---"), f"{skill_name}/SKILL.md に frontmatter が無い"
+    body = text.split("---", 2)[1]
+    fm = {}
+    for line in body.splitlines():
+        if ":" in line and not line.lstrip().startswith("#"):
+            k, _, v = line.partition(":")
+            fm[k.strip()] = v.split("#", 1)[0].strip()
+    return fm
+
+
+def test_reconcile_is_model_invocable_from_natural_language():
+    """run-mf-invoice-reconcile は自然文で自動起動できること (事故Aの再発防止・恒久ロック)。
+
+    事故: ユーザーが自然文で照合を頼んだら、正規スキルが起動せず AI が自前スクリプトを
+    書き判定を TODO(human) で人間に丸投げした。根本原因(A) = SKILL.md が
+    disable-model-invocation: true で自然文起動を殺していたこと。README が約束する
+    「ふだんの言葉で頼むだけで動く」と設定を一致させ、将来 true へ回帰したら CI で気づく。
+    書き込み安全は dry-run 既定 + --apply の --verified 必須ゲートで担保 (起動可否では縛らない)。
+    """
+    fm = _skill_frontmatter("run-mf-invoice-reconcile")
+    assert fm.get("disable-model-invocation") == "false", (
+        "run-mf-invoice-reconcile を自然文起動不可 (true) へ戻すと事故A(再発明+TODO(human))が"
+        "再発する。安全は dry-run + --verified ゲートで担保済みなので false を維持すること。"
+    )
+
+
 def test_manifest_hook_points_to_packaged_file():
     manifest = _json(".claude-plugin/plugin.json")
     command = manifest["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     assert "$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-readonly.py" in command
     assert os.path.exists(os.path.join(PLUGIN_ROOT, "hooks", "guard-mfk-readonly.py"))
+
+
+def test_manifest_reinvent_guard_is_wired_for_write_and_bash_paths():
+    """再発明/TODO(human) 遮断 hook が Write/Edit/MultiEdit/Bash 経路に配線される。"""
+    manifest = _json(".claude-plugin/plugin.json")
+    pretooluse = manifest["hooks"]["PreToolUse"]
+    # 第1層 (Bash MF変更系) は Bash hook の先頭のまま温存し、同じ Bash 入口に
+    # 再発明 guard を追記して heredoc/tee/redirection 迂回も捕捉する。
+    # matcher を完全一致で固定 (set 等価でエントリ数も暗黙固定し、余計な 3 つ目や
+    # MultiEdit 脱落を契約で捕捉する)。
+    matchers = {entry["matcher"]: entry for entry in pretooluse}
+    assert set(matchers) == {"Bash", "Write|Edit|MultiEdit"}
+    assert pretooluse[0]["matcher"] == "Bash"  # 第1層の順序を温存
+    bash_commands = [h["command"] for h in matchers["Bash"]["hooks"]]
+    assert "$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-readonly.py" in bash_commands[0]
+    assert "$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-no-reinvent.py" in bash_commands[1]
+    write_command = matchers["Write|Edit|MultiEdit"]["hooks"][0]["command"]
+    assert "$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-no-reinvent.py" in write_command
+    assert os.path.exists(os.path.join(PLUGIN_ROOT, "hooks", "guard-mfk-no-reinvent.py"))
 
 
 def test_workflow_manifest_commands_are_install_path_independent():
@@ -144,6 +221,7 @@ def test_r3_verify_contract_only_verifies_gap_rows_and_passthroughs_history_rows
 def test_scripts_are_executable_for_install_smoke():
     rel_paths = [
         "hooks/guard-mfk-readonly.py",
+        "hooks/guard-mfk-no-reinvent.py",
         "lib/mfk_api.py",
         "lib/mfk_keychain.py",
         "scripts/reconcile_invoices.py",
