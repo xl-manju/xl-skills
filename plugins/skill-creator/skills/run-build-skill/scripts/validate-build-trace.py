@@ -40,7 +40,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 try:  # 任意依存: jsonschema があれば schema 検証を強化
     import jsonschema  # type: ignore
@@ -664,6 +664,23 @@ def _check_kind_workflow(data: dict) -> list[str]:
     return f
 
 
+def _plugin_relative_ref_findings(ref: str, field: str, plugin_name: str | None) -> list[str]:
+    f: list[str] = []
+    if ref.startswith("hook:"):
+        return f
+    if ref.startswith("/") or ref.startswith("\\") or re.match(r"^[A-Za-z]:[\\/]", ref):
+        f.append(f"{field} must be plugin-relative, not absolute: {ref}")
+        return f
+    parts = PurePosixPath(ref.replace("\\", "/")).parts
+    if ".." in parts:
+        f.append(f"{field} must not escape plugin root with '..': {ref}")
+    if len(parts) >= 2 and parts[0] == "plugins" and (
+        plugin_name is None or parts[1] == plugin_name
+    ):
+        f.append(f"{field} must be relative to plugin root, not start with plugins/<name>/: {ref}")
+    return f
+
+
 def _check_kind_plugin_composition(data: dict, manifest_path: Path | None) -> list[str]:
     f: list[str] = []
     caps = data.get("capabilities")
@@ -671,14 +688,20 @@ def _check_kind_plugin_composition(data: dict, manifest_path: Path | None) -> li
         f.append("plugin-composition.capabilities must be non-empty array")
         caps = []
     cap_kinds = {"skill", "agent", "hook", "command", "prompt", "workflow"}
+    plugin_name = manifest_path.parent.name if manifest_path is not None else data.get("name")
+    cap_refs: set[str] = set()
     for i, c in enumerate(caps):
         if not isinstance(c, dict):
             f.append(f"capabilities[{i}] must be object")
             continue
         if c.get("kind") not in cap_kinds:
             f.append(f"capabilities[{i}].kind invalid: {c.get('kind')!r}")
-        if not c.get("ref"):
+        ref = c.get("ref")
+        if not ref:
             f.append(f"capabilities[{i}].ref missing")
+        elif isinstance(ref, str):
+            cap_refs.add(ref)
+            f.extend(_plugin_relative_ref_findings(ref, f"capabilities[{i}].ref", plugin_name))
     deps = data.get("dependencies", [])
     if deps and not isinstance(deps, list):
         f.append("plugin-composition.dependencies must be array")
@@ -686,8 +709,19 @@ def _check_kind_plugin_composition(data: dict, manifest_path: Path | None) -> li
     # DAG 循環検出
     if isinstance(deps, list) and deps:
         graph: dict[str, list[str]] = {}
-        for d in deps:
+        dep_types = {"calls", "reads", "extends", "evaluates", "emits", "writes", "delegates", "deploys"}
+        for i, d in enumerate(deps):
             if isinstance(d, dict) and d.get("from") and d.get("to"):
+                dep_type = d.get("type")
+                if dep_type is not None and dep_type not in dep_types:
+                    f.append(f"dependencies[{i}].type invalid: {dep_type!r}")
+                if cap_refs:
+                    for key in ("from", "to"):
+                        endpoint = d[key]
+                        if endpoint not in cap_refs:
+                            f.append(
+                                f"dependencies[{i}].{key} references undeclared capability: {endpoint}"
+                            )
                 graph.setdefault(d["from"], []).append(d["to"])
         if _has_cycle(graph):
             f.append("plugin-composition.dependencies contains cycle")

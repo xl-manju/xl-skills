@@ -15,7 +15,8 @@
 #   {{MATCHER_TOOL}}       対象ツール名 (Edit|Write|Bash 等)
 #   {{MATCHER_PATH_GLOB}}  対象ファイル glob (任意)
 #   {{MATCHER_ARG_RE}}     Bash の場合 cmd 正規表現 (任意)
-#   {{COMMAND}}            スクリプトパス ($CLAUDE_PLUGIN_ROOT 利用可)
+#   {{COMMAND}}            plugin.json hook runtime のスクリプトパス ($CLAUDE_PLUGIN_ROOT 利用可)。
+#                          導入者向け README / 手動実行例には裸 $CLAUDE_PLUGIN_ROOT を出さない。
 #   {{TIMEOUT_MS}}         100..60000 (default 5000)
 #   {{EXIT_CODE_POLICY}}   non-blocking|blocking-on-nonzero|blocking-on-2
 #   {{SIDE_EFFECT_SCOPE}}  read-only|lessons-write|git-write|external
@@ -47,6 +48,9 @@ contract:
     - PostToolUse で副作用後の block を試みない (意味がない)
     - permissions.deny を併用する (hook 単独で access control に頼らない)
     - 同イベントに重複登録しない (登録順依存で読み取り困難)
+    - hook script は import-time に plugin root 外へ fail-closed 依存しない
+    - hook script 内部の資産解決は `__file__` / plugin-relative を優先し、env 不在時も fail-soft にする
+    - `scripts/lint-runtime-portability.py` を通す
 ---
 
 # {{CAPABILITY_NAME}}

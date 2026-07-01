@@ -65,13 +65,13 @@ cat plugins/company-master/references/settings-hardening.json
 ```bash
 # resolve + enrich のみ (Notion へは書き込まない。出力 JSON に upsert: "skipped" /
 # upsert_skip_reason: "--upsert未指定のため書き込みスキップ" を含む)
-python3 plugins/company-master/scripts/company_master.py --hojin-bango <13桁法人番号>
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" --hojin-bango <13桁法人番号>
 
 # 検証 PASS 時に Notion へ書き込む
-python3 plugins/company-master/scripts/company_master.py --name "<会社名>" --address "<住所>" --upsert
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" --name "<会社名>" --address "<住所>" --upsert
 
 # Notion 既存行の空欄を backfill (--dry-run で副作用抑止)
-python3 plugins/company-master/scripts/company_master.py backfill --dry-run
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" backfill --dry-run
 ```
 
 > `--upsert` 未指定時は resolve/enrich のみ実行し、Notion 書き込みはスキップする (出力 JSON の `upsert_skip_reason` に理由が入る)。

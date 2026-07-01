@@ -8,7 +8,8 @@
 # TODO: build-skill が以下プレースホルダを置換する
 #   {{CAPABILITY_NAME}}  plugin 名 (kebab-case)
 #   {{OWNER}}            governance 担当
-#   {{PLUGIN_DIR}}       plugins/{{plugin}}/
+#   {{PLUGIN_DIR}}       plugin root からの相対 prefix。plugin-composition.yaml 直下なら空文字。
+#                        `plugins/<name>/` を入れない (単独 install で壊れる)。
 ---
 name: {{CAPABILITY_NAME}}
 description: {{PLUGIN_PURPOSE}}
@@ -22,7 +23,8 @@ contract:
   interface:
     entrypoints: []       # TODO: user-invocable な capability ref を列挙
   invariant:
-    - capabilities[] の ref は全て {{PLUGIN_DIR}} 配下を指す
+    - capabilities[] の ref は全て plugin-composition.yaml からの plugin-root 相対パスを指す
+    - ref/eval_sinks/changelog/roadmap/lessons_path に絶対パス、`..`、`plugins/<name>/` prefix を使わない
     - dependencies[] は DAG (循環不可)
     - rubric_refs と eval_sinks は governance ループの両端を成す
 
@@ -55,14 +57,14 @@ dependencies:
 
 eval_sinks:
   # TODO: EVALS.json など評価ログ集約先
-  - {{PLUGIN_DIR}}EVALS.json
+  - EVALS.json
 
 governance:
   rubric_refs:
     # TODO: 依拠する rubric Skill name を列挙 (L0→L1→L2 deep-merge 順)
     - ref-skill-design-rubric
-  changelog: {{PLUGIN_DIR}}CHANGELOG.md
-  roadmap: {{PLUGIN_DIR}}ROADMAP.md
+  changelog: CHANGELOG.md
+  roadmap: ROADMAP.md
 
 observability:
   hooks:
@@ -71,4 +73,4 @@ observability:
   metrics:
     # TODO: 観測するメトリクス名
     - {{METRIC_NAME}}
-  lessons_path: {{PLUGIN_DIR}}LESSONS.md
+  lessons_path: LESSONS.md

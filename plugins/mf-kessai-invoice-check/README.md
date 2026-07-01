@@ -98,7 +98,7 @@ Claude Desktop でも**同じスラッシュコマンド**が使えます。ア�
 - **対象月は明示推奨**: 請求確認シート基準の照合は `--target YYMM` (例: `2606`) を明示します。簡易差集合チェックだけは、月指定が無ければ実行日の年月を「今月」として扱います。
 - **安全**: チェックは同梱クライアントでは MF 掛け払い API を**読み取り専用**で叩くだけで、請求データを書き換えることはありません（Bash 経路の参照専用ガード + 同梱クライアントの GET 専用設計で強く抑止）。請求確認シートへの書き戻しは `判定`・`AI確認`・`確認ポイント` と、空欄の `契約開始日` 補完だけです。`チェック済み`・`確認内容`・`取引先`・`商品`・`契約終了月` は触れません。
 
-> はじめての場合は **①請求確認シートDB IDを `.mf-kessai-config.json` の `notion.sheet_db_id` に設定 → ② `python3 "$CLAUDE_PLUGIN_ROOT/scripts/build_reconcile_dbs.py" --parent-page-id <page_id>` で DB1/DB2 を用意 → ③ `/run-mf-invoice-reconcile --target YYMM` で dry-run → ④二段確認後 `/run-mf-invoice-reconcile --target YYMM --apply --verified`** の順です。
+> はじめての場合は **①請求確認シートDB IDを `.mf-kessai-config.json` の `notion.sheet_db_id` に設定 → ② ▶ Claude Code のチャットで `請求確認シート照合用のDBを準備して`(開発者が clone を直叩きするなら `python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/build_reconcile_dbs.py" --parent-page-id <page_id>`)で DB1/DB2 を用意 → ③ `/run-mf-invoice-reconcile --target YYMM` で dry-run → ④二段確認後 `/run-mf-invoice-reconcile --target YYMM --apply --verified`** の順です。
 
 ### 請求確認シート基準の照合
 
@@ -129,12 +129,23 @@ MF 側の証跡は `/billings/qualified` の `status=invoice_issued` だけを�
 - Python 3.11+
 - MF 掛け払いの **本番 API キー** を取得済み (管理画面で発行)
 
-> **パス表記について**: 以下のコマンド例はこのリポジトリ直下を CWD とした相対パス (`plugins/mf-kessai-invoice-check/…`) です。マーケットプレースで**任意のディレクトリ構成に install** した場合、プラグインの実体は `~/.claude/plugins/<marketplace>/mf-kessai-invoice-check/` 等になります。その場合は **スラッシュコマンド** (`/run-mf-invoice-check`・`/run-mf-invoice-db-setup`) を使うか、コマンド中のパスを **`$CLAUDE_PLUGIN_ROOT`** 基準に読み替えてください (例: `python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --smoke`)。スクリプト内部のモジュール解決と設定ファイル探索は `__file__` 相対なので install 位置に依存しません。
+---
+
+## セットアップの進め方 (Step 1 → 3)
+
+以下は「**① 鍵の登録 → ② 設定 (通常は不要) → ③ セットアップ確認 (doctor)**」の順です。各コマンドブロックには **どこで実行するか** を明示します。
+
+- **▶ 自分のローカルターミナルで**: `security …` の鍵登録 (Step 1) **だけ**は、鍵を macOS Keychain に対話入力するため **真にターミナルが必要** です。
+- **▶ Claude Code のチャットで**: 取得確認・疎通確認 (Step 3) は Claude Code に頼みます (`/run-mf-invoice-doctor` または自然文)。
+
+> **⚠️ 疎通確認を素のターミナルで手打ちしないこと**: `python3 "$CLAUDE_PLUGIN_ROOT/lib/…"` のように `$CLAUDE_PLUGIN_ROOT` を含むコマンドを **素のターミナル** にそのまま打つと、`$CLAUDE_PLUGIN_ROOT` は **未定義で空文字に展開** され、`can't open file '/lib/mfk_keychain.py'`(先頭が `/lib/…` になる)というエラーになります。`$CLAUDE_PLUGIN_ROOT` は **Claude Code の実行環境でのみ** 解決される変数だからです。だから **疎通確認は Claude Code のチャットに「MF掛け払いのセットアップを確認して」と頼む**か、`/run-mf-invoice-doctor` を使ってください(Claude が install 位置を解決して実行します)。スクリプト内部のモジュール解決・設定ファイル探索は `__file__` 相対なので install 位置には依存しません。
 
 ---
 
 ## Step 1. API キーを Keychain に登録
 
+> **▶ 自分のローカルターミナルで実行** — このステップだけは鍵の対話入力のため素のターミナルが必要です。
+>
 > **安全原則**: API キーを `-w 'xxxx'` のように引数で渡すと、シェル履歴や AI アシスタントの会話に残ります。必ず **対話入力モード** (`-w` を値なしで末尾に置く) で、**自分のローカルターミナル**で実行してください。
 
 ```bash
@@ -172,8 +183,10 @@ security add-generic-password \
 | `.mf-kessai-config.example.json` | 追跡 | 上書きの書式サンプル |
 
 ```bash
-# 別環境・別 DB を使う場合のみ (通常は不要)。install パス非依存に $CLAUDE_PLUGIN_ROOT で解決:
-cp "$CLAUDE_PLUGIN_ROOT/.mf-kessai-config.example.json" "$CLAUDE_PLUGIN_ROOT/.mf-kessai-config.json"
+# 別環境・別 DB を使う場合のみ (通常は不要)。fallback 形で Claude Code / clone 開発者の
+# どちらでも解決する ($CLAUDE_PLUGIN_ROOT 未定義なら repo 直下の相対パスへ落ちる):
+P="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}"
+cp "$P/.mf-kessai-config.example.json" "$P/.mf-kessai-config.json"
 # 例: サンドボックスで試す → environment を "sandbox" に / 別の Notion DB → notion.database_id を上書き
 ```
 
@@ -181,38 +194,48 @@ cp "$CLAUDE_PLUGIN_ROOT/.mf-kessai-config.example.json" "$CLAUDE_PLUGIN_ROOT/.mf
 
 ---
 
-## Step 3. 取得確認 (キー本体は表示しない)
+## Step 3. セットアップ確認 (doctor / キー本体は表示しない)
 
-```bash
-# Keychain からキーを取得できるか (マスク表示)
-python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_keychain.py" --check
-# → OK service=mfkessai-api-key.xl-skills account=xl-skills 1a2b...zz (len=NN)
-```
+> **▶ Claude Code のチャットで実行** — 取得確認・疎通確認は Claude Code に頼みます(素のターミナルで手打ちしない)。
 
----
+鍵の取得可否と API/Notion の疎通を **1 コマンドでまとめて自己診断** できます。**推奨（install 形態を問わず動く）**:
 
-## Step 4. API 疎通確認
+- Claude Code のチャットに **「MF掛け払いのセットアップを確認して」** と自然文で頼む、または
+- **`/run-mf-invoice-doctor`** を打つ。
 
-```bash
-python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --smoke
-# → base_url = https://api.mfkessai.co.jp/v2
-#   OK: /customers 到達 (HTTP 200)。顧客総数 total=121
-#   → APIキーは Keychain から取得し、ヘッダ apikey に載りました (本体は非表示)
-```
+doctor は次を順に点検し、各項目を **OK / WARN / SKIP** と「次に何をすべきか」付きで表示します(**鍵・トークンの中身は表示しません**):
 
-`HTTP 200` と顧客総数が出れば、本番 URL・キーともに正常です。
+1. **MF掛け払い APIキー** … Keychain から取得できるか(マスク表示)
+2. **MF掛け払い API 疎通** … `GET /customers`(読み取りのみ)で `HTTP 200`・顧客総数
+3. **Notion トークン** … Keychain から取得できるか
+4. **Notion 既定 DB 到達** … 既定 DB にアクセスできるか(integration 未接続なら WARN)
+
+`HTTP 200` と顧客総数が出れば、本番 URL・キーともに正常です。WARN は診断のみで処理を止めません(表示された次アクションを実施して再実行)。
+
+> **開発者向け補足 (clone を直叩きするデバッグ用)**: このリポジトリを clone した開発者は、`$CLAUDE_PLUGIN_ROOT` を **fallback 形** で解決すれば自分のターミナルでも同じ点検を実行できます(素のターミナルでは `$CLAUDE_PLUGIN_ROOT` が空になるため、必ず下記の `${…:-…}` 付きで打つ)。install 位置は `__file__` 相対で自己解決するので、マーケットプレース install 先でも動きます。
+>
+> ```bash
+> # 開発者向け (clone 直叩き)。$CLAUDE_PLUGIN_ROOT 未定義なら repo 直下の相対パスへ落ちる:
+> python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/lib/mfk_doctor.py"
+> # 個別に確認したい場合 (いずれも読み取りのみ・キー本体は非表示):
+> python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/lib/mfk_keychain.py" --check
+> python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/lib/mfk_api.py" --smoke
+> ```
 
 ---
 
 ## 使い方 — 任意エンドポイントの取得
 
-`--path` と `--param key=value` (複数可) で任意の GET を叩けます。`status` のような配列も `--param` を複数並べれば展開されます。
+`--path` と `--param key=value` (複数可) で任意の GET を叩けます。`status` のような配列も `--param` を複数並べれば展開されます。これは**開発者向けのアドホック確認**なので、`$CLAUDE_PLUGIN_ROOT` は **fallback 形**で解決します(素のターミナルでも repo 直下相対へ落ちて動く)。
 
 ```bash
+# 開発者向け (アドホック GET・clone 直叩きでも動く fallback 形)。
+API="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/lib/mfk_api.py"
+
 # 発行済み請求書の一覧取得例。
 # 月次照合ではこの一覧を対象月初〜翌月末で広めに取り、
 # /transactions の date(取引日)で対象月に絞る。
-python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" \
+python3 "$API" \
   --path /billings/qualified \
   --param issue_date_from=2026-06-01 \
   --param issue_date_to=2026-07-31 \
@@ -220,13 +243,17 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" \
   --param limit=5
 
 # 取引(取引日 date・商品名 description・金額)
-python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --path /transactions --param billing_id=<billing_id> --param limit=5
+python3 "$API" --path /transactions --param billing_id=<billing_id> --param limit=5
 ```
 
 ### Python から呼ぶ
 
 ```python
-import os, sys; sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "lib"))
+import os, sys
+# CLAUDE_PLUGIN_ROOT 優先、無ければ repo 直下相対へ fallback (KeyError を出さない)。
+# 素のターミナル/スクリプト実行でも壊れないよう os.environ.get を使う。
+_root = os.environ.get("CLAUDE_PLUGIN_ROOT") or "plugins/mf-kessai-invoice-check"
+sys.path.insert(0, os.path.join(_root, "lib"))
 from mfk_api import get
 
 # 6月分照合用の候補一覧。issue_date は over-fetch 窓であり、月帰属は後段の transaction.date で確定する。
@@ -271,17 +298,21 @@ for b in data["items"]:
 
 1. **Notion トークンを Keychain に登録** (未登録なら): service `notion-api-key.xl-skills` / account `xl-skills`。
 2. **DB に integration を接続**: Notion でその DB を開き `···` → `+ 接続` (Connections) から、上記トークンの integration を接続。**未接続だと `HTTP 404 object_not_found`** になります。
-3. **スキーマを適用** (冪等。既存 DB に不足プロパティを追加・タイトル列を `取引先企業名` にリネーム):
+3. **スキーマを適用** (冪等。既存 DB に不足プロパティを追加・タイトル列を `取引先企業名` にリネーム)。**▶ Claude Code のチャットで** `請求書チェック用の Notion DB を準備して` と頼むか **`/run-mf-invoice-db-setup`** を打ちます(スキーマ適用と verify をまとめて実行)。
 
-```bash
-python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py"
-python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py"
-# → PASS 全 N プロパティが存在し、旧プロパティの残存もありません。
-#   (N は notion-db-schema.json のプロパティ数を len(expected) で動的算出した値。
-#    スキーマの列増減に追従するため README には固定値を書かない)
-```
+> **開発者向け補足 (clone を直叩きするデバッグ用)**: スクリプトを直接叩く場合は `$CLAUDE_PLUGIN_ROOT` を **fallback 形** で解決します(素のターミナルでも repo 直下相対へ落ちる)。
+>
+> ```bash
+> # 開発者向け (clone 直叩き)。$CLAUDE_PLUGIN_ROOT 未定義なら repo 直下の相対パスへ落ちる:
+> SK="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/skills"
+> python3 "$SK/run-mf-invoice-db-setup/scripts/build_notion_db.py"
+> python3 "$SK/run-mf-invoice-db-setup/scripts/verify_db_schema.py"
+> # → PASS 全 N プロパティが存在し、旧プロパティの残存もありません。
+> #   (N は notion-db-schema.json のプロパティ数を len(expected) で動的算出した値。
+> #    スキーマの列増減に追従するため README には固定値を書かない)
+> ```
 
-> 別の既存 DB を使いたい場合は `.mf-kessai-config.json` に `{"notion": {"database_id": "<id>"}}` を書けば上書きできます。親ページ配下に**新規 DB を作成**したい場合は `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py" --parent-page-id <page_id>` を実行します。`--parent-page-id` は配布既定の `database_id` より優先され、作成した `database_id` をローカル `.mf-kessai-config.json` に記録します。
+> 別の既存 DB を使いたい場合は `.mf-kessai-config.json` に `{"notion": {"database_id": "<id>"}}` を書けば上書きできます。親ページ配下に**新規 DB を作成**したい場合は `/run-mf-invoice-db-setup --parent-page-id <page_id>`(または開発者は上記 `build_notion_db.py --parent-page-id <page_id>`)を実行します。`--parent-page-id` は配布既定の `database_id` より優先され、作成した `database_id` をローカル `.mf-kessai-config.json` に記録します。
 
 ---
 
@@ -334,6 +365,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_sc
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
+| `can't open file '/lib/mfk_keychain.py'` / `/lib/…` No such file | 生ターミナルで `$CLAUDE_PLUGIN_ROOT` が未定義 (Claude Code 外で実行し、変数が空展開して先頭が `/lib/…` になった) | Claude Code のチャットで `/run-mf-invoice-doctor` を実行、または「MF掛け払いのセットアップを確認して」と Claude に頼む (Claude が install 位置を解決して実行する) |
 | `Keychain lookup failed` | 未登録 / service・account 名違い | Step 1 をやり直す |
 | `HTTP 401` | キー不正 / 本番・サンドボックス取り違え | Keychain の値・環境を確認 |
 | `HTTP 404` / 接続失敗 (MF) | base_url 誤り | `environment` / `base_url` を確認 |
@@ -364,17 +396,20 @@ python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/verify_db_sc
 
 旧来の `/run-mf-invoice-check` は、前月取引−今月取引の顧客差集合だけを Notion『請求書チェック_DB』へ入れる簡易チェックです。請求確認シートの `確認内容`・契約開始/終了・支払サイクル・金額差・orphan（MF実績はあるがシート未登録）まで確認したい通常運用では `/run-mf-invoice-reconcile` を使います。
 
-スクリプトを直接叩く場合 (デバッグ用)。`$CLAUDE_PLUGIN_ROOT` でこのプラグインの install 位置を解決するので、リポジトリ/マーケットプレースのどちらでも動きます:
+スクリプトを直接叩く場合 (**開発者向け・clone を直叩きするデバッグ用**)。`$CLAUDE_PLUGIN_ROOT` は Claude Code の実行環境でしか解決されないため、**素のターミナルでも動くよう fallback 形** で書きます(未定義なら repo 直下相対へ落ちる):
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target 2606
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/reconcile_invoices.py" --target 2606 --apply --verified
+# 開発者向け (clone 直叩き)。$CLAUDE_PLUGIN_ROOT 未定義なら repo 直下の相対パスへ落ちる:
+RC="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/reconcile_invoices.py"
+python3 "$RC" --target 2606
+python3 "$RC" --target 2606 --apply --verified
 ```
 
-旧来の簡易差集合フローを直接叩く場合:
+旧来の簡易差集合フローを直接叩く場合 (**開発者向け・clone 直叩き**):
 
 ```bash
-SK="$CLAUDE_PLUGIN_ROOT/skills"
+# 開発者向け (clone 直叩き)。$CLAUDE_PLUGIN_ROOT 未定義なら repo 直下の相対パスへ落ちる:
+SK="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/skills"
 
 # 初回のみ: 既定DBにスキーマ適用 (冪等)
 python3 "$SK/run-mf-invoice-db-setup/scripts/build_notion_db.py"
@@ -429,7 +464,7 @@ python3 "$SK/run-mf-invoice-check/scripts/check_invoice_gaps.py" --backfill --fr
 
 詳細はスキル内の **`skills/run-mf-initial-month-enrich/SKILL.md`** と **`references/oauth-setup.md`**（OAuth トークン取得手順）に集約しています。`$CLAUDE_PLUGIN_ROOT` で install 位置に依存せず解決されます。
 
-1. **CSV 名寄せ（推奨・軽量・API 不要）**: MF クラウド請求書 UI で請求書一覧を CSV エクスポートし、`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-initial-month-enrich/scripts/mf_invoice_csv_match.py" <CSV>` で顧客名を名寄せ。OAuth アプリ登録が不要。
+1. **CSV 名寄せ（推奨・軽量・API 不要）**: MF クラウド請求書 UI で請求書一覧を CSV エクスポートし、▶ Claude Code のチャットで `初回契約月を CSV で名寄せして` と頼む(開発者が clone を直叩きするなら `python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/skills/run-mf-initial-month-enrich/scripts/mf_invoice_csv_match.py" <CSV>`)で顧客名を名寄せ。OAuth アプリ登録が不要。
 2. **OAuth API（無人運用向け）**: `mf_invoice_oauth.py` でトークンを 1 回取得（Keychain `mf-invoice-oauth.xl-skills`）し、`mf_invoice_enrich.py --plan`（対象表示）→ `--limit N`（書き込み）で未取得顧客だけを差分エンリッチ。手順は `references/oauth-setup.md`。
 
 > いずれも投入されるのは**初期推定値**です。最終的な `初回契約月` の確定は人が行います（最古発行月 ≠ 初回契約月のケースがあるため）。
