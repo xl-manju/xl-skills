@@ -98,7 +98,8 @@ Claude Desktop でも**同じスラッシュコマンド**が使えます。ア�
 - **対象月は明示推奨**: 請求確認シート基準の照合は `--target YYMM` (例: `2606`) を明示します。簡易差集合チェックだけは、月指定が無ければ実行日の年月を「今月」として扱います。
 - **安全**: チェックは同梱クライアントでは MF 掛け払い API を**読み取り専用**で叩くだけで、請求データを書き換えることはありません（Bash 経路の参照専用ガード + 同梱クライアントの GET 専用設計で強く抑止）。請求確認シートへの書き戻しは `判定`・`AI確認`・`確認ポイント` と、空欄の `契約開始日` 補完だけです。`チェック済み`・`確認内容`・`取引先`・`商品`・`契約終了月` は触れません。
 
-> はじめての場合は **①請求確認シートDB IDを `.mf-kessai-config.json` の `notion.sheet_db_id` に設定 → ② ▶ Claude Code のチャットで `請求確認シート照合用のDBを準備して`(開発者が clone を直叩きするなら `python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/build_reconcile_dbs.py" --parent-page-id <page_id>`)で DB1/DB2 を用意 → ③ `/run-mf-invoice-reconcile --target YYMM` で dry-run → ④二段確認後 `/run-mf-invoice-reconcile --target YYMM --apply --verified`** の順です。
+> **XLOCAL 運用者**は、照合に使う 3 DB id (請求確認シート/契約マスタ DB1/月次チェック DB2) が**配布既定に焼き込み済みのため設定不要**です。**① `/run-mf-invoice-reconcile --target YYMM` で dry-run → ②二段確認後 `/run-mf-invoice-reconcile --target YYMM --apply --verified`** の順で動きます。
+> **別ワークスペースで使う第三者**は、`.mf-kessai-config.json` に自分の `notion.sheet_db_id` を書き、▶ Claude Code のチャットで `請求確認シート照合用のDBを準備して`(開発者が clone を直叩きするなら `python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/build_reconcile_dbs.py" --parent-page-id <page_id>`)で DB1/DB2 を作成 (id は自動で `.mf-kessai-config.json` に記録され既定を上書き) してから dry-run してください。
 
 ### 請求確認シート基準の照合
 
@@ -178,7 +179,7 @@ security add-generic-password \
 
 | ファイル | git | 役割 |
 |---|---|---|
-| `mf-kessai-config.default.json` | 追跡 (コミット) | **配布既定**。`environment`/`base_url`/Keychain 名/**Notion `database_id`** が入っており、導入者はこのまま使える |
+| `mf-kessai-config.default.json` | 追跡 (コミット) | **配布既定**。`environment`/`base_url`/Keychain 名/**Notion の出力先 `database_id` と照合 3 DB id (`sheet_db_id`/`reconcile_db1_id`/`reconcile_db2_id`)** が入っており、導入者はこのまま使える (id は資格情報ではない。アクセスには Keychain の Notion トークン + integration 接続が必要) |
 | `.mf-kessai-config.json` | 無視 (gitignore) | **任意の上書き**のみ。書いた**非空値だけ**が既定を上書きする (空欄は既定を温存) |
 | `.mf-kessai-config.example.json` | 追跡 | 上書きの書式サンプル |
 
