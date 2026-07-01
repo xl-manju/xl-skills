@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "ee2b046727ae7e39c7fe699932be5cc3156619ca3f724e266538c756660099f3"
+    "skill_md_sha256": "69bbe4d3561e194d6a8eb97342f1e1a06f78257bbb16c24b33179679c1967720"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,7 +14,7 @@
     "smell": 0
   },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-01T09:03:42Z",
+  "reviewed_at": "2026-07-01T12:19:26Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
@@ -22,10 +22,10 @@
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
       "SRP が範例的: 責務=「構想→13 phase ファイル + index + component-inventory.json への目的ドリブン分解」に限定し、境界節で実 build(run-skill-create/run-build-skill)・配布登録・実コード生成を明示除外。L0-L4 の 4 層分離が crisp で、R4 評価ロジックを別 skill assign-plugin-plan-evaluator(kind=assign・user-invocable:false)へ昇格し proposer≠approver を skill 分離で構造保証している(R1-evaluate.md 実在確認)。",
-      "per-phase 転換後の再現性機構がリポジトリ屈指の堅牢さ: 11 scripts の決定論ゲートが golden example(examples/sample-plan=14 Markdown + 11 component)で全 exit0(本レビューで 10 invocation 実走)、275 tests を CI cwd(plugin root)から緑確認、check-spec-matrix-coverage --self-test が 43 行 drift 検出、goal-seek 中間成果物アンカー(intermediate.jsonl + original_goal SHA256 照合)で改竄検知。frontmatter=specfm(SSOT)で phase/component 形状凍結、本文=床付き自由記述という『形状と手順の直交』の解が明快。",
-      "frontmatter 完全性が高い: responsibility_refs/script_refs(11)/reference_refs(6+cross-skill)/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2) を全列挙し全件 dangling 0、goal_seek ブロック・feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer)・completeness_exempt を rationale 付きで宣言。Goodhart 回避(harness 現状値非焼込)を主要ルール6 + Gotchas に明文化。",
-      "skill-creator 量産規律の伝播が監査可能: skill-creator-spec-reflection.md が 43 行を 1:1 収録し、DROP(UBM固有=IPC/Cloudflare/スクショ/PR)と transform(TDD/カバレッジ精神)を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。旧 per-component の C0N-*.md 参照が md/py/json 全体で 0 件、per-phase への載せ替えが情報ロスなく完了している。",
-      "envelope owner gap の透明化が誠実: 唯一 builder を持たない plugin envelope(manifest/marketplace)について、契約(plugin_meta 値域宣言)+ 貼れる実体ドラフト(envelope-draft/plugin.json, manual-apply)+ 生成器未整備の構造化 capability-gap 起票、の三段で over-claim せず gap を可視化している。"
+      "再現性機構が堅牢: 12 scripts の決定論ゲートが golden example(examples/sample-plan=14 Markdown + 11 component)で全 exit0(本レビューで runtime-portability/matrix/build-handoff 実走)、307 tests を CI cwd(plugin root)から緑確認、check-spec-matrix-coverage --self-test が 44 行 drift 検出、goal-seek 中間成果物アンカー(intermediate.jsonl + original_goal SHA256 照合)で改竄検知。frontmatter=specfm(SSOT)で phase/component 形状凍結、本文=床付き自由記述という『形状と手順の直交』の解が明快。",
+      "frontmatter 完全性が高い(FM-001..005 PASS): responsibility_refs/script_refs/reference_refs(6+cross-skill)/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2) を列挙し全件 dangling 0、goal_seek ブロック・feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer)・completeness_exempt を rationale 付きで宣言。Goodhart 回避(harness 現状値非焼込)を主要ルール6 + Gotchas に明文化。",
+      "skill-creator 量産規律の伝播が監査可能: skill-creator-spec-reflection.md が全 44 行(F1-F8=8・F8 install-portability を per-phase 転換で追加)を 1:1 収録し、DROP(UBM固有=IPC/Cloudflare/スクショ/PR)と transform(TDD/カバレッジ精神)を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。旧 per-component の C0N-*.md 参照が md/py/json 全体で 0 件。",
+      "install 携帯性(F8)を新規に operationalize: placement_scope(skill|plugin-root)宣言 + check-runtime-portability.py の (P) 共有 script hoist 強制・(Q) build_target 自己完結を fail-closed で焼き、cross-plugin SSOT は vendoring/self-derive で携帯という規律を先行事例(skill-intake/skill-creator)へ紐づけて成文化している。envelope owner gap も契約+貼れる draft+capability-gap 起票の三段で over-claim せず可視化。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -33,5 +33,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric=ref-skill-design-rubric/references/rubric.json(threshold 80)で kind=skill 適用ルール(FM-001..005/BD-001..004/NM-001..003/PD-001..002)を per-phase 転換後 sha ee2b046 に対し全 PASS と判定。FM-001..004=frontmatter 必須キー(name/description/kind/version/owner/since 等)完備。BD-001(## 目的と出力契約)/BD-002(## 注意 (Gotchas))実在、PD-002 は日本語見出し+禁則語(必ず)で確立済み localization 校正(グローバル指示『出力は全て日本語』と整合・localization gap=low)。BD-003=本文 ≤300 行を実測。BD-004=description(index+13 phase+component-inventory.json 生成のトリガ)↔本文局面カタログ R1-R4 の 1:1 整合。NM-001=dir 名 run-plugin-dev-plan == frontmatter.name 一致。横断 kind ルール(AG/HK/CM/PC/PR/WF)は本評価対象が SKILL(kind=skill)ゆえ非適用、KL-* は knowledge_loop 不在で skip-PASS。決定論ゲート実走で IN1(verify-index-topsort/detect-unassigned exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage exit0)を golden で実検証、OUT1(目的ドリブン DROP/transform 分離で C1-C4 設計妥当)・OUT2(io-contract §9 が skill-brief 主要フィールドを写し test_schema_parity で固定)を設計レベルで妥当と確認。golden 例は 11 component(skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2)で 5 kind 網羅し単一 skill 退化を回避。high/medium severity 違反 0・推定 score≥97/100 ≥80 で PASS。既存 verdict から変更: skill_md_sha256 を ee2b046 へ更新、test 実走数 241→275 訂正、reviewed_at 更新、positive_feedback を per-phase 転換内容へ差し替え。"
+  "notes": "rubric=ref-skill-design-rubric/references/rubric.json(threshold 80)で kind=skill 適用ルール(FM-001..005/BD-001..004/NM-001..003/PD-001..002)を現行 sha 69bbe4d に対し全 PASS と判定。FM-001..004=frontmatter 必須キー(name/description/kind/version/owner/since/allowed-tools 等)完備・script_refs は present かつ非空(FM は必須キー存在を見る=exhaustive script 列挙は非対象)。BD-001(## 目的と出力契約)/BD-002(## 注意 (Gotchas))実在、BD-003=本文 211 行(frontmatter 除外・total 306 行)で ≤300 を実測 PASS、BD-004=description(index+13 phase+component-inventory.json 生成のトリガ)↔本文局面カタログ R1-R4 の 1:1 整合。PD-002 は日本語見出し+禁則語(必ず)で確立済み localization 校正(グローバル指示『出力は全て日本語』と整合・localization gap=low)。NM-001=dir 名 run-plugin-dev-plan == frontmatter.name 一致。横断 kind ルール(AG/HK/CM/PC/PR/WF)は本評価対象が SKILL(kind=skill)ゆえ非適用、KL-* は knowledge_loop 不在で skip-PASS。決定論ゲート実走で IN1(verify-index-topsort/detect-unassigned exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage exit0)を golden で実検証、今回追加の check-runtime-portability --self-test / golden exit0 も確認、OUT1(目的ドリブン DROP/transform 分離で C1-C4 設計妥当)・OUT2(io-contract §9 が skill-brief 主要フィールドを写す)を設計レベルで妥当と確認。golden 例は 11 component(skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2)で 5 kind 網羅し単一 skill 退化を回避。参考: 新設 check-runtime-portability.py が SKILL.md frontmatter script_refs/追加リソース『検証 9 本』表記に未反映の微ドリフトを観測したが、これは rubric ルール(FM は必須キー存在/BD は見出し・行数/NM は命名/PD は表記)いずれの違反にも当たらない非ブロッキング事項で、elegance-verdict の smell として追跡済み。high/medium severity 違反 0・推定 score≥96/100 ≥80 で PASS。既存 verdict から変更: skill_md_sha256 を 69bbe4d へ更新、reviewed_at 更新、43→44行化 + check-runtime-portability.py 追加を反映(positive_feedback に F8 install 携帯性を追記・test 実走数 275→307 訂正・BD-003 本文行数 211 を明記)。"
 }

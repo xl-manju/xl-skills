@@ -2,12 +2,12 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "4dea662ea339c8eaaefaf3b1cc6f6919824fc6026a6e9d4a61f1eb85badbec22"
+    "skill_md_sha256": "208ea94a5db9a536764297bab06e275a5de70a30ee4ef7d75c4e9f1b6c0e7288"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "run-elegant-review",
-  "reviewed_at": "2026-07-01T09:04:31Z",
+  "reviewed_at": "2026-07-01T12:19:26Z",
   "iterations": 1,
   "findings_summary": {
     "contradiction": 0,
@@ -21,19 +21,19 @@
     "loop_scope": "both",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "前回 review の最重要 deferred (surface タプル SSOT 二重定義) が本 SHA で解消済を実コードで確認: test_gate_parity.py に test_required_plugin_surfaces_parity_with_specfm が新設され (テスト数 10→11)、evaluate-plan.py の REQUIRED_PLUGIN_SURFACES と specfm.py の PLUGIN_LEVEL_SURFACES の tuple 一致を fail-closed で機械強制する。意図的複製を許容しつつ drift を封止する既存哲学 (test_gate_defs_match_rubric / test_global_thresholds_loaded_from_rubric_ssot) と同型で、評価器の独立性 (proposer 非依存) と SSOT 規律を両立させている点が exemplary。",
-      "per-component→per-phase 分解転換 (index P01..P13 + component-inventory.json 機械SSOT + handoff) が SKILL.md / R1-evaluate.md / four-condition-criteria.md / resource-map.yaml の4文書で語彙・入力契約とも一貫して伝播しており、姉妹 skill run-plugin-dev-plan との整合が取れている。C2/C4 の観点分離 (漏れ=surface 網羅性 + component orphan / 依存=index phase 昇順 + inventory DAG 非循環) も更新後 verbatim で矛盾なし。",
-      "proposer≠approver を構造で保証: context:fork + allowed-tools から Edit 除外 + write=findings only + read-only-on-plan を SKILL/agent/prompt/schema の4層で一致させ、評価器が plan を書き換える Goodhart 経路が設計上塞がれている。8 決定論ゲート(core 5 scripts / 6 invocations + surface inventory + build handoff)は schema gate_results minItems:8・rubric deterministic_gates 8・_gate_defs G1-G8 と数で一致し、test_gate_defs_match_rubric_by_id_name_conditions / test_evaluator_projections_invoke_mechanical_runner が agent/SKILL の projection bash まで配線断線を機械検出している。",
-      "前回 smell#3 (S2 semantic 分類齟齬) を rubric に runner フィールド (S1=llm-only / S2=mechanical-plus-llm) を追加して disambiguate し、evaluate-plan.py の _conditions summary を『deterministic gates and semantic checks passed』→『deterministic gates passed』へ是正。_surface_findings が omitted_reason の存在/非空を機械検査する実態を『mechanical-plus-llm』分類が正確に写しており、宣言↔実装の齟齬が縮小している。"
+      "本 SHA の実変更 (43→44 行マトリクス化 + plugin-level surface へ schemas/vendor 追加) が 4 文書に矛盾なく伝播: SKILL.md C3 行 (L81) / references/four-condition-criteria.md (C3 self-test 記述) / references/resource-map.yaml (matrix read_when) が 43→44 で同期し、check-spec-matrix-coverage.py --self-test が『44 行 table と reflection.md が一致 (drift なし)』exit0 を実測。新設 F8 行 (install-portability, scope=inventory / _is_script 述語) が EXPECTED_CONDITIONAL 集合と membership_drift 件数 {10,17,17} に整合し、43→44 の被覆拡張が集合入替でなく純増であることを機械確認した。",
+      "評価器の中核不変条件 (surface タプル SSOT parity) が本 SHA の surface 集合拡張下でも維持: evaluate-plan.py REQUIRED_PLUGIN_SURFACES へ schemas / vendor を追加し 5→7 要素へ拡張したが、specfm.py PLUGIN_LEVEL_SURFACES も同一 2 要素を追加し tuple 完全一致を保持。test_gate_parity.py の test_required_plugin_surfaces_parity_with_specfm が両者の drift を fail-closed 強制し、CI cwd (skill root) から pytest 11/11 PASS。意図的複製を許容しつつ drift を封止する既存哲学 (test_gate_defs_match_rubric / test_global_thresholds_loaded_from_rubric_ssot) と同型で、評価器の独立性 (proposer 非依存) と SSOT 規律を両立させている点が exemplary。",
+      "per-phase 分解転換 (index P01..P13 + component-inventory.json 機械SSOT + handoff) が SKILL.md / R1-evaluate.md / four-condition-criteria.md / resource-map.yaml で語彙・入力契約とも一貫して伝播しており、姉妹 skill run-plugin-dev-plan との整合が取れている。C2/C4 の観点分離 (漏れ=surface 網羅性 + component orphan / 依存=index phase 昇順 + inventory DAG 非循環) も本 SHA で verbatim 維持で矛盾なし。",
+      "proposer≠approver を構造で保証: context:fork + allowed-tools から Edit 除外 + write=findings only + read-only-on-plan を SKILL/agent/prompt/schema の 4 層で一致させ、評価器が plan を書き換える Goodhart 経路が設計上塞がれている。8 決定論ゲート (core 5 scripts / 6 invocations + surface inventory + build handoff) は schema gate_results minItems:8・rubric deterministic_gates 8・_gate_defs G1-G8 と数で一致し、test_gate_defs_match_rubric_by_id_name_conditions / test_evaluator_projections_invoke_mechanical_runner が agent/SKILL の projection bash まで配線断線を機械検出している。"
     ],
     "negative_feedback": [
       "[smell/low, 非ブロッキング] SKILL.md Key Rules #3 (L90) が bucket 例として 'rubric id (PLAN-001 等)' を挙げるが、plan-rubric.json の実 id は C1-C4 / G1-G8 / S1-S2 で 'PLAN-001' に対応する定義が rubric チェーン全体に無い (grep で SKILL.md 1 行のみ)。前回 review が指摘済で本 SHA でも未修正。schema が任意非空文字列を許すため実害は無いが 'C1-C4 か G/S id' 等へ是正推奨。",
-      "[smell/low, 非ブロッキング] 今回追加した plan-rubric.json semantic_checks の runner フィールド (llm-only / mechanical-plus-llm) は記述的注記のみで、deterministic_gates が test_gate_defs_match_rubric で実行経路に binding されるのに対し semantic_checks の runner 値と実装 (_surface_findings=mechanical / S1=LLM 手動) を縛る parity test は無い。S2 の同一 surface 欠落が G7 gate finding と _surface_findings で二重計上される構造も残るが両者 high ゆえ verdict 不変で benign。runner 値の実装追従も将来 test 化すると SSOT 一貫性が完全になる。"
+      "[smell/low, 非ブロッキング] plan-rubric.json semantic_checks の runner フィールド (llm-only / mechanical-plus-llm) は記述的注記のみで、deterministic_gates が test_gate_defs_match_rubric で実行経路に binding されるのに対し semantic_checks の runner 値と実装 (_surface_findings=mechanical / S1=LLM 手動) を縛る parity test は無い。S2 の同一 surface 欠落が G7 gate finding と _surface_findings で二重計上される構造も残るが両者 high ゆえ verdict 不変で benign。runner 値の実装追従も将来 test 化すると SSOT 一貫性が完全になる。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SHA=4dea662。CI cwd (skill root=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator) から python3 -m pytest -q を実走し 11 passed (前回 10→+1=新設 test_required_plugin_surfaces_parity_with_specfm)。plugin 全体 cwd でも 11 passed で一致。referenced 7 gate scripts + evaluate-plan.py + agent + schema + rubric + reference 全実在 (dangling 0)、EVALS.json mechanical[] が 7 gate script を全網羅を確認。前回 verdict(SHA c6ff63)の 3 low 指摘の現状: (1) surface タプル SSOT 二重定義 (inconsistency) = 解消済 (parity test 新設)、(2) Key Rules #3 PLAN-001 誤例示 (smell) = 未修正で残存、(3) S2 semantic 分類齟齬 (smell) = runner フィールド追加+summary 是正で大幅改善 (runner の実装 binding が残 low)。既存 verdict からの変更点: inconsistency 1→0 (解消)、smell 2 維持 (内訳が PLAN-001 残存 + runner 記述専用へ更新)。high 0 のため PASS。"
+  "notes": "現 SHA=208ea94 (git diff origin/main...HEAD で本 skill 配下は SKILL.md/four-condition-criteria.md/resource-map.yaml が各 43→44 の 1 行更新 + evaluate-plan.py が REQUIRED_PLUGIN_SURFACES へ schemas/vendor の 2 行追加)。CI cwd (skill root=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator) から python3 -m pytest -q を実走し 11 passed。check-spec-matrix-coverage.py --self-test を run-plugin-dev-plan cwd で実走し『44 行一致 drift なし』exit0 を確認。evaluate-plan.py REQUIRED_PLUGIN_SURFACES (7 要素) と specfm.py PLUGIN_LEVEL_SURFACES (7 要素) の tuple 一致を実読で確認 (parity test 有効)。referenced 7 gate scripts + evaluate-plan.py + agent + schema + rubric + reference 全実在 (dangling 0)。既存 verdict (SHA 4dea662) からの変更: skill_md_sha256 を 208ea94 へ更新、reviewed_at 更新、43→44 行化追従 (F8 install-portability 行の純増 + surface 集合 schemas/vendor 拡張下でも parity 維持) を positive_feedback へ反映。findings は前回同様 high 0 / smell 2 (PLAN-001 誤例示残存 + runner 記述専用の 2 件) で不変。high 0 のため PASS。"
 }
