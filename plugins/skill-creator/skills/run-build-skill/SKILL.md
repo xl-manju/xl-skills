@@ -173,6 +173,7 @@ audit-trigger: quarterly
   - assign: evaluator verdict、その他 kind: content-review verdict を `eval-log/coverage/` に記録
 - [ ] (`--with-*` 指定時のみ) subagent/prompt/evaluator/hook 生成と整合 lint を完了
 - [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007)
+- [ ] (kind=plugin で外部依存(API/DB/秘密)の疎通確認手順が要る場合のみ) install位置を `__file__` 相対で自己解決する doctor 同梱 + 疎通確認はチャット委譲(`/<name>-doctor` or 自然文) + 生 `$CLAUDE_PLUGIN_ROOT` 非露出 (README **及び `references/*-setup.md` 等 setup 手順**の bash に裸変数/repo相対を書かず fallback 形 `${CLAUDE_PLUGIN_ROOT:-plugins/<name>}` へ降格。番号付きリスト内の字下げフェンスも同様)。`scripts/lint-readme-plugin-root-portability.py` exit0。正本 `ref-cross-platform-runtime/references/runtime-portability.md` 層2
 
 ### ゴールシークループ
 
@@ -220,17 +221,19 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 > `workflow-manifest.json` は**宣言的リソース** (schema/prompt/reference) の正本。**命令的 lint コマンド**は SKILL.md Step4 + CI が正本管理する (責務分離)。lint を manifest に resource 登録はしない。
 
 ```bash
-python3 plugins/skill-governance-lint/scripts/lint-skill-name.py "$OUT_BASE/$SKILL_NAME/SKILL.md"
-python3 plugins/skill-governance-lint/scripts/lint-skill-description.py "$OUT_BASE/$SKILL_NAME/SKILL.md"
-python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py "$OUT_BASE/$SKILL_NAME"
-python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE/$SKILL_NAME/SKILL.md"
-python3 plugins/skill-governance-lint/scripts/lint-script-frontmatter.py "$OUT_BASE/$SKILL_NAME"
-python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py "$OUT_BASE/$SKILL_NAME"  # kind別必須サポート資産(prompts/references/schemas/scripts)を実在/共有正本参照/completeness_exempt理由付きのいずれかで充足。空欄(無宣言の欠落)は exit 1
+GOV_LINT_DIR="$(dirname "$PLUGIN_ROOT")/skill-governance-lint"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-name.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-description.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-tree.py" "$OUT_BASE/$SKILL_NAME"
+python3 "$GOV_LINT_DIR/scripts/validate-frontmatter.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
+python3 "$GOV_LINT_DIR/scripts/lint-script-frontmatter.py" "$OUT_BASE/$SKILL_NAME"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-completeness.py" "$OUT_BASE/$SKILL_NAME"  # kind別必須サポート資産(prompts/references/schemas/scripts)を実在/共有正本参照/completeness_exempt理由付きのいずれかで充足。空欄(無宣言の欠落)は exit 1
 python3 "$SKILL_DIR/scripts/lint-goal-seek.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
 python3 scripts/lint-feedback-contract.py --changed-only  # loop実行系(run/wrap/delegate)のSKILL.md frontmatterに feedback_contract.criteria(inner/outer) が無ければ fail
 python3 "$SKILL_DIR/scripts/lint-ssot-duplication.py" --plugin-dir "$(dirname "$OUT_BASE")"  # SSOT 重複(正本曖昧/redirect 太り/required 二重定義/本文再掲)を検出。DUP-SCHEMA-ID は exit 1
 python3 "$SKILL_DIR/scripts/lint-knowledge-loop.py" "$OUT_BASE/$SKILL_NAME"  # knowledge/ がある場合のみ KL-001..007 を検査(無ければ exit0 skip)。既定 warn、CI の --strict で fail 化
 python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
+python3 scripts/lint-readme-plugin-root-portability.py  # kind=plugin / README 更新時。裸 $CLAUDE_PLUGIN_ROOT・repo相対直書き・os.environ添字を検出
 ```
 
 全て exit 0 でなければ Step 2 / 3.5 へ戻る。

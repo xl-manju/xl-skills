@@ -36,7 +36,8 @@
       "run-mf-invoice-reconcile",
       "run-mf-invoice-check",
       "run-mf-invoice-db-setup",
-      "run-mf-initial-month-enrich"
+      "run-mf-initial-month-enrich",
+      "run-mf-invoice-doctor"
     ]
   },
   "permissions": {

@@ -34,6 +34,14 @@
       "applies_to": ["未完了タスクの正直な表現", "CI未接続項目の扱い"],
       "transferred_to": ["32章C4判定", "25章L11"],
       "principle": "完全PASSと書く誘惑を断ち、条件付きPASSで延期価値を保持する"
+    },
+    {
+      "id": "P005",
+      "name": "セットアップ疎通確認 = install位置自己解決doctor + READMEチャット委譲 + 生パス降格",
+      "origin": "mf-kessai 生ターミナル $CLAUDE_PLUGIN_ROOT 空展開事故の elegant-review",
+      "applies_to": ["配布pluginのREADMEセットアップ手順", "外部依存(API/DB/秘密)の疎通確認", "install位置非依存の資産解決"],
+      "transferred_to": ["plugins/mf-kessai-invoice-check/lib/mfk_doctor.py", "plugins/mf-kessai-invoice-check/README.md Step3+故障モード警告", "scripts/lint-readme-plugin-root-portability.py", "plugins/skill-creator/skills/ref-cross-platform-runtime/references/runtime-portability.md 層2"],
+      "principle": "導入者がコピペするREADMEに生 $CLAUDE_PLUGIN_ROOT/repo相対を書かず、疎通確認は __file__ 相対で自己解決する doctor へチャット委譲し、生パスは fallback 形 ${CLAUDE_PLUGIN_ROOT:-plugins/<name>} で開発者補足へ降格する。doctorは秘密マスク・WARN-not-FAIL・GET専用・既存lib再利用。再現性はREADME portability lintで機械担保する(re_audit_trigger: 新規配布plugin生成 / README bash編集)"
     }
   ],
   "update_rule": "elegant-review が新しいパターンを抽出したら、原則1周あたり1パターン追加。同種パターンは統合する。"
