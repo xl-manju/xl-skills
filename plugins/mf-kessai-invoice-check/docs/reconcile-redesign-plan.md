@@ -16,7 +16,7 @@
 
 **結論**: 「別AIの作業」は *データ投入＋checkbox列追加* までで、**照合エンジンは未稼働**。「反映漏れ」の体感の正体は「チェックが空」「過去月が残らない」であり、行データ自体は完全反映。
 
-> 注（2026-06-27 現状反映）: 上表は**着手前スナップショット**。その後、照合 engine（`mfk_reconcile.classify`）・期間抽出層（`sheet_to_master.has_period`/`parse_period_start`、§1 P1 で `[x]` 完了）・シート書き戻し（`notion_sheet_writeback`）は**実装済み**。残課題は DB id の config 配線と実走（P0/P1）。
+> 注（2026-06-27 現状反映）: 上表は**着手前スナップショット**。その後、照合 engine（`mfk_reconcile.classify`）・期間抽出層（`sheet_to_master.has_period`/`parse_period_start`、§1 P1 で `[x]` 完了）・シート書き戻し（`notion_sheet_writeback`）は**実装済み**。DB id の config 配線は**配布既定 `mf-kessai-config.default.json` へ焼き込み済みで解消**（下記 P0 参照）。残課題は `required_db_ids` の dry-run 緩和（P0 L76）と実走・P1。
 
 ## 1. 確定仕様（請求期待の判定ルール）
 
@@ -72,7 +72,7 @@ P0 検証で「掛け払いに一度も請求が無い」契約が出る（2606�
 ## 3. 実装プラン
 
 ### P0 — 今月の照合を実際に回す（書き込みゼロ・最小手数）
-- [ ] `.mf-kessai-config.json`(gitignore) に `notion.sheet_db_id = "38a07a0c-d18c-806f-bb0d-e2a77150dbae"` を配線。
+- [x] 3 DB id を配線。**配布既定 `mf-kessai-config.default.json` に焼き込み済み** (sheet_db_id=`38a07a0c-d18c-806f-bb0d-e2a77150dbae`(請求確認シート) / reconcile_db1_id=`38c07a0c-d18c-81bc-afcb-f3741172b136`(契約マスタ DB1) / reconcile_db2_id=`38c07a0c-d18c-811e-acb3-cf439d8c9229`(月次発行チェック DB2))。3 id は共有固定 DB を指し token は非配布。local override (`.mf-kessai-config.json`) は別ワークスペース利用時のみ任意。
 - [ ] `scripts/reconcile_invoices.py:120-132 required_db_ids` の過剰制約を解除：**dry-run（`--apply`無し）では db1 を必須化しない**（sync-master の dry-run は `query_sheet_rows`+`build_contracts` のみで db1 を実使用しないため安全。db1 必須は `--apply` 時に限定）。
 - **到達状態**: `reconcile_invoices.py --target 2606 --steps collect,sync-master,reconcile`（参照専用）が 575行 → 契約集約 → MF実績照合の **判定内訳（発行漏れ/要マスタ登録/金額差/対象外）を画面提示**。今月の漏れが書き込みゼロで初可視化。
 
