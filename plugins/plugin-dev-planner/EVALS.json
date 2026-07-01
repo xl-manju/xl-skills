@@ -19,7 +19,7 @@
       "run-elegant-review C1-C4 all PASS before promotion"
     ],
     "threshold": 80,
-    "threshold_note": "threshold:80 は生成 plan の各 buildable spec が携帯する harness_coverage{min:80} (= check-spec-gates.py が機械検証する component scope の床) を指す宣言値。plugin 自身の行カバレッジ閾値は CI の per-plugin pytest が担い、本 harness 内に 80 と比較する plugin-local スコアラは持たない。",
+    "threshold_note": "threshold:80 は生成 plan の各 buildable component (component-inventory.json) が携帯する harness_coverage{min:80} (= check-spec-gates.py が機械検証する component scope の床) を指す宣言値。plugin 自身の行カバレッジ閾値は CI の per-plugin pytest が担い、本 harness 内に 80 と比較する plugin-local スコアラは持たない。",
     "llm_eval_note": "llm_eval の各行は『どの独立 skill がどの観点を fork で評価するか』の配線宣言であり、採点器ではない。数値判定は assign-plugin-plan-evaluator の global_thresholds (high==0, medium<=2, all_gates_exit0) で確定する。"
   },
   "surfaces": [

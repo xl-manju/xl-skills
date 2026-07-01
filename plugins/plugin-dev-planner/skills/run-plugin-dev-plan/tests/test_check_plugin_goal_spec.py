@@ -22,10 +22,9 @@ def _goal_spec() -> dict:
         "goal": "notion-task-sync の plan artifacts が検証可能な状態になる",
         "artifact_class": "plugin-plan",
         "target_plugin_slug": "notion-task-sync",
-        "plan_dir": "eval-log/plugin-dev-planner/notion-task-sync",
+        "plan_dir": "plugin-plans/notion-task-sync",
         "out_dir": None,
         "requested_count": None,
-        "force_13": False,
         "checklist": [
             {"id": "C1", "criterion": "component inventory が生成されている", "done": False, "verify_by": "script"}
         ],
@@ -61,14 +60,24 @@ def test_plugin_goal_spec_rejects_bad_slug(plugin_goal_spec):
     assert any("ASCII kebab-case" in e for e in errors)
 
 
-def test_plugin_goal_spec_rejects_force_13_without_requested_13(plugin_goal_spec):
+def test_plugin_goal_spec_rejects_unknown_force_13(plugin_goal_spec):
+    """per-phase 転換で force_13 は廃止。残置すると additionalProperties でエラー。"""
     data = _goal_spec()
     data["force_13"] = True
-    data["requested_count"] = 5
 
     errors = plugin_goal_spec.validate(data)
 
-    assert any("requested_count=13" in e for e in errors)
+    assert any("additionalProperties" in e for e in errors)
+
+
+def test_plugin_goal_spec_requested_count_optional(plugin_goal_spec):
+    """requested_count は任意 (欠落しても required エラーにならない)。"""
+    data = _goal_spec()
+    del data["requested_count"]
+
+    errors = plugin_goal_spec.validate(data)
+
+    assert not any("required keys missing" in e for e in errors), errors
 
 
 # ─────────── schema ↔ validator parity (CRIT-2: 重複契約の drift 封止) ───────────

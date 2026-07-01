@@ -6,6 +6,7 @@ scripts ディレクトリを sys.path に載せ、共有モジュール specfm 
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -139,7 +140,9 @@ def _base_fm(spec_id: str, ck: str, skill_kind: str) -> dict:
     fm: dict = {"id": spec_id, "component_kind": ck}
     if ck == "skill":
         fm.update({
-            "skill_name": "run-sample", "prefix": skill_kind, "kind": skill_kind,
+            # skill component は component_kind との衝突回避で skill kind を canonical
+            # `skill_kind` (fallback `kind`) の両方で携帯する (specfm._skill_kind_of 両受容)。
+            "skill_name": "run-sample", "skill_kind": skill_kind, "prefix": skill_kind, "kind": skill_kind,
             "hierarchy_level": "L1", "trigger_conditions": ["a", "b"],
             "output_contract": "出力契約", "boundary": "境界", "placement_candidates": ["Skill"],
             # skill-brief base required の残り 6 (実 schema parity)
@@ -189,8 +192,17 @@ def _base_fm(spec_id: str, ck: str, skill_kind: str) -> dict:
     return fm
 
 
-def write_component_spec(
-    directory: Path,
+# component_kind 別の妥当な build_target (validate_inventory_component は非空のみ強制)。
+_BUILD_TARGETS = {
+    "skill": "plugins/sample/skills/run-sample/",
+    "sub-agent": "plugins/sample/agents/sample-subagent.md",
+    "slash-command": "plugins/sample/commands/sample.md",
+    "hook": "plugins/sample/hooks/sample.py",
+    "script": "plugins/sample/skills/run-sample/scripts/do.py",
+}
+
+
+def component_entry(
     spec_id: str,
     ck: str = "skill",
     *,
@@ -199,23 +211,119 @@ def write_component_spec(
     drop: list[str] | None = None,
     overrides: dict | None = None,
     features: list[str] | None = None,
+) -> dict:
+    """component-inventory.json の 1 component エントリ (dict) を生成 (drop/overrides で負例化)。
+
+    per-phase 転換で旧 C*.md frontmatter は inventory の components[] へ載せ替わったため、
+    _base_fm (旧 spec frontmatter 相当) に build routing フィールド
+    (build_target/builder/build_kind・§6 マッピング) を足して inventory component を作る。
+    """
+    comp = _base_fm(spec_id, ck, skill_kind)
+    comp["depends_on"] = depends_on if depends_on is not None else []
+    comp["build_target"] = _BUILD_TARGETS[ck]
+    comp["builder"] = SPECFM.BUILDER_BY_KIND[ck]
+    comp["build_kind"] = SPECFM.BUILD_KIND_BY_KIND[ck]
+    if features is not None:
+        comp["features"] = features
+    if overrides:
+        comp.update(overrides)
+    for key in drop or []:
+        comp.pop(key, None)
+    return comp
+
+
+def default_surfaces() -> dict:
+    """plugin_level_surfaces の妥当な最小ブロック (5 surface すべて明示)。"""
+    return {
+        "manifest": {"required": True, "path": ".claude-plugin/plugin.json"},
+        "composition": {"required": True, "path": "plugin-composition.yaml"},
+        "harness_eval": {"required": True, "path": "EVALS.json"},
+        "references_config_assets": {"required": False, "omitted_reason": "共有 references 不要"},
+        "mcp_app_connector": {"required": False, "omitted_reason": "MCP/app connector 不要"},
+    }
+
+
+def write_inventory(
+    directory: Path,
+    components: list[dict],
+    *,
+    considered: list[str] | None = None,
+    plugin_level_surfaces: dict | None = None,
+    extra: dict | None = None,
+) -> Path:
+    """component-inventory.json (object 形式 SSOT) を生成する。"""
+    data: dict = {
+        "considered_component_kinds": list(considered) if considered is not None else list(SPECFM.COMPONENT_KINDS),
+        "components": components,
+        "plugin_level_surfaces": plugin_level_surfaces if plugin_level_surfaces is not None else default_surfaces(),
+    }
+    if extra:
+        data.update(extra)
+    path = directory / "component-inventory.json"
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+_PHASE_SECTIONS_BODY = "\n# phase\n## 目的\nx\n## 実行タスク\nx\n## 成果物\nx\n## 完了条件\nx\n"
+
+
+def write_phase_spec(
+    directory: Path,
+    n: int,
+    *,
+    entities_covered: list[str] | None = None,
+    applicable: bool = True,
+    reason: str = "",
+    status: str | None = None,
+    overrides: dict | None = None,
+    drop: list[str] | None = None,
     sections: bool = True,
 ) -> Path:
-    """component_kind 別の妥当な仕様書を生成 (drop/overrides で負例化)。"""
-    fm = _base_fm(spec_id, ck, skill_kind)
-    if depends_on is not None:
-        fm["depends_on"] = depends_on
-    if features is not None:
-        fm["features"] = features
+    """phase-NN-<kebab>.md を生成する (§2 frontmatter + §5 本文床)。"""
+    fm = SPECFM.minimal_phase_frontmatter(n)
+    if entities_covered is not None:
+        fm["entities_covered"] = entities_covered
+    if not applicable:
+        fm["applicability"] = {"applicable": False, "reason": reason or "該当なし"}
+    if status is not None:
+        fm["status"] = status
     if overrides:
         fm.update(overrides)
     for key in drop or []:
         fm.pop(key, None)
-    body = "\n# spec\n## 目的\nx\n## 成果物\nx\n## 完了条件\nx\n" if sections else "\n# spec\n"
-    text = "---\n" + "\n".join(_emit(fm)) + "\n---" + body
-    path = directory / f"{spec_id}-{ck}.md"
+    body = _PHASE_SECTIONS_BODY if sections else "\n# phase\n"
+    text = "---\n" + "\n".join(SPECFM.yaml_lines(fm)) + "\n---" + body
+    path = directory / f"phase-{n:02d}-{SPECFM.PHASE_NAMES[n - 1]}.md"
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def write_all_phases(directory: Path, *, entities_by_phase: dict[int, list[str]] | None = None) -> None:
+    """P01..P13 を全生成する (entities_by_phase で phase 別 entities_covered を指定)。"""
+    entities_by_phase = entities_by_phase or {}
+    for n in range(1, 14):
+        write_phase_spec(directory, n, entities_covered=entities_by_phase.get(n, []))
+
+
+def write_phase_index(
+    directory: Path,
+    *,
+    order: list[str] | None = None,
+    plugin_meta: bool = False,
+    distributable: bool = False,
+    heading: str = "フェーズ一覧",
+) -> Path:
+    """index(main) を `## フェーズ一覧` 付きで生成する (verify-index-topsort 用)。"""
+    ids = order if order is not None else [SPECFM.phase_id(n) for n in range(1, 14)]
+    fm: dict = {"id": "IDX0", "title": "plan index"}
+    if plugin_meta:
+        fm["plugin_meta"] = valid_plugin_meta(distributable)
+    lines = "".join(f"{i + 1}. {pid} — phase / 未実施\n" for i, pid in enumerate(ids))
+    body = f"\n# index\n## {heading}\n\n{lines}"
+    text = "---\n" + "\n".join(_emit(fm)) + "\n---" + body
+    p = directory / "index.md"
+    p.write_text(text, encoding="utf-8")
+    return p
 
 
 def valid_plugin_meta(distributable: bool = False) -> dict:
@@ -245,37 +353,3 @@ def valid_plugin_meta(distributable: bool = False) -> dict:
         "ssot_dedup": {"lint": "ssot-duplication"},
         "feedback_deploy": {"deploy": "run-skill-feedback"},
     }
-
-
-def write_index(
-    directory: Path, ordered_ids: list[str], *, plugin_meta: bool = True, distributable: bool = False
-) -> Path:
-    """index(main) を生成。plugin_meta=True で plugin-level メタを焼く。"""
-    fm: dict = {"id": "IDX0", "title": "plan index"}
-    if plugin_meta:
-        fm["plugin_meta"] = valid_plugin_meta(distributable)
-    body = "\n# index\n## 仕様書一覧 (top-sort)\n" + "".join(
-        f"{n+1}. {i}: spec\n" for n, i in enumerate(ordered_ids)
-    )
-    text = "---\n" + "\n".join(_emit(fm)) + "\n---" + body
-    p = directory / "index.md"
-    p.write_text(text, encoding="utf-8")
-    return p
-
-
-# 旧 API: topsort / unassigned テスト用の最小仕様書 (id + depends_on + sections)。
-def write_spec(
-    directory: Path,
-    spec_id: str,
-    *,
-    depends_on: list[str] | None = None,
-    sections: bool = True,
-) -> Path:
-    fm = ["---", f"id: {spec_id}", "component_kind: skill"]
-    if depends_on is not None:
-        fm.append(f"depends_on: [{', '.join(depends_on)}]")
-    fm.append("---")
-    body = "\n# spec\n## 目的\nx\n## 成果物\nx\n## 完了条件\nx\n" if sections else "\n# spec\n"
-    path = directory / f"{spec_id}-sample.md"
-    path.write_text("\n".join(fm) + body, encoding="utf-8")
-    return path

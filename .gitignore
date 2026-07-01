@@ -86,16 +86,26 @@ eval-log/docs/
 eval-log/notion-conflicts.json
 # check-review-trigger.py が Stop hook で append する評価トリガキュー (揮発状態・タイムスタンプ含む)
 eval-log/review-queue.jsonl
-# plugin-dev-planner: run-plugin-dev-plan が生成する plan 一式 (goal-spec/progress/intermediate/
-# index/specs/handoff/plan-findings) は plugin 別 scratch 作業領域 (io-contract.md §9: gitignore 対象)。
-# elegant-review の run ログ (_plugin/ scratch・<skill>/elegant-review/) も本ツリー配下に出るため除外する。
-# plugin ソースは plugins/ 配下、ゴールデン実例は skills/run-plugin-dev-plan/examples/ 配下で別パス=追跡継続。
+# plugin-dev-planner: 計画成果物 (index/specs/inventory/handoff/goal-spec/plan-findings/envelope-draft)
+# は tracked の可視・永続 deliverable として plugin-plans/<slug>/ へ出力する (下記ブロック参照)。
+# 本 eval-log ブロックは run-plugin-dev-plan の goal-seek run ログや elegant-review の run スクラッチ
+# (_plugin/ scratch・<skill>/elegant-review/) を除外するために残す。
 # ただし content-review verdict (eval-log/<plugin>/<skill>/content-review/) は lint-content-review.py --all が
 # CI で要求する成果物のため追跡を継続する (skill-intake と同じ ignore-all → content-review 再include 方式)。
 eval-log/plugin-dev-planner/**
 !eval-log/plugin-dev-planner/*/
 !eval-log/plugin-dev-planner/*/content-review/
 !eval-log/plugin-dev-planner/*/content-review/**
+
+# plugin-dev-planner: 計画成果物 plugin-plans/<slug>/ は可視・永続の tracked deliverable
+# (io-contract.md §9)。既定出力先で、レビュー可能な計画一式を git 追跡する。
+# 例外1: goal-seek の transient 作業ログ (progress/intermediate) は周回ごとに変わり git を汚すため除外。
+plugin-plans/*/run-plugin-dev-plan-progress.json
+plugin-plans/*/run-plugin-dev-plan-intermediate.jsonl
+plugin-plans/*/.goal-seek/
+# 例外2: 上の **/plan-*.json (notion-gmail-send PII 除外) が plan-findings.json を名前衝突で
+# 巻き込み未追跡化するため再include する (可視化の意図を守る・plan-rubric.json と同型救済)。
+!plugin-plans/**/plan-*.json
 
 # Plugin-local runtime
 plugins/skill-intake/output/

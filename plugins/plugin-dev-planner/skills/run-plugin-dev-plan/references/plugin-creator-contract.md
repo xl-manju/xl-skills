@@ -53,9 +53,9 @@ source: plugins/skill-creator/skills/run-skill-create/SKILL.md
 - `distribution.distributable:false` は bundles 空かつ marketplace false/不在 (非配布整合)。
 - `distribution.distributable:true` は bundle 最低 1 件または明示的な marketplace 登録判断を要する。
 
-## 停止条件 (component spec へ展開しない)
+## 停止条件 (inventory component へ展開しない)
 
 - 単一 skill 要求で plugin packaging / marketplace 境界が無い。
-- 既存 plugin の更新で足り、新規 component spec が不要。
+- 既存 plugin の更新で足り、新規 inventory component が不要。
 - plugin 名 / 配置先 / 配布意図が矛盾している。
 - 必須 manifest / marketplace policy がユーザー承認なしに一意決定できない。

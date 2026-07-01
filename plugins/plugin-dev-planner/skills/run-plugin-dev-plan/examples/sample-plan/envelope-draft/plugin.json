@@ -7,19 +7,24 @@
   },
   "entry_points": {
     "skills": [
-      "run-notion-task-sync"
+      "run-notion-task-sync",
+      "run-notion-task-backfill",
+      "run-notion-task-reconcile"
     ],
     "agents": [
-      "notion-sync-verifier"
+      "notion-sync-verifier",
+      "notion-reconcile-auditor",
+      "notion-backfill-auditor"
     ],
     "commands": [
-      "sync-tasks"
+      "sync-tasks",
+      "reconcile-tasks"
     ]
   },
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
