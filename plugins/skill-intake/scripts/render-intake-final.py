@@ -100,6 +100,9 @@ def render(output_dir: Path) -> Path:
         undefined=StrictUndefined,
         keep_trailing_newline=True,
     )
+    env.filters["json_dumps"] = lambda value: json.dumps(
+        value, ensure_ascii=False, sort_keys=True, indent=2
+    )
     template = env.get_template(TEMPLATE_NAME)
     rendered = template.render(**context)
 

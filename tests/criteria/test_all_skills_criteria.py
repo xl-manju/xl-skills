@@ -23,7 +23,7 @@
     run-skill-rubric-governance / run-skill-update-notifier / wrap-git-commit-safe
   skill-intake: run-intake-finalize / run-intake-interview / run-intake-kickoff /
     run-intake-next-action / run-intake-option-catalog / run-intake-revise /
-    run-intake-visualize / run-notion-fidelity-guard / run-notion-intake-publish / run-skill-intake
+    run-intake-visualize / assign-notion-fidelity-evaluator / run-notion-intake-publish / run-skill-intake
 """
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ SKILLS = [
     ("skill-intake", "run-intake-option-catalog"),
     ("skill-intake", "run-intake-revise"),
     ("skill-intake", "run-intake-visualize"),
-    ("skill-intake", "run-notion-fidelity-guard"),
+    ("skill-intake", "assign-notion-fidelity-evaluator"),
     ("skill-intake", "run-notion-intake-publish"),
     ("skill-intake", "run-skill-intake"),
 ]

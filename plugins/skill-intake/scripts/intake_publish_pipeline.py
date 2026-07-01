@@ -190,7 +190,7 @@ def main():
     # Step 1.5: fidelity guard
     # Notion へ mutation する前に、指定フォーマットとの粒度差分を必須検査する。
     fidelity_script = (
-        SCRIPT_DIR.parent / 'skills' / 'run-notion-fidelity-guard'
+        SCRIPT_DIR.parent / 'skills' / 'assign-notion-fidelity-evaluator'
         / 'scripts' / 'validate-notion-fidelity.py'
     )
     fidelity_status = run('fidelity_guard', fidelity_script, [intake_path, '--out-dir', out_dir])

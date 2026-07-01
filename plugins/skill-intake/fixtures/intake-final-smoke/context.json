@@ -316,6 +316,39 @@
       "storage": "Obsidian + JSON テーマ集合ファイル",
       "retrieval": "テーマキーワード検索 + RAG",
       "update": "weekly"
+    },
+    "intent_contract": {
+      "input_spec": {
+        "sources": [
+          "既存3スキル + 会話URL貼り付け"
+        ],
+        "trigger": "毎朝の定刻、または必要になった時",
+        "frequency": "daily",
+        "raw_materials": [
+          "Markdown",
+          "X投稿",
+          "URL",
+          "PDF"
+        ]
+      },
+      "output_spec": {
+        "sink": "Obsidian Vault + Discord/Slack",
+        "format": "document",
+        "granularity": "本日の思考メモとして使える要点と根拠",
+        "audience": "自分／X／クライアント／チーム",
+        "cadence": "daily"
+      },
+      "slot_status": {
+        "input_spec.sources": {"filled": true, "source": "direct_answer", "probe_ids": []},
+        "input_spec.trigger": {"filled": true, "source": "probe", "probe_ids": ["PB-IN-TRIGGER"]},
+        "input_spec.frequency": {"filled": true, "source": "probe", "probe_ids": ["PB-IN-FREQ"]},
+        "input_spec.raw_materials": {"filled": true, "source": "direct_answer", "probe_ids": []},
+        "output_spec.sink": {"filled": true, "source": "direct_answer", "probe_ids": []},
+        "output_spec.format": {"filled": true, "source": "probe", "probe_ids": ["PB-OUT-FORMAT"]},
+        "output_spec.granularity": {"filled": true, "source": "probe", "probe_ids": ["PB-OUT-GRANULARITY"]},
+        "output_spec.audience": {"filled": true, "source": "direct_answer", "probe_ids": []},
+        "output_spec.cadence": {"filled": true, "source": "probe", "probe_ids": ["PB-OUT-CADENCE"]}
+      }
     }
   },
   "design_decisions": {

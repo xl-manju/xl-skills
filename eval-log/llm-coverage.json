@@ -490,7 +490,7 @@
     },
     {
       "plugin": "skill-intake",
-      "skill": "run-notion-fidelity-guard",
+      "skill": "assign-notion-fidelity-evaluator",
       "criteria_total": 3,
       "criteria_covered": 3,
       "covered_ids": [

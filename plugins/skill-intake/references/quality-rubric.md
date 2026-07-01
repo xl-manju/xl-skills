@@ -33,7 +33,7 @@ type: reference
 
 - intake.json の必須キーが揃っているか
 - 5 軸が全 verified か（knowledge_assets 含む）
-- 図解 1〜3 図が各セクションに配置されているか
+- section_diagrams が各対象セクションに 1〜3 図配置され、§5 visualizer は figures.entries 5 図固定になっているか
 
 **閾値**: 2 以上で PASS。1 以下は再ヒアリング。
 

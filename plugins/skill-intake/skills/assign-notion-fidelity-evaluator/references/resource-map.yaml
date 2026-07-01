@@ -1,7 +1,7 @@
-# Progressive Disclosure map for run-notion-fidelity-guard
+# Progressive Disclosure map for assign-notion-fidelity-evaluator
 # SKILL.md からのみ最初にロードされる。各エントリは when_to_read で誘導する。
 
-skill: run-notion-fidelity-guard
+skill: assign-notion-fidelity-evaluator
 entry: SKILL.md
 
 resources:

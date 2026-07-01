@@ -1,7 +1,7 @@
 {
   "target": {
     "plugin": "skill-intake",
-    "skill": "run-notion-fidelity-guard",
+    "skill": "assign-notion-fidelity-evaluator",
     "skill_md_sha256": "e342b50a1e83eb17970625340b0dfb30561ed407e9232f180dd1f49103685a73"
   },
   "review_kind": "elegance",

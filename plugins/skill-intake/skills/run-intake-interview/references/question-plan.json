@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0.0",
+  "description": "ヒアリング質問選択の決定論的正本。depth(light|standard|detailed) × 5 軸 に対し出す質問を Q-ID で固定し、LLM の『都度立案』を排除する。質問文面の正本は references/question-bank.md の索引表 (Q-ID → 文面)。本ファイルは『どの Q-ID を、どの順で出すか』のみを定義する。実行者が変わっても同じ (depth, pattern, 既記入軸) なら同じ質問列になることを保証する。",
+  "axis_order": ["output", "source", "share", "true-pain", "knowledge-asset"],
+  "axis_labels": {
+    "output": "出力先",
+    "source": "情報源",
+    "share": "共有相手",
+    "true-pain": "真の課題",
+    "knowledge-asset": "ナレッジ資産"
+  },
+  "ask_user_question_options": {
+    "output": [
+      {"id": "file", "label": "ファイル", "description": "Markdown/JSON/CSV などのファイルとして残す。"},
+      {"id": "notion", "label": "Notion", "description": "Notion ページまたは DB に残す。"},
+      {"id": "notification", "label": "通知", "description": "Slack/Discord/Email などに送る。"}
+    ],
+    "source": [
+      {"id": "local", "label": "手元データ", "description": "既存ファイルやメモから読む。"},
+      {"id": "web", "label": "Web/API", "description": "外部サイトや API から取得する。"},
+      {"id": "manual", "label": "手入力", "description": "ユーザーが都度入力する。"}
+    ],
+    "share": [
+      {"id": "self", "label": "自分", "description": "本人だけが見る。"},
+      {"id": "team", "label": "チーム", "description": "チーム内で共有する。"},
+      {"id": "public", "label": "公開相手", "description": "顧客・受講生・フォロワーなど外部に共有する。"}
+    ],
+    "true-pain": [
+      {"id": "time", "label": "時間削減", "description": "作業時間や待ち時間を減らす。"},
+      {"id": "quality", "label": "品質安定", "description": "ミスやばらつきを減らす。"},
+      {"id": "knowledge", "label": "知識活用", "description": "判断基準や暗黙知を使える形にする。"}
+    ],
+    "knowledge-asset": [
+      {"id": "none", "label": "まだない", "description": "これから蓄積する。"},
+      {"id": "notes", "label": "メモ/Notion", "description": "既存のメモや Notion がある。"},
+      {"id": "external", "label": "外部情報", "description": "記事・本・動画・論文などを使う。"}
+    ]
+  },
+  "invariant": "各軸は 1 問ずつ (L1.1)。深掘りは Phase 5 (purpose-excavator) の責務であり、本 interview では depth に応じて 1 軸 1 Q-ID を固定選択する。",
+  "plan_by_depth": {
+    "light": {
+      "output": "Q02",
+      "source": "Q09",
+      "share": "Q16",
+      "true-pain": "Q23",
+      "knowledge-asset": "Q33"
+    },
+    "standard": {
+      "output": "Q03",
+      "source": "Q10",
+      "share": "Q17",
+      "true-pain": "Q24",
+      "knowledge-asset": "Q35"
+    },
+    "detailed": {
+      "output": "Q05",
+      "source": "Q12",
+      "share": "Q19",
+      "true-pain": "Q26",
+      "knowledge-asset": "Q38"
+    }
+  },
+  "depth_aliases": {
+    "quick": "light",
+    "deep": "detailed"
+  },
+  "default_depth": "standard",
+  "skip_rules": {
+    "pattern_C_skips_axes": ["output", "source", "share"],
+    "note": "kickoff.json の pattern=C (プロンプト改善) は軸 output/source/share を skip 可 (five-axes-priority.md 準拠)。既に sheet.md に記入済みの軸も skip する。"
+  }
+}

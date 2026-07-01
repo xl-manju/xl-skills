@@ -224,7 +224,7 @@
     "five_axes": {
       "type": "object",
       "x-source": "sheet.json + intake.json",
-      "required": ["rows", "pipeline"],
+      "required": ["rows", "pipeline", "intent_contract"],
       "properties": {
         "rows": {
           "type": "array",
@@ -250,6 +250,48 @@
             "storage": {"type": "string"},
             "retrieval": {"type": "string"},
             "update": {"type": "string", "enum": ["daily", "weekly", "monthly", "on-demand"]}
+          }
+        },
+        "intent_contract": {
+          "type": "object",
+          "description": "入力→出力インテントの正本。rows[name=出力先] は output_spec.sink、rows[name=情報源] は input_spec.sources から派生する。",
+          "required": ["input_spec", "output_spec", "slot_status"],
+          "properties": {
+            "input_spec": {
+              "type": "object",
+              "required": ["sources", "trigger", "frequency", "raw_materials"],
+              "properties": {
+                "sources": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                "trigger": {"type": "string", "minLength": 1},
+                "frequency": {"type": "string", "enum": ["realtime", "daily", "weekly", "monthly", "event", "ondemand"]},
+                "raw_materials": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+              }
+            },
+            "output_spec": {
+              "type": "object",
+              "required": ["sink", "format", "granularity", "audience", "cadence"],
+              "properties": {
+                "sink": {"type": "string", "minLength": 1},
+                "format": {"type": "string", "enum": ["bullet", "table", "prose", "document", "message", "dashboard", "other"]},
+                "granularity": {"type": "string", "minLength": 1},
+                "audience": {"type": "string", "minLength": 1},
+                "cadence": {"type": "string", "enum": ["realtime", "daily", "weekly", "monthly", "event", "ondemand"]}
+              }
+            },
+            "slot_status": {
+              "type": "object",
+              "required": [
+                "input_spec.sources",
+                "input_spec.trigger",
+                "input_spec.frequency",
+                "input_spec.raw_materials",
+                "output_spec.sink",
+                "output_spec.format",
+                "output_spec.granularity",
+                "output_spec.audience",
+                "output_spec.cadence"
+              ]
+            }
           }
         }
       }
@@ -378,7 +420,7 @@
     "notion_db_properties": {
       "type": "object",
       "x-source": "派生（intake-final-context 各部から projector が生成）",
-      "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る17プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。実行環境 (Claude Code / Cowork / 両方) を 17 番目のプロパティとして追加 (2026-05-22)。",
+      "description": "Notion DB (database_id_env=INTAKE_NOTION_DATABASE_ID) へ送る16プロパティの正本。本ブロックの値は render_notion_page.py が DB 投稿時に使う。実 Notion ページ 35195d6503b781788e31f59b4e05e705 のプロパティ集合と同型。実行環境 (Claude Code / Cowork / 両方) をプロパティとして追加 (2026-05-22)。",
       "required": ["名前", "ステータス", "パターン", "ワークフロー", "深度", "熟練度", "テーマ抽出", "責務境界", "配信タイミング", "出力先", "共有相手", "引き渡しモード", "真の課題", "実行環境", "作成日"],
       "properties": {
         "名前": {"type": "string", "maxLength": 30, "x-derive": "meta.skill_title_ja (優先) → notion_db_properties.名前 (日本語) → top-level skill_title_ja → purpose.verb_object 自動整形 → meta.skill_name_hint (英語フォールバック)。日本語タイトルで一目で内容が分かる形式 (例: '商談文字起こし→契約書自動生成→Slack配信')"},

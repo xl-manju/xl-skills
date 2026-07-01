@@ -22,6 +22,8 @@ Thumbs.db
 # Claude Code local artifacts
 .claude/logs/
 .claude/secrets/
+# per-worktree launcher (絶対パス埋め込み・bypassPermissions のためマシン固有 / 配布対象外)
+.cc
 
 # Local config (機密含む可能性)
 *.local.json

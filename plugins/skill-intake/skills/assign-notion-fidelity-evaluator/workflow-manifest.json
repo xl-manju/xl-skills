@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaVersion": 1,
-  "workflowId": "run-notion-fidelity-guard",
-  "skill": "run-notion-fidelity-guard",
+  "workflowId": "assign-notion-fidelity-evaluator",
+  "skill": "assign-notion-fidelity-evaluator",
   "description": "Notion ページ描画直前に section_canonical_map 基準で粒度を機械検証する。canonical snapshot 派生→fidelity check→delta report の 3 責務を順に実行する。",
   "phases": [
     {

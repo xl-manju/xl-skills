@@ -7,6 +7,7 @@
     "dry_resolution": "§3 と旧 §7.5 の knowledge_asset 重複は §6_five_axes_summary 配下に $ref で fold し、旧 7_5_knowledge_asset を廃止",
     "dogfooding_threshold": {"$ref": "runtime-config.json#/dogfooding", "note": "DRY: 閾値・キー集合の正本は runtime-config.json 側。ここはポインタ宣言のみ (F2 修正 2026-05-22)"},
     "absence_behavior_default": "block",
+    "intent_contract_ssot": "入力/出力インテントの唯一正本は §6 intent_contract (references/intent-contract.schema.json 準拠) であり、§6 axes の output_to は intent_contract.output_spec.sink から、input_from は intent_contract.input_spec.sources からの派生である",
     "viz_slots_engine": "fa-icon prefix 'fa:fa-*' は本文では用いず、Mermaid 識別子のみ正本化",
     "diagram_uniqueness_enforcement": "asset_id must be unique across sections, except §5 figN siblings"
   },
@@ -182,6 +183,7 @@
       },
       "required_fields": [
         {"key": "axes", "type": "array", "constraint": "[{axis_id:enum(output_to/input_from/share_target/real_problem/knowledge_asset), answer, depth, evidence}] (5件固定)", "absence_behavior": "block"},
+        {"key": "intent_contract", "type": "object", "constraint": "references/intent-contract.schema.json 準拠。input_spec/output_spec の全slot filled 必須。output_to/input_from はここから派生", "absence_behavior": "block"},
         {"key": "knowledge_pipeline", "type": "object", "constraint": "{ingest:[], analysis:[], storage:[], retrieval:[], update:enum(daily/weekly/monthly/event)}", "absence_behavior": "block"}
       ],
       "viz_slots": [

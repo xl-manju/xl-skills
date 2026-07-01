@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "skill_intake_version": "0.1.1",
+  "evaluations": [
+    {
+      "date": "2026-07-01",
+      "skill": "run-skill-intake",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-kickoff",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-interview",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-option-catalog",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-visualize",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-finalize",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-notion-intake-publish",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "assign-notion-fidelity-evaluator",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-next-action",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    },
+    {
+      "date": "2026-07-01",
+      "skill": "run-intake-revise",
+      "kind": "run",
+      "verdict": "baseline",
+      "findings": []
+    }
+  ]
+}

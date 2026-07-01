@@ -1,13 +1,14 @@
 ---
-name: run-notion-fidelity-guard
+name: assign-notion-fidelity-evaluator
 description: Notion ページを描画する直前に粒度を検証したいとき、info-collector-agent ページと同等の section 充足度を section_canonical_map 基準で機械検証したいときに使う。
 allowed-tools:
   - Read
   - Bash
   - Grep
   - Glob
-kind: run
-user-invocable: true
+kind: assign
+user-invocable: false
+context: fork
 effect: conversation-output
 source: plugins/skill-intake
 source-tier: internal
@@ -15,7 +16,7 @@ last-audited: 2026-05-24
 audit-trigger: template-change
 hierarchy_level: L1
 rubric_refs: [ref-output-routing]
-role_suffix: null
+role_suffix: evaluator
 owner: team-platform
 since: 2026-05-22
 version: 0.1.0
@@ -43,7 +44,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: elegant-review
 ---
 
-# run-notion-fidelity-guard
+# assign-notion-fidelity-evaluator
 
 ## Purpose & Output Contract
 
@@ -104,16 +105,16 @@ Notion 公開パイプラインは API 経由で行われるため、intake-fina
 
 ```bash
 # canonical snapshot 再生成 (template-change trigger 時のみ)
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/extract-canonical-snapshot.py \
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/assign-notion-fidelity-evaluator/scripts/extract-canonical-snapshot.py \
   --source plugins/skill-intake/references/section_canonical_map.json \
-  --out    plugins/skill-intake/skills/run-notion-fidelity-guard/references/canonical-page-snapshot.json
+  --out    plugins/skill-intake/skills/assign-notion-fidelity-evaluator/references/canonical-page-snapshot.json
 
 # fidelity check (公開直前フック)
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py <intake-final-context.json>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/assign-notion-fidelity-evaluator/scripts/validate-notion-fidelity.py <intake-final-context.json>
 # exit 0 = pass / 1 = warn / 2 = fail
 
 # 粒度スコア単体取得 (CI メトリクス用)
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-notion-fidelity-guard/scripts/extract-granularity-score.py <intake-final-context.json>
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/assign-notion-fidelity-evaluator/scripts/extract-granularity-score.py <intake-final-context.json>
 ```
 
 ## Gotchas

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://xl-skills/run-notion-fidelity-guard/fidelity-report.schema.json",
+  "$id": "https://xl-skills/assign-notion-fidelity-evaluator/fidelity-report.schema.json",
   "title": "fidelity-report.json",
   "description": "fidelity check + delta report の出力 schema。描画 GO/NO-GO を決定論で判定する。",
   "type": "object",
