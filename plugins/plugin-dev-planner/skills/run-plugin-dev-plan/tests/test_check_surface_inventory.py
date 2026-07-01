@@ -2,21 +2,13 @@ from __future__ import annotations
 
 import json
 
+from conftest import component_entry
+
 
 def _valid_inventory() -> dict:
     return {
         "considered_component_kinds": ["skill", "sub-agent", "slash-command", "hook", "script"],
-        "force_13": False,
-        "components": [
-            {
-                "id": "C01",
-                "component_kind": "skill",
-                "kind": "run",
-                "name": "run-sample",
-                "depends_on": [],
-                "build_target": "plugins/sample/skills/run-sample/",
-            }
-        ],
+        "components": [component_entry("C01", "skill", skill_kind="run")],
         "plugin_level_surfaces": {
             "manifest": {"required": True, "path": ".claude-plugin/plugin.json"},
             "composition": {"required": True, "path": "plugin-composition.yaml"},
@@ -52,10 +44,11 @@ def test_surface_inventory_rejects_omission_without_reason(tmp_path, surfaces):
     assert surfaces.main([str(inventory)]) == 1
 
 
-def test_surface_inventory_rejects_force_13_count_mismatch(tmp_path, surfaces):
+def test_surface_inventory_rejects_invalid_component(tmp_path, surfaces):
+    """per-phase 転換: 各 component は validate_inventory_component で検証される
+    (build_target 欠落など shape 不備を surface-inventory も弾く)。"""
     data = _valid_inventory()
-    data["force_13"] = True
-    data["derived_count"] = 1
+    data["components"] = [component_entry("C01", "skill", drop=["build_target"])]
     inventory = tmp_path / "component-inventory.json"
     inventory.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 

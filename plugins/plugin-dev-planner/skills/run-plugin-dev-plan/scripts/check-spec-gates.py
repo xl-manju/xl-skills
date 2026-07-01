@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-spec-gates
-# purpose: 各 buildable タスク仕様書の quality_gates ブロック(p0_lint網羅/build_trace/elegant_review C1-C4/content_review verdict/evaluator>=80,high0)と harness_coverage(min>=80/kind_pass)を機械検証し skill-creator 規律を出力強制する決定論ゲート。
+# purpose: component-inventory.json の各 component の quality_gates(p0_lint網羅/build_trace/elegant_review C1-C4/content_review verdict/evaluator>=80,high0) と harness_coverage(min>=80/kind_pass) を specfm で値域検証し、index.plugin_meta の plugin 階層規律を値域検証する決定論ゲート。
 # inputs:
-#   - argv: <spec.md ...> | --specs-dir DIR
+#   - argv: <md ...> | --specs-dir DIR [--inventory FILE]
 # outputs:
 #   - stdout: OK サマリ
-#   - stderr: quality_gates / harness violation
+#   - stderr: component gates / harness / plugin_meta violation
 #   - exit: 0=OK / 1=violation / 2=usage error
 # contexts: [C, E]
 # network: false
@@ -14,110 +14,26 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""quality_gates / harness_coverage を機械検証して skill-creator 規律を出力強制する。
+"""inventory component の quality_gates/harness_coverage + index.plugin_meta を値域検証する。
 
-参照(口頭指示)では検証されない A1(4条件)/A5(evaluator)/A8(content-review)/C1-C2(harness)/
-F1(P0 lint)/F2(build-trace) を、各 buildable spec の frontmatter キーへ焼かせ本 script が
-fail-closed で検査する。component_kind 別に p0_lint の必須集合を変える (specfm.P0_LINT_BY_KIND)。
+per-phase 転換 (凍結契約 §4/§8): 旧 C*.md frontmatter の quality_gates/harness は
+component-inventory.json の components[] へ載せ替わったため、値域検証を inventory 単位へ移す
+(specfm.validate_component_quality_gates + validate_component_harness_coverage)。index の
+plugin 階層規律 (plugin_meta) 検査は現状維持。
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import specfm  # noqa: E402
 
-ELEGANT_CONDITIONS = ["C1", "C2", "C3", "C4"]
-
-
-def _as_list(v) -> list:
-    return v if isinstance(v, list) else []
-
-
-def check_gates(text: str) -> list[str]:
-    """1 spec の quality_gates + harness_coverage を検査し errors を返す。"""
-    if specfm.split_frontmatter(text) is None:
-        return ["frontmatter (--- ブロック) が無い"]
-    fm = specfm.parse_frontmatter(text)
-    ck = str(fm.get("component_kind", "")).strip()
-    if ck not in specfm.COMPONENT_KINDS:
-        return [f"component_kind={ck!r} が未宣言/enum 外 (gates 検証不能)"]
-    errs: list[str] = []
-
-    qg = fm.get("quality_gates")
-    if not isinstance(qg, dict):
-        return [f"[{ck}] quality_gates ブロックが無い (skill-creator 規律の出力強制に必須)"]
-
-    # p0_lint: component_kind 別の必須 lint 集合を網羅 (superset)
-    required = set(specfm.P0_LINT_BY_KIND.get(ck, ()))
-    declared = set(_as_list(qg.get("p0_lint")))
-    missing_lints = sorted(required - declared)
-    if missing_lints:
-        errs.append(f"[{ck}] quality_gates.p0_lint が必須 lint を欠く: {missing_lints}")
-
-    # build_trace: required
-    if str(qg.get("build_trace", "")).strip() != "required":
-        errs.append(f"[{ck}] quality_gates.build_trace は 'required' であること")
-
-    # elegant_review: conditions==C1-C4 / all_pass:true
-    er = qg.get("elegant_review")
-    if not isinstance(er, dict):
-        errs.append(f"[{ck}] quality_gates.elegant_review ブロックが無い")
-    else:
-        if sorted(str(c) for c in _as_list(er.get("conditions"))) != ELEGANT_CONDITIONS:
-            errs.append(f"[{ck}] elegant_review.conditions は {ELEGANT_CONDITIONS} 全部であること")
-        if er.get("all_pass") is not True:
-            errs.append(f"[{ck}] elegant_review.all_pass は true であること")
-
-    # content_review: verdict==PASS / sha_match:true
-    cr = qg.get("content_review")
-    if not isinstance(cr, dict):
-        errs.append(f"[{ck}] quality_gates.content_review ブロックが無い")
-    else:
-        if str(cr.get("verdict", "")).strip() != "PASS":
-            errs.append(f"[{ck}] content_review.verdict は PASS であること")
-        if cr.get("sha_match") is not True:
-            errs.append(f"[{ck}] content_review.sha_match は true であること")
-
-    # evaluator: threshold>=80 / high_max==0
-    ev = qg.get("evaluator")
-    if not isinstance(ev, dict):
-        errs.append(f"[{ck}] quality_gates.evaluator ブロックが無い")
-    else:
-        th = specfm.as_int(ev.get("threshold"))
-        if th is None or th < 80:
-            errs.append(f"[{ck}] evaluator.threshold は >=80 (現値 {ev.get('threshold')!r})")
-        hm = specfm.as_int(ev.get("high_max"))
-        if hm is None or hm != 0:
-            errs.append(f"[{ck}] evaluator.high_max は 0 (現値 {ev.get('high_max')!r})")
-
-    # harness_coverage: min>=80 / kind_pass 非空
-    hc = fm.get("harness_coverage")
-    if not isinstance(hc, dict):
-        errs.append(f"[{ck}] harness_coverage ブロックが無い")
-    else:
-        mn = specfm.as_int(hc.get("min"))
-        if mn is None or mn < specfm.HARNESS_MIN_REQUIRED:
-            errs.append(f"[{ck}] harness_coverage.min は >={specfm.HARNESS_MIN_REQUIRED} (現値 {hc.get('min')!r})")
-        kp = str(hc.get("kind_pass", "")).strip()
-        if not kp:
-            errs.append(f"[{ck}] harness_coverage.kind_pass が空 (kind 別パスを明記)")
-        elif not specfm.kind_pass_ok(kp, ck, str(fm.get("kind", "")).strip()):
-            tokens = sorted(specfm.expected_kind_pass_tokens(ck, str(fm.get("kind", "")).strip()))
-            errs.append(f"[{ck}] harness_coverage.kind_pass='{kp}' が kind と無関係 (期待語のいずれかを含むこと: {tokens})")
-
-    # 構造キーの値検証: script は tests_min>=80 を強制 (存在だけでは不可)
-    if ck == "script":
-        tm = specfm.as_int(fm.get("tests_min"))
-        if tm is None or tm < specfm.HARNESS_MIN_REQUIRED:
-            errs.append(f"[script] tests_min は >={specfm.HARNESS_MIN_REQUIRED} (現値 {fm.get('tests_min')!r})")
-    return errs
-
 
 def check_plugin_meta(pm: dict) -> list[str]:
-    """index.plugin_meta の plugin 階層規律を値域検証する (F3/F4/F6 等)。"""
+    """index.plugin_meta の plugin 階層規律を値域検証する (F3/F4/F6 等・現状維持)。"""
     errs: list[str] = []
     manifest = pm.get("manifest")
     if not isinstance(manifest, dict):
@@ -191,51 +107,82 @@ def check_plugin_meta(pm: dict) -> list[str]:
     return errs
 
 
-def collect_specs(specs_dir: Path) -> list[Path]:
-    # index/main も含めて収集し、内容で component / plugin-meta を dispatch する。
+def check_inventory(inventory_path: Path) -> tuple[list[str], str | None]:
+    """component-inventory.json の各 component の gates/harness を値域検証する (errors, fatal)。"""
+    try:
+        data = json.loads(inventory_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [], f"component-inventory JSON parse error: {exc}"
+    if not isinstance(data, dict) or not isinstance(data.get("components"), list):
+        return [], "component-inventory.json に components[] list が無い"
+    errors: list[str] = []
+    for comp in data["components"]:
+        if not isinstance(comp, dict):
+            errors.append("inventory: component が object でない")
+            continue
+        cid = str(comp.get("id", "")).strip() or "?"
+        for e in specfm.validate_component_quality_gates(comp):
+            errors.append(f"inventory[{cid}]: {e}")
+        for e in specfm.validate_component_harness_coverage(comp):
+            errors.append(f"inventory[{cid}]: {e}")
+    return errors, None
+
+
+def collect_md(specs_dir: Path) -> list[Path]:
     return sorted(specs_dir.glob("*.md"))
 
 
-def run(paths: list[Path]) -> tuple[int, list[str]]:
+def run(md_paths: list[Path], inventory_path: Path | None) -> tuple[int, list[str]]:
     errors: list[str] = []
-    for p in paths:
-        text = p.read_text(encoding="utf-8")
-        fm = specfm.parse_frontmatter(text)
-        if "component_kind" in fm:
-            errs = check_gates(text)
-        elif isinstance(fm.get("plugin_meta"), dict):
-            errs = check_plugin_meta(fm["plugin_meta"])  # index spec の plugin 階層検証
-        else:
-            continue  # component_kind も plugin_meta も無い .md は対象外 (README 等)
-        for e in errs:
-            errors.append(f"{p.name}: {e}")
+    for p in md_paths:
+        fm = specfm.parse_frontmatter(p.read_text(encoding="utf-8"))
+        if isinstance(fm.get("plugin_meta"), dict):
+            for e in check_plugin_meta(fm["plugin_meta"]):
+                errors.append(f"{p.name}: {e}")
+        # phase ファイル等 (plugin_meta 無し) は本 gate 対象外 (frontmatter は check-spec-frontmatter が担う)
+    if inventory_path is not None and inventory_path.is_file():
+        inv_errors, fatal = check_inventory(inventory_path)
+        if fatal:
+            return 2, [fatal]
+        errors.extend(inv_errors)
     return (1 if errors else 0), errors
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="buildable spec の quality_gates/harness を検証する")
-    ap.add_argument("specs", nargs="*", help="タスク仕様書 .md")
-    ap.add_argument("--specs-dir", default=None, help="タスク仕様書ディレクトリ")
+    ap = argparse.ArgumentParser(description="inventory component gates/harness + index.plugin_meta を検証する")
+    ap.add_argument("specs", nargs="*", help="対象 .md (index の plugin_meta 検査用)")
+    ap.add_argument("--specs-dir", default=None, help="plan ディレクトリ")
+    ap.add_argument("--inventory", default=None, help="component-inventory.json (既定 <specs-dir>/component-inventory.json)")
     args = ap.parse_args(argv)
 
     paths: list[Path] = [Path(s) for s in args.specs]
+    inventory_path: Path | None = Path(args.inventory) if args.inventory else None
     if args.specs_dir:
         d = Path(args.specs_dir)
         if not d.is_dir():
             sys.stderr.write(f"not a directory: {d}\n")
             return 2
-        paths.extend(collect_specs(d))
-    if not paths:
-        sys.stderr.write("usage: check-spec-gates.py <spec.md ...> | --specs-dir DIR\n")
+        paths.extend(collect_md(d))
+        if inventory_path is None:
+            inventory_path = d / "component-inventory.json"
+    if not paths and inventory_path is None:
+        sys.stderr.write("usage: check-spec-gates.py <md ...> | --specs-dir DIR\n")
         return 2
     missing = [p for p in paths if not p.is_file()]
     if missing:
         for p in missing:
             sys.stderr.write(f"not found: {p}\n")
         return 2
-    code, errors = run(paths)
+    if args.inventory and not inventory_path.is_file():
+        sys.stderr.write(f"inventory not found: {inventory_path}\n")
+        return 2
+    code, errors = run(paths, inventory_path)
+    if code == 2:
+        for e in errors:
+            sys.stderr.write(e + "\n")
+        return 2
     if code == 0:
-        sys.stdout.write(f"OK: {len(paths)} 仕様書が quality_gates + harness 規律を機械強制で満たす\n")
+        sys.stdout.write("OK: inventory component gates/harness + index.plugin_meta 規律を機械強制で満たす\n")
         return 0
     for e in errors:
         sys.stderr.write(e + "\n")

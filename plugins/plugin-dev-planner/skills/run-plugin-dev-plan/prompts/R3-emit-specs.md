@@ -9,18 +9,18 @@
 |---|---|
 | name | emit-specs |
 | skill | run-plugin-dev-plan |
-| responsibility | R3 (per-component 仕様書 + index 生成 / 評価基準携帯) |
+| responsibility | R3 (13 phase ファイル + index + component-inventory.json 生成 / 評価基準を component エントリへ携帯) |
 | layers_covered | [L2, L4, L5, L6, L7] |
-| output_schema | references/io-contract.md (task-spec frontmatter 契約) |
+| output_schema | references/io-contract.md (phase frontmatter §2 + inventory component §4 契約) |
 | reproducible | true |
 
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- 各タスク仕様書は skill-brief 主要フィールドを無加工で写せる形 (schema parity) で書く
+- 各 skill inventory component は skill-brief 主要フィールドを無加工で写せる形 (schema parity) で書く
   - 目的: 後段 run-skill-create へそのまま投入できる粒度を保証する
-  - 背景: 変換が要る仕様書は再現性を壊す
-- skill-creator 評価基準 (4 条件 / feedback_contract criteria / harness≥80% / content-review / evaluator) を各 frontmatter に必ず携帯させる
+  - 背景: 変換が要る component は再現性を壊す
+- skill-creator 評価基準 (4 条件 / feedback_contract criteria / harness≥80% / content-review / evaluator) を各 inventory component エントリに必ず携帯させる (旧 C*.md frontmatter の載せ替え先)
   - 目的: 生成プラグインが品質ゲートを自動通過する状態を要件化する
   - 背景: 評価基準を量産先へ毎回焼き込む機構が SSOT 伝播の核
 
@@ -31,24 +31,30 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: コンポーネント目録 (× N) から per-component タスク仕様書と index(main) を生成し、各 frontmatter に skill-creator 評価基準を携帯させる
+- 担当: `component-inventory.json` と goal-spec から 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) + index(main) を生成し、各 inventory component エントリに skill-creator 評価基準を焼く (旧 C*.md frontmatter の載せ替え)。品質機構は phase frontmatter でなく component エントリに置く (正規化)
 - 非担当: 目的抽出 (R1)、分解 (R2)、検証 (R4)。実プラグイン build は L4 (run-skill-create) へ委譲
 
-### 2.2 ドメインルール (component_kind 別 emission)
+### 2.2 ドメインルール (phase ファイル + inventory component emission)
 
-> kind→必須キーの**唯一の実行可能正本は `scripts/specfm.py` の `STRUCTURAL_REQUIRED`**。下記列挙はその projection で、`tests/test_kind_key_doc_parity.py` が specfm との一致を機械強制する (specfm にキーを足して本節を忘れると fail)。本文 section 契約 (目的/成果物/完了条件 + 非空本文の床) は `references/io-contract.md` §9 を正本とする。
+> phase frontmatter の正本は `scripts/specfm.py` の `PHASE_REQUIRED` + `schemas/phase-spec.schema.json`。inventory component の kind→必須キーの正本は `specfm.STRUCTURAL_REQUIRED`。下記列挙はその projection で、`tests/test_kind_key_doc_parity.py` が specfm との一致を機械強制する (specfm にキーを足して本節を忘れると fail)。phase 本文 section 契約 (目的/実行タスク/成果物/完了条件 + 非空本文の床) は `references/io-contract.md` §9 §5 を正本とする。
 
-- 全 spec 共通: `component_kind` 宣言 + `id`/`depends_on` + core 規律ブロック (`quality_gates`{p0_lint(kind別),build_trace:required,elegant_review{conditions[C1-C4],all_pass:true},content_review{verdict:PASS,sha_match:true},evaluator{threshold:80,high_max:0}} + `harness_coverage`{min:80,kind_pass})。`harness_coverage` はスカラでなくブロック。
-- **skill**: skill-brief **base required 14**(実 schema 逐語・`specfm.SKILL_BRIEF_FIELDS`)+ 条件付き required(kind∈run/wrap/assign/delegate→goal/purpose_background/checklist、run/assign→responsibilities、wrap→base_skill、delegate→delegate_agent)+ (kind∈run/wrap/delegate なら) `feedback_contract.criteria`(inner+outer 各≥1, goal/checklist から test-first 導出・フォールバック既定文禁止) + `goal_seek` + (run/assign なら)`prompt_layer: 7layer` + `combinators`。**`cli_tools`/`mcp_tools`/`external_systems`/`deterministic_checks` は空配列可、`needs_independent_context`/`needs_lifecycle_enforcement` は bool 必須**(後段のサブエージェント/フック/スクリプト要否判定の核)。
-  - **criteria の purpose-acceptance 強制 (成果物評価の operationalize)**: criteria は「P0 lint exit0」「elegant-review C1-C4 PASS」等の**汎用品質ゲートの言い換え**でなく、当該 spec の `goal`/`checklist` (= その component が purpose として満たすべき受入条件) から導く。最低 1 件 (典型は OUT/outer) が goal/checklist 語彙を参照する purpose-acceptance であること。これにより build 後の harness `criteria-test` が**当初 purpose を満たすかの受入テスト**として機能する (planner は受入基準を契約として焼くだけで実行は L4)。`check-spec-frontmatter.py` の `criteria_purpose_traceability_errors` が「どの criterion も goal/checklist 語彙を参照しない退化」を fail-closed で機械検出する (語彙ゼロ重複のみ FAIL・意味の正否は evaluator の責務=Goodhart 回避の二層分離)。
+**(A) 13 phase ファイル** (`phase-NN-<kebab>.md`・ライフサイクル軸=人間向け primary deliverable):
+- frontmatter (`PHASE_REQUIRED`): `id`(P01..P13)/`phase_number`(1-13)/`phase_name`(`specfm.PHASE_NAMES` の kebab)/`category`(日本語)/`prev_phase`/`next_phase`/`status`(未実施|進行中|完了)/`gate_type`(`specfm.GATE_TYPES` の 8 enum)/`entities_covered`([C<NN>] 参照・該当なければ [])/`applicability`({applicable:bool, reason})。build_target/quality_gates/harness_coverage/feedback_contract は phase frontmatter に**置かない**。
+- 本文 (§5 床): `## 目的` / `## 実行タスク` (該当 `entities_covered` があれば component id 併記) / `## 成果物` / `## 完了条件` を持ち各見出し直後に非空本文。`applicability.applicable == false` の phase (典型は P08) は床免除で `reason` を本文に記す。
+
+**(B) component-inventory.json の各 component エントリ** (成果物実体軸=機械 SSOT):
+- 全 component 共通: `component_kind` 宣言 + `id`/`depends_on` + core 規律ブロック (`quality_gates`{p0_lint(kind別),build_trace:required,elegant_review{conditions[C1-C4],all_pass:true},content_review{verdict:PASS,sha_match:true},evaluator{threshold:80,high_max:0}} + `harness_coverage`{min:80,kind_pass})。`harness_coverage` はスカラでなくブロック。
+- **skill**: skill-brief **base required 14**(実 schema 逐語・`specfm.SKILL_BRIEF_FIELDS`)+ top-level `skill_kind`(fallback `kind`)+ 条件付き required(kind∈run/wrap/assign/delegate→goal/purpose_background/checklist、run/assign→responsibilities、wrap→base_skill、delegate→delegate_agent)+ (kind∈run/wrap/delegate なら) `feedback_contract.criteria`(inner+outer 各≥1, goal/checklist から test-first 導出・フォールバック既定文禁止) + `goal_seek` + (run/assign なら)`prompt_layer: 7layer` + `combinators`。**`cli_tools`/`mcp_tools`/`external_systems`/`deterministic_checks` は空配列可、`needs_independent_context`/`needs_lifecycle_enforcement` は bool 必須**(後段のサブエージェント/フック/スクリプト要否判定の核)。
+  - **criteria の purpose-acceptance 強制 (成果物評価の operationalize)**: criteria は「P0 lint exit0」「elegant-review C1-C4 PASS」等の**汎用品質ゲートの言い換え**でなく、当該 component の `goal`/`checklist` (= その component が purpose として満たすべき受入条件) から導く。最低 1 件 (典型は OUT/outer) が goal/checklist 語彙を参照する purpose-acceptance であること。これにより build 後の harness `criteria-test` が**当初 purpose を満たすかの受入テスト**として機能する (planner は受入基準を契約として焼くだけで実行は L4)。`check-spec-frontmatter.py` の `criteria_purpose_traceability_errors` が「どの criterion も goal/checklist 語彙を参照しない退化」を fail-closed で機械検出する (語彙ゼロ重複のみ FAIL・意味の正否は evaluator の責務=Goodhart 回避の二層分離)。
 - **sub-agent**: `name`/`description`/`tools`(最小権限)/`independent_context: true`/`responsibility_anchor`(prompts) + `prompt_layer: 7layer` + core 規律。
 - **slash-command**: `name`/`description`/`argument-hint`/`allowed-tools`/`disable-model-invocation` + core 規律。
 - **hook**: `event`(PreToolUse|PostToolUse|Stop|UserPromptSubmit|SessionEnd)/`matcher`/`exit_semantics`(fail-closed=exit2)/`settings_wiring`/`fail_closed: true` + core 規律。
 - **script**: `script_name`/`purpose`/`inputs`/`outputs`/`exit_codes`/`network`/`write_scope` + `stdlib_only: true` + `tests_min: 80` + core 規律。
-- **index(main)**: P1-P3 設計 + P5-P8 横断規律 + per-component(× N)を**依存 top-sort 順**で列挙し、本数根拠・各 status・全体完了条件 + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6 を焼く) を保持する。P1-P8 横断規律は index の章であり、N に加算する別仕様書ではない。
+
+**(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6 を焼く) を保持する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
 - `plugin_meta.manifest`: `required:true`、`path:.claude-plugin/plugin.json`、`name_matches_folder:true`、`no_todo_placeholders:true`、`validate_plugin:true` を必須にする。
 - `plugin_meta.marketplace`: `default_personal` は bool、`policy.installation` は `AVAILABLE` 既定、`policy.authentication` は `ON_INSTALL` 既定、`policy.category` は非空、`cachebuster_for_update:true` を必須にする。
-- 焼き先の正本キーは io-contract.md の表 (「焼き先はマトリクスに従う」総称ポインタでなく具体 frontmatter キー)。条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) は kind/feature/階層ゲートに従い盲目的に全 spec へ焼かない。
+- 焼き先の正本キーは io-contract.md の表 (「焼き先はマトリクスに従う」総称ポインタでなく具体キー)。条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) は kind/feature/階層ゲートに従い盲目的に全 component へ焼かない。
 
 ### 2.3 入力契約
 
@@ -58,8 +64,8 @@
 | goal_spec | path | yes | <PLAN_DIR>/goal-spec.json |
 
 ### 2.4 出力契約
-- 形式: N 本のタスク仕様書 (Markdown / frontmatter は io-contract.md 契約) + index.md(main) + handoff-run-plugin-dev-plan.json
-- 出力先: 構想専用 plan ディレクトリ (既定 `eval-log/plugin-dev-planner/<plugin-slug>/`。実プラグインディレクトリは作らない)
+- 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + handoff-run-plugin-dev-plan.json
+- 出力先: 構想専用 plan ディレクトリ (既定 `plugin-plans/<plugin-slug>/`・可視/永続の tracked deliverable。実プラグインディレクトリは作らない)
 - **envelope ドラフト (artifact_class=plugin-plan 時のみ)**: 唯一 builder を持たない plugin envelope について、`<PLAN_DIR>/envelope-draft/plugin.json` に**具体値入りの「貼れる」 manifest ドラフト** (`name`↔folder 一致・TODO placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する。これは契約(値域宣言=`plugin_meta`)とは別の「実体ドラフト」で、利用者が build 境界 (実 `plugins/` への書込) を侵さず最後の手動ステップを完了するためのもの。実 `plugins/` には書かない
 
 ## Layer 3: インフラ層 (外部依存)
@@ -83,7 +89,7 @@
 - update モードは Edit 差分のみ。全書き換え禁止
 
 ### 4.2 観測 / ロギング
-- 出力先: `<PLAN_DIR>` 配下のタスク仕様書群 + index.md
+- 出力先: `<PLAN_DIR>` 配下の 13 phase ファイル + index.md + component-inventory.json
 
 ### 4.3 セキュリティ
 - secret/URL/owner を仕様書へ直書きしない
@@ -91,23 +97,24 @@
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- run-plugin-dev-plan 配下の R3 SubAgent (per-component は並列 fork 可)
+- run-plugin-dev-plan 配下の R3 SubAgent (13 phase ファイルと inventory component は並列 fork 可)
 
 ### 5.2 ゴール定義
-- **目的**: 後段が 1 件ずつ段階実行できる粒度のタスク仕様書群と top-sort 順 index を生成する
-- **背景**: 評価基準を frontmatter で携帯させないと、生成プラグインの品質ゲート自動通過が保証されない
-- **達成ゴール**: N 本の仕様書が評価基準を携帯し、index が依存 top-sort 順で全件を列挙した状態
+- **目的**: 上から順に読める 13 phase ファイルと、後段が 1 件ずつ段階実行できる粒度の inventory component + P01..P13 昇順 index を生成する
+- **背景**: 評価基準を component エントリで携帯させないと、生成プラグインの品質ゲート自動通過が保証されない
+- **達成ゴール**: 13 phase ファイルが frontmatter+section 床を満たし、各 inventory component が評価基準を携帯し、index が P01..P13 を phase_number 昇順で全列挙した状態
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] コンポーネント目録の各 id に対しタスク仕様書を 1 本ずつ生成した (未配置 0 件)
-- [ ] 各仕様書が `component_kind` を宣言し kind 別の構造契約を携帯した (skill 偏重なし)
-- [ ] 各 buildable spec に core 規律 `quality_gates` + `harness_coverage`(block) を焼いた
-- [ ] skill loop kind の仕様書に feedback_contract criteria を inner+outer 各 1 件以上携帯させた (現状値は焼かない)
-- [ ] skill loop kind の criteria が当該 spec の goal/checklist 由来 (purpose-acceptance) で、汎用品質ゲートの言い換えに退化していない (`check-spec-frontmatter.py` の purpose-traceability ゲートが exit0)
+- [ ] 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) を §2 frontmatter + §5 本文床で生成した
+- [ ] 各 inventory component が `component_kind` を宣言し kind 別の構造契約を携帯した (skill 偏重なし)
+- [ ] 各 buildable component に core 規律 `quality_gates` + `harness_coverage`(block) を焼いた
+- [ ] skill loop kind の component に feedback_contract criteria を inner+outer 各 1 件以上携帯させた (現状値は焼かない)
+- [ ] skill loop kind の criteria が当該 component の goal/checklist 由来 (purpose-acceptance) で、汎用品質ゲートの言い換えに退化していない (`check-spec-frontmatter.py` の purpose-traceability ゲートが exit0)
 - [ ] index(main) に「受入確認 (build 後の見方)」章を持ち、goal-spec.purpose 由来の受入観点と確認の見方を平易語で記した
 - [ ] 条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) を kind/feature/階層ゲートに従って焼いた
-- [ ] index(main) を依存 top-sort 順で全仕様書を列挙し、本数根拠・完了条件・`plugin_meta`(manifest/marketplace/cachebuster/validation を含む plugin 階層規律) を記載した
-- [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` が exit0 になった
+- [ ] index(main) を P01..P13 phase_number 昇順で全列挙し、完了条件・コンポーネント目録の所在・`plugin_meta`(manifest/marketplace/cachebuster/validation を含む plugin 階層規律) を記載した
+- [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件)
+- [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` / `detect-unassigned.py` が exit0 になった
 - [ ] `handoff-run-plugin-dev-plan.json` を生成し、`check-build-handoff.py` が exit0 になった
 
 ### 5.4 実行方式
@@ -116,18 +123,18 @@
 ## Layer 6: オーケストレーション層 (ゴールシーク制御)
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: run-plugin-dev-plan (P4-P7 フェーズ)
+- 呼び出し元: run-plugin-dev-plan (Phase03-Phase12 の成果物生成)
 - 後続 phase: R4-verify-traceability
 
 ### 6.2 ハンドオフ / 並列性
-- 並列: per-component 仕様書を独立 fork で生成し結果を index へ統合
+- 並列: 13 phase ファイルと inventory component を独立 fork で生成し結果を index へ統合
 
 ## Layer 7: 提示層
 
 この Layer 7 は prompt-creator 7層形式の出力提示レイヤーであり、Web UI/UX やスクリーンショット要求ではない。
 
 ### 7.1 ユーザー提示形式
-- N 本のタスク仕様書 (Markdown) + index.md(main 目次)
+- 13 phase ファイル (Markdown) + index.md(main 目次) + component-inventory.json
 
 ### 7.2 言語
 - 本文: 日本語 (パラメーター名 / schema key は英語のまま)
@@ -140,12 +147,12 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
 動的に手順を生成・実行・自己評価する。入力 `{{component_inventory}}` と `{{goal_spec}}`
-を Read し、評価基準を携帯した N 本の仕様書と top-sort 順 index を生成する。出力は次の
-とおり (3 は `artifact_class=plugin-plan` 時のみ):
+を Read し、13 phase ファイルと、評価基準を焼いた inventory component と、P01..P13 昇順 index を生成する。出力は次の
+とおり (4 は `artifact_class=plugin-plan` 時のみ):
 
-1. N 本のタスク仕様書 (Markdown / io-contract.md の frontmatter 契約を満たす)
-2. index.md (依存 top-sort 順 + 本数根拠 + 全体完了条件)
-3. handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status)
+1. 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md` / io-contract.md §2 frontmatter + §5 本文床を満たす)
+2. index.md (P01..P13 phase_number 昇順 + コンポーネント目録の所在 + 全体完了条件 + 受入確認 + plugin_meta)
+3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来)
 4. (plugin-plan 時) `<PLAN_DIR>/envelope-draft/plugin.json` = 貼れる manifest ドラフト (manual-apply artifact・実 `plugins/` には書かない)
 
 余計な前置き・後書き・思考過程出力は禁止。

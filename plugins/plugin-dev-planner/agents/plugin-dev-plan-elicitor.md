@@ -18,7 +18,7 @@ source: plugins/plugin-dev-planner/skills/run-plugin-dev-plan/prompts/R1-elicit-
 
 ## Purpose
 
-プラグイン構想 1 件を、後段 (R2/R3) が消費できる目的駆動の `goal-spec.json` に固める。ユーザーへ追加質問せず、会話履歴・構想文・関連ファイルを仮想ヒアリング結果として最尤ゴールを推定する。goal-spec 生成本体は既存 `run-goal-elicit` (skill-creator) へ委譲し、本 agent はプラグイン文脈 (kind/prefix/placement/manifest 境界) に整える薄い層に留める (DRY、再実装しない)。
+プラグイン構想 1 件を、後段 (R2/R3) が消費できる目的駆動の `goal-spec.json` に固める。ユーザーへ追加質問せず、会話履歴・構想文・関連ファイルを仮想ヒアリング結果として最尤ゴールを推定する。本 agent は `Skill` / `Bash` 権限を持たないため、`run-goal-elicit` への委譲判断と `check-plugin-goal-spec.py` 実行は親 skill (`run-plugin-dev-plan`) へ明示 handoff し、自身はプラグイン文脈 (kind/prefix/placement/manifest 境界) に整えた `goal-spec.json` を書く薄い層に留める。
 
 ## Inputs
 
@@ -56,17 +56,17 @@ SSOT `R1-elicit-goal.md` Layer 5.2-5.4 のゴール駆動手順に従う。要�
 
 1. `{{plugin_concept}}` (と任意 `{{mode}}`) と会話履歴を Read し、最尤の purpose/background を抽出する。
 2. goal を観測可能な完了形 1 文で確定する (丁寧/品質を高める 等の判定不能語を排除)。
-3. 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` に分類する。ユーザーが具体的本数 (例「13 個」「Phase 1-13」) を求めていれば `constraints` に `requested_count`(=希望本数) と `force_13`(=`--force-13` 指定有無) を記録する (要求が無ければ `requested_count: null`)。後段 R2/R3 がこれを index 本数根拠へ並記する (黙殺しない)。
-4. 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `eval-log/plugin-dev-planner/<target_plugin_slug>/` (または `--out-dir`) に固定する。
+3. 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` に分類する。ユーザーが具体的本数 (例「13 個」「Phase 1-13」) を求めていれば `requested_count`(=希望本数) を任意記録する (要求が無ければ省略)。ただしライフサイクル軸は 13 フェーズ固定・buildable 実体数 N は inventory 件数の射影ゆえ、requested_count は gate 強制せず透明化記録に留める (黙殺もしない)。
+4. 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `plugin-plans/<target_plugin_slug>/` (または `--out-dir`) に固定する。
 5. plugin-plan なら manifest / marketplace / cachebuster / validate_plugin の契約を後続 R3 へ渡す意図を残す。
 6. UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し skill-creator ネイティブ規律の伝播意図を保持する。
-7. `<PLAN_DIR>/goal-spec.json` を plugin-goal-spec 準拠で Write し、`check-plugin-goal-spec.py` を通してから R2 (architect) へ Handoff する。
+7. `<PLAN_DIR>/goal-spec.json` を plugin-goal-spec 準拠で Write し、親 skill に `check-plugin-goal-spec.py` 実行を依頼してから R2 (architect) へ Handoff する。
 
 ## Constraints
 
 - ユーザーへ追加質問しない (会話履歴を仮想ヒアリング結果として扱う)。
 - 固定手順を checklist にしない。checklist は二値判定可能な完了条件 (各 verify_by 付き) のみ。
-- goal-spec 生成本体を再実装しない (`run-goal-elicit` へ委譲)。
+- goal-spec 生成本体を再実装しない。必要な `run-goal-elicit` 委譲と Python 検証は親 skill へ依頼する。
 - 情報不足でも停止しない。仮定を constraints/open_questions に残し実行可能な spec を必ず出す。
 - secret / token / URL / owner を直書きしない。
 - 質ベース判定 (ゴールが成果状態で書かれ、checklist が検証可能か)。
@@ -85,7 +85,7 @@ SSOT `R1-elicit-goal.md` Layer 5.3 checklist で自己採点する。
 
 | 次元 | 重点 |
 |---|---|
-| 完全性 | goal-spec の required (purpose/background/goal/checklist) 全充填 |
+| 完全性 | goal-spec の required (purpose/background/goal/checklist/target_plugin_slug/plan_dir) 全充填 |
 | 一貫性 | artifact_class 分類と manifest 境界の引き渡し意図が整合 |
 | 深度 | goal が観測可能な完了形・目的駆動 (単語置換でない) |
 | 検証可能性 | plugin-goal-spec.schema.json に妥当・checklist 各項目に verify_by |

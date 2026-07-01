@@ -100,6 +100,77 @@ P0_LINT_BY_KIND = {
     "script": ("lint-script-frontmatter",),
 }
 
+# --- component_kind → 後段 builder / build_kind マッピング (io-contract §6 handoff の SSOT) ---
+# routes[] は component-inventory.json の components[] から導出する (phase からではない)。
+# builder/build_kind の整合はこの写像を正本にして validate_inventory_component / check-build-handoff が検査する。
+BUILDER_BY_KIND = {
+    "skill": "run-skill-create",
+    "sub-agent": "run-build-skill",
+    "slash-command": "run-build-skill",
+    "hook": "run-build-skill",
+    "script": "parent-skill-build",
+}
+BUILD_KIND_BY_KIND = {
+    "skill": "skill",
+    "sub-agent": "agent",
+    "slash-command": "command",
+    "hook": "hook",
+    "script": "script",
+}
+# elegant-review 4 条件 (quality_gates.elegant_review.conditions の SSOT)。
+ELEGANT_CONDITIONS = ("C1", "C2", "C3", "C4")
+
+
+# ─────────────────────────── 13 フェーズ定義 (per-phase 分解の SSOT) ───────────────────────────
+# per-component (旧 C*.md) 分解を廃し、人間可読な 13 フェーズ (ファイル軸 = phase-NN-<kebab>.md) と
+# component-inventory.json (build 軸) の 2 軸直交へ全面転換した (references/component-domain.md)。
+# 各 phase = 1 Markdown ファイル。phase_number-1 で PHASE_NAMES を index する (1 始まり)。
+PHASE_NAMES = (
+    "requirements", "design", "design-review", "test-design", "implementation",
+    "test-run", "acceptance-criteria", "refactoring", "quality-assurance",
+    "final-review", "evidence", "documentation", "release",
+)
+# category は日本語ラベル (enum 緩め・phase-lifecycle.md §8 の値を使う)。
+PHASE_CATEGORY = {
+    "requirements": "要件",
+    "design": "設計",
+    "design-review": "レビュー",
+    "test-design": "テスト",
+    "implementation": "実装",
+    "test-run": "テスト",
+    "acceptance-criteria": "判定",
+    "refactoring": "改善",
+    "quality-assurance": "品質",
+    "final-review": "レビュー",
+    "evidence": "検証",
+    "documentation": "文書",
+    "release": "完了",
+}
+PHASE_GATE_TYPE = {
+    "requirements": "none",
+    "design": "none",
+    "design-review": "design-gate",
+    "test-design": "tdd-red",
+    "implementation": "tdd-green",
+    "test-run": "none",
+    "acceptance-criteria": "none",
+    "refactoring": "tdd-refactor",
+    "quality-assurance": "qa",
+    "final-review": "final-gate",
+    "evidence": "evidence",
+    "documentation": "none",
+    "release": "none",
+}
+# id は大文字ゼロ埋め 2 桁 (P01..P13)。
+PHASE_ID_RE = re.compile(r"^P(0[1-9]|1[0-3])$")
+GATE_TYPES = {"none", "design-gate", "final-gate", "tdd-red", "tdd-green", "tdd-refactor", "qa", "evidence"}
+PHASE_STATUS = {"未実施", "進行中", "完了"}
+# phase ファイル frontmatter の必須キー (io-contract §9 phase projection 表と parity=schemas/phase-spec.schema.json)。
+PHASE_REQUIRED = (
+    "id", "phase_number", "phase_name", "category", "prev_phase",
+    "next_phase", "status", "gate_type", "entities_covered", "applicability",
+)
+
 
 # ─────────────────────────── 最小 YAML サブセットパーサ ───────────────────────────
 def split_frontmatter(text: str) -> str | None:
@@ -369,7 +440,10 @@ def is_plugin_meta_na(v) -> bool:
 
 # --- タスク仕様書 (計画成果物) の出力先 解決の SSOT (再現性) ---
 # 既定: repo-root 相対の <PLAN_OUTPUT_BASE>/<plan_slug(name)>。同一構想 → 常に同一出力先。
-PLAN_OUTPUT_BASE = "eval-log/plugin-dev-planner"
+# 可視・永続の tracked ディレクトリ (gitignore しない)。計画成果物はレビュー可能な
+# deliverable であり捨て置き scratch ではない (io-contract.md §9)。goal-seek の transient
+# 作業ログ (progress/intermediate) のみ <PLAN_DIR>/.goal-seek/ 配下へ隔離する。
+PLAN_OUTPUT_BASE = "plugin-plans"
 
 
 def plan_slug(name: str) -> str:
@@ -391,7 +465,7 @@ def plan_output_dir(name: str, out_dir: str | None = None, base: str = PLAN_OUTP
 
     out_dir 明示指定があればそれを使う (相対は repo-root 基準)。無ければ
     `<base>/<plan_slug(name)>` を返す。slug が空になる name は ValueError。
-    既定では plugin ごとに `eval-log/plugin-dev-planner/<plugin-slug>/` へ隔離する。
+    既定では plugin ごとに `plugin-plans/<plugin-slug>/` (可視・永続の tracked deliverable) へ出力する。
 
     `name` は生 plugin 名でも plan_slug 済 slug でも可 (plan_slug が冪等のため二重適用は無害)。
     戻り値は **repo-root 相対パス**。絶対化が要る場合は呼び出し側が `$CLAUDE_PROJECT_DIR`/cwd
@@ -429,6 +503,183 @@ def kind_pass_ok(kind_pass: str, component_kind: str, skill_kind: str) -> bool:
     return any(tok in kp for tok in expected_kind_pass_tokens(component_kind, skill_kind))
 
 
+def _skill_kind_of(comp: dict) -> str:
+    """skill component の kind を解決する。
+
+    §4 の `skill_kind` を正 (canonical) とし、skill-brief 由来の `kind` を後方互換 fallback にする
+    (旧 C*.md frontmatter / 現 golden inventory は `kind` を使うため両受容で移送を無破壊にする)。
+    """
+    v = comp.get("skill_kind")
+    if isinstance(v, str) and v.strip():
+        return v.strip()
+    v2 = comp.get("kind")
+    return v2.strip() if isinstance(v2, str) and v2.strip() else ""
+
+
+def _component_field_present(comp: dict, field: str, ck: str) -> bool:
+    """component エントリが構造的必須フィールドを携帯するか (presence-only / skill_kind alias 込み)。"""
+    # skill component は skill-brief の "kind" を component_kind との衝突回避のため
+    # top-level "skill_kind" (fallback "kind") として携帯する。
+    if ck == "skill" and field == "kind":
+        return bool(_skill_kind_of(comp))
+    if field in SKILL_BRIEF_PRESENCE_ONLY:
+        return field in comp and comp[field] is not None
+    return field in comp and comp[field] not in (None, "", [])
+
+
+def validate_component_quality_gates(comp: dict) -> list[str]:
+    """component の quality_gates ブロックを値域検証する (旧 check-spec-gates の quality_gates 部を移送)。
+
+    p0_lint が component_kind 別必須集合を網羅・build_trace=required・elegant_review C1-C4/all_pass・
+    content_review verdict=PASS/sha_match・evaluator threshold>=80/high_max=0 を fail-closed で検査する。
+    """
+    ck = str(comp.get("component_kind", "")).strip()
+    if ck not in COMPONENT_KINDS:
+        return [f"component_kind={ck!r} が未宣言/enum 外 (quality_gates 検証不能)"]
+    errs: list[str] = []
+    qg = comp.get("quality_gates")
+    if not isinstance(qg, dict):
+        return [f"[{ck}] quality_gates ブロックが無い (skill-creator 規律の出力強制に必須)"]
+    required = set(P0_LINT_BY_KIND.get(ck, ()))
+    declared = set(qg.get("p0_lint")) if isinstance(qg.get("p0_lint"), list) else set()
+    missing = sorted(required - declared)
+    if missing:
+        errs.append(f"[{ck}] quality_gates.p0_lint が必須 lint を欠く: {missing}")
+    if str(qg.get("build_trace", "")).strip() != "required":
+        errs.append(f"[{ck}] quality_gates.build_trace は 'required' であること")
+    er = qg.get("elegant_review")
+    if not isinstance(er, dict):
+        errs.append(f"[{ck}] quality_gates.elegant_review ブロックが無い")
+    else:
+        conds = er.get("conditions") if isinstance(er.get("conditions"), list) else []
+        if sorted(str(c) for c in conds) != list(ELEGANT_CONDITIONS):
+            errs.append(f"[{ck}] elegant_review.conditions は {list(ELEGANT_CONDITIONS)} 全部であること")
+        if er.get("all_pass") is not True:
+            errs.append(f"[{ck}] elegant_review.all_pass は true であること")
+    cr = qg.get("content_review")
+    if not isinstance(cr, dict):
+        errs.append(f"[{ck}] quality_gates.content_review ブロックが無い")
+    else:
+        if str(cr.get("verdict", "")).strip() != "PASS":
+            errs.append(f"[{ck}] content_review.verdict は PASS であること")
+        if cr.get("sha_match") is not True:
+            errs.append(f"[{ck}] content_review.sha_match は true であること")
+    ev = qg.get("evaluator")
+    if not isinstance(ev, dict):
+        errs.append(f"[{ck}] quality_gates.evaluator ブロックが無い")
+    else:
+        th = as_int(ev.get("threshold"))
+        if th is None or th < 80:
+            errs.append(f"[{ck}] evaluator.threshold は >=80 (現値 {ev.get('threshold')!r})")
+        hm = as_int(ev.get("high_max"))
+        if hm is None or hm != 0:
+            errs.append(f"[{ck}] evaluator.high_max は 0 (現値 {ev.get('high_max')!r})")
+    return errs
+
+
+def validate_component_harness_coverage(comp: dict) -> list[str]:
+    """component の harness_coverage ブロックを値域検証する (旧 check-spec-gates の harness 部を移送)。"""
+    ck = str(comp.get("component_kind", "")).strip()
+    if ck not in COMPONENT_KINDS:
+        return [f"component_kind={ck!r} が未宣言/enum 外 (harness 検証不能)"]
+    errs: list[str] = []
+    skill_kind = _skill_kind_of(comp)
+    hc = comp.get("harness_coverage")
+    if not isinstance(hc, dict):
+        errs.append(f"[{ck}] harness_coverage ブロックが無い (min/kind_pass を持つこと)")
+    else:
+        mn = as_int(hc.get("min"))
+        if mn is None or mn < HARNESS_MIN_REQUIRED:
+            errs.append(f"[{ck}] harness_coverage.min は >={HARNESS_MIN_REQUIRED} (現値 {hc.get('min')!r})")
+        kp = str(hc.get("kind_pass", "")).strip()
+        if not kp:
+            errs.append(f"[{ck}] harness_coverage.kind_pass が空 (kind 別パスを明記)")
+        elif not kind_pass_ok(kp, ck, skill_kind):
+            tokens = sorted(expected_kind_pass_tokens(ck, skill_kind))
+            errs.append(f"[{ck}] harness_coverage.kind_pass='{kp}' が kind と無関係 (期待語のいずれかを含むこと: {tokens})")
+    return errs
+
+
+def validate_inventory_component(comp: dict) -> list[str]:
+    """component-inventory.json の 1 component エントリを検証する (旧 C*.md 検証を component 単位へ集約)。
+
+    per-phase 転換で C*.md frontmatter は inventory の components[] エントリへ載せ替わったため、旧
+    check-spec-frontmatter.py + check-spec-gates.py の per-spec 検査ロジックをここへ移送する:
+      - component_kind ∈ 5 種 enum
+      - build_target 非空 / builder・build_kind が §6 マッピングと整合
+      - component_kind 別の構造的必須キー (STRUCTURAL_REQUIRED・presence-only 込み)
+      - skill: skill_kind enum + 条件付き必須 (skill_conditional_required) + loop(run/wrap/delegate) は
+        feedback_contract.criteria を validate_criteria + criteria_purpose_traceability_errors で検査
+        (ref/assign は skip_reason か criteria)。非 skill は criteria をスキップ
+      - quality_gates / harness_coverage の値域 (skill-creator 規律の出力強制)
+      - script は tests_min>=80
+    """
+    if not isinstance(comp, dict):
+        return ["component が object でない"]
+    cid = str(comp.get("id", "")).strip() or "?"
+    prefix = f"[{cid}]"
+
+    ck = str(comp.get("component_kind", "")).strip()
+    if ck not in COMPONENT_KINDS:
+        return [f"{prefix} component_kind={ck!r} が enum 外 {list(COMPONENT_KINDS)}"]
+
+    errs: list[str] = []
+
+    # 1. build_target 非空 (L3→L4 追跡)
+    if not str(comp.get("build_target", "")).strip():
+        errs.append(f"{prefix} build_target が空")
+
+    # 2. builder / build_kind が §6 マッピングと整合
+    exp_builder, exp_build_kind = BUILDER_BY_KIND[ck], BUILD_KIND_BY_KIND[ck]
+    builder = str(comp.get("builder", "")).strip()
+    if not builder:
+        errs.append(f"{prefix} builder が空 (期待 {exp_builder!r})")
+    elif builder != exp_builder:
+        errs.append(f"{prefix} builder={builder!r} が component_kind={ck} と不整合 (期待 {exp_builder!r})")
+    build_kind = str(comp.get("build_kind", "")).strip()
+    if not build_kind:
+        errs.append(f"{prefix} build_kind が空 (期待 {exp_build_kind!r})")
+    elif build_kind != exp_build_kind:
+        errs.append(f"{prefix} build_kind={build_kind!r} が component_kind={ck} と不整合 (期待 {exp_build_kind!r})")
+
+    # 3. component_kind 別の構造的必須キー (skill_kind alias / presence-only 込み)
+    for field in STRUCTURAL_REQUIRED[ck]:
+        if not _component_field_present(comp, field, ck):
+            label = "skill_kind" if (ck == "skill" and field == "kind") else field
+            errs.append(f"{prefix} [{ck}] 構造的必須フィールド欠落: {label}")
+
+    # 4. skill: skill_kind enum + 条件付き必須 + feedback_contract.criteria
+    if ck == "skill":
+        skill_kind = _skill_kind_of(comp)
+        if skill_kind and skill_kind not in SKILL_KINDS:
+            errs.append(f"{prefix} [skill] skill_kind={skill_kind!r} が enum 外 {list(SKILL_KINDS)}")
+        for field in skill_conditional_required(skill_kind):
+            if field not in comp or comp[field] in (None, "", []):
+                errs.append(f"{prefix} [skill] skill_kind={skill_kind} の条件付き必須フィールド欠落: {field}")
+        fc = comp.get("feedback_contract")
+        if skill_kind in FEEDBACK_LOOP_SKILL_KINDS:
+            if not isinstance(fc, dict):
+                errs.append(f"{prefix} [skill] loop kind は feedback_contract.criteria 必須")
+            else:
+                errs.extend(f"{prefix} {e}" for e in validate_criteria(fc.get("criteria")))
+                errs.extend(f"{prefix} {e}" for e in criteria_purpose_traceability_errors(
+                    fc.get("criteria"), goal=comp.get("goal"), checklist=comp.get("checklist")))
+        else:
+            if isinstance(fc, dict) and not fc.get("skip_reason") and not fc.get("criteria"):
+                errs.append(f"{prefix} [skill] ref/assign は feedback_contract.skip_reason か criteria のいずれかが必要")
+
+    # 5. quality_gates / harness_coverage の値域
+    errs.extend(f"{prefix} {e}" for e in validate_component_quality_gates(comp))
+    errs.extend(f"{prefix} {e}" for e in validate_component_harness_coverage(comp))
+
+    # 6. script は tests_min>=80 (存在だけでは不可)
+    if ck == "script":
+        tm = as_int(comp.get("tests_min"))
+        if tm is None or tm < HARNESS_MIN_REQUIRED:
+            errs.append(f"{prefix} [script] tests_min は >={HARNESS_MIN_REQUIRED} (現値 {comp.get('tests_min')!r})")
+    return errs
+
+
 def validate_surface_inventory(data: dict) -> list[str]:
     """component-inventory.json の surface 採否契約を検査する。
 
@@ -451,20 +702,9 @@ def validate_surface_inventory(data: dict) -> list[str]:
             if not isinstance(comp, dict):
                 errs.append(f"components[{idx}] が object でない")
                 continue
-            ck = comp.get("component_kind")
-            if ck not in COMPONENT_KINDS:
-                errs.append(f"components[{idx}].component_kind={ck!r} が enum 外 {list(COMPONENT_KINDS)}")
-            if not str(comp.get("build_target", "")).strip():
-                errs.append(f"components[{idx}].build_target が空")
-    force_13 = data.get("force_13")
-    if not isinstance(force_13, bool):
-        errs.append("force_13 が bool でない/欠落")
-    derived_count = as_int(data.get("derived_count"))
-    if force_13 is True:
-        if derived_count != 13:
-            errs.append(f"force_13=true では derived_count=13 が必要 (現値 {derived_count})")
-        if isinstance(components, list) and len(components) != 13:
-            errs.append(f"force_13=true では components 件数 13 が必要 (現値 {len(components)})")
+            # per-phase 転換: 旧 C*.md frontmatter を載せ替えた component エントリを丸ごと検証する
+            # (component_kind / build_target / builder / 構造契約 / quality_gates / harness / criteria)。
+            errs.extend(validate_inventory_component(comp))
 
     surfaces = data.get("plugin_level_surfaces")
     if not isinstance(surfaces, dict) or not surfaces:
@@ -650,15 +890,55 @@ def yaml_lines(data: dict, indent: int = 0) -> list[str]:
 
 
 def render_minimal_spec(component_kind: str, *, spec_id: str = "C01", skill_kind: str = "run") -> str:
-    """frontmatter 契約 + 本文の床を満たす最小 Markdown skeleton を返す。"""
-    fm = minimal_frontmatter(component_kind, spec_id=spec_id, skill_kind=skill_kind)
+    """component-inventory.json の components[] に入れる最小 JSON object skeleton を返す。"""
+    import json
+
+    return json.dumps(minimal_frontmatter(component_kind, spec_id=spec_id, skill_kind=skill_kind), ensure_ascii=False, indent=2)
+
+
+# ─────────────────────────── phase ファイル skeleton (床付きひな形) ───────────────────────────
+def phase_id(n: int) -> str:
+    """phase_number (1-13) を大文字ゼロ埋め 2 桁 id (P01..P13) へ変換する。"""
+    if not (1 <= n <= 13):
+        raise ValueError(f"phase_number は 1..13 の範囲 (現値 {n!r})")
+    return f"P{n:02d}"
+
+
+def minimal_phase_frontmatter(phase_number: int) -> dict:
+    """床を通す最小 phase frontmatter skeleton (PHASE_REQUIRED 全キー) を返す。
+
+    id/phase_name/category/gate_type は phase_number から §1 表 (PHASE_* dict) を引いて決定論導出する。
+    prev_phase は P01 で 0、next_phase は P13 で 14。applicability は既定 applicable:true。
+    """
+    if not (1 <= phase_number <= 13):
+        raise ValueError(f"phase_number は 1..13 の範囲 (現値 {phase_number!r})")
+    name = PHASE_NAMES[phase_number - 1]
+    return {
+        "id": phase_id(phase_number),
+        "phase_number": phase_number,
+        "phase_name": name,
+        "category": PHASE_CATEGORY[name],
+        "prev_phase": phase_number - 1,
+        "next_phase": phase_number + 1,
+        "status": "未実施",
+        "gate_type": PHASE_GATE_TYPE[name],
+        "entities_covered": [],
+        "applicability": {"applicable": True, "reason": ""},
+    }
+
+
+def render_minimal_phase(phase_number: int) -> str:
+    """§5 本文 section 床 (目的/実行タスク/成果物/完了条件) を満たす phase Markdown skeleton を返す。"""
+    fm = minimal_phase_frontmatter(phase_number)
     body = (
-        "\n# component spec skeleton\n\n"
+        f"\n# {fm['id']} — {fm['phase_name']} ({fm['category']})\n\n"
         "## 目的\n"
-        "このコンポーネントが担当する単一責務と到達状態を具体化する。\n\n"
+        "このフェーズが達成する到達状態を目的ドリブンに具体化する。\n\n"
+        "## 実行タスク\n"
+        "上から順に実行できるタスクを列挙する (該当する entities_covered があれば component id を併記)。\n\n"
         "## 成果物\n"
-        "後段 build が生成する実体パス、入力、検証ログを列挙する。\n\n"
+        "このフェーズで確定/生成する成果物を列挙する (build 実体は component-inventory.json が SSOT)。\n\n"
         "## 完了条件\n"
-        "frontmatter の quality_gates / harness_coverage と本文の受け入れ条件が満たされている。\n"
+        "観測可能な二値の完了条件を列挙する (gate フェーズは gate_type の合否)。\n"
     )
     return "---\n" + "\n".join(yaml_lines(fm)) + "\n---" + body

@@ -4,10 +4,9 @@
   "goal": "notion-task-sync の N 本の component spec と index/handoff/inventory が決定論ゲートで検証可能な状態になっている",
   "artifact_class": "plugin-plan",
   "target_plugin_slug": "notion-task-sync",
-  "plan_dir": "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
+  "plan_dir": "plugin-plans/notion-task-sync",
   "out_dir": null,
   "requested_count": null,
-  "force_13": false,
   "checklist": [
     {
       "id": "C1",

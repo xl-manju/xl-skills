@@ -264,7 +264,7 @@ def _conditions(gate_results: list[dict], findings: list[dict]) -> dict:
         evidence = [f"{g['name']} exit={g['exit_code']}" for g in related_gates]
         evidence += [f["observation"] for f in related_findings]
         if status == "PASS":
-            summary = f"{CONDITION_LABELS[cid]}: deterministic gates and semantic checks passed"
+            summary = f"{CONDITION_LABELS[cid]}: deterministic gates passed"
         else:
             summary = f"{CONDITION_LABELS[cid]}: failures detected"
         out[cid] = {

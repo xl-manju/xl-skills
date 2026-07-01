@@ -9,13 +9,13 @@ source-tier: internal
 
 # skill-creator 仕様 反映トレーサビリティ・マトリクス (§14 / 完全性の証明)
 
-> 下記インベントリの**全 43 行**を 1 対 1 で収録 (漏れ 0)。`焼き先` = 生成タスク仕様書のどのフェーズ/要件に焼くか。パスは xl-skills repo root 相対 (= 絶対)。位置/閾値を確認できない箇所は `未確認` を明示 (省略しない)。フェーズ P1-P8 は phase-lifecycle.md §8 を参照。
+> 下記インベントリの**全 43 行**を 1 対 1 で収録 (漏れ 0)。`焼き先` = どのフェーズ / **inventory component エントリ** (旧 component frontmatter) / **index plugin_meta** (plugin 階層) に焼くか。パスは xl-skills repo root 相対 (= 絶対)。位置/閾値を確認できない箇所は `未確認` を明示 (省略しない)。焼き先の P4/P6/P8 等は開発ライフサイクルの粗い段階名で、phase-lifecycle.md §8 の 13 フェーズ (P01-P13) へ写像される。
 
 ## カテゴリ1: 評価基準
 
 | ID | skill-creator 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| A1 | 4 条件正本 | `plugins/skill-creator/skills/run-elegant-review/references/4-conditions.json` | C1 矛盾(contradiction_edges==0,critical) C2 漏れ(missing==0,high) C3 整合(diff==0,critical) C4 依存(cycles==0 AND dangling_refs==0,high)・ALL PASS・loop_limit=3・未達 escalate | P8 完了条件 + 各仕様書 frontmatter |
+| A1 | 4 条件正本 | `plugins/skill-creator/skills/run-elegant-review/references/4-conditions.json` | C1 矛盾(contradiction_edges==0,critical) C2 漏れ(missing==0,high) C3 整合(diff==0,critical) C4 依存(cycles==0 AND dangling_refs==0,high)・ALL PASS・loop_limit=3・未達 escalate | P8 完了条件 + inventory component エントリ |
 | A2 | run-elegant-review(elegance) | `plugins/skill-creator/skills/run-elegant-review/SKILL.md` | 30 思考法 全使用 or skip_reason・Phase1 リセット→Phase2 並列 3→Phase3 改善(write 此処のみ max_iter=3)・fail_counts 全 0 で PASS・proposer≠approver・force_pass 禁止 | P8 |
 | A3 | verdict.schema | `plugins/skill-creator/skills/run-elegant-review/schemas/verdict.schema.json` | verdict{4 条件 PASS\|FAIL}+fail_counts+thought_method_coverage(total=30)+iteration_count(0-3)+status 必須 | P8 出力形式 |
 | A4 | convergence-policy | `plugins/skill-creator/skills/run-elegant-review/references/convergence-policy.json` | all_conditions_score_min=0.85・delta_max_ratio=0.20・Δ<0.10・max_iterations=3・rubric_min_score=4・admission_control(sha 一致 skip)・loop_bounds(5/3/3) | P8 + §13-4 |
@@ -31,7 +31,7 @@ source-tier: internal
 
 | ID | 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| B1 | feedback_contract_ssot.py(+vendoring) | `plugins/skill-creator/scripts/feedback_contract_ssot.py` | CRITERIA_ID_RE=`^(IN\|OUT\|C)[0-9]+$`・verify_by∈{lint,test,script,evaluator,elegant-review,human}・loop_scope∈{inner,outer}各≥1・必須キー(id,loop_scope,text,verify_by)・FEEDBACK_LOOP_KINDS={run,wrap,delegate}・3 者ミラー解消 | P6 + 各仕様書 frontmatter |
+| B1 | feedback_contract_ssot.py(+vendoring) | `plugins/skill-creator/scripts/feedback_contract_ssot.py` | CRITERIA_ID_RE=`^(IN\|OUT\|C)[0-9]+$`・verify_by∈{lint,test,script,evaluator,elegant-review,human}・loop_scope∈{inner,outer}各≥1・必須キー(id,loop_scope,text,verify_by)・FEEDBACK_LOOP_KINDS={run,wrap,delegate}・3 者ミラー解消 | P6 + inventory component エントリ |
 | B2 | lint-feedback-contract.py | `scripts/lint-feedback-contract.py` | kind∈{run,wrap,delegate} の frontmatter に criteria 必須・SSOT 制約満たす・CI/pre-push fail-closed・skip_reason で N/A・フォールバック既定残存 WARN | P6 完了条件(verify) |
 | B3 | run-build-skill Step1/3.5 | `plugins/skill-creator/skills/run-build-skill/` (+`templates/combinators/with-feedback-contract.patch`) | loop 系は Step1 で brief.goal/checklist から criteria を test-first 導出 → Step3.5 で SKILL.md frontmatter と build-trace 両方に固定・patch 注入 | P4/P6 |
 
@@ -50,7 +50,7 @@ source-tier: internal
 |---|---|---|---|---|
 | D1 | goal-seek-paradigm | `plugins/skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md` | loop 系は固定手順禁止・「## ゴールシーク実行」4 ブロック(ゴール 1 文+目的背景+二値チェックリスト+ループ)・AI 最尤ゴール推定・6 ステップ既定 5 周・SubAgent fork | P1 + 横断 |
 | D2 | 中間成果物アンカー schema | `plugins/skill-creator/skills/run-build-skill/schemas/goal-seek-loop.schema.json` | 各周回末に `eval-log/<skill>-intermediate.jsonl` へ 5 要素(original_goal 不変 SHA256/current_goal_snapshot/delta/merged_directive/drift_signal 6 値)・次周回 Step2 必須入力・改竄検知停止 | 横断(§13-3) |
-| D3 | run-goal-elicit(goal-spec) | `plugins/skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json` | 曖昧要求→purpose/background/goal/checklist を `<PLAN_DIR>/goal-spec.json` (既定 `eval-log/plugin-dev-planner/<plugin-slug>/goal-spec.json`)・checklist 各{id:`^C[0-9]+$`,criterion,done,verify_by∈{reasoning,script,lint,test,human}}・target_plugin_slug/plan_dir 固定・max_loops=5・追加質問禁止・仮定明示 | P1(§13-1) |
+| D3 | run-goal-elicit(goal-spec) | `plugins/skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json` | 曖昧要求→purpose/background/goal/checklist を `<PLAN_DIR>/goal-spec.json` (既定 `plugin-plans/<plugin-slug>/goal-spec.json`)・checklist 各{id:`^C[0-9]+$`,criterion,done,verify_by∈{reasoning,script,lint,test,human}}・target_plugin_slug/plan_dir 固定・max_loops=5・追加質問禁止・仮定明示 | P1(§13-1) |
 | D4 | run-goal-seek | `plugins/skill-creator/skills/run-goal-seek/` | goal-spec 達成まで手順都度生成反復・決定論検査優先・max_loops5 超過で open_issues 停止・fork・handoff-goal-seek.json のみ親へ | 横断 |
 | D5 | with-goal-seek + lint-goal-seek.py | `plugins/skill-creator/skills/run-build-skill/templates/combinators/with-goal-seek.patch` / `plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py` | loop 系 default-ON(--no-goal-seek opt-out)・frontmatter goal_seek(engine=inline/fork)+配線節注入・lint は二値チェックリスト存在/曖昧語不在/配線節を violation・CI --self-test | P4/P5 |
 | D6 | feedback-loop-deployment | `plugins/skill-creator/skills/run-build-skill/references/feedback-loop-deployment.md` | Stop hook decision:block で評価差し戻し・proposer≠approver・量産先に run-skill-feedback 実体配備(symlink 禁止)・lint-feedback-protocol.py --strict R1-R7・skill-creator 除外 | P8(§13-5) |
@@ -59,7 +59,7 @@ source-tier: internal
 
 | ID | 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| E1 | skill-brief.schema | `plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json` | 必須 14 フィールド・skill_name pattern `^(ref\|run\|wrap\|assign\|delegate)-…$` max60・trigger 2-3 各≤80・boundary≤200・allOf(wrap→base_skill / delegate→delegate_agent / L2→rubric_refs≥1 / run・wrap・assign・delegate→goal+purpose_background+checklist / run・assign→responsibilities≥1 かつ prompt_required:true) | P4 仕様書 frontmatter (§3 は planner 内に節を持たない外部=`source` 設計書 `doc/ClaudeCodeスキルの設計書/` の章番号) |
+| E1 | skill-brief.schema | `plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json` | 必須 14 フィールド・skill_name pattern `^(ref\|run\|wrap\|assign\|delegate)-…$` max60・trigger 2-3 各≤80・boundary≤200・allOf(wrap→base_skill / delegate→delegate_agent / L2→rubric_refs≥1 / run・wrap・assign・delegate→goal+purpose_background+checklist / run・assign→responsibilities≥1 かつ prompt_required:true) | P4 inventory component エントリ (§3 は planner 内に節を持たない外部=`source` 設計書 `doc/ClaudeCodeスキルの設計書/` の章番号) |
 | E2 | SKILL.md 構造仕様 | `plugins/skill-creator/skills/run-build-skill/SKILL.md`(+ governance-lint) | 本文≤300 行(P0-2)目安 170・description 発動条件のみ trigger2-3・dir 名==frontmatter.name・commonCore(name/description/kind/version/owner)・Python 標準ライブラリ正本(.sh/.js 新規禁止)・update 差分のみ・具体値直書き禁止({{PROJECT_ROOT}})・配置非依存($CLAUDE_PLUGIN_ROOT) | P4/P5 |
 | E3 | run-build-skill Step0-12 カタログ | `plugins/skill-creator/skills/run-build-skill/SKILL.md` | kind 分岐→ヒアリング(criteria test-first)→テンプレ→references→trace+feedback_contract 固定→命名/構造 lint→fork 評価→ゲート(score≥80,high0,3 周)→subagent→prompt-creator→evaluator ペア→hook→knowledge loop→Notion→feedback 配備→content-review・ゴール駆動 | P4 |
 | E4 | run-skill-create 7Step+4Gate | `plugins/skill-creator/skills/run-skill-create/SKILL.md` | Step1 elicit→Gate1→build→manifest/Gate2.5/bundle→P0lint(fail→build3 周)/Gate2→pkg-check→design-evaluate fork→elegant-review/Gate3→governance/Gate4→report・ゲート前必ず停止/承認・evaluator/governance は fork・P0 自動修正禁止・--fast 条件(1 ファイル≤30 行 kind∈{ref,wrap}) | P4/P8(投入先ゲート) |

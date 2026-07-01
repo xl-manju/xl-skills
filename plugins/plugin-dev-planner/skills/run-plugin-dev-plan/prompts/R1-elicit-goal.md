@@ -32,13 +32,13 @@
 
 ### 2.1 責務 (Single Responsibility)
 - 担当: プラグイン構想から `purpose`/`background`/`goal`/`checklist` を `goal-spec.json` に確定する (目的ドリブン要件定義)
-- 非担当: 5 構成要素分解 (R2)、仕様書生成 (R3)、検証 (R4)
+- 非担当: コンポーネント分解 + inventory (R2)、13 phase ファイル + index 生成 (R3)、検証 (R4)
 
 ### 2.2 ドメインルール
 - 単語置換でなく目的駆動。UBM 機能開発固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し、skill-creator ネイティブ規律 (TDD/評価/goal-seek/feedback-contract) は伝播対象として goal-spec に保持する
 - 入口で成果物種別を分類する。`skill` 単体で足りる要求、既存 plugin の小更新で足りる要求、plugin packaging / marketplace / manifest 境界を持つ要求を混同しない
 - plugin と判定した場合は `.claude-plugin/plugin.json`、marketplace、update cachebuster、`validate-plugin-completeness.py` の物理契約を後続 R3 の `plugin_meta` へ渡す意図を goal-spec に残す
-- 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `eval-log/plugin-dev-planner/<target_plugin_slug>/` (または `--out-dir`) に固定する。全成果物は plugin 別 `PLAN_DIR` 配下に置き、global `eval-log/` 直下へ散らさない
+- 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `plugin-plans/<target_plugin_slug>/` (または `--out-dir`) に固定する。全成果物は plugin 別 `PLAN_DIR` 配下に置き、`plugin-plans/` 直下へ散らさない
 - checklist 各項目は `{id:^C[0-9]+$, criterion, done, verify_by ∈ {reasoning,script,lint,test,human}}`。手順を checklist にしない
 - 推定根拠が弱い項目は `constraints`、未確定だが停止不要な事項は `open_questions` に明示する
 
@@ -51,8 +51,8 @@
 
 ### 2.4 出力契約
 - schema: `schemas/plugin-goal-spec.schema.json` 準拠。`run-goal-elicit/schemas/goal-spec.schema.json` は purpose/background/goal/checklist 抽出にだけ使い、plugin 固有アンカーは専用 schema で検証する
-- 必須フィールド: purpose / background / goal / checklist(≥1)
-- 出力先: `<PLAN_DIR>/goal-spec.json` (既定 `<PLAN_DIR>` = `eval-log/plugin-dev-planner/<plugin-slug>/`)
+- 必須フィールド: purpose / background / goal / checklist(≥1) / target_plugin_slug / plan_dir
+- 出力先: `<PLAN_DIR>/goal-spec.json` (既定 `<PLAN_DIR>` = `plugin-plans/<plugin-slug>/`)
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -87,14 +87,14 @@
 ### 5.2 ゴール定義
 - **目的**: 曖昧なプラグイン構想を、後段が消費できる goal-spec に固める
 - **背景**: 固定手順や単語置換では構想固有の目的がドリフトするため、到達点を先に言語化する
-- **達成ゴール**: `<PLAN_DIR>/goal-spec.json` が `check-plugin-goal-spec.py` を通過し、目的駆動の goal と二値 checklist と出力先アンカー (`target_plugin_slug` / `plan_dir` / `requested_count` / `force_13`) が揃った状態
+- **達成ゴール**: `<PLAN_DIR>/goal-spec.json` が `check-plugin-goal-spec.py` を通過し、目的駆動の goal と二値 checklist と出力先アンカー (`target_plugin_slug` / `plan_dir`。ユーザー本数要求があれば `requested_count` を任意記録) が揃った状態
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] purpose / background を 1〜3 文で抽出した
 - [ ] goal を観測可能な完了形 1 文で確定した (判定不能語を含まない)
 - [ ] checklist を二値判定可能な項目 (各 verify_by 付き) で 1 件以上作った
-- [ ] 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` のいずれかに分類し、13固定展開の要否を constraints に記録した
-- [ ] `target_plugin_slug` と `plan_dir` を固定し、既定時は `eval-log/plugin-dev-planner/<plugin-slug>/` になることを明示した
+- [ ] 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` のいずれかに分類した (ユーザーが具体的本数を求めた場合は `requested_count` に任意記録・gate 強制しない)
+- [ ] `target_plugin_slug` と `plan_dir` を固定し、既定時は `plugin-plans/<plugin-slug>/` になることを明示した
 - [ ] plugin-plan の場合、manifest / marketplace / cachebuster / validate_plugin の契約を後続へ渡す意図を残した
 - [ ] UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し skill-creator ネイティブ規律の伝播意図を残した
 - [ ] `<PLAN_DIR>/goal-spec.json` が `check-plugin-goal-spec.py` で schema 検証を通過した
@@ -131,7 +131,7 @@ Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件
 動的に手順を生成・実行・自己評価する。入力 `{{plugin_concept}}` (と任意 `{{mode}}`) を
 Read し、目的ドリブンで `goal-spec.json` を生成する。出力は次の 2 つのみとする:
 
-1. `<PLAN_DIR>/goal-spec.json` (plugin-goal-spec 準拠 / purpose・background・goal・checklist・target_plugin_slug・plan_dir・requested_count・force_13)
+1. `<PLAN_DIR>/goal-spec.json` (plugin-goal-spec 準拠 / purpose・background・goal・checklist・target_plugin_slug・plan_dir。ユーザー本数要求があれば requested_count を任意記録)
 2. 意図サマリ (Markdown 数行 / 採用ゴールの根拠と残仮定)
 
 余計な前置き・後書き・思考過程出力は禁止。

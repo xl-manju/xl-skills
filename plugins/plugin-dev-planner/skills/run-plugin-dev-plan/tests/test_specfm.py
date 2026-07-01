@@ -230,7 +230,7 @@ def test_plan_slug_deterministic(specfm_mod):
 
 def test_plan_output_dir(specfm_mod):
     """plan_output_dir が既定/上書きを決定論的に解決する。"""
-    assert specfm_mod.plan_output_dir("Notion Task Sync") == "eval-log/plugin-dev-planner/notion-task-sync"
+    assert specfm_mod.plan_output_dir("Notion Task Sync") == "plugin-plans/notion-task-sync"
     # --out-dir 明示は優先 (末尾スラッシュ除去)
     assert specfm_mod.plan_output_dir("x", out_dir="plans/custom/") == "plans/custom"
     # slug 化不能 (全て非英数) は ValueError
@@ -254,18 +254,152 @@ def test_kind_pass_ok(specfm_mod):
     assert not specfm_mod.kind_pass_ok("", "skill", "run")
 
 
-def test_minimal_frontmatter_each_kind_passes_contract(specfm_mod, specfm, gates):
-    """specfm 生成 skeleton が静的ひな形なしで既存ゲートを通る。"""
+def _as_inventory_component(specfm_mod, comp: dict) -> dict:
+    """component skeleton (frontmatter dict) に build routing フィールドを足して inventory 化する。"""
+    ck = str(comp.get("component_kind", "")).strip()
+    comp = dict(comp)
+    comp["build_target"] = "plugins/sample/skills/run-sample/"
+    comp["builder"] = specfm_mod.BUILDER_BY_KIND[ck]
+    comp["build_kind"] = specfm_mod.BUILD_KIND_BY_KIND[ck]
+    return comp
+
+
+def test_minimal_frontmatter_each_kind_passes_contract(specfm_mod):
+    """specfm 生成 skeleton (+ build routing) が validate_inventory_component を通る。"""
     for ck in specfm_mod.COMPONENT_KINDS:
-        text = specfm_mod.render_minimal_spec(ck, spec_id="C01", skill_kind="run")
-        assert specfm.check_spec(text) == [], ck
-        assert gates.check_gates(text) == [], ck
+        comp = _as_inventory_component(specfm_mod, specfm_mod.minimal_frontmatter(ck, spec_id="C01", skill_kind="run"))
+        assert specfm_mod.validate_inventory_component(comp) == [], ck
 
 
-def test_render_spec_skeleton_cli(skeleton, specfm, gates, capsys):
+def test_render_spec_skeleton_kind_cli(skeleton, specfm_mod, capsys):
     assert skeleton.main(["--kind", "hook", "--id", "C04"]) == 0
     out = capsys.readouterr().out
-    assert "component_kind: hook" in out
-    assert "## 目的" in out
-    assert specfm.check_spec(out) == []
-    assert gates.check_gates(out) == []
+    assert '"component_kind": "hook"' in out
+    assert '"id": "C04"' in out
+    import json
+    comp = _as_inventory_component(specfm_mod, json.loads(out))
+    assert specfm_mod.validate_inventory_component(comp) == []
+
+
+def test_render_spec_skeleton_phase_cli(skeleton, specfm, capsys):
+    assert skeleton.main(["--phase", "3"]) == 0
+    out = capsys.readouterr().out
+    assert "id: P03" in out
+    assert "## 実行タスク" in out
+    assert specfm.check_phase(out) == []
+
+
+# ─────────────────── 13 フェーズ定義 (per-phase 転換の ADD) ───────────────────
+def test_phase_constants(specfm_mod):
+    assert len(specfm_mod.PHASE_NAMES) == 13
+    assert specfm_mod.PHASE_NAMES[0] == "requirements" and specfm_mod.PHASE_NAMES[-1] == "release"
+    assert specfm_mod.PHASE_REQUIRED == (
+        "id", "phase_number", "phase_name", "category", "prev_phase",
+        "next_phase", "status", "gate_type", "entities_covered", "applicability",
+    )
+    assert specfm_mod.PHASE_STATUS == {"未実施", "進行中", "完了"}
+    assert specfm_mod.GATE_TYPES == {
+        "none", "design-gate", "final-gate", "tdd-red", "tdd-green", "tdd-refactor", "qa", "evidence",
+    }
+    # 各 phase_name が category / gate_type dict に登録されている
+    for name in specfm_mod.PHASE_NAMES:
+        assert name in specfm_mod.PHASE_CATEGORY
+        assert specfm_mod.PHASE_GATE_TYPE[name] in specfm_mod.GATE_TYPES
+
+
+def test_phase_id(specfm_mod):
+    assert specfm_mod.phase_id(1) == "P01"
+    assert specfm_mod.phase_id(13) == "P13"
+    for n in (0, 14):
+        try:
+            specfm_mod.phase_id(n)
+            assert False, f"phase_id({n}) が例外を出さない"
+        except ValueError:
+            pass
+    for n in range(1, 14):
+        assert specfm_mod.PHASE_ID_RE.match(specfm_mod.phase_id(n))
+
+
+def test_minimal_phase_frontmatter(specfm_mod):
+    for n in range(1, 14):
+        fm = specfm_mod.minimal_phase_frontmatter(n)
+        assert set(fm) == set(specfm_mod.PHASE_REQUIRED)
+        assert fm["id"] == specfm_mod.phase_id(n)
+        assert fm["phase_number"] == n
+        assert fm["phase_name"] == specfm_mod.PHASE_NAMES[n - 1]
+        assert fm["category"] == specfm_mod.PHASE_CATEGORY[fm["phase_name"]]
+        assert fm["gate_type"] == specfm_mod.PHASE_GATE_TYPE[fm["phase_name"]]
+        assert fm["prev_phase"] == n - 1
+        assert fm["next_phase"] == n + 1
+        assert fm["status"] in specfm_mod.PHASE_STATUS
+        assert fm["entities_covered"] == []
+        assert fm["applicability"] == {"applicable": True, "reason": ""}
+    # P01 は prev 0、P13 は next 14
+    assert specfm_mod.minimal_phase_frontmatter(1)["prev_phase"] == 0
+    assert specfm_mod.minimal_phase_frontmatter(13)["next_phase"] == 14
+
+
+def test_render_minimal_phase(specfm_mod):
+    text = specfm_mod.render_minimal_phase(5)
+    assert "id: P05" in text
+    for sec in ("## 目的", "## 実行タスク", "## 成果物", "## 完了条件"):
+        assert sec in text
+    # frontmatter が再パースできて PHASE_REQUIRED を満たす
+    fm = specfm_mod.parse_frontmatter(text)
+    assert all(k in fm for k in specfm_mod.PHASE_REQUIRED)
+
+
+# ─────────────────── validate_inventory_component (ADD) ───────────────────
+def _skill_component(specfm_mod, **over) -> dict:
+    comp = {
+        "id": "C01", "component_kind": "skill", "skill_kind": "run", "kind": "run",
+        "skill_name": "run-x", "prefix": "run", "hierarchy_level": "L1",
+        "trigger_conditions": ["a"], "output_contract": "o", "boundary": "b",
+        "placement_candidates": ["Skill"], "cli_tools": [], "deterministic_checks": [],
+        "external_systems": [], "mcp_tools": [], "needs_independent_context": False,
+        "needs_lifecycle_enforcement": False, "goal": "台帳を同期し差分0", "purpose_background": "bg",
+        "checklist": ["同期"], "responsibilities": ["R1"], "prompt_layer": "7layer",
+        "combinators": ["with-goal-seek"], "goal_seek": {"engine": "inline"},
+        "feedback_contract": {"criteria": [
+            {"id": "IN1", "loop_scope": "inner", "text": "同期の必須キーを検証", "verify_by": "script"},
+            {"id": "OUT1", "loop_scope": "outer", "text": "二回同期で差分0を検証", "verify_by": "test"},
+        ]},
+        "depends_on": [], "build_target": "plugins/x/skills/run-x/",
+        "builder": "run-skill-create", "build_kind": "skill",
+        "quality_gates": {
+            "p0_lint": list(specfm_mod.P0_LINT_BY_KIND["skill"]),
+            "build_trace": "required",
+            "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": True},
+            "content_review": {"verdict": "PASS", "sha_match": True},
+            "evaluator": {"threshold": 80, "high_max": 0},
+        },
+        "harness_coverage": {"min": 80, "kind_pass": "loop=criteria-test+content-review-verdict"},
+    }
+    comp.update(over)
+    return comp
+
+
+def test_validate_inventory_component_clean_skill(specfm_mod):
+    assert specfm_mod.validate_inventory_component(_skill_component(specfm_mod)) == []
+
+
+def test_validate_inventory_component_bad_kind(specfm_mod):
+    errs = specfm_mod.validate_inventory_component({"id": "C01", "component_kind": "widget"})
+    assert any("enum 外" in e for e in errs)
+
+
+def test_validate_inventory_component_missing_build_target(specfm_mod):
+    comp = _skill_component(specfm_mod)
+    del comp["build_target"]
+    assert any("build_target が空" in e for e in specfm_mod.validate_inventory_component(comp))
+
+
+def test_validate_inventory_component_builder_mismatch(specfm_mod):
+    comp = _skill_component(specfm_mod, builder="run-build-skill")
+    assert any("builder" in e and "不整合" in e for e in specfm_mod.validate_inventory_component(comp))
+
+
+def test_validate_inventory_component_loop_needs_criteria(specfm_mod):
+    comp = _skill_component(specfm_mod)
+    del comp["feedback_contract"]
+    assert any("criteria 必須" in e for e in specfm_mod.validate_inventory_component(comp))

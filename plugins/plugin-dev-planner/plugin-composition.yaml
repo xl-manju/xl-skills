@@ -3,11 +3,11 @@ version: 0.1.0
 distributable: false
 purpose: >
   プラグイン構想を、skill/sub-agent/slash-command/hook/script/harness/manifest を含む
-  タスク仕様書 plan へ分解する前段 planning plugin。
+  index + 13 フェーズファイル + component-inventory.json の plan へ分解する前段 planning plugin。
 capabilities:
   - kind: skill
     path: skills/run-plugin-dev-plan/SKILL.md
-    responsibility: goal-seek で R1→R2/R3→R4 を fork オーケストレーションし N 本の component spec と index を生成する
+    responsibility: goal-seek で R1→R2/R3→R4 を fork オーケストレーションし 13 phase ファイル + index + component-inventory.json を生成する
   - kind: skill
     path: skills/assign-plugin-plan-evaluator/SKILL.md
     responsibility: R4 を独立 skill へ昇格。生成 plan を4条件+決定論ゲートで context:fork 独立評価し plan-findings を返す (proposer≠approver)
@@ -17,7 +17,7 @@ capabilities:
     responsibility: R1 目的ドリブン goal-spec 確定 (isolation:inherit / 会話履歴を保持)
   - kind: agent
     path: agents/plugin-dev-plan-architect.md
-    responsibility: R2/R3 surface 分解 + per-component 仕様書生成 (isolation:fork)
+    responsibility: R2/R3 component 分解 + envelope 設計 + 13 phase ファイル + inventory 生成 (isolation:fork)
   - kind: agent
     path: agents/plugin-dev-plan-evaluator.md
     responsibility: R4 4条件と決定論ゲートの独立評価 (isolation:fork / read-only)
@@ -37,13 +37,13 @@ dependencies:
   - { from: skills/run-plugin-dev-plan, to: skills/assign-plugin-plan-evaluator, type: evaluates, note: "R4 独立評価を assign skill へ委譲 (proposer≠approver)" }
   - { from: skills/assign-plugin-plan-evaluator, to: agents/plugin-dev-plan-evaluator, type: calls, note: "R1(evaluate) を fork 実行" }
   - { from: agents/plugin-dev-plan-elicitor,  to: agents/plugin-dev-plan-architect,  type: handoff, note: "goal-spec.json" }
-  - { from: agents/plugin-dev-plan-architect, to: agents/plugin-dev-plan-evaluator, type: handoff, note: "plan ディレクトリ (inventory + N specs + index)" }
+  - { from: agents/plugin-dev-plan-architect, to: agents/plugin-dev-plan-evaluator, type: handoff, note: "plan ディレクトリ (13 phase files + inventory + index)" }
   # 外部 (cross-plugin, skill-creator への一方向のみ — 実 build は委譲)
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-skill-create,   type: calls, note: "各 skill-kind 仕様書を L4 実 build へ委譲" }
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-build-skill,    type: calls, note: "非 skill capability の kind dispatch" }
+  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-skill-create,   type: routes_to, note: "skill component の L4 実 build route を handoff に記録 (本 plugin は投入しない)" }
+  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-build-skill,    type: routes_to, note: "非 skill capability の kind dispatch route を handoff に記録 (本 plugin は投入しない)" }
   - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-elegant-review, type: calls, note: "昇格前 C1-C4 検証" }
   - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-goal-elicit,    type: calls, note: "R1 が goal-spec 生成本体を委譲" }
 quality_gates:
   - python3 scripts/validate-plugin-completeness.py
   - python3 -m pytest plugins/plugin-dev-planner/skills/run-plugin-dev-plan/tests -q
-
+  - python3 -m pytest plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/tests -q

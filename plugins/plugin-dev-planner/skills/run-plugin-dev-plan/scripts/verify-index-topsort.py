@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # /// script
 # name: verify-index-topsort
-# purpose: 生成 plan の index(main) が依存 top-sort 順で全タスク仕様書を漏れなく列挙しているかを検証する決定論ゲート。
+# purpose: 生成 plan の index(main) が 13 フェーズ(P01..P13)を phase_number 昇順で全列挙し、かつ component-inventory.json の component 依存 DAG が非循環(top-sort 可能)であることを検証する二層決定論ゲート。
 # inputs:
-#   - argv: <plan-dir> [--index NAME] [--specs-dir DIR]
+#   - argv: <plan-dir> [--index NAME] [--inventory PATH]
 # outputs:
 #   - stdout: OK サマリ
-#   - stderr: top-sort / 列挙漏れ / 循環 violation
+#   - stderr: phase 列挙漏れ / 昇順違反 / 重複 / DAG 循環 violation
 #   - exit: 0=OK / 1=violation / 2=usage error
 # contexts: [C, E]
 # network: false
@@ -14,64 +14,35 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""index.md(main) が依存 top-sort 順で全タスク仕様書を列挙しているかを機械検証する。
+"""index.md(main) の phase 完全性と component 依存 DAG の非循環を二層で機械検証する。
 
-判定 (run-plugin-dev-plan の C1 / §8 index 契約):
-  - 各タスク仕様書 frontmatter の `id` 集合 == index が参照する id 集合 (列挙漏れ 0)
-  - 仕様書 `depends_on` の各辺 dep->node について index 上で dep が node より前に出現
-  - 依存グラフに循環が無い
-  - index 内 id 重複が無い
+per-phase 転換 (凍結契約 §3/§4/§8/§13-C4) の C4 依存整合:
+  - 層1 (phase 完全性): index の `## フェーズ一覧` が P01..P13 を **phase_number 昇順** で
+    全 13 列挙する (漏れ 0 / 重複 0 / 昇順)。id 体系は specfm.PHASE_ID_RE。
+  - 層2 (component DAG): component-inventory.json の components[] の `depends_on` 有向グラフが
+    非循環 (top-sort 可能) で、各 depends_on が実在 component を指す。
 
-yaml は import しない (scripts 規約)。frontmatter は最小パーサで読む。
+旧 per-component (C*.md) の spec-id top-sort 突合は廃止 (phase 軸へ全面転換)。
+yaml は import しない (scripts 規約)。inventory は JSON。
 """
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 
-# 仕様書 id トークン (例: C01 / P1 / R12)。行内の最初の 1 個を採る。
-ID_RE = re.compile(r"\b([A-Z]{1,5}\d{1,3})\b")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import specfm  # noqa: E402
 
-
-def parse_frontmatter(text: str) -> dict:
-    """SKILL/spec の YAML frontmatter を最小パースする (scalar + inline/block list)。"""
-    fm: dict = {}
-    if not text.startswith("---"):
-        return fm
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return fm
-    current_list_key: str | None = None
-    for line in parts[1].splitlines():
-        m_item = re.match(r"^\s+-\s+(.+?)\s*$", line)
-        if m_item and current_list_key is not None:
-            fm.setdefault(current_list_key, [])
-            if isinstance(fm[current_list_key], list):
-                fm[current_list_key].append(m_item.group(1).strip().strip('"').strip("'"))
-            continue
-        m = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", line)
-        if not m:
-            if not line.strip():
-                current_list_key = None
-            continue
-        key, val = m.group(1), m.group(2).split("#", 1)[0].strip()
-        if val == "":
-            fm[key] = []
-            current_list_key = key
-        elif val.startswith("[") and val.endswith("]"):
-            inner = val[1:-1].strip()
-            fm[key] = [x.strip().strip('"').strip("'") for x in inner.split(",") if x.strip()]
-            current_list_key = None
-        else:
-            fm[key] = val.strip().strip('"').strip("'")
-            current_list_key = None
-    return fm
+# 行内から phase id (P01..P13) を拾う探索用パターン (specfm.PHASE_ID_RE は full-match ゆえ別途定義)。
+PHASE_TOKEN_RE = re.compile(r"\bP(?:0[1-9]|1[0-3])\b")
+_PHASE_LIST_HEADING = "フェーズ一覧"
 
 
 def body_after_frontmatter(text: str) -> str:
-    """先頭 --- frontmatter を除いた本文を返す (frontmatter 内の id/plugin_meta を拾わない)。"""
+    """先頭 --- frontmatter を除いた本文を返す (frontmatter 内 id を拾わない)。"""
     if text.startswith("---"):
         parts = text.split("---", 2)
         if len(parts) >= 3:
@@ -79,24 +50,70 @@ def body_after_frontmatter(text: str) -> str:
     return text
 
 
-def extract_ordered_ids(index_text: str) -> list[str]:
-    """index 本文を行走査し、各行の最初の id トークンを出現順に集める (重複も保持)。
+def expected_phase_ids() -> list[str]:
+    """canonical な P01..P13 (phase_number 昇順) を返す。"""
+    return [specfm.phase_id(n) for n in range(1, 14)]
 
-    frontmatter (plugin_meta 等) は走査対象外。呼び出し側で body_after_frontmatter 済みを渡す。
+
+def extract_phase_list_ids(index_body: str) -> tuple[list[str], bool]:
+    """index 本文の `## フェーズ一覧` section 内から phase id を出現順に集める。
+
+    section 見出しから次の `## ` 見出し(または EOF)までの各行の最初の phase-id を拾う。
+    prose の他 section が phase id を言及しても拾わないよう section を限定する。
+    戻り値 = (出現順 id 列, section が見つかったか)。
     """
     ids: list[str] = []
-    for line in index_text.splitlines():
-        m = ID_RE.search(line)
-        if m:
-            ids.append(m.group(1))
-    return ids
+    in_section = False
+    found = False
+    for line in index_body.splitlines():
+        if line.startswith("## "):
+            in_section = _PHASE_LIST_HEADING in line
+            found = found or in_section
+            continue
+        if in_section:
+            m = PHASE_TOKEN_RE.search(line)
+            if m:
+                ids.append(m.group(0))
+    return ids, found
 
 
-def _depends_on(meta: dict) -> list[str]:
-    raw = meta.get("depends_on", [])
-    if isinstance(raw, str):
-        raw = [x.strip() for x in raw.strip("[]").split(",") if x.strip()]
-    return [str(x).strip() for x in raw if str(x).strip()]
+def verify_phase_enumeration(ordered: list[str], has_section: bool) -> list[str]:
+    """index の phase 列挙が P01..P13 を昇順で全列挙するか検査する。"""
+    errors: list[str] = []
+    if not has_section:
+        errors.append(f"index に `## {_PHASE_LIST_HEADING}` section が無い (P01..P13 を昇順列挙すること)")
+        return errors
+    seen: set[str] = set()
+    for pid in ordered:
+        if pid in seen:
+            errors.append(f"index フェーズ一覧に id 重複: {pid}")
+        seen.add(pid)
+    expected = expected_phase_ids()
+    missing = [p for p in expected if p not in seen]
+    if missing:
+        errors.append(f"index フェーズ一覧に未列挙の phase: {missing} (13 フェーズ P01..P13 を全列挙すること)")
+    extra = [p for p in ordered if p not in expected]
+    if extra:
+        errors.append(f"index フェーズ一覧に想定外の phase id: {sorted(set(extra))} (P01..P13 のみ許容)")
+    # 昇順: 重複/余分を除いた出現順が expected と一致するか。
+    dedup_ordered = list(dict.fromkeys(ordered))
+    canonical_seq = [p for p in dedup_ordered if p in expected]
+    if canonical_seq != expected and not missing and not extra:
+        errors.append(
+            f"index フェーズ一覧が phase_number 昇順でない: 出現順={canonical_seq} 期待={expected}"
+        )
+    return errors
+
+
+def load_components(inventory_path: Path) -> tuple[list[dict], str | None]:
+    """component-inventory.json の components[] を返す (エラー時 (_, message))。"""
+    try:
+        data = json.loads(inventory_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [], f"component-inventory JSON parse error: {exc}"
+    if not isinstance(data, dict) or not isinstance(data.get("components"), list):
+        return [], "component-inventory.json に components[] list が無い"
+    return [c for c in data["components"] if isinstance(c, dict)], None
 
 
 def detect_cycle(nodes: set[str], edges: list[tuple[str, str]]) -> list[str] | None:
@@ -131,82 +148,68 @@ def detect_cycle(nodes: set[str], edges: list[tuple[str, str]]) -> list[str] | N
     return None
 
 
-def verify(ordered_ids: list[str], specs: dict[str, dict]) -> list[str]:
-    """ordered_ids(index 順) と specs(id->frontmatter) を突合して errors を返す。"""
+def verify_component_dag(components: list[dict]) -> list[str]:
+    """components[] の depends_on 有向グラフが非循環で、各依存が実在 component を指すか検査する。"""
     errors: list[str] = []
-    spec_ids = set(specs)
-    seen: set[str] = set()
-    pos: dict[str, int] = {}
-    for idx, sid in enumerate(ordered_ids):
-        if sid in seen:
-            errors.append(f"index に id 重複: {sid}")
-        else:
-            seen.add(sid)
-            pos[sid] = idx
-    for sid in sorted(spec_ids - seen):
-        errors.append(f"index に未列挙の仕様書: {sid} (全タスク仕様書を index に列挙すること)")
-    for iid in sorted(seen - spec_ids):
-        errors.append(f"index が参照する仕様書が存在しない: {iid}")
-
+    ids = {str(c.get("id", "")).strip() for c in components if str(c.get("id", "")).strip()}
     edges: list[tuple[str, str]] = []
-    for node, meta in specs.items():
-        for dep in _depends_on(meta):
-            edges.append((dep, node))
-            if dep not in spec_ids:
-                errors.append(f"{node} の依存 {dep} に対応する仕様書が無い")
+    for c in components:
+        node = str(c.get("id", "")).strip()
+        if not node:
+            continue
+        raw = c.get("depends_on", [])
+        deps = raw if isinstance(raw, list) else []
+        for dep in deps:
+            dep = str(dep).strip()
+            if not dep:
                 continue
-            if dep in pos and node in pos and pos[dep] > pos[node]:
-                errors.append(
-                    f"top-sort 違反: {dep} は依存先 {node} より前に列挙される必要がある"
-                )
-    cyc = detect_cycle(spec_ids, [(d, n) for d, n in edges if d in spec_ids])
+            if dep not in ids:
+                errors.append(f"component {node} の depends_on={dep!r} に対応する component が無い")
+                continue
+            edges.append((dep, node))
+    cyc = detect_cycle(ids, [(d, n) for d, n in edges if d in ids])
     if cyc:
-        errors.append(f"依存グラフに循環: {' -> '.join(cyc)}")
+        errors.append(f"component 依存グラフに循環 (top-sort 不能): {' -> '.join(cyc)}")
     return errors
 
 
-def collect_specs(specs_dir: Path, index_path: Path) -> dict[str, dict]:
-    """specs_dir 配下 *.md (index を除く) を id->frontmatter で収集する。"""
-    specs: dict[str, dict] = {}
-    for md in sorted(specs_dir.glob("*.md")):
-        if md.resolve() == index_path.resolve():
-            continue
-        fm = parse_frontmatter(md.read_text(encoding="utf-8"))
-        sid = str(fm.get("id", "")).strip()
-        if sid:
-            specs[sid] = fm
-    return specs
-
-
-def run(plan_dir: Path, index_name: str, specs_dir: Path | None) -> tuple[int, list[str]]:
+def run(plan_dir: Path, index_name: str, inventory_path: Path | None) -> tuple[int, list[str]]:
     index_path = plan_dir / index_name
     if not index_path.is_file():
         return 2, [f"index が見つからない: {index_path}"]
-    if specs_dir is None:
-        sub = plan_dir / "specs"
-        specs_dir = sub if sub.is_dir() else plan_dir
-    specs = collect_specs(specs_dir, index_path)
-    if not specs:
-        return 2, [f"タスク仕様書が見つからない: {specs_dir}"]
-    ordered = extract_ordered_ids(body_after_frontmatter(index_path.read_text(encoding="utf-8")))
-    return (1 if (errs := verify(ordered, specs)) else 0), errs
+    if inventory_path is None:
+        inventory_path = plan_dir / "component-inventory.json"
+    if not inventory_path.is_file():
+        return 2, [f"component-inventory.json が見つからない: {inventory_path}"]
+
+    errors: list[str] = []
+    ordered, has_section = extract_phase_list_ids(
+        body_after_frontmatter(index_path.read_text(encoding="utf-8"))
+    )
+    errors.extend(verify_phase_enumeration(ordered, has_section))
+
+    components, msg = load_components(inventory_path)
+    if msg:
+        return 2, [msg]
+    errors.extend(verify_component_dag(components))
+    return (1 if errors else 0), errors
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="index(main) の依存 top-sort 全列挙を検証する")
+    ap = argparse.ArgumentParser(description="index の phase 完全性 + component DAG 非循環を二層検証する")
     ap.add_argument("plan_dir", help="plan ディレクトリ")
     ap.add_argument("--index", default="index.md", help="index ファイル名 (既定 index.md)")
-    ap.add_argument("--specs-dir", default=None, help="タスク仕様書ディレクトリ (既定 plan_dir[/specs])")
+    ap.add_argument("--inventory", default=None, help="component-inventory.json (既定 <plan_dir>/component-inventory.json)")
     args = ap.parse_args(argv)
 
     plan_dir = Path(args.plan_dir)
     if not plan_dir.is_dir():
         sys.stderr.write(f"not a directory: {plan_dir}\n")
         return 2
-    specs_dir = Path(args.specs_dir) if args.specs_dir else None
-    code, msgs = run(plan_dir, args.index, specs_dir)
+    inventory_path = Path(args.inventory) if args.inventory else None
+    code, msgs = run(plan_dir, args.index, inventory_path)
     if code == 0:
-        sys.stdout.write("OK: index は依存 top-sort 順で全タスク仕様書を列挙している\n")
+        sys.stdout.write("OK: index が P01..P13 を昇順全列挙し component 依存 DAG が非循環\n")
         return 0
     for m in msgs:
         sys.stderr.write(m + "\n")

@@ -68,7 +68,7 @@ role_suffix: evaluator
 
 ## Purpose & Output Contract
 
-**入力**: plan_dir (評価対象 plan ディレクトリ = `component-inventory.json` + N specs + `index.md`) / output (省略時 `<PLAN_DIR>/plan-findings.json`)
+**入力**: plan_dir (評価対象 plan ディレクトリ = `index.md` + 13 phase files (`phase-01-*.md` … `phase-13-*.md`) + `component-inventory.json` 機械SSOT + `handoff-run-plugin-dev-plan.json`) / output (省略時 `<PLAN_DIR>/plan-findings.json`)
 **出力**: `<PLAN_DIR>/plan-findings.json` (`schemas/plan-findings.schema.json` 準拠)
 **完了条件**: 4条件 verdict 全付与 + findings[] に severity 配列 + core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の gate_results。
 
@@ -77,9 +77,9 @@ role_suffix: evaluator
 | Gate | 観点 | 一次根拠 (決定論ゲート) |
 |---|---|---|
 | **C1 矛盾なし** | component_kind / handoff / manifest / harness の契約が衝突しない | 意味判定 (script では捕捉不能、契約間突合) |
-| **C2 漏れなし** | 5 構成要素 + plugin-level surface を必要性ベースで全確認・単一 skill 退化なし | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` exit0 |
+| **C2 漏れなし** | 5 種 component_kind × N 実体 + plugin-level surface を必要性ベースで全確認 (同一 kind 複数実体可・各 component が ≥1 phase の entities_covered に出現)・単一 skill 退化なし | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` exit0 |
 | **C3 整合性あり** | 用語 / frontmatter / plugin_meta / quality_gates が同一語彙・43 行被覆 | `check-spec-matrix-coverage --self-test` / PLAN exit0 |
-| **C4 依存関係整合** | index が top-sort 順・循環なし・unassigned 0 | `verify-index-topsort` / `detect-unassigned` exit0 |
+| **C4 依存関係整合** | index が P01..P13 を phase_number 昇順で全列挙・inventory component DAG 非循環・orphan 0 | `verify-index-topsort` / `detect-unassigned` exit0 |
 
 > **C1-C4 ラベルの二層性 (語彙 disambiguate)**: 本 skill の C1-C4 は **inner の機械ゲート** (決定論 core 5 scripts + surface inventory gate + build handoff gate による plan の構造検証)。`run-plugin-dev-plan` が昇格前に通す `run-elegant-review` の C1-C4 は **outer の設計レビュー** (30 思考法による elegance lint)。両者は同じ 4 概念 (矛盾なし/漏れなし/整合性あり/依存関係整合) を**別 loop-scope・別手法で二段検証する意図的な階層**であり、冗長ではない。同一ラベルが指すゲートは文脈で異なる (本 skill=inner / elegant-review=outer)。
 
@@ -88,7 +88,7 @@ role_suffix: evaluator
 1. **context:fork 必須**: 親 (architect/orchestrator) から plan の解釈バイアスを引き継がない。
 2. **決定論ゲート優先**: スクリプト検証可能な項目は必ず exit code で判定し、LLM は契約間の意味判定のみ。
 3. **findings 必出**: severity ∈ {high, medium, low, info}、bucket は C1-C4 か rubric id (PLAN-001 等)。
-4. **単一 skill 退化の検出**: agent/command/hook/harness を「不要」とした場合、`plugin_level_surfaces.<surface>.omitted_reason` (正本キー一本) に根拠が無ければ C2 を high で FAIL。
+4. **単一 skill 退化の検出**: sub-agent / slash-command / hook / script component を不要とした根拠が goal-spec constraints または index の受入確認に無ければ C2 を high で FAIL。plugin-level surface の不要理由は `plugin_level_surfaces.<surface>.omitted_reason` (正本キー一本) で見る。
 5. **suggested_fix 明示**: high/medium には差し戻し方針を 1-2 文で明記し architect (R3) へ返す。
 6. **空 findings 禁止**: PASS でも info severity で「確認した観点」を 1 件以上残す。
 7. **plan を書き換えない**: read-only 評価 (Edit を持たない)。Bash は検証スクリプト実行のみ。
@@ -116,7 +116,7 @@ python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 `references/plan-rubric.json` を Read し、各 exit code を C1-C4 へ写像する。
 
 ### Step 3: 意味判定 (LLM、契約間突合のみ)
-C1 (契約衝突) と C2-004 (単一 skill 退化 = `plugin_level_surfaces.<surface>.omitted_reason` 根拠の有無) を意味判定する。
+`scripts/evaluate-plan.py` は決定論ゲートと plugin-level surface 明示性だけを機械判定する。C1 の契約衝突や単一 skill 退化の意味判定は、本 assign skill の LLM 評価レイヤーで `plan-rubric.json` の `semantic_checks` を読んで追加 finding として扱う。
 
 ### Step 4: findings 出力
 `schemas/plan-findings.schema.json` 準拠で `<PLAN_DIR>/plan-findings.json` を Write。verdict に 4 条件 PASS/FAIL、gate_results に core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code。
@@ -124,7 +124,7 @@ C1 (契約衝突) と C2-004 (単一 skill 退化 = `plugin_level_surfaces.<surf
 ## Gotchas
 
 1. C2 と C4 を混同しない (漏れ = surface 網羅性 vs 依存 = top-sort 健全性)。両者とも detect-unassigned が関与するが観点が違う。
-2. 決定論ゲートが exit0 でも、単一 skill 退化 (`plugin_level_surfaces.<surface>.omitted_reason` 根拠欠落) は意味判定で C2 FAIL にしうる。
+2. 決定論ゲートが exit0 でも、単一 skill 退化の根拠欠落は LLM 意味判定で C2 FAIL にしうる。
 3. high severity が 1 件でもあれば全体 FAIL。
 4. Bash 背景権限で停止する場合は caller (run-plugin-dev-plan の親セッション) が exit code を渡す。
 5. 本 skill は kind=assign のため feedback_contract.criteria は N/A (評価器自身は評価基準を携帯しない)。
