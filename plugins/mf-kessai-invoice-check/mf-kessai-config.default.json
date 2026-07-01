@@ -9,9 +9,9 @@
     "database_id": "38407a0c-d18c-80ec-a872-ce1a9654619f",
     "keychain_service": "notion-api-key.xl-skills",
     "keychain_account": "xl-skills",
-    "_comment_reconcile": "月次照合 orchestrator (scripts/reconcile_invoices.py) が読む 3 DB id。請求確認シート (sheet_db_id)・契約マスタ DB1 (reconcile_db1_id)・月次チェック DB2 (reconcile_db2_id)。空欄のままだと orchestrator は fail-closed で停止する。実 DB id は同階層の .mf-kessai-config.json (gitignore) に記入するか、環境変数 MFK_SHEET_DB_ID / MFK_RECONCILE_DB1_ID / MFK_RECONCILE_DB2_ID、または --sheet-db/--db1/--db2 で指定する。",
-    "sheet_db_id": "",
-    "reconcile_db1_id": "",
-    "reconcile_db2_id": ""
+    "_comment_reconcile": "月次照合 orchestrator (scripts/reconcile_invoices.py) が読む 3 DB id。請求確認シート (sheet_db_id)・契約マスタ DB1 (reconcile_db1_id)・月次チェック DB2 (reconcile_db2_id)。database_id と同じく XLOCAL 共有の本番 DB を指す値を配布既定に焼き込み済みで、導入者は設定不要でそのまま動く (これらは共有固定 DB を指す。id は資格情報ではなく、アクセスには Keychain の Notion トークン + 各 DB への integration 接続が必要で、トークン欠落時は fail-closed で停止する)。別ワークスペース/別 DB を指したい場合のみ、同階層の .mf-kessai-config.json (gitignore) に上書きを書くか、環境変数 MFK_SHEET_DB_ID / MFK_RECONCILE_DB1_ID / MFK_RECONCILE_DB2_ID、または --sheet-db/--db1/--db2 で指定する (解決順=引数 > 環境変数 > config、空文字は既定を温存)。",
+    "sheet_db_id": "38a07a0c-d18c-806f-bb0d-e2a77150dbae",
+    "reconcile_db1_id": "38c07a0c-d18c-81bc-afcb-f3741172b136",
+    "reconcile_db2_id": "38c07a0c-d18c-811e-acb3-cf439d8c9229"
   }
 }

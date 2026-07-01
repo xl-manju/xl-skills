@@ -1,0 +1,20 @@
+{
+  "_comment": "焼き込みconfig (*.default.json / *.fixed.json) の内容 sha256 と plugin version を 対応づける lockfile。内容を変更したら version を bump し `make config-version-lock` で 再生成すること。lint-config-version-sync.py が working tree との完全一致を CI で強制する (version bump 漏れによる配布キャッシュ未更新=毎回 fail-closed を封じるため)。",
+  "configs": {
+    "plugins/company-master/notion-config.fixed.json": {
+      "plugin": "company-master",
+      "version": "0.1.0",
+      "sha256": "cdef30473604005f50b4f62e6a7de7e542a5c93ebfeacaed12822c0e12468400"
+    },
+    "plugins/mf-kessai-invoice-check/mf-kessai-config.default.json": {
+      "plugin": "mf-kessai-invoice-check",
+      "version": "0.1.1",
+      "sha256": "9c8d3c79bda7c0b10dac2227d956e12564681517ee278faa17b48a125cbb411f"
+    },
+    "plugins/skill-intake/notion-config.fixed.json": {
+      "plugin": "skill-intake",
+      "version": "0.1.1",
+      "sha256": "d72a92492cd48d0f624c6d343de0f2287416381d48d9f8e2030a3f213d144992"
+    }
+  }
+}
