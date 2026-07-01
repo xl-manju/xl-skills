@@ -6,7 +6,8 @@
 #          notion_reconcile_sink / mfk_api / notion_transport) を配線するだけの薄い指揮層。
 # inputs:
 #   - argv: --target YYMM [--apply] [--steps ...] [--sheet-db/--db1/--db2] [--config]
-#   - config: .mf-kessai-config.json (notion.sheet_db_id / reconcile_db1_id / reconcile_db2_id)
+#   - config: mf-kessai-config.default.json (配布既定・3 DB id 焼き込み済) をベースに
+#             .mf-kessai-config.json (ローカル上書き) を _deep_merge (notion.sheet_db_id / reconcile_db1_id / reconcile_db2_id)
 # outputs:
 #   - stdout: 各 step の件数・判定内訳サマリ
 #   - exit: 0=OK / 2=fail-closed (target/DB id 欠落・依存違反)
@@ -585,11 +586,18 @@ def main(argv=None):
     missing = sorted(k for k in required_db_ids(steps, a.apply) if not available[k])
     if missing:
         sys.stderr.write(
-            f"[reconcile] DB id が解決できません: {missing}。"
-            ".mf-kessai-config.json の notion.{sheet_db_id,reconcile_db1_id,reconcile_db2_id} "
-            "を設定するか --sheet-db/--db1/--db2 で指定してください。"
-            " (これは正規フローの fail-closed です。別スクリプトを自作せず、id を設定して "
-            "/run-mf-invoice-reconcile --target YYMM を再実行してください。"
+            f"[reconcile] DB id が解決できません: {missing}。\n"
+            "配布既定 (mf-kessai-config.default.json) には XLOCAL 共有 DB の id が焼き込み済みで、"
+            "XLOCAL 運用者は本来ゼロ設定で動きます。この表示が出る場合、最も可能性が高いのは"
+            "インストール済みプラグインのキャッシュが古い (id 焼き込み前のスナップショット) ことです。\n"
+            "  1) まず試す: `/plugin update mf-kessai-invoice-check@xl-skills` でキャッシュを最新化し、"
+            "再度 /run-mf-invoice-reconcile --target YYMM を実行してください。\n"
+            "  2) 別ワークスペース/別 DB を指す場合のみ: 環境変数 "
+            "MFK_SHEET_DB_ID / MFK_RECONCILE_DB1_ID / MFK_RECONCILE_DB2_ID か "
+            "--sheet-db/--db1/--db2 で指定してください。\n"
+            "  ※ ローカル .mf-kessai-config.json への手書きは、以後の配布更新 (焼き込み既定) が "
+            "上書きで届かなくなるため最終手段です。\n"
+            " (これは正規フローの fail-closed です。別スクリプトを自作しないでください。"
             "DB1/DB2 未作成なら scripts/build_reconcile_dbs.py で先に用意します。)\n")
         return 2
 
