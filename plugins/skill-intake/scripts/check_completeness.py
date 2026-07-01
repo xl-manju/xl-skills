@@ -334,7 +334,7 @@ def check_intent_contract(intake, probe_table_path=DEFAULT_PROBE_TABLE):
             if pid:
                 pending.append(pid)
 
-    # pending を probe_order の決定論順に整列 (normalize-to-intent.py と同一規約)。
+    # pending を probe_order の決定論順に整列 (build-intent.py と同一規約)。
     order_index = {pid: i for i, pid in enumerate(probe_order)}
     pending.sort(key=lambda pid: order_index.get(pid, len(order_index)))
 

@@ -6,7 +6,7 @@ doc/impl drift (C3) と再現性欠如を防ぐため、以下 2 ゲートを検
 
 | ゲート | 内容 | 合格条件 |
 |---|---|---|
-| G1 冪等性 | `fixtures/sample-answers.json` を `normalize-to-intent.py` に 3 回通す | `intent_contract` 部の sha256 が 3 回とも一致 |
+| G1 冪等性 | `fixtures/sample-answers.json` を `build-intent.py` に 3 回通す | `intent_contract` 部の sha256 が 3 回とも一致 |
 | G2 完全性 | `fixtures/sample-intake.json` を `check_completeness.py --mode all` に通す | section required_fields + §6 intent_contract 全充足で exit 0 |
 
 ## 実行

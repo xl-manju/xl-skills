@@ -13,11 +13,11 @@ read_when:
   - file: ../../references/probe-pattern-table.json
     when: ユーザーが言語化できず intent slot が未充足のときに聞く固定 probe を確認するとき
 run_scripts:
-  - file: ../../scripts/normalize-to-intent.py
+  - file: ../../scripts/build-intent.py
     when: qa_log から intent_contract と pending_probes を決定論的に生成するとき
-  - file: scripts/select-questions.py
+  - file: scripts/build-questions.py
     when: 出す質問列を Q-ID で決定論的に確定するとき (質問の都度立案の代替)
-  - file: scripts/check-answer-abstraction.py
+  - file: scripts/validate-answer-abstraction.py
     when: 回答の抽象度を機械判定し needs_excavation を決定論化するとき
   - file: scripts/build-sheet-json.py
     when: sheet.md から intake-final-schema 互換の sheet.json/five_axes を生成するとき

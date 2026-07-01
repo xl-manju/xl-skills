@@ -2,7 +2,7 @@
 """skill-intake 決定論ゴールデンテスト。
 
 目的: 同一入力 -> 同一出力 (誰が実行しても同じヒアリングシート) を CI で保証する。
-  G1. sample-answers.json を normalize-to-intent.py に 3 回通し、intent_contract 部の
+  G1. sample-answers.json を build-intent.py に 3 回通し、intent_contract 部の
       sha256 が 3 回とも一致すること (冪等性)。
   G2. sample-intake.json に対し check_completeness.py --mode all が exit 0 (完全性) であること。
 
@@ -21,7 +21,7 @@ SCRIPTS = PLUGIN / 'scripts'
 REFS = PLUGIN / 'references'
 FIXTURES = HERE / 'fixtures'
 
-NORMALIZE = SCRIPTS / 'normalize-to-intent.py'
+NORMALIZE = SCRIPTS / 'build-intent.py'
 CHECK = SCRIPTS / 'check_completeness.py'
 PROBE_TABLE = REFS / 'probe-pattern-table.json'
 CANONICAL_MAP = REFS / 'section_canonical_map.json'
@@ -39,7 +39,7 @@ def _run(cmd):
 
 
 def gate_idempotent_normalize():
-    """G1: normalize-to-intent を 3 回実行し intent_contract の sha256 一致を確認。"""
+    """G1: build-intent を 3 回実行し intent_contract の sha256 一致を確認。"""
     digests = []
     for _ in range(REPEAT):
         proc = _run([NORMALIZE, SAMPLE_ANSWERS, '--table', PROBE_TABLE])

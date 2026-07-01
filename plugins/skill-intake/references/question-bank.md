@@ -58,7 +58,7 @@ type: reference
 
 ## 深度別ガイド
 
-> **選択の正本は `skills/run-intake-interview/references/question-plan.json`** (depth×軸→Q-ID) であり、interview phase では `select-questions.py` がそこから決定論的に質問を選ぶ。以下の「例」は参考であり、実際の選択は question-plan.json が唯一の SSOT。齟齬があれば question-plan.json を正とする。
+> **選択の正本は `skills/run-intake-interview/references/question-plan.json`** (depth×軸→Q-ID) であり、interview phase では `build-questions.py` がそこから決定論的に質問を選ぶ。以下の「例」は参考であり、実際の選択は question-plan.json が唯一の SSOT。齟齬があれば question-plan.json を正とする。
 
 ### quick（30 秒〜1 分・5 問以内）
 
@@ -143,10 +143,10 @@ type: reference
 
 ## 使い方
 
-質問はランダム選択しない。`skills/run-intake-interview/references/question-plan.json` を唯一の SSOT とし、`skills/run-intake-interview/scripts/select-questions.py` の出力 `questions[]` をその順序のまま使う。
+質問はランダム選択しない。`skills/run-intake-interview/references/question-plan.json` を唯一の SSOT とし、`skills/run-intake-interview/scripts/build-questions.py` の出力 `questions[]` をその順序のまま使う。
 
 ```bash
-python3 plugins/skill-intake/skills/run-intake-interview/scripts/select-questions.py \
+python3 plugins/skill-intake/skills/run-intake-interview/scripts/build-questions.py \
   --plan plugins/skill-intake/skills/run-intake-interview/references/question-plan.json \
   --bank plugins/skill-intake/references/question-bank.md \
   --depth light \

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# name: normalize-to-intent
+# name: build-intent
 # purpose: interview 回答を probe-pattern-table と intent-contract.schema に基づき決定論的に
 #          intent_contract の各 slot へ機械マッピングする。LLM 非依存・冪等。
 # inputs:

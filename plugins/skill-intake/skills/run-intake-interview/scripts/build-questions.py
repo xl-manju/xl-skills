@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# name: select-questions
+# name: build-questions
 # purpose: depth と既記入軸から「出すべき質問列」を Q-ID で決定論的に確定する。LLM の都度立案を排除。
 # inputs:
 #   - --plan: references/question-plan.json (Q-ID 選択の正本)

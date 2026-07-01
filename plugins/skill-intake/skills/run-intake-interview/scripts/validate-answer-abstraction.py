@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# name: check-answer-abstraction
+# name: validate-answer-abstraction
 # purpose: 回答が抽象的か否かを abstract-answer-patterns.md の規則で機械判定し、needs_excavation を決定論化する。
 # inputs:
 #   - --patterns: references/abstract-answer-patterns.md (抽象語リストの正本)

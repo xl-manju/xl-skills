@@ -12,8 +12,8 @@ canonical_hierarchy:
     role: "入力→出力インテント (input_spec / output_spec / slot_status) の唯一正本。ヒアリングの本質軸。section_canonical_map §6 の output_to / input_from はここから派生する。全 slot が filled になるまで intake は完了しない。"
     derived:
       - references/probe-pattern-table.json
-      - scripts/normalize-to-intent.py
-    derived_role: "probe-pattern-table.json は intent slot 未充足時に発火する『引き出しの型』(決定論・文面 verbatim)。normalize-to-intent.py は回答→intent_contract の決定論マッピング (LLM 非依存)。"
+      - scripts/build-intent.py
+    derived_role: "probe-pattern-table.json は intent slot 未充足時に発火する『引き出しの型』(決定論・文面 verbatim)。build-intent.py は回答→intent_contract の決定論マッピング (LLM 非依存)。"
   section_contract:
     ssot: references/section_canonical_map.json
     role: "§0〜§11 の章順、必須項目、粒度、section_diagrams 枠の正本。ヒアリングシート構造で判断が割れたら最優先で参照する。§6 の intent_contract は intent-contract.schema.json を正本とする。"
@@ -142,12 +142,12 @@ references:
 
   intent-contract-schema:
     path: references/intent-contract.schema.json
-    read_when: "5軸/§6 の入力→出力インテントを確定するとき、scripts/normalize-to-intent.py 実行時、check_completeness.py --mode intent 実行時"
+    read_when: "5軸/§6 の入力→出力インテントを確定するとき、scripts/build-intent.py 実行時、check_completeness.py --mode intent 実行時"
     purpose: "入力→出力インテント (input_spec/output_spec/slot_status) の唯一正本 schema。再現性のアンカー。全 slot filled まで intake 未完了"
 
   probe-pattern-table:
     path: references/probe-pattern-table.json
-    read_when: "intent slot が未充足で追加ヒアリング (手を差し伸べる) が必要なとき、normalize-to-intent.py が pending_probes を返したとき"
+    read_when: "intent slot が未充足で追加ヒアリング (手を差し伸べる) が必要なとき、build-intent.py が pending_probes を返したとき"
     purpose: "intent slot 未充足時に発火する決定論的 follow-up probe の唯一正本。発火条件=slot 未充足、文面=verbatim 固定。誰が実行しても同じ probe 列で同じ intent へ収束させる"
 
   non-tech-vocabulary:

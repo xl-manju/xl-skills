@@ -19,7 +19,7 @@
   - 純関数を importlib で実ファイルからロードし、正常系・エッジ
     (見出し前テキスト無視 / front-matter 無 / クォート除去 / 複数 needle /
      日英見出し両対応 / integrations の空・カンマ分割 / name フォールバック /
-     pattern 既定 'other') を実入力で assert。
+     pattern 既定 'E') を実入力で assert。
   - main は (a) argv 経由 in-process で stdout / ファイル出力 / 異常系 exit code を、
     (b) CLI subprocess(sys.executable) で __main__ guard と exit code を実測。
 
@@ -53,7 +53,7 @@ def _run_cli(*args):
 
 SAMPLE_MD = """---
 skill_name_hint: 月次レポート生成
-pattern: report
+pattern: C
 integrations: notion, slack , drive
 extra: 'quoted value'
 ---
@@ -163,9 +163,9 @@ def test_extract_frontmatter_hyphen_underscore_keys():
 def test_convert_full_sample():
     out = MOD.convert(SAMPLE_MD)
     assert out["skill_name_hint"] == "月次レポート生成"
-    assert out["pattern"] == "report"
+    assert out["pattern"] == "C"
     assert out["user_profile"] == "経理担当のユーザー。"
-    assert out["5_axes"]["output_destination"] == "Notion の月次DB。"
+    assert out["5_axes"]["output_target"] == "Notion の月次DB。"
     assert out["5_axes"]["info_source"] == "freee の仕訳データ。"
     assert out["5_axes"]["share_target"] == "経営チーム。"
     assert out["5_axes"]["true_problem"] == "締め作業の属人化。"
@@ -183,16 +183,25 @@ def test_convert_skill_name_hint_falls_back_to_name():
     assert out["skill_name_hint"] == "fallback-name"
 
 
-def test_convert_skill_name_hint_empty_when_neither():
-    md = "---\npattern: p\n---\n# x\nb\n"
+def test_convert_skill_name_hint_derives_from_first_heading():
+    # meta に name/skill_name_hint が無い場合、先頭見出しから slug を導出
+    md = "---\npattern: A\n---\n# x\nb\n"
     out = MOD.convert(md)
-    assert out["skill_name_hint"] == ""
+    assert out["skill_name_hint"] == "x"
 
 
-def test_convert_pattern_defaults_to_other():
+def test_convert_skill_name_hint_defaults_when_no_heading():
+    # 見出しも meta name も無ければ既定 'intake-final'
+    md = "no heading at all\n"
+    out = MOD.convert(md)
+    assert out["skill_name_hint"] == "intake-final"
+
+
+def test_convert_pattern_defaults_to_E():
+    # pattern は A-E enum。指定無し・非コード値は既定 'E' へ正規化
     md = "# x\nbody\n"  # front-matter 無し
     out = MOD.convert(md)
-    assert out["pattern"] == "other"
+    assert out["pattern"] == "E"
 
 
 def test_convert_user_profile_japanese_heading():
@@ -229,7 +238,7 @@ def test_convert_integrations_trims_and_splits():
 def test_convert_missing_axes_are_empty_strings():
     md = "# 出力先\nだけ\n"
     out = MOD.convert(md)
-    assert out["5_axes"]["output_destination"] == "だけ"
+    assert out["5_axes"]["output_target"] == "だけ"
     assert out["5_axes"]["info_source"] == ""
     assert out["5_axes"]["true_problem"] == ""
 
@@ -237,7 +246,7 @@ def test_convert_missing_axes_are_empty_strings():
 def test_convert_all_five_axes_keys_present():
     out = MOD.convert("# nothing\n")
     assert set(out["5_axes"].keys()) == {
-        "output_destination",
+        "output_target",
         "info_source",
         "share_target",
         "true_problem",
@@ -278,7 +287,7 @@ def test_main_writes_outfile(tmp_path):
     text = dst.read_text(encoding="utf-8")
     assert text.endswith("\n")
     data = json.loads(text)
-    assert data["pattern"] == "report"
+    assert data["pattern"] == "C"
     assert data["5_axes"]["info_source"] == "freee の仕訳データ。"
 
 

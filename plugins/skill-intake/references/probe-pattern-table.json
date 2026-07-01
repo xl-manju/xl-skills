@@ -15,7 +15,7 @@
       "output_spec.audience",
       "output_spec.cadence"
     ],
-    "note": "fire_condition の判定と normalize_hint の enum 写像は scripts/normalize-to-intent.py が実装する。probe_type は医療問診票 OPQRST(Onset/Provocation/Quality/Region/Severity/Timing) と構造化インタビューの coding scheme を範とした分類軸である。"
+    "note": "fire_condition の判定と normalize_hint の enum 写像は scripts/build-intent.py が実装する。probe_type は医療問診票 OPQRST(Onset/Provocation/Quality/Region/Severity/Timing) と構造化インタビューの coding scheme を範とした分類軸である。"
   },
   "probe_type_enum": ["具体化", "形式", "頻度", "対象", "裏取り"],
   "source_enum_on_fill": "probe",
@@ -200,5 +200,5 @@
       "normalize_hint": "CADENCE_MAP(FREQUENCY_MAP と同一 enum: realtime/daily/weekly/monthly/event/ondemand)により日本語表現を写像し output_spec.cadence に格納する。写像不能なら filled=false。"
     }
   ],
-  "裏取り_note": "probe_type=裏取り は本表の individual entry としては未使用だが、正規化後に filled=true になった slot について source=inferred で埋めた場合の再確認 probe として normalize-to-intent.py が pending_probes に追加しうる予約分類である。誤推論の verbatim 再確認に用いる。"
+  "裏取り_note": "probe_type=裏取り は本表の individual entry としては未使用だが、正規化後に filled=true になった slot について source=inferred で埋めた場合の再確認 probe として build-intent.py が pending_probes に追加しうる予約分類である。誤推論の verbatim 再確認に用いる。"
 }

@@ -59,18 +59,18 @@
 | id | path | when_to_read |
 |---|---|---|
 | five-axes-priority | references/five-axes-priority.md | 質問順序確定時 |
-| question-plan | references/question-plan.json | 出す Q-ID の決定論的選択 (select-questions.py が使用) |
+| question-plan | references/question-plan.json | 出す Q-ID の決定論的選択 (build-questions.py が使用) |
 | question-bank | ../../references/question-bank.md | Q-ID→文面の正本 |
-| abstract-patterns | references/abstract-answer-patterns.md | 回答後の判定 (check-answer-abstraction.py が使用) |
-| intent-contract | ../../references/intent-contract.schema.json | normalize-to-intent.py の schema 検証 |
+| abstract-patterns | references/abstract-answer-patterns.md | 回答後の判定 (validate-answer-abstraction.py が使用) |
+| intent-contract | ../../references/intent-contract.schema.json | build-intent.py の schema 検証 |
 | probe-pattern-table | ../../references/probe-pattern-table.json | pending_probes の文面解決 |
 
 ### 3.2 外部ツール / API
 - AskUserQuestion
-- `scripts/select-questions.py` — depth/pattern/既記入軸から出す質問列を Q-ID で決定論的に確定 (都度立案の代替)
-- `scripts/check-answer-abstraction.py` — 回答の抽象度を機械判定し needs_excavation を決定論化
+- `scripts/build-questions.py` — depth/pattern/既記入軸から出す質問列を Q-ID で決定論的に確定 (都度立案の代替)
+- `scripts/validate-answer-abstraction.py` — 回答の抽象度を機械判定し needs_excavation を決定論化
 - `scripts/build-sheet-json.py`
-- `../../scripts/normalize-to-intent.py` — `qa_log` から `intent_contract` と `pending_probes` を決定論的に生成
+- `../../scripts/build-intent.py` — `qa_log` から `intent_contract` と `pending_probes` を決定論的に生成
 - `scripts/validate-interview-json.py`
 - `scripts/check-five-axes-coverage.py`
 
@@ -79,7 +79,7 @@
 ### 4.1 失敗時挙動
 - validate-interview-json.py FAIL → exit 2、スキーマ不整合項目を stderr に列挙。LLM 自動補完禁止。
 - check-five-axes-coverage.py FAIL → exit 1、不足軸を stderr に列挙し再起動を促す。
-- normalize-to-intent.py が pending_probes を返す → `probe-pattern-table.json` の文面を verbatim で 1 問ずつ聞く。推測補完で filled にしない。
+- build-intent.py が pending_probes を返す → `probe-pattern-table.json` の文面を verbatim で 1 問ずつ聞く。推測補完で filled にしない。
 
 ### 4.2 観測 / ロギング
 - 抽象的回答は `abstract_answers[]` (各要素 `{axis, answer, reason}`) に追記し `needs_excavation=true` を立てる。未解消空欄は `unresolved[]` に列挙する。
@@ -114,10 +114,10 @@
 - [ ] 個人情報を interview.json 本文に転記していない (変数化)
 
 ### 5.4 実行方式 (決定論)
-- **intent probe を先に解決する**: 既存 `qa_log[]` を `../../scripts/normalize-to-intent.py --table ../../references/probe-pattern-table.json --schema ../../references/intent-contract.schema.json` に通し、`pending_probes[]` があればその順に `probe-pattern-table.json` の `question_text` と `answer_options` を **verbatim (逐語)** で AskUserQuestion に出す。probe 回答は `qa_log[]` に `{probe_id,target_slot,question_text,selected_option,raw_answer,normalized_answer}` で残す。
-- **5 軸質問は立案しない。機械選択する**: `select-questions.py --depth <kickoff.depth> --pattern <kickoff.pattern> --sheet <sheet.md>` を実行し、出力された `questions[]` の Q-ID と `text` を **verbatim (逐語)** で AskUserQuestion に出す。質問の自由立案・並べ替え・追加・削除は禁止 (tier に応じた言い換えも question-bank の文面を優先し、`vocabulary-tiers.md` の固定対応表による語置換のみ許可)。これにより実行者が変わっても同じ (depth/pattern/既記入軸) なら同じ質問列になる。
-- **抽象判定は機械実行する**: 各回答取得後に `check-answer-abstraction.py --answer "<回答>" --axis <軸>` を実行し、exit 3 (abstract=true) のときのみ `abstract_answers[]` に `{axis, answer, reason}` を追記し `needs_excavation=true` を立てる。LLM の定性判断で needs_excavation を決めない。深掘り質問はしない (Phase 5 の責務)。
-- 流れ: normalize-to-intent.py で pending_probes 確定→probe を順に AskUserQuestion→intent_contract 全充足→select-questions.py で5軸質問列確定→順に AskUserQuestion→回答を sheet.md に Edit 反映 (出力先/情報源は intent_contract から派生)→check-answer-abstraction.py で印付け→check-five-axes-coverage.py で充足確認→checklist で自己評価 (上限: Layer 4 最大反復回数)。
+- **intent probe を先に解決する**: 既存 `qa_log[]` を `../../scripts/build-intent.py --table ../../references/probe-pattern-table.json --schema ../../references/intent-contract.schema.json` に通し、`pending_probes[]` があればその順に `probe-pattern-table.json` の `question_text` と `answer_options` を **verbatim (逐語)** で AskUserQuestion に出す。probe 回答は `qa_log[]` に `{probe_id,target_slot,question_text,selected_option,raw_answer,normalized_answer}` で残す。
+- **5 軸質問は立案しない。機械選択する**: `build-questions.py --depth <kickoff.depth> --pattern <kickoff.pattern> --sheet <sheet.md>` を実行し、出力された `questions[]` の Q-ID と `text` を **verbatim (逐語)** で AskUserQuestion に出す。質問の自由立案・並べ替え・追加・削除は禁止 (tier に応じた言い換えも question-bank の文面を優先し、`vocabulary-tiers.md` の固定対応表による語置換のみ許可)。これにより実行者が変わっても同じ (depth/pattern/既記入軸) なら同じ質問列になる。
+- **抽象判定は機械実行する**: 各回答取得後に `validate-answer-abstraction.py --answer "<回答>" --axis <軸>` を実行し、exit 3 (abstract=true) のときのみ `abstract_answers[]` に `{axis, answer, reason}` を追記し `needs_excavation=true` を立てる。LLM の定性判断で needs_excavation を決めない。深掘り質問はしない (Phase 5 の責務)。
+- 流れ: build-intent.py で pending_probes 確定→probe を順に AskUserQuestion→intent_contract 全充足→build-questions.py で5軸質問列確定→順に AskUserQuestion→回答を sheet.md に Edit 反映 (出力先/情報源は intent_contract から派生)→validate-answer-abstraction.py で印付け→check-five-axes-coverage.py で充足確認→checklist で自己評価 (上限: Layer 4 最大反復回数)。
 - AskUserQuestion は完全直列。反復は分離 context で完結させ、親へは interview.json + 更新後 sheet.md + exit code のみ返却。run-intake-kickoff で確定済の 3 軸 (pattern/depth/pain) は前提として読むのみ、再質問しない。
 
 ## Layer 6: オーケストレーション層
@@ -159,4 +159,4 @@ interview.json 生成後に以下を自己確認する。未達があれば該�
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`{{profile_path}}` の vocabulary_tier を読み込み、まず既存 `qa_log[]` を `../../scripts/normalize-to-intent.py --table ../../references/probe-pattern-table.json --schema ../../references/intent-contract.schema.json` に通して `intent_contract` と `pending_probes[]` を得よ。`pending_probes[]` が空でなければ、`../../references/probe-pattern-table.json` の `question_text` と `answer_options` を **verbatim** で 1 問ずつ AskUserQuestion で聞き、probe 回答を `qa_log[]` に `{probe_id,target_slot,question_text,selected_option,raw_answer,normalized_answer}` で記録してから再度 normalize する。`pending_probes=[]` になった後、`scripts/select-questions.py --plan references/question-plan.json --bank ../../references/question-bank.md --depth <kickoff.depth> --pattern <kickoff.pattern> --sheet {{sheet_path}}` を実行して 5 軸質問列を確定せよ。質問は立案せず、出力 `questions[]` の `text` と `options` を **verbatim** で `five-axes-priority.md` 順 (= select-questions.py の order) に 1 問ずつ AskUserQuestion で聞く。各回答は `sheet.md` に Edit 反映し、`qa_log[]` に記録する。ただし出力先は `intent_contract.output_spec.sink`、情報源は `intent_contract.input_spec.sources` を ` / ` で連結した値から派生させる。回答ごとに `scripts/check-answer-abstraction.py --patterns references/abstract-answer-patterns.md --answer "<回答>" --axis <軸>` を実行、exit 3 のときのみ `abstract_answers[]` に `{axis, answer, reason}` を追記し `needs_excavation=true` を立てる (価値深掘りは行わない)。`scripts/build-sheet-json.py {{sheet_path}} --depth <kickoff.depth> --out output/<hint>/sheet.json` を実行し、その `five_axes` と `intent_contract` と `pending_probes` を `interview.json` に同梱する。最終的に `interview.json` (schemas/output.schema.json 準拠) を出力し、`validate-interview-json.py` と `check-five-axes-coverage.py` 双方で PASS を確認すること。前置き禁止。
+`{{profile_path}}` の vocabulary_tier を読み込み、まず既存 `qa_log[]` を `../../scripts/build-intent.py --table ../../references/probe-pattern-table.json --schema ../../references/intent-contract.schema.json` に通して `intent_contract` と `pending_probes[]` を得よ。`pending_probes[]` が空でなければ、`../../references/probe-pattern-table.json` の `question_text` と `answer_options` を **verbatim** で 1 問ずつ AskUserQuestion で聞き、probe 回答を `qa_log[]` に `{probe_id,target_slot,question_text,selected_option,raw_answer,normalized_answer}` で記録してから再度 normalize する。`pending_probes=[]` になった後、`scripts/build-questions.py --plan references/question-plan.json --bank ../../references/question-bank.md --depth <kickoff.depth> --pattern <kickoff.pattern> --sheet {{sheet_path}}` を実行して 5 軸質問列を確定せよ。質問は立案せず、出力 `questions[]` の `text` と `options` を **verbatim** で `five-axes-priority.md` 順 (= build-questions.py の order) に 1 問ずつ AskUserQuestion で聞く。各回答は `sheet.md` に Edit 反映し、`qa_log[]` に記録する。ただし出力先は `intent_contract.output_spec.sink`、情報源は `intent_contract.input_spec.sources` を ` / ` で連結した値から派生させる。回答ごとに `scripts/validate-answer-abstraction.py --patterns references/abstract-answer-patterns.md --answer "<回答>" --axis <軸>` を実行、exit 3 のときのみ `abstract_answers[]` に `{axis, answer, reason}` を追記し `needs_excavation=true` を立てる (価値深掘りは行わない)。`scripts/build-sheet-json.py {{sheet_path}} --depth <kickoff.depth> --out output/<hint>/sheet.json` を実行し、その `five_axes` と `intent_contract` と `pending_probes` を `interview.json` に同梱する。最終的に `interview.json` (schemas/output.schema.json 準拠) を出力し、`validate-interview-json.py` と `check-five-axes-coverage.py` 双方で PASS を確認すること。前置き禁止。

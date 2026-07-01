@@ -1,5 +1,5 @@
 {
-  "_comment": "全 9 intent slot を充足する代表回答 1 件。normalize-to-intent.py が決定論的に intent_contract へ写像する入力。誰が実行しても同一 sha256 になることを golden test が保証する。",
+  "_comment": "全 9 intent slot を充足する代表回答 1 件。build-intent.py が決定論的に intent_contract へ写像する入力。誰が実行しても同一 sha256 になることを golden test が保証する。",
   "answers": {
     "input_spec.sources": "Notion/社内ツール、Web/外部 API",
     "input_spec.trigger": "毎朝9時のスケジュール起動",

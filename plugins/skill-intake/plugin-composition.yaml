@@ -86,7 +86,7 @@ dependencies:
   - { from: skills/run-notion-intake-publish, to: references/section_canonical_map.json,        type: reads }
   - { from: skills/run-intake-interview,      to: references/intent-contract.schema.json,       type: reads }   # 入力→出力インテント正本
   - { from: skills/run-intake-interview,      to: references/probe-pattern-table.json,          type: reads }   # 未充足時の引き出しの型
-  - { from: skills/run-intake-finalize,       to: references/intent-contract.schema.json,       type: reads }   # normalize-to-intent.py が参照
+  - { from: skills/run-intake-finalize,       to: references/intent-contract.schema.json,       type: reads }   # build-intent.py が参照
 
 eval_sinks:
   - EVALS.json

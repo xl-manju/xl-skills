@@ -1,5 +1,5 @@
 {
-  "_comment": "全 section の absence_behavior=block required_fields と §6 intent_contract を充足する代表 intake 1 件。check_completeness.py --mode all が exit 0 になることを golden test が保証する。intent_contract は sample-answers.json を normalize-to-intent.py に通した結果と等価。",
+  "_comment": "全 section の absence_behavior=block required_fields と §6 intent_contract を充足する代表 intake 1 件。check_completeness.py --mode all が exit 0 になることを golden test が保証する。intent_contract は sample-answers.json を build-intent.py に通した結果と等価。",
   "schema_version": "2.0.0",
   "source_of_truth": "plugins/skill-intake/references/section_canonical_map.json",
   "notion_target": {"mode": "create-explicit", "allow_create": true},
