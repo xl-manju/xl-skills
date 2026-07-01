@@ -36,20 +36,6 @@ ALLOWED_BUILDERS = {
     "plugin-scaffold",
     "manual-user-gated",
 }
-EXPECTED_BUILDER = {
-    "skill": "run-skill-create",
-    "sub-agent": "run-build-skill",
-    "slash-command": "run-build-skill",
-    "hook": "run-build-skill",
-    "script": "parent-skill-build",
-}
-EXPECTED_BUILD_KIND = {
-    "skill": "skill",
-    "sub-agent": "agent",
-    "slash-command": "command",
-    "hook": "hook",
-    "script": "script",
-}
 ENVELOPE_STATUSES = {"planned", "external_gap", "manual-user-gated", "not_applicable"}
 TODO_RE = ("TODO", "TBD", "<TODO", "{{")
 
@@ -75,7 +61,15 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
     rid = _require_str(route, "id", errors, prefix)
     ck = _require_str(route, "component_kind", errors, prefix)
     _require_str(route, "name", errors, prefix)
-    spec_rel = _require_str(route, "spec", errors, prefix)
+    # per-phase 転換 (§6): route.spec は「参照する phase ファイル」で任意 (build は component 単位ゆえ
+    # phase 参照は必須でない・推奨は phase-05-implementation.md)。存在時のみ実在検査する。
+    spec_raw = route.get("spec")
+    spec_rel = ""
+    if spec_raw is not None:
+        if not isinstance(spec_raw, str) or not spec_raw.strip():
+            errors.append(f"{prefix}.spec は指定するなら非空 string であること")
+        else:
+            spec_rel = spec_raw.strip()
     builder = _require_str(route, "builder", errors, prefix)
     build_kind = _require_str(route, "build_kind", errors, prefix)
     _require_str(route, "build_target", errors, prefix)
@@ -84,10 +78,10 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
         errors.append(f"{prefix}.component_kind={ck!r} が enum 外 {list(specfm.COMPONENT_KINDS)}")
     if builder and builder not in ALLOWED_BUILDERS:
         errors.append(f"{prefix}.builder={builder!r} が enum 外 {sorted(ALLOWED_BUILDERS)}")
-    if ck in EXPECTED_BUILDER and builder and builder != EXPECTED_BUILDER[ck]:
-        errors.append(f"{prefix}: component_kind={ck} は builder={EXPECTED_BUILDER[ck]} を要求 (現値 {builder})")
-    if ck in EXPECTED_BUILD_KIND and build_kind and build_kind != EXPECTED_BUILD_KIND[ck]:
-        errors.append(f"{prefix}: component_kind={ck} は build_kind={EXPECTED_BUILD_KIND[ck]} を要求 (現値 {build_kind})")
+    if ck in specfm.BUILDER_BY_KIND and builder and builder != specfm.BUILDER_BY_KIND[ck]:
+        errors.append(f"{prefix}: component_kind={ck} は builder={specfm.BUILDER_BY_KIND[ck]} を要求 (現値 {builder})")
+    if ck in specfm.BUILD_KIND_BY_KIND and build_kind and build_kind != specfm.BUILD_KIND_BY_KIND[ck]:
+        errors.append(f"{prefix}: component_kind={ck} は build_kind={specfm.BUILD_KIND_BY_KIND[ck]} を要求 (現値 {build_kind})")
     build_args = route.get("build_args")
     if not isinstance(build_args, dict) or not build_args:
         errors.append(f"{prefix}.build_args が非空 object でない")
@@ -128,6 +122,54 @@ def _check_toposort(routes: list[dict]) -> list[str]:
                 errors.append(f"routes[{idx}] {rid}: depends_on={dep} が先行 route に無い (top-sort 違反)")
         if rid:
             seen.add(rid)
+    return errors
+
+
+def _check_inventory_provenance(routes: list[dict], plan_dir: Path) -> list[str]:
+    """routes が component-inventory.json 由来 (§6) であることを検証する。
+
+    plan_dir 直下に component-inventory.json が在るときのみ活性化する (孤立 handoff fixture は
+    スキップ)。routes id 集合 == inventory component id 集合 (漏れ/余分 0) かつ各 route の
+    主要 route フィールドが対応 component と一致することを検査する (§13-C4)。
+    """
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.is_file():
+        return []
+    try:
+        data = json.loads(inv_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"component-inventory JSON parse error: {exc}"]
+    if not isinstance(data, dict) or not isinstance(data.get("components"), list):
+        return ["component-inventory.json に components[] list が無い (routes 由来検証不能)"]
+    comps = {str(c.get("id", "")).strip(): c for c in data["components"]
+             if isinstance(c, dict) and str(c.get("id", "")).strip()}
+    route_map = {str(r.get("id", "")).strip(): r for r in routes
+                 if isinstance(r, dict) and str(r.get("id", "")).strip()}
+    errors: list[str] = []
+    for missing in sorted(set(comps) - set(route_map)):
+        errors.append(f"inventory component {missing} に対応する route が無い (全 component を routing すること)")
+    for extra in sorted(set(route_map) - set(comps)):
+        errors.append(f"route {extra} が component-inventory.json に存在しない (routes は inventory 由来)")
+    for rid in sorted(set(route_map) & set(comps)):
+        route = route_map[rid]
+        comp = comps[rid]
+        for key in ("component_kind", "name", "builder", "build_kind", "build_target"):
+            r_val = route.get(key)
+            c_val = comp.get(key)
+            if isinstance(r_val, str):
+                r_val = r_val.strip()
+            if isinstance(c_val, str):
+                c_val = c_val.strip()
+            if r_val and c_val and r_val != c_val:
+                errors.append(f"route {rid} の {key}={r_val!r} が inventory の {c_val!r} と不一致")
+        r_dep = route.get("depends_on")
+        c_dep = comp.get("depends_on")
+        if isinstance(r_dep, list) and isinstance(c_dep, list) and r_dep != c_dep:
+            errors.append(f"route {rid} の depends_on={r_dep!r} が inventory の {c_dep!r} と不一致")
+        r_args = route.get("build_args")
+        c_args = comp.get("build_args")
+        if isinstance(c_args, dict) and c_args and r_args != c_args:
+            errors.append(f"route {rid} の build_args が inventory と不一致")
     return errors
 
 
@@ -187,15 +229,8 @@ def validate_handoff(data: object, handoff_path: Path) -> list[str]:
     mode = data.get("mode")
     if mode not in ("create", "update"):
         errors.append(f"handoff.mode={mode!r} は create|update のみ")
-    derived = data.get("derived_count")
-    if not isinstance(derived, int) or derived < 1:
-        errors.append(f"handoff.derived_count={derived!r} は正の int であること")
-    requested = data.get("requested_count")
-    if requested is not None and (not isinstance(requested, int) or requested < 1):
-        errors.append(f"handoff.requested_count={requested!r} は null または正の int")
-    force_13 = data.get("force_13")
-    if not isinstance(force_13, bool):
-        errors.append(f"handoff.force_13={force_13!r} は bool であること")
+    # per-phase 転換 (§6): 本数固定/カウント/pin の各機構は 13 フェーズ固定で削除した。
+    # routes[] は component-inventory.json の components[] 由来ゆえ本数強制ブロックは撤廃した。
 
     # spec / build_target の解決は cwd 非依存にする。handoff は必ず <PLAN_DIR> 直下に
     # 書かれる (handoff_path.parent == PLAN_DIR) ため、相対 plan_dir フィールド (repo-root
@@ -214,19 +249,13 @@ def validate_handoff(data: object, handoff_path: Path) -> list[str]:
     ids = {str(r.get("id", "")).strip() for r in routes if isinstance(r, dict) and str(r.get("id", "")).strip()}
     if len(ids) != len(routes):
         errors.append("handoff.routes の id が欠落または重複している")
-    if isinstance(derived, int) and routes and len(routes) != derived:
-        errors.append(f"handoff.derived_count={derived} と routes 件数 {len(routes)} が不一致")
-    if force_13 is True:
-        if derived != 13:
-            errors.append(f"handoff.force_13=true では derived_count=13 が必要 (現値 {derived})")
-        if routes and len(routes) != 13:
-            errors.append(f"handoff.force_13=true では routes 件数 13 が必要 (現値 {len(routes)})")
     for idx, route in enumerate(routes):
         if not isinstance(route, dict):
             errors.append(f"routes[{idx}] が object でない")
             continue
         errors.extend(_route_errors(route, idx, ids, plan_dir))
     errors.extend(_check_toposort([r for r in routes if isinstance(r, dict)]))
+    errors.extend(_check_inventory_provenance(routes, plan_dir))
     errors.extend(_check_envelope(data.get("envelope"), plan_dir, target_plugin_slug))
     return errors
 

@@ -1,7 +1,7 @@
 """validate-notion-fidelity.py の genuine な機能テスト。
 
 対象:
-  plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py
+  plugins/skill-intake/skills/assign-notion-fidelity-evaluator/scripts/validate-notion-fidelity.py
 
 このスクリプトは network/keychain を一切持たない純 JSON IO(intake-final-context.json と
 canonical-page-snapshot.json を突合しスコア化する)。したがって:
@@ -24,7 +24,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = (
     ROOT
-    / "plugins/skill-intake/skills/run-notion-fidelity-guard/scripts/validate-notion-fidelity.py"
+    / "plugins/skill-intake/skills/assign-notion-fidelity-evaluator/scripts/validate-notion-fidelity.py"
 )
 
 _SPEC = importlib.util.spec_from_file_location("validate_notion_fidelity", SCRIPT)

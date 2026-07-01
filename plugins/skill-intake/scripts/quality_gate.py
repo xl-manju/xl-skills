@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from validate_intake import validate
-from check_completeness import check
+from check_completeness import check, check_intent_contract
 from detect_contradictions import detect
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -140,6 +140,21 @@ def check_blocks(blocks):
     return {'ok': len(reasons) == 0, 'total': total, 'mermaid': mermaid, 'h2': h2, 'reasons': reasons}
 
 
+def _check_intent(intake):
+    """§6 intent_contract の全 slot filled を検証。後方互換(段階移行): intent_contract
+    未導入の旧 intake は migration_warn 扱いで gate を落とさない。新規 intake は canonical
+    §6 で intent_contract=block のため必ず埋まり、未充足 slot があれば FAIL する。"""
+    ci = check_intent_contract(intake)
+    intent_missing = (not ci.get('ok')) and 'not found' in ci.get('reason', '')
+    if intent_missing:
+        return {'ok': True, 'migration_warn': True, 'reason': ci.get('reason', '')}
+    return {
+        'ok': ci.get('ok', False),
+        'unfilled_slots': ci.get('unfilled_slots', []),
+        'pending_probes': ci.get('pending_probes', []),
+    }
+
+
 def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
     v = validate(intake)
     c = check(intake)
@@ -147,6 +162,7 @@ def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
     pc = check_property_completeness(intake)
     dbm = check_db_match(intake, requested_db_id)
     pid = check_page_id_consistency(result_path, prev_page_id)
+    ic = _check_intent(intake)
     checks = {
         'validate_intake': {'ok': v['ok'], 'errors': v['errors']},
         'check_completeness': {'ok': c['ok'], 'placeholders': c['placeholders'], 'filled_axes': c['filled_axes']},
@@ -154,8 +170,9 @@ def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
         'property_completeness': pc,
         'db_match': dbm,
         'page_id_consistency': pid,
+        'intent_contract': ic,
     }
-    ok = v['ok'] and c['ok'] and d['ok'] and pc['ok'] and dbm['ok'] and pid['ok']
+    ok = v['ok'] and c['ok'] and d['ok'] and pc['ok'] and dbm['ok'] and pid['ok'] and ic['ok']
     return {'status': 'PASS' if ok else 'FAIL', 'checks': checks}
 
 

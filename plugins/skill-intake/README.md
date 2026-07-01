@@ -176,7 +176,7 @@ Claude Code セッション内で:
 インストール後の vendor 配布確認:
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/smoke_plugin_vendor.py"
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_plugin_vendor.py"
 ```
 
 期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
@@ -469,7 +469,7 @@ plugins/skill-intake/
     ├── run-intake-finalize/           # Phase 9 補助 (統合 + quality_gate)
     ├── run-intake-next-action/        # Phase 11 決定論 (公開後の引き渡しモード判定)
     ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
-    ├── run-notion-fidelity-guard/     # Notion 公開前粒度検証
+    ├── assign-notion-fidelity-evaluator/     # Notion 公開前粒度検証
     └── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
 ```
 

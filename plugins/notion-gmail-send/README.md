@@ -122,11 +122,14 @@ Gmail API / DWD（ドメイン全体の委任）/ gmail.send scope / sendAs の�
 - **リポジトリを clone した開発者が自分のターミナルで直接打つ場合**:
 
 ```bash
-python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.json
-python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.json --probe --from <送信元アドレス>
+# clone 開発者向け。fallback 形なので $CLAUDE_PLUGIN_ROOT 未定義の素のターミナルでも
+# repo 直下相対 (plugins/notion-gmail-send) へ落ちて動く:
+D="${CLAUDE_PLUGIN_ROOT:-plugins/notion-gmail-send}/lib/setup_doctor.py"
+python3 "$D" --config .notion-config.json
+python3 "$D" --config .notion-config.json --probe --from <送信元アドレス>
 ```
 
-> 注: 上記 `python3 plugins/notion-gmail-send/…` は **repo を clone した場合のみ有効**な相対パス。`/plugin marketplace add`（README 冒頭の install）で入れたユーザーの作業フォルダには `plugins/` が無いため、上の「Claude に頼む」を使う（`$CLAUDE_PLUGIN_ROOT` は Claude の実行環境でのみ解決され、素のターミナルでは未定義）。
+> 注: 上記 `${CLAUDE_PLUGIN_ROOT:-plugins/notion-gmail-send}/…` は素のターミナルでは fallback の `plugins/notion-gmail-send/…`（**repo を clone した場合のみ有効**な相対パス）へ落ちる。`/plugin marketplace add`（README 冒頭の install）で入れたユーザーの作業フォルダには `plugins/` が無いため、上の「Claude に頼む」を使う（`$CLAUDE_PLUGIN_ROOT` は Claude の実行環境でのみ解決され、素のターミナルでは未定義）。
 
 `--probe` は Gmail 実 API で DWD / sendAs まで確認する。本送信はしない。
 

@@ -28,6 +28,10 @@ reference_refs:
 schema_refs:
   - doc/notion-schema/skill-list.schema.json
   - doc/notion-schema/improvement-request.schema.json
+responsibility_refs:
+  - scripts/notion-submit-improvement.py
+  - scripts/lint-feedback-protocol.py
+  - workflow-manifest.json
 script_refs:
   - scripts/notion-submit-improvement.py
   - plugins/skill-creator/scripts/notion_config.py

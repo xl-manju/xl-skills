@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # /// script
 # name: detect-unassigned
-# purpose: コンポーネント目録に対しタスク仕様書が 1 本ずつ割り当たり未配置(unassigned-task)が 0 件であること、各仕様書が必須セクションを持つことを検証する決定論ゲート。
+# purpose: 13 フェーズファイル(P01..P13)が全存在し §5 section 床(目的/実行タスク/成果物/完了条件)を満たすこと、各 inventory component が >=1 phase の entities_covered に出現(orphan 防止)し build_target 非空であることを検証する決定論ゲート。
 # inputs:
 #   - argv: --inventory FILE --specs-dir DIR
 # outputs:
 #   - stdout: OK サマリ
-#   - stderr: 未配置 / 必須セクション欠落 violation
+#   - stderr: phase 欠落 / section 床欠落 / orphan component / build_target 欠落 violation
 #   - exit: 0=OK / 1=violation / 2=usage error
 # contexts: [C, E]
 # network: false
@@ -14,82 +14,63 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""コンポーネント目録(N)とタスク仕様書群を突合し、未配置 0 件を保証する。
+"""13 フェーズの完全性・本文 section 床・component orphan/build_target を突合する。
 
-判定 (run-plugin-dev-plan の C5 / §5 unassigned-task 検出の借用):
-  - 目録の各コンポーネント id に対応する仕様書が存在する (未配置=unassigned=0)
-  - 各仕様書が必須セクション (目的/成果物/完了条件) を持ち、各見出し直後の本文が非空である
-    (本文の床・io-contract.md §9。frontmatter は specfm が縛り、本文は空セクションを弾く)
-  - 目録に無い id の仕様書 (orphan) は warning (停止はさせない)
+per-phase 転換 (凍結契約 §5/§8/§13-C2):
+  (a) 13 フェーズファイル (P01..P13) が全存在し、各ファイルが §5 section 床
+      (## 目的 / ## 実行タスク / ## 成果物 / ## 完了条件 の見出し + 直後の非空本文) を満たす。
+      applicability.applicable == false の phase は section 床を免除する。
+  (b) component-inventory.json の各 component が >=1 phase の entities_covered に出現する
+      (orphan 防止) + build_target が非空 (L3 計画 → L4 実体化先の追跡)。
 
-yaml は import しない。目録は JSON ({"components":[{"id":..}]} or ["C01",..]) か
-id トークン行のテキストを受理する。
+旧 spec-id 突合 (目録 id ↔ C*.md ファイル id) は廃止 (phase 軸へ全面転換)。
+yaml は import しない。目録は component-inventory.json (object 形式)。
 """
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
-ID_RE = re.compile(r"\b([A-Z]{1,5}\d{1,3})\b")
-# 各タスク仕様書が持つべき必須セクション (本文 section 契約の正本 = io-contract.md §9
-# 「タスク仕様書 本文 section 契約」: 目的/成果物/完了条件)。
-# frontmatter 形状は specfm が厳格に operationalize する一方、本文は「見出し存在 + 直後の
-# 非空本文」を最小の床として強制する (空セクションを弾く=品質精度の床・io-contract.md §9)。
-REQUIRED_SECTIONS = ("## 目的", "## 成果物", "## 完了条件")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import specfm  # noqa: E402
+
+# §5 phase 本文 section 契約 (床のみ機械強制・意味は下流トラスト)。
+REQUIRED_SECTIONS = ("## 目的", "## 実行タスク", "## 成果物", "## 完了条件")
 
 
-def parse_frontmatter_id(text: str) -> str:
-    """spec frontmatter の `id` スカラを返す (無ければ空)。"""
-    if not text.startswith("---"):
-        return ""
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return ""
-    for line in parts[1].splitlines():
-        m = re.match(r"^id:\s*(.+?)\s*$", line)
-        if m:
-            return m.group(1).strip().strip('"').strip("'")
-    return ""
+def expected_phase_filename(phase_number: int) -> str:
+    """phase_number から契約上のファイル名 phase-NN-<kebab>.md を返す。"""
+    if not (1 <= phase_number <= 13):
+        raise ValueError(f"phase_number は 1..13 の範囲 (現値 {phase_number!r})")
+    return f"phase-{phase_number:02d}-{specfm.PHASE_NAMES[phase_number - 1]}.md"
 
 
-def load_inventory(text: str) -> list[str]:
-    """目録テキストから期待コンポーネント id を順序保持で抽出する。"""
-    stripped = text.strip()
-    if stripped:
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError:
-            data = None
-        if isinstance(data, dict) and isinstance(data.get("components"), list):
-            return [str(c.get("id", "")).strip() for c in data["components"] if str(c.get("id", "")).strip()]
-        if isinstance(data, list):
-            return [str(x).strip() for x in data if str(x).strip()]
-    ids: list[str] = []
-    for line in text.splitlines():
-        m = ID_RE.search(line)
-        if m:
-            ids.append(m.group(1))
-    # 重複排除 (出現順保持)
-    seen: set[str] = set()
-    out: list[str] = []
-    for i in ids:
-        if i not in seen:
-            seen.add(i)
-            out.append(i)
-    return out
+def collect_phase_files(specs_dir: Path) -> tuple[dict[str, tuple[Path, dict]], list[str]]:
+    """specs_dir 配下 *.md (index/main を除く) を phase id -> (path, frontmatter) で収集する。"""
+    out: dict[str, tuple[Path, dict]] = {}
+    errors: list[str] = []
+    for md in sorted(specs_dir.glob("*.md")):
+        if md.stem in {"index", "main"}:
+            continue
+        fm = specfm.parse_frontmatter(md.read_text(encoding="utf-8"))
+        pid = str(fm.get("id", "")).strip()
+        if pid:
+            if pid in out:
+                errors.append(f"phase id 重複: {pid} ({out[pid][0].name} と {md.name})")
+            out[pid] = (md, fm)
+    return out, errors
+
+
+def is_not_applicable(fm: dict) -> bool:
+    """applicability.applicable == false (N/A phase) かを返す。"""
+    ap = fm.get("applicability")
+    return isinstance(ap, dict) and ap.get("applicable") is False
 
 
 def load_inventory_components(text: str) -> list[dict]:
-    """目録が object 形式 ({"components":[{..}]}) のとき component dict 一覧を返す。
-
-    list 形式 (["C01",..]) や id トークン行のテキスト形式では [] を返し、
-    build_target 検査をスキップする (後方互換: 後者は build_target を持たないため)。
-    実 plan の component-inventory.json は object 形式で、各 component が L4 実体化先
-    `build_target` を持つ (io-contract.md §9 L3→L4 追跡)。
-    """
+    """component-inventory.json (object 形式 {"components":[{..}]}) の component dict 一覧を返す。"""
     stripped = text.strip()
     if not stripped:
         return []
@@ -102,42 +83,13 @@ def load_inventory_components(text: str) -> list[dict]:
     return []
 
 
-def collect_spec_ids(specs_dir: Path) -> dict[str, Path]:
-    """specs_dir 配下 *.md (index/main を除く) の id->path を収集する。"""
-    out: dict[str, Path] = {}
-    for md in sorted(specs_dir.glob("*.md")):
-        if md.stem in {"index", "main"}:
-            continue
-        sid = parse_frontmatter_id(md.read_text(encoding="utf-8"))
-        if sid:
-            out[sid] = md
-    return out
-
-
-def find_unassigned(expected: list[str], present: set[str]) -> list[str]:
-    """目録にあるが仕様書が無い id (未配置) を返す。"""
-    return [e for e in expected if e not in present]
-
-
-def find_orphans(expected: list[str], present: set[str]) -> list[str]:
-    """仕様書はあるが目録に無い id を返す。"""
-    return sorted(present - set(expected))
-
-
 def missing_sections(spec_text: str) -> list[str]:
-    """必須セクション欠落を返す。"""
+    """必須 section 見出しの欠落を返す。"""
     return [sec for sec in REQUIRED_SECTIONS if sec not in spec_text]
 
 
 def empty_body_sections(spec_text: str) -> list[str]:
-    """必須セクション見出しは在るが直後の本文が空のもの (本文の床違反) を返す。
-
-    見出し行 (`## 目的` 等) を行単位で検出し、次の `## ` 見出し or EOF までの本文に
-    非空テキストが 1 行も無ければ「空セクション」とみなす。見出し自体の欠落は
-    `missing_sections()` の責務なので、ここでは見出しが存在する section のみ対象にする。
-    frontmatter は specfm が厳格に縛るが本文は自由記述ゆえ、空セクションだけは最小の
-    機械的な床として弾く (品質精度の床・io-contract.md §9)。
-    """
+    """必須 section 見出しは在るが直後の本文が空のもの (本文の床違反) を返す。"""
     lines = spec_text.splitlines()
     out: list[str] = []
     for sec in REQUIRED_SECTIONS:
@@ -158,42 +110,90 @@ def empty_body_sections(spec_text: str) -> list[str]:
     return out
 
 
+def covered_entities(phase_files: dict[str, tuple[Path, dict]]) -> set[str]:
+    """全 phase の entities_covered の和集合を返す (component orphan 判定用)。"""
+    covered: set[str] = set()
+    for _pid, (_path, fm) in phase_files.items():
+        ec = fm.get("entities_covered")
+        if isinstance(ec, list):
+            for e in ec:
+                token = str(e).strip()
+                if token:
+                    covered.add(token)
+    return covered
+
+
 def run(inventory_text: str, specs_dir: Path) -> tuple[int, list[str], list[str]]:
     """(exit_code, errors, warnings) を返す。"""
-    expected = load_inventory(inventory_text)
-    if not expected:
-        return 2, ["目録から期待コンポーネント id を抽出できない"], []
-    present = collect_spec_ids(specs_dir)
     errors: list[str] = []
     warnings: list[str] = []
-    for uid in find_unassigned(expected, set(present)):
-        errors.append(f"未配置(unassigned-task): コンポーネント {uid} に対応する仕様書が無い")
-    for oid in find_orphans(expected, set(present)):
-        warnings.append(f"orphan: 仕様書 {oid} は目録に無い (目録へ追記検討)")
-    for sid, path in sorted(present.items()):
-        spec_text = path.read_text(encoding="utf-8")
-        for sec in missing_sections(spec_text):
-            errors.append(f"{sid} ({path.name}): 必須セクション欠落 '{sec}'")
-        for sec in empty_body_sections(spec_text):
+    phase_files, collect_errors = collect_phase_files(specs_dir)
+    errors.extend(collect_errors)
+    expected_ids = [specfm.phase_id(n) for n in range(1, 14)]
+
+    # (a) 13 フェーズファイル全存在 + 契約ファイル名一致
+    for n, pid in enumerate(expected_ids, start=1):
+        expected_name = expected_phase_filename(n)
+        expected_path = specs_dir / expected_name
+        if not expected_path.is_file():
+            errors.append(f"phase ファイル欠落: {pid} ({expected_name})")
+        if pid not in phase_files:
+            errors.append(f"phase frontmatter 欠落: {pid} (13 フェーズ P01..P13 を全て備えること)")
+            continue
+        actual_path, _fm = phase_files[pid]
+        if actual_path.name != expected_name:
+            errors.append(f"{pid}: phase ファイル名不一致: {actual_path.name} (期待 {expected_name})")
+    extra = sorted(set(phase_files) - set(expected_ids))
+    for pid in extra:
+        warnings.append(f"想定外の phase id: {pid} (P01..P13 以外・目録へ整合を確認)")
+
+    # (a) section 床 (applicable な phase のみ・N/A phase は免除)
+    for pid in expected_ids:
+        entry = phase_files.get(pid)
+        if entry is None:
+            continue
+        path, fm = entry
+        if is_not_applicable(fm):
+            continue  # §5: applicable:false は section 床免除
+        text = path.read_text(encoding="utf-8")
+        for sec in missing_sections(text):
+            errors.append(f"{pid} ({path.name}): 必須 section 欠落 '{sec}'")
+        for sec in empty_body_sections(text):
             errors.append(
-                f"{sid} ({path.name}): 必須セクション '{sec}' の本文が空 "
-                f"(見出し直後に非空本文を要求・io-contract.md §9 本文の床)"
+                f"{pid} ({path.name}): 必須 section '{sec}' の本文が空 "
+                f"(見出し直後に非空本文を要求・§5 本文の床)"
             )
-    # build_target (L3→L4 追跡) 検査: object 形式の目録のみ。各 component が L4 実体化先を持つこと。
-    for comp in load_inventory_components(inventory_text):
-        if not str(comp.get("build_target", "")).strip():
-            cid = str(comp.get("id", "")).strip() or "?"
+
+    # (b) inventory component の orphan 防止 + build_target 非空
+    components = load_inventory_components(inventory_text)
+    if not components:
+        return 2, ["component-inventory.json から components[] を抽出できない (object 形式で components を持つこと)"], warnings
+    covered = covered_entities(phase_files)
+    component_ids = {str(comp.get("id", "")).strip() for comp in components if str(comp.get("id", "")).strip()}
+    for unknown in sorted(covered - component_ids):
+        errors.append(
+            f"unknown covered entity: {unknown} が component-inventory.json の components[].id に存在しない "
+            f"(entities_covered は inventory component id のみ参照すること)"
+        )
+    for comp in components:
+        cid = str(comp.get("id", "")).strip() or "?"
+        if cid not in covered:
             errors.append(
-                f"build_target 欠落: コンポーネント {cid} に L4 実体化先 (build_target) が無い "
-                f"(計画 L3 と実体 L4 のトレーサビリティ・io-contract.md §9)"
+                f"orphan component: {cid} がどの phase の entities_covered にも出現しない "
+                f"(各 component は >=1 phase で参照されること・§5/§13-C2)"
+            )
+        if not str(comp.get("build_target", "")).strip():
+            errors.append(
+                f"build_target 欠落: component {cid} に L4 実体化先 (build_target) が無い "
+                f"(計画 L3 と実体 L4 のトレーサビリティ)"
             )
     return (1 if errors else 0), errors, warnings
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="未配置タスク(unassigned)0 件と必須セクションを検証する")
-    ap.add_argument("--inventory", required=True, help="コンポーネント目録 (JSON or text)")
-    ap.add_argument("--specs-dir", required=True, help="タスク仕様書ディレクトリ")
+    ap = argparse.ArgumentParser(description="13 フェーズ完全性・section 床・component orphan/build_target を検証する")
+    ap.add_argument("--inventory", required=True, help="component-inventory.json")
+    ap.add_argument("--specs-dir", required=True, help="phase ファイルのディレクトリ")
     args = ap.parse_args(argv)
 
     inv = Path(args.inventory)
@@ -208,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     for w in warnings:
         sys.stderr.write(f"WARN: {w}\n")
     if code == 0:
-        sys.stdout.write("OK: unassigned-task 0 件・全仕様書が必須セクションを保持\n")
+        sys.stdout.write("OK: 13 フェーズ完全・section 床充足・orphan 0 件・全 component が build_target を保持\n")
         return 0
     for e in errors:
         sys.stderr.write(e + "\n")

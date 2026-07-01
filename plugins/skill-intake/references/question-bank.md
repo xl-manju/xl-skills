@@ -58,6 +58,8 @@ type: reference
 
 ## 深度別ガイド
 
+> **選択の正本は `skills/run-intake-interview/references/question-plan.json`** (depth×軸→Q-ID) であり、interview phase では `build-questions.py` がそこから決定論的に質問を選ぶ。以下の「例」は参考であり、実際の選択は question-plan.json が唯一の SSOT。齟齬があれば question-plan.json を正とする。
+
 ### quick（30 秒〜1 分・5 問以内）
 
 - 表層要望の確認のみ
@@ -141,10 +143,15 @@ type: reference
 
 ## 使い方
 
-```javascript
-const bank = loadQuestionBank();
-const next = bank.filter(q => q.axis === missingAxis && q.depth === currentDepth);
-const picked = next[Math.floor(Math.random() * next.length)];
+質問はランダム選択しない。`skills/run-intake-interview/references/question-plan.json` を唯一の SSOT とし、`skills/run-intake-interview/scripts/build-questions.py` の出力 `questions[]` をその順序のまま使う。
+
+```bash
+python3 plugins/skill-intake/skills/run-intake-interview/scripts/build-questions.py \
+  --plan plugins/skill-intake/skills/run-intake-interview/references/question-plan.json \
+  --bank plugins/skill-intake/references/question-bank.md \
+  --depth light \
+  --pattern A \
+  --sheet output/<hint>/sheet.md
 ```
 ## Session adb2d5d3a69d2270f — 2026-05-22T22:43:12.492606Z
 - 文字起こしデータの構造がバラバラな場合、自動化ロジックが壊れやすいですか？過去の商談で金額・期間・条件の出現順序がどの程度バラつきますか？

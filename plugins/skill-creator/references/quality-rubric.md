@@ -22,6 +22,14 @@ type: reference
 
 各次元 0〜3 点。合計 15 点満点。
 
+## 派生 plugin の rubric 継承ルール
+
+派生 plugin が独自 rubric（例: skill-intake の `rubric.json` の SE-* 構造 lint 体系）を持つ場合、本 5 次元 rubric との関係は以下で定める。
+
+- **原則: 直交（orthogonal）**: 派生 plugin 独自 rubric は本 5 次元 rubric と直交させる。本 5 次元は**成果物採点層**（生成物の完全性/一貫性/深度/検証可能性/簡潔性を採点）、独自 SE-* は**構造 / frontmatter lint 層**（章・section 構造や frontmatter の binary 充足を lint）で責務が異なる。責務が異なる限り deep-merge せず、両方を独立に適用する。構造 fidelity 検証は Gate A（機械契約）に属し（`orchestrate-gate-pattern.md` 参照）、5 次元採点とは検出粒度が異なるため直交で共存する。
+- **例外: 同一次元の再定義時のみ deep-merge**: 派生 rubric が本 5 次元と**同じ次元**を再定義する場合に限り deep-merge し、派生側が upstream（本ファイル）を上書きする。上書きした箇所は派生 rubric 側に `overrides: <upstream-dimension>` を明記する。これは `ref-skill-design-rubric` KeyRule 1（downstream `rubric.json` は upstream を deep-merge）と整合する。同 KeyRule が指す deep-merge は「同一 rubric 家系（設計 rubric 層）内の継承」を対象とし、責務層が異なる SE-* lint はそもそも deep-merge 対象外（直交）である点で矛盾しない。
+- **governance 宣言義務**: 派生 rubric は冒頭に、本ファイル（skill-creator quality-rubric.md, 5 次元）との関係が**直交か deep-merge か**を governance 宣言する。deep-merge の場合は上書き次元を、直交の場合は責務層の違いを明記する。
+
 ## 1. 完全性（Completeness）
 
 | 点 | 基準 |

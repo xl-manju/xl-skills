@@ -16,15 +16,25 @@ HANDOFF = PLAN / "handoff-run-plugin-dev-plan.json"
 GOAL_SPEC = PLAN / "goal-spec.json"
 
 
+import json
+
+
+def _inventory_components() -> list[dict]:
+    data = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    return [c for c in data.get("components", []) if isinstance(c, dict)]
+
+
 def test_example_plan_dir_exists():
     assert PLAN.is_dir(), f"ゴールデン plan ディレクトリが無い: {PLAN}"
     assert (PLAN / "index.md").is_file()
     assert GOAL_SPEC.is_file()
     assert INVENTORY.is_file()
     assert HANDOFF.is_file()
-    # 5 component_kind を網羅 (skill 偏重でない実例) + index
+    # per-phase 転換: index + 13 phase ファイル (P01..P13) = 14 Markdown
     specs = sorted(p.name for p in PLAN.glob("*.md"))
-    assert len(specs) == 6, specs  # index + 5 specs
+    assert len(specs) == 14, specs  # index.md + phase-01..13.md
+    phase_files = [p.stem for p in PLAN.glob("phase-*.md")]
+    assert len(phase_files) == 13, phase_files
 
 
 def test_frontmatter_gate(specfm):
@@ -59,12 +69,30 @@ def test_surface_inventory_gate(surfaces):
     assert surfaces.main([str(INVENTORY)]) == 0
 
 
-def test_all_five_component_kinds_present(specfm_mod):
-    """ゴールデンが 5 種の component_kind を 1 本ずつ持つ (skill 偏重の解消を実証)。"""
-    kinds = set()
-    for p in PLAN.glob("*.md"):
-        fm = specfm_mod.parse_frontmatter(p.read_text(encoding="utf-8"))
-        ck = str(fm.get("component_kind", "")).strip()
-        if ck:
-            kinds.add(ck)
+def test_all_five_component_kinds_present():
+    """ゴールデン inventory が 5 種の component_kind を全種網羅する (skill 偏重の解消を実証)。
+
+    per-phase 転換: buildable 実体は phase ファイルでなく component-inventory.json が SSOT。
+    判定を inventory 読取へ移設する (phase frontmatter は component_kind を持たない)。
+    """
+    kinds = {str(c.get("component_kind", "")).strip() for c in _inventory_components()}
+    kinds.discard("")
     assert kinds == {"skill", "sub-agent", "slash-command", "hook", "script"}, kinds
+
+
+def test_per_instance_decomposition():
+    """複数実体分解の恒久ロック: 少なくとも 1 つの component_kind が複数実体を持つ。
+
+    実プラグインは同一 kind の複数実体 (skill 複数 / sub-agent 複数 等) を自然に含み、
+    inventory はその各実体に 1 build_target を割り当てる (component-domain.md の 2 軸直交)。
+    inventory が「kind ごと 1 本 (1-per-kind)」へ退化すると本テストが fail し、複数実体
+    分解のサイレント回帰を機械検出する (component_kind=分類軸 5 種と、実体数 N の混同を防ぐ)。
+    """
+    from collections import Counter
+
+    counts: Counter = Counter()
+    for c in _inventory_components():
+        ck = str(c.get("component_kind", "")).strip()
+        if ck:
+            counts[ck] += 1
+    assert any(v >= 2 for v in counts.values()), dict(counts)

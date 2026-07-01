@@ -20,6 +20,8 @@ import pytest
 _PLUGINS = Path(__file__).resolve().parents[4]
 _SCHEMA = _PLUGINS / "skill-creator" / "skills" / "run-skill-create" / "schemas" / "skill-brief.schema.json"
 _FC_SSOT = _PLUGINS / "skill-creator" / "scripts" / "feedback_contract_ssot.py"
+# per-phase 転換: phase-spec schema は本 plugin 同梱 (必ず存在)。
+_PHASE_SCHEMA = Path(__file__).resolve().parents[1] / "schemas" / "phase-spec.schema.json"
 
 
 def _real_schema() -> dict:
@@ -94,6 +96,50 @@ def test_feedback_contract_constants_parity(specfm_mod):
     assert specfm_mod.REQUIRED_CRITERION_KEYS == ssot.REQUIRED_CRITERION_KEYS, "REQUIRED_CRITERION_KEYS drift"
     assert set(specfm_mod.FEEDBACK_LOOP_SKILL_KINDS) == set(ssot.FEEDBACK_LOOP_KINDS), (
         "FEEDBACK_LOOP_SKILL_KINDS が実 SSOT の FEEDBACK_LOOP_KINDS と不一致"
+    )
+
+
+def test_phase_spec_schema_required_parity(specfm_mod):
+    """schemas/phase-spec.schema.json の required が specfm.PHASE_REQUIRED と集合一致する。
+
+    per-phase 転換で phase frontmatter 契約は specfm.PHASE_REQUIRED (実行可能正本) と
+    phase-spec.schema.json (宣言) の 2 箇所に持たれる。片肺更新の無音化を防ぐため縛る。
+    """
+    assert _PHASE_SCHEMA.is_file(), f"phase-spec.schema.json 不在: {_PHASE_SCHEMA}"
+    schema = json.loads(_PHASE_SCHEMA.read_text(encoding="utf-8"))
+    assert set(specfm_mod.PHASE_REQUIRED) == set(schema["required"]), (
+        f"phase-spec parity drift: schema-plan={sorted(set(schema['required']) - set(specfm_mod.PHASE_REQUIRED))} "
+        f"plan-schema={sorted(set(specfm_mod.PHASE_REQUIRED) - set(schema['required']))}"
+    )
+    # required キーは properties にも定義されていること
+    props = set(schema.get("properties", {}))
+    assert set(specfm_mod.PHASE_REQUIRED) <= props, sorted(set(specfm_mod.PHASE_REQUIRED) - props)
+
+
+def test_phase_spec_schema_enum_pattern_parity(specfm_mod):
+    """phase-spec.schema の enum/pattern が specfm の実行可能正本と値域一致する。
+
+    required 集合 (test_phase_spec_schema_required_parity) だけでなく gate_type/phase_name/
+    status の enum と id.pattern も specfm と 2 箇所に二重保持される。片肺更新
+    (gate 種の増減・status 改名・フェーズ順の入替) を無音ドリフトさせないため縛る
+    (本 plugin 慣行『重複契約=必ず parity test』を required だけでなく値域へも及ぼす)。
+    """
+    schema = json.loads(_PHASE_SCHEMA.read_text(encoding="utf-8"))
+    props = schema["properties"]
+    # gate_type / status は順序無意味 → 集合一致
+    assert set(props["gate_type"]["enum"]) == set(specfm_mod.GATE_TYPES), (
+        f"gate_type enum drift: schema-plan={sorted(set(props['gate_type']['enum']) - set(specfm_mod.GATE_TYPES))} "
+        f"plan-schema={sorted(set(specfm_mod.GATE_TYPES) - set(props['gate_type']['enum']))}"
+    )
+    assert set(props["status"]["enum"]) == set(specfm_mod.PHASE_STATUS), "status enum drift"
+    # phase_name はフェーズ実行順が意味を持つ → 順序込み一致 (design と test-design の入替等を検出)
+    assert tuple(props["phase_name"]["enum"]) == tuple(specfm_mod.PHASE_NAMES), (
+        f"phase_name enum drift (順序含む): schema={list(props['phase_name']['enum'])} vs "
+        f"specfm={list(specfm_mod.PHASE_NAMES)}"
+    )
+    # id.pattern は文字列一致
+    assert props["id"]["pattern"] == specfm_mod.PHASE_ID_RE.pattern, (
+        f"id.pattern drift: schema={props['id']['pattern']!r} vs specfm={specfm_mod.PHASE_ID_RE.pattern!r}"
     )
 
 

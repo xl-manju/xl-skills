@@ -23,6 +23,9 @@ import sys
 from pathlib import Path
 
 
+# per-phase 転換: 本数固定/カウント機構は 13 フェーズ固定で自然消滅したため required/allowed から削除。
+# requested_count は「任意記録可 (gate 強制しない)」として ALLOWED に残す (goal-spec に希望本数を残せるが
+# 出力本数を強制しない・凍結契約 §0)。
 REQUIRED = {
     "purpose",
     "background",
@@ -30,8 +33,6 @@ REQUIRED = {
     "checklist",
     "target_plugin_slug",
     "plan_dir",
-    "requested_count",
-    "force_13",
 }
 ALLOWED = REQUIRED | {
     "artifact_class",
@@ -40,6 +41,7 @@ ALLOWED = REQUIRED | {
     "handoff_targets",
     "max_loops",
     "open_questions",
+    "requested_count",
 }
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -73,14 +75,11 @@ def validate(data: object) -> list[str]:
     if artifact_class is not None and artifact_class not in {"skill-only", "plugin-plan", "existing-plugin-update"}:
         errors.append("artifact_class は skill-only|plugin-plan|existing-plugin-update のみ")
 
+    # requested_count は任意記録 (希望本数のメモ)。null または正の int の型のみ検査し、出力本数の
+    # 強制 (旧・本数 pin 機構) はしない (per-phase 転換で本数は 13 フェーズ固定)。
     requested = data.get("requested_count")
     if requested is not None and (not isinstance(requested, int) or isinstance(requested, bool) or requested < 1):
         errors.append("requested_count は null または正の int")
-    force_13 = data.get("force_13")
-    if not isinstance(force_13, bool):
-        errors.append("force_13 は bool")
-    elif force_13 and requested != 13:
-        errors.append("force_13=true では requested_count=13 が必要")
 
     max_loops = data.get("max_loops")
     if max_loops is not None and (not isinstance(max_loops, int) or isinstance(max_loops, bool) or max_loops < 1):

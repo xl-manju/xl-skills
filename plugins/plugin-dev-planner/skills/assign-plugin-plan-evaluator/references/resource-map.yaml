@@ -13,10 +13,10 @@ scripts:
     read_when: C4 依存関係整合を判定する時
   - id: unassigned
     path: ../run-plugin-dev-plan/scripts/detect-unassigned.py
-    read_when: C2 漏れ / C4 未配置を判定する時
+    read_when: C2 component orphan / C4 13 phase 完全性 + section 床を判定する時
   - id: frontmatter
     path: ../run-plugin-dev-plan/scripts/check-spec-frontmatter.py
-    read_when: C2 kind 別構造 + core 規律を判定する時
+    read_when: C2 phase frontmatter (PHASE_REQUIRED) + component_kind 別構造を判定する時
   - id: gates
     path: ../run-plugin-dev-plan/scripts/check-spec-gates.py
     read_when: C2 quality_gates + harness を判定する時

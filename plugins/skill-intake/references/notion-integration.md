@@ -69,27 +69,32 @@ token = get_secret()  # service/account は INTAKE_KEYCHAIN_SERVICE / _ACCOUNT �
 
 ## 公開先データベース
 
-DB スキーマは `notion-db-schema.json` の正本に従う。検索/絞り込みに必要な 6 プロパティのみを DB 列とし、それ以外の項目はページ本文 (children) の「メタ情報」セクションに rich_text / toggle で記述する。
+DB スキーマは `notion-db-schema.json` の v2 正本に従う。DB 列は `intake-final-schema.json#/properties/notion_db_properties` から投影する 16 プロパティで固定し、`render_notion_page.py:project_db_properties()` が Notion 型へ変換する。それ以外の長文・章構造・図解はページ本文 (children) に出力する。古い「6 プロパティのみ」運用は廃止。
 
 | # | プロパティ | 型 | 内容 |
 |---|------------|----|------|
-| 1 | 名前 | title | スキルの日本語タイトル (30 字以内、記号 → で工程を示す。例: `商談文字起こし→契約書自動生成→Slack配信`)。`meta.skill_title_ja` 優先、未指定なら `purpose.verb_object` から自動生成、最終フォールバックのみ英語 `skill_name_hint` |
-| 2 | ステータス | select | 下書き / レビュー中 / 引き渡し済み / 構築済み / アーカイブ |
-| 3 | パターン | select | 量産型 / 自動化 / ナレッジ / レビュー / その他 |
-| 4 | 真の課題 | rich_text | 5 軸 true_problem の短文サマリ (200 字以内、詳細は本文へ) |
-| 5 | ナレッジ資産タグ | multi_select | 思考プロセス / 暗黙知 / 判断基準 / テンプレ / チェックリスト / その他 |
-| 6 | 作成日時 | created_time | Notion 自動 |
+| 1 | 名前 | title | スキルの日本語タイトル (30 字以内、記号 → で工程を示す。例: `商談文字起こし→契約書自動生成→Slack配信`) |
+| 2 | ステータス | select | 下書き / レビュー中 / Gate A承認済み / 引き渡し済み / 構築済み / アーカイブ |
+| 3 | パターン | select | A / B / C / D / E |
+| 4 | ワークフロー | select | A 単体 / B 自動収集配信 / C ナレッジ集約 / D レビュー / E その他 |
+| 5 | 深度 | select | light / standard / detailed |
+| 6 | 熟練度 | select | 初級 / 中級 / 上級 |
+| 7 | テーマ抽出 | select | T1 静的シード / T2 動的抽出 / T3 ハイブリッド |
+| 8 | 責務境界 | select | O1 オーケストレータ / O2 ハイブリッド / O3 独立 |
+| 9 | 配信タイミング | select | S1 定刻 / S2 オンデマンド / S3 両対応 |
+| 10 | 出力先 | multi_select | Obsidian / Discord / Slack / Notion / X / Email / その他 |
+| 11 | 共有相手 | multi_select | 自分 / Xフォロワー / クライアント / 受講生 / チーム / その他 |
+| 12 | 引き渡しモード | select | fast-track / standard / human-review / draft-only |
+| 13 | 真の課題 | rich_text | 5 軸 true_problem の短文サマリ (200 字以内、詳細は本文へ) |
+| 14 | ナレッジ資産タグ | multi_select | 思考プロセス / 暗黙知 / 判断基準 / テンプレ / チェックリスト / ハイブリッド抽出 / その他 |
+| 15 | 実行環境 | select | Claude Code / Cowork / 両方 |
+| 16 | 作成日 | created_time | Notion 自動 |
 
-### 本文 children に移した項目
+`notion-db-schema.json` に存在する optional / generated property が増えた場合も、表ではなく同 JSON を正本とする。
 
-`publish_notion_page.py:build_extra_body_blocks()` がページ先頭の「メタ情報 (DB プロパティ補完)」セクションに次の項目を rich_text / toggle で出力する。
+### 本文 children に出力する項目
 
-- 出力先 / 情報源 / 共有相手 (5 軸の残り)
-- 図解枚数 / 価値実現スコア
-- 担当者 / 更新日時
-- ユーザープロファイル (toggle)
-- 未解決事項 (toggle)
-- 外部連携 (toggle)
+`render_notion_page.py` が `intake-final-schema.json` の §0〜§11 構造を直接 children 化する。DB プロパティへ入れない詳細は本文を正本 view とし、`intake-final-template.md.tmpl` と同じ章順で出力する。
 
 DB が存在しない場合は `scripts/create_notion_database.py --mode=create` で作成。既存 DB との差分は `scripts/verify_notion_schema.py --on-conflict skip-warn|overwrite|fail-stop` で扱う（既定: `skip-warn`、破壊回避）。
 

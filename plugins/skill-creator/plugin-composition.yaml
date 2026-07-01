@@ -25,7 +25,8 @@ contract:
     - "hook の副作用境界(side_effect_scope)は manifest 上で宣言されたもののみ (enforcement: manual)"
     - "cross-plugin 参照は repo clone 開発環境で存在確認できる internal plugin に限定すること。skill-creator / prompt-creator は marketplace / bundle 配布対象ではない (allowed_cross_plugins: skill-intake, skill-governance-lint, skill-governance-automation, skill-governance-config, skill-governance-migration, prompt-creator) (enforcement: skill-governance-lint/scripts/lint-external-refs.py --fail-on-external)"
     - "knowledge-loop は単一機構(ref-knowledge-loop 正本)を生成物(Loop A)と skill-creator 自身(Loop B)で自己適用し、並行ストアを作らないこと(SSOT) (enforcement: run-build-skill/scripts/lint-ssot-duplication.py + lint-knowledge-loop.py)"
-    - "runtime hook script は自 plugin root 外を import-time に fail-closed 依存しないこと(必須共有モジュールは plugin 内へ vendoring し byte 一致 lint で正本と同期/ローダは fail-soft で raise しない)。単独 install でも全フックが exit 0 を維持する。参照: skills/ref-cross-platform-runtime/references/runtime-portability.md (enforcement: scripts/lint-runtime-portability.py + scripts/lint-vendored-ssot.py)"
+    - "runtime hook script は自 plugin root 外を import-time に fail-closed 依存しないこと(必須共有モジュールは plugin 内へ vendoring し byte 一致 lint で正本と同期/ローダは fail-soft で raise しない)。単独 install でも全フックが exit 0 を維持する。参照: skills/ref-cross-platform-runtime/references/runtime-portability.md 層1 (enforcement: scripts/lint-runtime-portability.py + scripts/lint-vendored-ssot.py)"
+    - "配布 plugin (kind=plugin) を生成し外部依存(API/DB/秘密)の疎通確認手順が要るなら、install 位置を __file__ 相対で自己解決する doctor スクリプトを同梱し README の疎通確認はチャット委譲(/<name>-doctor or 自然文)を一次導線とすること。README bash/sh フェンスに一次手順の裸 $CLAUDE_PLUGIN_ROOT/... / repo 相対 python3 plugins/<name>/... / os.environ 添字を書かず、生パスは開発者補足へ降格し fallback 形 ${CLAUDE_PLUGIN_ROOT:-plugins/<name>} で書く(導入者の生ターミナル空展開事故を防ぐ)。参照: skills/ref-cross-platform-runtime/references/runtime-portability.md 層2 (enforcement: scripts/lint-readme-plugin-root-portability.py)"
 
 capabilities:
   # === Skills (kind=skill) ===
@@ -102,7 +103,7 @@ dependencies:
   - { from: skills/run-build-skill,         to: skills/ref-skill-naming-convention, type: reads }
   - { from: skills/run-build-skill,         to: skills/run-goal-seek,               type: emits }
   - { from: skills/run-build-skill,         to: skills/ref-knowledge-loop,          type: reads }
-  - { from: skills/run-build-skill,         to: skills/run-skill-feedback,          type: deploys }
+  - { from: skills/run-build-skill,         to: skills/run-skill-feedback,          type: emits }
   - { from: skills/run-build-skill,         to: skills/assign-skill-design-evaluator, type: calls }
   - { from: skills/run-build-skill,         to: skills/run-elegant-review,          type: calls }
   - { from: skills/run-skill-create,        to: skills/assign-skill-design-evaluator, type: calls }

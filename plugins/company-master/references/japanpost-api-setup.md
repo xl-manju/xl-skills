@@ -89,8 +89,8 @@ security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '
    ```
 3. **テストデータにある住所**で確認(霞が関はテスト対象外。`飯田橋`/`一番町`/`岩本町`/`内幸町`/`大手町` が対象):
    ```bash
-   python3 plugins/company-master/scripts/postal_api.py 東京都千代田区飯田橋   # → 102-0072
-   python3 plugins/company-master/scripts/company_master.py doctor --probe       # 配線の総合確認
+   python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/postal_api.py" 東京都千代田区飯田橋   # → 102-0072
+   python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor --probe       # 配線の総合確認
    ```
 4. 本番移行 (stub → 本番。**この2つを必ず両方**行う):
    1. **本番システムの client_id/secret_key を上書き登録**(テスト用のままだと本番ホストで 401 になる):
@@ -105,7 +105,7 @@ security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '
       > **注意**: `security delete-generic-password -s japanpost-da-api.xl-skills ...` は `hooks/hook-guard-secret.py` が**誤削除防止でブロック**するため使えない。stub 上書きの「解除」は上記のように**本番ホストで上書き**するか、Keychain Access.app から手動削除する。
 5. 本番で疎通確認(stub のテスト住所でなく実在の住所で。送信元IPが for Biz 登録値と一致している必要がある):
    ```bash
-   python3 plugins/company-master/scripts/company_master.py doctor --probe
+   python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor --probe
    ```
    `doctor` の「接続先」が本番 `api.da.pf.japanpost.jp` になり、実疎通が OK なら本番移行完了。401/403 が出たら client_id/secret_key がテスト用のまま、または送信元IPが未登録/ズレ。
 
@@ -120,10 +120,10 @@ security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '
 
 ```bash
 # 鍵/IP の有無診断 (ネット非依存)
-python3 plugins/company-master/scripts/company_master.py doctor
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor
 
 # 実 API 疎通 (token 発行 + テスト検索。登録IPとのズレを検知)
-python3 plugins/company-master/scripts/company_master.py doctor --probe
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor --probe
 ```
 
 `doctor --probe` が `[FAIL] 日本郵便 API 実疎通: 認証失敗` を出す場合、送信元IPが登録IPと不一致か鍵が不正。

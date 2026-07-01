@@ -109,7 +109,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - [ ] Phase 1 (`run-intake-kickoff`, Skill) success → `kickoff.json` schema validate PASS
 - [ ] Phase 2 (`skill-intake-assumption-challenger`, SubAgent / context:fork) success → `assumption.json` schema validate PASS
 - [ ] Phase 3 (`skill-intake-user-profiler`, SubAgent / context:fork) success → `profile.json` schema validate PASS
-- [ ] Phase 4 (`run-intake-interview`, Skill) success → `sheet.md` + `interview.json` schema validate PASS。`needs_excavation` flag 確定
+- [ ] Phase 4 (`run-intake-interview`, Skill) success → `sheet.md` + `interview.json` schema validate PASS。`intent_contract.slot_status` 全 slot filled=true、`pending_probes=[]`、`needs_excavation` flag 確定。未充足なら Phase 4 に戻り `probe-pattern-table.json` の固定 probe で追加ヒアリング
 - [ ] Phase 5 (`skill-intake-purpose-excavator`, SubAgent / context:fork) success → `purpose.json` schema validate PASS。`interview.json.needs_excavation=false` なら skip 理由を `intake-trace.json` に記録
 - [ ] Phase 6 (`run-intake-option-catalog`, Skill) success → `options.json` schema validate PASS
 - [ ] Phase 7 (`run-intake-visualize`, Skill) success → `visuals.json` + PNG 群生成
@@ -132,6 +132,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - **委譲先**: `workflow-manifest.json` の `delegateType` / `delegateName` を唯一の起動契約とする。`delegateType=skill` は Skill tool、`delegateType=agent` は Task tool (SubAgent / context:fork) で起動する。本スキルは制御のみで業務ロジックを持たない。
 - **context:fork 必須箇所**: Phase 2 / 3 / 5 / 8。主スレッド context を渡さず Task tool で fresh agent 起動 (バイアス回避・同意ループ防止)。
 - **handoff 検証**: 各 phase 完了直後に `workflow-manifest.json` と各 delegate の `schemas/` 契約を確認する。fail なら同 phase へ差し戻し (最大 3 周、`fatal_exit_codes=[2,3]`)。
+- **intent 完了ゲート**: Phase 4 後、`interview.json.intent_contract.slot_status` に `filled=false` がある、または `pending_probes[]` が空でない場合は Phase 5 以降へ進まない。`pending_probes[]` の順に Phase 4 へ戻し、ユーザーへ固定 probe を 1 問ずつ聞く。
 - **Gate A (Phase 8) 否認分岐**: `summary.json` 否認時は Phase 4 へ戻り再ヒアリング (最大 2 周)。3 周目突入なら停止しユーザーへ要件再確認を促す。
 - **Phase 5 skip 判定**: `interview.json.needs_excavation=false` なら Phase 5 を skip し Phase 6 へ。skip 理由を `intake-trace.json` へ明示記録 (理由なき skip は禁止)。
 - **lint / quality_gate 自動修正禁止**: `quality_gate.py` / `cross_check.py` fail は根本原因をユーザー提示し AI 判断で勝手に直さない。
@@ -162,5 +163,5 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - 子 Skill: `run-intake-kickoff` / `run-intake-interview` / `run-intake-option-catalog` / `run-intake-visualize` / `run-intake-next-action` / `run-intake-finalize` / `run-notion-intake-publish`
 - SubAgent: `skill-intake-assumption-challenger` / `skill-intake-user-profiler` / `skill-intake-purpose-excavator` / `skill-intake-summarizer`
 - **単一発火点 (公開 SSOT)**: Notion 公開は `intake_publish_pipeline.py` のみを発火点とし、SubAgent / sibling `run-notion-intake-publish` から二重に render/publish を直叩きしない。指定 page がある場合 `--page-id` / `--page-url` を最優先で渡し、page_id 解決不能時は exit 51 で停止する。All-or-Nothing: PNG 1 枚でも欠けたら `verify_notion_assets.py` で停止し途中公開しない。quality_gate / completeness FAIL は LLM 判断で勝手に直さずユーザーへ提示する (推測補完禁止)。
-- 既存スキルとの関係: `run-skill-elicit` (技術者向け簡易 brief、併存) / `run-skill-create` (**上位 orchestrator**。intake を Step 1 として呼ぶ側。intake からは起動しない — Key Rule 9) / `run-notion-fidelity-guard` (Phase 10 内部起動)。前身の `run-skill-intake-aggregator` は本スキルへ統合・削除済 (references / assets / schemas は plugin 直下へ移設)。
+- 既存スキルとの関係: `run-skill-elicit` (技術者向け簡易 brief、併存) / `run-skill-create` (**上位 orchestrator**。intake を Step 1 として呼ぶ側。intake からは起動しない — Key Rule 9) / `assign-notion-fidelity-evaluator` (Phase 10 内部起動)。前身の `run-skill-intake-aggregator` は本スキルへ統合・削除済 (references / assets / schemas は plugin 直下へ移設)。
 - Slash command の起動正本は本スキル (`run-skill-intake`)。`/intake-publish <hint>` (Notion 再公開) / `/intake-status <hint>` (進行確認) は別 skill が担う。

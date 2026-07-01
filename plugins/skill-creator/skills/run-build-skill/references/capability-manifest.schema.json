@@ -149,12 +149,12 @@
 
     "kindCommand": {
       "type": "object",
-      "description": "SlashCommand (commands/*.md) frontmatter スキーマ。",
+      "description": "SlashCommand (commands/*.md) frontmatter スキーマ。通常は entrypoint skill へ委譲する薄いラッパ。例外として、セットアップ doctor など同梱 script を直接叩く direct-script command は entrypoint を省略できるが、実行例は `${CLAUDE_PLUGIN_ROOT:-plugins/<plugin-name>}` fallback 形にし、script 本体は `__file__` 相対で自己解決すること。",
       "properties": {
         "kind": { "const": "command" },
         "argument-hint": { "type": "string", "description": "/command <hint> の <hint> 部分。" },
         "allowed-tools": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ], "description": "string(カンマ区切り) か array。scripts/skill-schema.json と同一定義。" },
-        "entrypoint": { "type": "string", "description": "実体ロジックを持つ Skill name。command は薄いラッパに保つ。" }
+        "entrypoint": { "type": "string", "description": "実体ロジックを持つ Skill name。command は薄いラッパに保つ。direct-script command の場合のみ省略可。" }
       },
       "required": ["argument-hint", "allowed-tools"]
     },
@@ -185,7 +185,7 @@
             "properties": {
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "type": { "type": "string", "enum": ["calls", "reads", "extends", "evaluates", "emits", "writes", "delegates"] }
+              "type": { "type": "string", "enum": ["calls", "reads", "extends", "evaluates", "emits", "writes", "delegates", "deploys"] }
             }
           }
         },

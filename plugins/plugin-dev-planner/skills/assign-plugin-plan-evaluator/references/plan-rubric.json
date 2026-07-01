@@ -98,14 +98,16 @@
       "name": "contract-conflict",
       "conditions": ["C1"],
       "severity_on_fail": "high",
-      "source": "handoff route builder and plugin_meta contract meaning"
+      "source": "handoff route builder and plugin_meta contract meaning",
+      "runner": "llm-only"
     },
     {
       "id": "S2",
       "name": "plugin-level-surface-coverage",
       "conditions": ["C2"],
       "severity_on_fail": "high",
-      "source": "component-inventory.plugin_level_surfaces"
+      "source": "component-inventory.plugin_level_surfaces",
+      "runner": "mechanical-plus-llm"
     }
   ],
   "global_thresholds": {

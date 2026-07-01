@@ -94,6 +94,24 @@ def test_r3_skill_delegates_to_specfm():
     )
 
 
+def test_io_contract_phase_keys_match_specfm(specfm_mod):
+    """io-contract.md §9 の phase frontmatter 表が specfm.PHASE_REQUIRED を全キー列挙する。
+
+    per-phase 転換で phase frontmatter 契約は specfm.PHASE_REQUIRED (実行可能正本) と、その
+    人間可読 projection である io-contract.md の phase 表に持たれる。specfm にキーを足して散文を
+    忘れる drift を forward 方向 (specfm ⊆ doc) で機械突合する。
+    """
+    if not _IO_CONTRACT.is_file():
+        pytest.skip(f"io-contract.md 不在: {_IO_CONTRACT}")
+    tokens = {_normalize_key(t) for t in _BACKTICK_RE.findall(_IO_CONTRACT.read_text(encoding="utf-8"))}
+    required = set(specfm_mod.PHASE_REQUIRED)
+    missing = sorted(required - tokens)
+    assert not missing, (
+        f"io-contract.md の phase frontmatter 表が specfm.PHASE_REQUIRED のキーを欠落: {missing}\n"
+        f"(specfm.PHASE_REQUIRED にキーを足したら io-contract.md §9 の phase 表へ追記すること)"
+    )
+
+
 def test_parity_guard_catches_drift(specfm_mod):
     """本ガードが「specfm にキーを足して散文を忘れた」drift を確かに検出する回帰固定。"""
     required = set(specfm_mod.STRUCTURAL_REQUIRED["hook"])

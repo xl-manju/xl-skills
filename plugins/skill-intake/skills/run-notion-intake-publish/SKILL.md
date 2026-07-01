@@ -70,7 +70,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 | Skill / Script | 責務 | 本スキルとの境界 |
 |---|---|---|
 | `run-skill-intake` | ヒアリング・5 軸抽出・図解・初回 publish | 初回は run-skill-intake phase11、本 skill は **再公開専用** |
-| `run-notion-fidelity-guard` | 公開直前の構造粒度検証 | 本 skill は呼び出し元として fidelity-guard `verdict=pass` を前提 |
+| `assign-notion-fidelity-evaluator` | 公開直前の構造粒度検証 | 本 skill は呼び出し元として fidelity-guard `verdict=pass` を前提 |
 | `intake_publish_pipeline.py` | render → quality_gate → publish の単一発火点 | 本 skill は引数を整え 1 回呼ぶだけ |
 
 ## Key Rules
@@ -155,7 +155,7 @@ python3 "$PLUGIN_ROOT/scripts/intake_publish_pipeline.py" \
 
 pipeline 内部で render → quality_gate → publish を順 exec し、いずれか
 exit !=0 で停止。トークンは `notion_http.py` が Keychain から都度取得 (環境変数渡し禁止)。
-publish 前に `run-notion-fidelity-guard/scripts/validate-notion-fidelity.py` を必ず実行し、`verdict=pass` 以外は Notion API mutation へ進まない。
+publish 前に `assign-notion-fidelity-evaluator/scripts/validate-notion-fidelity.py` を必ず実行し、`verdict=pass` 以外は Notion API mutation へ進まない。
 `--revise` により既存 `notion-publish-result.json` の page_id が期待値 (notion-url.txt) と
 一致するか quality_gate で検査され (page_id_consistency)、別ページへの化け (orphan) を publish 前に FAIL させる。
 
@@ -227,4 +227,4 @@ intake 成果物は canonical source として `output/<hint>/` 配下で管理�
 ## 関連スキル
 
 - `run-skill-intake` — 初回 publish 担当 (phase11 で同 pipeline を呼ぶ正本)
-- `run-notion-fidelity-guard` — 公開直前の構造粒度ガード (本 skill 起動前に pass 必須)
+- `assign-notion-fidelity-evaluator` — 公開直前の構造粒度ガード (本 skill 起動前に pass 必須)

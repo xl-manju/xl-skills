@@ -1,9 +1,14 @@
-"""check-spec-matrix-coverage.py の機能テスト (43行 operationalize 被覆)。"""
+"""check-spec-matrix-coverage.py の機能テスト (43行 operationalize 被覆・per-phase 転換)。
+
+焼き先は inventory scope (component-inventory.json の component) / plugin scope
+(index.plugin_meta) / phase scope (機械アンカー無し・計数のみ) の 3 種。
+"""
 from __future__ import annotations
 
-from conftest import write_component_spec, write_index
+from conftest import component_entry, write_inventory, write_phase_index
 
 
+# ─────────────────── 分類 / self-test (現状維持) ───────────────────
 def test_classify_counts(matrix):
     counts = matrix.classify_counts()
     assert counts == {"OP": 10, "conditional": 16, "N-A": 17}
@@ -11,7 +16,6 @@ def test_classify_counts(matrix):
 
 
 def test_classify_membership(matrix):
-    # 件数でなく行 ID 集合を完全一致で固定 (分類すり替えを検出)
     c = matrix.current_classification()
     op = {r for r, k in c.items() if k == "OP"}
     cond = {r for r, k in c.items() if k == "conditional"}
@@ -21,25 +25,24 @@ def test_classify_membership(matrix):
                     "A11", "E5", "E6", "E1", "E2", "G1", "G2"}
     assert na == {"A2", "A3", "A4", "A6", "A9", "B2", "B3", "C3", "C4",
                   "D3", "D4", "E3", "E4", "G3", "G4", "G5", "G6"}
-    assert matrix.membership_drift() == []  # 現行 ROWS は固定集合と一致
+    assert matrix.membership_drift() == []
 
 
 def test_membership_drift_detects_count_neutral_swap(matrix):
-    # OP の A1 を N-A へ、N-A の A2 を OP へ 1:1 入替 → 件数 {10,16,17} 不変だが集合 drift
     c = matrix.current_classification()
     c["A1"], c["A2"] = "N-A", "OP"
     counts = {"OP": sum(v == "OP" for v in c.values()),
               "conditional": sum(v == "conditional" for v in c.values()),
               "N-A": sum(v == "N-A" for v in c.values())}
-    assert counts == {"OP": 10, "conditional": 16, "N-A": 17}  # 件数は不変
+    assert counts == {"OP": 10, "conditional": 16, "N-A": 17}
     drift = matrix.membership_drift(c)
-    assert drift  # 集合ガードは入替を検出する
+    assert drift
     assert any("OP" in d for d in drift) and any("N-A" in d for d in drift)
 
 
 def test_self_test_includes_membership(matrix):
     code, msgs = matrix.self_test(matrix._DEFAULT_MATRIX)
-    assert code == 0 and msgs == []  # 43 行一致 + 集合一致
+    assert code == 0 and msgs == []
 
 
 def test_rows_table_has_43(matrix):
@@ -68,52 +71,44 @@ def test_has_dotted(matrix):
     assert matrix._has(d, "quality_gates.evaluator")
     assert matrix._has(d, "quality_gates.evaluator.threshold")
     assert not matrix._has(d, "quality_gates.missing")
-    assert not matrix._has({"k": ""}, "k")  # 空文字は不在扱い
-    assert not matrix._has({"k": None}, "k")  # None も不在
-    # 明示的に置かれた空コンテナは addressed (値域の正否は gates の責務)
+    assert not matrix._has({"k": ""}, "k")
+    assert not matrix._has({"k": None}, "k")
     assert matrix._has({"k": []}, "k")
     assert matrix._has({"k": {}}, "k")
 
 
-def test_check_spec_coverage_skill_clean(tmp_path, matrix, specfm_mod):
-    p = write_component_spec(tmp_path, "C01", "skill", skill_kind="run")
-    fm = specfm_mod.parse_frontmatter(p.read_text(encoding="utf-8"))
-    assert matrix.check_spec_coverage(fm) == []
+# ─────────────────── inventory scope coverage ───────────────────
+def test_inventory_coverage_skill_clean(matrix):
+    comp = component_entry("C01", "skill", skill_kind="run")
+    assert matrix.check_inventory_coverage([comp]) == []
 
 
-def test_check_spec_coverage_hook_only_op(tmp_path, matrix, specfm_mod):
+def test_inventory_coverage_hook_only_op(matrix):
     # hook は OP-ALWAYS アンカーのみ要求 (skill 専用行は適用されない)
-    p = write_component_spec(tmp_path, "C01", "hook")
-    fm = specfm_mod.parse_frontmatter(p.read_text(encoding="utf-8"))
-    assert matrix.check_spec_coverage(fm) == []
+    comp = component_entry("C01", "hook")
+    assert matrix.check_inventory_coverage([comp]) == []
 
 
-def test_check_spec_coverage_skill_missing_goal_seek(tmp_path, matrix, specfm_mod):
-    p = write_component_spec(tmp_path, "C01", "skill", skill_kind="run", drop=["goal_seek"])
-    fm = specfm_mod.parse_frontmatter(p.read_text(encoding="utf-8"))
-    missing = matrix.check_spec_coverage(fm)
-    # D1/D2/D5 が goal_seek 欠落で未反映になる
-    assert any(m.startswith("D1") for m in missing)
-    assert any("goal_seek" in m for m in missing)
+def test_inventory_coverage_missing_goal_seek(matrix):
+    comp = component_entry("C01", "skill", skill_kind="run", drop=["goal_seek"])
+    findings = matrix.check_inventory_coverage([comp])
+    assert any("D1" in m for m in findings)
+    assert any("goal_seek" in m for m in findings)
 
 
-def test_check_spec_coverage_prompt_layer_required_for_run(tmp_path, matrix, specfm_mod):
-    p = write_component_spec(tmp_path, "C01", "skill", skill_kind="run", drop=["prompt_layer"])
-    fm = specfm_mod.parse_frontmatter(p.read_text(encoding="utf-8"))
-    assert any("prompt_layer" in m for m in matrix.check_spec_coverage(fm))
+def test_inventory_coverage_missing_prompt_layer(matrix):
+    comp = component_entry("C01", "skill", skill_kind="run", drop=["prompt_layer"])
+    assert any("prompt_layer" in m for m in matrix.check_inventory_coverage([comp]))
 
 
-def test_knowledge_loop_only_when_feature(tmp_path, matrix, specfm_mod):
-    # 通常 (feature なし) は G1 非適用
-    p1 = write_component_spec(tmp_path, "C01", "skill")
-    fm1 = specfm_mod.parse_frontmatter(p1.read_text(encoding="utf-8"))
-    assert not any(m.startswith("G1") for m in matrix.check_spec_coverage(fm1))
-    # feature opt-in だが knowledge_loop キー欠落 → G1 未反映
-    p2 = write_component_spec(tmp_path, "C02", "skill", features=["knowledge_loop"])
-    fm2 = specfm_mod.parse_frontmatter(p2.read_text(encoding="utf-8"))
-    assert any(m.startswith("G1") for m in matrix.check_spec_coverage(fm2))
+def test_knowledge_loop_only_when_feature(matrix):
+    plain = component_entry("C01", "skill")
+    assert not any("G1" in m for m in matrix.check_inventory_coverage([plain]))
+    opted = component_entry("C02", "skill", features=["knowledge_loop"])  # feature opt-in・キー欠落
+    assert any("G1" in m for m in matrix.check_inventory_coverage([opted]))
 
 
+# ─────────────────── plugin scope coverage ───────────────────
 def test_check_plugin_coverage_clean_and_missing(matrix):
     full = {"distribution": {"distributable": False, "bundles": ["none"]},
             "pkg_contract": {"x": 1}, "governance": {"x": 1}, "ci": {"x": 1},
@@ -124,32 +119,32 @@ def test_check_plugin_coverage_clean_and_missing(matrix):
     assert {"F3", "F4", "F6", "A7", "A10", "F5", "F7", "D6"} <= ids
 
 
-def test_run_clean(tmp_path, matrix, capsys):
-    write_component_spec(tmp_path, "C01", "skill", skill_kind="run")
-    write_component_spec(tmp_path, "C02", "hook")
-    write_index(tmp_path, ["C01", "C02"], plugin_meta=True)
-    code, findings, counts = matrix.run(tmp_path, "index.md")
+# ─────────────────── run / main 統合 ───────────────────
+def test_run_clean(tmp_path, matrix):
+    write_inventory(tmp_path, [component_entry("C01", "skill", skill_kind="run"), component_entry("C02", "hook")])
+    write_phase_index(tmp_path, plugin_meta=True)
+    code, findings, counts = matrix.run(tmp_path, "index.md", None)
     assert code == 0, findings
     assert counts["OP"] == 10
 
 
 def test_run_plugin_meta_missing(tmp_path, matrix):
-    write_component_spec(tmp_path, "C01", "skill")
-    write_index(tmp_path, ["C01"], plugin_meta=False)
-    code, findings, counts = matrix.run(tmp_path, "index.md")
+    write_inventory(tmp_path, [component_entry("C01", "skill")])
+    write_phase_index(tmp_path, plugin_meta=False)
+    code, findings, counts = matrix.run(tmp_path, "index.md", None)
     assert code == 1
     assert any("plugin-level" in f for f in findings)
 
 
 def test_run_missing_index(tmp_path, matrix):
-    write_component_spec(tmp_path, "C01", "skill")
-    code, findings, counts = matrix.run(tmp_path, "index.md")
+    write_inventory(tmp_path, [component_entry("C01", "skill")])
+    code, findings, counts = matrix.run(tmp_path, "index.md", None)
     assert code == 2
 
 
-def test_run_no_specs(tmp_path, matrix):
-    write_index(tmp_path, [])
-    code, findings, counts = matrix.run(tmp_path, "index.md")
+def test_run_missing_inventory(tmp_path, matrix):
+    write_phase_index(tmp_path, plugin_meta=True)
+    code, findings, counts = matrix.run(tmp_path, "index.md", None)
     assert code == 2
 
 
@@ -165,16 +160,16 @@ def test_main_self_test_fail(tmp_path, matrix):
 
 
 def test_main_clean(tmp_path, matrix, capsys):
-    write_component_spec(tmp_path, "C01", "skill", skill_kind="run")
-    write_index(tmp_path, ["C01"], plugin_meta=True)
+    write_inventory(tmp_path, [component_entry("C01", "skill", skill_kind="run")])
+    write_phase_index(tmp_path, plugin_meta=True)
     assert matrix.main([str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "OP=10" in out and "conditional=16" in out and "N-A=17" in out
 
 
-def test_main_violation(tmp_path, matrix, capsys):
-    write_component_spec(tmp_path, "C01", "skill")
-    write_index(tmp_path, ["C01"], plugin_meta=False)
+def test_main_violation(tmp_path, matrix):
+    write_inventory(tmp_path, [component_entry("C01", "skill")])
+    write_phase_index(tmp_path, plugin_meta=False)
     assert matrix.main([str(tmp_path)]) == 1
 
 
@@ -188,6 +183,6 @@ def test_main_not_a_dir(tmp_path, matrix):
     assert matrix.main([str(f)]) == 2
 
 
-def test_main_missing_index_exit2(tmp_path, matrix):
-    write_component_spec(tmp_path, "C01", "skill")
+def test_main_missing_inventory_exit2(tmp_path, matrix):
+    write_phase_index(tmp_path, plugin_meta=True)
     assert matrix.main([str(tmp_path)]) == 2

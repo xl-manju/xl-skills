@@ -25,7 +25,7 @@
 - 検証は決定論検査 (同梱 scripts の exit code) を優先する
   - 目的: 「できた気がする」を排除し再現性を担保する
   - 背景: 自然言語判定は再現不能
-- skill-creator 仕様マトリクス全 43 行が各仕様書/index に 1 対 1 で反映されていることを突合する (漏れ 0)
+- skill-creator 仕様マトリクス全 43 行が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
   - 目的: 完全性の証明 (§14)
 
 ### 1.2 倫理ガード
@@ -34,7 +34,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 生成された仕様書群 + index が skill-creator 仕様 (43 行) を反映し、4 条件と unassigned 0 件を満たすことを検証する
+- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (43 行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
 - 非担当: 目的抽出 (R1)、分解 (R2)、生成 (R3)。検出した不足は R3 へ差し戻す
 
 ### 2.2 ドメインルール (検証は決定論 script で機械化・自然言語突合をしない)
@@ -50,8 +50,8 @@
 | component_inventory | path | yes | 未配置検証の期待集合 |
 
 ### 2.4 出力契約
-- 形式: 検証レポート (Markdown) + core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code サマリ
-- 必須: matrix-coverage の OP/conditional/N-A 内訳 + 未反映適用行 / unassigned 件数 / top-sort 判定 / quality_gates・criteria・harness 携帯判定
+- 形式: `<PLAN_DIR>/plan-findings.json` (assign skill が生成)
+- 必須: verdict / conditions(C1-C4) / gate_results / findings
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -71,7 +71,7 @@
 - いずれかの検査が exit1 なら R3 へ差し戻し再生成 (最大 3 周)。超過時 `open_issues` に残し上位へ escalate
 
 ### 4.2 観測 / ロギング
-- 出力先: `<PLAN_DIR>/verify-report.md` + `<PLAN_DIR>/plan-findings.json`
+- 出力先: `<PLAN_DIR>/plan-findings.json`
 
 ### 4.3 セキュリティ
 - 検証ログに secret を残さない
@@ -82,7 +82,7 @@
 - run-plugin-dev-plan の R4 orchestrator (薄い接続層)。実評価 agent は `assign-plugin-plan-evaluator` / `plugin-dev-plan-evaluator` が `isolation: fork` で実行する
 
 ### 5.2 ゴール定義
-- **目的**: 計画 (仕様書群 + index) が skill-creator 規律を漏れなく携帯し検証を通過することを保証する
+- **目的**: 計画 (13 phase ファイル + index + inventory) が skill-creator 規律を漏れなく携帯し検証を通過することを保証する
 - **背景**: 検証なしでは後段プラグインが品質ゲートで差し戻され往復コストが増える
 - **達成ゴール**: 43 行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
 
@@ -102,8 +102,8 @@ R4 は下記を**自分で実行せず** `assign-plugin-plan-evaluator` の `pla
 ## Layer 6: オーケストレーション層 (ゴールシーク制御)
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: run-plugin-dev-plan (P8 フェーズ)
-- 後続 phase: 完了 (各仕様書を run-skill-create へ委譲)
+- 呼び出し元: run-plugin-dev-plan (検証フェーズ)
+- 後続 phase: 完了 (各 inventory component を run-skill-create へ委譲)
 
 ### 6.2 ハンドオフ / 並列性
 - 直列: 検証 NG は R3 へ差し戻し。PASS なら handoff を出し計画を確定する
@@ -113,7 +113,7 @@ R4 は下記を**自分で実行せず** `assign-plugin-plan-evaluator` の `pla
 この Layer 7 は prompt-creator 7層形式の出力提示レイヤーであり、Web UI/UX やスクリーンショット要求ではない。
 
 ### 7.1 ユーザー提示形式
-- verify-report.md (突合表 + 検査 exit code サマリ)
+- plan-findings.json の verdict / gate_results / findings 要約
 
 ### 7.2 言語
 - 本文: 日本語 (パラメーター名 / schema key は英語のまま)
@@ -129,6 +129,6 @@ Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件
 を対象に **`assign-plugin-plan-evaluator` を呼び出し** (スクリプト実行は assign skill の R1-evaluate が担う)、
 返却された `plan-findings.json` を受領する (自然言語の 43 行突合はしない=機械化済み)。出力は次の 1 つのみとする:
 
-1. verify-report.md (assign skill の verdict / gate_results exit code サマリ / matrix-coverage の OP・conditional・N-A 内訳 + 未反映適用行 / 差し戻し or 確定の判定)
+1. `<PLAN_DIR>/plan-findings.json` (assign skill の verdict / conditions / gate_results / findings)
 
 余計な前置き・後書き・思考過程出力は禁止。

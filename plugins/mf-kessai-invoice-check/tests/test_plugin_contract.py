@@ -51,16 +51,23 @@ def test_run_skills_are_exposed_as_slash_commands():
     Claude Code はプラグインのスキルを `/<plugin>:<skill>` (名前空間付き) でしか
     自動露出しない。短い `/run-mf-invoice-reconcile` を出すには commands/*.md が要る。
     これが無いと install 後にスラッシュコマンドが「表示されない」(回帰防止)。
+
+    doctor (`run-mf-invoice-doctor`) は skill を持たず lib/mfk_doctor.py を直接叩く
+    「直接 lib 実行コマンド」(company-master の doctor サブコマンドと同型) なので、
+    skill ブリッジ検査の対象からは分離し、末尾に別枠で並べる。
     """
     manifest = _json(".claude-plugin/plugin.json")
-    expected = [
+    # skill-backed コマンド: entrypoint→skill のブリッジ + skill 実体を持つ。
+    skill_commands = [
         "run-mf-invoice-reconcile",
         "run-mf-invoice-check",
         "run-mf-invoice-db-setup",
         "run-mf-initial-month-enrich",
     ]
-    assert manifest["entry_points"]["commands"] == expected
-    for cmd in expected:
+    # 直接 lib 実行コマンド: skill を持たず lib スクリプトを $CLAUDE_PLUGIN_ROOT fallback 形で叩く。
+    direct_lib_commands = ["run-mf-invoice-doctor"]
+    assert manifest["entry_points"]["commands"] == skill_commands + direct_lib_commands
+    for cmd in skill_commands:
         path = os.path.join(PLUGIN_ROOT, "commands", f"{cmd}.md")
         assert os.path.exists(path), f"commands/{cmd}.md が無い (スラッシュ非表示の原因)"
         with open(path, encoding="utf-8") as f:
@@ -70,6 +77,16 @@ def test_run_skills_are_exposed_as_slash_commands():
         assert f"entrypoint: {cmd}" in text
         # entrypoint 先の skill 実体が存在すること。
         assert os.path.isdir(os.path.join(PLUGIN_ROOT, "skills", cmd))
+    for cmd in direct_lib_commands:
+        path = os.path.join(PLUGIN_ROOT, "commands", f"{cmd}.md")
+        assert os.path.exists(path), f"commands/{cmd}.md が無い (スラッシュ非表示の原因)"
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        assert f"name: {cmd}" in text
+        # skill ブリッジではなく lib スクリプトを install パス非依存の fallback 形で叩く。
+        assert '${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/lib/mfk_doctor.py' in text
+        # doctor は skill を持たない (skill ブリッジと混同させない)。
+        assert not os.path.isdir(os.path.join(PLUGIN_ROOT, "skills", cmd))
 
 
 def _skill_frontmatter(skill_name):
@@ -224,6 +241,7 @@ def test_scripts_are_executable_for_install_smoke():
         "hooks/guard-mfk-no-reinvent.py",
         "lib/mfk_api.py",
         "lib/mfk_keychain.py",
+        "lib/mfk_doctor.py",
         "scripts/reconcile_invoices.py",
         "skills/run-mf-invoice-check/scripts/check_invoice_gaps.py",
         "skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
@@ -240,12 +258,60 @@ def test_scripts_are_executable_for_install_smoke():
         assert mode & stat.S_IXUSR, f"{rel_path} is not executable"
 
 
-def test_readme_direct_commands_use_plugin_root():
+def test_readme_direct_commands_delegate_to_doctor_not_bare_plugin_root():
+    """README の一次セットアップ導線は doctor 委譲へ寄せ、脆弱な裸表記の存在強制を撤廃する。
+
+    なぜ反転したか (因果ループの結節点):
+      旧テストは README が `python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --smoke` 等の
+      **裸 `$CLAUDE_PLUGIN_ROOT` 実行行を一次手順として持つこと**を assert で固定していた。
+      ところが `$CLAUDE_PLUGIN_ROOT` は Claude Code の実行環境でしか解決されず、素の
+      ターミナルでは空展開して `can't open file '/lib/mfk_api.py'` になる。README が
+      「ターミナルで疎通確認」と促し、テストがその脆弱表記を強制していたため、README を
+      安全化しようとすると必ずこのテストが赤化する = 欠陥を固定する因果ループの結節点だった。
+      そこで「脆弱表記の存在強制」を除去し、代わりに「doctor 委譲が一次導線に在ること」と
+      「repo 相対直書きが無いこと (堅牢性の正しい不変条件)」を固定する向きへ反転する。
+    """
     with open(os.path.join(PLUGIN_ROOT, "README.md"), encoding="utf-8") as f:
         readme = f.read()
+    # 維持: repo 相対直書きは禁止 (install パス非依存を守る正しい不変条件)。
     assert "python3 plugins/mf-kessai-invoice-check/" not in readme
-    assert 'python3 "$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py" --smoke' in readme
-    assert 'python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py"' in readme
+    # 追加: 一次セットアップ導線に doctor 委譲 (スラッシュコマンド or 自然文) が在ること。
+    assert "/run-mf-invoice-doctor" in readme
+    assert "MF掛け払いのセットアップを確認して" in readme
+    # 追加 (軽い横展開ガード): ```bash コードブロック内に、fallback も `#` 開発者補足注記も
+    # 無い純粋な裸 `$CLAUDE_PLUGIN_ROOT` 実行行が一次手順として残っていないこと。
+    # (裸 `$CLAUDE_PLUGIN_ROOT/...` は fallback 形 `${CLAUDE_PLUGIN_ROOT:-...}` か
+    #  「# 開発者向け」補足の文脈でのみ許可する。厳密な横展開 lint は別 executor が担う。)
+    for block in _readme_bash_blocks(readme):
+        stripped_lines = [ln.strip() for ln in block.splitlines()]
+        has_dev_note = any(ln.startswith("#") and ("開発者" in ln or "clone" in ln) for ln in stripped_lines)
+        for ln in stripped_lines:
+            if ln.startswith("#") or not ln:
+                continue
+            if '"$CLAUDE_PLUGIN_ROOT/' in ln and "${CLAUDE_PLUGIN_ROOT:-" not in ln:
+                assert has_dev_note, (
+                    "```bash 一次手順に裸 $CLAUDE_PLUGIN_ROOT 実行行が残存 "
+                    f"(fallback も開発者補足注記も無い): {ln!r}")
+
+
+def _readme_bash_blocks(readme):
+    """README の ```bash フェンス内テキストを列挙する (裸 $CLAUDE_PLUGIN_ROOT 検査用)。"""
+    blocks = []
+    lines = readme.splitlines()
+    in_block = False
+    buf = []
+    for line in lines:
+        if line.strip().startswith("```"):
+            if in_block:
+                blocks.append("\n".join(buf))
+                buf = []
+                in_block = False
+            elif line.strip() in ("```bash", "```sh"):
+                in_block = True
+            continue
+        if in_block:
+            buf.append(line)
+    return blocks
 
 
 def test_prompts_do_not_use_bare_script_paths():

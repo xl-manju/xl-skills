@@ -1,16 +1,13 @@
 {
-  "plan_dir": "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
+  "plan_dir": "plugin-plans/notion-task-sync",
   "target_plugin_slug": "notion-task-sync",
   "mode": "create",
-  "requested_count": null,
-  "force_13": false,
-  "derived_count": 5,
   "routes": [
     {
-      "id": "C05",
+      "id": "C09",
       "component_kind": "script",
       "name": "validate-sync-payload.py",
-      "spec": "C05-script.md",
+      "spec": "phase-05-implementation.md",
       "depends_on": [],
       "builder": "parent-skill-build",
       "build_kind": "script",
@@ -22,10 +19,25 @@
       "status": "planned"
     },
     {
-      "id": "C04",
+      "id": "C10",
+      "component_kind": "script",
+      "name": "notion-idempotency-key.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "parent-skill-build",
+      "build_kind": "script",
+      "build_args": {
+        "parent_skill": "run-notion-task-sync",
+        "script_path": "scripts/notion-idempotency-key.py"
+      },
+      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/notion-idempotency-key.py",
+      "status": "planned"
+    },
+    {
+      "id": "C11",
       "component_kind": "hook",
       "name": "guard-destructive-sync",
-      "spec": "C04-hook.md",
+      "spec": "phase-05-implementation.md",
       "depends_on": [],
       "builder": "run-build-skill",
       "build_kind": "hook",
@@ -40,8 +52,8 @@
       "id": "C01",
       "component_kind": "skill",
       "name": "run-notion-task-sync",
-      "spec": "C01-skill.md",
-      "depends_on": ["C05"],
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C09", "C10"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -52,10 +64,40 @@
       "status": "planned"
     },
     {
+      "id": "C03",
+      "component_kind": "skill",
+      "name": "run-notion-task-backfill",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C09", "C10"],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-notion-task-backfill",
+        "kind": "run"
+      },
+      "build_target": "plugins/notion-task-sync/skills/run-notion-task-backfill/",
+      "status": "planned"
+    },
+    {
       "id": "C02",
+      "component_kind": "skill",
+      "name": "run-notion-task-reconcile",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C09", "C01"],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-notion-task-reconcile",
+        "kind": "run"
+      },
+      "build_target": "plugins/notion-task-sync/skills/run-notion-task-reconcile/",
+      "status": "planned"
+    },
+    {
+      "id": "C04",
       "component_kind": "sub-agent",
       "name": "notion-sync-verifier",
-      "spec": "C02-subagent.md",
+      "spec": "phase-05-implementation.md",
       "depends_on": ["C01"],
       "builder": "run-build-skill",
       "build_kind": "agent",
@@ -67,10 +109,40 @@
       "status": "planned"
     },
     {
-      "id": "C03",
+      "id": "C05",
+      "component_kind": "sub-agent",
+      "name": "notion-reconcile-auditor",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C02"],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "notion-reconcile-auditor"
+      },
+      "build_target": "plugins/notion-task-sync/agents/notion-reconcile-auditor.md",
+      "status": "planned"
+    },
+    {
+      "id": "C06",
+      "component_kind": "sub-agent",
+      "name": "notion-backfill-auditor",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C03"],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "notion-backfill-auditor"
+      },
+      "build_target": "plugins/notion-task-sync/agents/notion-backfill-auditor.md",
+      "status": "planned"
+    },
+    {
+      "id": "C07",
       "component_kind": "slash-command",
       "name": "sync-tasks",
-      "spec": "C03-command.md",
+      "spec": "phase-05-implementation.md",
       "depends_on": ["C01"],
       "builder": "run-build-skill",
       "build_kind": "command",
@@ -79,6 +151,21 @@
         "name": "sync-tasks"
       },
       "build_target": "plugins/notion-task-sync/commands/sync-tasks.md",
+      "status": "planned"
+    },
+    {
+      "id": "C08",
+      "component_kind": "slash-command",
+      "name": "reconcile-tasks",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C02"],
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "build_args": {
+        "kind": "command",
+        "name": "reconcile-tasks"
+      },
+      "build_target": "plugins/notion-task-sync/commands/reconcile-tasks.md",
       "status": "planned"
     }
   ],

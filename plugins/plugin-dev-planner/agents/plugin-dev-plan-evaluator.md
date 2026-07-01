@@ -22,7 +22,7 @@ architect が生成した plan が「単一 skill だけの見かけ上の完成
 
 ## Inputs
 
-- plan ディレクトリ (`$PLAN_DIR`: `component-inventory.json` + N specs + `index.md`)
+- plan ディレクトリ (`$PLAN_DIR`: 13 phase ファイル + `component-inventory.json` + `index.md`)
 - `$SKILL_DIR`: `skills/run-plugin-dev-plan` (検証スクリプトの実体はここ)
 - SSOT 責務: `skills/assign-plugin-plan-evaluator/prompts/R1-evaluate.md`
 - rubric: `skills/assign-plugin-plan-evaluator/references/plan-rubric.json` / criteria: `.../four-condition-criteria.md`

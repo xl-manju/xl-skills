@@ -149,6 +149,15 @@ jobs:
       - name: Verify runtime hook portability (no import-time fail-closed cross-plugin dep)
         run: python3 scripts/lint-runtime-portability.py
 
+      # 文書層ポータビリティ不変条件: marketplace 配布 plugin の README の bash/sh コード
+      # フェンス (導入者が素のターミナルへコピペしうるコマンド) に、install 位置依存で壊れる
+      # 記法 (裸 $CLAUDE_PLUGIN_ROOT の一次手順 / repo 相対 python3 plugins/<name>/... /
+      # os.environ["CLAUDE_PLUGIN_ROOT"] 添字) が無いことを静的検査する。生ターミナル空展開
+      # 事故 (mf-kessai で発生) の恒久再発防止 + company-master deferred (文書層 repo 相対
+      # コマンド検出 lint) の回収。ローカル make lint (readme-portability) と整合。
+      - name: Verify README plugin-root portability (no raw-terminal empty-expansion)
+        run: python3 scripts/lint-readme-plugin-root-portability.py
+
       # company-master の scripts が外部依存ゼロ (空 vendor が正常) であることを機械検証する。
       # ローカル make lint (company-master-vendored) と整合。CI 未配線だと保証が無言で腐る。
       - name: Verify company-master vendored deps (zero external deps)

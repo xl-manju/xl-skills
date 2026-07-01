@@ -18,6 +18,13 @@ try:
 except Exception:
     HAS_JSONSCHEMA = False
 
+try:
+    import yaml  # type: ignore
+
+    HAS_YAML = True
+except Exception:
+    HAS_YAML = False
+
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
     / "references"
@@ -67,6 +74,61 @@ def _extract_frontmatter(text: str) -> dict | None:
     return data
 
 
+def _stringify_dates(obj):
+    # YAML は無引用の日付を datetime.date に自動変換するが schema は string を要求するため ISO 文字列へ正規化する。
+    import datetime
+
+    if isinstance(obj, dict):
+        return {k: _stringify_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_dates(v) for v in obj]
+    if isinstance(obj, (datetime.date, datetime.datetime)):
+        return obj.isoformat()
+    return obj
+
+
+def _load_composition(text: str) -> tuple[dict | None, str]:
+    # plugin-composition.yaml は frontmatter ではなくファイル全体が YAML ドキュメント。
+    # yaml があれば全文パース、無ければ最上位キーのみの最小パースへ graceful fallback する。
+    if HAS_YAML:
+        try:
+            data = yaml.safe_load(text)
+            if isinstance(data, dict):
+                return _stringify_dates(data), "yaml"
+            return None, "yaml"
+        except Exception:
+            return None, "yaml"
+    # 最小パース: インデントなし top-level `key:` 行のみ拾う (yaml 非搭載環境の safety net)
+    data = {}
+    for line in text.splitlines():
+        if not line or line[0] in (" ", "\t", "#", "-"):
+            continue
+        if ":" in line:
+            key = line.split(":", 1)[0].strip()
+            if key:
+                data.setdefault(key, True)
+    return data, "minimal"
+
+
+def _composition_errors(data: dict, mode: str, schema: dict | None) -> list[str]:
+    if mode == "yaml" and HAS_JSONSCHEMA and schema:
+        try:
+            jsonschema.validate(data, schema)
+            return []
+        except jsonschema.ValidationError as e:  # type: ignore
+            return [str(e.message)]
+        except Exception as e:
+            return [f"validator error: {e}"]
+    # fallback: kindPluginComposition の必須キーのみ確認
+    errors = []
+    for key in ("name", "kind", "capabilities"):
+        if key not in data or not data[key]:
+            errors.append(f"missing required key: {key}")
+    if data.get("kind") not in (None, True) and data.get("kind") != "plugin-composition":
+        errors.append("kind must be 'plugin-composition'")
+    return errors
+
+
 def _load_schema() -> dict | None:
     try:
         if SCHEMA_PATH.exists():
@@ -97,31 +159,51 @@ def main() -> int:
             return 0
 
         text = path.read_text(encoding="utf-8", errors="ignore")
-        fm = _extract_frontmatter(text)
-        if fm is None:
-            sys.stderr.write(
-                json.dumps(
-                    {
-                        "hook": "lint-capability-manifest",
-                        "file": str(path),
-                        "error": "frontmatter not found",
-                    },
-                    ensure_ascii=False,
-                )
-            )
-            return 0
-
         schema = _load_schema()
         errors: list[str] = []
-        if HAS_JSONSCHEMA and schema:
-            try:
-                jsonschema.validate(fm, schema)
-            except jsonschema.ValidationError as e:  # type: ignore
-                errors.append(str(e.message))
-            except Exception as e:
-                errors.append(f"validator error: {e}")
+        schema_used = False
+
+        if path.name == "plugin-composition.yaml":
+            # ファイル全体を YAML ドキュメントとして検証する (frontmatter ではない)。
+            data, mode = _load_composition(text)
+            if data is None:
+                sys.stderr.write(
+                    json.dumps(
+                        {
+                            "hook": "lint-capability-manifest",
+                            "file": str(path),
+                            "error": "yaml parse failed",
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return 0
+            errors = _composition_errors(data, mode, schema)
+            schema_used = bool(mode == "yaml" and HAS_JSONSCHEMA and schema)
         else:
-            errors.extend(_fallback_check(fm))
+            fm = _extract_frontmatter(text)
+            if fm is None:
+                sys.stderr.write(
+                    json.dumps(
+                        {
+                            "hook": "lint-capability-manifest",
+                            "file": str(path),
+                            "error": "frontmatter not found",
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return 0
+            if HAS_JSONSCHEMA and schema:
+                schema_used = True
+                try:
+                    jsonschema.validate(fm, schema)
+                except jsonschema.ValidationError as e:  # type: ignore
+                    errors.append(str(e.message))
+                except Exception as e:
+                    errors.append(f"validator error: {e}")
+            else:
+                errors.extend(_fallback_check(fm))
 
         if errors:
             sys.stderr.write(
@@ -130,7 +212,7 @@ def main() -> int:
                         "hook": "lint-capability-manifest",
                         "file": str(path),
                         "errors": errors,
-                        "schema_used": bool(HAS_JSONSCHEMA and schema),
+                        "schema_used": schema_used,
                     },
                     ensure_ascii=False,
                 )
