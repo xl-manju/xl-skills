@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
 
 # LLM_COV_SINCE: 新規スキルの coverage gate 境界日。これ以降に since された loop-kind スキルは
 # coverage-gate で <80% なら fail-closed。既存スキルは ratchet で段階的に底上げ。
@@ -43,6 +43,9 @@ lint: contract-intake vendored-ssot runtime-portability readme-portability compa
 	python3 scripts/lint-test-discovery-coverage.py
 	# marketplace ↔ plugins / bundles 双方向整合 (MK-001..003 / BD-001) を fail-closed 検査
 	python3 scripts/validate-plugin-completeness.py
+	# 焼き込みconfig (*.default.json / *.fixed.json) の内容変更が version bump を伴うか fail-closed 検査
+	#   (version 据え置き→配布キャッシュ未更新→毎回 fail-closed の再発を封じる。elegant-review 2026-07-01)
+	python3 scripts/lint-config-version-sync.py
 
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:
@@ -62,6 +65,11 @@ readme-portability:
 ## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
 company-master-vendored:
 	python3 scripts/lint-company-master-vendored-deps.py
+
+## config-version-lock: 焼き込みconfig (*.default.json / *.fixed.json) を変更した後に lockfile を再生成する
+##   version bump 漏れ / marketplace 不一致は書込みを拒否する (真因の papering over を防ぐ fail-closed)。
+config-version-lock:
+	python3 scripts/lint-config-version-sync.py --write
 
 ## contract-intake: skill-intake の enum SSOT / 軸分離 / 二重定義検出 contract test
 contract-intake:
