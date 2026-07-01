@@ -68,9 +68,25 @@ plugin が生成し得る**buildable な capability 種別**。`skill-brief.sche
 | **plugin composition** | `plugin-composition.yaml` | `index.md` の `plugin_meta.pkg_contract` / `component-inventory.json` |
 | **harness/eval** | `EVALS.json`, `eval-log/coverage/**` | `index.md` の `plugin_meta.ci` / `harness_coverage` |
 | **references/config/assets** | `references/**`, `config/**`, `assets/**` | component の references または `plugin_meta.ssot_dedup` |
+| **schemas** | `schemas/**` (JSON Schema 契約) | component の schemas または `plugin_meta.ssot_dedup` |
+| **vendor** | `vendor/**` = cross-plugin SSOT の byte 同一複製 (携帯性のための vendoring) | `plugin_meta.ssot_dedup` |
 | **MCP/app connector** | `.mcp.json`, `.app.json` | `plugin_meta.manifest` と `component-inventory.json` |
 
 これらは component エントリの `component_kind` ではない。欠落すると plugin として不完全になるため、R2/R3 で要否を判定し、不要なら `plugin_level_surfaces.<surface>.omitted_reason` に理由を残す。省略理由のキーは `omitted_reason` 一本のみ (評価器が読むのもこのキーのみ)。
+
+### placement_scope (配置境界・install 携帯性 / F8)
+
+component は `component_kind` (分類軸 5 種) と直交する属性 `placement_scope ∈ {"skill", "plugin-root"}` を持つ (既定 `skill`)。**これは新 component_kind ではなく既存 script の配置属性**であり、builder 写像 (`specfm.builder_for`) が消費する:
+
+| placement_scope | 意味 | build_target | builder |
+|---|---|---|---|
+| `skill` (既定) | 当該 skill 配下に畳み込む専用 script | `plugins/<slug>/skills/<skill>/scripts/<name>.py` | `parent-skill-build` |
+| `plugin-root` | 複数 skill が共有する script を `plugins/<slug>/scripts/` へ hoist | `plugins/<slug>/scripts/<name>.py` | `plugin-scaffold` |
+
+- **plugin-root は script のみ**許可する (skill/sub-agent/slash-command/hook は各自の deploy 面を持つため対象外)。
+- **≥2 skill consumer の script は plugin-root 必須**。deploy 境界の内 (skill 配下) / 外 (plugin-root) が dangling 可否を決める (発見方法でなく境界が本質)。共有 script を単一親 skill 配下に固定すると symlink 共有や単独 install で第二 consumer 側から辿れず dangling するため。この強制は `check-runtime-portability.py` が行う。
+- cross-plugin SSOT (別 plugin と共有する SSOT) は **vendoring (byte 一致複製)** か **self-derive fail-soft loader** で携帯性を担保する (先行事例 skill-intake / skill-creator の lint-runtime-portability)。plugin 内共有で足りる場合は plugin-root への hoist で十分 (vendoring 不要)。
+- component_kind は 5 種のまま (placement_scope は属性であって第 6 の kind ではない)。builder 写像を壊さない。
 
 ## 用語集 (§12)
 

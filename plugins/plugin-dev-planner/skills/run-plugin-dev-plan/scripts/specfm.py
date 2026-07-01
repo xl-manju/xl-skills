@@ -35,11 +35,16 @@ SKILL_KINDS = ("run", "ref", "wrap", "assign", "delegate")
 FEEDBACK_LOOP_SKILL_KINDS = ("run", "wrap", "delegate")
 HOOK_EVENTS = ("PreToolUse", "PostToolUse", "Stop", "UserPromptSubmit", "SessionEnd")
 HARNESS_MIN_REQUIRED = 80
+# component の配置境界 (deploy 境界の内/外)。既定 skill=当該 skill 配下、plugin-root=
+# plugins/<slug>/scripts/ へ hoist した共有 script。属性であって新 component_kind ではない。
+PLACEMENT_SCOPES = ("skill", "plugin-root")
 PLUGIN_LEVEL_SURFACES = (
     "manifest",
     "composition",
     "harness_eval",
     "references_config_assets",
+    "schemas",
+    "vendor",
     "mcp_app_connector",
 )
 
@@ -119,6 +124,23 @@ BUILD_KIND_BY_KIND = {
 }
 # elegant-review 4 条件 (quality_gates.elegant_review.conditions の SSOT)。
 ELEGANT_CONDITIONS = ("C1", "C2", "C3", "C4")
+
+
+def placement_of(comp: dict) -> str:
+    """component の placement_scope を解決する (未指定/空は既定 "skill")。"""
+    v = comp.get("placement_scope")
+    return v.strip() if isinstance(v, str) and v.strip() else "skill"
+
+
+def builder_for(component_kind: str, placement_scope: str = "skill") -> str:
+    """placement_scope を builder 選択へ写す。plugin-root 実体化は plugin-scaffold が担う。
+
+    共有 script (plugin-root へ hoist) は親 skill build でなく plugin-scaffold が
+    plugins/<slug>/scripts/ 直下へ実体化する。その他は §6 の kind→builder 写像に従う。
+    """
+    if component_kind == "script" and placement_scope == "plugin-root":
+        return "plugin-scaffold"
+    return BUILDER_BY_KIND[component_kind]
 
 
 # ─────────────────────────── 13 フェーズ定義 (per-phase 分解の SSOT) ───────────────────────────
@@ -625,12 +647,19 @@ def validate_inventory_component(comp: dict) -> list[str]:
 
     errs: list[str] = []
 
+    # 0. placement_scope (配置境界) の enum + plugin-root は script 限定
+    ps = placement_of(comp)
+    if ps not in PLACEMENT_SCOPES:
+        errs.append(f"{prefix} placement_scope={ps!r} が enum 外 {list(PLACEMENT_SCOPES)}")
+    if ps == "plugin-root" and ck != "script":
+        errs.append(f"{prefix} placement_scope=plugin-root は script のみ許可 (component_kind={ck})")
+
     # 1. build_target 非空 (L3→L4 追跡)
     if not str(comp.get("build_target", "")).strip():
         errs.append(f"{prefix} build_target が空")
 
-    # 2. builder / build_kind が §6 マッピングと整合
-    exp_builder, exp_build_kind = BUILDER_BY_KIND[ck], BUILD_KIND_BY_KIND[ck]
+    # 2. builder / build_kind が §6 マッピングと整合 (builder は placement_scope を写す)
+    exp_builder, exp_build_kind = builder_for(ck, ps), BUILD_KIND_BY_KIND[ck]
     builder = str(comp.get("builder", "")).strip()
     if not builder:
         errs.append(f"{prefix} builder が空 (期待 {exp_builder!r})")
@@ -672,11 +701,26 @@ def validate_inventory_component(comp: dict) -> list[str]:
     errs.extend(f"{prefix} {e}" for e in validate_component_quality_gates(comp))
     errs.extend(f"{prefix} {e}" for e in validate_component_harness_coverage(comp))
 
-    # 6. script は tests_min>=80 (存在だけでは不可)
+    # 6. script は tests_min>=80 + placement 別 build_target 不変条件
     if ck == "script":
         tm = as_int(comp.get("tests_min"))
         if tm is None or tm < HARNESS_MIN_REQUIRED:
             errs.append(f"{prefix} [script] tests_min は >={HARNESS_MIN_REQUIRED} (現値 {comp.get('tests_min')!r})")
+        bt = str(comp.get("build_target", "")).strip()
+        if bt:
+            if ps == "plugin-root":
+                # plugin-root 共有 script は plugins/<slug>/scripts/ 直下 (親 skill 配下に置かない)。
+                if "/scripts/" not in bt or "/skills/" in bt:
+                    errs.append(
+                        f"{prefix} [script] placement_scope=plugin-root の build_target は "
+                        f"plugins/<slug>/scripts/ 直下であること (/scripts/ を含み /skills/ を含まない): {bt}"
+                    )
+            elif "/skills/" not in bt or "/scripts/" not in bt:
+                # skill placement の専用 script は親 skill の scripts/ に畳む。
+                errs.append(
+                    f"{prefix} [script] placement_scope=skill の build_target は親 skill 配下 "
+                    f"(/skills/ と /scripts/ を含む) であること: {bt}"
+                )
     return errs
 
 

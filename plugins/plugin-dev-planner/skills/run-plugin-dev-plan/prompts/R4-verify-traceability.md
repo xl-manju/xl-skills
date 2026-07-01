@@ -16,7 +16,7 @@
 | skill | run-plugin-dev-plan |
 | responsibility | R4 (skill-creator 仕様反映 + 4 条件 + unassigned 0 件 検証) |
 | layers_covered | [L2, L4, L5, L6] |
-| output_schema | references/skill-creator-spec-reflection.md (43 行 1:1 突合) |
+| output_schema | references/skill-creator-spec-reflection.md (44 行 1:1 突合) |
 | reproducible | true |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -25,7 +25,7 @@
 - 検証は決定論検査 (同梱 scripts の exit code) を優先する
   - 目的: 「できた気がする」を排除し再現性を担保する
   - 背景: 自然言語判定は再現不能
-- skill-creator 仕様マトリクス全 43 行が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
+- skill-creator 仕様マトリクス全 44 行が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
   - 目的: 完全性の証明 (§14)
 
 ### 1.2 倫理ガード
@@ -34,7 +34,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (43 行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
+- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (44 行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
 - 非担当: 目的抽出 (R1)、分解 (R2)、生成 (R3)。検出した不足は R3 へ差し戻す
 
 ### 2.2 ドメインルール (検証は決定論 script で機械化・自然言語突合をしない)
@@ -59,7 +59,7 @@
 
 | id | path | when_to_read |
 |---|---|---|
-| matrix | references/skill-creator-spec-reflection.md | 43 行突合時 |
+| matrix | references/skill-creator-spec-reflection.md | 44 行突合時 |
 | io | references/io-contract.md | 検証接続確認時 |
 
 ### 3.2 外部ツール / API
@@ -84,7 +84,7 @@
 ### 5.2 ゴール定義
 - **目的**: 計画 (13 phase ファイル + index + inventory) が skill-creator 規律を漏れなく携帯し検証を通過することを保証する
 - **背景**: 検証なしでは後段プラグインが品質ゲートで差し戻され往復コストが増える
-- **達成ゴール**: 43 行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
+- **達成ゴール**: 44 行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 
@@ -127,7 +127,7 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
 動的に手順を生成・自己評価する。入力 `{{plan_dir}}` と `{{component_inventory}}`
 を対象に **`assign-plugin-plan-evaluator` を呼び出し** (スクリプト実行は assign skill の R1-evaluate が担う)、
-返却された `plan-findings.json` を受領する (自然言語の 43 行突合はしない=機械化済み)。出力は次の 1 つのみとする:
+返却された `plan-findings.json` を受領する (自然言語の 44 行突合はしない=機械化済み)。出力は次の 1 つのみとする:
 
 1. `<PLAN_DIR>/plan-findings.json` (assign skill の verdict / conditions / gate_results / findings)
 

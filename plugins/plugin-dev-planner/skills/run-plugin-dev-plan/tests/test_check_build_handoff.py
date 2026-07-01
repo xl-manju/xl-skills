@@ -130,6 +130,48 @@ def test_run_build_skill_args_kind_mismatch_fails(tmp_path, handoff):
     assert any("build_args.kind" in e for e in errs)
 
 
+def _plugin_root_script_route() -> dict:
+    return {
+        "id": "C09",
+        "component_kind": "script",
+        "name": "validate-payload.py",
+        "spec": "phase-05-implementation.md",
+        "depends_on": [],
+        "placement_scope": "plugin-root",
+        "builder": "plugin-scaffold",
+        "build_kind": "script",
+        "build_args": {"script_path": "scripts/validate-payload.py"},
+        "build_target": "plugins/sample-plugin/scripts/validate-payload.py",
+        "status": "planned",
+    }
+
+
+def test_plugin_root_script_route_clean(tmp_path, handoff):
+    """plugin-root script route (builder=plugin-scaffold・build_args.script_path) が通る。"""
+    route = _plugin_root_script_route()
+    path, data = _write_plan(tmp_path, {"routes": [route]})
+    assert handoff.validate_handoff(data, path) == []
+    assert handoff.main([str(path)]) == 0
+
+
+def test_plugin_root_script_wrong_builder_fails(tmp_path, handoff):
+    """plugin-root script が parent-skill-build のままだと builder 不整合で弾かれる。"""
+    route = _plugin_root_script_route()
+    route["builder"] = "parent-skill-build"
+    path, data = _write_plan(tmp_path, {"routes": [route]})
+    errs = handoff.validate_handoff(data, path)
+    assert any("builder=plugin-scaffold" in e for e in errs)
+
+
+def test_plugin_scaffold_route_needs_script_path(tmp_path, handoff):
+    """plugin-scaffold route は build_args.script_path 必須。"""
+    route = _plugin_root_script_route()
+    route["build_args"] = {"parent_skill": "run-x"}  # script_path 欠落
+    path, data = _write_plan(tmp_path, {"routes": [route]})
+    errs = handoff.validate_handoff(data, path)
+    assert any("script_path" in e for e in errs)
+
+
 def test_toposort_violation_fails(tmp_path, handoff):
     path, data = _write_plan(tmp_path)
     data["routes"] = [data["routes"][1], data["routes"][0]]
@@ -159,6 +201,26 @@ def test_manifest_draft_name_mismatch_fails(tmp_path, handoff):
     )
     errs = handoff.validate_handoff(data, path)
     assert any("target_plugin_slug" in e for e in errs)
+
+
+def test_main_missing_file_returns_usage_error(tmp_path, handoff):
+    """存在しない handoff パスは usage error (exit 2) を返す。"""
+    assert handoff.main([str(tmp_path / "does-not-exist.json")]) == 2
+
+
+def test_main_invalid_json_returns_usage_error(tmp_path, handoff):
+    """壊れた JSON は _load_json の ValueError 経由で usage error (exit 2) になる。"""
+    bad = tmp_path / "handoff-run-plugin-dev-plan.json"
+    bad.write_text("{ not valid json", encoding="utf-8")
+    assert handoff.main([str(bad)]) == 2
+
+
+def test_main_validation_error_returns_one(tmp_path, handoff):
+    """検証エラーを持つ handoff は main が stderr へ出力し exit 1 を返す。"""
+    path, data = _write_plan(tmp_path)
+    data["routes"][0]["builder"] = "run-build-skill"  # skill は run-skill-create であるべき
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    assert handoff.main([str(path)]) == 1
 
 
 def test_relative_plan_dir_is_cwd_independent(monkeypatch, tmp_path, handoff):

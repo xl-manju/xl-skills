@@ -3,7 +3,7 @@
 
 2026-06-30 elegant-review (Phase 2 の論理/メタ/システム analyst が独立に収束) で、kind 別
 必須キーが `specfm.STRUCTURAL_REQUIRED` (= 唯一 lint が強制する実行可能正本) を io-contract.md
-§9 の表と R3-emit-specs.md §2.2 が散文で再掲しており、43 行マトリクス (test_matrix_doc_integrity
+§9 の表と R3-emit-specs.md §2.2 が散文で再掲しており、44 行マトリクス (test_matrix_doc_integrity
 が守る) と違い parity ガードが無いため、specfm にキーを足して散文を忘れると無音で乖離する欠陥を
 検出した。LLM は散文を読むため、この乖離は生成品質 (再現性) に直結する。
 

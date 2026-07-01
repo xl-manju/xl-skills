@@ -74,12 +74,13 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
     build_kind = _require_str(route, "build_kind", errors, prefix)
     _require_str(route, "build_target", errors, prefix)
 
+    ps = str(route.get("placement_scope", "skill")).strip() or "skill"
     if ck and ck not in specfm.COMPONENT_KINDS:
         errors.append(f"{prefix}.component_kind={ck!r} が enum 外 {list(specfm.COMPONENT_KINDS)}")
     if builder and builder not in ALLOWED_BUILDERS:
         errors.append(f"{prefix}.builder={builder!r} が enum 外 {sorted(ALLOWED_BUILDERS)}")
-    if ck in specfm.BUILDER_BY_KIND and builder and builder != specfm.BUILDER_BY_KIND[ck]:
-        errors.append(f"{prefix}: component_kind={ck} は builder={specfm.BUILDER_BY_KIND[ck]} を要求 (現値 {builder})")
+    if ck in specfm.BUILDER_BY_KIND and builder and builder != specfm.builder_for(ck, ps):
+        errors.append(f"{prefix}: component_kind={ck} (placement={ps}) は builder={specfm.builder_for(ck, ps)} を要求 (現値 {builder})")
     if ck in specfm.BUILD_KIND_BY_KIND and build_kind and build_kind != specfm.BUILD_KIND_BY_KIND[ck]:
         errors.append(f"{prefix}: component_kind={ck} は build_kind={specfm.BUILD_KIND_BY_KIND[ck]} を要求 (現値 {build_kind})")
     build_args = route.get("build_args")
@@ -93,6 +94,10 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
         for key in ("parent_skill", "script_path"):
             if not str(build_args.get(key, "")).strip():
                 errors.append(f"{prefix}.build_args.{key} が空")
+    elif builder == "plugin-scaffold":
+        # plugin-root へ hoist する共有 script は親 skill を持たず script_path のみ必須。
+        if not str(build_args.get("script_path", "")).strip():
+            errors.append(f"{prefix}.build_args.script_path が空 (plugin-root script は script_path 必須)")
 
     depends = route.get("depends_on")
     if not isinstance(depends, list):
@@ -153,7 +158,7 @@ def _check_inventory_provenance(routes: list[dict], plan_dir: Path) -> list[str]
     for rid in sorted(set(route_map) & set(comps)):
         route = route_map[rid]
         comp = comps[rid]
-        for key in ("component_kind", "name", "builder", "build_kind", "build_target"):
+        for key in ("component_kind", "name", "builder", "build_kind", "build_target", "placement_scope"):
             r_val = route.get(key)
             c_val = comp.get(key)
             if isinstance(r_val, str):

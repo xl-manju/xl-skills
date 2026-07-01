@@ -100,9 +100,10 @@ frontmatter は specfm が厳格に operationalize する一方、本文 (prose)
 | `mode` | `create` / `update` |
 | `routes[]` | inventory DAG の top-sort 順。各 route は `id` / `component_kind` / `name` / `spec` / `depends_on` / `builder` / `build_kind` / `build_args` / `build_target` を持つ (inventory component 由来) |
 | `routes[].spec` | 参照する phase ファイル (任意)。**推奨: 当該 component が実装される Phase05 ファイル `phase-05-implementation.md`** (トレース用)。build は component 単位ゆえ phase 参照は必須でない |
-| `routes[].builder` | skill→`run-skill-create`、sub-agent/slash-command/hook→`run-build-skill`、script→`parent-skill-build` (`specfm.BUILDER_BY_KIND` が SSOT) |
+| `routes[].builder` | skill→`run-skill-create`、sub-agent/slash-command/hook→`run-build-skill`、script→`parent-skill-build` (既定 `placement_scope=skill`)。**共有 script (`placement_scope=plugin-root`) は `plugin-scaffold`** で `plugins/<slug>/scripts/` へ hoist する。写像は `specfm.builder_for(component_kind, placement_scope)` が SSOT (route/inventory 両辺で `placement_scope` を一致させる) |
 | `routes[].build_kind` | skill→`skill`、sub-agent→`agent`、slash-command→`command`、hook→`hook`、script→`script` (`specfm.BUILD_KIND_BY_KIND` が SSOT)。`run-build-skill` の Capability 7 kind へ渡す実行 kind を明示する |
-| `routes[].build_args` | 後段 builder へ渡す最小引数。`run-build-skill` route では `kind == build_kind` を必須にする |
+| `routes[].placement_scope` | (script のみ・任意/既定 `skill`) `skill` = 親 skill 配下に畳む / `plugin-root` = `plugins/<slug>/scripts/` へ hoist した共有 script。inventory component の `placement_scope` と一致させる |
+| `routes[].build_args` | 後段 builder へ渡す最小引数。`run-build-skill` route では `kind == build_kind` を必須にする。`plugin-scaffold` route (plugin-root script) は `script_path` 非空必須 (親 skill 不要) |
 | `envelope` | manifest/marketplace 等 plugin-level surface の owner/status/build_target。`external_gap` / `manual-user-gated` は gap/approval reason 必須。**`envelope.manifest.draft_path` = `<PLAN_DIR>/envelope-draft/plugin.json`** (Phase02=設計 が owner) |
 | `envelope.manifest.draft_path` | `<PLAN_DIR>` 相対の manifest draft。存在・JSON parse・`name == target_plugin_slug`・TODO placeholder 不在を検査する |
 
@@ -195,6 +196,18 @@ plugin_meta:
 
 **PR / feature→main は本スキルの焼き先対象外 (soft note)**: `phase-lifecycle.md` §8 P13 (release) のとおり PR 作成・`make validate`・`pytest` 緑化は **build 完了後の repo git 操作**で、本スキル(L3 計画)/`run-skill-create`(L1 build)いずれの責務でもない。`quality_gates`/§10 検証表/検査スクリプトに PR キーは設けない (operationalize しない=ユーザー意図「PR/Cloudflare/IPC は今回スコープ外」と整合)。Phase13 が言及する場合も「下流で人手が feature→main する」旨の soft note に留め、評価ゲート化しない。
 
+## 配布・.claude 反映・install 携帯性 (F8)
+
+計画が焼く plugin-root 資産 (schema / references / scripts / vendor) を巡る 2 つの問いへの回答を成文化する。
+
+**(1) plugin-root の schema/references/scripts/vendor を `.claude/` へ反映する必要は無い (正しい)。**
+`.claude/` は discovery surface (agents/skills/commands の 3 kind) 専用で、`build-claude-symlinks.py` が唯一の SSOT (`VALID_KINDS` 3 種) として展開する。runtime asset (schema/references/scripts/vendor) は install 時に **plugin dir 全体がコピー**され、実行時は `$CLAUDE_PLUGIN_ROOT` / self-relative で plugin 内解決されるため、`.claude/` への別途反映は不要。全反映は二重管理 / drift / 絶対パス混入で有害 (反映すべきは discovery surface のみ)。
+
+**(2) 「install→plugin-root 資産まで実行できる」担保は 3 点で行う。**
+(a) inventory component の `placement_scope` (`skill` | `plugin-root`) で配置境界を宣言する、(b) `check-runtime-portability.py` が「>=2 skill consumer の共有 script は plugin-root 必須」「build_target は plugin 内自己完結 (`plugins/` 始まり・`..` 不在)」を fail-closed 検査する、(c) install-portability 規律 (`skill-creator-spec-reflection.md` の F8) が cross-plugin SSOT は vendoring (byte 一致) または self-derive fail-soft loader で携帯性を担保することを規定する (先行事例 skill-intake / skill-creator)。これにより plugin dir コピー後、第二 consumer 側からも共有 script が dangling せず解決できる。
+
+**placement_scope → builder → build_target の写像**: plugin-root script は `builder=plugin-scaffold` / `build_args.script_path` / `build_target=plugins/<slug>/scripts/<name>.py` (親 skill 配下に置かない)。skill placement script は `builder=parent-skill-build` / `build_target=plugins/<slug>/skills/<skill>/scripts/<name>.py`。写像正本は `specfm.builder_for`、検査は `check-runtime-portability.py` (共有判定) + `specfm.validate_inventory_component` (build_target 形状)。
+
 ## 本スキル同梱の決定論検査スクリプト (R1 入力ゲート + R4 検証を自然言語突合から機械化)
 
 | スクリプト | 役割 (検査する完了チェックリスト項目) |
@@ -204,11 +217,12 @@ plugin_meta:
 | `scripts/detect-unassigned.py` | (a) 13 phase ファイル全存在 + §5 section 床、(b) **各 inventory component が ≥1 phase の `entities_covered` に出現** (orphan 防止) + `build_target` 非空 (L3→L4 追跡) (C5) |
 | `scripts/check-spec-frontmatter.py` | **phase ファイル frontmatter (`PHASE_REQUIRED`) を検証** + **inventory components を `specfm.validate_inventory_component` で検証** (component_kind 別構造 + skill loop の criteria purpose-traceability) (C2/C3) |
 | `scripts/check-spec-gates.py` | **inventory components の `quality_gates`** (p0_lint 網羅/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) と `harness_coverage` (min≥80/kind_pass) + index.plugin_meta 値域を機械検証 (A1/A5/A8/C1-C2/F1/F2) |
-| `scripts/check-spec-matrix-coverage.py` | `skill-creator-spec-reflection.md` の43行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で43行 table drift 検出 |
-| `scripts/check-surface-inventory.py` | `component-inventory.json` が 5 component_kind の検討証跡 (`considered_component_kinds`) と plugin-level surfaces (`manifest`/`composition`/`harness_eval`/`references_config_assets`/`mcp_app_connector`) の required/omitted_reason を漏れなく持つことを検査 (`specfm.validate_surface_inventory` 追随) |
-| `scripts/check-build-handoff.py` | `handoff-run-plugin-dev-plan.json` の L3→L4 routing を検証。routes は inventory 由来。builder 種別 / build_kind / build_args / build_target / spec (phase ファイル・任意) 実在 / top-sort / manifest draft / envelope gap reason (旧 本数固定ブロックは廃止) |
+| `scripts/check-spec-matrix-coverage.py` | `skill-creator-spec-reflection.md` の44行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で44行 table drift 検出 |
+| `scripts/check-surface-inventory.py` | `component-inventory.json` が 5 component_kind の検討証跡 (`considered_component_kinds`) と plugin-level surfaces (`manifest`/`composition`/`harness_eval`/`references_config_assets`/`schemas`/`vendor`/`mcp_app_connector`) の required/omitted_reason を漏れなく持つことを検査 (`specfm.validate_surface_inventory` 追随) |
+| `scripts/check-build-handoff.py` | `handoff-run-plugin-dev-plan.json` の L3→L4 routing を検証。routes は inventory 由来。builder 種別 (`placement_scope` を写す) / build_kind / build_args / build_target / spec (phase ファイル・任意) 実在 / top-sort / manifest draft / envelope gap reason (旧 本数固定ブロックは廃止) |
+| `scripts/check-runtime-portability.py` | (C2/C4・F8) install 携帯性: (P) >=2 skill から共有される script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist 済み、(Q) 全 component の `build_target` が plugin 内自己完結 (`plugins/` 始まり・`..` 不在)。`--self-test` で P/Q 検出を自己検査 |
 | `scripts/check-plugin-surface-audit.py` | `plugins/` 配下の現物 plugin surface を横断棚卸し。skill/agent/command/hook/script/test/reference/config/assets/schemas/vendor/MCP-app/harness/composition/manifest と owned/symlink 内訳を数え、`--expect-plan-ready` 指定 plugin が必須 surface を dogfood していることを検査 |
 | `scripts/render-spec-skeleton.py` | `specfm.py` から phase skeleton (`--phase N`) / component_kind 別の inventory component skeleton を生成。手書き skeleton ファイルを増やさず、ひな形の正本を実行可能契約へ一本化 |
 | `scripts/specfm.py` | (import 専用) frontmatter 最小 YAML パーサ + phase (`PHASE_*`) / criteria / component_kind 契約 (`validate_inventory_component`) の SSOT |
 
-`check-spec-matrix-coverage.py` の分類: OP=10 (全 buildable へ機械強制) / conditional=16 (kind/feature/階層でゲート) / N-A=17 (process・reference で per-spec 焼き先キーを持たない=計数のみ)。計 43。
+`check-spec-matrix-coverage.py` の分類: OP=10 (全 buildable へ機械強制) / conditional=17 (kind/feature/階層でゲート) / N-A=17 (process・reference で per-spec 焼き先キーを持たない=計数のみ)。計 44。

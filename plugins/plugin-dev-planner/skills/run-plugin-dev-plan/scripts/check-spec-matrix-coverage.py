@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-spec-matrix-coverage
-# purpose: skill-creator-spec-reflection.md の43行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
+# purpose: skill-creator-spec-reflection.md の44行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
 # inputs:
 #   - argv: <plan-dir> [--matrix PATH] [--index NAME] [--inventory FILE] | --self-test
 # outputs:
@@ -14,7 +14,7 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""43行マトリクスの operationalize 被覆検査 (R4 自然言語突合の機械化)。
+"""44行マトリクスの operationalize 被覆検査 (R4 自然言語突合の機械化)。
 
 per-phase 転換 (凍結契約 §4/§11): 焼き先は 3 scope へ写像される。
 - `inventory` scope: 焼き先アンカーは component-inventory.json の component エントリのキー
@@ -23,7 +23,7 @@ per-phase 転換 (凍結契約 §4/§11): 焼き先は 3 scope へ写像され�
 - `phase` scope: 焼き先が phase ファイルの物語 (完了条件等) で機械アンカーを持たない process/reference 行
   (旧 component-scope N-A)。計数のみ (機械検査対象外・意味は content-review/人間トラスト)。
 
---self-test は reflection.md の行 id 集合と本 table の id 集合の drift を検出する (43 行・集合完全一致)。
+--self-test は reflection.md の行 id 集合と本 table の id 集合の drift を検出する (44 行・集合完全一致)。
 skill-creator-spec-reflection.md の焼き先列と同期する。
 """
 from __future__ import annotations
@@ -63,7 +63,11 @@ def _feat_knowledge(c: dict) -> bool:
     return "knowledge_loop" in c["features"]
 
 
-# --- 43行 operationalization テーブル (scope, klass, applies, anchor) ---
+def _is_script(c: dict) -> bool:
+    return c["component_kind"] == "script"
+
+
+# --- 44行 operationalization テーブル (scope, klass, applies, anchor) ---
 # scope: inventory=component-inventory.json の component エントリ / plugin=index.plugin_meta /
 #        phase=phase ファイル物語 (機械アンカー無し・N-A)。anchor は dotted path。
 ROWS: dict[str, tuple[str, str, object, str | None]] = {
@@ -109,6 +113,9 @@ ROWS: dict[str, tuple[str, str, object, str | None]] = {
     "F5": ("plugin", "conditional", _always, "pkg_contract"),
     "F6": ("plugin", "OP", _always, "ci"),
     "F7": ("plugin", "conditional", _always, "ssot_dedup"),
+    # F8: install-portability。script component のみ placement_scope 焼き先を要求する
+    # (共有 script の plugin-root hoist 判定=install 携帯性。skill/agent 等は対象外)。
+    "F8": ("inventory", "conditional", _is_script, "placement_scope"),
     "G1": ("inventory", "conditional", _feat_knowledge, "knowledge_loop"),
     "G2": ("inventory", "conditional", _is_skill, "combinators"),
     "G3": ("phase", "N-A", _always, None),
@@ -121,7 +128,7 @@ ROWS: dict[str, tuple[str, str, object, str | None]] = {
 # --- 分類の行 ID 集合を固定 (件数 drift でなく集合入替も検出する) ---
 EXPECTED_OP = {"A1", "A5", "A8", "C1", "C2", "F1", "F2", "F3", "F4", "F6"}
 EXPECTED_CONDITIONAL = {
-    "A7", "A10", "F5", "F7", "D6", "B1", "D1", "D2", "D5",
+    "A7", "A10", "F5", "F7", "F8", "D6", "B1", "D1", "D2", "D5",
     "A11", "E5", "E6", "E1", "E2", "G1", "G2",
 }
 EXPECTED_NA = {
@@ -145,7 +152,7 @@ def current_classification() -> dict[str, str]:
 def membership_drift(classification: dict[str, str] | None = None) -> list[str]:
     """各クラスの行 ID 集合が固定集合と完全一致するかを検査する。
 
-    件数 {10,16,17} が保たれたまま OP↔N-A を 1:1 入替するような分類すり替えを
+    件数 {10,17,17} が保たれたまま OP↔N-A を 1:1 入替するような分類すり替えを
     集合差で検出する (件数 only ガードの穴を塞ぐ)。
     """
     c = classification if classification is not None else current_classification()
@@ -257,14 +264,14 @@ def self_test(matrix_path: Path) -> tuple[int, list[str]]:
         msgs.append(f"reflection.md に table 未登録の行: {sorted(ids - table)}")
     if table - ids:
         msgs.append(f"table にあるが reflection.md に無い行: {sorted(table - ids)}")
-    if len(table) != 43:
-        msgs.append(f"table 行数 {len(table)} != 43")
+    if len(table) != 44:
+        msgs.append(f"table 行数 {len(table)} != 44")
     msgs.extend(membership_drift())  # 件数不変の OP↔N-A 入替も検出 (集合完全一致ガード)
     return (1 if msgs else 0), msgs
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="43行マトリクスの operationalize 被覆を検証する")
+    ap = argparse.ArgumentParser(description="44行マトリクスの operationalize 被覆を検証する")
     ap.add_argument("plan_dir", nargs="?", help="plan ディレクトリ")
     ap.add_argument("--matrix", default=str(_DEFAULT_MATRIX), help="reflection.md パス")
     ap.add_argument("--index", default="index.md", help="index ファイル名")
@@ -275,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.self_test:
         code, msgs = self_test(Path(args.matrix))
         if code == 0:
-            sys.stdout.write("OK: 43行 table と reflection.md が一致 (drift なし)\n")
+            sys.stdout.write("OK: 44行 table と reflection.md が一致 (drift なし)\n")
             return 0
         for m in msgs:
             sys.stderr.write(m + "\n")

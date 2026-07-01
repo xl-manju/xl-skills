@@ -1,4 +1,4 @@
-"""check-spec-matrix-coverage.py の機能テスト (43行 operationalize 被覆・per-phase 転換)。
+"""check-spec-matrix-coverage.py の機能テスト (44行 operationalize 被覆・per-phase 転換)。
 
 焼き先は inventory scope (component-inventory.json の component) / plugin scope
 (index.plugin_meta) / phase scope (機械アンカー無し・計数のみ) の 3 種。
@@ -11,8 +11,8 @@ from conftest import component_entry, write_inventory, write_phase_index
 # ─────────────────── 分類 / self-test (現状維持) ───────────────────
 def test_classify_counts(matrix):
     counts = matrix.classify_counts()
-    assert counts == {"OP": 10, "conditional": 16, "N-A": 17}
-    assert sum(counts.values()) == 43
+    assert counts == {"OP": 10, "conditional": 17, "N-A": 17}
+    assert sum(counts.values()) == 44
 
 
 def test_classify_membership(matrix):
@@ -21,7 +21,7 @@ def test_classify_membership(matrix):
     cond = {r for r, k in c.items() if k == "conditional"}
     na = {r for r, k in c.items() if k == "N-A"}
     assert op == {"A1", "A5", "A8", "C1", "C2", "F1", "F2", "F3", "F4", "F6"}
-    assert cond == {"A7", "A10", "F5", "F7", "D6", "B1", "D1", "D2", "D5",
+    assert cond == {"A7", "A10", "F5", "F7", "F8", "D6", "B1", "D1", "D2", "D5",
                     "A11", "E5", "E6", "E1", "E2", "G1", "G2"}
     assert na == {"A2", "A3", "A4", "A6", "A9", "B2", "B3", "C3", "C4",
                   "D3", "D4", "E3", "E4", "G3", "G4", "G5", "G6"}
@@ -34,7 +34,7 @@ def test_membership_drift_detects_count_neutral_swap(matrix):
     counts = {"OP": sum(v == "OP" for v in c.values()),
               "conditional": sum(v == "conditional" for v in c.values()),
               "N-A": sum(v == "N-A" for v in c.values())}
-    assert counts == {"OP": 10, "conditional": 16, "N-A": 17}
+    assert counts == {"OP": 10, "conditional": 17, "N-A": 17}
     drift = matrix.membership_drift(c)
     assert drift
     assert any("OP" in d for d in drift) and any("N-A" in d for d in drift)
@@ -45,8 +45,8 @@ def test_self_test_includes_membership(matrix):
     assert code == 0 and msgs == []
 
 
-def test_rows_table_has_43(matrix):
-    assert len(matrix.ROWS) == 43
+def test_rows_table_has_44(matrix):
+    assert len(matrix.ROWS) == 44
 
 
 def test_self_test_against_reflection(matrix):
@@ -108,6 +108,18 @@ def test_knowledge_loop_only_when_feature(matrix):
     assert any("G1" in m for m in matrix.check_inventory_coverage([opted]))
 
 
+def test_f8_placement_scope_only_for_script(matrix):
+    # F8 (placement_scope) は script component にのみ適用される (skill/hook 等は対象外)。
+    skill = component_entry("C01", "skill")
+    assert not any("F8" in m for m in matrix.check_inventory_coverage([skill]))
+    # placement_scope を持つ script は F8 充足、欠く script は未反映で検出。
+    ok_script = component_entry("C09", "script", overrides={"placement_scope": "plugin-root"})
+    assert not any("F8" in m for m in matrix.check_inventory_coverage([ok_script]))
+    bad_script = component_entry("C09", "script", drop=["placement_scope"])
+    findings = matrix.check_inventory_coverage([bad_script])
+    assert any("F8" in m and "placement_scope" in m for m in findings)
+
+
 # ─────────────────── plugin scope coverage ───────────────────
 def test_check_plugin_coverage_clean_and_missing(matrix):
     full = {"distribution": {"distributable": False, "bundles": ["none"]},
@@ -164,7 +176,7 @@ def test_main_clean(tmp_path, matrix, capsys):
     write_phase_index(tmp_path, plugin_meta=True)
     assert matrix.main([str(tmp_path)]) == 0
     out = capsys.readouterr().out
-    assert "OP=10" in out and "conditional=16" in out and "N-A=17" in out
+    assert "OP=10" in out and "conditional=17" in out and "N-A=17" in out
 
 
 def test_main_violation(tmp_path, matrix):

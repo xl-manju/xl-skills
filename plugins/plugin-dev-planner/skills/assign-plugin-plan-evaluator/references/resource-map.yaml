@@ -22,7 +22,7 @@ scripts:
     read_when: C2 quality_gates + harness を判定する時
   - id: matrix
     path: ../run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py
-    read_when: C3 整合性 (43 行被覆) を判定する時
+    read_when: C3 整合性 (44 行被覆) を判定する時
   - id: surfaces
     path: ../run-plugin-dev-plan/scripts/check-surface-inventory.py
     read_when: C2 plugin-level surface 採否と 5 種検討証跡を判定する時
