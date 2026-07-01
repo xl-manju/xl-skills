@@ -1,5 +1,6 @@
 # update-yaml-spec.yml — 週次 YAML 仕様自動取得 (PF-G1-001)
-# Claude Code 公式 frontmatter 仕様の変更を週次でキャッシュする。
+# Claude Code 公式 frontmatter / settings 実仕様 3 ページの変更を週次でキャッシュし、
+# 実 diff を spec-diff-history.md に記録、実変更時のみ dedup 付き spec-drift issue を起票する。
 name: Update YAML Spec Cache
 
 on:
@@ -11,6 +12,9 @@ on:
 jobs:
   fetch-spec:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +26,8 @@ jobs:
       - name: Fetch Claude Code spec pages
         id: fetch
         run: |
+          # build 前に現行キャッシュを退避し、後段で実 diff を計算する
+          cp plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md /tmp/prev-yaml-spec-cache.md 2>/dev/null || true
           python3 scripts/build-yaml-spec-cache.py
           FETCH_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           echo "fetch_date=${FETCH_DATE}" >> $GITHUB_OUTPUT
@@ -30,49 +36,111 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .claude/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md
+          git add plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md
           git diff --staged --quiet || git commit -m "chore: update yaml-spec-cache (${{ steps.fetch.outputs.fetch_date }})"
 
 
       - name: Update spec-diff-history
+        id: diff
         run: |
           python3 - << 'INNEREOF'
-          import datetime, json, pathlib, subprocess, sys
+          import datetime, difflib, os, pathlib
 
-          HISTORY = pathlib.Path("eval-log/spec-diff-history.md")
-          CACHE = pathlib.Path(".claude/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md")
+          # consumer (SKILL.md / R1 / resource-map) が読む references/ に一本化する。
+          # git add は symlink 経由不可 ("beyond a symbolic link") のため実 plugins パスを使う
+          # (.claude/... は同ファイルへの symlink だが git pathspec が通らない)。
+          BASE = "plugins/skill-creator/skills/ref-yaml-spec-fetcher/references"
+          HISTORY = pathlib.Path(f"{BASE}/spec-diff-history.md")
+          CACHE = pathlib.Path(f"{BASE}/yaml-spec-cache.md")
+          PREV = pathlib.Path("/tmp/prev-yaml-spec-cache.md")
+          MAX_DIFF_LINES = 80
           now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
           HISTORY.parent.mkdir(parents=True, exist_ok=True)
 
-          prev = HISTORY.read_text(encoding="utf-8") if HISTORY.exists() else ""
-          # 前回キャッシュの last_fetched を取得
-          prev_fetched = "none"
-          for line in prev.splitlines():
-              if line.startswith("last_fetched:"):
-                  prev_fetched = line.split(":", 1)[1].strip()
-                  break
+          def normalize(text):
+              # 毎回変わる last_fetched: 行はノイズなので比較対象から除く
+              return [ln for ln in text.splitlines() if not ln.startswith("last_fetched:")]
 
-          cache_text = CACHE.read_text(encoding="utf-8") if CACHE.exists() else "(not found)"
-          cur_fetched = now
-          for line in cache_text.splitlines():
-              if line.startswith("last_fetched:"):
-                  cur_fetched = line.split(":", 1)[1].strip()
-                  break
+          prev_text = PREV.read_text(encoding="utf-8") if PREV.exists() else ""
+          cur_text = CACHE.read_text(encoding="utf-8") if CACHE.exists() else ""
 
-          entry = f"## {cur_fetched}\n- prev_fetched: {prev_fetched}\n- cache_lines: {len(cache_text.splitlines())}\n\n"
-          HISTORY.write_text(entry + prev, encoding="utf-8")
-          print(f"spec-diff-history updated: {HISTORY}")
+          diff = list(difflib.unified_diff(
+              normalize(prev_text), normalize(cur_text), lineterm=""))
+          has_change = bool(diff)
+
+          if has_change:
+              shown = diff[:MAX_DIFF_LINES]
+              if len(diff) > MAX_DIFF_LINES:
+                  shown.append(f"... ({len(diff) - MAX_DIFF_LINES} more lines)")
+              entry = f"## {now}\n\n実仕様ページに変更を検知。\n\n```diff\n" + "\n".join(shown) + "\n```\n\n"
+          else:
+              entry = f"## {now}\n\n変更なし確認。\n\n"
+
+          # 先頭の見出し / 注記 (preamble) は保持し、最新エントリをその直下に差し込む (最新が上)
+          history_prev = HISTORY.read_text(encoding="utf-8") if HISTORY.exists() else ""
+          lines = history_prev.splitlines(keepends=True)
+          split_at = len(lines)
+          for i, ln in enumerate(lines):
+              if ln.startswith("## "):
+                  split_at = i
+                  break
+          preamble = "".join(lines[:split_at])
+          rest = "".join(lines[split_at:])
+          HISTORY.write_text(preamble + entry + rest, encoding="utf-8")
+
+          gh_out = os.environ.get("GITHUB_OUTPUT")
+          if gh_out:
+              with open(gh_out, "a", encoding="utf-8") as fh:
+                  fh.write(f"has_spec_change={'true' if has_change else 'false'}\n")
+          print(f"spec-diff-history updated: has_spec_change={has_change}")
           INNEREOF
 
       - name: Commit spec-diff-history
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add eval-log/spec-diff-history.md
+          git add plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md
           git diff --staged --quiet || git commit -m "chore: update spec-diff-history (${{ steps.fetch.outputs.fetch_date }})"
+
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref }}
+
+      - name: Open or update spec-drift tracking issue
+        if: steps.diff.outputs.has_spec_change == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const now = new Date().toISOString();
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'spec-drift',
+            });
+            if (existing.data.length > 0) {
+              // 既存の tracking issue があれば comment 追記のみ (新規 create しない = dedup)
+              await github.rest.issues.createComment({
+                owner, repo,
+                issue_number: existing.data[0].number,
+                body: `${now}: yaml-spec-cache.md に実仕様変更を検知。references/spec-diff-history.md の最新エントリを参照。`,
+              });
+            } else {
+              const body = [
+                '`update-yaml-spec.yml` が Claude Code 公式の実仕様ページ (skills / settings / sub-agents) に変更を検知しました。',
+                '',
+                '## 対応手順',
+                '',
+                '1. `plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md` の最新差分を確認する。',
+                '2. 変更が frontmatter / settings フィールド (名称・型・必須・enum) に及ぶか判定する。',
+                '3. 及ぶ場合は `plugins/skill-creator/**/rubric.json`・テンプレート・schema を更新する。',
+                '4. 対応完了後この issue を close する (次の実変更で再通知される)。',
+              ].join('\n');
+              await github.rest.issues.create({
+                owner, repo,
+                title: '[spec-drift] Claude Code 実仕様ページ変更検知',
+                labels: ['spec-drift', 'automated'],
+                body,
+              });
+            }

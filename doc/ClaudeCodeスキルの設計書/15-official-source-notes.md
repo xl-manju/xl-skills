@@ -105,11 +105,11 @@ Claude Code の仕様は更新されるため、この設計書では次の方�
 | Subagents | `10` | `skills` preload と `context: fork` の違い |
 | Agent Teams | `05`, `10`, `17` | Subagent と別レイヤー、same-file conflict 回避 |
 
-### 公式更新の自動化（poll-llms-txt.yml）
+### 公式更新の自動化（poll-llms-txt.yml / update-yaml-spec.yml）
 
 手順 1 の `llms.txt` 取得は `.github/workflows/poll-llms-txt.yml` により週次 cron で自動実行される。
 
-- `poll-llms-txt.yml` は `eval-log/spec-drift.json` を更新し、差分検出時に GitHub Issue を自動起票する。
-- `.github/workflows/update-yaml-spec.yml` は `yaml-spec-cache.md` と `eval-log/spec-diff-history.md` を自動更新する。Issue 起票は `poll-llms-txt.yml` 側の責務である。
+- `poll-llms-txt.yml` は `llms.txt` 目次のチャーンを `eval-log/spec-drift.json` に記録する（Issue は起票しない）。
+- `.github/workflows/update-yaml-spec.yml` は実仕様 3 ページ（skills / settings / sub-agents）を取得して `yaml-spec-cache.md` と `references/spec-diff-history.md`（consumer と同一 SSOT）を自動更新し、実仕様ページに変更を検知した時に dedup 付きの spec-drift Issue を起票する。
 - `ref-yaml-spec-fetcher/references/yaml-spec-cache.md` の `last_fetched` が 30 日を超えている場合、`lint-manifest-contents.py` が WARNING を出力する。
 - 自動 Issue が起票された場合、手順 2〜7 を人間が実施する。自動化は取得・履歴更新・通知までで、設計判断の反映は人間レビューを通す。
