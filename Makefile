@@ -17,8 +17,8 @@ sync:
 sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
-## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime ポータビリティ + company-master vendored 検証を実行する
-lint: contract-intake vendored-ssot runtime-portability company-master-vendored
+## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime/README ポータビリティ + company-master vendored 検証を実行する
+lint: contract-intake vendored-ssot runtime-portability readme-portability company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
@@ -52,6 +52,12 @@ vendored-ssot:
 ##   単独 install (plugin のみ install) で全フックが exit 0 を維持する不変条件を機械担保する。
 runtime-portability:
 	python3 scripts/lint-runtime-portability.py
+
+## readme-portability: marketplace 配布 plugin の README bash/sh フェンスが install 位置に依存しないか静的検査
+##   裸 $CLAUDE_PLUGIN_ROOT 一次手順 / repo 相対 python3 plugins/<name>/... / os.environ 添字を fail-closed 検出し、
+##   生ターミナル空展開事故の恒久再発を防ぐ (company-master deferred の文書層 lint 回収)。
+readme-portability:
+	python3 scripts/lint-readme-plugin-root-portability.py
 
 ## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
 company-master-vendored:

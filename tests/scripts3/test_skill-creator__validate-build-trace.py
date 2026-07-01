@@ -718,6 +718,83 @@ def test_bundle_mode_missing_ref(tmp_path, capsys):
     assert any("ref not found: skills/missing" in f for f in out["findings"])
 
 
+def test_bundle_mode_rejects_repo_relative_plugin_prefix(tmp_path, capsys):
+    plugin_root = tmp_path / "plugins" / "demo"
+    (plugin_root / "skills" / "run-a").mkdir(parents=True)
+    (plugin_root / "skills" / "run-a" / "SKILL.md").write_text("x", encoding="utf-8")
+    bundle = {
+        "name": "demo-bundle",
+        "description": "repo 相対 prefix を持つ plugin-composition の失敗ケース本文。",
+        "kind": "plugin-composition",
+        "version": "1.0.0",
+        "owner": "team-test",
+        "capabilities": [{"kind": "skill", "ref": "plugins/demo/skills/run-a"}],
+    }
+    import yaml
+    bp = plugin_root / "plugin-composition.yaml"
+    bp.write_text(yaml.safe_dump(bundle), encoding="utf-8")
+    rc = _run_main_argv(["--bundle", str(bp)])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any("must be relative to plugin root" in f for f in out["findings"])
+
+
+def test_bundle_mode_rejects_escape_and_absolute_refs(tmp_path, capsys):
+    plugin_root = tmp_path / "plugins" / "demo"
+    plugin_root.mkdir(parents=True)
+    bundle = {
+        "name": "demo-bundle",
+        "description": "plugin root 外参照を持つ plugin-composition の失敗ケース本文。",
+        "kind": "plugin-composition",
+        "version": "1.0.0",
+        "owner": "team-test",
+        "capabilities": [
+            {"kind": "skill", "ref": "../other/skills/run-a"},
+            {"kind": "command", "ref": "/tmp/commands/do.md"},
+        ],
+    }
+    import yaml
+    bp = plugin_root / "plugin-composition.yaml"
+    bp.write_text(yaml.safe_dump(bundle), encoding="utf-8")
+    rc = _run_main_argv(["--bundle", str(bp)])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any("must not escape plugin root" in f for f in out["findings"])
+    assert any("not absolute" in f for f in out["findings"])
+
+
+def test_plugin_composition_dependency_endpoints_must_be_declared():
+    data = {
+        "name": "bundle-x",
+        "description": "未宣言 endpoint を持つ plugin-composition 失敗ケース本文記述。",
+        "kind": "plugin-composition",
+        "version": "1.0.0",
+        "owner": "team",
+        "capabilities": [{"kind": "skill", "ref": "skills/a"}],
+        "dependencies": [{"from": "skills/a", "to": "skills/missing", "type": "calls"}],
+    }
+    valid, _, findings = M.validate_manifest(data)
+    assert valid is False
+    assert any("undeclared capability" in f for f in findings)
+
+
+def test_plugin_composition_allows_deploys_dependency_type():
+    data = {
+        "name": "bundle-x",
+        "description": "deploys edge を持つ plugin-composition 成功ケース本文記述。",
+        "kind": "plugin-composition",
+        "version": "1.0.0",
+        "owner": "team",
+        "capabilities": [
+            {"kind": "skill", "ref": "skills/a"},
+            {"kind": "skill", "ref": "skills/b"},
+        ],
+        "dependencies": [{"from": "skills/a", "to": "skills/b", "type": "deploys"}],
+    }
+    valid, _, findings = M.validate_manifest(data)
+    assert valid is True, findings
+
+
 def test_bundle_mode_ref_with_md_suffix(tmp_path, capsys):
     plugin_root = tmp_path / "plugins" / "demo"
     (plugin_root / "commands").mkdir(parents=True)

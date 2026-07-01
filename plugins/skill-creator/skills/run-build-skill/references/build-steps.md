@@ -45,6 +45,7 @@ SKILL_NAME=run-my-thing
 KIND=run
 DIRS_JSON="$(python3 "${CLAUDE_PLUGIN_ROOT:-plugins/skill-creator}/skills/run-build-skill/scripts/resolve-skill-dirs.py" --skill-name "$SKILL_NAME")"
 SKILL_DIR="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["skill_dir"])' <<< "$DIRS_JSON")"
+PLUGIN_ROOT="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["plugin_root"])' <<< "$DIRS_JSON")"
 OUT_BASE="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["out_base"])' <<< "$DIRS_JSON")"
 python3 "$SKILL_DIR/scripts/render-frontmatter.py" \
   --name $SKILL_NAME --kind $KIND \
@@ -64,10 +65,11 @@ python3 "$SKILL_DIR/scripts/render-frontmatter.py" \
 ## Phase E: lint
 
 ```bash
-python3 plugins/skill-governance-lint/scripts/lint-skill-name.py "$ROOT/SKILL.md"
-python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py "$ROOT"
-python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$ROOT/SKILL.md"
-python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py eval-log/skill-build-trace.json
+GOV_LINT_DIR="$(dirname "$PLUGIN_ROOT")/skill-governance-lint"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-name.py" "$ROOT/SKILL.md"
+python3 "$GOV_LINT_DIR/scripts/lint-skill-tree.py" "$ROOT"
+python3 "$GOV_LINT_DIR/scripts/validate-frontmatter.py" "$ROOT/SKILL.md"
+python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
 ```
 
 ## Phase F: 評価
@@ -337,7 +339,7 @@ Skill(run-build-skill) skill_name=run-my-skill kind=run mode=create with_subagen
 Step7 (`--with-subagent` 指定時のみ実行):
 
 ```bash
-python3 plugins/skill-creator/skills/run-build-skill/scripts/build-subagent.py \
+python3 "$SKILL_DIR/scripts/build-subagent.py" \
   --skill-name "$SKILL_NAME" \
   --skill-md "$OUT_BASE/$SKILL_NAME/SKILL.md" \
   --output-dir ".claude/agents/" \
@@ -504,7 +506,8 @@ TODO(human): `scripts/build-yaml-spec-cache.py` の実装は、Claude Code 公�
 全 kind 共通で以下を実行する。
 
 ```bash
-python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py "$OUT_BASE/<kind-relative-path>"
+GOV_LINT_DIR="$(dirname "$PLUGIN_ROOT")/skill-governance-lint"
+python3 "$GOV_LINT_DIR/scripts/validate-frontmatter.py" "$OUT_BASE/<kind-relative-path>"
 python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json \
   --capability-schema "$SKILL_DIR/references/capability-manifest.schema.json"
 ```

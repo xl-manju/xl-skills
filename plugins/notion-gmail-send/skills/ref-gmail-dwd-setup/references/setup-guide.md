@@ -125,8 +125,8 @@ impersonate ユーザー以外の From で送るなら、その alias を **impe
 ```bash
 # repo を clone した開発者が自分のターミナルで直接打つ場合のみ有効な相対パス。
 # marketplace / CLI install では作業フォルダに plugins/ が無いため、上記のとおり Claude に依頼する。
-python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.json
-python3 plugins/notion-gmail-send/lib/setup_doctor.py --config .notion-config.json --probe --from <送信元アドレス>
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/notion-gmail-send}/lib/setup_doctor.py" --config .notion-config.json
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/notion-gmail-send}/lib/setup_doctor.py" --config .notion-config.json --probe --from <送信元アドレス>
 ```
 
 返却の `action` は誘導先を示す: `gcp_setup`（GCP 手順 = 本書/正本へ）/ `keychain_setup`（Keychain 登録へ）。すべて `OK` になれば G1 充足。1つでも FAIL なら本送信は始まらない。
