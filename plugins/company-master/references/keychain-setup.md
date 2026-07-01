@@ -64,7 +64,7 @@ security add-generic-password -U -s japanpost-da-api.xl-skills -a egress_ip -w '
 各メンバーは**自分の送信元グローバルIP**を、自分の for Biz システムに登録する (最大10件)。登録すべきIPは:
 
 ```bash
-python3 plugins/company-master/scripts/company_master.py doctor   # 「送信元IP」行に自動検出値が出る
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor   # 「送信元IP」行に自動検出値が出る
 ```
 
 の値をそのまま for Biz に登録するのが確実 (固定IPなら A-5 で pin した値と一致する)。
@@ -122,7 +122,7 @@ curl -s https://api.ipify.org; echo
 #   別サービスでも可:  curl -s https://ifconfig.me; echo  /  curl -s https://checkip.amazonaws.com
 
 # ② プラグインの自動検出値を表示 (doctor の「送信元IP」行に同じ IP が出る)
-python3 plugins/company-master/scripts/company_master.py doctor
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/company-master}/scripts/company_master.py" doctor
 ```
 
 注意:

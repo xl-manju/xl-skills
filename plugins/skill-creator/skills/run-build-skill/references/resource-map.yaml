@@ -172,3 +172,14 @@ resources:
     read_first:
       - doc/ClaudeCodeスキルの設計書/19-troubleshooting.md
     cover_concerns: ["19-troubleshooting"]
+  - category: distribution-portability
+    bundle: skill-creator
+    keywords: ["plugin", "distribution", "marketplace", "install", "portability", "doctor", "readme", "CLAUDE_PLUGIN_ROOT", "unset", "empty expansion", "absolute path", "repo-relative", "plugin-composition", "resource map", "plugin.json hooks", "hook command", "setup", "疎通確認", "api", "db", "secret", "external-dependency"]
+    max_docs: 1
+    read_first:
+      - doc/ClaudeCodeスキルの設計書/22-cross-platform-runtime.md
+    local_reference:
+      # 二層 (層1 runtime hook import / 層2 README doc コピペ耐性) の正本 SSOT。
+      # 配布 plugin (kind=plugin) で外部依存の疎通確認手順が要るとき必読。
+      - plugins/skill-creator/skills/ref-cross-platform-runtime/references/runtime-portability.md
+    cover_concerns: ["22-cross-platform-runtime", "readme-doc-portability", "doctor-delegation"]

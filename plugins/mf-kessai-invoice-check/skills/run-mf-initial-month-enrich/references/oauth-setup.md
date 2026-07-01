@@ -70,7 +70,7 @@ https://api.biz.moneyforward.com/authorize?response_type=code&client_id=${Client
 ヘルパー参照)。env を export 済みなら 1 コマンドで交換+保存まで完了する:
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py" --exchange '<AuthCode>'
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py" --exchange '<AuthCode>'
 ```
 
 <details><summary>手動 curl で叩く場合 (通常は上のスクリプト経路を使う)</summary>
@@ -114,7 +114,7 @@ export してから STEP2〜4 を一気通貫で実行できる:
 export MF_INVOICE_CLIENT_ID=...  MF_INVOICE_CLIENT_SECRET=...
 export MF_INVOICE_REDIRECT_URI='http://localhost:12345/callback'
 export MF_INVOICE_SCOPE='mfc/invoice/data.read'
-SK="$CLAUDE_PLUGIN_ROOT/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py"
+SK="${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/skills/run-mf-initial-month-enrich/scripts/mf_invoice_oauth.py"
 python3 "$SK" --authorize-url      # 認可URL表示→ブラウザ同意→code取得
 python3 "$SK" --exchange '<code>'  # token取得+Keychain保存 (stdin保存=安全)
 python3 "$SK" --smoke              # refreshして /partners 疎通確認

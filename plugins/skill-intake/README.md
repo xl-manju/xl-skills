@@ -176,7 +176,7 @@ Claude Code セッション内で:
 インストール後の vendor 配布確認:
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/smoke_plugin_vendor.py"
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_plugin_vendor.py"
 ```
 
 期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
