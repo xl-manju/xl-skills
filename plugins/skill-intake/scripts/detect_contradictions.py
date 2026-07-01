@@ -12,6 +12,7 @@ _SPLIT_RE = re.compile(r'[、。\s,.;]+')
 _NUM_RE = re.compile(r'^[0-9０-９]+$')
 _UPPER_INITIAL_RE = re.compile(r'^[A-Z][A-Za-z0-9_-]*$')
 _ALL_UPPER_RE = re.compile(r'^[A-Z0-9_-]+$')
+STOP_TERMS = {'ラベル', 'Pro', 'Con', 'Weight', 'ID', '---', '✅'}
 
 
 def flatten(obj, prefix='', acc=None):
@@ -37,13 +38,18 @@ def tokenize(s):
 
 
 def is_informative_shared_term(t):
-    if not t or len(t) < 2:
+    cleaned = re.sub(r'[*`|✅\[\]()（）]+', '', t).strip()
+    if not cleaned or len(cleaned) < 2:
         return False
-    if _NUM_RE.match(t):
+    if cleaned in STOP_TERMS:
         return False
-    if _UPPER_INITIAL_RE.match(t):
+    if _NUM_RE.match(cleaned):
         return False
-    if _ALL_UPPER_RE.match(t):
+    if _UPPER_INITIAL_RE.match(cleaned):
+        return False
+    if _ALL_UPPER_RE.match(cleaned):
+        return False
+    if not re.search(r'[ぁ-んァ-ヶ一-龠]', cleaned):
         return False
     return True
 

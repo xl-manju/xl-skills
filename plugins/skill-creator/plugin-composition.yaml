@@ -103,7 +103,7 @@ dependencies:
   - { from: skills/run-build-skill,         to: skills/ref-skill-naming-convention, type: reads }
   - { from: skills/run-build-skill,         to: skills/run-goal-seek,               type: emits }
   - { from: skills/run-build-skill,         to: skills/ref-knowledge-loop,          type: reads }
-  - { from: skills/run-build-skill,         to: skills/run-skill-feedback,          type: deploys }
+  - { from: skills/run-build-skill,         to: skills/run-skill-feedback,          type: emits }
   - { from: skills/run-build-skill,         to: skills/assign-skill-design-evaluator, type: calls }
   - { from: skills/run-build-skill,         to: skills/run-elegant-review,          type: calls }
   - { from: skills/run-skill-create,        to: skills/assign-skill-design-evaluator, type: calls }

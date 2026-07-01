@@ -6,9 +6,13 @@ type: reference
 
 # 完了判定基準
 
-ヒアリング結果が「`run-skill-create` に渡してよい」状態か機械的に判定する。`scripts/check_completeness.py` がこの基準で PASS/FAIL を出す。
+> 【重要】本ファイルは**派生・非機械の人間レビュー用ガイド**であり正本ではない。章の必要十分・完了判定の唯一正本は `references/section_canonical_map.json` (schema_version 2.0.0) の `required_fields` / `absence_behavior` である。本ファイルの24項目は人間レビュー用チェックリストであり、機械検証は canonical_map required_fields に一本化される。
 
-## 必須項目チェック表（24 項目・5 軸版）
+ヒアリング結果が「`run-skill-create` に渡してよい」状態かを人間が確認するためのチェックリスト。`scripts/check_completeness.py` の現状の実装は5軸(output_target/info_source/share_target/true_problem/knowledge_assets)の placeholder 検出のみであり、本ファイルの24項目を機械検証しているわけではない。canonical_map の required_fields 検証への接続は別途行われる予定であり、機械検証の正本は canonical_map required_fields に一本化される。
+
+## 必須項目チェック表（24 項目・5 軸版／人間レビュー用）
+
+以下24項目は人間レビュー用チェックリストである(機械検証の正本は canonical_map required_fields)。
 
 | # | カテゴリ | 項目 | 判定 |
 |---|----------|------|------|

@@ -6,6 +6,39 @@
 version: 1
 skill: run-skill-intake
 
+canonical_hierarchy:
+  intent_contract:
+    ssot: references/intent-contract.schema.json
+    role: "入力→出力インテント (input_spec / output_spec / slot_status) の唯一正本。ヒアリングの本質軸。section_canonical_map §6 の output_to / input_from はここから派生する。全 slot が filled になるまで intake は完了しない。"
+    derived:
+      - references/probe-pattern-table.json
+      - scripts/build-intent.py
+    derived_role: "probe-pattern-table.json は intent slot 未充足時に発火する『引き出しの型』(決定論・文面 verbatim)。build-intent.py は回答→intent_contract の決定論マッピング (LLM 非依存)。"
+  section_contract:
+    ssot: references/section_canonical_map.json
+    role: "§0〜§11 の章順、必須項目、粒度、section_diagrams 枠の正本。ヒアリングシート構造で判断が割れたら最優先で参照する。§6 の intent_contract は intent-contract.schema.json を正本とする。"
+  context_schema:
+    ssot: references/intake-final-schema.json
+    role: "render_notion_page.py と intake-final-template.md.tmpl に渡す context 型の正本。Notion DB properties もこの notion_db_properties を値の正本とする。"
+  markdown_renderer:
+    derived:
+      - references/intake-final-template.md.tmpl
+      - scripts/render-intake-final.py
+    role: "人間向け intake-final.md/intake.md を生成する派生 view。章順や必須性を新規定義しない。"
+  notion_renderer:
+    derived:
+      - scripts/render_notion_page.py
+      - references/notion-db-schema.json
+      - references/notion-integration.md
+    role: "Notion view の派生 renderer。DB property の型は notion-db-schema.json、値は intake-final-schema.json#/properties/notion_db_properties に従う。"
+  interview_phase:
+    ssot:
+      - skills/run-intake-interview/references/question-plan.json
+      - skills/run-intake-interview/schemas/output.schema.json
+    role: "質問列/選択肢/qa_log/sheet.json/interview.json の正本。質問の都度立案やランダム選択を禁止する。"
+  legacy_redirects:
+    note: "README.md、旧 migration 文書、旧 aggregator 由来の説明は実行契約の正本ではない。矛盾時は上記 ssot/derived 階層へ redirect する。"
+
 references:
   elicitation-techniques:
     path: references/elicitation-techniques.md
@@ -105,7 +138,17 @@ references:
   section-completeness-rules:
     path: references/section-completeness-rules.md
     read_when: "scripts/render-intake-final.py 実行時、または render_notion_page.py で context 投影時"
-    purpose: "各セクションの必要十分 (図解 1-3 + 説明 + 質問 + 選択肢 + サンプル + アンチパターン) を検証"
+    purpose: "人間向け解説。機械判定の正本は section_canonical_map.json と intake-final-schema.json に置く"
+
+  intent-contract-schema:
+    path: references/intent-contract.schema.json
+    read_when: "5軸/§6 の入力→出力インテントを確定するとき、scripts/build-intent.py 実行時、check_completeness.py --mode intent 実行時"
+    purpose: "入力→出力インテント (input_spec/output_spec/slot_status) の唯一正本 schema。再現性のアンカー。全 slot filled まで intake 未完了"
+
+  probe-pattern-table:
+    path: references/probe-pattern-table.json
+    read_when: "intent slot が未充足で追加ヒアリング (手を差し伸べる) が必要なとき、build-intent.py が pending_probes を返したとき"
+    purpose: "intent slot 未充足時に発火する決定論的 follow-up probe の唯一正本。発火条件=slot 未充足、文面=verbatim 固定。誰が実行しても同じ probe 列で同じ intent へ収束させる"
 
   non-tech-vocabulary:
     path: references/non-tech-vocabulary.md

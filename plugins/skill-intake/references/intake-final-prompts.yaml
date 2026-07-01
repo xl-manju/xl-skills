@@ -181,17 +181,19 @@ prompts:
       purpose: "出力先 / 情報源 / 共有相手 / 真の課題 / ナレッジ資産 の 5 軸を最終確定する"
       success_criteria:
         - "rows が exactly 5 件、順序固定"
+        - "intent_contract.slot_status が全 slot filled=true、pending_probes が空"
+        - "rows[出力先] は intent_contract.output_spec.sink、rows[情報源] は intent_contract.input_spec.sources から派生"
         - "ナレッジ資産行は must=true、depth=deep"
         - "pipeline.ingest/analysis/storage/retrieval/update が全件埋まる"
     layer2_domain:
       terms:
         depth: "shallow=表層回答のみ / standard=具体名あり / deep=条件・閾値まで"
     layer5_agent_spec:
-      input_keys: ["context.assumption", "context.profile", "context.purpose", "context.options"]
-      output_keys: ["five_axes.rows", "five_axes.pipeline"]
+      input_keys: ["context.assumption", "context.profile", "context.purpose", "context.options", "context.interview.intent_contract", "context.interview.pending_probes"]
+      output_keys: ["five_axes.rows", "five_axes.pipeline", "five_axes.intent_contract"]
       output_shape_ref: "intake-final-schema.json#/properties/five_axes"
     layer7_interaction:
-      first_question: "ナレッジ資産軸: ingest はどんなフォーマットの取り込みを想定しますか"
+      first_question: "pending_probes が残る場合は probe-pattern-table.json の該当 question_text をそのまま聞いてください"
       followups:
         - "update サイクルは daily / weekly / monthly / on-demand のどれですか"
 

@@ -33,6 +33,10 @@ input ──▶ [Gate A: 機械契約] ──▶ [Gate B: elegance lint] ──�
 
 衝突時の優先順位: A > B > C (契約 > elegance > 規範)。
 
+### 構造粒度検証 (structure fidelity) の Gate 帰属
+
+出力成果物の構造粒度検証 — 生成物が canonical な章 / section 構造・`required_fields` を満たすかの機械検証 — は **Gate A (機械契約) の一種**に属する。構造 fidelity は「契約が binary に充足されているか」を write なしで機械判定する検証であり、elegance (Gate B) や採点 (Gate C) とは検出粒度が異なるため、Gate A の read-only 契約検査として扱う。この採点は `assign-*` prefix の skill が担う (例: skill-intake の notion fidelity 検証)。構造充足は契約層の判定なので、fail 時は A > B > C の優先順位で最優先に解消する。
+
 ## 適用先
 
 - `run-plugin-package-check` (Gate A)

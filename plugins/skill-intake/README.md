@@ -469,7 +469,7 @@ plugins/skill-intake/
     ├── run-intake-finalize/           # Phase 9 補助 (統合 + quality_gate)
     ├── run-intake-next-action/        # Phase 11 決定論 (公開後の引き渡しモード判定)
     ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
-    ├── run-notion-fidelity-guard/     # Notion 公開前粒度検証
+    ├── assign-notion-fidelity-evaluator/     # Notion 公開前粒度検証
     └── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
 ```
 

@@ -257,10 +257,58 @@
         }
       }
     },
+    "intent_contract": {
+      "type": "object",
+      "description": "入力->出力インテント抽出の第一級契約。正本は references/intent-contract.schema.json。§6 の output_to は output_spec.sink、input_from は input_spec.sources から派生する。input_spec/output_spec の全 slot が filled になるまで intake は完了しない。",
+      "required": ["input_spec", "output_spec", "slot_status"],
+      "additionalProperties": false,
+      "properties": {
+        "input_spec": {
+          "type": "object",
+          "description": "何を入力するか。§6 input_from は sources から派生。",
+          "required": ["sources", "trigger", "frequency", "raw_materials"],
+          "additionalProperties": false,
+          "properties": {
+            "sources": {"type": "array", "items": {"type": "string"}},
+            "trigger": {"type": "string"},
+            "frequency": {"enum": ["realtime", "daily", "weekly", "monthly", "event", "ondemand"]},
+            "raw_materials": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "output_spec": {
+          "type": "object",
+          "description": "何をどう出力して欲しいか。§6 output_to は sink から派生。",
+          "required": ["sink", "format", "granularity", "audience", "cadence"],
+          "additionalProperties": false,
+          "properties": {
+            "sink": {"type": "string"},
+            "format": {"enum": ["bullet", "table", "prose", "document", "message", "dashboard", "other"]},
+            "granularity": {"type": "string"},
+            "audience": {"type": "string"},
+            "cadence": {"enum": ["realtime", "daily", "weekly", "monthly", "event", "ondemand"]}
+          }
+        },
+        "slot_status": {
+          "type": "object",
+          "description": "各 slot の provenance。全 slot filled=true で完了。",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["filled", "source"],
+            "additionalProperties": false,
+            "properties": {
+              "filled": {"type": "boolean"},
+              "source": {"enum": ["direct_answer", "probe", "inferred"]},
+              "probe_ids": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
     "five_axes_summary": {
       "type": "object",
-      "required": ["axes", "knowledge_pipeline"],
+      "required": ["axes", "intent_contract", "knowledge_pipeline"],
       "properties": {
+        "intent_contract": {"$ref": "#/$defs/intent_contract"},
         "axes": {
           "type": "array",
           "minItems": 5,

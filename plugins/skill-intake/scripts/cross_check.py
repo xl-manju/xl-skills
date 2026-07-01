@@ -5,14 +5,15 @@ import json
 import re
 import sys
 
-AXES = ['output_destination', 'info_source', 'share_target', 'true_problem', 'knowledge_assets']
+AXES = ['output_target', 'info_source', 'share_target', 'true_problem', 'knowledge_assets']
 AXIS_HEADINGS = {
-    'output_destination': ['出力先', 'Output Destination'],
+    'output_target': ['出力先', 'Output Destination'],
     'info_source': ['情報源', 'Information Source'],
     'share_target': ['共有相手', 'Sharing Target'],
     'true_problem': ['真の課題', 'True Problem'],
     'knowledge_assets': ['ナレッジ資産', 'Knowledge Assets'],
 }
+AXIS_FALLBACK = {'output_target': 'output_destination'}
 _FRONTMATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
 _HEADING_RE = re.compile(r'^#{1,4}\s+(.*?)\s*$')
 _SPLIT_RE = re.compile(r'[\s、。,.]+')
@@ -44,6 +45,28 @@ def pick_axis(sections, keys):
     return ''
 
 
+def parse_five_axes_table(body):
+    out = {}
+    axis_by_label = {
+        '出力先': 'output_target',
+        '情報源': 'info_source',
+        '共有相手': 'share_target',
+        '真の課題': 'true_problem',
+        'ナレッジ資産': 'knowledge_assets',
+    }
+    for line in body.splitlines():
+        if not line.startswith('|'):
+            continue
+        cells = [c.strip() for c in line.strip().strip('|').split('|')]
+        if len(cells) < 3 or cells[0] in ('軸', '---'):
+            continue
+        label = re.sub(r'[*`]', '', cells[0]).replace('（MUST）', '').strip()
+        key = axis_by_label.get(label)
+        if key:
+            out[key] = cells[1].strip()
+    return out
+
+
 def extract_frontmatter(md):
     m = _FRONTMATTER_RE.match(md)
     if not m:
@@ -61,9 +84,11 @@ def extract_frontmatter(md):
 def convert_md(md):
     _, body = extract_frontmatter(md)
     sections = parse_sections(body)
-    five_axes = {}
-    for k, heads in AXIS_HEADINGS.items():
-        five_axes[k] = pick_axis(sections, heads)
+    five_axes = parse_five_axes_table(body)
+    if not five_axes:
+        five_axes = {}
+        for k, heads in AXIS_HEADINGS.items():
+            five_axes[k] = pick_axis(sections, heads)
     return {'5_axes': five_axes}
 
 
@@ -91,13 +116,16 @@ def cross(md, json_data):
     json_axes = json_data.get('5_axes') or json_data.get('five_axes') or {}
     mismatches = []
     for k in AXES:
-        sim = similarity(md_axes.get(k), json_axes.get(k))
+        json_value = json_axes.get(k)
+        if json_value is None and k in AXIS_FALLBACK:
+            json_value = json_axes.get(AXIS_FALLBACK[k])
+        sim = similarity(md_axes.get(k), json_value)
         if sim < 0.4:
             mismatches.append({
                 'axis': k,
                 'similarity': round(sim, 2),
                 'md_excerpt': norm(md_axes.get(k))[:60],
-                'json_excerpt': norm(json_axes.get(k))[:60],
+                'json_excerpt': norm(json_value)[:60],
             })
     return {'ok': len(mismatches) == 0, 'mismatches': mismatches}
 

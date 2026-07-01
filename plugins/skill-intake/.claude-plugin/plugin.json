@@ -25,7 +25,7 @@
       "run-intake-visualize",
       "run-intake-finalize",
       "run-notion-intake-publish",
-      "run-notion-fidelity-guard",
+      "assign-notion-fidelity-evaluator",
       "run-intake-next-action",
       "run-intake-revise"
     ],

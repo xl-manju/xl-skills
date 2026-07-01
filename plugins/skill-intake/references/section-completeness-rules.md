@@ -6,7 +6,9 @@ type: reference
 
 # セクション必要十分ルール
 
-ヒアリングシート `intake.md` の各セクションは以下の必要十分基準を満たす。`scripts/check_completeness.py` + `scripts/render-intake-final.py` (JSON Schema 検証) がこの基準で検証する。
+> 【重要】本ファイルは `references/section_canonical_map.json` (schema_version 2.0.0, §0〜§11 の12章) の**人間可読ガイド(派生・非機械)**であり正本ではない。機械検証の正本は `section_canonical_map.json`、実装は `scripts/check_completeness.py`。章の必要十分の唯一正本は canonical_map の `required_fields` / `absence_behavior` である。本ファイルの記述と canonical_map が食い違う場合は canonical_map を正とする。
+
+ヒアリングシート `intake.md` の各セクションは以下の必要十分基準を満たす。これらは canonical_map の `required_fields` として機械検証される(実装: `scripts/check_completeness.py`)。`scripts/render-intake-final.py` は展開のみを担い、機械検証は canonical_map required_fields に一本化される。
 
 ## 必要十分の構成要素
 
@@ -35,6 +37,23 @@ type: reference
 | 7 | 既存スキル類似 | similar_skills |
 | 7.5 | ナレッジ資産（MUST） | knowledge_assets |
 | 8 | 未解決事項 | open_questions |
+
+### 本ファイル9章体系 → canonical_map 12章 (§0〜§11) 対応表
+
+本ファイルの9章 (旧体系) は正本ではない。以下は canonical_map の `section_key` へのマップである。canonical_map にのみ存在する章 (§0/§7/§9/§10/§11) は本ファイル未収載であり、正本は canonical_map を参照すること。
+
+| 本ファイル # | canonical §key |
+|---|---|
+| 1 目的 | §3 `3_purpose_excavator` |
+| 2 ユーザー像 | §2 `2_user_profile` |
+| 3 5軸回答 | §6 `6_five_axes_summary` (input_from/output_to は §6 `intent_contract` から派生) |
+| 4 外部連携 | §4 `4_option_presenter` (connectors) |
+| 5 想定フロー | §5 `5_visualizer` |
+| 6 価値・KPI | §1 `1_assumption_challenger` (time_freed_intent) / §10 `10_self_updater` (value_realized_score) |
+| 7 既存スキル類似 | §3 `3_purpose_excavator` (differentiation) |
+| 7.5 ナレッジ資産 | §6 `6_five_axes_summary` (axes[knowledge_asset] / knowledge_pipeline) |
+| 8 未解決事項 | §8 `8_open_questions` |
+| (本ファイル未収載) | §0 `0_executive_summary` / §7 `7_design_decisions` / §9 `9_handoff_contract` / §11 `11_artifact_index` |
 
 ---
 
@@ -163,8 +182,8 @@ function checkSection(section) {
 }
 ```
 
-全セクションで PASS が必要十分の閾値。
+上記は人間可読の概念図であり、機械検証の正本ではない。実際の PASS/FAIL は canonical_map の `required_fields` / `absence_behavior` として機械検証される(実装: `scripts/check_completeness.py`)。
 
 ## 一括テンプレ展開
 
-`scripts/render-intake-final.py` が `intake-final-template.md.tmpl` を context で展開し、SubAgent が各 phase JSON を埋めるだけで必要十分を満たす。
+`scripts/render-intake-final.py` が `intake-final-template.md.tmpl` を context で展開する(展開のみ)。SubAgent が各 phase JSON を埋め、必要十分の機械検証は canonical_map required_fields に一本化される。

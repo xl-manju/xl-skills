@@ -121,7 +121,7 @@ def test_convert_md_maps_all_axes():
     )
     out = CC.convert_md(md)
     axes = out["5_axes"]
-    assert axes["output_destination"] == "Notion"
+    assert axes["output_target"] == "Notion"
     assert axes["info_source"] == "Slack"
     assert axes["share_target"] == "チーム"
     assert axes["true_problem"] == "属人化"
@@ -137,7 +137,7 @@ def test_convert_md_missing_axis_is_empty_string():
 def test_convert_md_english_headings():
     md = "# Output Destination\nNotion\n# Information Source\nSlack"
     out = CC.convert_md(md)
-    assert out["5_axes"]["output_destination"] == "Notion"
+    assert out["5_axes"]["output_target"] == "Notion"
     assert out["5_axes"]["info_source"] == "Slack"
 
 
@@ -187,7 +187,7 @@ def test_similarity_disjoint_is_zero():
 
 def _md_all_axes(**vals):
     headings = {
-        "output_destination": "出力先",
+        "output_target": "出力先",
         "info_source": "情報源",
         "share_target": "共有相手",
         "true_problem": "真の課題",
@@ -201,7 +201,7 @@ def _md_all_axes(**vals):
 
 def test_cross_all_match_ok():
     vals = dict(
-        output_destination="Notion データベース",
+        output_target="Notion データベース",
         info_source="Slack の会話ログ",
         share_target="開発チーム全員",
         true_problem="知識の属人化問題",
@@ -215,13 +215,13 @@ def test_cross_all_match_ok():
 
 
 def test_cross_detects_mismatch_below_threshold():
-    md = _md_all_axes(output_destination="Notion に保存する")
-    js = {"5_axes": {"output_destination": "全く異なる Google Drive へ"}}
+    md = _md_all_axes(output_target="Notion に保存する")
+    js = {"5_axes": {"output_target": "全く異なる Google Drive へ"}}
     r = CC.cross(md, js)
     assert r["ok"] is False
     axes_flagged = {m["axis"] for m in r["mismatches"]}
-    assert "output_destination" in axes_flagged
-    mm = next(m for m in r["mismatches"] if m["axis"] == "output_destination")
+    assert "output_target" in axes_flagged
+    mm = next(m for m in r["mismatches"] if m["axis"] == "output_target")
     assert mm["similarity"] < 0.4
     assert "Notion" in mm["md_excerpt"]
     assert "Google Drive" in mm["json_excerpt"]
@@ -229,9 +229,9 @@ def test_cross_detects_mismatch_below_threshold():
 
 def test_cross_accepts_five_axes_alias_key():
     # json 側が five_axes キーでも拾う
-    vals = dict(output_destination="Notion")
+    vals = dict(output_target="Notion")
     md = _md_all_axes(**vals)
-    js = {"five_axes": {"output_destination": "Notion"}}
+    js = {"five_axes": {"output_target": "Notion"}}
     r = CC.cross(md, js)
     # 他軸は両方空 → similarity 1 で一致、output も一致
     assert r["ok"] is True
@@ -239,10 +239,10 @@ def test_cross_accepts_five_axes_alias_key():
 
 def test_cross_excerpt_truncated_to_60_chars():
     long = "語" * 100
-    md = _md_all_axes(output_destination=long)
-    js = {"5_axes": {"output_destination": "別物" * 50}}
+    md = _md_all_axes(output_target=long)
+    js = {"5_axes": {"output_target": "別物" * 50}}
     r = CC.cross(md, js)
-    mm = next(m for m in r["mismatches"] if m["axis"] == "output_destination")
+    mm = next(m for m in r["mismatches"] if m["axis"] == "output_target")
     assert len(mm["md_excerpt"]) == 60
 
 
@@ -290,7 +290,7 @@ def test_main_input_error_bad_json(monkeypatch, capsys, tmp_path):
 
 def test_main_ok_returns_0_and_prints_json(monkeypatch, capsys, tmp_path):
     vals = dict(
-        output_destination="Notion データベース 保存",
+        output_target="Notion データベース 保存",
         info_source="Slack 会話 ログ",
         share_target="開発 チーム 全員",
         true_problem="知識 属人化 問題",
@@ -306,20 +306,20 @@ def test_main_ok_returns_0_and_prints_json(monkeypatch, capsys, tmp_path):
 
 
 def test_main_mismatch_returns_1(monkeypatch, capsys, tmp_path):
-    md = _write(tmp_path, "intake.md", _md_all_axes(output_destination="Notion へ保存"))
+    md = _write(tmp_path, "intake.md", _md_all_axes(output_target="Notion へ保存"))
     js = _write(tmp_path, "intake.json",
-                {"5_axes": {"output_destination": "完全に違う Google Drive 行き"}})
+                {"5_axes": {"output_target": "完全に違う Google Drive 行き"}})
     argv = ["cross_check.py", md, js]
     assert CC.main(argv) == 1
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] is False
-    assert any(m["axis"] == "output_destination" for m in out["mismatches"])
+    assert any(m["axis"] == "output_target" for m in out["mismatches"])
 
 
 def test_main_subprocess_smoke(tmp_path):
     # subprocess(sys.executable) 経由で CLI 起動も genuine に確認 (__main__ ガード経路)
     import subprocess
-    vals = dict(output_destination="Notion 保存 先")
+    vals = dict(output_target="Notion 保存 先")
     md = _write(tmp_path, "intake.md", _md_all_axes(**vals))
     js = _write(tmp_path, "intake.json", {"5_axes": vals})
     r = subprocess.run([sys.executable, str(SCRIPT), md, js],
