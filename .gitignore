@@ -65,6 +65,10 @@ eval-log/notion-gmail-send/journal.jsonl
 # Session-local artifacts
 output/
 .claude/handoff/
+# PreCompact hook はカレント作業ディレクトリ相対に .claude/handoff/ を書くため、
+# スキル配下など任意の深さで生成される handoff スナップショット (session/transcript path 含む
+# 揮発副産物) も除外する。
+**/.claude/handoff/
 .worktrees/
 # MF KESSAI ローカル作業スクラッチ (配布対象外・git 未追跡。eval-log に実顧客データを含むため
 # コミット禁止。運用スクリプトは plugins/.../skills/run-mf-initial-month-enrich へ移設済み)

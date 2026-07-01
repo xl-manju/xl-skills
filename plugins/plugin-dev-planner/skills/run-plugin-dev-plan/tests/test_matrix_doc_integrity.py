@@ -90,7 +90,7 @@ def _row_cells(line: str) -> list[str]:
 
 
 def _cited_plugin_paths(md_text: str) -> list[tuple[str, str]]:
-    """43行『絶対パス』列から plugins/ 接頭の引用パスを (row-id, path) で抽出する。
+    """44行『絶対パス』列から plugins/ 接頭の引用パスを (row-id, path) で抽出する。
 
     cross-plugin upstream 結合 (skill-creator / skill-governance-lint / prompt-creator) のみ
     対象とし、brace 展開 ({a,b}) / glob (*) を含むトークン (複数実体を畳む) と、bare ファイル名
@@ -167,7 +167,7 @@ def test_matrix_integrity_catches_misattribution(tmp_path):
 
 
 def test_matrix_rows_cite_existing_plugin_paths():
-    """43行『絶対パス』列が引用する plugins/ 配下の実体が存在する (上流改名の無音 stale 化封止)。
+    """44行『絶対パス』列が引用する plugins/ 配下の実体が存在する (上流改名の無音 stale 化封止)。
 
     rule-ID 整合 (test_matrix_rows_cite_real_rubric_rule_ids) + skill 列挙
     (test_completeness_proof_enumerates_all_skill_creator_skills) に続く、上流結合の最後の辺
@@ -208,7 +208,7 @@ def test_completeness_proof_enumerates_all_skill_creator_skills():
     """循環論法 (分母自己定義) 解消の核 =「完全性の証明」のサーフェス全列挙が
     skill-creator/skills の実体と一致する。skill-creator が skill を増減したら
     本表の追記/削除漏れを機械検出し、『未分類の漏れ 0』証明の無音陳腐化を防ぐ
-    (--self-test の 43 行 drift 検査 + 本テストのサーフェス被覆 = 二層機械保証)。"""
+    (--self-test の 44 行 drift 検査 + 本テストのサーフェス被覆 = 二層機械保証)。"""
     if not _SKILL_CREATOR_SKILLS.is_dir():
         pytest.skip(f"skill-creator/skills 不在 (standalone 配布?): {_SKILL_CREATOR_SKILLS}")
     if not _REFLECTION.is_file():

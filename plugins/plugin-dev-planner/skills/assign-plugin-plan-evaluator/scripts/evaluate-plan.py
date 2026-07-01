@@ -44,6 +44,8 @@ REQUIRED_PLUGIN_SURFACES = (
     "composition",
     "harness_eval",
     "references_config_assets",
+    "schemas",
+    "vendor",
     "mcp_app_connector",
 )
 

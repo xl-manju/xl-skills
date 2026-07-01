@@ -1,6 +1,6 @@
 {
   "plugin_concept": "notion-task-sync — タスク台帳を Notion DB へ冪等同期するプラグイン",
-  "derivation": "capability を 5 種の buildable component_kind へ写像し、実体単位に分解する: 同期/照合/初期投入の 3 skill、各々の独立検証 sub-agent 3、手動起動 command 2、破壊防止 hook 1、複数 skill が共有する script 2 = 計 11 実体。同一 kind が複数実体を持つ (skill×3 / sub-agent×3 / slash-command×2) のが実プラグインの自然形で、各実体に 1 build_target を割り当てる。script は複数 skill から使われる共有 (第二消費者あり) のみ独立 component 化し、各 skill 専用 script は親 skill の build へ畳んで水増しを避ける。この inventory は build 軸の唯一 SSOT で、人間可読なライフサイクルは phase-01..13.md が担う (2 軸直交)。",
+  "derivation": "capability を 5 種の buildable component_kind へ写像し、実体単位に分解する: 同期/照合/初期投入の 3 skill、各々の独立検証 sub-agent 3、手動起動 command 2、破壊防止 hook 1、複数 skill が共有する script 2 = 計 11 実体。同一 kind が複数実体を持つ (skill×3 / sub-agent×3 / slash-command×2) のが実プラグインの自然形で、各実体に 1 build_target を割り当てる。script は複数 skill から使われる共有 (第二消費者あり) のみ独立 component 化し、各 skill 専用 script は親 skill の build へ畳んで水増しを避ける。共有 script (C09/C10 は >=2 skill が依存=第二消費者あり) は単一 skill 配下に固定せず placement_scope=plugin-root で plugins/notion-task-sync/scripts/ へ hoist し (builder=plugin-scaffold)、symlink 共有/単独 install での dangling を防ぐ (install 携帯性)。この inventory は build 軸の唯一 SSOT で、人間可読なライフサイクルは phase-01..13.md が担う (2 軸直交)。",
   "considered_component_kinds": ["skill", "sub-agent", "slash-command", "hook", "script"],
   "components": [
     {
@@ -17,8 +17,9 @@
       "stdlib_only": true,
       "tests_min": 80,
       "depends_on": [],
-      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/validate-sync-payload.py",
-      "builder": "parent-skill-build",
+      "placement_scope": "plugin-root",
+      "build_target": "plugins/notion-task-sync/scripts/validate-sync-payload.py",
+      "builder": "plugin-scaffold",
       "build_kind": "script",
       "quality_gates": {
         "p0_lint": ["lint-script-frontmatter"],
@@ -43,8 +44,9 @@
       "stdlib_only": true,
       "tests_min": 80,
       "depends_on": [],
-      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/notion-idempotency-key.py",
-      "builder": "parent-skill-build",
+      "placement_scope": "plugin-root",
+      "build_target": "plugins/notion-task-sync/scripts/notion-idempotency-key.py",
+      "builder": "plugin-scaffold",
       "build_kind": "script",
       "quality_gates": {
         "p0_lint": ["lint-script-frontmatter"],
@@ -332,6 +334,8 @@
     "composition": {"required": true, "path": "plugin-composition.yaml"},
     "harness_eval": {"required": true, "path": "EVALS.json"},
     "references_config_assets": {"required": true, "record_in": "index.plugin_meta.ssot_dedup"},
+    "schemas": {"required": false, "omitted_reason": "同期ペイロードは共有 script (validate-sync-payload.py) 内で検証し独立 JSON schema を持たない"},
+    "vendor": {"required": false, "omitted_reason": "cross-plugin SSOT を持たず plugin-root 共有 script の hoist で携帯性を満たすため vendoring 不要"},
     "mcp_app_connector": {"required": false, "omitted_reason": "Notion sync は既存 Skill/Bash 経路で扱い MCP/app connector を新設しない"}
   }
 }

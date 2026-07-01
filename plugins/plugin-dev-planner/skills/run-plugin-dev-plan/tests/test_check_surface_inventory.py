@@ -14,6 +14,8 @@ def _valid_inventory() -> dict:
             "composition": {"required": True, "path": "plugin-composition.yaml"},
             "harness_eval": {"required": True, "path": "EVALS.json"},
             "references_config_assets": {"required": False, "omitted_reason": "No shared references needed"},
+            "schemas": {"required": False, "omitted_reason": "No standalone JSON schema needed"},
+            "vendor": {"required": False, "omitted_reason": "No cross-plugin SSOT to vendor"},
             "mcp_app_connector": {"required": False, "omitted_reason": "No MCP/app connector needed"},
         },
     }

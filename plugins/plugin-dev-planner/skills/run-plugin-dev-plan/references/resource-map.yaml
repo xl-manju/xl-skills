@@ -39,9 +39,10 @@ deterministic_checks:
   - scripts/detect-unassigned.py      # C2/C4: 13 phase ファイル全存在 + section 床 + 各 component が ≥1 phase の entities_covered に出現 (orphan 0) + build_target 非空
   - scripts/check-spec-frontmatter.py # C2/C3: phase frontmatter (PHASE_REQUIRED) + inventory component_kind 別構造 + criteria/harness 携帯
   - scripts/check-spec-gates.py       # C2/C3: inventory quality_gates / plugin_meta 値域検証
-  - scripts/check-spec-matrix-coverage.py # C3: 43 行 skill-creator 仕様反映 (self-test + PLAN の 2 invocations)
+  - scripts/check-spec-matrix-coverage.py # C3: 44 行 skill-creator 仕様反映 (self-test + PLAN の 2 invocations)
   - scripts/check-surface-inventory.py # C2: 5 component_kind 検討証跡 + plugin-level surface 採否
   - scripts/check-build-handoff.py    # C4/C5: L3→L4 build routing / builder / envelope gap 検証
+  - scripts/check-runtime-portability.py   # C2/C4: plugin-root 共有 script placement + build_target 自己完結(install 携帯性)
   - scripts/check-plugin-surface-audit.py # 現物 plugins/ 配下の skill/agent/command/hook/script/test 等 surface 横断棚卸し
   - scripts/render-spec-skeleton.py   # specfm 正本から最小 skeleton を生成
 

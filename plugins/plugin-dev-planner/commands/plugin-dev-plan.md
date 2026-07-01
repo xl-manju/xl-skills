@@ -68,7 +68,7 @@ python3 "$SKILL_DIR/scripts/check-plugin-goal-spec.py" "$PLAN_DIR/goal-spec.json
 python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"  # unassigned 0
 python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"                     # kind 別構造 + core 規律
 python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"                           # quality_gates + harness
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test                             # 43 行 table drift
+python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test                             # 44 行 table drift
 python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"                             # 焼き先反映
 python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json"       # 5種検討証跡 + surface 採否
 python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json"   # L3→L4 routing

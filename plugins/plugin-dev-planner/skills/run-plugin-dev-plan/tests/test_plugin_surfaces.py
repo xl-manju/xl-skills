@@ -141,6 +141,16 @@ def test_agent_bash_is_python_scoped():
         assert not re.search(r"\bBash\b(?!\s*\()", tools_line), f"{agent_file.name}: 無制限 Bash は最小権限違反 (Bash(python3 *) に絞る)"
 
 
+def test_plan_surfaces_are_audited_by_live_auditor(specfm_mod, plugin_surface_audit):
+    """plan(L3) の plugin_level_surfaces (specfm.PLUGIN_LEVEL_SURFACES) で新設した
+    schemas/vendor が、現物監査 (check-plugin-surface-audit.SURFACE_KEYS) 側にも存在する
+    (plan surface と live-audit surface の非対称=脱落を機械検出する・C3 整合)。"""
+    audit_keys = set(plugin_surface_audit.SURFACE_KEYS)
+    for surface in ("schemas", "vendor"):
+        assert surface in specfm_mod.PLUGIN_LEVEL_SURFACES, f"{surface} が plan surface に無い"
+        assert surface in audit_keys, f"{surface} が live-audit SURFACE_KEYS に無い (surface 非対称)"
+
+
 def test_evals_lists_all_expected_surfaces():
     evals = json.loads((PLUGIN_ROOT / "EVALS.json").read_text(encoding="utf-8"))
     assert set(evals["surfaces"]) == {

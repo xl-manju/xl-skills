@@ -9,13 +9,13 @@
       "name": "validate-sync-payload.py",
       "spec": "phase-05-implementation.md",
       "depends_on": [],
-      "builder": "parent-skill-build",
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
       "build_kind": "script",
       "build_args": {
-        "parent_skill": "run-notion-task-sync",
         "script_path": "scripts/validate-sync-payload.py"
       },
-      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/validate-sync-payload.py",
+      "build_target": "plugins/notion-task-sync/scripts/validate-sync-payload.py",
       "status": "planned"
     },
     {
@@ -24,13 +24,13 @@
       "name": "notion-idempotency-key.py",
       "spec": "phase-05-implementation.md",
       "depends_on": [],
-      "builder": "parent-skill-build",
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
       "build_kind": "script",
       "build_args": {
-        "parent_skill": "run-notion-task-sync",
         "script_path": "scripts/notion-idempotency-key.py"
       },
-      "build_target": "plugins/notion-task-sync/skills/run-notion-task-sync/scripts/notion-idempotency-key.py",
+      "build_target": "plugins/notion-task-sync/scripts/notion-idempotency-key.py",
       "status": "planned"
     },
     {

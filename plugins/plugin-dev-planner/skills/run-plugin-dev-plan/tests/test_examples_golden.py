@@ -69,6 +69,22 @@ def test_surface_inventory_gate(surfaces):
     assert surfaces.main([str(INVENTORY)]) == 0
 
 
+def test_runtime_portability_gate(runtime):
+    assert runtime.main([str(PLAN)]) == 0
+
+
+def test_shared_scripts_are_plugin_root():
+    """ゴールデンの共有 script (>=2 skill consumer の C09/C10) が plugin-root へ hoist されている
+    ことを固定する (install 携帯性の dogfooding・単一 skill 配下退化のサイレント回帰防止)。"""
+    scripts = [c for c in _inventory_components() if c.get("component_kind") == "script"]
+    assert scripts, "ゴールデンに script component が無い"
+    for c in scripts:
+        assert c.get("placement_scope") == "plugin-root", c.get("id")
+        assert c.get("builder") == "plugin-scaffold", c.get("id")
+        bt = c.get("build_target", "")
+        assert "/scripts/" in bt and "/skills/" not in bt, bt
+
+
 def test_all_five_component_kinds_present():
     """ゴールデン inventory が 5 種の component_kind を全種網羅する (skill 偏重の解消を実証)。
 

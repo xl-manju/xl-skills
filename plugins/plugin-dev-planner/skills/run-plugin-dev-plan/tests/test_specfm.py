@@ -199,6 +199,110 @@ def test_contract_tables_present(specfm_mod):
     }
 
 
+def test_plugin_level_surfaces_include_schemas_vendor(specfm_mod):
+    """PLUGIN_LEVEL_SURFACES が schemas / vendor を含む 7 面 (配布携帯性の面を追加)。"""
+    assert set(specfm_mod.PLUGIN_LEVEL_SURFACES) == {
+        "manifest", "composition", "harness_eval", "references_config_assets",
+        "schemas", "vendor", "mcp_app_connector",
+    }
+
+
+def test_placement_scopes_and_placement_of(specfm_mod):
+    assert specfm_mod.PLACEMENT_SCOPES == ("skill", "plugin-root")
+    assert specfm_mod.placement_of({}) == "skill"  # 未指定は既定 skill
+    assert specfm_mod.placement_of({"placement_scope": "  "}) == "skill"  # 空白も既定
+    assert specfm_mod.placement_of({"placement_scope": "plugin-root"}) == "plugin-root"
+
+
+def test_builder_for_maps_placement(specfm_mod):
+    # plugin-root script のみ plugin-scaffold へ写す。他は §6 kind→builder 写像。
+    assert specfm_mod.builder_for("script", "plugin-root") == "plugin-scaffold"
+    assert specfm_mod.builder_for("script", "skill") == "parent-skill-build"
+    assert specfm_mod.builder_for("script") == "parent-skill-build"  # 既定 skill
+    assert specfm_mod.builder_for("skill", "plugin-root") == "run-skill-create"  # 非 script は無関係
+    assert specfm_mod.builder_for("hook") == "run-build-skill"
+
+
+def test_validate_component_plugin_root_script_clean(specfm_mod):
+    """plugin-root script (builder=plugin-scaffold・plugins/<slug>/scripts/ 直下) が通る。"""
+    comp = {
+        "id": "C09", "component_kind": "script", "placement_scope": "plugin-root",
+        "script_name": "s.py", "purpose": "p", "inputs": "i", "outputs": "o",
+        "exit_codes": "0/1/2", "network": False, "write_scope": "none",
+        "stdlib_only": True, "tests_min": 80, "depends_on": [],
+        "build_target": "plugins/x/scripts/s.py", "builder": "plugin-scaffold", "build_kind": "script",
+        "quality_gates": {
+            "p0_lint": list(specfm_mod.P0_LINT_BY_KIND["script"]), "build_trace": "required",
+            "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": True},
+            "content_review": {"verdict": "PASS", "sha_match": True},
+            "evaluator": {"threshold": 80, "high_max": 0},
+        },
+        "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict"},
+    }
+    assert specfm_mod.validate_inventory_component(comp) == []
+
+
+def test_validate_component_plugin_root_only_script(specfm_mod):
+    """placement_scope=plugin-root を非 script (hook) に付けると error。"""
+    comp = {
+        "id": "C11", "component_kind": "hook", "placement_scope": "plugin-root",
+        "event": "PreToolUse", "matcher": "Bash", "exit_semantics": "fail-closed-exit2",
+        "settings_wiring": "settings.json", "fail_closed": True, "depends_on": [],
+        "build_target": "plugins/x/hooks/h.py", "builder": "run-build-skill", "build_kind": "hook",
+        "quality_gates": {
+            "p0_lint": list(specfm_mod.P0_LINT_BY_KIND["hook"]), "build_trace": "required",
+            "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": True},
+            "content_review": {"verdict": "PASS", "sha_match": True},
+            "evaluator": {"threshold": 80, "high_max": 0},
+        },
+        "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict+test"},
+    }
+    errs = specfm_mod.validate_inventory_component(comp)
+    assert any("plugin-root は script のみ" in e for e in errs)
+
+
+def test_validate_component_plugin_root_script_build_target_shape(specfm_mod):
+    """plugin-root script の build_target が /skills/ 配下だと error (plugins/<slug>/scripts/ 直下でない)。"""
+    comp = {
+        "id": "C09", "component_kind": "script", "placement_scope": "plugin-root",
+        "script_name": "s.py", "purpose": "p", "inputs": "i", "outputs": "o",
+        "exit_codes": "0/1/2", "network": False, "write_scope": "none",
+        "stdlib_only": True, "tests_min": 80, "depends_on": [],
+        "build_target": "plugins/x/skills/run-x/scripts/s.py",  # skills 配下=違反
+        "builder": "plugin-scaffold", "build_kind": "script",
+        "quality_gates": {
+            "p0_lint": list(specfm_mod.P0_LINT_BY_KIND["script"]), "build_trace": "required",
+            "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": True},
+            "content_review": {"verdict": "PASS", "sha_match": True},
+            "evaluator": {"threshold": 80, "high_max": 0},
+        },
+        "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict"},
+    }
+    errs = specfm_mod.validate_inventory_component(comp)
+    assert any("plugin-root" in e and "build_target" in e for e in errs)
+
+
+def test_validate_component_skill_placement_script_needs_scripts_dir(specfm_mod):
+    """skill placement の script は build_target に /skills/ と /scripts/ を要求する。"""
+    comp = {
+        "id": "C09", "component_kind": "script",  # placement 既定 skill
+        "script_name": "s.py", "purpose": "p", "inputs": "i", "outputs": "o",
+        "exit_codes": "0/1/2", "network": False, "write_scope": "none",
+        "stdlib_only": True, "tests_min": 80, "depends_on": [],
+        "build_target": "plugins/x/scripts/s.py",  # /skills/ が無い=skill placement 違反
+        "builder": "parent-skill-build", "build_kind": "script",
+        "quality_gates": {
+            "p0_lint": list(specfm_mod.P0_LINT_BY_KIND["script"]), "build_trace": "required",
+            "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": True},
+            "content_review": {"verdict": "PASS", "sha_match": True},
+            "evaluator": {"threshold": 80, "high_max": 0},
+        },
+        "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict"},
+    }
+    errs = specfm_mod.validate_inventory_component(comp)
+    assert any("placement_scope=skill" in e and "build_target" in e for e in errs)
+
+
 def test_plugin_meta_core_conditional_partition(specfm_mod):
     """core/conditional が従来 7 キーを重複なく分割する (後方互換=和集合不変)。"""
     core = set(specfm_mod.PLUGIN_META_CORE_DICTS)
@@ -258,7 +362,11 @@ def _as_inventory_component(specfm_mod, comp: dict) -> dict:
     """component skeleton (frontmatter dict) に build routing フィールドを足して inventory 化する。"""
     ck = str(comp.get("component_kind", "")).strip()
     comp = dict(comp)
-    comp["build_target"] = "plugins/sample/skills/run-sample/"
+    # script は placement 別 build_target 不変条件 (skill placement は /skills/ と /scripts/ を含む)。
+    comp["build_target"] = (
+        "plugins/sample/skills/run-sample/scripts/do.py" if ck == "script"
+        else "plugins/sample/skills/run-sample/"
+    )
     comp["builder"] = specfm_mod.BUILDER_BY_KIND[ck]
     comp["build_kind"] = specfm_mod.BUILD_KIND_BY_KIND[ck]
     return comp

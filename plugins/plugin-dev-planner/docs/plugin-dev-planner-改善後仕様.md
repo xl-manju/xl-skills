@@ -182,7 +182,7 @@ index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_pl
 | `detect-unassigned.py` | 13 phase ファイル全存在 + §5 section 床 + 各 component が ≥1 phase の entities_covered に出現(orphan 防止)+ build_target 非空 |
 | `check-spec-frontmatter.py` | phase frontmatter(PHASE_REQUIRED)+ inventory component_kind 別構造 + criteria の purpose-traceability |
 | `check-spec-gates.py` | inventory component の quality_gates / harness_coverage 値域 + index.plugin_meta 値域 |
-| `check-spec-matrix-coverage.py` | 43 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
+| `check-spec-matrix-coverage.py` | 44 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
 | `check-surface-inventory.py` | 5 種検討証跡 + plugin-level surface 採否 |
 | `check-build-handoff.py` | L3→L4 routing(inventory 由来)/ builder / build_kind / manifest draft |
 | `check-plugin-surface-audit.py` | plugins/ 配下の現物 surface 横断棚卸し(dogfood) |

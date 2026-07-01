@@ -77,6 +77,11 @@ def plugin_surface_audit() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def runtime() -> ModuleType:
+    return _load("check-runtime-portability")
+
+
+@pytest.fixture(scope="session")
 def skeleton() -> ModuleType:
     return _load("render-spec-skeleton")
 
@@ -233,12 +238,14 @@ def component_entry(
 
 
 def default_surfaces() -> dict:
-    """plugin_level_surfaces の妥当な最小ブロック (5 surface すべて明示)。"""
+    """plugin_level_surfaces の妥当な最小ブロック (全 surface を明示)。"""
     return {
         "manifest": {"required": True, "path": ".claude-plugin/plugin.json"},
         "composition": {"required": True, "path": "plugin-composition.yaml"},
         "harness_eval": {"required": True, "path": "EVALS.json"},
         "references_config_assets": {"required": False, "omitted_reason": "共有 references 不要"},
+        "schemas": {"required": False, "omitted_reason": "独立 JSON schema 不要"},
+        "vendor": {"required": False, "omitted_reason": "cross-plugin SSOT 無しで vendoring 不要"},
         "mcp_app_connector": {"required": False, "omitted_reason": "MCP/app connector 不要"},
     }
 

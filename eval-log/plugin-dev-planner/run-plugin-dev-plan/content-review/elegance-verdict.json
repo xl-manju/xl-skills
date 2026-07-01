@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "ee2b046727ae7e39c7fe699932be5cc3156619ca3f724e266538c756660099f3"
+    "skill_md_sha256": "69bbe4d3561e194d6a8eb97342f1e1a06f78257bbb16c24b33179679c1967720"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,27 +11,29 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 2
   },
   "reviewer": "run-elegant-review",
-  "reviewed_at": "2026-07-01T09:03:42Z",
+  "reviewed_at": "2026-07-01T12:19:26Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "per-component (C01-C11 の 1 実体=1 ファイル) から per-phase (13 phase ファイル + index + component-inventory.json) への転換が 2 軸直交として明快に reframe されている: ライフサイクル軸=13 phase ファイル (人間向け primary deliverable)・成果物実体軸=inventory (機械 SSOT・build routing/DAG/品質機構)。build_target/depends_on を inventory のみが持ち phase は entities_covered の id 参照だけで紐づく正規化で二重管理を構造的に排除している。",
-      "旧 C*.md の frontmatter (機械契約) を inventory components[] エントリへ載せ替え・本文の物語を phase ファイルへ再編成し情報ロスなく転換した。examples/sample-plan が 14 Markdown (13 phase + index) + 11 buildable component (skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) の生きた回帰 fixture として 10 決定論ゲート全 exit0 + 275 tests 緑を CI cwd から実走確認でき、旧 C0N-*.md ファイルは disk からも参照からも完全除去されている (dangling 0)。",
-      "frontmatter=specfm (STRUCTURAL_REQUIRED/PHASE_REQUIRED/SKILL_BRIEF_FIELDS) の唯一の実行可能 SSOT・本文=床付き自由記述という『形状と手順の直交』の解が per-phase 転換後も一貫。散文 (SKILL/io-contract §9/R3 §2.2) はその projection で test_kind_key_doc_parity が specfm との一致を機械強制しドキュメントドリフトを封鎖する。",
-      "『検証 9 本 + skeleton + specfm = 11』『core 5 scripts / 6 invocations + surface inventory gate + build handoff gate + dogfood surface-audit』『43 行 = OP=10/conditional=16/N-A=17』が SKILL.md と live 出力 (check-spec-matrix-coverage) で三者一致し、R4 検証を自然言語突合でなく exit code 機械検証へ落とし込んでいる。",
-      "唯一 builder を持たない plugin envelope について envelope-draft/plugin.json を manual-apply artifact として emit し build 境界を侵さず layperson-complete を達成、生成器未整備は per-plan freetext でなく構造化 capability-gap 起票へ集約して線形増殖を止める gap の優雅な解消。上流 skill-creator ドリフトはカレンダー期限でなく実ドリフト検知 3 機械辺で担保し time-bomb を回避する。"
+      "per-phase (13 phase ファイル + index + component-inventory.json) の 2 軸直交が明快: ライフサイクル軸=13 phase ファイル (人間向け primary deliverable)・成果物実体軸=inventory (機械 SSOT・build routing/DAG/品質機構)。build_target/depends_on を inventory のみが持ち phase は entities_covered の id 参照だけで紐づく正規化で二重管理を構造的に排除している。",
+      "frontmatter=specfm (STRUCTURAL_REQUIRED/PHASE_REQUIRED/SKILL_BRIEF_FIELDS) の唯一の実行可能 SSOT・本文=床付き自由記述という『形状と手順の直交』の解が一貫。散文 (SKILL/io-contract §9/R3 §2.2) はその projection で test_kind_key_doc_parity が specfm との一致を機械強制しドキュメントドリフトを封鎖する。examples/sample-plan が 14 Markdown (13 phase + index) + 11 buildable component (skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) の生きた回帰 fixture として全決定論ゲート exit0 + 307 tests 緑を CI cwd から実走確認できる。",
+      "今回の 43→44 行化が全レイヤで一貫: SKILL.md (完了条件/主要ルール5/R3/R4/チェックリスト R4/self-test コメント/追加リソース) の全 44 表記、check-spec-matrix-coverage.py --self-test が『44行 table と reflection.md が一致 (drift なし)』、golden 実走の matrix 分類が OP=10/conditional=17/N-A=17=計44、io-contract.md の分類注記・skill-creator-spec-reflection.md の F1-F8(8)=44 行 + F8 install-portability 行が三者一致。追加 1 行 (conditional) の配分も内訳と整合する。",
+      "install 携帯性ゲート (F8) の追加が依存整合的: check-runtime-portability.py が specfm.placement_of / builder_for / PLACEMENT_SCOPES=('skill','plugin-root') / validate_inventory_component (plugin-root は script 限定・build_target 形状) と責務分離で連携し、(P) >=2 skill consumer の共有 script は plugin-root 必須・(Q) build_target は plugin 内自己完結 (plugins/ 始まり・.. 不在) を fail-closed 検査する。builder_for(script, plugin-root)→plugin-scaffold の写像が io-contract の handoff routes / build-handoff / component-domain / reflection F8 で一貫し、golden sample-plan で exit0。self-test は P/Q 各 1 件の検出を埋め込み fixture で固定する。",
+      "唯一 builder を持たない plugin envelope について envelope-draft/plugin.json を manual-apply artifact として emit し build 境界を侵さず layperson-complete を達成、生成器未整備は per-plan freetext でなく構造化 capability-gap 起票へ集約して線形増殖を止める。上流 skill-creator ドリフトはカレンダー期限でなく実ドリフト検知 3 機械辺で担保し time-bomb を回避する。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "smell(非ブロッキング): 新設 check-runtime-portability.py が SKILL.md 本文(主要ルール8・handoff の script bullet)・io-contract §配布/.claude 反映・component-domain・reflection F8・resource-map・golden/unit test には配線されている一方、SKILL.md の frontmatter script_refs (11 本掲載・disk 実体は 12 本) / 追加リソースの『検証 9 本』表記 (実体は 10 本) / ゴールシーク検証 bash ブロック + 完了条件『core 5 scripts / 6 invocations』には新ゲートが未反映。CI golden test (test_runtime_portability_gate) が実走を担保し機械ゲート/307 pytest は全緑ゆえブロッカーではないが、SKILL.md 単体の verify recipe と参照一覧が新ゲートを取りこぼす微ドリフト。script_refs へ 1 行追加・『9 本』→『10 本』・検証ブロックへ 1 invocation 追記の 2-3 行 follow-up を推奨する。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現行 sha ee2b046 の SKILL.md 全文 + prompts R1-R4 + references(io-contract/skill-creator-spec-reflection/phase-lifecycle/component-domain/purpose-driven-requirements) + 11 scripts + examples/sample-plan + docs/plugin-dev-planner-改善後仕様.md + staged diff(61 files/+3314/-1695) を実読・実走して per-phase 転換後を genuine 再評価 (旧 stale verdict は sha 4952a52・per-component 前提)。C1 矛盾0: max_loops:5(goal-seek 外周)と『ゲート未達 最大3周』(feedback inner)・feedback_contract.max_iterations:3 は別ループで skill-creator loop_bounds と整合。『13 固定(フェーズ数)』と『N buildable(実体数・可変)』は別軸として本文表/io-contract/phase-lifecycle §7§8 で三者一致し矛盾なし。本数論争機構は per-phase 転換で自然消滅、requested_count は任意記録で gate 非強制と明記。C2 漏れ0: frontmatter 全 ref(prompts R1-R4/scripts 11本/references 6本+cross-skill goal-seek-paradigm.md/agents 3本/command/hook/EVALS.json/plugin-composition.yaml/schema 2本/resource-map)を個別 stat し dangling 0、R4 委譲先 assign-plugin-plan-evaluator/prompts/R1-evaluate.md 実在。C3 整合0: 検証スクリプト 9+skeleton+specfm=11・matrix 43 分類・golden 11 component の kind 内訳が SKILL.md 記述と live 出力で一致、旧 C0N-*.md 参照が md/py/json 全体で 0 件 (per-component 残存なし)。C4 依存0: verify-index-topsort exit0(top-sort cycle 0)・detect-unassigned exit0(orphan 0・各 component ≥1 phase の entities_covered に出現)・check-build-handoff exit0(11 routes↔inventory 整合)。criteria 4件実評価: IN1(verify-index-topsort.py + detect-unassigned.py 共に golden で exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage 全 exit0、kind別構造+core quality_gates+harness block 携帯)・OUT1(UBM固有=IPC/Cloudflare/スクショ/PR のみ DROP を phase-lifecycle §7 で正本化し skill-creator ネイティブ規律を伝播、本 C1-C4 全 PASS)・OUT2(specfm.SKILL_BRIEF_FIELDS が skill-brief.schema 主要フィールドを写し test_schema_parity 緑) で全充足。実走証跡: CI cwd(skill root)から pytest 275 passed、10 決定論ゲート全 exit0(check-plugin-goal-spec/verify-index-topsort/detect-unassigned/check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage --self-test/check-spec-matrix-coverage PLAN/check-surface-inventory/check-build-handoff/check-plugin-surface-audit)。既存 verdict から変更: skill_md_sha256 を ee2b046 へ更新、test 実走数 241→275 へ訂正、reviewed_at 更新、positive_feedback を per-phase 転換内容へ差し替え。残 smell=1: SKILL.md 本文密度が高く初見ユーザーに読解負荷があるが、複雑な orchestrator かつ全内容 load-bearing でプロンプト圧縮方針に沿うため PASS を妨げない warning に留める。"
+  "notes": "現行 sha 69bbe4d の SKILL.md 全文 + 本ブランチ差分 (origin/main...HEAD の SKILL.md 11 行 delta / io-contract.md / skill-creator-spec-reflection.md / component-domain.md / check-runtime-portability.py 新設 187 行 + test 130 行 / specfm.py placement_scope・builder_for 追加 / examples/sample-plan inventory+handoff / R4 prompt) を実読し、決定論ゲートと pytest を CI cwd (skill root) から実走して 43→44 行化 + 携帯性ゲート追加を genuine 再評価した。C1 矛盾0: 43→44 が SKILL.md 6 箇所・self-test『44行一致』・matrix live 出力 OP=10/conditional=17/N-A=17=44・io-contract 分類注記・reflection F1-F8=44 で一貫、max_loops:5/『最大3周』/max_iterations:3 は別ループで整合、13 固定(フェーズ数) と N buildable(実体数) の別軸性も不変。C2 漏れ: frontmatter 全 ref を stat し dangling 0、R4 委譲先実在。ただし新設 check-runtime-portability.py が frontmatter script_refs / 追加リソース『検証 9 本』/ ゴールシーク検証 bash + 完了条件に未反映 (下記 smell)。C3 整合0(コア軸): 44 行 3 者一致・golden 11 component の kind 内訳が記述と live 出力で一致。C4 依存0: check-runtime-portability→specfm.placement_of/builder_for/PLACEMENT_SCOPES/validate_inventory_component の連携が整合、builder_for(script,plugin-root)→plugin-scaffold が io-contract/handoff/build-handoff/component-domain/reflection F8 で一貫、verify-index-topsort/detect-unassigned/check-build-handoff/check-runtime-portability(golden) 全 exit0。criteria 4件実評価: IN1(verify-index-topsort+detect-unassigned golden exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage 全 exit0)・OUT1(UBM固有=IPC/Cloudflare/スクショ/PR のみ DROP・skill-creator ネイティブ規律伝播で C1-C4 設計妥当)・OUT2(specfm.SKILL_BRIEF_FIELDS が skill-brief.schema 主要フィールドを写す) で全充足。実走証跡: CI cwd から pytest 307 passed、check-runtime-portability --self-test / check-spec-matrix-coverage --self-test(44行一致) / golden の runtime-portability・matrix・build-handoff 全 exit0。残 smell=2: (1) 上記 check-runtime-portability の SKILL.md 単体 verify recipe/参照一覧への未配線 (非ブロッキング・CI golden が実走担保・要 2-3 行 follow-up)、(2) 本文密度が高く初見ユーザーに読解負荷があるが複雑な orchestrator かつ load-bearing でプロンプト圧縮方針に沿う warning。いずれも C1-C4 ハードカテゴリを 0 に保ち PASS を妨げない。既存 verdict から変更: skill_md_sha256 を 69bbe4d へ更新、reviewed_at 更新、43→44行化 + check-runtime-portability.py 追加を反映 (positive_feedback を携帯性ゲート込みへ差し替え・test 実走数 275→307 訂正・script_refs/verify-recipe 未配線 smell を negative_feedback へ genuine 追記)。"
 }
