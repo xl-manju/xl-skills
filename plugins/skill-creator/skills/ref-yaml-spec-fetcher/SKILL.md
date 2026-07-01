@@ -28,7 +28,7 @@ Claude Code 公式 YAML frontmatter 仕様のローカルキャッシュを提�
 **出力**: `references/yaml-spec-cache.md` の内容（最終取得日時付き）
 
 **更新方式**: GitHub Actions（`update-yaml-spec.yml`）による週次自動取得を正式運用とする。
-実仕様 3 ページ（skills / settings / sub-agents）を取得して `references/yaml-spec-cache.md` を更新し、
+実仕様ページ群（skills / settings / sub-agents / hooks / permissions / agent-teams / commands / plugins / plugins-reference / output-styles / tools-reference）と製品 CHANGELOG を取得して `references/yaml-spec-cache.md` を更新し、
 変更時は `references/spec-diff-history.md` へ差分を記録して dedup 付きの spec-drift issue を起票する。
 手動取得は Actions 障害時の fallback とし、担当者（`owner: team-platform`）が下記手順に従う。
 

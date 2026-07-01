@@ -1,6 +1,8 @@
 # update-yaml-spec.yml — 週次 YAML 仕様自動取得 (PF-G1-001)
-# Claude Code 公式 frontmatter / settings 実仕様 3 ページの変更を週次でキャッシュし、
+# Claude Code 公式の実仕様ページ群 (skills / settings / sub-agents / hooks / permissions /
+# agent-teams / commands / plugins など) と製品 CHANGELOG の変更を週次でキャッシュし、
 # 実 diff を spec-diff-history.md に記録、実変更時のみ dedup 付き spec-drift issue を起票する。
+# 監視対象の正本は scripts/build-yaml-spec-cache.py の SOURCES。
 name: Update YAML Spec Cache
 
 on:
@@ -128,7 +130,7 @@ jobs:
               });
             } else {
               const body = [
-                '`update-yaml-spec.yml` が Claude Code 公式の実仕様ページ (skills / settings / sub-agents) に変更を検知しました。',
+                '`update-yaml-spec.yml` が Claude Code 公式の実仕様ページ群 (skills / settings / sub-agents / hooks / permissions / agent-teams / commands / plugins など) または製品 CHANGELOG に変更を検知しました。',
                 '',
                 '## 対応手順',
                 '',

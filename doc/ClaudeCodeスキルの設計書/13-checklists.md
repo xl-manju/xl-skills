@@ -155,7 +155,7 @@ P0 は 4条件を機械判定へ近づける最小ゲートである。P0 が未
 - [ ] **P1**: `creator-kit/scripts/lint-manifest-contents.py` が `yaml-spec-cache.md` の `last_fetched` 30 日超過を WARNING にする
 - [ ] **P2**: CI workflow が改名・改正手続き（第6・15条）を検証する
 - [ ] **P2**: `poll-llms-txt.yml` が `https://code.claude.com/docs/llms.txt` 目次の週次チャーンを `eval-log/spec-drift.json` に記録する（record-only・Issue は起票しない）
-- [ ] **P2**: `update-yaml-spec.yml` が実仕様 3 ページの変更を検知し `references/spec-diff-history.md` へ差分記録して dedup 付き spec-drift Issue を起票する
+- [ ] **P2**: `update-yaml-spec.yml` が実仕様ページ群（skills / settings / sub-agents / hooks / permissions / agent-teams / commands / plugins など）と製品 CHANGELOG の変更を検知し `references/spec-diff-history.md` へ差分記録して dedup 付き spec-drift Issue を起票する（監視対象の正本は `scripts/build-yaml-spec-cache.py` の `SOURCES`）
 - [ ] **P2**: 自己進化ループ（23 章）が rubric 違反率を集計する
 
 ---
