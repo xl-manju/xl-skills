@@ -15,6 +15,11 @@
 | Settings | https://code.claude.com/docs/en/settings | `04-invocation-permissions-settings.md` |
 | Permissions | https://code.claude.com/docs/en/permissions | `04-invocation-permissions-settings.md`, `10-subagents-hooks-integration.md` |
 | Agent Teams | https://code.claude.com/docs/en/agent-teams | `05-layering-skill-subagent-hook-mcp-cli.md`, `10-subagents-hooks-integration.md`, `17-agent-teams-reference.md` |
+| Commands / Slash Commands | https://code.claude.com/docs/en/commands | 監視対象（生成する slash command 契約）。章反映は drift 検知後の人間レビュー |
+| Plugins / Marketplace | https://code.claude.com/docs/en/plugins, https://code.claude.com/docs/en/plugins-reference | 監視対象（plugin.json / marketplace スキーマ）。本リポ自体がマーケットプレイス |
+| Output Styles | https://code.claude.com/docs/en/output-styles | 監視対象（出力スタイル契約） |
+| Tools | https://code.claude.com/docs/en/tools-reference | 監視対象（ツール名・権限の正本） |
+| Claude Code CHANGELOG | https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md | 製品レベル変更の広域センサー（単一ファイルで「何かあったか」を検知） |
 | Claude Code Docs index | https://code.claude.com/docs/llms.txt | 公式更新確認の起点 |
 
 ## 公式 Skills から抽出した主な仕様
@@ -105,11 +110,11 @@ Claude Code の仕様は更新されるため、この設計書では次の方�
 | Subagents | `10` | `skills` preload と `context: fork` の違い |
 | Agent Teams | `05`, `10`, `17` | Subagent と別レイヤー、same-file conflict 回避 |
 
-### 公式更新の自動化（poll-llms-txt.yml）
+### 公式更新の自動化（poll-llms-txt.yml / update-yaml-spec.yml）
 
 手順 1 の `llms.txt` 取得は `.github/workflows/poll-llms-txt.yml` により週次 cron で自動実行される。
 
-- `poll-llms-txt.yml` は `eval-log/spec-drift.json` を更新し、差分検出時に GitHub Issue を自動起票する。
-- `.github/workflows/update-yaml-spec.yml` は `yaml-spec-cache.md` と `eval-log/spec-diff-history.md` を自動更新する。Issue 起票は `poll-llms-txt.yml` 側の責務である。
+- `poll-llms-txt.yml` は `llms.txt` 目次のチャーンを `eval-log/spec-drift.json` に記録する（Issue は起票しない）。
+- `.github/workflows/update-yaml-spec.yml` は実仕様ページ群（skills / settings / sub-agents / hooks / permissions / agent-teams / commands / plugins / plugins-reference / output-styles / tools-reference）と製品 CHANGELOG を取得して `yaml-spec-cache.md` と `references/spec-diff-history.md`（consumer と同一 SSOT）を自動更新し、いずれかに変更を検知した時に dedup 付きの spec-drift Issue を起票する。監視対象の正本は `scripts/build-yaml-spec-cache.py` の `SOURCES`（上表の依存宣言と一致させる）。
 - `ref-yaml-spec-fetcher/references/yaml-spec-cache.md` の `last_fetched` が 30 日を超えている場合、`lint-manifest-contents.py` が WARNING を出力する。
 - 自動 Issue が起票された場合、手順 2〜7 を人間が実施する。自動化は取得・履歴更新・通知までで、設計判断の反映は人間レビューを通す。
