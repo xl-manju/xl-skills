@@ -20,7 +20,7 @@ jobs:
       - name: lint plugin manifest
         run: python3 scripts/lint-plugin-manifest.py --plugin-root .
       - name: lint prompt placement canonical (prompts=7層SSOT / agents=骨格。逆転禁止)
-        run: python3 ../skill-creator/skills/run-build-skill/scripts/lint-prompt-placement.py
+        run: python3 ../harness-creator/skills/run-build-skill/scripts/lint-prompt-placement.py
       - name: lint agent prompt sections (Prompt Templates / Self-Evaluation 必須)
         run: python3 ../skill-governance-lint/scripts/lint-agent-prompt-section.py --agents-dir agents
   test:

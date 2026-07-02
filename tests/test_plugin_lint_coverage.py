@@ -3,7 +3,7 @@
 elegant-review finding (per-plugin 手書き配線による新 plugin 追加時の lint 被覆
 漏れ) の再発防止器そのものが腐らないよう、被覆検出 / allowlist / 非対象判定の
 分岐を pytest で機械保証する。CI の `python3 -m pytest tests/ -q`
-(creator-kit-ci.yml) が本ファイルを自動的に拾う。
+(harness-creator-kit-ci.yml) が本ファイルを自動的に拾う。
 
 検証する不変条件:
   - 被覆抽出: Makefile / workflow yml の `--skills-dir plugins/<name>/skills`

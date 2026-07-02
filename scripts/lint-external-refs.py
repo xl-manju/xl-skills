@@ -63,7 +63,7 @@ def scan_skill(path: pathlib.Path, allowed_prefixes: tuple[str, ...]) -> dict:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--skills-dir", default="plugins/skill-creator/skills")
+    parser.add_argument("--skills-dir", default="plugins/harness-creator/skills")
     parser.add_argument("--allowed-prefix", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--fail-on-external", action="store_true")

@@ -4,7 +4,7 @@
 decision:block。ただし無限ループ防止/自己ブロック回避/opt-out の三安全弁が
 正しく効くことが同じくらい重要。本テストはその両面を固める:
   - _unevaluated_or_stale: verdict 欠落 or SHA 不一致 (stale) を pending に挙げ、
-    skill-creator 自身は Stop block 対象から除外する。
+    harness-creator 自身は Stop block 対象から除外する。
   - _enqueue: 同一 changed_skills セットは冪等スキップ (queue 肥大防止)。
   - main(): pending があれば decision:block を出すが、stop_hook_active 継続中 /
     env opt-out 時は block しない。
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (
     ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "run-elegant-review"
     / "scripts"
@@ -113,9 +113,9 @@ def test_pending_when_verdict_sha_is_stale(tmp_path):
     assert MOD._unevaluated_or_stale(str(tmp_path), [rel]) == ["demo/run-x"]
 
 
-def test_skill_creator_self_is_excluded(tmp_path):
-    rel = _make_skill(tmp_path, "skill-creator", "run-build-skill")
-    # verdict 欠落でも skill-creator 自身は Stop block 対象から外れる。
+def test_harness_creator_self_is_excluded(tmp_path):
+    rel = _make_skill(tmp_path, "harness-creator", "run-build-skill")
+    # verdict 欠落でも harness-creator 自身は Stop block 対象から外れる。
     assert MOD._unevaluated_or_stale(str(tmp_path), [rel]) == []
 
 
@@ -148,7 +148,7 @@ def _run_main(monkeypatch, root: Path, changed_rel: list[str], stdin_obj: dict):
 
 def test_main_blocks_when_pending(monkeypatch, tmp_path):
     rel = _make_skill(tmp_path, "demo", "run-x")
-    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", raising=False)
     rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "Stop"})
     assert rc == 0
     payload = json.loads(out)
@@ -158,7 +158,7 @@ def test_main_blocks_when_pending(monkeypatch, tmp_path):
 
 def test_main_does_not_block_when_stop_hook_active(monkeypatch, tmp_path):
     rel = _make_skill(tmp_path, "demo", "run-x")
-    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", raising=False)
     rc, out = _run_main(
         monkeypatch, tmp_path, [rel],
         {"hook_event_name": "Stop", "stop_hook_active": True},
@@ -169,7 +169,7 @@ def test_main_does_not_block_when_stop_hook_active(monkeypatch, tmp_path):
 
 def test_main_opt_out_env_disables_block(monkeypatch, tmp_path):
     rel = _make_skill(tmp_path, "demo", "run-x")
-    monkeypatch.setenv("SKILL_CREATOR_NO_REVIEW_BLOCK", "1")
+    monkeypatch.setenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", "1")
     rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "Stop"})
     assert rc == 0
     assert "block" not in out
@@ -179,7 +179,7 @@ def test_main_opt_out_env_disables_block(monkeypatch, tmp_path):
 
 def test_main_notifies_self_pending_without_block(monkeypatch, tmp_path):
     rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
-    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", raising=False)
     rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "Stop"})
     assert rc == 0
     payload = json.loads(out)
@@ -194,7 +194,7 @@ def test_main_block_takes_precedence_over_self_notice(monkeypatch, tmp_path):
     # (self 通知が混ざると decision JSON の parse を壊すため、block が先に return)。
     self_rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
     other_rel = _make_skill(tmp_path, "demo", "run-x")
-    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", raising=False)
     rc, out = _run_main(monkeypatch, tmp_path, [self_rel, other_rel], {"hook_event_name": "Stop"})
     assert rc == 0
     payload = json.loads(out)  # 単独で parse 可能な decision JSON
@@ -204,7 +204,7 @@ def test_main_block_takes_precedence_over_self_notice(monkeypatch, tmp_path):
 
 def test_main_self_notice_not_emitted_on_non_stop_event(monkeypatch, tmp_path):
     rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
-    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_NO_REVIEW_BLOCK", raising=False)
     rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "PostToolUse"})
     assert rc == 0
     assert "notice" not in out

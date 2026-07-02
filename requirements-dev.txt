@@ -1,5 +1,5 @@
 # 開発・テスト用依存 (本番ランタイムは標準ライブラリのみ。これは CI / ローカルの
-# テスト実行にのみ必要)。CI (creator-kit-ci.yml) とローカル make test の双方が
+# テスト実行にのみ必要)。CI (harness-creator-kit-ci.yml) とローカル make test の双方が
 # このファイル一枚を唯一の真実として install する (SSOT)。
 #
 # - pytest          : テストランナー本体

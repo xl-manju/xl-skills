@@ -37,7 +37,7 @@ references/governance-params.json
 !.env.example
 .google-config.json
 
-# Per-repo Notion config (DB IDs / keychain service identity) - see plugins/skill-creator/references/notion-per-repo-setup.md
+# Per-repo Notion config (DB IDs / keychain service identity) - see plugins/harness-creator/references/notion-per-repo-setup.md
 # 検証用 config (.notion-config.test.json など .notion-config.<env>.json) は配布対象外。本番のみ example で配布。
 .notion-config.json
 .notion-config.*.json

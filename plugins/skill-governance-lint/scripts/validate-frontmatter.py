@@ -17,7 +17,7 @@
 
 Usage:
   validate-frontmatter.py /path/to/SKILL.md
-  validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+  validate-frontmatter.py --skills-dir plugins/harness-creator/skills
 """
 from __future__ import annotations
 import datetime
@@ -33,7 +33,7 @@ from pathlib import Path
 # 正本の drift は `--self-test` (CI 配線可能) が検出して exit 1 する。
 _FALLBACK_COMMON_CORE_REQUIRED = ("name", "description", "kind", "version", "owner")
 _SCHEMA_RELPATH = (
-    "plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json"
+    "plugins/harness-creator/skills/run-build-skill/references/capability-manifest.schema.json"
 )
 
 
@@ -158,7 +158,7 @@ def _repo_root(p: Path) -> Path:
 def check_refs_exist(fm: dict, skill_path: Path) -> list[str]:
     """Verify rubric_refs / reference_refs / script_refs targets exist.
 
-    - `ref-*` style entries: require `plugins/skill-creator/skills/<name>/` or
+    - `ref-*` style entries: require `plugins/harness-creator/skills/<name>/` or
       `.claude/skills/<name>/` to exist at repo root.
     - other entries: treat as path; first try repo-root relative, then
       skill-directory relative.
@@ -179,12 +179,12 @@ def check_refs_exist(fm: dict, skill_path: Path) -> list[str]:
             if not entry:
                 continue
             if re.match(r"^(ref|run|assign|wrap|delegate)-[a-z0-9-]+$", entry):
-                cand1 = repo / "plugins" / "skill-creator" / "skills" / entry
+                cand1 = repo / "plugins" / "harness-creator" / "skills" / entry
                 cand2 = repo / ".claude" / "skills" / entry
                 if not (cand1.exists() or cand2.exists()):
                     errs.append(
                         f"MISSING_REF: {field} '{entry}' not found "
-                        f"under plugins/skill-creator/skills/ or .claude/skills/"
+                        f"under plugins/harness-creator/skills/ or .claude/skills/"
                     )
             else:
                 cand_root = repo / entry

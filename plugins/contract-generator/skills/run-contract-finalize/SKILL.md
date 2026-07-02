@@ -11,7 +11,7 @@ since: 2026-05-30
 role_suffix: generator
 hierarchy_level: L1
 rubric_refs:
-  - "../../../skill-creator/skills/run-elegant-review/references/thought-methods.yaml"
+  - "../../../harness-creator/skills/run-elegant-review/references/thought-methods.yaml"
   - "../../lib/slack_poll.py"
   - "../../lib/render.py"
 responsibility_refs: [prompts/R1-approve-and-finalize.md, ../../agents/contract-finalize-agent.md, scripts/finalize.py]

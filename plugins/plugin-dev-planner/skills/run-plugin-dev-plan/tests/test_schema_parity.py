@@ -1,10 +1,10 @@
-"""schema parity 回帰防止: specfm が skill-creator の *実* skill-brief.schema.json に忠実か。
+"""schema parity 回帰防止: specfm が harness-creator の *実* skill-brief.schema.json に忠実か。
 
 elegant-review で「self-test(reflection.md 自身との一致=循環検証)だけでは実スキーマ忠実性を
 検査できず、specfm.SKILL_BRIEF_FIELDS が実 required と 8/14 しか一致しない」欠陥(CRIT-2)を
 検出した。本テストは *外部の実 schema* を真実源に縛り、将来ドリフトしたら fail させる。
 
-repo-bundled 前提 (本 plugin は distributable:false で skill-creator と同梱)。standalone
+repo-bundled 前提 (本 plugin は distributable:false で harness-creator と同梱)。standalone
 配布で schema 不在なら skip (parity ガードは CI=repo 文脈で機能する)。
 """
 from __future__ import annotations
@@ -18,8 +18,8 @@ import pytest
 
 # tests/ -> run-plugin-dev-plan -> skills -> plugin-dev-planner -> plugins
 _PLUGINS = Path(__file__).resolve().parents[4]
-_SCHEMA = _PLUGINS / "skill-creator" / "skills" / "run-skill-create" / "schemas" / "skill-brief.schema.json"
-_FC_SSOT = _PLUGINS / "skill-creator" / "scripts" / "feedback_contract_ssot.py"
+_SCHEMA = _PLUGINS / "harness-creator" / "skills" / "run-skill-create" / "schemas" / "skill-brief.schema.json"
+_FC_SSOT = _PLUGINS / "harness-creator" / "scripts" / "feedback_contract_ssot.py"
 _GOV_SCRIPTS = _PLUGINS / "skill-governance-lint" / "scripts"
 # per-phase 転換: phase-spec schema は本 plugin 同梱 (必ず存在)。
 _PHASE_SCHEMA = Path(__file__).resolve().parents[1] / "schemas" / "phase-spec.schema.json"
@@ -32,7 +32,7 @@ def _real_schema() -> dict:
 
 
 def _real_fc_ssot() -> ModuleType:
-    """skill-creator の実 feedback_contract_ssot.py を file-path import する。"""
+    """harness-creator の実 feedback_contract_ssot.py を file-path import する。"""
     if not _FC_SSOT.is_file():
         pytest.skip(f"実 feedback_contract_ssot.py 不在 (standalone 配布): {_FC_SSOT}")
     spec = importlib.util.spec_from_file_location("feedback_contract_ssot", _FC_SSOT)

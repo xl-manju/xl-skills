@@ -117,7 +117,7 @@ type: reference
 
 ## 反復上限の理由
 
-ユーザー疲労を避けるため、各 SubAgent 内 3 回・フェーズ全体 2 回を上限とする。それでも完了しない場合は停止して不足項目を提示する。Notion 指定ありの場合、部分完了で `run-skill-create` に渡してはならない。`notion-log.json.status=="published"` と `notion_target.page_id` 一致が確認できるまでは next-action 推奨も確定せず、一致後も skill-creator 実行はユーザーの別アクションに委ねる。
+ユーザー疲労を避けるため、各 SubAgent 内 3 回・フェーズ全体 2 回を上限とする。それでも完了しない場合は停止して不足項目を提示する。Notion 指定ありの場合、部分完了で `run-skill-create` に渡してはならない。`notion-log.json.status=="published"` と `notion_target.page_id` 一致が確認できるまでは next-action 推奨も確定せず、一致後も harness-creator 実行はユーザーの別アクションに委ねる。
 
 ## サンプル: 表層要望受領の検出と修正
 

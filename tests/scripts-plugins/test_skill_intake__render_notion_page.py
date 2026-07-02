@@ -226,7 +226,7 @@ def test_render_full_fixture_produces_props_and_children(smoke_ctx):
                    "2. Phase: user-profiler", "3. Phase: purpose-excavator",
                    "4. Phase: option-presenter", "5. Phase: visualizer",
                    "6. 5軸サマリ", "7. 設計選択サマリ", "8. 未解決事項",
-                   "9. skill-creator への申し送り", "10. Phase: self-updater",
+                   "9. harness-creator への申し送り", "10. Phase: self-updater",
                    "11. 出力ファイル一覧"]:
         assert marker in flat, f"section marker not rendered: {marker}"
 

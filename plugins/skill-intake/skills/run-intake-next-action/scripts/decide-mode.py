@@ -181,8 +181,8 @@ def main():
         "multi_skill_suspicion": multi,
         "split_candidates": splits,
         "confirmed_with_user": False,
-        "handoff_target": "plugin-dev-planner" if mode == "P" else "skill-creator",
-        "skill_creator_handoff_phase": handoff,
+        "handoff_target": "plugin-dev-planner" if mode == "P" else "harness-creator",
+        "harness_creator_handoff_phase": handoff,
     }
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"mode={mode}")

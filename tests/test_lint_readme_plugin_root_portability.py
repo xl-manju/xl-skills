@@ -4,7 +4,7 @@ README の bash/sh コードフェンスに install 位置依存の壊れやす�
 (裸 $CLAUDE_PLUGIN_ROOT / repo 相対直書き / os.environ 添字) が紛れ込む
 再発を封じる lint そのものが腐らないよう、許可/禁止/走査/除外の各分岐を
 pytest で機械保証する。CI の `python3 -m pytest tests/ -q`
-(creator-kit-ci.yml) が本ファイルを自動的に拾う。
+(harness-creator-kit-ci.yml) が本ファイルを自動的に拾う。
 
 検証する不変条件:
   ①裸一次手順 → FAIL 検出   ②fallback 形 → PASS

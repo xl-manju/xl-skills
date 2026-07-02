@@ -12,8 +12,8 @@
 
 **プラグイン構想 1 件を、2 軸直交 (ライフサイクル軸=13 フェーズ / 成果物実体軸=N 個の buildable component) に分解する「前段の計画」プラグイン。**
 
-- 実プラグイン/実コードは**作らない**(build は skill-creator の `run-skill-create` / `run-build-skill` へ委譲)。
-- 出力は「計画」のみ = **index(main) + 13 フェーズファイル + `component-inventory.json`**。各 component は skill-creator の評価基準を目録エントリで携帯し、後段 build へそのまま投入できる粒度。
+- 実プラグイン/実コードは**作らない**(build は harness-creator の `run-skill-create` / `run-build-skill` へ委譲)。
+- 出力は「計画」のみ = **index(main) + 13 フェーズファイル + `component-inventory.json`**。各 component は harness-creator の評価基準を目録エントリで携帯し、後段 build へそのまま投入できる粒度。
 - 起動: `/plugin-dev-plan <構想> [--mode create|update] [--out-dir <path>]`
 
 ---

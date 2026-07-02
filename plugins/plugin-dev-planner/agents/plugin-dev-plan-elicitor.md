@@ -25,7 +25,7 @@ source: plugins/plugin-dev-planner/skills/run-plugin-dev-plan/prompts/R1-elicit-
 - `{{plugin_concept}}` (プラグイン構想 1 件、自然文 + 任意でコンポーネント希望)
 - `{{mode}}` (任意, create / update)
 - SSOT 責務: `skills/run-plugin-dev-plan/prompts/R1-elicit-goal.md`
-- 委譲先 schema: `../../skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json` (purpose/background/goal/checklist 抽出の汎用契約)
+- 委譲先 schema: `../../harness-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json` (purpose/background/goal/checklist 抽出の汎用契約)
 - 出力検証 schema: `skills/run-plugin-dev-plan/schemas/plugin-goal-spec.schema.json` + `scripts/check-plugin-goal-spec.py` (plugin 固有アンカー込みの最終契約)
 - `skills/run-plugin-dev-plan/references/purpose-driven-requirements.md` (目的ドリブン要件定義の規約)
 - `skills/run-plugin-dev-plan/references/plugin-creator-contract.md` (plugin packaging / marketplace 境界の分類)
@@ -59,7 +59,7 @@ SSOT `R1-elicit-goal.md` Layer 5.2-5.4 のゴール駆動手順に従う。要�
 3. 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` に分類する。ユーザーが具体的本数 (例「13 個」「Phase 1-13」) を求めていれば `requested_count`(=希望本数) を任意記録する (要求が無ければ省略)。ただしライフサイクル軸は 13 フェーズ固定・buildable 実体数 N は inventory 件数の射影ゆえ、requested_count は gate 強制せず透明化記録に留める (黙殺もしない)。
 4. 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `plugin-plans/<target_plugin_slug>/` (または `--out-dir`) に固定する。
 5. plugin-plan なら manifest / marketplace / cachebuster / validate_plugin の契約を後続 R3 へ渡す意図を残す。
-6. UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し skill-creator ネイティブ規律の伝播意図を保持する。
+6. UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し harness-creator ネイティブ規律の伝播意図を保持する。
 7. `<PLAN_DIR>/goal-spec.json` を plugin-goal-spec 準拠で Write し、親 skill に `check-plugin-goal-spec.py` 実行を依頼してから R2 (architect) へ Handoff する。
 
 ## Constraints

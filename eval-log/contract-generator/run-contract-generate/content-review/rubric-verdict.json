@@ -1,27 +1,21 @@
 {
-  "target": {
-    "plugin": "contract-generator",
-    "skill": "run-contract-generate",
-    "skill_md_sha256": "9f9ba37c8f0552f8f3f6481ead988ef664889513b39894d7126464b8a738d158"
-  },
+  "target": {"plugin":"contract-generator","skill":"run-contract-generate","skill_md_sha256":"94b06993cc06414beaae830c9914fac9983b1221b08a43696d6575a749cba2f1"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
+  "reviewer": "independent-rename-review-subagent-e",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "name(run-接頭辞/kebab)・description(『〜したいとき』trigger句点終止×2・末尾『使う』)・見出し英語literal(## Purpose & Output Contract / ## Gotchas)が rubric の FM/BD 軸を満たし、body 行数も上限内。",
-      "完了チェックリストが Purpose の各要素(認証/2シート/抽出/ひな形取得/黄色維持差込/Docs化/命名/欠損補完/残存チェック/Slack+台帳draft書戻し)と 1:1 で対応し、prompts/R1 SSOT と整合している。"
-    ],
+    "criteria_evaluated": ["IN1","IN2","OUT1"],
+    "positive_feedback": ["完全性(3): 認証/2シート/抽出/ひな形取得/黄色維持差込/Docs化/命名/欠損補完/残存チェック/Slack+台帳draft書戻し と完了チェックリストが Purpose の各要素へ 1:1 対応し MECE。", "検証可能性(3): 口座番号7桁・口座種類 enum・契約開始<終了・金額整形・未置換残存なし が validate.py/docx_fill.py の実コマンドへ紐づき二値判定可能。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "ref-skill-design-rubric L0 軸(FM/BD/NM/PD)に照らし SKILL.md を精読して採点。frontmatter規約(name run-接頭辞/kebab/<=60、description trigger『〜したいとき』2句・末尾『使う』動詞・内部動作語なし)、body規約(## Purpose & Output Contract / ## Gotchas の英語literal見出し存在、body行数上限内、description trigger↔body手順がprompts/R1と1:1整合)、命名規約(dir名==name/prefix/scripts は.pyのみ)、Progressive Disclosure(references/複数ファイル)を全て充足。criteria IN1/IN2(未置換プレースホルダ残存なし・黄色run限定差込で条文不改変)は検証可能性軸を、OUT1(draft停止条件限定と責務分離)は設計適合軸を満たす。high finding なしのため PASS。"
+  "notes": "harness-creator quality-rubric.md の5次元で採点(SHA=94b06993…)。完全性3/一貫性3(draft停止条件がゴール・境界・チェックリストで矛盾なく一致、PDF確定=finalize・ひな形追従=sync へ正しく分離)/深度2(Why で1人事業の負荷削減→本業再配分まで掘る)/検証可能性3/簡潔性2(prompt_ssot=R1一本化・shim薄化・agent本文非保持で重複抑制)。全次元≥2 で PASS。旧名残存なし・harness-creator パス実在を確認。"
 }

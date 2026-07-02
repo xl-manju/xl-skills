@@ -1,1 +1,1 @@
-../../plugins/skill-creator/commands/install-bundle.md
+../../plugins/harness-creator/commands/install-bundle.md

@@ -273,7 +273,7 @@ def test_main_inprocess_missing_skills_dir_returns_2(tmp_path, monkeypatch, caps
 
 
 def test_main_inprocess_default_skills_dir_when_missing_returns_2(tmp_path, monkeypatch, capsys):
-    # --skills-dir なし & cwd=tmp_path -> default plugins/skill-creator/skills 不在 -> 2
+    # --skills-dir なし & cwd=tmp_path -> default plugins/harness-creator/skills 不在 -> 2
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["gate-phase0.py"])
     rc = MOD.main()
@@ -286,7 +286,7 @@ def test_main_inprocess_flag_without_value_uses_default(tmp_path, monkeypatch, c
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["gate-phase0.py", "--skills-dir"])
     rc = MOD.main()
-    # default plugins/skill-creator/skills は tmp_path 配下に無い -> 2
+    # default plugins/harness-creator/skills は tmp_path 配下に無い -> 2
     assert rc == 2
 
 

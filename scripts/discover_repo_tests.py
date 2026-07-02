@@ -15,12 +15,12 @@
 """repo 全域のテスト探索 SSOT (single source of truth)。
 
 背景 (elegant-review 2026-06-30):
-  CI のテスト探索は creator-kit-ci.yml の 2 機構に分裂している —
+  CI のテスト探索は harness-creator-kit-ci.yml の 2 機構に分裂している —
     機構A: `pytest tests/`(repo-root tests/ を再帰) + plugins/skill-governance-lint/tests/
     機構B: root=Path("plugins") の os.walk で test_*.py / *_test.py を収集
   両者の和集合 = 「repo-relative パスの先頭成分が tests/ または plugins/」。
   この境界の外 (repo-root 直下 / scripts/ / doc/ / 新規 top-level dir) に置かれた
-  test は、どちらの機構にも拾われず *無言で未実行* になりうる。過去 creator-kit-ci.yml に
+  test は、どちらの機構にも拾われず *無言で未実行* になりうる。過去 harness-creator-kit-ci.yml に
   「これが無いと一度も実行されず保証が無言で腐る」という反応的な穴埋めコメントが
   3 箇所再発しているのは、探索契約が検証可能な SSOT になっていない症状である。
 
@@ -68,14 +68,14 @@ EXCLUDE_DIR_NAMES: frozenset[str] = frozenset(
     }
 )
 
-# pytest が収集するテストファイル名パターン (creator-kit-ci.yml 機構B と同一規約)。
+# pytest が収集するテストファイル名パターン (harness-creator-kit-ci.yml 機構B と同一規約)。
 TEST_GLOBS: tuple[str, ...] = ("test_*.py", "*_test.py")
 
-# CI がテストを実行する到達 top-level。各成分が creator-kit-ci.yml の実行 step に対応する:
+# CI がテストを実行する到達 top-level。各成分が harness-creator-kit-ci.yml の実行 step に対応する:
 #   "tests"   -> 機構A: `python3 -m pytest tests/ ...` が tests/ を再帰実行
 #   "plugins" -> 機構B: root=Path("plugins") の os.walk が plugins/ 配下を収集実行
 # repo-relative パスの *先頭成分* がこの集合に属する test が「CI 到達」とみなされる。
-# この定数を更新するときは creator-kit-ci.yml の実行 step も必ず連動させること
+# この定数を更新するときは harness-creator-kit-ci.yml の実行 step も必ず連動させること
 # (連動の機械検証は run-plugin-dev-plan/tests/test_ci_integration.py へ将来昇格)。
 CI_REACHABLE_TOP_LEVEL: tuple[str, ...] = ("tests", "plugins")
 
@@ -118,7 +118,7 @@ def orphan_test_files(root: Path) -> list[PurePosixPath]:
 def group_plugin_tests(root: Path) -> dict[str, list[str]]:
     """機構B (plugins/ walk) のグルーピングを再現する SSOT 実装。
 
-    creator-kit-ci.yml の per-plugin pytest と同一の規約で
+    harness-creator-kit-ci.yml の per-plugin pytest と同一の規約で
     {test_root(repo-relative posix): [pytest 引数(test_root 相対 posix)]} を返す。
     将来 CI heredoc と test_ci_integration.py がこの関数を import して
     探索ロジックの二重定義を解消するための土台 (現時点では未配線)。

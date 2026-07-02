@@ -276,8 +276,8 @@ Skill 配下の構造も第1〜7条に準ずる法律的規範とする。
 
 | パターン | 例 | 理由 |
 |---|---|---|
-| 大文字混在 | `plugins/SkillCreator/` | kebab-case 違反 |
-| アンダースコア | `plugins/skill_creator/` | kebab-case 違反 |
+| 大文字混在 | `plugins/HarnessCreator/` | kebab-case 違反 |
+| アンダースコア | `plugins/harness_creator/` | kebab-case 違反 |
 | 既存 plugin と同名 | `plugins/core/` (既存) | 名前空間衝突 |
 | plugin 外 Skill への参照 | `skills/run-foo` が `plugins/bar/ref-baz` を Read | 公式制約 e 違反 |
 

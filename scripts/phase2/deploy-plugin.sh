@@ -269,7 +269,7 @@ if [[ -f "$ROLLBACK_PATH" ]]; then
 fi
 
 INV_MID_5="FAIL"
-if jq . "$REPO_ROOT/plugins/skill-creator/.claude-plugin/plugin.json" >/dev/null 2>&1; then
+if jq . "$REPO_ROOT/plugins/harness-creator/.claude-plugin/plugin.json" >/dev/null 2>&1; then
   INV_MID_5="PASS"
 fi
 

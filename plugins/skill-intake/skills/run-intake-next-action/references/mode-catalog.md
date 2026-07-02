@@ -1,15 +1,15 @@
 # Mode Catalog (next-action)
 
-| mode | 名称 | handoff_target | 渡し先 phase (右列=skill_creator_handoff_phase 逐語コピー正本) |
+| mode | 名称 | handoff_target | 渡し先 phase (右列=harness_creator_handoff_phase 逐語コピー正本) |
 |--|--|--|--|
-| A | 完全新規 | skill-creator | Step 1 (elicit) |
-| B | 既存類似 80%+ | skill-creator | Step 1 (elicit --mode update) |
-| C | プロンプト改善のみ | skill-creator | Step 1 (elicit --mode update, prompt-only) |
-| D | マルチスキル分離疑い | skill-creator | Step 1 (elicit, split first) |
-| E | 判定不能 | skill-creator | P1-kickoff (re-intake) |
+| A | 完全新規 | harness-creator | Step 1 (elicit) |
+| B | 既存類似 80%+ | harness-creator | Step 1 (elicit --mode update) |
+| C | プロンプト改善のみ | harness-creator | Step 1 (elicit --mode update, prompt-only) |
+| D | マルチスキル分離疑い | harness-creator | Step 1 (elicit, split first) |
+| E | 判定不能 | harness-creator | P1-kickoff (re-intake) |
 | P | plugin 規模構想 | plugin-dev-planner | R1 (elicit-goal) |
 
-> **語彙の正本**: A-D の「Step 1 (elicit)」系は `plugins/skill-creator/skills/run-skill-create/SKILL.md` の実在語彙 (Step 1 elicit → Step 2 build → … → Step 7 report、`--mode create|update`)。E の「P1-kickoff」は本 plugin `run-skill-intake/workflow-manifest.json` の phase id (再ヒアリング=intake を P1 からやり直し。skill-creator へは再 intake 完了後に到達するため handoff_target は skill-creator のまま)。P の「R1 (elicit-goal)」は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/prompts/R1-elicit-goal.md` の責務 id。
+> **語彙の正本**: A-D の「Step 1 (elicit)」系は `plugins/harness-creator/skills/run-skill-create/SKILL.md` の実在語彙 (Step 1 elicit → Step 2 build → … → Step 7 report、`--mode create|update`)。E の「P1-kickoff」は本 plugin `run-skill-intake/workflow-manifest.json` の phase id (再ヒアリング=intake を P1 からやり直し。harness-creator へは再 intake 完了後に到達するため handoff_target は harness-creator のまま)。P の「R1 (elicit-goal)」は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/prompts/R1-elicit-goal.md` の責務 id。
 
 ## mode P 判定条件 (decide-mode.py 判定表)
 

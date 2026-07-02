@@ -2,52 +2,27 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "7a610cfa1ded8eccbad0fe09a76a3238d0fed56b8e48d43c77ffea76c31a3839"
+    "skill_md_sha256": "7eccb32b8eca319cf6e12a6cbb7b8d08b567ea344b75306444c0640655586ec3"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-02T10:10:44Z",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 2
-  },
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": [
-      "FM-001",
-      "FM-002",
-      "FM-003",
-      "FM-004",
-      "FM-005",
-      "BD-001",
-      "BD-002",
-      "BD-003",
-      "BD-004",
-      "NM-001",
-      "PD-001",
-      "PD-002",
-      "RG-001"
-    ],
+    "criteria_evaluated": ["FM-001", "FM-002", "FM-003", "FM-004", "FM-005", "BD-001", "BD-002", "BD-003", "BD-004", "NM-001", "PD-001", "PD-002", "RG-001"],
     "positive_feedback": [
-      "FM-001/NM-001/FM-005 PASS — name=assign-plugin-plan-evaluator が ^(run|ref|assign|wrap|delegate)- prefix + kebab-case + len<=60 に適合し、dir basename と完全一致 (loader 解決可能)。assign- prefix + role_suffix:evaluator + pair:run-plugin-dev-plan が生成者/評価者分離を命名で表現。description は『生成済み plan を...評価したいとき』で動詞句始まり (FM-005)。",
-      "BD-001/BD-002/BD-003/PD-001/PD-002 PASS — body 69 行 (300 行制約に大幅な余裕・BD-003)、'## Purpose & Output Contract' 厳格一致 (BD-001) が冒頭に配置され PD-002 (冒頭30行に目的+禁則) を包含充足、'## Gotchas' で反パターン明示 (BD-002)、references/ に plan-rubric.json/four-condition-criteria.md/resource-map.yaml が存在し PD (progressive disclosure) を満たす。SKILL.md=契約サマリ / prompts/R1-evaluate.md=7層責務SSOT / agents/plugin-dev-plan-evaluator.md=fork 実体アダプタ の三層で重複定義を回避 (altitude 適切)。",
-      "FM-002/FM-003/BD-004 PASS — description に発動条件 'とき' 2 個 (2-3 スイートスポット内) + 末尾 '。'。'4条件で評価' '独立評価結果を取得' の 2 トリガが body Steps (Step1 決定論ゲート / Step4 findings 出力) と 1:1 対応し、description↔body の整合 (BD-004) を満たす。単一 skill 退化の検出という価値命題が Key Rules #4 と Gotchas #2 で body 化されている。",
-      "SSOT 規律 (再現性機構 genuine) — 8 決定論ゲート定義と global_thresholds を plan-rubric.json から読み出し (evaluate-plan.py _load_thresholds/_gate_defs)、test_gate_parity.py が runner↔rubric↔specfm↔EVALS.json↔人間可読 projection の forward-parity を fail-closed 強制。REQUIRED_PLUGIN_SURFACES (8 要素) と specfm.PLUGIN_LEVEL_SURFACES の tuple 一致も test_required_plugin_surfaces_parity_with_specfm で維持強制。rubric_refs に L0(ref-skill-design-rubric 共通正本) + L2(plan-rubric.json 固有 4 条件) を二層明示し、kind:assign が feedback_contract.criteria を携帯しない設計を Gotcha5/R1 で文書化。CI cwd から pytest 13/13 PASS 実走で機構が genuine と確認。"
+      "完全性/検証可能性 — kind=assign の必須 frontmatter (contract.intent/interface/invariant・script_refs・rubric_refs・schema_refs・agent_refs・pair/role_suffix) が揃い、4条件ゲート表 (L78-83) が各 C を決定論ゲート名 (detect-unassigned / check-spec-frontmatter / verify-index-topsort 等) と exit0 条件へ写像し二値検証可能。改名後もゲート名は skill-scope の機械名で不変、上流正本参照のみ harness-creator へ追従し完全性を欠かない。",
+      "一貫性 (改名) — 用語が同一語彙で統一されている。上流の総体規律を指す箇所は harness-creator (L43 rubric 正本注記 / L82 行数正本=harness-creator-spec-reflection.md) に、単一 skill 概念を指す箇所は skill (単一 skill 退化・skill component) に一貫割当てされ、5次元 rubric の『用語統一』基準 (点2以上) を満たす。skill/harness の混在ゆれ 0。",
+      "簡潔性/深度 — C1-C4 の inner/outer 二層性を L85 で明示 disambiguate し、同一ラベルの二重出現が冗長でなく意図的階層であることを読者へ透明化。body 69 行で 300 行制約に余裕があり冗長反復なく必要十分。"
     ],
-    "negative_feedback": [
-      "[FM-004 low smell, 非ブロッキング] description の『4条件と決定論ゲートで評価』はやや動作寄りの語彙だが、FM-004 が禁ずる内部実装暴露 (採点する/JSONで返す/sha256/exit code) には該当せず、発動条件文脈での言及に留まる。company-master で確立したキャリブレーション (内部動作の暴露のみ FAIL・発動条件文脈の言及は PASS) と同様に low smell 判定。是正するなら『plan を独立評価したいとき』へ抽象化する余地。",
-      "[RG-001 low, 非ブロッキング] 出力 plan-findings.json に採点正本 plan-rubric.json の rubric_hash を埋め込まないため、rubric drift 後の verdict 期限切れを findings 成果物単体からは機械検出できない。test_gate_parity の forward-parity と本 content-review の skill_md_sha256 失効検知で部分緩和されているが、plan-findings 側にも同等の hash 失効検知を持たせる余地がある (前回同様の deferred)。加えて SKILL.md Key Rules #3 の bucket 例 'PLAN-001' は rubric に定義が無い id 形式で誤誘導 (前回も指摘・未修正)。"
-    ],
+    "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SKILL.md sha256=7a610cf を実測。ref-skill-design-rubric (rubric_version 1.3.0, threshold 80/100) の kind=skill 適用ルール (applies_to_kinds に 'skill' or '*' を含む FM-001..005 / BD-001..004 / NM-001 / PD-001..002 / RG-001) で採点。機械照合実測: NM-001 (dir basename==name) PASS / BD-003 (body 69 行<=300) PASS / FM-002-003 (トリガ 'とき' 2 個) PASS / BD-001 ('## Purpose & Output Contract' 1 個) PASS / BD-002 ('## Gotchas' 1 個) PASS。既存 verdict (SHA 208ea94) は『8 ゲート / surface 5→7 / 44行 / pytest 11』前提で stale だったため現物 (G1-G10 の 10 ゲート・surface 8 要素・46行マトリクス・pytest 13 passed) で再評価。再現性機構 genuine: CI cwd (skill root=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator) から python3 -m pytest -q → 13 passed 実走。全 high severity 規範 (FM-001/BD-001/BD-003/NM-001) PASS、smell は FM-004 語彙 + RG-001 rubric_hash 未埋込/PLAN-001 誤例示の low 2 件のみ。threshold 80 を脅かす high は 0 で総合 PASS。"
+  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2。criteria_evaluated は本 skill の L0 rubric (ref-skill-design-rubric=harness-creator 正本) の 13 rule id。現 sha256=7eccb32 を実測 (旧 sha=7a610cf は改名前で stale)。改名観点: 旧名 skill-creator/skill_creator/スキルクリエイター 残存 0・L43/L82 の harness-creator 参照先 (harness-creator-spec-reflection.md) 実在・意味論境界適合 (単一 skill 概念は skill 維持 / 総体規律参照は harness-creator 化)。ブロッキング欠陥 0 のため PASS。"
 }

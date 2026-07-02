@@ -1,1 +1,1 @@
-../../plugins/skill-creator/agents/elegant-reset-observer.md
+../../plugins/harness-creator/agents/elegant-reset-observer.md

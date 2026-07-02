@@ -1,6 +1,6 @@
 # Per-Repository Notion Setup
 
-skill-creator / skill-intake プラグインは 2 通りで利用される:
+harness-creator / skill-intake プラグインは 2 通りで利用される:
 **(A) 単独 install** (`plugins/skill-intake/` のみ導入) と
 **(B) monorepo / 複数 repo 共有** (vendoring 実体を各環境に同梱)。
 ヒアリングシートの出力先 DB は固定値として `notion-config.fixed.json` に同梱する。

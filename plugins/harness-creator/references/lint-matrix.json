@@ -1,0 +1,155 @@
+{
+  "$comment": "lint 集合の単一正本 (LS-02/LS-07)。build-preflight = run-build-skill SKILL.md Step4 bash ブロック / p0-gate = run-skill-create workflow-manifest.json p0-lint.commands / ci = CI workflow の実効集合。各消費面との突合は plugins/skill-governance-lint/scripts/lint-matrix-sync.py が機械検査する。lint の追加・削除は本ファイルを先に更新し、消費面 (SKILL.md / manifest / CI) を追従させること。ci を持たない lint は ci_exclusion_reason 必須。",
+  "version": 1,
+  "consumers": {
+    "build-preflight": "plugins/harness-creator/skills/run-build-skill/SKILL.md#Step 4 の bash ブロック",
+    "p0-gate": "plugins/harness-creator/skills/run-skill-create/workflow-manifest.json#phases[id=p0-lint].commands",
+    "ci": [
+      ".github/workflows/governance-check.yml",
+      ".github/workflows/harness-creator-kit-ci.yml"
+    ]
+  },
+  "lints": [
+    {
+      "id": "skill-name",
+      "script": "lint-skill-name.py",
+      "contexts": [
+        "build-preflight",
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "skill-description",
+      "script": "lint-skill-description.py",
+      "contexts": [
+        "build-preflight",
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "skill-tree",
+      "script": "lint-skill-tree.py",
+      "contexts": [
+        "build-preflight",
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "frontmatter",
+      "script": "validate-frontmatter.py",
+      "contexts": [
+        "build-preflight",
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "script-frontmatter",
+      "script": "lint-script-frontmatter.py",
+      "contexts": [
+        "build-preflight"
+      ],
+      "ci_exclusion_reason": "既存 scripts に # /// script frontmatter 未整備が残存するため CI 配線は棚卸し後 (2026-07-02 時点の既知債務。build-preflight では新規生成物のみ対象のため有効)"
+    },
+    {
+      "id": "skill-completeness",
+      "script": "lint-skill-completeness.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "goal-seek",
+      "script": "lint-goal-seek.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "feedback-contract",
+      "script": "lint-feedback-contract.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "ssot-duplication",
+      "script": "lint-ssot-duplication.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "knowledge-loop",
+      "script": "lint-knowledge-loop.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "build-trace",
+      "script": "validate-build-trace.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "readme-portability",
+      "script": "lint-readme-plugin-root-portability.py",
+      "contexts": [
+        "build-preflight",
+        "ci"
+      ]
+    },
+    {
+      "id": "dependency-direction",
+      "script": "lint-dependency-direction.py",
+      "contexts": [
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "dep-step7",
+      "script": "lint-skill-dep-step7.py",
+      "contexts": [
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "forbidden-deps",
+      "script": "lint-forbidden-deps.py",
+      "contexts": [
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "manifest-contents",
+      "script": "lint-manifest-contents.py",
+      "contexts": [
+        "p0-gate",
+        "ci"
+      ]
+    },
+    {
+      "id": "build-plan",
+      "script": "validate-build-plan.py",
+      "contexts": [
+        "build-preflight",
+        "p0-gate"
+      ],
+      "ci_exclusion_reason": "入力の skill-brief.json が build 実行時 (eval-log/) にのみ存在するため CI 一括適用は不可。量産経路では build-preflight と p0-gate の2面で強制され、brief 不在の単発 build は NOTE 付き skip (fail-open は量産経路外に限定)"
+    }
+  ]
+}

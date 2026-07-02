@@ -17,13 +17,13 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- **仕様駆動の大前提**: タスク仕様書は skill-creator 仕様を基に作成する (規律の中身は `skill-creator-spec-reflection.md` マトリクス+`upstream-pins.json` の引用で構成・独自流儀の発明禁止)。要件正本は goal-spec checklist で、その全 id を index の 完了チェックリスト/受入確認 に引用する (RTM・`check-requirements-coverage.py` が機械強制)。index `## 基本定義` に本前提 (skill-creator 仕様基点・spec-first) を宣言する
+- **仕様駆動の大前提**: タスク仕様書は harness-creator 仕様を基に作成する (規律の中身は `harness-creator-spec-reflection.md` マトリクス+`upstream-pins.json` の引用で構成・独自流儀の発明禁止)。要件正本は goal-spec checklist で、その全 id を index の 完了チェックリスト/受入確認 に引用する (RTM・`check-requirements-coverage.py` が機械強制)。index `## 基本定義` に本前提 (harness-creator 仕様基点・spec-first) を宣言する
   - 目的: 仕様が先・実装は従の向きを生成物側にも植え付ける (乖離時は仕様を先に更新)
   - 背景: 三本柱の正本は `references/purpose-driven-requirements.md` SDD 節
 - 各 skill inventory component は skill-brief 主要フィールドを無加工で写せる形 (schema parity) で書く
   - 目的: 後段 run-skill-create へそのまま投入できる粒度を保証する
   - 背景: 変換が要る component は再現性を壊す
-- skill-creator 評価基準 (4 条件 / feedback_contract criteria / harness≥80% / content-review / evaluator) を各 inventory component エントリに必ず携帯させる (旧 C*.md frontmatter の載せ替え先)
+- harness-creator 評価基準 (4 条件 / feedback_contract criteria / harness≥80% / content-review / evaluator) を各 inventory component エントリに必ず携帯させる (旧 C*.md frontmatter の載せ替え先)
   - 目的: 生成プラグインが品質ゲートを自動通過する状態を要件化する
   - 背景: 評価基準を量産先へ毎回焼き込む機構が SSOT 伝播の核
 
@@ -34,7 +34,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: `component-inventory.json` と goal-spec から 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) + index(main) を生成し、各 inventory component エントリに skill-creator 評価基準を焼く (旧 C*.md frontmatter の載せ替え)。品質機構は phase frontmatter でなく component エントリに置く (正規化)
+- 担当: `component-inventory.json` と goal-spec から 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) + index(main) を生成し、各 inventory component エントリに harness-creator 評価基準を焼く (旧 C*.md frontmatter の載せ替え)。品質機構は phase frontmatter でなく component エントリに置く (正規化)
 - 非担当: 目的抽出 (R1)、分解 (R2)、検証 (R4)。実プラグイン build は L4 (run-skill-create) へ委譲
 
 ### 2.2 ドメインルール (phase ファイル + inventory component emission)
@@ -79,7 +79,7 @@
 |---|---|---|
 | io | references/io-contract.md | frontmatter 携帯キー + 本文 section 契約の確認時 |
 | plugin_contract | references/plugin-creator-contract.md | index plugin_meta の物理契約確認時 |
-| matrix | references/skill-creator-spec-reflection.md | 評価基準の焼き先確認時 |
+| matrix | references/harness-creator-spec-reflection.md | 評価基準の焼き先確認時 |
 | golden | examples/sample-plan/ | **生成 spec / index / handoff の形状アンカー** (到達点の手本)。kind 別 frontmatter・本文の床・component-inventory・index・handoff routing の実形状を参照する。意味内容は goal-spec / component-inventory から導出し、サンプルへ過適合しない |
 
 ### 3.2 外部ツール / API
@@ -116,7 +116,7 @@
 - [ ] index(main) に「受入確認 (build 後の見方)」章を持ち、goal-spec.purpose 由来の受入観点と確認の見方を平易語で記した
 - [ ] 条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) を kind/feature/階層ゲートに従って焼いた
 - [ ] index(main) を P01..P13 phase_number 昇順で全列挙し、完了条件・コンポーネント目録の所在・`plugin_meta`(manifest/marketplace/cachebuster/validation を含む plugin 階層規律) を記載した
-- [ ] index `## 基本定義` に仕様駆動の大前提 (skill-creator 仕様基点・spec-first・要件正本=goal-spec) を宣言し、goal-spec checklist の全 id を 完了チェックリスト/受入確認 で引用した (`check-requirements-coverage.py` が exit0)
+- [ ] index `## 基本定義` に仕様駆動の大前提 (harness-creator 仕様基点・spec-first・要件正本=goal-spec) を宣言し、goal-spec checklist の全 id を 完了チェックリスト/受入確認 で引用した (`check-requirements-coverage.py` が exit0)
 - [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件)
 - [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` / `detect-unassigned.py` が exit0 になった
 - [ ] `handoff-run-plugin-dev-plan.json` を生成し、`check-build-handoff.py` が exit0 になった

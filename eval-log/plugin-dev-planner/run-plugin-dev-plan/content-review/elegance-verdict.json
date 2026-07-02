@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "8611303ecccca0ca5ebacbab4bf3e7e3c50efc630bcb1ace02f51eb166a08f5a"
+    "skill_md_sha256": "a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,27 +13,26 @@
     "dependency_break": 0,
     "smell": 1
   },
-  "reviewer": "run-elegant-review",
-  "reviewed_at": "2026-07-02T10:10:28Z",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "2 軸直交の正規化が明快: ライフサイクル軸=13 phase ファイル (人間向け primary deliverable)・成果物実体軸=component-inventory.json (機械 SSOT・build routing/DAG/品質機構) に分け、build_target/depends_on は inventory のみが保持し phase は entities_covered の id 参照だけで紐づく。二重管理を構造的に排除し『本数は 13 固定 (フェーズ数)・buildable 実体数 N は inventory の射影 (input でなく output)』の別軸性が SKILL/io-contract/phase-lifecycle で一貫している。",
-      "『形状と手順の直交』の解が一貫: frontmatter 形状 (PHASE_REQUIRED/STRUCTURAL_REQUIRED) を specfm + lint + ゴールデン例で凍結し本文は §5 の床付き自由記述で解放する。散文 (SKILL/io-contract §9/R3) はその projection で test_kind_key_doc_parity が specfm との一致を機械強制し doc ドリフトを封鎖する。手書き穴埋め skeleton を持たず render-spec-skeleton.py が specfm 正本から生成する設計が skeleton 不要の構造的根拠 (io-contract §10 本文トラスト境界) と整合。",
-      "検証呼称の 2 層化が全レイヤで一致 (44->46 行化が genuine に反映済み): SKILL.md の完了条件『core 5 scripts / 6 invocations + 拡張ゲート 6 本』・追加リソース『検証 11 本 (core 5 + 拡張ゲート 6)』・frontmatter script_refs 15 本 (disk 実体 15 本と一致・全 35 refs dangling 0) が実体と一致。check-spec-matrix-coverage.py --self-test が『46行 table と reflection.md が一致』を exit0 で確認し、skill-creator-spec-reflection.md の A1-A11+B1-B5+C1-C4+D1-D6+E1-E6+F1-F8+G1-G6=46 行と三者一致。既存 verdict の script_refs/検証本数の未配線 smell はこの版で解消されている。",
-      "install 携帯性ゲート (F8) が依存整合的に operationalize: check-runtime-portability.py が specfm.placement_of/builder_for/PLACEMENT_SCOPES/validate_inventory_component と責務分離で連携し (P) >=2 skill consumer の共有 script は plugin-root 必須・(Q) build_target は plugin 内自己完結 (plugins/ 始まり・.. 不在) を fail-closed 検査する。builder_for(script, plugin-root)->plugin-scaffold の写像が io-contract handoff/build-handoff/component-domain/reflection F8 で一貫し golden sample-plan で exit0、--self-test が P/Q 検出を fixture で固定する。",
-      "proposer!=approver を skill 分離で構造保証: R4 評価ロジックを独立 skill assign-plugin-plan-evaluator (kind=assign・user-invocable:false・context:fork) へ昇格し評価器は plan を書き換えず plan-findings.json のみ返す。envelope owner gap を『契約 spec + 貼れる envelope-draft/plugin.json (manual-apply artifact) + capability-gap 起票』の三段で over-claim せず可視化し、per-plan freetext での線形増殖を止める。上流 skill-creator ドリフトはカレンダー期限でなく実ドリフト検知 3 機械辺で担保し time-bomb を回避する。"
+      "改名追従が全レイヤで完全 (C2/C4) — 総体ハーネスを指す呼称が harness-creator へ一貫更新されている。reference_refs L54 の references/harness-creator-spec-reflection.md、cross-plugin ref L55/L155 の ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md、feedback_contract SSOT L80 の plugins/harness-creator/scripts/feedback_contract_ssot.py、slash L271 の /harness-creator:plugin-compose、CI L291 の harness-creator-kit-ci.yml が全て実在 (dangling 0 を stat 実測)。旧名 skill-creator/skill_creator/スキルクリエイター の残存 0 件。上流ドリフト検知 3 機械辺 (L288) も test_completeness_proof_enumerates_all_harness_creator_skills 等へ改名済み。",
+      "意味論境界が正しく適用されている (C1) — 機械一括置換でなく概念境界で切り分けている。単一 skill 生成/委譲を指す run-skill-create・run-build-skill・run-goal-elicit・run-elegant-review・assign-skill-design-evaluator・skill component・skill-brief・単一 skill 退化・SKILL.md は skill 表現を維持し、ハーネス総体の native 規律 (OUT1『harness-creator ネイティブ規律』L93)・評価基準 (L161)・46 行反映マトリクス・harness_coverage・harness-creator-kit-ci.yml は harness 化。意味論境界違反 0。",
+      "2 軸直交の正規化 (C1/C3) — ライフサイクル軸=13 phase ファイル (人間向け primary deliverable)・成果物実体軸=component-inventory.json (機械 SSOT・build routing/DAG) に分け、build_target/depends_on は inventory のみ保持・phase は entities_covered id 参照で紐づく。『本数 13 固定 (フェーズ数)・buildable N は inventory の射影』の別軸性が SKILL/io-contract/phase-lifecycle で一貫し二重管理を排除。",
+      "proposer≠approver を skill 分離で構造保証 (C1/C4) — R4 評価ロジックを独立 skill assign-plugin-plan-evaluator (kind=assign・context:fork) へ昇格し評価器は plan を書き換えず plan-findings.json のみ返す。改名後も委譲先 prompts/R1-evaluate.md 実在。distributable:false + NEVER_DISTRIBUTE denylist の二重ロックで非配布を fail-closed 担保する設計が保たれている。"
     ],
     "negative_feedback": [
-      "smell(非ブロッキング): 本文密度が高く初見ユーザーへの読解負荷が大きい (body 214 行だが 1 段落あたりの情報量が濃く、呼称『core 5 scripts / 6 invocations』『拡張ゲート 6 本』『46 行』等の内部語彙が前提知識を要求する)。ただし本 skill は多層 (L0-L4)・多ゲート (検証 11 本) の orchestrator であり各表記は load-bearing で io-contract §11 表という単一正本へ集約されているため、プロンプト圧縮方針とも整合する warning に留まる。C1-C4 ハードカテゴリを 0 に保ち PASS を妨げない。"
+      "[smell/low, 非ブロッキング, 改名と無関係] 本文密度が高く初見ユーザーへの読解負荷が大きい (呼称『core 5 scripts / 6 invocations』『拡張ゲート 6 本』『46 行』等の内部語彙が前提知識を要求)。ただし本 skill は多層 (L0-L4)・検証 11 本の orchestrator で各表記は load-bearing、io-contract §11 表という単一正本へ集約されておりプロンプト圧縮方針とも整合。C1-C4 ハードカテゴリを 0 に保ち PASS を妨げない。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現行 sha 8611303 の SKILL.md 全文 + 参照 (io-contract.md §9/§10/§11・phase-lifecycle.md §7/§8・skill-creator-spec-reflection.md 全 46 行・resource-map.yaml) を実読し、決定論ゲートと pytest を CI cwd (skill root) から実走して genuine 再評価した。既存 verdict は sha 69bbe4d (44 行版) で評価済みだったが、本 SKILL.md は 44->46 行化 + script_refs 拡充で更新されており stale。C1 矛盾0: 『46行』が SKILL.md 完了条件/追加リソース・self-test『46行一致』・reflection.md A1-G6=46 で一貫、max_loops:5/『最大3周』/max_iterations:3 は別ループ (goal-seek/差し戻し/feedback) で整合、13 固定 (フェーズ数) と N buildable (実体数) の別軸性も不変。C2 漏れ: frontmatter 全 35 refs を stat し dangling 0、script_refs 15 本=disk 実体 15 本一致 (既存 verdict の script_refs 11/12・検証 9/10 乖離 smell は解消済み)、R4 委譲先 assign-plugin-plan-evaluator/prompts/R1-evaluate.md 実在。C3 整合0: 『46行』三者一致・golden 11 component の kind 内訳 (skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) が記述と live 出力で一致・語彙統一 (component_kind/plugin_meta/quality_gates)。C4 依存0: check-runtime-portability->specfm.placement_of/builder_for/PLACEMENT_SCOPES/validate_inventory_component の連携が整合、golden で verify-index-topsort/detect-unassigned/check-build-handoff/check-runtime-portability 全 exit0。criteria 4件実評価: IN1(verify-index-topsort+detect-unassigned golden exit0)・IN2(check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage 全 exit0)・OUT1(UBM固有=IPC/Cloudflare/スクショ/PR のみ DROP・skill-creator ネイティブ規律伝播で C1-C4 設計妥当)・OUT2(specfm.SKILL_BRIEF_FIELDS が skill-brief.schema 主要フィールドを写す) で全充足。実走証跡: CI cwd (skill root) から pytest 371 passed / 1 skipped、check-spec-matrix-coverage --self-test『46行一致』・check-runtime-portability --self-test・golden の全 12 決定論ゲート (check-plugin-goal-spec/verify-index-topsort/detect-unassigned/check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage self-test+PLAN/check-requirements-coverage/check-surface-inventory/check-build-handoff/check-runtime-portability) 全 exit0、dogfood check-plugin-surface-audit --strict-manifest --expect-plan-ready plugin-dev-planner exit0。残 smell=1: 本文密度が高く初見ユーザーへ読解負荷 (非ブロッキング・load-bearing・単一正本集約でプロンプト圧縮方針と整合)。C1-C4 ハードカテゴリ全 0 で PASS。既存 verdict から変更: skill_md_sha256 を 8611303 へ更新、reviewed_at 更新、44->46 行化 + script_refs/検証本数 smell 解消を反映 (positive_feedback を 46 行版へ差し替え・pytest 実走数 371 訂正・script_refs 未配線 smell を除去)。"
+  "notes": "harness-creator 改名 (skill-creator → harness-creator) に伴う SKILL.md 変更への独立 genuine 再評価。現 sha256=a5bc767 を shasum -a 256 で実測 (旧 verdict sha=8611303 は改名前・本文に旧名 skill-creator-spec-reflection.md / skill-creator ネイティブ規律 等を複数残存し stale)。30思考法×4条件で検証: C1 矛盾0 (意味論境界の skill/harness 二分が一貫・max_loops:5/『最大3周』/max_iterations:3 は別ループで整合)。C2 漏れ0 (frontmatter 全 refs を stat し dangling 0・reference_refs/script_refs/agent_refs/harness_refs 全実在・旧名 grep 0)。C3 整合0 (harness-creator 呼称が SKILL/upstream-pins.json/CI workflow/参照ファイル名で三者一致・golden 例の 5 kind 内訳記述が live 出力と一致)。C4 依存0 (cross-plugin harness-creator 依存パス 6 本 + 同梱 references 7 本 + check-upstream-pins.py/upstream-pins.json 全実在)。criteria: IN1/IN2 (index topsort + phase frontmatter/gates ゲート契約が改名後も不変で健全)・OUT1 (UBM固有=IPC/Cloudflare/スクショ/PR のみ DROP・harness-creator ネイティブ規律伝播設計)・OUT2 (skill-brief 主要フィールド写像設計) で充足。smell 1 (本文密度・改名無関係の既存 low) は非ブロッキング。C1-C4 ハードカテゴリ全 0 で PASS。"
 }

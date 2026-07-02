@@ -143,7 +143,7 @@
     "9_handoff_contract": {
       "recommended_next": {"mode": "standard", "skip_to_phase": "design", "reason": "要件確定済み"},
       "intake_json_path": "plugins/skill-intake/output/daily-brief/intake.json",
-      "starting_command": "/skill-creator plugins/skill-intake/output/daily-brief/intake.json"
+      "starting_command": "/harness-creator plugins/skill-intake/output/daily-brief/intake.json"
     },
     "10_self_updater": {
       "metrics": {

@@ -106,7 +106,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `/intake` slash command または `run-skill-create` Step 1
-- 内部 phase の終端: `run-notion-intake-publish` (公開) 完了後に Phase 11 `run-intake-next-action` で **skill-creator 引き渡しモードを「判定」**し `next-action.json` を出力して**停止**する。
+- 内部 phase の終端: `run-notion-intake-publish` (公開) 完了後に Phase 11 `run-intake-next-action` で **harness-creator 引き渡しモードを「判定」**し `next-action.json` を出力して**停止**する。
 - **引き渡しの「実行」は本スキルの責務外**: intake 自身は `run-skill-create` を起動しない。intake が `run-skill-create` の Step 1 として呼ばれている場合のみ、後続の生成は呼び出し元 (`run-skill-create`) が駆動する。`/intake` 単体起動時は next-action 推奨の提示で終了する。
 
 ### 6.2 並列性

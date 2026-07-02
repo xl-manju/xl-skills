@@ -65,7 +65,7 @@ def test_generation_blocked_while_intake_active(tmp_path):
     run_hook(pre_skill(tmp_path, "run-skill-intake"))  # lock 作成
     # 生成スキルは bare / plugin-prefix いずれも遮断
     assert run_hook(pre_skill(tmp_path, "run-skill-create")) == 2
-    assert run_hook(pre_skill(tmp_path, "skill-creator:run-build-skill")) == 2
+    assert run_hook(pre_skill(tmp_path, "harness-creator:run-build-skill")) == 2
     assert run_hook(pre_skill(tmp_path, "capability-build")) == 2
     # Task 経由の生成 worker も遮断
     assert run_hook(pre_task(tmp_path, "run-build-skill-subagent")) == 2

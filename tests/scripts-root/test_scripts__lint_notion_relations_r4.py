@@ -24,7 +24,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "lint-notion-relations.py"
 
-# lint-notion-relations.py は import 時に plugins/skill-creator/scripts を sys.path へ入れて
+# lint-notion-relations.py は import 時に plugins/harness-creator/scripts を sys.path へ入れて
 # `import notion_config` する。module body をそのまま exec すれば解決される。
 _SPEC = importlib.util.spec_from_file_location("lint_notion_relations_r4", SCRIPT)
 LNR = importlib.util.module_from_spec(_SPEC)

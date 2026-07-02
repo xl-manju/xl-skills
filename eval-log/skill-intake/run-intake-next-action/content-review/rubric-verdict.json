@@ -1,1 +1,28 @@
-{"target":{"plugin":"skill-intake","skill":"run-intake-next-action","skill_md_sha256":"883b14551113107c98faada26dc103dee633b8ce3229a4841bd520619f9fe74b"},"review_kind":"rubric","verdict":"PASS","reviewer":"assign-skill-design-evaluator","reviewed_at":"2026-07-02T00:00:00Z","iterations":3,"human_review_required":false,"feedback_loop":{"loop_scope":"both","criteria_evaluated":["IN1","IN2","OUT1"],"positive_feedback":["contradiction (iteration 2 唯一の FAIL driver) 解消を実地確認: responsibility_refs 正本 prompts/R1-main.md 5.3 の split 格下げ述語が『mode=D のとき』へ P-scope 化され、『mode P は multi_skill_suspicion=true かつ split_candidates=[] が正常出力 — SKILL.md Rule 4b どおり格下げしない』の括弧書きを併記。decide-mode.py の canonical P 出力 (mode=P / multi_skill_suspicion=true / split_candidates=[]) を scratchpad で実実行して確認し、SKILL.md Rule 4b・完了チェックリスト (mode=D スコープ)・IN2 (mode=D 限定)・schema と responsibility_refs 正本の間に生きた矛盾が消滅","FM/NM/責務単一 維持: name=dirname=run-intake-next-action・kind=run・allowed-tools に Skill/Task 非搭載 (OUT1 構造担保)・description が 6 値 A-E/P と handoff 先 2 系統を宣言。frontmatter 依存 (responsibility_refs / schema_refs / manifest) 全実在。SKILL.md 本体は sha256 実計算で iteration 2 と同一 (883b1455) を確認し不変","PD (参照充足) 退行なし: handoff-contract 参照は plugin-root 正本 plugins/skill-intake/references/handoff-contract.md へ一意化されたまま「plugin-dev-planner 分岐 (mode P)」節 (L88) 実在、references/pattern-recognition-rules-pointer.md / references/resource-map.yaml / workflow-manifest.json も実在で dangling ゼロ。handoff 表 6 行は mode-catalog 右列・decide-mode.py handoff dict・R1-main 5.3 で逐語一致、schema allOf (P → plugin-dev-planner / else skill-creator) は mode P 実出力の jsonschema.validate PASS で実測確認。上流接地 (run-skill-intake/workflow-manifest.json P11-next-action → delegateSkill=run-intake-next-action) も健在"],"negative_feedback":["minor (FAIL 非駆動・残存): IN2 (verify_by=lint) の『mode=D で split_candidates 空なら mode=E へ格下げ』は decide-mode.py 未実装 (script は splits=[] のまま D を emit) かつ schema も mode=D + 空 split を許容するため、機械検証点が LLM checklist に留まる (schema allOf: if mode==D then split_candidates minItems 1 での機械化を推奨。P-scope 化により prompt 層矛盾は解消済で contradiction ではなく強制力の gap)","minor (残存): R1-main.md L6.1 後続 phase 記述が skill-creator 分岐 (run-skill-create 非起動) のみで、mode P の run-plugin-dev-plan 非起動は mode-catalog.md にのみ明文 / Layer 4 節番号が 4.1→4.2→4.4→4.3 と非単調 (体裁のみ)"],"iteration":3,"iteration_limit":3,"hook_trigger":"manual","next_action":"none","notes":""},"notes":"iteration 3 genuine 再レビュー (proposer≠approver)。SKILL.md 実読 + sha256 自計算一致 (不変) のうえ、ref-skill-design-rubric 観点 (FM/BD/NM/PD) で FAIL driver の是正と退行有無を二段確認。5.3 述語の D スコープ化により、script + 中央テストが固定する canonical P 出力を prompt 準拠 agent が E へ自壊させる contradiction は消滅 (decide-mode.py 実実行 + schema validate で実測)。残存 minor は D 格下げの機械強制 gap と doc 体裁 2 点でいずれも矛盾・欠落に該当せず FAIL 非駆動、PASS。"}
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-next-action",
+    "skill_md_sha256": "c8dc50e165cb6dc5ae63d1e2a452b24fd5c461b32b907a458ec3de7febd136de"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "完全性/一貫性 (改名) — name==dirname==run-intake-next-action・kind=run・allowed-tools に Skill/Task 非搭載 (OUT1 構造担保)・description が 6 値 A-E/P と handoff 先 2 系統 (harness-creator/plugin-dev-planner) を宣言。改名で引き渡し先呼称が harness-creator へ統一され、SKILL.md 出力例・schema enum+allOf・mode-catalog 右列で用語ゆれ 0。5次元 rubric の一貫性基準 (点2以上) を満たす。",
+      "検証可能性 — handoff 表 6 行 (A 'Step 1 (elicit)' 〜 P 'R1 (elicit-goal)') が references/mode-catalog.md 右列・decide-mode.py handoff dict・schema allOf (mode P → plugin-dev-planner / else harness-creator) で逐語一致し二値検証可能。Notion 公開完了 precondition (notion-publish-result.json 存在 + status=='published' + page_id) を exit2 で assert する数値的ゲートを持つ。",
+      "深度/簡潔性 — mode P を pattern 軸 (A-E enum) の外として常に不一致→追認 1 問必発とする設計を Rule 2/4b で明文化し、E 格下げ規則と P の非格下げを判別。責務を mode 判定と next-action.json 生成のみへ絞り本文冗長 0。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2、FM/NM/PD 系規範も違反 0。現 sha256=c8dc50e 実測 (旧 sha=883b1455 は改名前で 'else skill-creator'/skill_creator_handoff_phase を残し stale)。改名観点: (1) 旧名 skill-creator/skill_creator 残存 0 (grep)。(2) handoff_target=harness-creator が SKILL.md/output.schema.json/mode-catalog で三者一致。(3) 意味論境界: A-E の引き渡し先=ハーネス総体 (harness-creator)・P=plugin-dev-planner が正しい。criteria IN1 (決定論導出)/IN2 (precondition gate lint)/OUT1 (Skill/Task 非搭載) はスキル実目的に即した固有観点で充足。ブロッキング欠陥 0 で PASS。"
+}

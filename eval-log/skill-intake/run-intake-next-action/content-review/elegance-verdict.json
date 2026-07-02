@@ -1,1 +1,30 @@
-{"target":{"plugin":"skill-intake","skill":"run-intake-next-action","skill_md_sha256":"883b14551113107c98faada26dc103dee633b8ce3229a4841bd520619f9fe74b"},"review_kind":"elegance","verdict":"PASS","reviewer":"run-elegant-review-subagent-team","reviewed_at":"2026-07-02T00:00:00Z","iterations":3,"human_review_required":false,"feedback_loop":{"loop_scope":"both","criteria_evaluated":["IN1","IN2","OUT1"],"positive_feedback":["iteration 2 の唯一の FAIL driver (prompts/R1-main.md 5.3 の split 格下げ述語が multi_skill_suspicion ベースで mode P happy-path を自壊させる矛盾) の是正を実地確認: 5.3 述語は『mode=D のとき split_candidates[] の各要素に name と responsibility 文字列が存在する。空なら mode=E に格下げ』へ P-scope 化され、括弧書きで『mode P は multi_skill_suspicion=true かつ split_candidates=[] が正常出力 — SKILL.md Rule 4b どおり格下げしない』と canonical P 形を明示。scripts/decide-mode.py を summary.plugin_scale=true + published gate 充足で実行し、mode=P / multi_skill_suspicion=true / split_candidates=[] / handoff_target=plugin-dev-planner / skill_creator_handoff_phase='R1 (elicit-goal)' の実出力が schemas/output.schema.json (additionalProperties:false + allOf) の jsonschema.validate を PASS することを実測 — script 実装 / SKILL.md Rule 4b / R1-main 5.3 述語 / schema の四者に生きた矛盾なし","iteration 2 PASS 項目の退行なしをスポット確認: handoff 表 6 行 (A 'Step 1 (elicit)' 〜 P 'R1 (elicit-goal)') が references/mode-catalog.md 右列・decide-mode.py handoff dict・R1-main 5.3 で逐語一致 / schema allOf (mode P → plugin-dev-planner, else skill-creator) と SKILL.md チェックリスト・R1-main 5.3 の参照が整合 / R1-main 3.1 の handoff-contract 参照は plugin-root 正本 plugins/skill-intake/references/handoff-contract.md に一意化され「plugin-dev-planner 分岐 (mode P)」節 (L88) が実在 / R1-main 2.2 は A〜E+P の 6 値・2.4 は schema required 6 件と逐語一致 / 上流接地は run-skill-intake/workflow-manifest.json の P11-next-action (dependsOn P10-notion, fatal_exit_codes [2,3]) が delegateSkill=run-intake-next-action で本スキルを指し健在","SKILL.md は不変 (sha256 実計算 883b1455... が iteration 2 と一致) で、Rule 3 (D 格下げ) / Rule 4b (P は格下げしない) / チェックリスト (mode=D スコープ) / IN2 (mode=D 限定) の D スコープ述語系と prompt 層が今回はじめて完全整合。determinism (同一入力 2 回一致) は decide-mode.py が純関数的導出 (乱数・時刻非依存) である構造から担保"],"negative_feedback":["minor (FAIL 非駆動・iteration 2 から残存): R1-main.md L6.1 後続 phase 記述が skill-creator 分岐 (run-skill-create 非起動) のみで、mode P の run-plugin-dev-plan 非起動は references/mode-catalog.md にのみ明文 (R1-main 2.1 の mode 非依存な『mode は推奨であり実行に移さない』で実害は限定的)","minor (残存): R1-main.md Layer 4 の節番号が 4.1→4.2→4.4→4.3 と非単調 (内容の欠落・重複はなく体裁のみ)","minor (残存): schemas/output.schema.json は mode=D + split_candidates 空を許容し decide-mode.py も D + 空 split をそのまま emit するため、D 格下げ規則の機械検証点が LLM checklist に留まる (allOf: if mode==D then split_candidates minItems 1 で機械化可能。P-scope 化により prompt 層の矛盾は解消済で、残るのは強制力の thin さのみ)"],"iteration":3,"iteration_limit":3,"hook_trigger":"manual","next_action":"none"},"notes":"iteration 3 genuine 再レビュー (proposer≠approver)。SKILL.md (sha 実計算 883b1455 一致・不変) と prompts/R1-main.md を全文 fresh read し、FAIL driver だった 5.3 格下げ述語の P-scope 化を確認。scratchpad で decide-mode.py を plugin_scale=true + publish gate 充足入力で実実行し、canonical P 出力 (multi=true, splits=[]) が schema validate PASS かつ 5.3 括弧書きの記述と逐語整合することを実測で二段確認。mode-catalog 逐語 6 行 / schema allOf / plugin-root handoff-contract (mode P 節 L88 実在) / 上流 P11 接地の退行なし。残存 minor 3 件はいずれも矛盾でなく強制力・体裁の改善余地であり FAIL 非駆動と判断し PASS。"}
+{
+  "target": {
+    "plugin": "skill-intake",
+    "skill": "run-intake-next-action",
+    "skill_md_sha256": "c8dc50e165cb6dc5ae63d1e2a452b24fd5c461b32b907a458ec3de7febd136de"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
+    "positive_feedback": [
+      "改名追従が SKILL.md/schema/mode-catalog の三者で一致 (C1/C3) — handoff_target の値が harness-creator へ更新され、SKILL.md L61 の出力 JSON 例 (handoff_target: 'harness-creator|plugin-dev-planner')・Rule 4b L78 (mode A-E は handoff_target='harness-creator')・チェックリスト L102・schemas/output.schema.json の enum ['harness-creator','plugin-dev-planner'] と allOf else 分岐 (const 'harness-creator')・references/mode-catalog.md 右列が全て harness-creator で逐語一致。旧名 skill-creator の残存 0 件を実測。",
+      "後方互換フィールド名の扱いが明示的 (C3) — 出力キー harness_creator_handoff_phase は schema description で『フィールド名は後方互換のため据え置き』と註記され、JSON キー (harness_creator_handoff_phase) と handoff_target 値 (harness-creator) が一貫。改名で JSON キー名を skill_creator_ から harness_creator_ へ更新済みで、旧 verdict が引用していた skill_creator_handoff_phase / 'else skill-creator' は現物では解消されている。",
+      "IN1 決定論 / OUT1 責務単一が改名後も健全 (C1/C4) — scripts/decide-mode.py が references/mode-catalog.md 判定表から mode を導出し LLM 勘を排除、allowed-tools に Skill/Task を持たず生成スキルを構造的に起動不能 (OUT1)。IN2 の Notion 公開完了 precondition gate (exit 2) も維持。mode P → plugin-dev-planner / A-E → harness-creator の意味論境界 (ハーネス総体の引き渡し先) が正しく適用されている。"
+    ],
+    "negative_feedback": [
+      "[minor, FAIL 非駆動, 改名と無関係の既存事項] IN2 の『mode=D で split_candidates 空なら mode=E へ格下げ』は decide-mode.py 未実装で機械検証点が LLM checklist に留まる (schema allOf: if mode==D then split_candidates minItems 1 で機械化余地)。矛盾ではなく強制力の thin さのみで、本改名 re-review のスコープ外。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "harness-creator 改名 (skill-creator → harness-creator) に伴う SKILL.md 変更への独立 genuine 再評価。現 sha256=c8dc50e を shasum -a 256 で実測 (旧 verdict sha=883b1455 は改名前・本文に skill_creator_handoff_phase / 'else skill-creator' を残し stale)。4条件検証: C1 矛盾0 (handoff_target 値と JSON キー名が一貫)。C2 漏れ0 (description/schema/mode-catalog/handoff-contract 参照全実在)。C3 整合0 (harness-creator が SKILL.md/output.schema.json enum+allOf/mode-catalog 右列で三者逐語一致・旧名 grep 0)。C4 依存0 (responsibility_refs/schema_refs/references 実在)。criteria: IN1 (decide-mode.py 決定論導出)・IN2 (precondition gate exit2)・OUT1 (Skill/Task 非搭載で生成起動不能) 充足。残 minor 1 (D 格下げの機械強制 gap・改名無関係の既存) は FAIL 非駆動で PASS。"
+}

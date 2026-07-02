@@ -207,8 +207,8 @@ def test_main_default_globs_branch_empty_cwd(tmp_path, monkeypatch, capsys):
 
 
 def test_main_default_globs_picks_up_plugin_skill(tmp_path, monkeypatch, capsys):
-    # 既定 glob plugins/skill-creator/skills/*/SKILL.md に違反 skill を置くと拾う。
-    skills = tmp_path / "plugins" / "skill-creator" / "skills"
+    # 既定 glob plugins/harness-creator/skills/*/SKILL.md に違反 skill を置くと拾う。
+    skills = tmp_path / "plugins" / "harness-creator" / "skills"
     _mk_skill(skills, "run-bad", BANNED)
     monkeypatch.chdir(tmp_path)
     rc = MOD.main([])

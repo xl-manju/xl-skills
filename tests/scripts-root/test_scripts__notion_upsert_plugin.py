@@ -291,10 +291,10 @@ def _run(*args):
 
 
 def test_cli_dry_run_emits_json_without_network():
-    proc = _run("--plugin", "skill-creator", "--dry-run")
+    proc = _run("--plugin", "harness-creator", "--dry-run")
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
-    assert payload["plugin"] == "skill-creator"
+    assert payload["plugin"] == "harness-creator"
     assert "プラグイン名" in payload["properties_keys"]
     assert payload["children_count"] > 0
     assert isinstance(payload["info"]["skills"], list)

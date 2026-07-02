@@ -9,7 +9,7 @@
     "depth": "detailed",
     "depth_minutes": 40,
     "vocabulary_tier": "expert",
-    "status": "Gate A 承認済み・skill-creator 引き渡し可能",
+    "status": "Gate A 承認済み・harness-creator 引き渡し可能",
     "value_realized_score": 88
   },
   "executive_summary": {
@@ -17,7 +17,7 @@
     "purpose_narrative": "そのメモをタネに、今日の企画・戦略を書き始める**思考のスタートポイント**にする。",
     "design_choices": "O1 オーケストレータ × T3 ハイブリッドテーマ抽出 × S3 定刻＋オンデマンド両対応",
     "handoff_mode": "fast-track",
-    "handoff_note": "skill-creator は Phase 2 から実装着手可能"
+    "handoff_note": "harness-creator は Phase 2 から実装着手可能"
   },
   "assumption": {
     "surface_request": "情報収集が毎日しんどい・代行してほしい",
@@ -379,22 +379,22 @@
     {
       "question": "クライアント実名・契約金額の除外範囲",
       "blocking": false,
-      "defer_to": "skill-creator"
+      "defer_to": "harness-creator"
     },
     {
       "question": "情報源の絞り込み（X TLアカウント数・arXivカテゴリ範囲）",
       "blocking": false,
-      "defer_to": "skill-creator"
+      "defer_to": "harness-creator"
     },
     {
       "question": "Discord/Slack のどちらをメイン通知先にするか",
       "blocking": false,
-      "defer_to": "skill-creator"
+      "defer_to": "harness-creator"
     },
     {
       "question": "テーマ集合ファイルのスキーマと更新ジョブ実装",
       "blocking": true,
-      "defer_to": "skill-creator"
+      "defer_to": "harness-creator"
     }
   ],
   "handoff": {
@@ -415,7 +415,7 @@
         "points": 7
       },
       {
-        "reason": "テーマ集合スキーマが skill-creator 委譲で残った",
+        "reason": "テーマ集合スキーマが harness-creator 委譲で残った",
         "points": 5
       }
     ],

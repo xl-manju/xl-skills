@@ -314,7 +314,7 @@ def _render_open_questions(ctx, blocks):
 
 def _render_handoff(ctx, blocks):
     h = ctx.get('handoff', {})
-    blocks.append(heading(2, '9. skill-creator への申し送り'))
+    blocks.append(heading(2, '9. harness-creator への申し送り'))
     blocks.append(bullet(f"recommended_mode: {h.get('recommended_mode')}"))
     blocks.append(bullet(f"skip_to_phase: {h.get('skip_to_phase')}"))
     blocks.append(bullet(f"理由: {h.get('reason', '')}"))

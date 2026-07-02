@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (
     ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "run-build-skill"
     / "scripts"
@@ -40,9 +40,9 @@ def _run(cwd: Path, env: dict[str, str] | None = None) -> dict[str, object]:
 def test_marketplace_install_separates_plugin_root_from_project_output(tmp_path):
     project = tmp_path / "user-project"
     project.mkdir()
-    plugin = tmp_path / "marketplace-cache" / "skill-creator"
+    plugin = tmp_path / "marketplace-cache" / "harness-creator"
     (plugin / "skills" / "run-build-skill").mkdir(parents=True)
-    (plugin / "plugin-composition.yaml").write_text("name: skill-creator\n", encoding="utf-8")
+    (plugin / "plugin-composition.yaml").write_text("name: harness-creator\n", encoding="utf-8")
 
     result = _run(project, {"CLAUDE_PLUGIN_ROOT": str(plugin)})
 
@@ -55,9 +55,9 @@ def test_marketplace_install_separates_plugin_root_from_project_output(tmp_path)
 def test_monorepo_layout_keeps_existing_project_relative_defaults():
     result = _run(ROOT)
 
-    assert result["out_base"] == "plugins/skill-creator/skills"
-    assert result["skill_dir"] == "plugins/skill-creator/skills/run-build-skill"
-    assert result["plugin_root"] == "plugins/skill-creator"
+    assert result["out_base"] == "plugins/harness-creator/skills"
+    assert result["skill_dir"] == "plugins/harness-creator/skills/run-build-skill"
+    assert result["plugin_root"] == "plugins/harness-creator"
 
 
 def test_explicit_env_overrides_are_respected(tmp_path):

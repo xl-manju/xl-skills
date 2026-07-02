@@ -301,7 +301,7 @@ def test_run_skill_create_publish_ready_accepts_matching_target(tmp_path):
     (tmp_path / "notion-url.txt").write_text(f"https://www.notion.so/Test-{compact}\n", encoding="utf-8")
 
     result = run_cmd(
-        "plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py",
+        "plugins/harness-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py",
         "--dir",
         str(tmp_path),
         "--page-id",
@@ -330,7 +330,7 @@ def test_run_skill_create_publish_ready_rejects_mismatched_target(tmp_path):
     (tmp_path / "notion-url.txt").write_text(f"https://www.notion.so/Test-{compact}\n", encoding="utf-8")
 
     result = run_cmd(
-        "plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py",
+        "plugins/harness-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py",
         "--dir",
         str(tmp_path),
         "--page-id",

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-intake-finalize",
   "skill": "run-intake-finalize",
-  "description": "Phase 1-8 成果物を統合し intake.md (人間向け) と intake.json (skill-creator 入力) を決定論的に生成する。",
+  "description": "Phase 1-8 成果物を統合し intake.md (人間向け) と intake.json (harness-creator 入力) を決定論的に生成する。",
   "phases": [
     {
       "id": "P1-collect",

@@ -1,8 +1,8 @@
 # run-notion-gmail-send 実装仕様書
 
 > 状態: **実装仕様 確定版（elegant-review 30思考法 / 4条件 再適用済み）**
-> 用途: 本書は `skill-creator`（`/run-skill-create` → `run-build-skill`）が `run-notion-gmail-send` スキルプラグインを実装するための**自己完結した唯一の入力仕様**である。
-> 正本宣言: 実装の SSOT は**本書**。`eval-log/skill-brief.json` は本書から導出した機械入力で、**v2 で本書に整合済み**（§15 マッピング適用済み・skill-creator はこれをそのまま消費可）。`eval-log/elegant-review/findings.json` は**レビュー反映ログ**であり仕様正本ではない。
+> 用途: 本書は `harness-creator`（`/run-skill-create` → `run-build-skill`）が `run-notion-gmail-send` スキルプラグインを実装するための**自己完結した唯一の入力仕様**である。
+> 正本宣言: 実装の SSOT は**本書**。`eval-log/skill-brief.json` は本書から導出した機械入力で、**v2 で本書に整合済み**（§15 マッピング適用済み・harness-creator はこれをそのまま消費可）。`eval-log/elegant-review/findings.json` は**レビュー反映ログ**であり仕様正本ではない。
 > 更新日: 2026-06-24 / レビュー: 思考リセット→30思考法並列分析→4条件検証を完了（§14 参照）
 
 ---
@@ -282,7 +282,7 @@ dry-run preflight と live-send preflight は分離する。dry-run は送信ロ
 
 ---
 
-## 14. build 前チェックリスト（skill-creator へ渡す前）
+## 14. build 前チェックリスト（harness-creator へ渡す前）
 
 - [ ] 本書が実装 SSOT であること（findings.json は反映ログ・参照のみ）
 - [ ] `message-assemble` 責務が定義されている（最重要 build ブロッカー）
@@ -307,7 +307,7 @@ dry-run preflight と live-send preflight は分離する。dry-run は送信ロ
 
 ## 15. skill-brief（v2）反映マッピング
 
-skill-creator が `eval-log/skill-brief.json` を v2 化する際の主要差分（本書 §に対応）。
+harness-creator が `eval-log/skill-brief.json` を v2 化する際の主要差分（本書 §に対応）。
 
 - `responsibilities`: §7 の8責務（`preflight-verify` / `message-assemble` / `plan-build` を追加、`render-substitute` に件名を含める、`idempotent-log` を reserved→sent 状態遷移へ拡張）
 - `hook_events`: `["PreToolUse"]` を追加。ただし hook は補助防御であり、script 内 `send_guard()` を正本防御にする（§10）

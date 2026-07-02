@@ -1,1 +1,1 @@
-../../plugins/skill-creator/agents/elegant-meta-divergent-analyst.md
+../../plugins/harness-creator/agents/elegant-meta-divergent-analyst.md

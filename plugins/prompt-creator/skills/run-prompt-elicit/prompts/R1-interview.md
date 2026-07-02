@@ -1,6 +1,6 @@
 # Prompt: R1-interview
 
-> 7 層プロンプト Markdown 表現。doc/prompt-creator/agents/interview-user.md を skill-creator 仕様に圧縮移植したもの。Layer 5 は l5-contract v2.0.0 (seven-layer-format.md「Layer 5 契約」) 準拠。
+> 7 層プロンプト Markdown 表現。doc/prompt-creator/agents/interview-user.md を harness-creator 仕様に圧縮移植したもの。Layer 5 は l5-contract v2.0.0 (seven-layer-format.md「Layer 5 契約」) 準拠。
 
 ## メタ
 

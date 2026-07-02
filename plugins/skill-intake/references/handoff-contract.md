@@ -1,19 +1,19 @@
 ---
 name: handoff-contract
-description: skill-creator (run-skill-create) / plugin-dev-planner (run-plugin-dev-plan) への引き渡し JSON (intake.json) の正本参照と入力契約マッピング
+description: harness-creator (run-skill-create) / plugin-dev-planner (run-plugin-dev-plan) への引き渡し JSON (intake.json) の正本参照と入力契約マッピング
 type: reference
 ---
 
 # ハンドオフ契約 JSON Schema
 
-`skill-intake-handoff` SubAgent の最終出力 `intake.json` の契約。**スキーマ正本は `references/intake.schema.json` (schema_version 2.0.0, `sections` 12 章構造)** であり、本ファイルは配置規約と下流 (skill-creator / plugin-dev-planner) への入力契約マッピングを定める。`run-skill-create` はこの JSON を読み込んで Phase 0-0 を簡略化または飛ばす。
+`skill-intake-handoff` SubAgent の最終出力 `intake.json` の契約。**スキーマ正本は `references/intake.schema.json` (schema_version 2.0.0, `sections` 12 章構造)** であり、本ファイルは配置規約と下流 (harness-creator / plugin-dev-planner) への入力契約マッピングを定める。`run-skill-create` はこの JSON を読み込んで Phase 0-0 を簡略化または飛ばす。
 
 ## ファイル配置
 
 ```
 output/<skill-name-hint>/
 ├── intake.md            # 人間用・正本
-├── intake.json          # skill-creator / plugin-dev-planner 用・副本（references/intake.schema.json 準拠）
+├── intake.json          # harness-creator / plugin-dev-planner 用・副本（references/intake.schema.json 準拠）
 ├── notion-url.txt       # 公開後の Notion URL
 ├── notion-blocks.json   # dry-run 用 Notion ブロック JSON
 └── self-update.json     # question-bank への追記候補
@@ -38,13 +38,13 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 - `sections.8_open_questions.blocking_count` は 0 必須 (blocking 残存のまま handoff へ進めない)
 - `sections.6_five_axes_summary.axes[]` は 5 軸 (knowledge_asset 含む) 全件必須
 
-## skill-creator 入力契約マッピング
+## harness-creator 入力契約マッピング
 
-`run-skill-create` (`plugins/skill-creator/skills/run-build-skill/SKILL.md`) は、ユーザーが intake 完了後に別途明示起動した場合に限り、本 intake.json を入力として **ビルドフロー** を駆動する。ただし Notion 指定ありの intake は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` が `notion_target` と一致するまで Step 2 build へ進めない。intake 側は next-action 推奨を出して停止し、`run-skill-create` / `run-build-skill` を起動しない。最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
+`run-skill-create` (`plugins/harness-creator/skills/run-build-skill/SKILL.md`) は、ユーザーが intake 完了後に別途明示起動した場合に限り、本 intake.json を入力として **ビルドフロー** を駆動する。ただし Notion 指定ありの intake は、`notion-log.json.status=="published"` と `notion-publish-result.json.page_id` が `notion_target` と一致するまで Step 2 build へ進めない。intake 側は next-action 推奨を出して停止し、`run-skill-create` / `run-build-skill` を起動しない。最終成果物として **SubAgent ファイル (agent-template.md の 9 セクション固定構造)** を量産する。「9 セクション」は agent-template.md の正本構造を指し、build-steps.md の **Step 1〜9** (ビルドフロー手順) とは別軸である。両軸のマッピングを以下に明示する。
 
 ### 軸 A: SubAgent 9 セクション正本 (agent-template.md) ← intake.json 派生元
 
-`plugins/skill-creator/skills/run-build-skill/references/agent-template.md` で定義される SubAgent ファイルの 9 セクション固定構造に、intake.json の各フィールドがどう投入されるか。
+`plugins/harness-creator/skills/run-build-skill/references/agent-template.md` で定義される SubAgent ファイルの 9 セクション固定構造に、intake.json の各フィールドがどう投入されるか。
 
 | # | SubAgent セクション | intake.json 主派生元 (v2 sections パス) | 役割 (Layer 対応) |
 |---|---|---|---|
@@ -64,7 +64,7 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 
 `build-steps.md` のビルド手順 (Step 1〜9; Step 3.5/7.5 を含み実質 11 段だが正規 9 ステップ表記) に、skill-intake が生成する §0〜§11 をどこで読むか。
 
-| skill-intake §x (canonical_map) | intake.json フィールド (v2 sections パス) | skill-creator Step | 役割 |
+| skill-intake §x (canonical_map) | intake.json フィールド (v2 sections パス) | harness-creator Step | 役割 |
 |---|---|---|---|
 | §0 executive_summary | `sections.0_executive_summary` (pattern / depth / true_purpose_oneliner / handoff_mode) | Step 1 (skip_to_phase 判定根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
 | §1 assumption_challenger | `sections.1_assumption_challenger.surface_request` / `.adopted_deep_problem` | Step 1 (kind 確定の前提) | 表層 vs 深層の分離を brief に渡す |
@@ -74,9 +74,9 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 | §5 visualizer (図解 5 枚) | `sections.5_visualizer.figures[]` | Step 3 (`templates/`/`assets/` 配置候補) | 図解資産を skill 本体へ移植 |
 | §6 five_axes_summary | `sections.6_five_axes_summary` (axes 5 軸 + intent_contract + knowledge_pipeline) | Step 1 / Step 6 ゲート判定 | rubric score >= 80 の前提 |
 | §7 design_decisions | `sections.7_design_decisions.adoptions` / `.output_priority_finalized` | Step 2 (kind / pair / hooks の宣言値) | SubAgent §1 Frontmatter の `pair`/`kind`/`script_refs` |
-| §8 open_questions | `sections.8_open_questions.questions[]` (blocking / defer_to) | Step 1 (defer_to=skill-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
+| §8 open_questions | `sections.8_open_questions.questions[]` (blocking / defer_to) | Step 1 (defer_to=harness-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
 | §9 handoff_contract | `sections.9_handoff_contract.recommended_next` (mode / skip_to_phase / reason) | Step 1 → Step 2 ジャンプ条件 | mode=fast-track で Step 1 簡略化 |
-| §10 self_updater | `sections.10_self_updater` (+ `self-update.json`) | (skill-creator スコープ外) | skill-intake 自己進化専用 |
+| §10 self_updater | `sections.10_self_updater` (+ `self-update.json`) | (harness-creator スコープ外) | skill-intake 自己進化専用 |
 | §11 artifact_index | `sections.11_artifact_index.base_path` / `.artifacts[]` | Step 3.5 再現性トレース | skill-build-trace.json の source_docs に登録 |
 
 Step 1 が読むのは §1/§2/§3/§6/§8/§9。Step 2 は §4/§7。Step 3 は §5/§11。§0/§10 は人間レビュー専用。
@@ -95,7 +95,7 @@ Step 1 が読むのは §1/§2/§3/§6/§8/§9。Step 2 は §4/§7。Step 3 は
 | `sections.3_purpose_excavator` (true_purpose / underlying_motivation / output_priority) | `goal` (観測可能な完了形 1 文) と `checklist` の導出材料 |
 | `next-action.json.split_candidates[]` (mode P 判定時の複数コンポーネント/skill 候補) | コンポーネント分解 (R2) へ渡す初期候補 |
 
-受け側契約の正本は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/references/io-contract.md` §9 (intake.json は**任意の構造化入力**であり必須ではない)。skill-creator 分岐 (mode A-D) と同じく、intake 側は推奨を出して停止し `run-plugin-dev-plan` を起動しない。
+受け側契約の正本は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/references/io-contract.md` §9 (intake.json は**任意の構造化入力**であり必須ではない)。harness-creator 分岐 (mode A-D) と同じく、intake 側は推奨を出して停止し `run-plugin-dev-plan` を起動しない。
 
 ## `run-skill-elicit` との互換
 

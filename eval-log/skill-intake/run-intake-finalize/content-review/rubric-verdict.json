@@ -1,27 +1,21 @@
 {
-  "target": {
-    "plugin": "skill-intake",
-    "skill": "run-intake-finalize",
-    "skill_md_sha256": "e20f33f383b5bfee8d6af858f47b58c328fca02723c7438ef75ddc5b8ca02e0a"
-  },
+  "target": {"plugin":"skill-intake","skill":"run-intake-finalize","skill_md_sha256":"da404aafdb629ba09c80ade197677c065db18a860b2d7f4a446852cb22241872"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
+  "reviewer": "independent-rename-review-subagent-e",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "FM: name=run-intake-finalize が dir basename 一致・kebab+run prefix 適合、description が「〜したいとき」trigger 2 個で終端し内部動作語を含まない(FM-001〜004 充足)",
-      "BD: '## Purpose & Output Contract' と '## Gotchas' を備え body は 300 行上限内、description trigger と本文手順(render/quality_gate/cross_check)が 1:1 対応(BD-001〜004 充足)"
-    ],
+    "criteria_evaluated": ["IN1","IN2","OUT1"],
+    "positive_feedback": ["完全性(3): frontmatter 必須キー+responsibility_refs/schema_refs/manifest が揃い、Purpose/Key Rules/Goal/完了チェックリスト(8項目)/Gotchas/Additional Resources を備え Phase 9 責務が過不足なく記述。", "検証可能性(3): schema 適合・enum・retry_phase 埋め戻し・bit-identical(sha256一致)・quality_gate/cross_check の exit 確認・引数順(md 先)など二値判定可能な数値・コマンドが具体提示。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "skill-design rubric 観点(FM/BD/NM/PD)で SKILL.md を実読・手動照合。FM-001〜004 PASS(name=dir 一致、description は trigger 終端・内部動作語なし)。BD-001〜004 PASS(Purpose/Gotchas 見出し存在、body 行数上限内、trigger と手順の 1:1 対応)。NM-001 PASS(dir==name)。PD: references/(template-pointer.md/validation-flow.md/resource-map.yaml)・schemas/output.schema.json・prompts/R1-main.md が実在し冒頭で Purpose+禁則(LLM 非呼出・順序固定)を提示、依存方向健全。二段検証(実装文脈の手動確認): 参照 4 script(render-intake-final.py/convert_md_to_json.py/quality_gate.py/cross_check.py)と cross-skill 参照(run-skill-intake 単一発火点アンカー)を確認、dangling/退行なし。今回の差分は frontmatter への feedback_contract 追加のみで本文無編集・schema 整合(SSOT=feedback_contract_ssot.py の id/verify_by/loop_scope 制約適合)。重大(high)finding 0 のため verdict=PASS。criteria IN1/IN2/OUT1 はいずれも本スキルの決定論・順序固定・Phase 9 責務スコープを固有に表現しており genuine と判定。"
+  "notes": "harness-creator quality-rubric.md の5次元で採点(SHA=da404aaf…)。完全性3/一貫性3(順序固定・単一発火点が本文と Gotchas で一致、workflow-manifest P1-P4 参照と矛盾なし)/深度2(Why で LLM 混入→後段公開・diff 監査破綻という失敗様式を根拠化)/検証可能性3/簡潔性2(単一発火点 SSOT を run-skill-intake へ参照委譲し二重定義回避)。全次元≥2 で PASS。L47 の harness-creator 参照は受け手 plugin の proper-noun で意味論境界に整合、旧名残存なしを確認。"
 }

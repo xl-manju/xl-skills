@@ -1,20 +1,21 @@
 {
-  "target": {"plugin":"contract-generator","skill":"run-contract-finalize","skill_md_sha256":"e377c31098c4d2986d7432c6febb221acf632148030c94f8d2daac2c5a61f9fb"},
+  "target": {"plugin":"contract-generator","skill":"run-contract-finalize","skill_md_sha256":"30a1a3ac8145b67ba3389f91d347d37403915f9d04485ac5dffe4bc411f2ad6a"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
+  "reviewer": "independent-rename-review-subagent-e",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1","IN2","OUT1"],
-    "positive_feedback": ["name=run-contract-finalize は run-接頭辞/kebab/<=60 を満たし、description の trigger 2句が句点終止で本文手順(prompts/R1-approve-and-finalize.md)と1:1対応しており rubric の FM/BD 軸を全充足。", "Purpose & Output Contract と Gotchas の見出しが存在し、出力契約(draft→黄色除去PDF→フォルダ保存→Slack再共有→台帳completed)と誤確定防止・Keychain限定が明記され自己説明性が高い。"],
+    "positive_feedback": ["検証可能性(3): --dry-run/台帳 PDF_URL・completed 観測・cron 例・config_auth.py check など二値判定可能な数値・コマンドが複数提示され、完了チェックリスト各項が観測可能。", "一貫性(3)・簡潔性(2): pull型ゲートの用語ゆれがなく draft→completed 境界・台帳単一真実源が一貫、詳細は lib/README へ委譲し本文は必要十分。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を全文読み、ref-skill-design-rubric の FM/BD/NM/PD 各軸に照らして本skill固有に採点。導出 criteria IN1(pull型の誤確定なし・--dry-run/台帳で機械検証)/IN2(黄色除去のみ条文非改変・completed冪等)/OUT1(pull型ゲートが SKILL/prompt SSOT/agent/scripts まで一貫しユーザ目的を最適反映)を評価対象とし、いずれも adequacy を満たすことを確認。FM-001..005・BD-001..004・NM-001..003・PD-001 に high finding なく、pull型整合が frontmatter prompt_ssot・本文・R1 prompt 全層で矛盾しないため PASS。"
+  "notes": "harness-creator quality-rubric.md の5次元で採点(SHA=30a1a3ac…)。完全性2(frontmatter 必須キー充足・kind別支援資産あり)/一貫性3/深度2(Why でライフサイクル分離を掘り下げ)/検証可能性3/簡潔性2、全次元≥2 で PASS。改名箇所(rubric_refs の harness-creator パス)は記述品質を損なわず、旧名残存なしを確認。"
 }

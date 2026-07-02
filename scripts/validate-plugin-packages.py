@@ -3,7 +3,7 @@
 
 背景:
   実検査器は単一 plugin 用 (`--plugin <name>` 必須):
-    plugins/skill-creator/skills/assign-plugin-package-evaluator/scripts/validate-plugin-package.py
+    plugins/harness-creator/skills/assign-plugin-package-evaluator/scripts/validate-plugin-package.py
   Makefile の `plugin-package-check` target は存在しないパス
   (`scripts/validate-plugin-package.py`) を no-arg で呼んでおり origin/main 時点から
   壊れていた。本スクリプトが正しいパスへ全 plugin を回して橋渡しする。
@@ -29,7 +29,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = (
     REPO_ROOT
-    / "plugins/skill-creator/skills/assign-plugin-package-evaluator/scripts/validate-plugin-package.py"
+    / "plugins/harness-creator/skills/assign-plugin-package-evaluator/scripts/validate-plugin-package.py"
 )
 # 現状 advisory 扱いとする (未採用の将来標準) PKG。空にすると fail を昇格できる。
 ADVISORY_PKG = {"PKG-002", "PKG-004"}

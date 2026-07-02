@@ -101,7 +101,7 @@ xl-skills/
 
 | 周回 | 対象 | 初回判定 | 改善後 | 主な修正 |
 |---|---|---|---|---|
-| 1 | skill-creator 31章反映設計 | C1〜C4 一部FAIL | PASS | E2E、routing、Keychain、creator-kit を追加 |
+| 1 | harness-creator 31章反映設計 | C1〜C4 一部FAIL | PASS | E2E、routing、Keychain、creator-kit を追加 |
 | 2 | creator-kit + CONVENTIONS | C1〜C4 FAIL | PASS | YAML残骸除去、現状違反記述更新、`sys.exit(main())` 統一、forbidden-deps lint 追加 |
 
 4条件の定義:
@@ -120,7 +120,7 @@ xl-skills/
 | C1 矛盾なし | PASS | YAML機械処理設定は JSON に統一。APIキー保護は Keychain 参照に統一 |
 | C2 漏れなし | PASS | Phase A-J、3軸、レビュー2周、残課題を本章に集約 |
 | C3 整合性あり | PASS | Bash/Python 2層、Sink Contract、manifest正本の用語を README と接続 |
-| C4 依存関係整合 | 暫定PASS | manifest一致lint、禁止依存lint、secret audit は `.github/workflows/creator-kit-ci.yml` でCI接続済み。ただし `migrate-from-project.sh` の本実行ログ未取得、`audit_secret_leak.py` docstring 未更新のため 25章L174「暫定PASS」制度を継承する |
+| C4 依存関係整合 | 暫定PASS | manifest一致lint、禁止依存lint、secret audit は `.github/workflows/harness-creator-kit-ci.yml` でCI接続済み。ただし `migrate-from-project.sh` の本実行ログ未取得、`audit_secret_leak.py` docstring 未更新のため 25章L174「暫定PASS」制度を継承する |
 
 GitHub Actions の workflow ファイル (`.yml`) と Claude Code の `SKILL.md` frontmatter YAML は外部仕様に従う例外である。kit内部の機械処理設定、rubric、proposal、4条件定義は JSON を正本とする。
 
@@ -129,7 +129,7 @@ GitHub Actions の workflow ファイル (`.yml`) と Claude Code の `SKILL.md`
 | 優先 | 課題 | 完了条件 | 関連 | 検証方法 |
 |---|---|---|---|---|
 | P0 | `migrate-from-project.sh` 本実行 | dry-run ではなく本実行し、実行ログを `creator-kit/migrate-log/` に保存する | `25` / `creator-kit/migrate-from-project.sh` | ログファイルの存在確認 |
-| P0 | `lint-forbidden-deps.py` / `audit_secret_leak.py` の CI接続確認と正式実行 | `creator-kit-ci.yml` で exit 0 を確認し、CIグリーンのスクリーンショットまたはActionsログURLを記録 | `.github/workflows/creator-kit-ci.yml` | `gh run list` で直近CI成功を確認 |
+| P0 | `lint-forbidden-deps.py` / `audit_secret_leak.py` の CI接続確認と正式実行 | `harness-creator-kit-ci.yml` で exit 0 を確認し、CIグリーンのスクリーンショットまたはActionsログURLを記録 | `.github/workflows/harness-creator-kit-ci.yml` | `gh run list` で直近CI成功を確認 |
 | P1 | `audit_secret_leak.py` docstring 微更新 | docstring の purpose・inputs・outputs を最新挙動に合わせて更新する | `creator-kit/scripts/secrets/audit_secret_leak.py` | `python3 -m py_compile` 後 docstring の内容目視確認 |
 | P2 | `output-routing.json` のプロジェクト固有実設定作成 | `.claude/config/output-routing.json.example` を元に、secret本体を含まない実設定を作る | `31` | ファイル存在 + JSON parse 確認 |
 | P2 | `update-yaml-spec.yml` の取得実装 | 公式frontmatter仕様の取得スクリプトを実装し、cacheを自動更新する | `ref-yaml-spec-fetcher` | スクリプト実行 + cache ファイル更新確認 |

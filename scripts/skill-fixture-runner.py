@@ -22,7 +22,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = ROOT / "plugins" / "skill-creator" / "skills"
+SKILLS_DIR = ROOT / "plugins" / "harness-creator" / "skills"
 FIXTURE_DIR = ROOT / "eval-log" / "fixtures"
 OUT_PATH = ROOT / "eval-log" / "fixture-results.json"
 LINT = ROOT / "plugins" / "skill-governance-lint" / "scripts"

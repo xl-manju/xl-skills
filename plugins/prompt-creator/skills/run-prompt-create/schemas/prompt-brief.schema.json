@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/plugins/prompt-creator/run-prompt-create/schemas/prompt-brief.schema.json",
   "title": "Prompt Brief (machine-readable)",
-  "description": "run-prompt-elicit → run-prompt-creator-7layer / run-prompt-create に渡される prompt-brief.json の正本スキーマ。skill-brief と並列で、7 層プロンプト生成に必要な要求を構造化する。宣言型 (l5-contract v2.0.0) の L5 材料 (goals/checklist/purpose/background) を運ぶ。項目名は skill-creator の goal-spec.schema.json (purpose/background/checklist) と 7layer 側 hearing-result (goals/checklist{item,judgement}) に揃える。モードは 2 系: skill 紐付け (target_skill あり → responsibility_id 必須) と standalone (target_skill なし → output_path 必須・responsibility_id 禁止)。判別は if/then/else が機械正本 (run-prompt-elicit SKILL.md Key Rule 4/5 と 1:1)。",
+  "description": "run-prompt-elicit → run-prompt-creator-7layer / run-prompt-create に渡される prompt-brief.json の正本スキーマ。skill-brief と並列で、7 層プロンプト生成に必要な要求を構造化する。宣言型 (l5-contract v2.0.0) の L5 材料 (goals/checklist/purpose/background) を運ぶ。項目名は harness-creator の goal-spec.schema.json (purpose/background/checklist) と 7layer 側 hearing-result (goals/checklist{item,judgement}) に揃える。モードは 2 系: skill 紐付け (target_skill あり → responsibility_id 必須) と standalone (target_skill なし → output_path 必須・responsibility_id 禁止)。判別は if/then/else が機械正本 (run-prompt-elicit SKILL.md Key Rule 4/5 と 1:1)。",
   "type": "object",
   "additionalProperties": false,
   "required": [

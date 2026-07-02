@@ -185,4 +185,4 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 - `schemas/findings.schema.json` — evaluator/elegant-review 出力形式 (C1-C4)
 - `schemas/build-trace.schema.json` — Step 2 emit する Layer 別 coverage 形式
 - `prompts/R1-elicit.md` / `prompts/R2-gate-review.md` / `prompts/R3-governance-decide.md` — R1/R2/R3 責務別プロンプト
-- 子スキル: `run-prompt-elicit`, `run-prompt-creator-7layer`, `assign-prompt-design-evaluator`, `run-elegant-review` (skill-creator), `run-skill-rubric-governance` (skill-creator)
+- 子スキル: `run-prompt-elicit`, `run-prompt-creator-7layer`, `assign-prompt-design-evaluator`, `run-elegant-review` (harness-creator), `run-skill-rubric-governance` (harness-creator)

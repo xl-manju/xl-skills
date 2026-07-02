@@ -92,7 +92,7 @@ def test_main_ok_real_repo(capsys):
 def test_feedback_contract_pair_registered():
     """feedback_contract_ssot の vendored ペアが登録されていること (回帰固定)。"""
     names = {(c.name, v.parent.parent.parent.name) for c, v in MOD.VENDORED_PAIRS}
-    # canonical=scripts/feedback_contract_ssot.py, vendored=plugins/skill-creator/scripts/...
+    # canonical=scripts/feedback_contract_ssot.py, vendored=plugins/harness-creator/scripts/...
     assert any(c.name == "feedback_contract_ssot.py" for c, _ in MOD.VENDORED_PAIRS)
 
 

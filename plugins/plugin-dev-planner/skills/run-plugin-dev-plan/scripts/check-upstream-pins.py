@@ -16,7 +16,7 @@
 # ///
 """plugin 境界を跨ぐ「引用」の鮮度を機械化する決定論ゲート。
 
-planner は skill-creator 等の上流契約 (schema 形状・閾値・paradigm) を焼き込みでなく
+planner は harness-creator 等の上流契約 (schema 形状・閾値・paradigm) を焼き込みでなく
 「引用形」(path/ID 参照) で保持する。だが引用先が変質しても planner 側文書は沈黙 drift
 する — この gap を references/upstream-pins.json の pin (path+sha256+verified_at+
 matrix_rows) で埋める。三層方式「引用=path/ID+実在テスト、数値=複製+値 parity、意味
@@ -32,7 +32,7 @@ pin 対象の限定 (オオカミ少年回避):
   (a) in-repo: 上方探索で `.git` と `plugins/plugin-dev-planner` を併せ持つ dir
       (=xl-skills repo root) が見つかる場合。全 pin の実体 hash を再計算し、不一致
       または消失 (移動/削除) を fail-closed で exit 1。是正は「該当 matrix_rows
-      (references/skill-creator-spec-reflection.md の行 ID) を再監査し、引用の追従
+      (references/harness-creator-spec-reflection.md の行 ID) を再監査し、引用の追従
       修正と pin bump (sha256/verified_at 更新) を同一変更で行う」。
   (b) standalone: repo root が見つからない場合 (単独 install)。引用先実体が無く
       再検証不能なので、pin 済内容が verified_at 時点の検証で凍結されている事実を

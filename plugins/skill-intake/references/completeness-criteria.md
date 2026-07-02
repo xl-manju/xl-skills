@@ -1,6 +1,6 @@
 ---
 name: completeness-criteria
-description: skill-creator へ引き渡してよい完了判定基準 (5 軸版・24 項目)
+description: harness-creator へ引き渡してよい完了判定基準 (5 軸版・24 項目)
 type: reference
 ---
 

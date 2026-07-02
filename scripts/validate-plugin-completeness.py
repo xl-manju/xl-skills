@@ -29,7 +29,7 @@ false の明示宣言が無ければ fail-closed で違反」とすることで�
   - 既定 (引数なし): 検出のみ。未登録があれば exit 1 で fail-closed (CI の最後の砦)。
   - ``--fix``: 予防。未登録 plugin を marketplace.json / bundles.json へ
     **append-only** (既存エントリの値を一切書き換えず追記のみ) で自動登録し、書込後に
-    自分の検出を再実行して exit 0 を保証する。skill-creator の生成フロー
+    自分の検出を再実行して exit 0 を保証する。harness-creator の生成フロー
     (build-steps Phase G / workflow-manifest step3.5) から呼ばれ、「作るたびに必ず
     登録される」を機械保証する。既登録なら no-op (冪等)。最終的な登録是非は人間が
     PR diff で承認する。
@@ -61,7 +61,7 @@ MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
 # フラグの値に関わらず marketplace/bundle へ出てはならない。フラグが誤って true 化/
 # 削除されても (= フラグ駆動の MK-004 逆ガードが無効化されても) この固有名検査が
 # fail-closed で再配布を阻止する多層防御。配布化する正当な決定が出た場合のみ本集合から外す。
-NEVER_DISTRIBUTE = frozenset({"skill-creator", "prompt-creator", "plugin-dev-planner"})
+NEVER_DISTRIBUTE = frozenset({"harness-creator", "prompt-creator", "plugin-dev-planner"})
 
 
 def load_bundle_members() -> set[str]:

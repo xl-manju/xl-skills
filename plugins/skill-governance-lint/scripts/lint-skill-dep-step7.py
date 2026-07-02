@@ -18,7 +18,7 @@
 検査対象:
   (1) wrap-* に base: フィールドがある
   (2) assign-*-evaluator に pair: フィールドがある
-  (3) pair: の相手スキルが plugins/skill-creator/skills か .claude/skills に存在する
+  (3) pair: の相手スキルが plugins/harness-creator/skills か .claude/skills に存在する
   (4) dangerous run-* に disable-model-invocation: true がある
       ("dangerous" の判定は frontmatter に danger: true / effect: external-mutation
        のいずれかを持つこと)
@@ -29,7 +29,7 @@
 Python 3.9+ 標準ライブラリのみ。設計書22 no-deps 原則に準拠。
 
 Usage:
-  lint-skill-dep-step7.py --skills-dir plugins/skill-creator/skills [--allow-partial]
+  lint-skill-dep-step7.py --skills-dir plugins/harness-creator/skills [--allow-partial]
   lint-skill-dep-step7.py /path/to/SKILL.md ...
 """
 from __future__ import annotations
@@ -68,7 +68,7 @@ def _repo_root(p: Path) -> Path:
 
 def skill_exists(name: str, repo: Path) -> bool:
     return (
-        (repo / "plugins" / "skill-creator" / "skills" / name).is_dir()
+        (repo / "plugins" / "harness-creator" / "skills" / name).is_dir()
         or (repo / ".claude" / "skills" / name).is_dir()
     )
 
@@ -81,7 +81,7 @@ def _collect_inbound_refs(repo: Path) -> set[str]:
     """
     inbound: set[str] = set()
     skill_name_re = re.compile(r"(ref|run|assign|wrap|delegate)-[a-z0-9-]+")
-    for skills_root in (repo / "plugins" / "skill-creator" / "skills", repo / ".claude" / "skills"):
+    for skills_root in (repo / "plugins" / "harness-creator" / "skills", repo / ".claude" / "skills"):
         if not skills_root.is_dir():
             continue
         for skill_md in skills_root.glob("*/SKILL.md"):
@@ -146,7 +146,7 @@ def check_skill(
     if pair and not skill_exists(pair, repo):
         errs.append(
             f"{name}: pair target '{pair}' not found under "
-            f"plugins/skill-creator/skills or .claude/skills (doc/20 Step 7-3)"
+            f"plugins/harness-creator/skills or .claude/skills (doc/20 Step 7-3)"
         )
 
     # (4) dangerous run-* に disable-model-invocation: true があるか

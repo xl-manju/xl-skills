@@ -7,7 +7,7 @@
 
 本ポリシーは「重複→上書き一本化」規範の **prompt-creator 改善ループ適用版**。鉄則と理由
 （keep-both 禁止 / 二重定義は片方更新で必ず矛盾し判断コストを後続へ転嫁）は上位正本
-`plugins/skill-creator/references/ssot-dedup-procedure.md` (ANTI-DUP-001) を参照し再掲しない。
+`plugins/harness-creator/references/ssot-dedup-procedure.md` (ANTI-DUP-001) を参照し再掲しない。
 
 用途境界（両者は用途非互換のため統合せず分離する。境界は上位規範の正本決定規則に準拠）:
 

@@ -4,4 +4,4 @@
 
 - 各 phase の handoff JSON 契約は各 phase 担当 skill / schema が正本: 委譲 skill (`run-intake-kickoff` 等) は各 `schemas/output.schema.json`、SubAgent phase (P2/P3/P5/P8) は `workflow-manifest.json` の `outputSchemaId` が指す `./schemas/phase*-*.schema.json`。
 - Phase 11 `next-action.json` (mode A-E/P + `handoff_target`) の正本は `plugins/skill-intake/skills/run-intake-next-action/schemas/output.schema.json`。
-- intake.json (Phase 9) と下流 (skill-creator / plugin-dev-planner) への引き渡し契約は正本の「skill-creator 入力契約マッピング」「plugin-dev-planner 分岐 (mode P)」節を参照。
+- intake.json (Phase 9) と下流 (harness-creator / plugin-dev-planner) への引き渡し契約は正本の「harness-creator 入力契約マッピング」「plugin-dev-planner 分岐 (mode P)」節を参照。

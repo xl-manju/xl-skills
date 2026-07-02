@@ -19,7 +19,7 @@
 3. [チーム共有](#3-チーム共有)
 4. [利用確認](#4-利用確認)
 5. [使い方](#5-使い方)
-6. [skill-creator との連携](#6-skill-creator-との連携)
+6. [harness-creator との連携](#6-harness-creator-との連携)
 7. [構成ファイル一覧](#7-構成ファイル一覧)
 8. [スクリプト一覧](#8-スクリプト一覧)
 9. [トラブルシューティング](#9-トラブルシューティング)
@@ -113,7 +113,7 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 - ヒアリング raw data: `skills/run-prompt-elicit/schemas/hearing-result.schema.json` (`evaluation_priorities` enum / goals / checklist の SSOT)
 - 生成 worker の legacy sheet input: `skills/run-prompt-creator-7layer/schemas/hearing-result.schema.json`
 - 生成成果物: Markdown (`.md`) が既定。YAML は内部正規形または legacy 互換
-- 重複判断の上位正本: `plugins/skill-creator/references/ssot-dedup-procedure.md`。prompt-creator 内の冪等更新要約は `skills/run-prompt-creator-7layer/references/idempotent-update-policy.md`
+- 重複判断の上位正本: `plugins/harness-creator/references/ssot-dedup-procedure.md`。prompt-creator 内の冪等更新要約は `skills/run-prompt-creator-7layer/references/idempotent-update-policy.md`
 
 ### 5-1. 正本フローで起動
 
@@ -129,7 +129,7 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 | 2 | 7 層プロンプト生成 | `run-prompt-creator-7layer` |
 | 3a | P0 lint | script |
 | 3b | 設計評価 C1-C4 | `assign-prompt-design-evaluator` |
-| 4 | elegant-review | `skill-creator:run-elegant-review` |
+| 4 | elegant-review | `harness-creator:run-elegant-review` |
 | 5 | governance 承認 | `governance-decide.md` |
 | 6 | 完了レポート | `run-prompt-create` |
 
@@ -159,9 +159,9 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 
 ---
 
-## 6. skill-creator との連携
+## 6. harness-creator との連携
 
-`skill-creator` の `run-build-skill` Step 7.5 で `--with-prompts` フラグ付き呼び出しがあると、本 plugin がループ起動します。`owner_agent` が渡された場合のみ、生成中の SubAgent `.md` の **Prompt Templates** と **Self-Evaluation** セクションを自動充填します。
+`harness-creator` の `run-build-skill` Step 7.5 で `--with-prompts` フラグ付き呼び出しがあると、本 plugin がループ起動します。`owner_agent` が渡された場合のみ、生成中の SubAgent `.md` の **Prompt Templates** と **Self-Evaluation** セクションを自動充填します。
 
 連携が動作しているかは次のログで確認できます。
 
@@ -302,4 +302,4 @@ prompt-creator は marketplace install されないため、通常のアンイ�
 - Plugin reference: https://code.claude.com/docs/en/plugins-reference
 - Marketplace docs: https://code.claude.com/docs/en/plugin-marketplaces
 - xl-skills root README: `../../README.md`
-- skill-creator: `../skill-creator/`
+- harness-creator: `../harness-creator/`

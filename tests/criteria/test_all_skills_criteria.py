@@ -149,7 +149,7 @@ def test_discovery_includes_previously_escaped_skills():
         ("notion-gmail-send", "run-notion-gmail-send"),
         ("plugin-dev-planner", "run-plugin-dev-plan"),
         ("mf-kessai-invoice-check", "run-mf-invoice-reconcile"),
-        ("skill-creator", "run-build-skill"),
+        ("harness-creator", "run-build-skill"),
         ("skill-intake", "assign-notion-fidelity-evaluator"),
     }
     missing = sentinels - got

@@ -260,8 +260,8 @@ def test_main_inproc_nonexistent_target_skipped(MOD, tmp_path, monkeypatch, caps
 
 def test_main_inproc_default_glob_creator_kit_and_claude(MOD, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(MOD, "PROJECT_ROOT", tmp_path)
-    # 引数なし → plugins/skill-creator/skills と .claude/skills の */SKILL.md を走査
-    ck = tmp_path / "plugins" / "skill-creator" / "skills"
+    # 引数なし → plugins/harness-creator/skills と .claude/skills の */SKILL.md を走査
+    ck = tmp_path / "plugins" / "harness-creator" / "skills"
     _mk_skill(ck, "ref-a", "name: ref-a\nrubric_refs:\n  - references/r.json")
     (ck / "ref-a" / "references").mkdir()
     (ck / "ref-a" / "references" / "r.json").write_text("{}", encoding="utf-8")

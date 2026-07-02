@@ -11,7 +11,7 @@
 
 Usage:
   python3 scripts/gate-phase0.py
-  python3 scripts/gate-phase0.py --skills-dir plugins/skill-creator/skills
+  python3 scripts/gate-phase0.py --skills-dir plugins/harness-creator/skills
 """
 from __future__ import annotations
 
@@ -100,7 +100,7 @@ def main() -> int:
 
     # リポジトリルートを推定
     repo_root = Path(".").resolve()
-    skills_base = skills_dir_override or (repo_root / "plugins" / "skill-creator" / "skills")
+    skills_base = skills_dir_override or (repo_root / "plugins" / "harness-creator" / "skills")
     if not skills_base.is_dir():
         print(f"ERROR: skills directory not found: {skills_base}", file=sys.stderr)
         return 2

@@ -1,7 +1,7 @@
 # ハーネス・カバレッジ仕様 (Harness Coverage Spec)
 
 > ステータス (2026-06-30 更新, `make harness-coverage` が唯一の現状値正本): 全12軸 (6種別×2軸) 計測済。
-> coverage gate は CI に **WARN (非ブロック) で配線済** (creator-kit-ci.yml; 既存債務 backfill 後に blocking 化する ratchet)。
+> coverage gate は CI に **WARN (非ブロック) で配線済** (harness-creator-kit-ci.yml; 既存債務 backfill 後に blocking 化する ratchet)。
 > **総合 `spec_met=false` (未達軸あり)**。達成軸数・未達内訳は drift するため本 doc に数値を焼かず、
 > 確定値は常に `python3 scripts/validate-harness-coverage.py` (= `make harness-coverage`) の出力を唯一の正とする。
 > 数値は一切水増ししない (未計測=未計測、低カバレッジ=低カバレッジで報告 / Goodhart 回避)。全て genuine な実テスト/実レビューで到達。
@@ -9,6 +9,10 @@
 > 注 (elegant-review 2026-06-30 / MD-03): 旧 header は「達成 12/12・spec_met=true・gate 配線済」と
 > 断定していたが、body (§6/§8) の FAIL 記述および実 CI に gate 未配線だった事実と矛盾していた。
 > header を機械出力 SSOT へ委譲し断定数値を除去 (status drift の構造的封じ込め)。
+
+> 用語注記 (2026-07-02): 本 spec の「ハーネス」は構築物総体 (scripts/skills/agents/commands/hooks/docs) の品質装具を指す。
+> plugin 固有名 `harness-creator` はこの総体を**構築する**メタ能力であり同系譜の概念 — 本 spec は
+> harness-creator が構築するハーネスの品質最低条件を定義する関係にある。境界規約 (改名の経緯含む) は CONVENTIONS.md「用語規約」を参照。
 
 ## 1. 仕様 (Requirement)
 
@@ -43,7 +47,7 @@ skill は sub-kind ごとに「何を検証すれば品質を担保したこと�
 | assign (評価系) | 同梱 scripts の行カバレッジ | evaluator verdict=PASS |
 | **ref (辞書型/参照型)** | **source-traceability**: `source`/`source-tier`/`last-audited`/`audit-trigger` 充足 | **ref-review verdict**: 参照内容が `source` と整合 (`eval-log/coverage/skills/<plugin>__<skill>.json` の `llm_eval.verdict=PASS`) |
 
-ref は behavioral criteria を持たないため criteria/content-review からは除外されるが、**代わりに source-traceability + ref-review が必須カバレッジ**。「除外」は「無検証」ではなく「kind に適した別検証へ振り替え」を意味する。skill-creator (run-build-skill) はビルド時にこの kind 別パスを毎回適用する。
+ref は behavioral criteria を持たないため criteria/content-review からは除外されるが、**代わりに source-traceability + ref-review が必須カバレッジ**。「除外」は「無検証」ではなく「kind に適した別検証へ振り替え」を意味する。harness-creator (run-build-skill) はビルド時にこの kind 別パスを毎回適用する。
 
 **性能評価基準 (重要)**: llm_eval 軸は「評価器が内容の質を採点し、その合格率/スコアが 80% 以上」を要求する。
 単なる存在チェック (機械的) と区別し、内容の妥当性を LLM が判定した結果で 80% を担保する。
@@ -65,7 +69,7 @@ ref は behavioral criteria を持たないため criteria/content-review から
 
 ## 5. 自動化 (量産先への伝播)
 
-skill-creator (run-build-skill) はビルド時に **全 kind で本仕様を毎回満たす** ことを完了チェックリストで
+harness-creator (run-build-skill) はビルド時に **全 kind で本仕様を毎回満たす** ことを完了チェックリストで
 強制する (SKILL.md 完了チェックリスト + R1-scaffold ドメインルール)。kind 別:
 - loop (run/wrap/delegate): [[feedback_contract]] criteria + criteria 検証テスト + content-review verdict
 - ref (辞書型): source-traceability(source/source-tier/last-audited/audit-trigger) + ref-review verdict
@@ -91,7 +95,7 @@ skill-creator (run-build-skill) はビルド時に **全 kind で本仕様を毎
 ref を「除外」から「ref-review verdict(source-traceability)で計測」へ昇格。13 ref skill をレビューし
 **4 PASS / 9 FAIL** = ref スキルに広範な実欠陥を確認 (resource-map の prompt 名 dangling[8件・修正済] /
 upstream rubric pointer の references/ 欠落[rubric governance 横断・follow-up] / rubric version 1.2.0 vs
-1.3.0 drift / 条番号ずれ / TODO(human) 残存)。skill-creator は今後 ref ビルド時に source-traceability +
+1.3.0 drift / 条番号ずれ / TODO(human) 残存)。harness-creator は今後 ref ビルド時に source-traceability +
 ref-review を必須化 (§kind 別パス)。skills llm_eval = (非ref 35 PASS + ref 4 PASS)/48 = 81.2%。
 
 ### 多エージェント backfill で発見・修正した実バグ (genuine LLM 評価の価値)

@@ -50,7 +50,7 @@ Q3: スキルが MCP / Artifacts / 対話 UI を中心に動作するか？
 | 「intake hearing → ローカル context.json」 | Claude Code | Write 必須 |
 | 「分析エージェント (read-only)」 | 両方 | MCP fetch のみで完結する場合 |
 
-## 4. 自動判定ヒューリスティック (skill-creator 向け)
+## 4. 自動判定ヒューリスティック (harness-creator 向け)
 
 `brief.cli_tools` / `brief.mcp_tools` / `brief.file_ownership` から決定論的に推定:
 
