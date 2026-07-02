@@ -3,6 +3,8 @@
 機械 lint だけでは「ひな形通り」だけ確認で内容空虚を素通りさせる欠陥がある。
 本プロトコルは **LLM 評価 → verdict 成果物 → 機械検査** の 3 段リレーで「内容の良さ」を build harness に組み込む。
 
+**位置づけ (証拠の主張型直交)**: 静的レビュー (content-review / elegant-review / rubric) は **design claim (設計 adequacy) の正本**であり、静的設計ゲートの核 (実行 acceptance は Gate D)。behavioral claim (実行挙動: 自走完遂 / 入れ子 Skill / 対話 gate 越え / goal 達成) の受け入れ収束は **Gate D (`run-skill-live-trial`) の実走証拠のみ**を根拠とし、静的 verdict を流用しない (評価縮退の禁止)。ゲート帰属の正本は `$PLUGIN_ROOT/references/orchestrate-gate-pattern.md`。
+
 ## 役割境界 (機械 vs LLM)
 
 | 層 | 検査対象 | 実行場所 | 実装 |
@@ -106,13 +108,13 @@ Agent({
 
 ## hook 発火と queue
 
-Claude Code hook はレスポンス時間と副作用境界を守るため、**重い LLM 評価を直接実行しない**。hook は評価要求を queue 化し、ローカル build / pre-push が queue を消化して verdict を更新する。ただし `Stop` hook は「LLM を実行する」のではなく `{"decision":"block","reason":...}` を返して **Claude 本体に評価を実行させる**(トリガのみ・実行は本体)ことで、起動の確実性を hook 層でも担保する。この block は無限ループ防止のため `stop_hook_active` 継続中は発火せず、`skill-creator` 自身の変更は対象外、env `SKILL_CREATOR_NO_REVIEW_BLOCK=1` で opt-out できる。
+Claude Code hook はレスポンス時間と副作用境界を守るため、**重い LLM 評価を直接実行しない**。hook は評価要求を `eval-log/review-queue.jsonl` へ queue 化するが、この queue は**診断ログ** (いつ・何が評価要求されたかの追跡証跡) であり、自動 consumer は存在しない (build / pre-push が queue を読んで消化する機構は無い)。評価の強制は queue ではなく次の 2 層が担う: (1) `Stop` hook が `{"decision":"block","reason":...}` を返して **Claude 本体に評価を実行させる** (トリガのみ・実行は本体)、(2) pre-push / CI の `lint-content-review.py` が verdict の存在・PASS・SHA 一致を機械検査する (最終強制層)。Stop block は無限ループ防止のため `stop_hook_active` 継続中は発火せず、`skill-creator` 自身の変更は対象外 (代わりに stdout 通知のみ出す)、env `SKILL_CREATOR_NO_REVIEW_BLOCK=1` で opt-out できる。
 
 | Hook | 役割 |
 |----|----|
 | `PostToolUse:Skill` | `run-build-skill` / `delegate-codex-skill-review` 等の完了後、`check-review-trigger.py` を queue-only で起動し、対象 artifact と hook_trigger を評価要求として記録 |
 | `PostToolUse:Edit|Write` | SKILL.md / rubric / workflow-manifest 変更時に `check-review-trigger.py` を queue-only で起動し、stale verdict 再評価要求を記録 |
-| `Stop` | `check-review-trigger.py`。評価要求を `eval-log/review-queue.jsonl` へ queue 化し、他プラグインに未評価 or stale な変更 skill が残れば `decision:block` で `run-elegant-review` + `assign-skill-design-evaluator` の実行を Claude 本体へ差し戻す(確実起動)。`skill-creator` 自身は作業不能化を避けるため Stop block 対象外だが、CI/pre-push では self-review verdict を必須にする。変更20件以上なら推奨も stdout 出力 |
+| `Stop` | `check-review-trigger.py`。評価要求を `eval-log/review-queue.jsonl` へ queue 化 (診断ログ) し、他プラグインに未評価 or stale な変更 skill が残れば `decision:block` で `run-elegant-review` + `assign-skill-design-evaluator` の実行を Claude 本体へ差し戻す(確実起動)。`skill-creator` 自身は作業不能化を避けるため Stop block 対象外だが、pending が残る場合は stdout 通知 (block しない) を出し、CI/pre-push では self-review verdict を必須にする。変更20件以上なら推奨も stdout 出力 |
 | `pre-push` / CI | `lint-content-review.py` で verdict の存在・PASS・SHA一致を強制 (最終強制層) |
 
 Codex 委譲の完了も新しい自動実行層を増やさない。`delegate-codex-skill-review` はレスポンス JSON / patch / handoff を artifact として保存し、その artifact を既存の content-review verdict 契約に正規化して評価する。

@@ -115,6 +115,23 @@ REQUIRED_GATES = {"lint", "evaluator", "elegant_review", "governance"}
 REQUIRED_SCRIPT_CONTEXTS = {"A", "B", "C", "D", "E"}
 REQUIRED_GOVERNANCE_ROLES = {"proposer", "reviewer", "approver", "tooling"}
 
+# RTM (requirement_coverage): brief の非空フィールドのうち被覆宣言を要求しないもの。
+# 識別・分類・build フラグ配管系は他ゲート (lint-skill-name / brief schema enum /
+# variant_support クロスチェック / resolve-brief-to-category) が既に担保している。
+NON_REQUIREMENT_BRIEF_FIELDS = {
+    "skill_name", "prefix", "kind", "role_suffix", "hierarchy_level",
+    "output_language", "parameter_language_exception",
+    "source_url_or_path", "source_tier", "last_audited_date", "audit_trigger",
+    "mass_production_profile", "paradigm_profile",
+    "consult_build_knowledge", "with_subagent_hint", "with_hooks",
+}
+REQUIREMENT_DISPOSITIONS = {"mapped", "not_applicable"}
+# brief フィールドパス: 例 key_constraints[2] / boundary / knowledge_loop.pattern
+REQUIREMENT_ID_PATH_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(\[[0-9]+\])*(\.[A-Za-z_][A-Za-z0-9_]*(\[[0-9]+\])*)*$"
+)
+_BRIEF_BASENAME_RE = re.compile(r"skill-brief[^/]*\.json$")
+
 
 def _as_set(value: object) -> set[str]:
     if not isinstance(value, list):
@@ -340,7 +357,7 @@ def _fallback_feedback_contract_ssot():
     fc.FEEDBACK_LOOP_KINDS = {"run", "wrap", "delegate"}
     fc.FEEDBACK_SKIP_KINDS = {"ref", "assign"}
     fc.CRITERIA_ID_RE = _re.compile(r"^(IN|OUT|C)[0-9]+$")
-    fc.CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
+    fc.CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "live-trial", "human"}
     fc.validate_criteria = lambda criteria, **kw: [
         "WARN: feedback_contract_ssot.py 不在のため criteria 検証を skip しました "
         "(vendored copy が見つからない異常状態。plugins/skill-creator/scripts/ を確認)。"
@@ -371,8 +388,9 @@ def _validate_feedback_contract(data: dict) -> list[str]:
 
     loop 実行系(run/wrap/delegate)では criteria を1件以上、各 criterion に
     id/loop_scope/text/verify_by を要求し、inner と outer を最低各1件課す。
-    ref/assign(read-only 評価器)等は feedback_contract.skip_reason か
-    kind による N/A escape を許容(既存 optional_models の N/A パターンに倣う)。
+    skip_reason での N/A escape は FEEDBACK_SKIP_KINDS(ref/assign)限定で、
+    loop 実行系は skip_reason では免除されない(lint-feedback-contract.py と対称。
+    trace 側だけ緩いと lint が封鎖した escape 穴が build-time に復活する)。
     required トップ配列には足さないため、kind 不明の旧トレースは検査しない
     (任意トレース破壊回避)。
     """
@@ -389,23 +407,27 @@ def _validate_feedback_contract(data: dict) -> list[str]:
                 errs.append("feedback_contract.criteria must be array")
         return errs
 
-    # ここから loop 実行系: criteria 必須(skip_reason で N/A escape 可)。
+    # ここから loop 実行系: criteria 必須(skip_reason では免除不可)。
     if not isinstance(fc, dict):
         errs.append(
             f"feedback_contract is required when skill_kind={kind!r} "
             "(loop 実行系 run/wrap/delegate)。criteria を brief.goal/Checklist から "
-            "導出するか skip_reason を記載してください。"
+            f"導出してください (skip_reason escape は kind={sorted(FEEDBACK_SKIP_KINDS)} のみ)。"
         )
         return errs
 
     skip_reason = str(fc.get("skip_reason", "")).strip()
     criteria = fc.get("criteria")
     if not isinstance(criteria, list) or not criteria:
-        if skip_reason:
-            return errs  # N/A escape: 明示根拠あり
+        # skip_reason の N/A escape は SSOT の FEEDBACK_SKIP_KINDS(ref/assign)限定。
+        # ここへ到達する kind は FEEDBACK_LOOP_KINDS のみのため、loop 実行系の
+        # skip_reason は criteria 必須の免除にならない (lint-feedback-contract と対称)。
+        if skip_reason and kind in FEEDBACK_SKIP_KINDS:
+            return errs  # N/A escape: 明示根拠あり (ref/assign)
         errs.append(
             f"feedback_contract.criteria must list >=1 criterion when "
-            f"skill_kind={kind!r} (or set feedback_contract.skip_reason for N/A)"
+            f"skill_kind={kind!r} (skip_reason escape は "
+            f"kind={sorted(FEEDBACK_SKIP_KINDS)} 限定。criteria を整備すること)"
         )
         return errs
 
@@ -421,6 +443,162 @@ def _validate_feedback_contract(data: dict) -> list[str]:
             prefix="feedback_contract.criteria",
         )
     )
+    return errs
+
+
+# =============================================================
+# requirement_coverage (RTM: 要求トレーサビリティ) 検証
+# =============================================================
+
+def _find_brief_ref(data: dict) -> str | None:
+    """trace が参照する brief のパス文字列を返す (brief_path 優先、無ければ source_docs)。"""
+    bp = str(data.get("brief_path", "") or "").strip()
+    if bp:
+        return bp
+    docs = data.get("source_docs")
+    if isinstance(docs, list):
+        for doc in docs:
+            if isinstance(doc, str) and _BRIEF_BASENAME_RE.search(doc.replace("\\", "/")):
+                return doc
+    return None
+
+
+def _load_brief(brief_ref: str, trace_path: Path) -> dict | None:
+    """brief_ref を cwd 相対 → trace 隣接の順で解決し JSON dict を返す (失敗時 None)。"""
+    for cand in (Path(brief_ref), trace_path.parent / brief_ref):
+        try:
+            if cand.is_file():
+                loaded = json.loads(cand.read_text(encoding="utf-8"))
+                return loaded if isinstance(loaded, dict) else None
+        except (OSError, json.JSONDecodeError):
+            return None
+    return None
+
+
+def _resolve_brief_field(brief: dict, path: str) -> bool:
+    """requirement_id のフィールドパスが brief 上に実在するかを判定する。"""
+    cur: object = brief
+    for seg in path.split("."):
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)((?:\[[0-9]+\])*)$", seg)
+        if m is None or not isinstance(cur, dict) or m.group(1) not in cur:
+            return False
+        cur = cur[m.group(1)]
+        for idx in re.findall(r"\[([0-9]+)\]", m.group(2)):
+            if not isinstance(cur, list) or int(idx) >= len(cur):
+                return False
+            cur = cur[int(idx)]
+    return True
+
+
+def _requirement_bearing(value: object) -> bool:
+    """brief フィールドが被覆すべき要求を含むか (空文字/空配列/False/None は対象外)。"""
+    if isinstance(value, str):
+        return bool(value.strip())
+    return bool(value)
+
+
+def _validate_requirement_coverage(data: dict, trace_path: Path) -> list[str]:
+    """requirement_coverage (RTM) を brief と突合して機械検査する。
+
+    doc_coverage(参照知識の被覆)と対になる「ユーザー要望の被覆」検査。
+    - requirement_coverage あり: 構造検査 + brief の非空要求フィールドの被覆完全性を
+      exit 1 検査 (requirement_id の brief 上の実在も検査)
+    - requirement_coverage なし: 旧 trace / brief 非経由 build は skip。ただし trace が
+      brief を参照している場合は WARN (段階導入。exit code は変えない)
+    - 被覆の意味的正しさ (mapped_to が本当に要求を満たすか) は content-review = LLM 層
+      の責務で、ここでは検査しない (二層分離)。最小粒度は brief フィールド単位に固定し
+      文分解の水増し検査はしない。
+    """
+    errs: list[str] = []
+    rc = data.get("requirement_coverage")
+    brief_ref = _find_brief_ref(data)
+
+    if rc is None:
+        if brief_ref:
+            print(
+                f"WARN: trace は brief ({brief_ref}) を参照していますが requirement_coverage "
+                "がありません。brief の要求→生成物の写像証跡 (RTM) を記録してください "
+                "(段階導入につき FAIL にはしません)。",
+                file=sys.stderr,
+            )
+        return errs
+
+    if not isinstance(rc, list):
+        errs.append("requirement_coverage must be array")
+        return errs
+
+    # 構造検査 (brief 非解決時も常に実施)
+    seen_ids: set[str] = set()
+    valid_ids: list[tuple[int, str]] = []
+    for idx, item in enumerate(rc):
+        if not isinstance(item, dict):
+            errs.append(f"requirement_coverage[{idx}] must be object")
+            continue
+        rid = str(item.get("requirement_id", "")).strip()
+        if not REQUIREMENT_ID_PATH_RE.match(rid):
+            errs.append(
+                f"requirement_coverage[{idx}].requirement_id={rid!r} must be a brief "
+                "field path (例: key_constraints[2] / boundary / knowledge_loop.pattern)"
+            )
+        else:
+            if rid in seen_ids:
+                errs.append(
+                    f"requirement_coverage[{idx}].requirement_id={rid!r} duplicated"
+                )
+            seen_ids.add(rid)
+            valid_ids.append((idx, rid))
+        disposition = str(item.get("disposition", "")).strip()
+        if disposition not in REQUIREMENT_DISPOSITIONS:
+            errs.append(
+                f"requirement_coverage[{idx}].disposition={disposition!r} must be "
+                f"one of {sorted(REQUIREMENT_DISPOSITIONS)}"
+            )
+        if disposition == "mapped" and not _non_empty_string(item.get("mapped_to")):
+            errs.append(
+                f"requirement_coverage[{idx}].mapped_to is required when "
+                "disposition=mapped (反映先: feedback_contract.criteria の id / "
+                "SKILL.md 節 / 生成物パス等)"
+            )
+        if disposition == "not_applicable" and not _non_empty_string(item.get("reason")):
+            errs.append(
+                f"requirement_coverage[{idx}].reason is required when "
+                "disposition=not_applicable"
+            )
+
+    brief = _load_brief(brief_ref, trace_path) if brief_ref else None
+    if brief is None:
+        print(
+            "WARN: requirement_coverage はありますが brief を解決できないため "
+            f"(brief_ref={brief_ref!r}) requirement_id 実在と被覆完全性の検査を "
+            "skip しました (構造検査のみ実施)。",
+            file=sys.stderr,
+        )
+        return errs
+
+    # requirement_id の brief 上の実在検査 + 被覆フィールド集合の構築
+    covered_fields: set[str] = set()
+    for idx, rid in valid_ids:
+        if not _resolve_brief_field(brief, rid):
+            errs.append(
+                f"requirement_coverage[{idx}].requirement_id={rid!r} not found in "
+                f"brief ({brief_ref})"
+            )
+        else:
+            covered_fields.add(rid.split(".", 1)[0].split("[", 1)[0])
+
+    # 被覆完全性: brief の非空要求フィールド全てが mapped or not_applicable+reason で
+    # 被覆されていること (doc_coverage の required 差分検査と同型)
+    required_fields = {
+        k for k, v in brief.items()
+        if k not in NON_REQUIREMENT_BRIEF_FIELDS and _requirement_bearing(v)
+    }
+    missing = sorted(required_fields - covered_fields)
+    if missing:
+        errs.append(
+            "requirement_coverage does not cover all brief requirement fields: "
+            f"missing={missing} (各フィールドを disposition=mapped か "
+            "not_applicable+reason で被覆すること)"
+        )
     return errs
 
 
@@ -1205,6 +1383,8 @@ def main() -> int:
             for key in ("name", "meaning", "default", "required", "not_applicable_when", "source_trace"):
                 if key not in item or item.get(key) in ("", None):
                     errs.append(f"variable_contract[{idx}].{key} is empty")
+
+    errs.extend(_validate_requirement_coverage(data, path))
 
     if errs:
         for err in errs:

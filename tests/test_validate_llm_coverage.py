@@ -93,8 +93,27 @@ def test_non_loop_and_skip_reason_return_none(tmp_path):
     m.PLUGINS_DIR = tmp_path / "plugins"
     _make_skill(m.PLUGINS_DIR, "p", "ref-a", kind="ref")
     assert m.measure_skill("p", "ref-a", repo_tests="") is None
+    # loop-kind + skip_reason のみ (criteria 未整備) は ids 空により計測対象外。
+    # skip_reason 自体は計測 skip の根拠にしない (lint-feedback-contract と対称)。
     _make_skill(m.PLUGINS_DIR, "p", "run-skip", skip_reason="N/A")
     assert m.measure_skill("p", "run-skip", repo_tests="") is None
+
+
+def test_loop_kind_skip_reason_with_criteria_is_measured(tmp_path):
+    # criteria 整備済みなら skip_reason 残存でも計測される (skip_reason escape 封鎖)。
+    m = _load()
+    m.PLUGINS_DIR = tmp_path / "plugins"
+    d = _make_skill(m.PLUGINS_DIR, "p", "run-sr", criteria=("IN1", "OUT1"))
+    md = d / "SKILL.md"
+    md.write_text(
+        md.read_text(encoding="utf-8").replace(
+            "feedback_contract:\n", "feedback_contract:\n  skip_reason: 残存フィールド\n", 1
+        ),
+        encoding="utf-8",
+    )
+    r = m.measure_skill("p", "run-sr", repo_tests="")
+    assert r is not None
+    assert r["criteria_total"] == 2
 
 
 def test_main_warn_mode(tmp_path, monkeypatch, capsys):

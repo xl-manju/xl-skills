@@ -1,32 +1,28 @@
-"""全 loop-kind skill の feedback_contract.criteria を genuine 検証する単一 parametrized テスト。
+"""feedback_contract.criteria を持つ全実体 skill を genuine 検証する単一 parametrized テスト。
 
 各 criterion (id/loop_scope/verify_by) を実際に検証することで、ハーネス仕様
 (doc/harness-coverage-spec.md) の skills mechanical 軸 (criteria 被覆) を genuine に満たす。
 
-被覆認識: validate-llm-coverage.py は tests/**/*.py が「skill 名 + criterion id」を共に
-参照すると covered と計測する。本テストは pytest param id に "<plugin>/<skill>::<cid>" を
-埋め込み、かつ docstring/コメントで全 skill 名と id を列挙するため全 criterion が被覆される。
+被覆対象は **build_criteria_roster.discover() が動的探索する** (ハードコード表を持たない)。
+旧版のハードコード32本は量産された新 skill (company-master / notion-gmail-send /
+plugin-dev-planner / mf enrich・reconcile の計9本) を検証の死角に落としていた。
+動的探索により新規 loop-kind skill は生成された時点で自動的に本テストの対象になる。
+
+被覆認識: validate-llm-coverage.py は tests/**/*.py に「skill 名 + criterion id」が
+静的出現すると covered と計測する。動的探索では skill 名が本文に現れないため、
+機械生成名簿 criteria_roster.py (生成器: build_criteria_roster.py --write) が
+静的テキストを担う。discovery と名簿の乖離は test_roster_matches_discovery が
+fail-closed に検出する (新 skill 追加 → roster 未再生成なら CI が落ちる)。
 
 検証方針 (genuine, ダミー禁止):
   - inner (verify_by: lint/test/script): 当該 skill の SKILL.md/ディレクトリに対し決定論 lint
     (validate-frontmatter / lint-skill-tree / lint-feedback-contract) を subprocess 実行し exit 0。
   - outer (verify_by: elegant-review/evaluator): content-review/elegance-verdict.json が
     存在し verdict==PASS。criteria_evaluated に当該 id があれば追加で包含も assert。
-
-被覆対象 skill (32, plugin/skill):
-  contract-generator: run-contract-finalize / run-contract-generate / run-template-sync
-  mf-kessai-invoice-check: run-mf-invoice-check / run-mf-invoice-db-setup
-  prompt-creator: run-prompt-create / run-prompt-creator-7layer / run-prompt-elicit
-  skill-creator: delegate-codex-skill-review / run-build-skill / run-elegant-review /
-    run-goal-elicit / run-goal-seek / run-migrate-audit / run-plugin-package-check /
-    run-skill-create / run-skill-elicit / run-skill-feedback / run-skill-rename /
-    run-skill-rubric-governance / run-skill-update-notifier / wrap-git-commit-safe
-  skill-intake: run-intake-finalize / run-intake-interview / run-intake-kickoff /
-    run-intake-next-action / run-intake-option-catalog / run-intake-revise /
-    run-intake-visualize / assign-notion-fidelity-evaluator / run-notion-intake-publish / run-skill-intake
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -42,41 +38,22 @@ EVAL_LOG = ROOT / "eval-log"
 sys.path.insert(0, str(SCRIPTS))
 import feedback_contract_ssot as FC  # noqa: E402
 
-# (plugin, skill) — symlink でない実体 loop-kind skill。
-SKILLS = [
-    ("contract-generator", "run-contract-finalize"),
-    ("contract-generator", "run-contract-generate"),
-    ("contract-generator", "run-template-sync"),
-    ("mf-kessai-invoice-check", "run-mf-invoice-check"),
-    ("mf-kessai-invoice-check", "run-mf-invoice-db-setup"),
-    ("prompt-creator", "run-prompt-create"),
-    ("prompt-creator", "run-prompt-creator-7layer"),
-    ("prompt-creator", "run-prompt-elicit"),
-    ("skill-creator", "delegate-codex-skill-review"),
-    ("skill-creator", "run-build-skill"),
-    ("skill-creator", "run-elegant-review"),
-    ("skill-creator", "run-goal-elicit"),
-    ("skill-creator", "run-goal-seek"),
-    ("skill-creator", "run-migrate-audit"),
-    ("skill-creator", "run-plugin-package-check"),
-    ("skill-creator", "run-skill-create"),
-    ("skill-creator", "run-skill-elicit"),
-    ("skill-creator", "run-skill-feedback"),
-    ("skill-creator", "run-skill-rename"),
-    ("skill-creator", "run-skill-rubric-governance"),
-    ("skill-creator", "run-skill-update-notifier"),
-    ("skill-creator", "wrap-git-commit-safe"),
-    ("skill-intake", "run-intake-finalize"),
-    ("skill-intake", "run-intake-interview"),
-    ("skill-intake", "run-intake-kickoff"),
-    ("skill-intake", "run-intake-next-action"),
-    ("skill-intake", "run-intake-option-catalog"),
-    ("skill-intake", "run-intake-revise"),
-    ("skill-intake", "run-intake-visualize"),
-    ("skill-intake", "assign-notion-fidelity-evaluator"),
-    ("skill-intake", "run-notion-intake-publish"),
-    ("skill-intake", "run-skill-intake"),
-]
+
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_HERE = Path(__file__).resolve().parent
+ROSTER_MOD = _load("criteria_roster", _HERE / "criteria_roster.py")
+BUILDER = _load("build_criteria_roster", _HERE / "build_criteria_roster.py")
+
+# 探索正本は discover() (要素 = (plugin, skill, criterion ids))。
+# roster は llm-coverage 静的走査用の派生物。
+DISCOVERY: list[tuple[str, str, tuple[str, ...]]] = BUILDER.discover()
+SKILLS: list[tuple[str, str]] = [(p, s) for p, s, _ in DISCOVERY]
 
 
 def _criteria(plugin: str, skill: str) -> dict[str, dict]:
@@ -151,6 +128,29 @@ def test_criterion_is_genuinely_verified(plugin, skill, cid, crit):
             assert cid in evaluated  # 明示包含も genuine 確認
 
 
-def test_all_32_skills_covered():
-    """被覆対象が 32 skill であることを固定 (網羅性の回帰防止)。"""
-    assert len(SKILLS) == 32
+def test_roster_matches_discovery():
+    """機械生成名簿 == 動的探索 (量産追随の fail-closed ゲート)。
+
+    新 skill を生成して roster 未再生成なら本テストが落ち、llm-coverage の
+    静的被覆計測から漏れることを防ぐ。再生成:
+    python3 tests/criteria/build_criteria_roster.py --write
+    """
+    assert sorted(ROSTER_MOD.ROSTER) == sorted(DISCOVERY), (
+        "criteria_roster.py が discovery と乖離しています。"
+        "python3 tests/criteria/build_criteria_roster.py --write で再生成してください。"
+    )
+
+
+def test_discovery_includes_previously_escaped_skills():
+    """探索ロジック退行の番犬: 旧ハードコード表の死角だった skill 群を必ず含む。"""
+    got = set(SKILLS)
+    sentinels = {
+        ("company-master", "run-company-master-build"),
+        ("notion-gmail-send", "run-notion-gmail-send"),
+        ("plugin-dev-planner", "run-plugin-dev-plan"),
+        ("mf-kessai-invoice-check", "run-mf-invoice-reconcile"),
+        ("skill-creator", "run-build-skill"),
+        ("skill-intake", "assign-notion-fidelity-evaluator"),
+    }
+    missing = sentinels - got
+    assert not missing, f"discovery が既知対象を見失った: {sorted(missing)}"

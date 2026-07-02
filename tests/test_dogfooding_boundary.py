@@ -97,6 +97,26 @@ def test_asymmetry_holds(fc):
     assert not fc.is_content_review_exempt(p)
 
 
+def test_engine_skills_closure_is_ssot_frozenset(fc):
+    """エンジン閉包 (収束ポリシー/評価経路) の列挙は SSOT の frozenset のみ (散在禁止)。"""
+    assert isinstance(fc.ENGINE_SKILLS, frozenset)
+    assert fc.ENGINE_SKILLS == frozenset(
+        {"run-elegant-review", "run-skill-iter-improve", "run-skill-live-trial"}
+    )
+
+
+def test_requires_subject_copy_truth_table(fc):
+    """INV7: skill-creator×エンジン閉包の交差時のみ被験体コピー強制 (True)。"""
+    for engine in sorted(fc.ENGINE_SKILLS):
+        assert fc.requires_subject_copy("skill-creator", engine) is True
+    # 通常 skill は直接編集を維持 (False)
+    for normal in ("run-build-skill", "run-skill-feedback", ""):
+        assert fc.requires_subject_copy("skill-creator", normal) is False
+    # 他 plugin はエンジン名の skill でも False (交差条件は自己 plugin のみ)
+    for other in ("company-master", "mf-kessai-invoice-check", ""):
+        assert fc.requires_subject_copy(other, "run-elegant-review") is False
+
+
 # ────────────── (b-1) 判定用リテラルが consumer に残っていない ──────────────
 
 

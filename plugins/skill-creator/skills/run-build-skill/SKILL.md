@@ -80,18 +80,22 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       loop_scope: inner
       text: 生成 Capability が命名/構造/frontmatter/goal-seek/completeness/ssot lint と validate-build-trace を全て exit0 で通過する
       verify_by: lint
+      derived_from: [CL-1, CL-2, CL-3, CL-4, CL-7, CL-9, CL-10, CL-11]
     - id: IN2
       loop_scope: inner
       text: skill-build-trace.json が source_docs/doc_coverage/layer_decisions/reproducibility_gates を空欄なく記録している
       verify_by: script
+      derived_from: [CL-6]
     - id: OUT1
       loop_scope: outer
       text: fork した assign-skill-design-evaluator の score>=80 かつ high severity 0 件
       verify_by: evaluator
+      derived_from: [CL-5]
     - id: OUT2
       loop_scope: outer
       text: 生成物がユーザ brief の goal を最適反映し 30 思考法 elegance と 4 条件を満たす
       verify_by: elegant-review
+      derived_from: [CL-8]
 # context-budget (CD-005): 章一括ロード禁止 / max-reference-chapters: 3
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
@@ -132,7 +136,7 @@ audit-trigger: quarterly
 
 ### lint 系 (lint)
 
-12. P0 lint 4 種 + script-frontmatter + goal-seek + **ssot-duplication** + validate-build-trace を **manual-preflight** として実行 (28章: A/B 強制 gate と呼称分離)。`lint-ssot-duplication.py` は編集前に対象プラグイン全体を重複解析する事前ゲート (両方残し禁止・上書き一本化の判断材料)。検出は **DUP-SCHEMA-ID** (同一 `$id`=正本曖昧, **exit1 で fail**) / **REDIRECT-FAT-BODY** / **DUP-REQUIRED-SET** / **DUP-PASSAGE** (後 3 者は smell、build 時は warn・CI の `--strict` で fail 化) の 4 種。build Step4 は早期警告、強制は `governance-check.yml` の `--strict` 実行が担う。
+12. **manual-preflight の lint 集合の正本は `$PLUGIN_ROOT/references/lint-matrix.json`** (context=build-preflight。Step 4 の bash ブロックはその射影で、乖離は `lint-matrix-sync.py` が CI で fail。28章: A/B 強制 gate と呼称分離)。`lint-ssot-duplication.py` は編集前に対象プラグイン全体を重複解析する事前ゲート (両方残し禁止・上書き一本化の判断材料)。検出は **DUP-SCHEMA-ID** (同一 `$id`=正本曖昧, **exit1 で fail**) / **REDIRECT-FAT-BODY** / **DUP-REQUIRED-SET** / **DUP-PASSAGE** (後 3 者は smell、build 時は warn・CI の `--strict` で fail 化) の 4 種。build Step4 は早期警告、強制は `governance-check.yml` の `--strict` 実行が担う。
 13. `validate-build-trace.py` が `source_docs` / `build_flow_coverage` / `doc_coverage` / `layer_decisions` / `reproducibility_gates` の空欄・未読・N/A 理由なしを拒否。
 14. context 予算 (CD-005): 同時 Read は 3 章まで。`references/resource-map.yaml` で task category → 章選択。
 15. ch15/ch16 公式参照確認は必須 (Step 1 冒頭)。
@@ -159,21 +163,21 @@ audit-trigger: quarterly
 
 ### 完了チェックリスト (Checklist)
 
-- [ ] kind を 7 種から確定し、commonCore frontmatter (必須集合の正本 = `references/capability-manifest.schema.json#/definitions/commonCore.required`: `name`/`description`/`kind`/`version`/`owner`) を生成した
-- [ ] 本文 300 行以下・description は発動条件のみ・trigger 2-3 個 (08章)
-- [ ] kind 別必須サポート資産 (prompts/references/schemas/scripts) を実在・共有正本参照・`completeness_exempt` 理由付き宣言のいずれかで満たした (`lint-skill-completeness.py` exit0)
-- [ ] P0 lint 群 + `lint-goal-seek.py` + `lint-skill-completeness.py` + `lint-ssot-duplication.py` + `validate-build-trace.py` が exit 0
-- [ ] fork した `assign-skill-design-evaluator` の score>=80 かつ high=0
-- [ ] `eval-log/skill-build-trace.json` に `source_docs`/`doc_coverage`/`layer_decisions`/`reproducibility_gates` を空欄なく記録 (未使用は N/A 理由付き)
-- [ ] (loop 実行系 run/wrap/delegate のみ) `feedback_contract.criteria` を `brief.goal`/完了チェックリストから導出し inner/outer 各1件以上を trace に記録 (ref/assign は `feedback_contract.skip_reason` で N/A)
-- [ ] **ハーネス・カバレッジ仕様 (`doc/harness-coverage-spec.md`) を kind 別に満たす** (毎回必達):
+- [ ] kind を 7 種から確定し、commonCore frontmatter (必須集合の正本 = `references/capability-manifest.schema.json#/definitions/commonCore.required`: `name`/`description`/`kind`/`version`/`owner`) を生成した <!-- CL-1 -->
+- [ ] 本文 300 行以下・description は発動条件のみ・trigger 2-3 個 (08章) <!-- CL-2 -->
+- [ ] kind 別必須サポート資産 (prompts/references/schemas/scripts) を実在・共有正本参照・`completeness_exempt` 理由付き宣言のいずれかで満たした (`lint-skill-completeness.py` exit0) <!-- CL-3 -->
+- [ ] P0 lint 群 + `lint-goal-seek.py` + `lint-skill-completeness.py` + `lint-ssot-duplication.py` + `validate-build-trace.py` が exit 0 <!-- CL-4 -->
+- [ ] fork した `assign-skill-design-evaluator` の score>=80 かつ high=0 <!-- CL-5 -->
+- [ ] `eval-log/skill-build-trace.json` に `source_docs`/`doc_coverage`/`layer_decisions`/`reproducibility_gates` を空欄なく記録 (未使用は N/A 理由付き)。brief 経由 build は `requirement_coverage` (RTM) で brief 非空フィールドの被覆を宣言 <!-- CL-6 -->
+- [ ] (loop 実行系 run/wrap/delegate のみ) `feedback_contract.criteria` を `brief.goal`/完了チェックリストから導出し inner/outer 各1件以上を trace に記録 (ref/assign は `feedback_contract.skip_reason` で N/A)。各 criterion は `derived_from: [CL-n]` で出所チェックリスト項目を宣言 (`lint-criteria-provenance.py` が被覆を検査) <!-- CL-7 -->
+- [ ] **ハーネス・カバレッジ仕様 (`doc/harness-coverage-spec.md`) を kind 別に満たす** (毎回必達): <!-- CL-8 -->
   - 同梱 `scripts/` があれば `tests/` に機能テストを追加し当該スクリプト行カバレッジ ≥80% (network/secret 系は monkeypatch で副作用遮断し純関数・分岐・エラー経路を genuine に網羅)
   - loop 実行系: criteria 検証テスト (inner=lint exit0 / outer=verdict PASS) で全 criterion を被覆 (`validate-llm-coverage.py --gate-new --since <today>` を ≥80% で通す)
   - **ref (辞書型/参照型): source-traceability を検証する** — `source`/`source-tier`/`last-audited`/`audit-trigger` が埋まり、参照内容が `source` と整合することを `eval-log/coverage/skills/<plugin>__<skill>.json` の ref-review verdict (verdict=PASS) で記録。ref は behavioral criteria を持たない代わりにこの source 検証が必須カバレッジ (除外でなく ref 専用パス)
   - assign: evaluator verdict、その他 kind: content-review verdict を `eval-log/coverage/` に記録
-- [ ] (`--with-*` 指定時のみ) subagent/prompt/evaluator/hook 生成と整合 lint を完了
-- [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007)
-- [ ] (kind=plugin で外部依存(API/DB/秘密)の疎通確認手順が要る場合のみ) install位置を `__file__` 相対で自己解決する doctor 同梱 + 疎通確認はチャット委譲(`/<name>-doctor` or 自然文) + 生 `$CLAUDE_PLUGIN_ROOT` 非露出 (README **及び `references/*-setup.md` 等 setup 手順**の bash に裸変数/repo相対を書かず fallback 形 `${CLAUDE_PLUGIN_ROOT:-plugins/<name>}` へ降格。番号付きリスト内の字下げフェンスも同様)。`scripts/lint-readme-plugin-root-portability.py` exit0。正本 `ref-cross-platform-runtime/references/runtime-portability.md` 層2
+- [ ] `eval-log/build-plan.json` (`validate-build-plan.py --brief ... --out eval-log/build-plan.json` で brief から決定論導出) の `flags` が true の subagent/prompt/evaluator/hook/knowledge を全て生成し、`--check` が exit 0 (フラグの要否をモデル判断で省略しない) <!-- CL-9 -->
+- [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007) <!-- CL-10 -->
+- [ ] (kind=plugin で外部依存(API/DB/秘密)の疎通確認手順が要る場合のみ) install位置を `__file__` 相対で自己解決する doctor 同梱 + 疎通確認はチャット委譲(`/<name>-doctor` or 自然文) + 生 `$CLAUDE_PLUGIN_ROOT` 非露出 (README **及び `references/*-setup.md` 等 setup 手順**の bash に裸変数/repo相対を書かず fallback 形 `${CLAUDE_PLUGIN_ROOT:-plugins/<name>}` へ降格。番号付きリスト内の字下げフェンスも同様)。`scripts/lint-readme-plugin-root-portability.py` exit0。正本 `ref-cross-platform-runtime/references/runtime-portability.md` 層2 <!-- CL-11 -->
 
 ### ゴールシークループ
 
@@ -192,17 +196,35 @@ audit-trigger: quarterly
 本 Skill は **Capability 7 kind** (skill / agent / hook / command / plugin-composition / prompt / workflow) を統一抽象として扱う。以下 4 段で分岐する。
 
 1. **kind 確認**: 引数 `kind` または `brief.kind` を確定。既定は `skill`。未指定なら Step 1 のヒアリングで決める。7 kind 以外は exit 1。
-2. **対応 skeleton 選択**: kind → skeleton/出力先の対応は `schemas/template-selection.schema.json#/selection_rules` の `capability_kind_map` を正本とする (本文に再掲しない=SSOT)。人間可読の対応表+検証コマンドは `references/build-steps.md` §I.1。
+2. **対応 skeleton 選択**: kind 語彙の正本は `schemas/build-flags.schema.json#/properties/capability_kind` (7値 enum)、kind → skeleton/出力先/kind別lint の対応表の正本は `references/build-steps.md` §I.1 (本文に再掲しない=SSOT)。kind=skill 配下のサブ種別 5 値の template 選択は `schemas/template-selection.schema.json#/selection_rules` に従う。
 3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
-4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint は warn 出力に留め、Hook/CI で再実行する。
+4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint (command/prompt/workflow) は warn 出力に留め、Hook/CI で再実行する (`lint-plugin-composition.py` は整備済・CI 配線済)。
 
-> 既存「Skill のみ作る」呼び出し (`kind=run|ref|assign|wrap|delegate`) は **kind=skill 配下のサブ種別** として後方互換維持。引数なしまたは `kind` が 5 択のいずれかなら従来通り Step 1 以降の skill 専用フローへ直行する。
+> 既存「Skill のみ作る」呼び出し (`kind=run|ref|assign|wrap|delegate`) は **kind=skill 配下のサブ種別** として後方互換維持。引数なしまたは `kind` が 5 択のいずれかなら従来通り Step 1 以降の skill 専用フローへ直行する。適用範囲の宣言: `workflow-manifest.json` の phase `init-pre` (本 Step) のみ Capability 7 kind 全てに適用され、`init` 以降の phase の `kind_filter` はこのサブ種別 5 値 (= kind=skill の場合) を指す。非 skill kind は init-pre で skeleton / kind 別 lint を確定し、scaffold 相当の生成 + Step 4 の kind 別 lint で完結する。
 
 ### Step 1: 要求ヒアリング (phase: init)
 
 > **[MANDATORY]** 冒頭で `Skill(ref-yaml-spec-fetcher)` を呼び `yaml-spec-cache.md` を Read。`validate-build-trace.py` が 15/16 章未実施を exit 1 で拒否する。
 
-`resolve-skill-dirs.py` で `$PLUGIN_ROOT` / `$SKILL_DIR` / `$OUT_BASE` を確定する。`$SKILL_DIR` は skill-creator plugin 内資産、`$OUT_BASE` は生成先であり、両者を同一パスと仮定しない。続けて `references/resource-map.yaml` で task category 選択 → 01章 5 要素 + 01a Step2 実行レイヤー判断表を埋める。詳細は `references/build-steps.md`。loop 実行系 (run/wrap/delegate) はこの時点で `brief.goal` と完了チェックリストから per-skill 評価基準 (`feedback_contract.criteria`) を test-first で導出し、Step 3.5 で trace に固定する (criteria は goal-seek checklist と同源)。
+`resolve-skill-dirs.py` で `$PLUGIN_ROOT` / `$SKILL_DIR` / `$OUT_BASE` を確定する。`$SKILL_DIR` は skill-creator plugin 内資産、`$OUT_BASE` は生成先であり、両者を同一パスと仮定しない。続けて `references/resource-map.yaml` で task category 選択 → 01章 5 要素 + 01a Step2 実行レイヤー判断表を埋める。詳細は `references/build-steps.md`。
+
+**蓄積知見の参照 (Loop B / build-time)**: `brief.consult_build_knowledge` が true (既定) のとき、skill-creator 自身の蓄積知見を検索し、過去の設計判断・落とし穴回避を初期設計に反映する (`knowledge/knowledge-index.json` の consult 宣言と対。`run-skill-elicit` の同名節と同形):
+
+```bash
+# パスはプロジェクトルート基準 (eval-log/ 出力と同じ規約)
+python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py \
+  --dir plugins/skill-creator/knowledge/ --query "<brief.goal と kind の要約>" --limit 5
+```
+
+検索 0 件・スクリプト不在でも build を止めない。採否は trace の `layer_decisions` に記録する。loop 実行系 (run/wrap/delegate) はこの時点で `brief.goal` と完了チェックリストから per-skill 評価基準 (`feedback_contract.criteria`) を test-first で導出し、Step 3.5 で trace に固定する (criteria は goal-seek checklist と同源)。
+
+**build-plan の決定論導出 (フラグはモデルが決めない)**: brief 確定直後に必須成果物集合を機械導出し、以降はこの plan を作業リストの正本とする。`--with-*` の要否・必須セクション・必須資産は brief の非空フィールドとテンプレート見出しから純関数で決まる (モデルの記憶・判断に依存しない):
+
+```bash
+python3 "$SKILL_DIR/scripts/validate-build-plan.py" --brief eval-log/skill-brief.json --out eval-log/build-plan.json
+```
+
+充足検査は Step 4 の `--check` が行う (欠落は exit 1)。brief 無しのフラグ明示 build は NOTE 付き skip。
 
 ### Step 2: テンプレ展開 / 既存読込 (phase: scaffold)
 
@@ -212,13 +234,17 @@ kind → template 選択は `prompts/R3-template-select.md` (R3) と `schemas/te
 
 run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/articles-full.md`、assign 系は `references/rubric.json` / `scripts/render-findings-score.py`。本文 100 行超は `references/` へ追い出す。
 
+**投入系 (外部システムへ書込む skill) の必須参照**: `brief.external_systems` に書込み先 (Notion/DB/API 等) がある場合、`Skill(ref-output-routing)` の Sink Contract (schema SSOT / 冪等 upsert / fail-closed) を Read し、その不変条件を `feedback_contract.criteria` と `deterministic_checks` へ反映する (build-plan の notes が要求。モデル知識での再発明は過去に品質ばらつきを生んだ既知の穴)。
+
 ### Step 3.5: 再現性トレース生成 (phase: trace-write)
 
 `eval-log/skill-build-trace.json` を `schemas/skill-build-trace.schema.json` と `prompts/R4-trace-write.md` (R4) に従って章別記入。loop 実行系 (run/wrap/delegate) は Step 1 で導出した `feedback_contract` (inner/outer criteria を id/loop_scope/text/verify_by で記述) を **生成 SKILL.md frontmatter と trace の両方** に固定する。frontmatter は量産先が携帯する評価基準の正本、trace は再現性証跡。ref/assign は `feedback_contract.skip_reason` で N/A escape。`validate-build-trace.py` と `lint-feedback-contract.py` が kind-aware に gating する。
 
+**要望カバレッジ (RTM)**: brief 経由 build は `requirement_coverage[]` を trace に記録する。brief の非空要求フィールド (例 `key_constraints[2]` / `boundary`) ごとに `disposition: mapped` (+`mapped_to`=反映先 criteria id/生成物) か `not_applicable` (+`reason`) を宣言する。被覆完全性と requirement_id 実在は `validate-build-trace.py` が機械検査し (段階導入: coverage 無しは WARN)、写像の意味的妥当性は Step 12 content-review (LLM 層) が判定する。
+
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
-> `workflow-manifest.json` は**宣言的リソース** (schema/prompt/reference) の正本。**命令的 lint コマンド**は SKILL.md Step4 + CI が正本管理する (責務分離)。lint を manifest に resource 登録はしない。
+> lint 集合の正本は `$PLUGIN_ROOT/references/lint-matrix.json` (context: build-preflight / p0-gate / ci)。下記 bash ブロックはその **build-preflight 射影**であり、集合の乖離は `plugins/skill-governance-lint/scripts/lint-matrix-sync.py` が CI で fail させる (lint の増減は matrix を先に更新)。`workflow-manifest.json` は宣言的リソース (schema/prompt/reference) の正本で、lint を manifest に resource 登録はしない (責務分離)。
 
 ```bash
 GOV_LINT_DIR="$(dirname "$PLUGIN_ROOT")/skill-governance-lint"
@@ -233,6 +259,7 @@ python3 scripts/lint-feedback-contract.py --changed-only  # loop実行系(run/wr
 python3 "$SKILL_DIR/scripts/lint-ssot-duplication.py" --plugin-dir "$(dirname "$OUT_BASE")"  # SSOT 重複(正本曖昧/redirect 太り/required 二重定義/本文再掲)を検出。DUP-SCHEMA-ID は exit 1
 python3 "$SKILL_DIR/scripts/lint-knowledge-loop.py" "$OUT_BASE/$SKILL_NAME"  # knowledge/ がある場合のみ KL-001..007 を検査(無ければ exit0 skip)。既定 warn、CI の --strict で fail 化
 python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
+python3 "$SKILL_DIR/scripts/validate-build-plan.py" --brief eval-log/skill-brief.json --check --skill-dir "$OUT_BASE/$SKILL_NAME"  # brief から決定論導出した必須成果物 (flags/セクション/資産) のディスク実体を突合。brief 不在は NOTE skip
 python3 scripts/lint-readme-plugin-root-portability.py  # kind=plugin / README 更新時。裸 $CLAUDE_PLUGIN_ROOT・repo相対直書き・os.environ添字を検出
 ```
 
@@ -242,9 +269,9 @@ python3 scripts/lint-readme-plugin-root-portability.py  # kind=plugin / README �
 
 `Skill(assign-skill-design-evaluator) target=$OUT_BASE/$SKILL_NAME` を fork 呼び、`{"score":N,"findings":[...]}` を受領。`skill-build-trace.json` も評価対象に含め、01/01a / 26-28 章漏れを C2、rubric 自己編集を C1/C4 失敗として扱う。
 
-### Step 6: ゲート判定
+### Step 6: ゲート判定 (phase: trace-write)
 
-score >= 80 かつ high=0 で完了。それ以外は findings を本文に反映し Step 4 へ戻る (最大 3 周)。
+score >= 80 かつ high=0 で完了。それ以外は findings を本文に反映し Step 4 へ戻る (最大 3 周)。判定結果と差し戻し履歴は trace (`reproducibility_gates`) に記録する。
 
 ### Step 7: subagent 派生 (phase: prompts-emit, `--with-subagent`)
 
@@ -295,9 +322,9 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 - **lint**: `scripts/lint-feedback-protocol.py --strict` が R1-R7 (schema/SKILL.md/upsert 三者整合 + R6 周知 + R7 配備存在) を CI で検査。違反時 merge ブロック。
 - **opt-out**: `brief.no_feedback_loop: true` または CLI `--no-feedback-loop` のみ。trace.layer_decisions に理由必須。skill-creator 自身は自動除外。
 
-### Step 12: 内容 adequacy LLM 評価 (content-review, default-ON / ハーネスの核)
+### Step 12: 内容 adequacy LLM 評価 (content-review, default-ON / 静的設計ゲートの核)
 
-機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。ローカル build 完了時に `run-elegant-review` (reset→3並列分析→改善) + `assign-skill-design-evaluator` を必須起動し verdict を `eval-log/<plugin>/<skill>/content-review/` に保存。hook は重い LLM を直接実行せず queue 化のみ・CI/pre-push の `scripts/lint-content-review.py --changed-only` が成果物存在 + verdict=PASS + `target.skill_md_sha256` 一致を機械検査する。`--skip-content-review` 明示時のみ skip (trace + `feedback_contract.skip_reason` 必須)。**`feedback_contract` の inner/outer × 正負フィードバック・有界反復 (max_iter=3 超過で `INCOMPLETE`+human_review)・hook queue/Stop block の詳細正本は `references/content-review-protocol.md`** (本文に再掲しない＝SSOT)。
+機械 lint は「ひな形通り」しか見ない。**内容がユーザー要望を最適反映しているか** は LLM 評価で担保する。ローカル build 完了時に `run-elegant-review` (reset→3並列分析→改善) + `assign-skill-design-evaluator` を必須起動し verdict を `eval-log/<plugin>/<skill>/content-review/` に保存。hook は重い LLM を直接実行せず queue 化のみ・CI/pre-push の `scripts/lint-content-review.py --changed-only` が成果物存在 + verdict=PASS + `target.skill_md_sha256` 一致を機械検査する。`--skip-content-review` 明示時のみ skip (trace + `feedback_contract.skip_reason` 必須)。**`feedback_contract` の inner/outer × 正負フィードバック・有界反復 (max_iter=3 超過で `INCOMPLETE`+human_review)・hook queue/Stop block の詳細正本は `references/content-review-protocol.md`** (本文に再掲しない＝SSOT)。本 Step は design claim (設計 adequacy) の静的判定であり、behavioral claim (実行挙動) の受け入れは Gate D が実走証拠で担う (正本 `$PLUGIN_ROOT/references/orchestrate-gate-pattern.md`)。
 
 ## 配置先
 

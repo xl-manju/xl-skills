@@ -38,20 +38,24 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
   criteria:
     - id: IN1
       loop_scope: inner
-      text: P0 lint 8本と manifest-contents が全て exit0 で通り TODO や未展開プレースホルダや英語仮文の残存が無い(パラメーター名を除く)
+      text: workflow-manifest の p0-lint.commands 全件 (manifest-contents 含む) が exit0 で通り TODO や未展開プレースホルダや英語仮文の残存が無い(パラメーター名を除く)
       verify_by: lint
+      derived_from: [CL-7]
     - id: IN2
       loop_scope: inner
       text: 各ゲート通過時の handoff JSON と build-trace JSON が schemas 配下の正本スキーマに準拠し章 coverage を空欄なく記録している
       verify_by: script
+      derived_from: [CL-3, CL-12]
     - id: OUT1
       loop_scope: outer
       text: 全ゲートでユーザー承認前に自動前進せず evaluator と governance reviewer を必ず context fork で起動している
       verify_by: elegant-review
+      derived_from: [CL-1, CL-2, CL-8, CL-11]
     - id: OUT2
       loop_scope: outer
       text: fork した assign-skill-design-evaluator の findings に FAIL 残存が無く新規や30行超変更時は elegant-review の C1-C4 が全 PASS
       verify_by: evaluator
+      derived_from: [CL-9, CL-10]
 # auto-backfilled by backfill-source-tier.py (doc/21)
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
@@ -131,25 +135,25 @@ audit-trigger: quarterly
 
 ### 完了チェックリスト (Checklist)
 
-- [ ] `eval-log/skill-brief.json` が `schemas/skill-brief.schema.json` 準拠で生成され、Gate 1 承認済み
-- [ ] Notion 指定ありの場合、`python3 plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py --dir output/<hint> --page-url <url>` が exit 0。未公開・page_id 不一致・URL 欠落なら Gate 1 で停止し、skill 本体生成へ進んでいない
-- [ ] `<skill_name>/` 一式 (SKILL.md + references/ + scripts/) が `Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])` で生成され、`eval-log/skill-build-trace.json` が `schemas/build-trace.schema.json` 準拠・章 coverage 全 PASS/N/A/skip 理由付き
-- [ ] **新規 plugin の場合** `python3 scripts/validate-plugin-completeness.py --fix` 実行済みで、`marketplace.json` plugins[] + `bundles.json` (`bundle_targets`) へ append-only 登録され、検出モード (`validate-plugin-completeness.py`) が exit 0。プロジェクト固有 (横展開しない) は未登録理由がレポートに記録されている
-- [ ] 他 plugin リソースを呼ぶ場合 `.claude-plugin/bundles.json` (`xl-skills-full`/`-minimal`/`-intake`) 登録済み (上記 `--fix` が `bundle_targets` を読み自動 append)。不要なら理由がレポートにある (理由なき未登録は rubric 違反)
-- [ ] (legacy manifest.json 形式のみ) plugin/marketplace 登録が Gate 2.5 承認後 `--apply` 済み (`build-manifest-registration-plan.py`)
-- [ ] P0 lint 8 本 + manifest-contents が全 exit 0 (`workflow-manifest.json phases[id=p0-lint].commands`)。`TODO`/未展開 `{{...}}`/英語仮文の残存なし (パラメーター名除く)
-- [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み
-- [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし
-- [ ] 新規 or >30 行変更時、`run-elegant-review` (context:fork) で C1-C4 全 PASS。PASS 時 `eval-log/pattern-feedback.json` に pattern_ref_candidates/new_patterns/mass_production_risk を提案保存
-- [ ] governance 承認済み: 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) を `workflow-manifest.json` の `phases[id=governance].auto_approve_conditions` で機械評価し、全充足で自動承認。条件値の正本は repo-root `references/governance-params.json` (27章§11 パラメータ正本、gitignore。未配備なら `references/governance-params.json.example` から provision。不在時は graceful degrade=手動承認フロー)。不充足なら `run-skill-rubric-governance` 経由 (`prompts/R3-governance-decide.md` R3)。Gate 4 承認済み
-- [ ] 各ゲート通過時に `eval-log/handoff-<step>.json` が `schemas/handoff.schema.json` 準拠で保存されている
-- [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/open_questions) が日本語本文で提示されている (パラメーター名のみ英語)
+- [ ] `eval-log/skill-brief.json` が `schemas/skill-brief.schema.json` 準拠で生成され、Gate 1 承認済み <!-- CL-1 -->
+- [ ] Notion 指定ありの場合、`python3 plugins/skill-creator/skills/run-skill-create/scripts/validate-intake-publish-ready.py --dir output/<hint> --page-url <url>` が exit 0。未公開・page_id 不一致・URL 欠落なら Gate 1 で停止し、skill 本体生成へ進んでいない <!-- CL-2 -->
+- [ ] `<skill_name>/` 一式 (SKILL.md + references/ + scripts/) が `Skill(run-build-skill, args=[skill_name, kind, --mode={mode}])` で生成され、`eval-log/skill-build-trace.json` が `schemas/build-trace.schema.json` 準拠・章 coverage 全 PASS/N/A/skip 理由付き <!-- CL-3 -->
+- [ ] **新規 plugin の場合** `python3 scripts/validate-plugin-completeness.py --fix` 実行済みで、`marketplace.json` plugins[] + `bundles.json` (`bundle_targets`) へ append-only 登録され、検出モード (`validate-plugin-completeness.py`) が exit 0。プロジェクト固有 (横展開しない) は未登録理由がレポートに記録されている <!-- CL-4 exempt: 登録の運用操作項目。validate-plugin-completeness.py が機械検査し評価 criteria の対象外 -->
+- [ ] 他 plugin リソースを呼ぶ場合 `.claude-plugin/bundles.json` (`xl-skills-full`/`-minimal`/`-intake`) 登録済み (上記 `--fix` が `bundle_targets` を読み自動 append)。不要なら理由がレポートにある (理由なき未登録は rubric 違反) <!-- CL-5 exempt: 登録の運用操作項目。validate-plugin-completeness.py が機械検査し評価 criteria の対象外 -->
+- [ ] (legacy manifest.json 形式のみ) plugin/marketplace 登録が Gate 2.5 承認後 `--apply` 済み (`build-manifest-registration-plan.py`) <!-- CL-6 exempt: legacy 経路の条件付き運用項目 -->
+- [ ] `workflow-manifest.json` の `phases[id=p0-lint].commands` 全件 (lint-manifest-contents 含む) が exit 0。`TODO`/未展開 `{{...}}`/英語仮文の残存なし (パラメーター名除く) <!-- CL-7 -->
+- [ ] Gate 2 で `git diff <skill_path>` + build-trace を提示し承認済み <!-- CL-8 -->
+- [ ] `assign-skill-design-evaluator` (context:fork) の `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠) が FAIL 残存なし <!-- CL-9 -->
+- [ ] 新規 or >30 行変更時、`run-elegant-review` (context:fork) で C1-C4 全 PASS。PASS 時 `eval-log/pattern-feedback.json` に pattern_ref_candidates/new_patterns/mass_production_risk を提案保存 <!-- CL-10 -->
+- [ ] governance 承認済み: 4 条件 (solo=true/安定版凍結/newly_failing=0/LLM-reviewer pass) を `workflow-manifest.json` の `phases[id=governance].auto_approve_conditions` で機械評価し、全充足で自動承認。条件値の正本は repo-root `references/governance-params.json` (27章§11 パラメータ正本、gitignore。未配備なら `references/governance-params.json.example` から provision。不在時は graceful degrade=手動承認フロー)。不充足なら `run-skill-rubric-governance` 経由 (`prompts/R3-governance-decide.md` R3)。Gate 4 承認済み <!-- CL-11 -->
+- [ ] 各ゲート通過時に `eval-log/handoff-<step>.json` が `schemas/handoff.schema.json` 準拠で保存されている <!-- CL-12 -->
+- [ ] 完了レポート (下記項目: mode/gates_passed/creator_kit_registration/evaluator_result/elegant_review/governance/open_questions) が日本語本文で提示されている (パラメーター名のみ英語) <!-- CL-13 exempt: レポート提示の運用項目。完了レポート契約は本文で規定済み -->
 
 ### ゴールシークループ
 
 正本 `../run-build-skill/references/goal-seek-paradigm.md` の 6 ステップ (現状評価/手順生成/実行/検証/Anchor Step/反復) に従う。本スキル固有の差分:
 
-- **未達評価の単位はゲート**: Gate 1→2→2.5→3→4 を順に「未承認」とみなして都度埋める。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/R2-gate-review.md`)。
+- **未達評価の単位はゲート**: `workflow-manifest.json` の `gate_order` 順に「未承認」とみなして都度埋める (Gate 番号順の直書き禁止、順序正本は manifest)。ゲート前で必ず止まりユーザー承認を取る (自動推測禁止、AskUserQuestion 経由 `prompts/R2-gate-review.md`)。
 - **委譲先 (子 Skill)**: `run-skill-elicit` / `run-build-skill` / `assign-skill-design-evaluator` / `run-elegant-review` / `run-skill-rubric-governance`。Notion 指定ありの非技術者 intake は `skill-intake` 完了証跡を先に検証する。本スキルは制御のみ、各子が自設計書を参照。
 - **context:fork 必須**: evaluator / elegant-review / governance reviewer は必ず fork で起動 (Sycophancy 防止)。
 - **差し戻し**: P0 lint fail または evaluator/elegant FAIL なら `run-build-skill` 再実行へ戻す (最大 3 周)。`--fast` 判定・elegant 起動判定は `scripts/evaluate-create-gates.py` で機械決定 (条件不一致は黙って通常フロー)。

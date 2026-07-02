@@ -212,6 +212,11 @@ def lint_one(root: Path) -> list[str]:
             continue
         if p.is_dir():
             if len(rel.parts) > 1:
+                # examples/ 配下は生成出力の見本 (完成例) であり、複数ファイル出力を持つ
+                # skill では出力ツリー構造の再現が本質。templates/ skip と同一の論拠で
+                # 構造検査対象外 (ファイル拡張子検査 第8-11条 は維持)
+                if rel.parts[0] == "examples":
+                    continue
                 if tuple(rel.parts) not in ALLOWED_NESTED_DIRS:
                     errs.append(f"第13条違反: nested dir '{rel}'")
             elif rel.parts[0] not in ALLOWED_DIRS and rel.parts[0] != ".":

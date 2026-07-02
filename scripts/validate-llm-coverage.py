@@ -139,8 +139,9 @@ def measure_skill(plugin: str, skill: str, repo_tests: str) -> dict | None:
     fc = FC.extract_frontmatter_feedback_contract(text)
     if not isinstance(fc, dict):
         return None
-    if str(fc.get("skip_reason", "")).strip():
-        return None  # N/A escape
+    # skip_reason は計測 skip の根拠にしない (N/A escape は FEEDBACK_SKIP_KINDS=ref/assign
+    # 限定で、それらは上の LOOP_KINDS 判定で除外済み。lint-feedback-contract と対称)。
+    # criteria 未整備の loop-kind は下の ids 空判定で計測対象外になる。
     ids = sorted(FC.criteria_ids(fc.get("criteria")))
     if not ids:
         return None

@@ -25,6 +25,8 @@ brief.kind ∈ {run, ref, assign, delegate, wrap}
 
 skill-creator 自身は自動除外 (正本側への自己コピーは不要)。
 
+acceptance_tier=live と導出される新規 skill (正本 `scripts/validate-build-plan.py` の `derive_acceptance_tier`) は OUT criteria に `verify_by: live-trial` を最低1件携帯すること — repo-root `scripts/lint-feedback-contract.py` が ratchet 強制する (baseline=`scripts/live-trial-criteria-baseline.json` は既存 skill の WARN 免除のみで追記禁止)。
+
 ## opt-out
 
 `brief.no_feedback_loop: true` または CLI `--no-feedback-loop` 指定時のみ skip。
@@ -41,6 +43,7 @@ skill-creator 自身 (生成器メタプラグイン) への除外/非除外は 
 | Stop hook decision:block (`run-elegant-review/scripts/check-review-trigger.py`) | **除外** | `is_stop_block_exempt` | 自己編集セッションの自己ブロック=評価不能 (無限ループ) を回避 |
 | feedback-loop 配備/周知 — 実体コピー (`render-combinators.py apply_feedback_loop`) / R6・R7 (`lint-feedback-protocol.py`) | **除外** | `is_feedback_deploy_exempt` | 生成器自身が `run-skill-feedback` の正本。自己コピーは不要 |
 | content-review verdict — CI/pre-push (`lint-content-review.py`) | **非除外** | `is_content_review_exempt` (常に False) | dogfooding 対象。自己改善の品質も機械強制する |
+| iter-improve (実走 eval 駆動の反復改善) が skill-creator 自身 / エンジン閉包 (`run-elegant-review`・convergence-policy・content-review 経路・`feedback_contract_ssot.py`) を対象とする場合 | **被験体コピー必須** | `requires_subject_copy` | エンジンが自分自身を実走改善すると評価器と被験体が同一閉包になり自己確証する。1 周完結の elegant-review self-review は従来通り直接編集可 |
 
 除外プラグインを足す / 意味を変える際は SSOT 述語だけを編集すれば全 consumer に伝播する。
 
@@ -50,6 +53,7 @@ skill-creator 自身 (生成器メタプラグイン) への除外/非除外は 
 - 手動コピー: `cp -r ...` 等。配備は `apply_feedback_loop()` に一本化し、drift は lint/CI で検出する。
 - 量産先 SKILL.md での `feedback_protocol` 文言再定義: SSOT を持たない drift の温床。
 - 発火条件追加を SKILL.md / triggers 先行編集で行うこと: 必ず schema → lint → 派生物同期の順。
+- live-trial / iter-improve の量産先配備: 実行 acceptance はローカル開発環境限定 (composition invariant に明記)。本節の配備対象は `run-skill-feedback` のみ。
 
 ## 関連
 
