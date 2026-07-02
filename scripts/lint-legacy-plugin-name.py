@@ -39,6 +39,8 @@ ALLOWLIST = {
     "plugins/harness-creator/skills/ref-skill-glossary/references/terms.md":
         "ハーネス用語定義での旧名由来の説明",
     "plugins/harness-creator/README.md": "改名の経緯と移行手順",
+    "plugins/harness-creator/references/plugin-rename-checklist.md":
+        "plugin 単位改名手順の恒久チェックリスト",
 }
 
 

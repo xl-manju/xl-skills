@@ -157,7 +157,7 @@ def build_properties(plugin_name, info, hearing_sheet_id=None):
 
 
 _PLUGIN_OVERVIEWS = {
-    "harness-creator": "Claude Code 用の『スキル』を新規作成・改善するための土台プラグイン。要望ヒアリング→設計→生成→評価→公開までを一気通貫で支援します。スキルそのものを作るためのスキル集です。",
+    "harness-creator": "Claude Code のハーネス全体を構築・評価・統治する土台プラグイン。Skill / Agent / Hook / Command / 評価基準を束ね、要望ヒアリング→設計→生成→評価→公開までを一気通貫で支援します。",
     "skill-intake":   "ユーザーから『こんなスキルが欲しい』というふんわりした要望を受け取り、構造化されたヒアリングシートに落とすところを担当します。harness-creator の入口。",
     "prompt-creator": "スキル内で使うプロンプト(指示文)を7層構造のテンプレートに沿って作成・改善するプラグイン。プロンプトの品質と再現性を上げます。",
     "skill-governance-adapters":   "他システム(Notion・Slack・GitHub等)とスキルを繋ぐ『接続部品』を集めたプラグイン。",

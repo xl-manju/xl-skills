@@ -109,7 +109,7 @@ resources:
       - doc/ClaudeCodeスキルの設計書/29-multi-project-rubric-composition.md
     cover_concerns: ["09-evaluation-orchestration"]
   - category: skill-factory-reproducibility
-    keywords: ["skill creator", "factory", "量産", "再現性", "rubric_refs", "adapter", "routing", "analogy", "template variable", "横展開"]
+    keywords: ["harness creator", "factory", "量産", "再現性", "rubric_refs", "adapter", "routing", "analogy", "template variable", "横展開"]
     max_docs: 3
     read_first:
       - doc/ClaudeCodeスキルの設計書/29-multi-project-rubric-composition.md

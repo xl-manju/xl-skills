@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: resolve-skill-dirs
-# purpose: Resolve skill creator directories without shell-specific source files.
+# purpose: Resolve harness-creator skill directories without shell-specific source files.
 # inputs:
 #   - argv: --skill-name, --skill-dir-name
 # outputs:
@@ -13,7 +13,7 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""Resolve skill creator paths as JSON using only Python stdlib.
+"""Resolve harness-creator skill paths as JSON using only Python stdlib.
 
 The installed plugin location and the user's project location are separate
 anchors.  Marketplace installs may place this plugin anywhere, so resource
