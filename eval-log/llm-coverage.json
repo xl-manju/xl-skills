@@ -87,198 +87,6 @@
       "since": "2026-05-30"
     },
     {
-      "plugin": "mf-kessai-invoice-check",
-      "skill": "run-mf-initial-month-enrich",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 0,
-      "under_derived": false,
-      "coverage_pct": 100.0,
-      "since": "2026-06-24"
-    },
-    {
-      "plugin": "mf-kessai-invoice-check",
-      "skill": "run-mf-invoice-check",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 7,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-19"
-    },
-    {
-      "plugin": "mf-kessai-invoice-check",
-      "skill": "run-mf-invoice-db-setup",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 6,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-19"
-    },
-    {
-      "plugin": "mf-kessai-invoice-check",
-      "skill": "run-mf-invoice-reconcile",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 9,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-26"
-    },
-    {
-      "plugin": "notion-gmail-send",
-      "skill": "run-notion-gmail-dry-run",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 10,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-24"
-    },
-    {
-      "plugin": "notion-gmail-send",
-      "skill": "run-notion-gmail-send",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "IN3",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 9,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-24"
-    },
-    {
-      "plugin": "notion-gmail-send",
-      "skill": "run-notion-gmail-sendlog-setup",
-      "criteria_total": 2,
-      "criteria_covered": 2,
-      "covered_ids": [
-        "IN1",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 8,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-24"
-    },
-    {
-      "plugin": "notion-gmail-send",
-      "skill": "run-notion-gmail-source-audit",
-      "criteria_total": 2,
-      "criteria_covered": 2,
-      "covered_ids": [
-        "IN1",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 8,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-24"
-    },
-    {
-      "plugin": "plugin-dev-planner",
-      "skill": "run-plugin-dev-plan",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 15,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-06-29"
-    },
-    {
-      "plugin": "prompt-creator",
-      "skill": "run-prompt-create",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 0,
-      "under_derived": false,
-      "coverage_pct": 100.0,
-      "since": "2026-05-22"
-    },
-    {
-      "plugin": "prompt-creator",
-      "skill": "run-prompt-creator-7layer",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 0,
-      "under_derived": false,
-      "coverage_pct": 100.0,
-      "since": "2026-05-20"
-    },
-    {
-      "plugin": "prompt-creator",
-      "skill": "run-prompt-elicit",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 8,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-22"
-    },
-    {
       "plugin": "harness-creator",
       "skill": "delegate-codex-skill-review",
       "criteria_total": 4,
@@ -546,6 +354,198 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-18"
+    },
+    {
+      "plugin": "mf-kessai-invoice-check",
+      "skill": "run-mf-initial-month-enrich",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-06-24"
+    },
+    {
+      "plugin": "mf-kessai-invoice-check",
+      "skill": "run-mf-invoice-check",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-19"
+    },
+    {
+      "plugin": "mf-kessai-invoice-check",
+      "skill": "run-mf-invoice-db-setup",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 6,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-19"
+    },
+    {
+      "plugin": "mf-kessai-invoice-check",
+      "skill": "run-mf-invoice-reconcile",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 9,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-26"
+    },
+    {
+      "plugin": "notion-gmail-send",
+      "skill": "run-notion-gmail-dry-run",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 10,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-24"
+    },
+    {
+      "plugin": "notion-gmail-send",
+      "skill": "run-notion-gmail-send",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "IN3",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 9,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-24"
+    },
+    {
+      "plugin": "notion-gmail-send",
+      "skill": "run-notion-gmail-sendlog-setup",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 8,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-24"
+    },
+    {
+      "plugin": "notion-gmail-send",
+      "skill": "run-notion-gmail-source-audit",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 8,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-24"
+    },
+    {
+      "plugin": "plugin-dev-planner",
+      "skill": "run-plugin-dev-plan",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 16,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-06-29"
+    },
+    {
+      "plugin": "prompt-creator",
+      "skill": "run-prompt-create",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-05-22"
+    },
+    {
+      "plugin": "prompt-creator",
+      "skill": "run-prompt-creator-7layer",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-05-20"
+    },
+    {
+      "plugin": "prompt-creator",
+      "skill": "run-prompt-elicit",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 8,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-22"
     },
     {
       "plugin": "skill-intake",
