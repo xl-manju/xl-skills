@@ -1,23 +1,16 @@
 {
-  "description": "Bundled fixed Notion targets for skill-intake. Tokens are never stored here.",
+  "description": "Bundled fixed Notion targets for skill-intake. Tokens are never stored here. parent_page is intentionally blank: DB creation requires an explicit user-owned page via .notion-config.json (fail-closed).",
   "keychain_service": "notion-api-key.xl-skills",
   "keychain_account": "xl-skills",
   "parent_page": {
-    "page_id": "36607a0c-d18c-80bf-9eff-c74aa736645c",
-    "page_url": "https://app.notion.com/p/36607a0cd18c80bf9effc74aa736645c?v=36607a0cd18c809fb075000c267faadf"
+    "page_id": "",
+    "page_url": ""
   },
   "databases": {
     "hearing-sheet": {
       "db_id": "36607a0c-d18c-80bf-9eff-c74aa736645c",
       "url": "https://app.notion.com/p/36607a0cd18c80bf9effc74aa736645c?v=36607a0cd18c809fb075000c267faadf",
       "role": "fixed-intake-output"
-    },
-    "skill-list": {
-      "db_id": ""
-    },
-    "improvement-request": {
-      "db_id": ""
     }
-  },
-  "schema_dir": "plugins/skill-intake/references"
+  }
 }

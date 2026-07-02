@@ -52,6 +52,7 @@ SubAgent から `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/<na
 | 44 | KEYCHAIN_ERROR (macOS Keychain 取得失敗 / 空 / 非 macOS) |
 
 orchestrator は exit≠0 を全て **次フェーズ中止**として扱う。44 は専用扱いで `references/keychain-setup.md` を案内して停止する。
+`render_to_image.py` / `render_to_svg.py` は Mermaid (.mmd) 経路で mmdc 不在時 exit 3 (`ok:false, reason=DEPENDENCY_ERROR`) が既定で、明示 `--allow-placeholder` (CI/テスト専用) 指定時のみ placeholder 生成で exit 0 とする。`render_to_image.py` の静的 SVG (.svg) 経路は mmdc 非依存 (同梱 PNG `assets/cvis-*.png` コピー → cairosvg fallback) で、両手段不可の場合のみ exit 3 (`reason=DEPENDENCY_ERROR`) とする。
 
 ## 出力規約
 

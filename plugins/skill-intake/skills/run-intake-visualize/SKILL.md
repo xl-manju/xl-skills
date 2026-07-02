@@ -36,7 +36,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: lint
     - id: OUT1
       loop_scope: outer
-      text: 本スキルが「カタログ既存図の決定論的配置と SVG→PNG 化」に責務を絞り、カタログ外の図種創作・sheet.md にない事実の図注入(誤情報生成)を行わず、新規図種が必要な場合は創作せず差し戻す設計になっている
+      text: 本スキルが「カタログ既存図の決定論的配置と PNG 配置 (SVG は同梱 PNG、Mermaid は mmdc)」に責務を絞り、カタログ外の図種創作・sheet.md にない事実の図注入(誤情報生成)を行わず、新規図種が必要な場合は創作せず差し戻す設計になっている
       verify_by: elegant-review
 ---
 
@@ -44,7 +44,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Purpose & Output Contract
 
-Phase 7 (intake aggregator) 担当。`sheet.md` + `purpose.json` + `options.json` を読み、Mermaid 12 種 + SVG 8 種のカタログから §0〜§11 の各セクションへ 1〜3 図を**決定論的に**配置し、SVG を Notion 互換 PNG に変換する。各 Phase の機械可読定義は `workflow-manifest.json`、責務別プロンプトは `prompts/R1-main.md` (R1-deterministic-figure-placement)、データ契約は `schemas/output.schema.json` を参照。
+Phase 7 (intake aggregator) 担当。`sheet.md` + `purpose.json` + `options.json` を読み、Mermaid 12 種 + SVG 8 種のカタログから §0〜§11 の各セクションへ 1〜3 図を**決定論的に**配置し、SVG は同梱済み PNG (`assets/cvis-*.png`) を配置して Notion 互換化する。各 Phase の機械可読定義は `workflow-manifest.json`、責務別プロンプトは `prompts/R1-main.md` (R1-deterministic-figure-placement)、データ契約は `schemas/output.schema.json` を参照。
 
 **入力**: `sheet.md`, `purpose.json`, `options.json`, アセットカタログ (`plugins/skill-intake/assets/`)
 **出力**:
@@ -56,7 +56,7 @@ Phase 7 (intake aggregator) 担当。`sheet.md` + `purpose.json` + `options.json
 ## Key Rules
 
 1. **カタログ外創作禁止**: Mermaid 12 + SVG 8 の `figure_id` 集合外は採用しない (R1 不変ルール / Layer 1.1)。違反時 exit 2。
-2. **SVG は必ず PNG 化**: Notion は SVG ネイティブ非対応。`plugins/skill-intake/scripts/render_to_image.py` 経由のみで PNG を生成。
+2. **SVG は同梱済み PNG を配置**: Notion は SVG ネイティブ非対応。静的 SVG 8 種は事前レンダリング済み `plugins/skill-intake/assets/cvis-*.png` を `plugins/skill-intake/scripts/render_to_image.py` (bundled-copy、外部依存ゼロ) 経由で配置し、Mermaid は同スクリプトが mmdc で PNG 化する。cvis SVG/PNG は固定資産であり、改版時は `catalog_version` と同期して SVG/PNG を両方更新する (stale parity 防止)。
 3. **図数 1〜3 上限**: 1 セクション 4 図以上は過剰可視化として禁止 (`schemas/output.schema.json` maxItems=3)。
 4. **倫理ガード**: `sheet.md` にない事実を図に注入しない (誤情報生成防止、Layer 1.2)。
 5. **図解マスト 8 ルール強制**: `references/visualization-mandatory-pointer.md` 経由で aggregator 正本ルールを適用。
@@ -112,6 +112,6 @@ intake aggregator は最終 Notion 公開前に「全セクション 1 図以上
 - `references/section-figure-mapping.md` — §0〜§11 と Mermaid/SVG 図種の対応表 (aggregator guide.md への pointer)
 - `references/visualization-mandatory-pointer.md` — 図解マスト 8 ルールへの参照ガイド
 - `scripts/verify-visuals.py` — visuals.json + PNG 群の網羅性/整合性検証
-- 上流: `plugins/skill-intake/scripts/render_to_image.py` (SVG→PNG 共有スクリプト)
+- 上流: `plugins/skill-intake/scripts/render_to_image.py` (Mermaid→PNG + SVG 同梱 PNG 配置の共有スクリプト)
 - 上流: `plugins/skill-intake/assets/` (Mermaid 12 + SVG 8 カタログ正本)
-- 呼出元: `run-skill-intake` Phase 6 / 後続: `run-intake-finalize`
+- 呼出元: `run-skill-intake` Phase 7 (P7-visualize) / 後続: Phase 8 (P8-summary, `skill-intake-summarizer`)

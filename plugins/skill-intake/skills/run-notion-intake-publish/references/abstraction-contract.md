@@ -1,6 +1,7 @@
 # Abstraction Contract — run-notion-intake-publish
 
-本 skill は **Notion** 専用の再公開 wrapper だが、別 sink (Confluence / DocBase /
+本 skill は **Notion** 専用の公開 / 再公開 wrapper (初回 publish は workflow-manifest
+P10 委譲、再公開は update 専用) だが、別 sink (Confluence / DocBase /
 Backlog Wiki 等) に量産流用できるよう、以下の変数を差し替え点として定義する。
 
 | 変数 | 既定値 | 用途 |

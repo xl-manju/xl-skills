@@ -13,8 +13,8 @@
     },
     "plugins/skill-intake/notion-config.fixed.json": {
       "plugin": "skill-intake",
-      "version": "0.1.1",
-      "sha256": "d72a92492cd48d0f624c6d343de0f2287416381d48d9f8e2030a3f213d144992"
+      "version": "0.1.2",
+      "sha256": "c38125f8f1de0f4cc7fe6c64c8d20c6a0d6f12f7e6ec9608d6410c6cec93d2e3"
     }
   }
 }

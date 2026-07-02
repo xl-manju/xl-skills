@@ -44,7 +44,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json` (additionalProperties:false)
-- 必須フィールド: `visuals` (section → [{figure_id, type, png_path}])
+- 必須フィールド: `sections` (section → [{figure_id, type, png_path}]), `catalog_version`
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -56,7 +56,7 @@
 | viz-mandatory | references/visualization-mandatory-pointer.md | 必須ルール確認 |
 
 ### 3.2 外部ツール / API
-- `plugins/skill-intake/scripts/render_to_image.py` (SVG → PNG、aggregator 共有正本)
+- `plugins/skill-intake/scripts/render_to_image.py` (Mermaid→PNG + SVG 同梱 PNG 配置、aggregator 共有正本)
 - `scripts/verify-visuals.py` (網羅性検証)
 
 ## Layer 4: 共通ポリシー層
@@ -102,7 +102,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `run-skill-intake` の Phase 7
-- 後続 phase: `run-intake-finalize` (visuals.json を template に注入)
+- 後続 phase: Phase 8 (P8-summary, `skill-intake-summarizer`)
 
 ### 6.2 並列性
 - セクション単位で並列化可。ただし PNG 書き込みパスの衝突回避必須。

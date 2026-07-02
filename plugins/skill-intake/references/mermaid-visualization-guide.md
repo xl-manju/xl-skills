@@ -158,4 +158,4 @@ score(diagram_type, section) =
 
 - Mermaid は `scripts/validate_mermaid.py` で構文検証 → `scripts/render_to_svg.py` で SVG 化
 - 独自 SVG は `assets/cvis-*.svg`、Mermaid テンプレは `assets/mtmpl-*.mmd`、完成例は `assets/msample-*.mmd` (Skill 規約により assets/ は flat 配置)
-- Notion 公開時は `scripts/render_to_image.py` で **PNG 化必須**（SVG 直貼り不可）
+- Notion 公開時は `scripts/render_to_image.py` で **PNG 必須**（SVG 直貼り不可。Mermaid は mmdc で変換、独自 SVG は同梱済み `assets/cvis-*.png` をコピー配置）
