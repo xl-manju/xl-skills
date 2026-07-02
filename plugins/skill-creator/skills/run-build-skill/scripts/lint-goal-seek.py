@@ -19,7 +19,7 @@
   - 実行系 kind (run / wrap / delegate / assign / orchestrator / agent / hook) は
     `## ゴールシーク実行` 見出しを持つこと。
   - 固定手順の連番羅列 (`## 手順` セクション直下の番号付き / `### Step N:` の 2 連以上が
-    「局面カタログ」表記外で出現) は violation。
+    局面カタログ「見出しセクション」外で出現) は violation。本文引用のラベルは効力なし。
   - ref-* (read-only) は対象外 (skip)。
 
 Exit 0 = ok, 1 = violation, 2 = usage error。
@@ -39,7 +39,16 @@ EXECUTION_PREFIXES = ("run", "wrap", "delegate", "assign")
 # loop 実行系 (達成までループを回す)。assign は一発採点でループしないため除外。
 LOOP_PREFIXES = ("run", "wrap", "delegate")
 # 局面カタログ配下の `### Step` は許容 (順序非固定の例示)。
+# ラベルは「見出し (##/###) として宣言されたカタログセクション」内でのみ効力を持つ。
+# 本文引用・コメント中のラベル出現では Step 連番を免除しない (catalog label escape 封鎖:
+# LS-01b/PF-META。従来の body 全域 substring 判定は引用 1 箇所で全 Step を素通しした)。
 CATALOG_MARKERS = ("局面カタログ", "順序は都度判断", "順序非固定")
+# WIRING_SECTION_RE と同型の見出しスコープ: カタログ見出し行から次の ## 見出し (または EOF) まで。
+CATALOG_SECTION_RE = re.compile(
+    r"^#{2,3}(?!#)[^\n]*(?:" + "|".join(re.escape(m) for m in CATALOG_MARKERS) + r")[^\n]*\n"
+    r".*?(?=^##\s|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 STEP_RE = re.compile(r"^### Step\s*\d+\s*[:：]", re.MULTILINE)
 FIXED_PROCEDURE_HEADING_RE = re.compile(r"^## 手順\s*$", re.MULTILINE)
 # 完了チェックリスト領域と二値項目。
@@ -140,13 +149,19 @@ def lint_file(path: Path) -> tuple[list[str], list[str]]:
             "(ゴールシークへ移行すること)"
         )
 
-    # 3. 局面カタログ外での `### Step N:` 連番羅列 (2 連以上)
-    has_catalog = any(m in body for m in CATALOG_MARKERS)
-    step_count = len(STEP_RE.findall(body))
-    if step_count >= 2 and not has_catalog:
+    # 3. 局面カタログ見出しセクション外での `### Step N:` 連番羅列 (2 連以上)。
+    # 許容はカタログ見出しセクション配下のみ (本文引用のラベルでは免除しない)。
+    catalog_spans = [m.span() for m in CATALOG_SECTION_RE.finditer(body)]
+    outside_steps = [
+        m
+        for m in STEP_RE.finditer(body)
+        if not any(s <= m.start() < e for s, e in catalog_spans)
+    ]
+    if len(outside_steps) >= 2:
         findings.append(
-            f"{path}: 固定手順の連番 (### Step N:) が {step_count} 件検出された。"
-            "順序固定の手順は書かず、必要なら '局面カタログ (順序は都度判断)' として記述すること"
+            f"{path}: 局面カタログ見出しセクション外で固定手順の連番 (### Step N:) が "
+            f"{len(outside_steps)} 件検出された。順序固定の手順は書かず、"
+            "'## 局面カタログ (順序は都度判断)' 見出しセクション配下として記述すること"
         )
 
     # 4. loop 実行系 (run/wrap/delegate): チェックリスト二値性 + 曖昧語 + 配線

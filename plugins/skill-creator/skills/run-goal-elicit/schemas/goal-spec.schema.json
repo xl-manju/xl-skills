@@ -59,6 +59,11 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "目的・背景・ゴールが推定しきれなかった未確定事項。ユーザーへの即時質問ではなく、後段で仮定が破綻した場合の差し戻し材料。"
+    },
+    "forbidden_loosening": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "run-skill-iter-improve の iter 0 GOAL DECLARATION で宣言する緩め禁止リスト (この target で「やったら PASS 詐欺」になる操作の列挙)。一般形の正本は run-elegant-review/references/convergence-policy.json の anti_patterns で、本 field には target 固有の具体形のみ書く (二重宣言禁止)。手順は run-skill-iter-improve/references/goal-declaration.md。"
     }
   }
 }

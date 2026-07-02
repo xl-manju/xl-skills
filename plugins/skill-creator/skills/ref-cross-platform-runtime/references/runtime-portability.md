@@ -58,8 +58,8 @@ plugin 外 (repo-root `scripts/` 等) は存在しない。トップレベルで
 | `scripts/lint-runtime-portability.py` | hook script が import-time に自 plugin 外を fail-closed 依存 (raise) しないことを AST 静的検査。 |
 
 両 lint は Makefile (`make lint` / `make test`) と CI (`creator-kit-ci.yml`) に配線済み。
-回帰 pytest (`tests/scripts2/test_root__lint_runtime_portability.py` /
-`tests/scripts2/test_root__lint_vendored_ssot.py`) が修正前パターンの FAIL / 修正後の PASS を固定する。
+回帰 pytest (`tests/scripts-root/test_root__lint_runtime_portability.py` /
+`tests/scripts-root/test_root__lint_vendored_ssot.py`) が修正前パターンの FAIL / 修正後の PASS を固定する。
 
 ### 検証手順 (単独 install 再現)
 

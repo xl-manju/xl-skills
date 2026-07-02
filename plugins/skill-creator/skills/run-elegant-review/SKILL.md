@@ -73,18 +73,22 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       loop_scope: inner
       text: 1周回内で30思考法が全種 finding を出すか skip_reason を残し used 足す skipped_with_reason が30に到達する
       verify_by: script
+      derived_from: [CL-2]
     - id: IN2
       loop_scope: inner
       text: 各 SubAgent が出力する findings.json が集約スキーマを通過し issues[].severity が優先度列挙、condition_signal が4条件 signal 列挙に収まる
       verify_by: lint
+      derived_from: [CL-7]
     - id: OUT1
       loop_scope: outer
       text: 矛盾なし 漏れなし 整合性あり 依存関係整合の4条件が全 PASS かつ未達時は force_pass せず human_review へ差し戻す
       verify_by: elegant-review
+      derived_from: [CL-3, CL-4, CL-5, CL-6, CL-9]
     - id: OUT2
       loop_scope: outer
       text: 改善案の承認を同一 context が行わず別 SubAgent または人間が独立採点する proposer 非イコール approver を満たす
       verify_by: evaluator
+      derived_from: [CL-8]
 ---
 
 # run-elegant-review (v2)
@@ -105,15 +109,15 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ### 完了チェックリスト (Checklist)
 
-- [ ] Phase 1 思考リセットを経由し `shared_state.md`（200字以内）を生成した
-- [ ] `thought_method_coverage.used + skipped_with_reason == 30`（30 思考法全て使用 or skip_reason 付き）
-- [ ] `fail_counts.contradiction == 0`（矛盾なし）
-- [ ] `fail_counts.omission == 0`（漏れなし）
-- [ ] `fail_counts.inconsistency == 0`（整合性あり）
-- [ ] `fail_counts.dependency_break == 0`（依存関係整合）
-- [ ] `findings.json` が `schemas/findings.schema.json` を通過する
-- [ ] proposer ≠ approver を満たす（自己承認禁止、別 SubAgent or 人間が承認）
-- [ ] max_iter 未達のまま終了時は `status: incomplete` + force_pass 禁止で human_review へ差し戻した
+- [ ] Phase 1 思考リセットを経由し `shared_state.md`（200字以内）を生成した <!-- CL-1 exempt: 工程順序項目。validate-paradigm-coverage.py --phase-order が機械検査 -->
+- [ ] `thought_method_coverage.used + skipped_with_reason == 30`（30 思考法全て使用 or skip_reason 付き） <!-- CL-2 -->
+- [ ] `fail_counts.contradiction == 0`（矛盾なし） <!-- CL-3 -->
+- [ ] `fail_counts.omission == 0`（漏れなし） <!-- CL-4 -->
+- [ ] `fail_counts.inconsistency == 0`（整合性あり） <!-- CL-5 -->
+- [ ] `fail_counts.dependency_break == 0`（依存関係整合） <!-- CL-6 -->
+- [ ] `findings.json` が `schemas/findings.schema.json` を通過する <!-- CL-7 -->
+- [ ] proposer ≠ approver を満たす（自己承認禁止、別 SubAgent or 人間が承認） <!-- CL-8 -->
+- [ ] max_iter 未達のまま終了時は `status: incomplete` + force_pass 禁止で human_review へ差し戻した <!-- CL-9 -->
 
 ### ゴールシークループ
 

@@ -4,6 +4,8 @@
   "workflowId": "run-skill-create",
   "skill": "run-skill-create",
   "description": "run-skill-create の Step/Gate を機械可読化したフロー定義。SKILL.md は本 manifest と prompts/*.md を参照する。",
+  "gate_order": ["G1", "G2.5", "G2", "G3", "G4"],
+  "gate_order_comment": "Gate 通過順序の正本 (phases[].gate の非 null 値を実工程順 = step 1→3→4a→5→6 に並べたもの)。SKILL.md は本配列を参照し Gate 番号順を直書きしない。",
   "phases": [
     {
       "id": "elicit",
@@ -89,7 +91,8 @@
         "python3 plugins/skill-governance-lint/scripts/lint-dependency-direction.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-skill-dep-step7.py --skills-dir ${SKILLS_DIR}",
         "python3 plugins/skill-governance-lint/scripts/lint-forbidden-deps.py --skills-dir ${SKILLS_DIR}",
-        "python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py"
+        "python3 plugins/skill-governance-lint/scripts/lint-manifest-contents.py",
+        "python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-plan.py --brief eval-log/skill-brief.json --check --skill-dir ${SKILLS_DIR}/${SKILL_NAME}"
       ],
       "max_retry": 3,
       "fatal_exit_codes": [1],

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "purpose": "run-elegant-review の収束判定ポリシー。正負フィードバック両輪 + 解像度3層 + 安全弁の3要素で構成する。本ファイルは有界反復 + 正負フィードバックの数値正本 (SSOT)。有界反復は3つの別ループ (goal-seek 手順反復=5 / content-review inner 再評価=3 / outer 再評価=3) に分かれ、一意な定義は loop_bounds を見る (同名 'inner' の 3 と 5 を混同しない)。各所はここを参照する (重複宣言禁止)。",
+  "purpose": "run-elegant-review の収束判定ポリシー。正負フィードバック両輪 + 解像度3層 + 安全弁の3要素で構成する。本ファイルは有界反復 + 正負フィードバックの数値正本 (SSOT)。有界反復は5つの別ループ (goal-seek 手順反復=5 / content-review inner 再評価=3 / outer 再評価=3 / live-trial 実走 acceptance / iter-improve 改善反復=5) に分かれ、一意な定義は loop_bounds を見る (同名 'inner' の 3 と 5 を混同しない。新ループは位相語 inner/outer でなく機能語 acceptance/improve で呼ぶ)。各所はここを参照する (重複宣言禁止)。",
   "resolution_layers": {
     "L1_condition_pass_fail": "C1-C4 の PASS/FAIL (4bit)",
     "L2_paradigm_score": "各C条件 0.0-1.0 + 30思考法 0.0-1.0 (約30bit)",
@@ -61,7 +61,7 @@
     "overridable_by": "--force-review"
   },
   "loop_bounds": {
-    "_note": "有界反復は3つの別ループに分かれ、うち2つはたまたま上限3。同名 'inner' の混同を避けるためここで一意に定義する。",
+    "_note": "有界反復は5つの別ループに分かれ、うち2つはたまたま上限3。同名 'inner' の混同を避けるためここで一意に定義し、新ループは位相語 (inner/outer) でなく機能語 (trial_acceptance / iter_improve) で命名する。",
     "goal_seek_inner": {
       "param": "inner_max_loops",
       "value": 5,
@@ -79,6 +79,27 @@
       "value": 3,
       "scope": "content-review outer / elegant-review の 4条件 再評価 周回 (本ファイル halt_conditions と同値)。",
       "consumed_by": ["build-flags.schema.json#/properties/feedback_contract/properties/outer_loop", "本ファイル halt_conditions.max_iterations_reached"]
+    },
+    "trial_acceptance": {
+      "params": {
+        "nudge_max": 2,
+        "stall_limit_s": 600,
+        "hard_cap_s": 7200
+      },
+      "units": "nudge_max=回 / stall_limit_s=秒 / hard_cap_s=秒 (suffix _s は秒)",
+      "scope": "live-trial の実走 acceptance 周回。nudge_max=無応答時の催促上限回数、stall_limit_s=transcript 無進行で STALL 判定するまでの秒数、hard_cap_s=1 trial の絶対打切り秒数 (超過は verdict=BLOCKED で fail-closed)。",
+      "consumed_by": ["run-skill-live-trial"]
+    },
+    "iter_improve": {
+      "params": {
+        "max_iter": 5,
+        "batch_per_iter_max": 2,
+        "parallel_agents_default": 3,
+        "score_threshold_default": 90
+      },
+      "units": "max_iter=周回 / batch_per_iter_max=件 / parallel_agents_default=体 / score_threshold_default=点 (0-100)",
+      "scope": "iter-improve の eval帰属 改善→評価 反復。batch_per_iter_max=1周回で触る改善項目数の上限 (INVARIANT 5 の 1-2件/iter)、parallel_agents_default=独立評価 agent の既定数、score_threshold_default=収束とみなす既定スコア閾値。",
+      "consumed_by": ["run-skill-iter-improve"]
     }
   },
   "parameters": {
@@ -91,6 +112,8 @@
     "max_iterations到達を成功扱いにする (Goodhart罠)",
     "負フィードバックのみ運用 (防衛的になり加点を取りに行かない)",
     "L1 (4bit) のみで収束判定 (勾配が見えず振動を検出できない)",
-    "正フィードバック抽出を細粒度 (パラダイム単位) にする (冗長で維持不能)"
+    "正フィードバック抽出を細粒度 (パラダイム単位) にする (冗長で維持不能)",
+    "evaluator緩和で score を通す (採点mode/threshold/採点対象/評価方法の易化 = PASS詐欺。手段を問わず禁止)",
+    "score急上昇 (+10pt超) を独立判定なしで採用する (generator改善由来か evaluator緩和由来かを別個体 fresh agent が判定するまで採用禁止)"
   ]
 }

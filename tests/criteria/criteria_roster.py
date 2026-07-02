@@ -1,0 +1,57 @@
+"""criteria 検証対象の機械生成名簿 (手編集禁止)。
+
+生成器: tests/criteria/build_criteria_roster.py --write (探索正本は同 discover())。
+役割: validate-llm-coverage.py の被覆判定は「criterion id と skill 名が
+tests/**/*.py に静的出現するか」を見るため、動的探索だけでは新 skill の被覆が
+計測されない。本ファイルが全対象 (plugin, skill, criterion id 集合) を静的
+テキストとして固定する。各 id の genuine 検証実体は
+test_all_skills_criteria.py::test_criterion_is_genuinely_verified の
+parametrized 実行 (inner=決定論 lint exit0 / outer=verdict PASS)。
+discovery との乖離は test_roster_matches_discovery が検出し再生成を要求する。
+"""
+
+ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
+    ("company-master", "run-company-master-backfill", ("IN1", "IN2", "IN3", "OUT1")),
+    ("company-master", "run-company-master-build", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("contract-generator", "run-contract-finalize", ("IN1", "IN2", "OUT1")),
+    ("contract-generator", "run-contract-generate", ("IN1", "IN2", "OUT1")),
+    ("contract-generator", "run-template-sync", ("IN1", "IN2", "OUT1")),
+    ("mf-kessai-invoice-check", "run-mf-initial-month-enrich", ("IN1", "IN2", "OUT1")),
+    ("mf-kessai-invoice-check", "run-mf-invoice-check", ("IN1", "IN2", "OUT1")),
+    ("mf-kessai-invoice-check", "run-mf-invoice-db-setup", ("IN1", "IN2", "OUT1")),
+    ("mf-kessai-invoice-check", "run-mf-invoice-reconcile", ("IN1", "IN2", "OUT1")),
+    ("notion-gmail-send", "run-notion-gmail-dry-run", ("IN1", "IN2", "OUT1")),
+    ("notion-gmail-send", "run-notion-gmail-send", ("IN1", "IN2", "IN3", "OUT1")),
+    ("notion-gmail-send", "run-notion-gmail-sendlog-setup", ("IN1", "OUT1")),
+    ("notion-gmail-send", "run-notion-gmail-source-audit", ("IN1", "OUT1")),
+    ("plugin-dev-planner", "run-plugin-dev-plan", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("prompt-creator", "run-prompt-create", ("IN1", "IN2", "OUT1")),
+    ("prompt-creator", "run-prompt-creator-7layer", ("IN1", "IN2", "OUT1")),
+    ("prompt-creator", "run-prompt-elicit", ("IN1", "IN2", "OUT1")),
+    ("skill-creator", "delegate-codex-skill-review", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-build-skill", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-elegant-review", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-goal-elicit", ("IN1", "OUT1", "OUT2")),
+    ("skill-creator", "run-goal-seek", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-migrate-audit", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-plugin-package-check", ("IN1", "IN2", "OUT1")),
+    ("skill-creator", "run-skill-create", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-skill-elicit", ("IN1", "IN2", "OUT1")),
+    ("skill-creator", "run-skill-feedback", ("IN1", "IN2", "IN3", "OUT1", "OUT2")),
+    ("skill-creator", "run-skill-iter-improve", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-skill-live-trial", ("IN1", "IN2", "OUT1", "OUT2", "OUT3")),
+    ("skill-creator", "run-skill-rename", ("IN1", "IN2", "OUT1")),
+    ("skill-creator", "run-skill-rubric-governance", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("skill-creator", "run-skill-update-notifier", ("IN1", "IN2", "IN3", "OUT1")),
+    ("skill-creator", "wrap-git-commit-safe", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "assign-notion-fidelity-evaluator", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-finalize", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-interview", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-kickoff", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-next-action", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-option-catalog", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-revise", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-intake-visualize", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-notion-intake-publish", ("IN1", "IN2", "OUT1")),
+    ("skill-intake", "run-skill-intake", ("IN1", "IN2", "OUT1")),
+]

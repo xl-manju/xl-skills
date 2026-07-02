@@ -4,9 +4,16 @@
 
 Claude Code Hook input (JSON via stdin) を解釈し、失敗パターンが検出された場合に
 plugins/skill-creator/lessons-learned/ 配下へ構造化 lesson を追記する。
+新規 lesson の追記と同時に knowledge/knowledge-lessons-index.json へ最小索引
+エントリを append する (Loop B: 索引の description 宣言と実装の真実合わせ)。
+
+記録条件 (genuine 文脈最少条件):
+    tool 名 + 対象ヒント (command / file_path / path / skill) + tool_response 内の
+    失敗シグネチャが揃った入力のみ記録する。無関係キーに失敗語が紛れただけの
+    断片 (テスト副産物・引用の混入) は記録しない。
 
 副作用境界:
-    - lessons-learned ディレクトリへの書き込みのみ。
+    - lessons-learned ディレクトリと、その sibling knowledge/ 索引への書き込みのみ。
     - git・他ディレクトリには触れない。
 
 exit_code 仕様 (Claude Code Hooks 準拠):
@@ -135,6 +142,29 @@ def _detect_failure(text: str) -> bool:
     return any(p.search(text) for p in _FAILURE_PATTERNS)
 
 
+def _has_genuine_context(hook: Any) -> bool:
+    """genuine 文脈最少条件: 何がどう失敗したか追跡できる入力のみ記録を許可する。
+
+    条件 = tool 名 + 対象ヒント (command / file_path / path / skill) +
+    tool_response 内の失敗シグネチャ。失敗語が tool_response 以外の無関係キーに
+    紛れただけの断片 ("ERROR boom" 型ノイズ) は human triage 不能なため封鎖する。
+    """
+    if not isinstance(hook, dict):
+        return False
+    tool = hook.get("tool_name") or hook.get("tool")
+    if not isinstance(tool, str) or not tool.strip():
+        return False
+    ti = hook.get("tool_input")
+    if not isinstance(ti, dict):
+        return False
+    if not any(
+        isinstance(ti.get(k), str) and ti.get(k).strip()
+        for k in ("file_path", "path", "skill", "command")
+    ):
+        return False
+    return _detect_failure(_flatten_text(hook.get("tool_response")))
+
+
 def _estimate_severity(text: str) -> str:
     return "high" if _HIGH_SEVERITY_HINTS.search(text) else "medium"
 
@@ -229,6 +259,87 @@ def _upsert_lesson(path: Path, entry: dict[str, str]) -> None:
         f.write("\n".join(appended))
 
 
+_INDEX_ID_RE = re.compile(r"lessons-index_(\d+)$")
+
+
+def _lessons_index_path(lessons_dir: Path) -> Path:
+    """lessons 書込先の sibling knowledge/ 配下の索引パス。
+
+    既定 (lessons_dir = plugin-root/lessons-learned) では
+    plugin-root/knowledge/knowledge-lessons-index.json (正本) を指す。
+    fallback/override 時は同じ相対関係で書込先ローカルの索引になる。
+    """
+    return lessons_dir.parent / "knowledge" / "knowledge-lessons-index.json"
+
+
+def _index_source_file(lesson_path: Path) -> str:
+    """索引 source.file は repo 相対 (既存エントリと同形)。相対化不能なら絶対のまま。"""
+    try:
+        repo_root = _plugin_root().parent.parent
+        return lesson_path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except (ValueError, OSError):
+        return lesson_path.as_posix()
+
+
+def _append_index_entry(index_path: Path, lesson_path: Path, entry: dict[str, str]) -> bool:
+    """lesson md 追記と同時に索引へ最小エントリを決定論 append する (冪等)。
+
+    knowledge-lessons-index.json:description の宣言「auto-record-lesson.py が
+    新規 lesson を追記したら本索引にもエントリを追加する」の実装。
+    同一 source.file は再登録しない (md 側は observation 追記で対応済)。
+    索引書込失敗は lesson 記録を巻き込まない (best-effort, False で握る)。
+    """
+    source_file = _index_source_file(lesson_path)
+    try:
+        if index_path.exists():
+            data = json.loads(index_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return False
+        else:
+            data = {
+                "category": "lessons-index",
+                "label": "lessons-learned 索引 (失敗ログへのポインタ)",
+                "source_note": "本文は lessons-learned/*.md が正本。本索引は検索ヒット用の最小要約のみ持つ。",
+                "items": [],
+            }
+        items = data.setdefault("items", [])
+        if not isinstance(items, list):
+            return False
+        max_seq = 0
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if (item.get("source") or {}).get("file") == source_file:
+                return False
+            m = _INDEX_ID_RE.match(str(item.get("id", "")))
+            if m:
+                max_seq = max(max_seq, int(m.group(1)))
+        items.append(
+            {
+                "id": f"lessons-index_{max_seq + 1:03d}",
+                "title": (
+                    f"[auto] {entry['trigger_event']}:{entry['tool']} 失敗 — "
+                    f"{entry['observation'][:80]}"
+                ),
+                "keywords": [
+                    entry["trigger_event"],
+                    entry["tool"],
+                    entry["capability"],
+                    entry["severity"],
+                ],
+                "message": "自動記録。根本原因の human triage 後に title/message を書き直す。",
+                "source": {"file": source_file, "type": "lesson", "date": entry["date"]},
+            }
+        )
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return True
+    except Exception:
+        return False
+
+
 def _candidate_dirs() -> list[Path]:
     """書込先候補を優先順で返す (3 段 fallback)。
 
@@ -247,6 +358,9 @@ def main() -> int:
     if not text or not _detect_failure(text):
         # サイレント正常終了。
         return 0
+    if not _has_genuine_context(hook):
+        # 文脈不足の断片ノイズは記録しない (genuine 文脈最少条件)。
+        return 0
     severity = _estimate_severity(text)
     slug = _extract_slug(hook, text)
     today = _dt.date.today().isoformat()
@@ -261,6 +375,9 @@ def main() -> int:
         try:
             _upsert_lesson(base / filename, entry)
             sys.stderr.write(f"[auto-record-lesson] recorded -> {base / filename}\n")
+            index_path = _lessons_index_path(base)
+            if _append_index_entry(index_path, base / filename, entry):
+                sys.stderr.write(f"[auto-record-lesson] indexed -> {index_path}\n")
             return 0
         except OSError as exc:
             last_exc = exc

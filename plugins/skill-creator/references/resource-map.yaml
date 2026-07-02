@@ -37,7 +37,7 @@ references:
     kind: pattern
     read_when:
       - "Step 5 / 5.5 / 6 の三段ゲート設計を新規 plugin に展開する時"
-      - "Gate 間で同一 finding が重複検出された時 (優先順位 A>B>C を適用)"
+      - "Gate 間で同一 finding が重複検出された時 (優先順位 A>B>C>D を適用)"
       - "1 ゲートで複数次元採点する設計提案を検出した時 (アンチパターン)"
     produced_by: team-platform
     consumed_by:

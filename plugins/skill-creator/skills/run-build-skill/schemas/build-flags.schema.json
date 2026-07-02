@@ -17,6 +17,11 @@
     },
     "mode": {"type": "string", "enum": ["create", "update"], "default": "create"},
     "model": {"type": "string", "enum": ["opus", "sonnet"], "default": "opus"},
+    "acceptance_tier": {
+      "type": "string",
+      "enum": ["static", "fork", "live"],
+      "description": "受入検証の最低段 (順序 static<fork<live)。宣言は任意 (後方互換) だが、frontmatter/plan の静的信号から validate-build-plan.py の derive_acceptance_tier() が決定論導出する値を下回る宣言 (緩め方向) は violation。hooks配線 or allowed-tools に Skill/Agent/AskUserQuestion → live、それ以外の loop 実行系 (run/wrap/delegate) → fork、非実行系 → static。"
+    },
     "with_subagent": {
       "type": "object",
       "additionalProperties": false,
@@ -104,9 +109,14 @@
               "id": {"type": "string", "pattern": "^(IN|OUT|C)[0-9]+$"},
               "loop_scope": {"type": "string", "enum": ["inner", "outer"]},
               "text": {"type": "string"},
-              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"]},
+              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "live-trial", "human"]},
               "threshold": {"type": "string", "description": "score>=80 / high=0 / C1-C4=PASS 等の観測可能なしきい値。"},
-              "weight": {"type": "number", "minimum": 0, "default": 1}
+              "weight": {"type": "number", "minimum": 0, "default": 1},
+              "derived_from": {
+                "type": "array",
+                "items": {"type": "string", "pattern": "^CL-[0-9]+$"},
+                "description": "出所の完了チェックリスト項目アンカー (SKILL.md 本文の <!-- CL-n -->)。被覆と実在は lint-criteria-provenance.py が機械検査し (LS-05)、写像の意味的妥当性は content-review (LLM 層) が判定する。"
+              }
             }
           }
         },

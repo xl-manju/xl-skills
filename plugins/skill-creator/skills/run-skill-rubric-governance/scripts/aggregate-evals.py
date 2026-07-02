@@ -17,6 +17,8 @@ exit_code 仕様 (Claude Code Hooks 準拠):
 閾値:
     - 同一 rubric_id (skill) で直近 3 連続 verdict=FAIL
     - 同一 rubric_id の平均スコアが直近窓で 0.1 以上低下
+    - 同一 rubric_id で直近窓 (6件) 中 2 レコード以上が苦戦シグナルを示す
+      (iterations>=2 / negative_feedback>=2件 / findings>=3件 のいずれか)
 """
 
 from __future__ import annotations
@@ -33,6 +35,19 @@ from typing import Any
 _CONSECUTIVE_FAIL_THRESHOLD = 3
 _SCORE_DROP_THRESHOLD = 0.1
 _RECENT_WINDOW = 5  # 直近窓
+
+# 苦戦密度 (friction_density) 閾値。
+# CI は PASS verdict のみ commit を許すため、FAIL 系列に依存する上記 2 条件は
+# 入力が構造的に空集合となり発火し得ない。committed PASS verdict に既に埋まる
+# 摩擦データ (再評価 iterations / negative_feedback / findings 件数) を第 3 の
+# 発火条件にする。単独レビューアの軽微な摩擦 (iterations=1 かつ negative 1 件)
+# では発火せず、同一 skill の直近窓で複数レコードの摩擦が裏付け合う場合のみ
+# 発火する (オオカミ少年回避を最優先した保守設計)。
+_FRICTION_ITERATIONS_MIN = 2  # 再評価ループが必要だった (上限は max_iterations=3)
+_FRICTION_NEGATIVE_MIN = 2  # 1 レコードの negative_feedback が 2 件以上
+_FRICTION_FINDINGS_MIN = 3  # 1 レコードの findings が 3 件以上 (score.jsonl 系)
+_FRICTION_MIN_RECORDS = 2  # 直近窓内で摩擦レコード 2 件以上 (相互裏付け)
+_FRICTION_RECENT_WINDOW = 6  # 苦戦密度の直近窓
 
 
 def _plugin_root() -> Path:
@@ -150,7 +165,11 @@ def _normalize_verdict_record(rec: dict[str, Any]) -> dict[str, Any] | None:
     """content-review verdict.json を共通形へ。
 
     verdict schema: target{plugin,skill} / verdict(PASS|FAIL|INCOMPLETE) / reviewed_at
-    -> {skill, date, verdict, score, findings}
+                    / iterations / feedback_loop{negative_feedback[]}
+    -> {skill, date, verdict, score, findings, iterations, negative_feedback_count}
+
+    iterations / negative_feedback は PASS verdict にも残る摩擦シグナルで、
+    friction_density 検出の入力になる (PASS-only commit 制約下の唯一の負情報)。
     """
     if not isinstance(rec, dict):
         return None
@@ -158,12 +177,16 @@ def _normalize_verdict_record(rec: dict[str, Any]) -> dict[str, Any] | None:
     skill = target.get("skill")
     if not skill:
         return None
+    feedback = rec.get("feedback_loop") if isinstance(rec.get("feedback_loop"), dict) else {}
+    negative = feedback.get("negative_feedback")
     return {
         "skill": skill,
         "date": _date_of(rec.get("reviewed_at")),
         "verdict": str(rec.get("verdict", "")),
         "score": None,  # verdict は数値スコアを持たない
         "findings": [],
+        "iterations": rec.get("iterations"),
+        "negative_feedback_count": len(negative) if isinstance(negative, list) else 0,
     }
 
 
@@ -196,6 +219,46 @@ def _load_score_jsonl() -> list[dict[str, Any]]:
     return out
 
 
+def _normalize_live_trial_record(rec: dict[str, Any], run_id: str = "") -> dict[str, Any] | None:
+    """live-trial verdict.json (D10 runtime-evidence 契約) を共通形へ。
+
+    verdict schema: target_skill("plugin:skill") / overall{verdict: PASS|DEGRADED|FAIL|BLOCKED}
+                    / goal_verdict{blockers[]} / nudge_count / gate_response_count
+    -> {skill, date, verdict, score, findings, negative_feedback_count}
+
+    timestamp フィールドを持たないため date は run-id 先頭の YYYYMMDD から復元する。
+    score は構造的に存在しない (goal 判定は PASS|FAIL のみ・点数出力禁止)。
+    nudge / gate 応答は「自走できず介入を要した」負シグナルなので
+    negative_feedback_count へ合算し friction_density の入力に載せる。
+    goal_verdict.blockers は findings として finding カテゴリ集計へ流す。
+    """
+    if not isinstance(rec, dict):
+        return None
+    target = rec.get("target_skill")
+    if not isinstance(target, str) or not target:
+        return None
+    skill = target.rsplit(":", 1)[-1]
+    if not skill:
+        return None
+    overall = rec.get("overall") if isinstance(rec.get("overall"), dict) else {}
+    goal = rec.get("goal_verdict") if isinstance(rec.get("goal_verdict"), dict) else {}
+    blockers = goal.get("blockers")
+    nudge = rec.get("nudge_count")
+    gate = rec.get("gate_response_count")
+    intervention = (nudge if isinstance(nudge, int) else 0) + (
+        gate if isinstance(gate, int) else 0
+    )
+    m = re.match(r"(\d{4})(\d{2})(\d{2})", str(run_id))
+    return {
+        "skill": skill,
+        "date": f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None,
+        "verdict": str(overall.get("verdict", "")),
+        "score": None,
+        "findings": [b for b in blockers if isinstance(b, str)] if isinstance(blockers, list) else [],
+        "negative_feedback_count": intervention,
+    }
+
+
 def _load_content_review_verdicts() -> list[dict[str, Any]]:
     """eval-log/<plugin>/<skill>/content-review/*-verdict.json を全件読む。"""
     out: list[dict[str, Any]] = []
@@ -217,12 +280,34 @@ def _load_content_review_verdicts() -> list[dict[str, Any]]:
     return out
 
 
+def _load_live_trial_verdicts() -> list[dict[str, Any]]:
+    """eval-log/<plugin>/<skill>/live-trial/<run-id>/verdict.json (Gate D 実走証拠) を全件読む。"""
+    out: list[dict[str, Any]] = []
+    base = _eval_log_dir()
+    if not base.exists():
+        return out
+    try:
+        paths = sorted(base.glob("*/*/live-trial/*/verdict.json"))
+    except OSError:
+        return out
+    for path in paths:
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        norm = _normalize_live_trial_record(rec, run_id=path.parent.name)
+        if norm is not None:
+            out.append(norm)
+    return out
+
+
 def _load_evals() -> dict[str, Any]:
-    """評価レコードを 3 ソースから集約。
+    """評価レコードを 4 ソースから集約。
 
     1) EVALS.json#/evaluations[]   (従来。誰も書かない可能性が高い旧経路)
     2) eval-log/<plugin>/<date>-score.jsonl       (write-eval-log の実 sink)
     3) eval-log/<plugin>/<skill>/content-review/*-verdict.json  (content-review verdict)
+    4) eval-log/<plugin>/<skill>/live-trial/<run-id>/verdict.json  (live-trial 実走証拠, D10)
 
     いずれも {skill,date,verdict,score,findings} 形へ正規化済みで concat する。
     新 writer は作らず既存 writer の出力を読むだけ (重複writer回避)。
@@ -253,6 +338,12 @@ def _load_evals() -> dict[str, Any]:
     except Exception as exc:  # 非ブロック
         sys.stderr.write(f"[aggregate-evals] verdict load failed: {exc}\n")
 
+    # 4) live-trial verdict (実走 acceptance 証拠)
+    try:
+        evals.extend(_load_live_trial_verdicts())
+    except Exception as exc:  # 非ブロック
+        sys.stderr.write(f"[aggregate-evals] live-trial verdict load failed: {exc}\n")
+
     return {"evaluations": evals}
 
 
@@ -267,6 +358,18 @@ def _score_of(ev: dict[str, Any]) -> float | None:
         if isinstance(v, (int, float)):
             return float(v)
     return None
+
+
+def _is_friction(ev: dict[str, Any]) -> bool:
+    """1 レコードが苦戦シグナルを含むか (EVALS.json 旧形式はフィールド欠落 = 非該当)。"""
+    iterations = ev.get("iterations")
+    if isinstance(iterations, int) and iterations >= _FRICTION_ITERATIONS_MIN:
+        return True
+    negative = ev.get("negative_feedback_count")
+    if isinstance(negative, int) and negative >= _FRICTION_NEGATIVE_MIN:
+        return True
+    findings = ev.get("findings")
+    return isinstance(findings, list) and len(findings) >= _FRICTION_FINDINGS_MIN
 
 
 def _detect_anomalies(evals: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -313,6 +416,27 @@ def _detect_anomalies(evals: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             "prior_mean": round(sum(prior) / len(prior), 3),
                         }
                     )
+        # 3) 苦戦密度 (PASS verdict 内の摩擦シグナル。FAIL 非依存の第 3 条件)。
+        recent_records = items_sorted[-_FRICTION_RECENT_WINDOW:]
+        friction_records = [x for x in recent_records if _is_friction(x)]
+        if len(friction_records) >= _FRICTION_MIN_RECORDS:
+            anomalies.append(
+                {
+                    "rubric_id": rubric_id,
+                    "kind": "friction_density",
+                    "friction_records": len(friction_records),
+                    "window": len(recent_records),
+                    "evidence": [
+                        {
+                            "date": x.get("date"),
+                            "iterations": x.get("iterations"),
+                            "negative_feedback_count": x.get("negative_feedback_count"),
+                            "findings_count": len(x.get("findings") or []),
+                        }
+                        for x in friction_records
+                    ],
+                }
+            )
     return anomalies
 
 
