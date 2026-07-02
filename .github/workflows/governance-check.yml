@@ -135,6 +135,13 @@ jobs:
       - name: criteria roster parity (量産追随の fail-closed。新 loop-kind skill は roster 再生成が必要)
         run: python3 tests/criteria/build_criteria_roster.py
         continue-on-error: false
+      # llm-coverage.json は毎回 write される派生レポートで roster のような git-stale
+      # 検出が無く、skill 変更/改名時の台帳更新漏れが CI を素通りしていた (2026-07-02)。
+      # --check (書かない parity) を被覆 gate の「前」に置き、コミット済み台帳が生成
+      # 結果と一致することを fail-closed に検査する (gate step が書き換える前に判定)。
+      - name: llm-coverage parity (eval-log/llm-coverage.json が最新か。skill 変更/改名時は再生成が必要)
+        run: python3 scripts/validate-llm-coverage.py --all --check
+        continue-on-error: false
       - name: validate llm coverage (criteria 被覆 ≥80% fail-closed。検証実体は tests/criteria の parametrized genuine 実行)
         run: python3 scripts/validate-llm-coverage.py --all --threshold 80 --gate-new --since 2026-01-01
         continue-on-error: false

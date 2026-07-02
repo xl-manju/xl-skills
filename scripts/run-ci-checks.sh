@@ -56,6 +56,13 @@ run "lint-legacy-plugin-name"              python3 scripts/lint-legacy-plugin-na
 run "lint-runtime-portability"             python3 scripts/lint-runtime-portability.py
 run "check-scripts-drift"                  bash scripts/check-scripts-drift.sh
 run "build-claude-symlinks --check"        python3 scripts/build-claude-symlinks.py --check
+# ── discovery 派生台帳 parity (roster / llm-coverage が discovery と一致するか) ──
+# governance-check.yml と対称。この2つが run-ci-checks 非包含だと改名/skill 変更時に
+# pre-push を素通りして CI で初めて露見する (2026-07-02 harness-creator 改名で criteria
+# roster STALE を CI が検出・pre-push 緑だった事故の恒久対策)。両生成器を書き込みなし
+# モード (roster=引数なし / llm-coverage=--check) で走らせ stale を先行 fail-closed 検出。
+run "criteria-roster-parity"               python3 tests/criteria/build_criteria_roster.py
+run "llm-coverage-parity"                  python3 scripts/validate-llm-coverage.py --all --check
 run "lint-ssot-duplication --strict"       python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/harness-creator --strict
 run "lint-goal-seek --self-test"           python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
 run "lint-goal-seek conformance"           python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/harness-creator/skills
