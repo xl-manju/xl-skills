@@ -31,7 +31,7 @@ source-tier: internal
 
 | ID | 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| B1 | feedback_contract_ssot.py(+vendoring) | `plugins/skill-creator/scripts/feedback_contract_ssot.py` | CRITERIA_ID_RE=`^(IN\|OUT\|C)[0-9]+$`・verify_by∈{lint,test,script,evaluator,elegant-review,human}・loop_scope∈{inner,outer}各≥1・必須キー(id,loop_scope,text,verify_by)・FEEDBACK_LOOP_KINDS={run,wrap,delegate}・3 者ミラー解消 | P6 + inventory component エントリ |
+| B1 | feedback_contract_ssot.py(+vendoring) | `plugins/skill-creator/scripts/feedback_contract_ssot.py` | CRITERIA_ID_RE=`^(IN\|OUT\|C)[0-9]+$`・verify_by∈{lint,test,script,evaluator,elegant-review,live-trial,human}・loop_scope∈{inner,outer}各≥1・必須キー(id,loop_scope,text,verify_by)・FEEDBACK_LOOP_KINDS={run,wrap,delegate}・3 者ミラー解消 | P6 + inventory component エントリ |
 | B2 | lint-feedback-contract.py | `scripts/lint-feedback-contract.py` | kind∈{run,wrap,delegate} の frontmatter に criteria 必須・SSOT 制約満たす・CI/pre-push fail-closed・skip_reason で N/A・フォールバック既定残存 WARN | P6 完了条件(verify) |
 | B3 | run-build-skill Step1/3.5 | `plugins/skill-creator/skills/run-build-skill/` (+`templates/combinators/with-feedback-contract.patch`) | loop 系は Step1 で brief.goal/checklist から criteria を test-first 導出 → Step3.5 で SKILL.md frontmatter と build-trace 両方に固定・patch 注入 | P4/P6 |
 | B4 | notion_config.py (per-project Notion DB 解決 SSOT) | `plugins/skill-creator/scripts/notion_config.py` | DB キー (論理名)=plan 宣言 / DB ID (具体値)=設置先 repo-root `.notion-config.json` (gitignore) 供給の二層分離・require_or_skip fail-closed・解決ロジックは名前参照のみ (planner 側で再実装/複製禁止) | inventory `plugin_level_surfaces.notion_config` + index `plugin_meta.feedback_deploy.notion_sink.resolution` |
@@ -50,7 +50,7 @@ source-tier: internal
 
 | ID | 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| D1 | goal-seek-paradigm | `plugins/skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md` | loop 系は固定手順禁止・「## ゴールシーク実行」4 ブロック(ゴール 1 文+目的背景+二値チェックリスト+ループ)・AI 最尤ゴール推定・6 ステップ既定 5 周・SubAgent fork | P1 + 横断 |
+| D1 | goal-seek-paradigm | `plugins/skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md` | loop 系は固定手順禁止・「## ゴールシーク実行」4 ブロック(ゴール 1 文+目的背景+二値チェックリスト+ループ)・AI 最尤ゴール推定・6 ステップ既定 5 周・SubAgent fork・達成判定=fresh agent PASS/FAIL(score 禁止・original_goal 正本) | P1 + 横断 |
 | D2 | 中間成果物アンカー schema | `plugins/skill-creator/skills/run-build-skill/schemas/goal-seek-loop.schema.json` | 各周回末に `eval-log/<skill>-intermediate.jsonl` へ 5 要素(original_goal 不変 SHA256/current_goal_snapshot/delta/merged_directive/drift_signal 6 値)・次周回 Step2 必須入力・改竄検知停止 | 横断(§13-3) |
 | D3 | run-goal-elicit(goal-spec) | `plugins/skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json` | 曖昧要求→purpose/background/goal/checklist を `<PLAN_DIR>/goal-spec.json` (既定 `plugin-plans/<plugin-slug>/goal-spec.json`)・checklist 各{id:`^C[0-9]+$`,criterion,done,verify_by∈{reasoning,script,lint,test,human}}・target_plugin_slug/plan_dir 固定・max_loops=5・追加質問禁止・仮定明示 | P1(§13-1) |
 | D4 | run-goal-seek | `plugins/skill-creator/skills/run-goal-seek/` | goal-spec 達成まで手順都度生成反復・決定論検査優先・max_loops5 超過で open_issues 停止・fork・handoff-goal-seek.json のみ親へ | 横断 |

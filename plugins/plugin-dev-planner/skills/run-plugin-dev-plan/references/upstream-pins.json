@@ -4,13 +4,13 @@
   "pins": [
     {
       "path": "plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json",
-      "sha256": "8c1409fbf84a7ed2235a98666b5d9aa22d1a3032ece29cb6879e290b0a7fdf74",
+      "sha256": "381635592dc48a5dc14dbd5ff6889f6f50af54fd224a76a7cfad9ad8f7ac5228",
       "verified_at": "2026-07-02",
       "matrix_rows": ["E1"]
     },
     {
       "path": "plugins/skill-creator/scripts/feedback_contract_ssot.py",
-      "sha256": "0c747afb1303f0f983237a0860994d5477112d0d6a4c16f9a6bef7e40057d056",
+      "sha256": "4f15499c00d4bf70ebdf13d2226183a661577b7cb22f818fceafc16367b6cdef",
       "verified_at": "2026-07-02",
       "matrix_rows": ["B1"]
     },
@@ -22,13 +22,13 @@
     },
     {
       "path": "plugins/skill-creator/skills/run-elegant-review/references/convergence-policy.json",
-      "sha256": "1be3423d98ecca2947bd9e9e2ea5183a47292cf743b245b15854968b666d4cab",
+      "sha256": "a8c5ab9ca0cae9d6b8a4cf90e65161ab3b0cb5bc5b6dfba7cafe7eb1522eda46",
       "verified_at": "2026-07-02",
       "matrix_rows": ["A4"]
     },
     {
       "path": "plugins/skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md",
-      "sha256": "cc9275ddf2b888b0b50503708aa16ce8e3ef8bb4b31a3cf1f348f75eaa45421f",
+      "sha256": "c9586639a2766c0bb8d8072e3d2d61d7180e97abcb4004a7d7eb0ff00e72c0cc",
       "verified_at": "2026-07-02",
       "matrix_rows": ["D1"]
     },
