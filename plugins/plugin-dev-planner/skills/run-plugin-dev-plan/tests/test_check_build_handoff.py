@@ -339,7 +339,7 @@ def test_relative_plan_dir_is_cwd_independent(monkeypatch, tmp_path, handoff):
     handoff ファイルの所在 (= PLAN_DIR) を基準に spec を解決する。
 
     回帰防止: 旧実装は相対 plan_dir を Path.cwd() で再構成していたため、skill dir cwd の CI
-    から実行すると plan_dir が二重化して spec を見失っていた (creator-kit-ci の nested-test
+    から実行すると plan_dir が二重化して spec を見失っていた (harness-creator-kit-ci の nested-test
     収集で露呈)。本テストは無関係な cwd から実行しても exit0 になることを固定する。
     """
     # 参照 phase ファイル (phase-05-implementation.md) は handoff と同じ tmp_path に在るが、

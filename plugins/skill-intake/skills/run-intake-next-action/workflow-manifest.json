@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-intake-next-action",
   "skill": "run-intake-next-action",
-  "description": "summary/purpose/options/kickoff から引き渡しモード A-E (skill-creator) / P (plugin-dev-planner) を決定論的に確定し next-action.json を出力する。",
+  "description": "summary/purpose/options/kickoff から引き渡しモード A-E (harness-creator) / P (plugin-dev-planner) を決定論的に確定し next-action.json を出力する。",
   "phases": [
     {
       "id": "P1-load",

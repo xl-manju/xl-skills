@@ -1,1 +1,1 @@
-../../plugins/skill-creator/commands/skill-improve.md
+../../plugins/harness-creator/commands/skill-improve.md

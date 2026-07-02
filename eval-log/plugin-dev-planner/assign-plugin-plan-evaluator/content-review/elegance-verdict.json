@@ -2,38 +2,36 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "7a610cfa1ded8eccbad0fe09a76a3238d0fed56b8e48d43c77ffea76c31a3839"
+    "skill_md_sha256": "7eccb32b8eca319cf6e12a6cbb7b8d08b567ea344b75306444c0640655586ec3"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review",
-  "reviewed_at": "2026-07-02T10:10:44Z",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 2
+    "smell": 1
   },
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "C4 (依存関係整合) — 決定論ゲートが G1-G10 の 10 本へ純増し、evaluate-plan.py._gate_defs / plan-rubric.json.deterministic_gates / specfm.evaluator_plan_gate_scripts の三点が id・name・conditions で完全一致。test_gate_parity.py が forward-parity を fail-closed 強制し、CI cwd (skill root) から pytest 13/13 PASS を実走確認。G10 (check-runtime-portability) が build-handoff (G8) と同型で C4 へ写像され、install 携帯性の壊れた plan が独立評価を素通りする Goodhart 穴を塞いでいる。ゲート増減が三点を同時更新しない限り必ずテストが落ちる構造が exemplary。",
-      "C3 (整合性あり) — SKILL.md L82 のマトリクス被覆記述が行数を数値ハードコードせず『行数正本=skill-creator-spec-reflection.md』と正本参照に留めており、マトリクスが 44→46 行へ進化しても SKILL.md 側の追従修正が不要 (check-spec-matrix-coverage.py --self-test が『46行 table と reflection.md が一致 drift なし』exit0 を実測)。数値の分散管理を避ける宣言型設計で、行数 drift による文書腐敗を構造的に回避している。",
-      "C2 (漏れなし) — plugin-level surface の SSOT が evaluate-plan.py.REQUIRED_PLUGIN_SURFACES (8 要素: manifest/composition/harness_eval/references_config_assets/schemas/vendor/mcp_app_connector/notion_config) と specfm.PLUGIN_LEVEL_SURFACES で tuple 完全一致し、test_required_plugin_surfaces_parity_with_specfm が drift を fail-closed 強制。単一 skill 退化検出の正本キーを plugin_level_surfaces.<surface>.omitted_reason へ一本化し (SKILL.md Key Rules #4)、machine (check-surface-inventory) が構造検査・LLM が omitted_reason の意味妥当性のみ補助する二層分離が明確。",
-      "C1 (矛盾なし) / 全体 — proposer≠approver を context:fork + allowed-tools からの Edit 除外 + write=findings only + read-only-on-plan の 4 層 (SKILL/agent/prompt/schema) で一致させ、評価器が plan を書き換える迎合経路が設計上塞がれている。C1-C4 ラベルの inner (本 skill=機械ゲート) / outer (run-elegant-review=30思考法) 二層性を SKILL.md L85 で明示 disambiguate しており、同一ラベルの二重出現が冗長でなく意図的階層であることが読者へ透明化されている。"
+      "C4 (依存関係整合) / 改名追従 — 本 skill が引く上流正本の呼称が harness-creator へ一貫追従している。rubric_refs L43 の注記 (`ref-skill-design-rubric` = harness-creator 正本) と C3 ゲート行 L82 の『行数正本=harness-creator-spec-reflection.md』がいずれも新名を指し、参照先 references/harness-creator-spec-reflection.md が実在 (旧名 skill-creator-spec-reflection.md は物理削除済で dangling 0) を実測確認した。数値をハードコードせず正本参照に留める宣言型設計は改名でも修正不要で、行数 drift と改名 drift の双方を構造的に回避している。",
+      "C1 (矛盾なし) / 意味論境界 — 改名の意味論境界が正しく適用されている。本 skill が扱う『単一 skill 退化の検出』(Key Rules #4 / C2 ゲート) は plugin が単一 skill へ縮退する概念で skill 表現を維持し、上流の総体規律を指す L43/L82 は harness-creator へ改名するという二分が一貫。同一文書内で skill/harness を機械的一括置換せず概念境界で切り分けており、意味論境界違反 0。",
+      "C2 (漏れなし) — proposer≠approver を context:fork + allowed-tools からの Edit 除外 + write=findings only の多層で担保する設計、および plan-scoped 決定論ゲートの exit code を一次根拠とし LLM を契約間意味判定に限定する二層分離が、改名後も欠落なく維持されている。plugin-level surface の不要理由キー (`plugin_level_surfaces.<surface>.omitted_reason`) が単一正本として保たれている。"
     ],
     "negative_feedback": [
-      "[smell/low, 非ブロッキング] SKILL.md Key Rules #3 (L91) が bucket 例として 'rubric id (PLAN-001 等)' を挙げるが、plan-rubric.json の実 id は C1-C4 / G1-G10 / S1-S2 であり 'PLAN-001' に対応する定義は rubric チェーン全体に無い (grep で SKILL.md 1 行のみヒット)。plan-findings.schema.json が bucket に任意非空文字列を許すため実害は無いが、前回 review でも指摘済で未修正。'C1-C4 か G/S id' 等へ是正推奨。",
-      "[smell/low, 非ブロッキング] plan-findings.schema.json の gate_results.minItems が 8 のまま据え置かれているが、現在 _gate_defs が実行する決定論ゲートは 10 本 (G1-G10)。10 >= 8 で schema 違反ではなく、ゲート数の drift 検知は test_gate_parity.py 側が担保するため schema 下限の役割は最低保証に留まる設計だが、minItems を現行ゲート数 (10) へ引き上げると『10 ゲート全部を出力せよ』という契約が schema 単体からも読み取れ、二重防御が完成する余地がある。"
+      "[smell/low, 非ブロッキング, 改名と無関係の既存事項] Key Rules #3 (L91) が bucket 例として 'rubric id (PLAN-001 等)' を挙げるが、plan-rubric.json の実 id は C1-C4 / G/S 系で 'PLAN-001' に対応する定義はチェーン全体に無い。plan-findings.schema.json が bucket に任意非空文字列を許すため実害はなく、本改名 re-review のスコープ外。'C1-C4 か G/S id' 等へ将来是正すると読者混乱を防げる。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SKILL.md sha256=7a610cf を実測 (shasum -a 256)。既存 verdict (SHA 208ea94) は『8 決定論ゲート / REQUIRED_PLUGIN_SURFACES 5→7 / 44行マトリクス / pytest 11』を前提に書かれていたが、現物は G1-G10 の 10 ゲート・surface 8 要素・46 行マトリクス・pytest 13 passed へ進化しており既存 positive_feedback の数値が現 SKILL.md に対して不整合 (stale)。本 verdict は現物ベースで再評価。genuine 実走検証: (1) CI cwd (skill root) から python3 -m pytest -q → 13 passed。(2) check-spec-matrix-coverage.py --self-test → '46行 table と reflection.md 一致 drift なし' exit0。(3) evaluate-plan.py.REQUIRED_PLUGIN_SURFACES と specfm.PLUGIN_LEVEL_SURFACES が共に 8 要素で tuple 一致を実読確認 (parity test 有効)。(4) plan-rubric.json deterministic_gates=G1-G10 / semantic=S1-S2 を実読。(5) 参照する 8 gate scripts + evaluate-plan.py + agent + schema + rubric + reference 全実在 (dangling 0)。30思考法×4条件 (C1-C4) レンズで contradiction/omission/inconsistency/dependency_break=0、smell 2 (PLAN-001 誤例示残存 + schema minItems=8 の緩さ) はいずれも low・非ブロッキング。high 0 のため PASS。"
+  "notes": "harness-creator 改名 (skill-creator → harness-creator) に伴う本 skill SKILL.md 変更に対する独立 genuine 再評価。現 SKILL.md sha256=7eccb32 を shasum -a 256 で実測 (旧 verdict sha=7a610cf は改名前・本文に旧名 'skill-creator-spec-reflection.md' を引用し stale)。検証: (1) 担当 SKILL.md に旧名 skill-creator/skill_creator/スキルクリエイター の残存 0 件 (grep)。(2) L43/L82 の harness-creator 参照先 references/harness-creator-spec-reflection.md が実在・旧名ファイルは削除済 (dangling 0)。(3) 意味論境界: 単一 skill 概念 (単一 skill 退化・skill component) は skill 維持、総体規律参照は harness-creator 化の二分が正しい。(4) script_refs / rubric_refs / reference_refs / agent_refs 全実在。30思考法×4条件 (C1-C4) で contradiction/omission/inconsistency/dependency_break=0、smell 1 (PLAN-001 誤例示・改名無関係の既存 low) は非ブロッキング。high 0 のため PASS。"
 }

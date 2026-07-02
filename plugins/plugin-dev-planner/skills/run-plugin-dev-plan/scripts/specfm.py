@@ -16,7 +16,7 @@ check-spec-frontmatter.py / check-spec-gates.py / check-spec-matrix-coverage.py 
 import 共有する。yaml は import しない (scripts 規約)。nested map / inline flow list /
 block list (scalar item or 平坦 map item) を扱う最小 YAML サブセットを解析する。
 
-feedback_contract.criteria の制約は plugins/skill-creator/scripts/feedback_contract_ssot.py を
+feedback_contract.criteria の制約は plugins/harness-creator/scripts/feedback_contract_ssot.py を
 逐語複製 (plugin 自己完結のため cross-plugin import を避ける)。
 """
 from __future__ import annotations
@@ -29,10 +29,10 @@ import re
 # 本 module 側が機械正本で相手が人間可読写像、無印は相手側が正本で本 module が複製。
 # | 定数 / 値 | 相手 (upstream パス or projection 先) | parity test |
 # |---|---|---|
-# | CRITERIA_ID_RE / CRITERIA_VERIFY_BY / LOOP_SCOPES / REQUIRED_CRITERION_KEYS / FEEDBACK_LOOP_SKILL_KINDS | plugins/skill-creator/scripts/feedback_contract_ssot.py | tests/test_schema_parity.py |
-# | SKILL_BRIEF_FIELDS / SKILL_BRIEF_PRESENCE_ONLY / skill_conditional_required | plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json | tests/test_schema_parity.py |
+# | CRITERIA_ID_RE / CRITERIA_VERIFY_BY / LOOP_SCOPES / REQUIRED_CRITERION_KEYS / FEEDBACK_LOOP_SKILL_KINDS | plugins/harness-creator/scripts/feedback_contract_ssot.py | tests/test_schema_parity.py |
+# | SKILL_BRIEF_FIELDS / SKILL_BRIEF_PRESENCE_ONLY / skill_conditional_required | plugins/harness-creator/skills/run-skill-create/schemas/skill-brief.schema.json | tests/test_schema_parity.py |
 # | SKILL_P0_LINTS | plugins/skill-governance-lint/scripts/*.py (実体 glob) | tests/test_schema_parity.py |
-# | evaluator threshold>=80 / high_max==0 (validate_component_quality_gates) | plugins/skill-creator/skills/assign-skill-design-evaluator/ + references/4-conditions.json | tests/test_matrix_doc_integrity.py |
+# | evaluator threshold>=80 / high_max==0 (validate_component_quality_gates) | plugins/harness-creator/skills/assign-skill-design-evaluator/ + references/4-conditions.json | tests/test_matrix_doc_integrity.py |
 # | HARNESS_MIN_REQUIRED=80 | doc/harness-coverage-spec.md | tests/test_matrix_doc_integrity.py |
 # | BUILDER_BY_KIND / BUILD_KIND_BY_KIND / BUILDER_STATUS | references/io-contract.md §9 build handoff 契約 (projection) | tests/test_kind_key_doc_parity.py |
 # | PHASE_BODY_SECTIONS | references/io-contract.md §5 表 / prompts/R3-emit-specs.md (projection) | tests/test_kind_key_doc_parity.py |
@@ -64,7 +64,7 @@ PLUGIN_LEVEL_SURFACES = (
     "vendor",
     "mcp_app_connector",
     # feedback+Notion 連携の宣言スロット (Option 1)。DB キー=plan 宣言 / DB ID=設置先
-    # .notion-config.json 供給の二層分離 (解決 SSOT=plugins/skill-creator/scripts/notion_config.py
+    # .notion-config.json 供給の二層分離 (解決 SSOT=plugins/harness-creator/scripts/notion_config.py
     # の名前参照のみ・ロジック再実装禁止)。required:true の値域は validate_surface_inventory が検査。
     "notion_config",
 )
@@ -73,7 +73,7 @@ PLUGIN_LEVEL_SURFACES = (
 # skill は skill-brief.schema.json の base required 14 と逐語一致 (schema parity の正本)。
 # 旧版は言い換えで 6 フィールド(cli_tools/deterministic_checks/external_systems/mcp_tools/
 # needs_independent_context/needs_lifecycle_enforcement)を欠落し「無加工で写せる」が偽だった。
-# 実 schema: plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json#required
+# 実 schema: plugins/harness-creator/skills/run-skill-create/schemas/skill-brief.schema.json#required
 SKILL_BRIEF_FIELDS = (
     "skill_name", "prefix", "kind", "hierarchy_level", "trigger_conditions",
     "output_contract", "boundary", "placement_candidates",
@@ -697,7 +697,7 @@ def validate_component_quality_gates(comp: dict) -> list[str]:
     errs: list[str] = []
     qg = comp.get("quality_gates")
     if not isinstance(qg, dict):
-        return [f"[{ck}] quality_gates ブロックが無い (skill-creator 規律の出力強制に必須)"]
+        return [f"[{ck}] quality_gates ブロックが無い (harness-creator 規律の出力強制に必須)"]
     required = set(P0_LINT_BY_KIND.get(ck, ()))
     declared = set(qg.get("p0_lint")) if isinstance(qg.get("p0_lint"), list) else set()
     missing = sorted(required - declared)
@@ -769,7 +769,7 @@ def validate_inventory_component(comp: dict) -> list[str]:
       - skill: skill_kind enum + 条件付き必須 (skill_conditional_required) + loop(run/wrap/delegate) は
         feedback_contract.criteria を validate_criteria + criteria_purpose_traceability_errors で検査
         (ref/assign は skip_reason か criteria)。非 skill は criteria をスキップ
-      - quality_gates / harness_coverage の値域 (skill-creator 規律の出力強制)
+      - quality_gates / harness_coverage の値域 (harness-creator 規律の出力強制)
       - script は tests_min>=80
     """
     if not isinstance(comp, dict):
@@ -1186,7 +1186,7 @@ def render_minimal_phase(phase_number: int) -> str:
 # 注: `## フェーズ一覧` は enumeration 本体をそのまま本文にするため hint を持たない (hint 文に phase-id
 # トークンを埋めると extract_phase_list_ids が誤って拾い skeleton が自身の層1 検証に落ちるのを構造で回避)。
 _INDEX_SECTION_HINT = {
-    "## 基本定義": "メタ情報 (プロジェクトID/構想slug)・最上位目的 (goal-spec.purpose)・仕様駆動の大前提 (skill-creator 仕様基点・spec-first・要件正本=goal-spec checklist)・スコープ (含む/含まない) を宣言する。",
+    "## 基本定義": "メタ情報 (プロジェクトID/構想slug)・最上位目的 (goal-spec.purpose)・仕様駆動の大前提 (harness-creator 仕様基点・spec-first・要件正本=goal-spec checklist)・スコープ (含む/含まない) を宣言する。",
     "## ドメイン知識": "用語集とドメイン前提知識を列挙する (後段 build と評価者が同じ語彙で解釈できるように)。",
     "## インフラ": "ツール・実行環境・cwd 前提・依存 (Python 標準ライブラリ規約等) を宣言する。",
     "## 環境ポリシー": "品質基準 (harness>=80/評価ゲート)・共通ポリシー・エスカレーション方針を宣言する。",

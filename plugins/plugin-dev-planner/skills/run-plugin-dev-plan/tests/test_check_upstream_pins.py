@@ -99,7 +99,7 @@ def test_real_ledger_pins_cite_existing_matrix_rows(upstream_pins):
     ledger_path = _SKILL_DIR / "references" / "upstream-pins.json"
     pins, errs = upstream_pins.load_ledger(ledger_path)
     assert errs == [], errs
-    reflection = _SKILL_DIR / "references" / "skill-creator-spec-reflection.md"
+    reflection = _SKILL_DIR / "references" / "harness-creator-spec-reflection.md"
     row_ids = set(re.findall(r"^\|\s*([A-G]\d{1,2})\s*\|", reflection.read_text(encoding="utf-8"), re.M))
     assert row_ids, "reflection.md からマトリクス行 ID を抽出できない"
     missing = sorted({r for p in pins for r in p["matrix_rows"]} - row_ids)

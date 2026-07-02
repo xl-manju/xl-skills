@@ -44,7 +44,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Purpose & Output Contract
 
-Phase 9 担当。Phase 1-8 で生成された全 JSON / sheet.md / visuals.json を統合し、最終成果物 `intake.md` (人間向け) と `intake.json` (skill-creator 入力) を **決定論的に**生成する。`render-intake-final.py` (Jinja2) と `quality_gate.py` / `cross_check.py` を順に exec する。skill-creator 引き渡し用の `next-action.json` は Notion 公開後の Phase 11 で生成する。
+Phase 9 担当。Phase 1-8 で生成された全 JSON / sheet.md / visuals.json を統合し、最終成果物 `intake.md` (人間向け) と `intake.json` (harness-creator 入力) を **決定論的に**生成する。`render-intake-final.py` (Jinja2) と `quality_gate.py` / `cross_check.py` を順に exec する。harness-creator 引き渡し用の `next-action.json` は Notion 公開後の Phase 11 で生成する。
 
 **入力**: Phase 1-8 の全成果物 + `intake-final-template.md.tmpl` + `intake-final-schema.json`
 **出力**:

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Notion スキル一覧 DB へプラグインを冪等に upsert。
 
-skill-creator の build 完了後フック・既存プラグインのバックフィル共通で使用。
+harness-creator の build 完了後フック・既存プラグインのバックフィル共通で使用。
 
 Usage:
-  python3 scripts/notion-upsert-plugin.py --plugin skill-creator
-  python3 scripts/notion-upsert-plugin.py --plugin skill-creator --hearing-sheet-id <page-id>
-  python3 scripts/notion-upsert-plugin.py --plugin skill-creator --dry-run
+  python3 scripts/notion-upsert-plugin.py --plugin harness-creator
+  python3 scripts/notion-upsert-plugin.py --plugin harness-creator --hearing-sheet-id <page-id>
+  python3 scripts/notion-upsert-plugin.py --plugin harness-creator --dry-run
 
 挙動:
   1. plugins/<name>/ を走査して skills/ 一覧・version (.claude-plugin/plugin.json) を取得
@@ -18,13 +18,13 @@ Usage:
 冪等性: TITLE が一意キー。lint-notion-relations.py が重複検知。
 
 Per-repo 設定: <repo-root>/.notion-config.json (gitignore対象)
-  詳細: plugins/skill-creator/references/notion-per-repo-setup.md
+  詳細: plugins/harness-creator/references/notion-per-repo-setup.md
 """
 import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+sys.path.insert(0, str(ROOT / "plugins" / "harness-creator" / "scripts"))
 import notion_config  # noqa: E402
 
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"
@@ -157,8 +157,8 @@ def build_properties(plugin_name, info, hearing_sheet_id=None):
 
 
 _PLUGIN_OVERVIEWS = {
-    "skill-creator": "Claude Code 用の『スキル』を新規作成・改善するための土台プラグイン。要望ヒアリング→設計→生成→評価→公開までを一気通貫で支援します。スキルそのものを作るためのスキル集です。",
-    "skill-intake":   "ユーザーから『こんなスキルが欲しい』というふんわりした要望を受け取り、構造化されたヒアリングシートに落とすところを担当します。skill-creator の入口。",
+    "harness-creator": "Claude Code 用の『スキル』を新規作成・改善するための土台プラグイン。要望ヒアリング→設計→生成→評価→公開までを一気通貫で支援します。スキルそのものを作るためのスキル集です。",
+    "skill-intake":   "ユーザーから『こんなスキルが欲しい』というふんわりした要望を受け取り、構造化されたヒアリングシートに落とすところを担当します。harness-creator の入口。",
     "prompt-creator": "スキル内で使うプロンプト(指示文)を7層構造のテンプレートに沿って作成・改善するプラグイン。プロンプトの品質と再現性を上げます。",
     "skill-governance-adapters":   "他システム(Notion・Slack・GitHub等)とスキルを繋ぐ『接続部品』を集めたプラグイン。",
     "skill-governance-automation": "スキル運用に必要な自動化(定期実行・通知・トリガ起動)を提供するプラグイン。",

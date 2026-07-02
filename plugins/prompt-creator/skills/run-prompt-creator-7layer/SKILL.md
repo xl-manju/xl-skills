@@ -84,7 +84,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 # run-prompt-creator-7layer
 
-> doc/prompt-creator/ を skill-creator 仕様準拠で plugins/prompt-creator/ へ移植した正本。SKILL.md/SubAgent 各 300 行以下、Progressive Disclosure 厳守。
+> doc/prompt-creator/ を harness-creator 仕様準拠で plugins/prompt-creator/ へ移植した正本。SKILL.md/SubAgent 各 300 行以下、Progressive Disclosure 厳守。
 
 ## Purpose & Output Contract
 
@@ -97,7 +97,7 @@ Layer 5 はゴールシーク型 (達成ゴール+完了チェックリスト+�
 **入力**: `--responsibility-id <R-id>` (skill-local-v1 既定で必須、`brief.responsibilities[].id` と 1:1) / `--output <path>` (省略時は規約パス自動解決) / `--target-agent` (任意、owner_agent がある場合のみ注入) / `--skill-brief` / `--format` (md 既定、yaml は内部正規形または legacy 互換) / `--inject-sections` (既定: "Prompt Templates,Self-Evaluation")
 
 **出力 (path_convention で切替)**:
-- `skill-local-v1` (既定): `plugins/<plugin>/skills/<skill>/prompts/<R-id>-<slug>.md` — `references/prompt-placement-convention.md` (skill-creator 側) 準拠、`validate-build-trace.py` が正規表現と sha256 で機械検証
+- `skill-local-v1` (既定): `plugins/<plugin>/skills/<skill>/prompts/<R-id>-<slug>.md` — `references/prompt-placement-convention.md` (harness-creator 側) 準拠、`validate-build-trace.py` が正規表現と sha256 で機械検証
 - `agents-legacy` (`--responsibility-id` 省略時のみ): `plugins/<plugin>/agents/prompts/<role>.yaml` — 後方互換、brief.responsibilities[] が空の ref/wrap/delegate 用
 - 対象 SubAgent .md への自動注入 (Edit、owner_agent がある場合のみ)
 - `eval-log/prompt-build-trace.json` (`run-prompt-create/schemas/build-trace.schema.json` 互換)
@@ -159,7 +159,7 @@ Phase 5 戻り検証+設計ゲート (C1-C4)          [script + evaluator fork]
 
 ### Phase 4-C アンカー契約 (goal-seek-paradigm 準拠)
 
-各周回末に `eval-log/prompt-creator-intermediate.jsonl` へ 1 行 append する: `original_goal` (全周回不変) / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal`。schema 正本は skill-creator `run-build-skill/schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]` (本 skill で再宣言しない)。次周回の手順立案は直前行の `merged_directive_for_next` + `original_goal` を必須入力とする。`drift_signal` が stagnant/widening/oscillating で 2 周連続なら orchestrator へ差し戻す。
+各周回末に `eval-log/prompt-creator-intermediate.jsonl` へ 1 行 append する: `original_goal` (全周回不変) / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal`。schema 正本は harness-creator `run-build-skill/schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]` (本 skill で再宣言しない)。次周回の手順立案は直前行の `merged_directive_for_next` + `original_goal` を必須入力とする。`drift_signal` が stagnant/widening/oscillating で 2 周連続なら orchestrator へ差し戻す。
 
 ### worker 内蔵ゲート (経路非依存の品質保証)
 
@@ -196,7 +196,7 @@ C1-C4 設計評価は worker の完了条件に内蔵する: `assign-prompt-desi
 - `references/prompt-sheet-template.md` — シート項目
 - `schemas/hearing-result.schema.json` — legacy sheet/scaffold 入力スキーマ (raw hearing の正本は run-prompt-elicit 側)
 - 子 agent: `plugins/prompt-creator/agents/prompt-creator-{generate-prompt,review-prompt}.md` (ヒアリングは run-prompt-elicit へ委譲)
-- caller: `plugins/skill-creator/skills/run-build-skill` (Step 7.5)
+- caller: `plugins/harness-creator/skills/run-build-skill` (Step 7.5)
 - 戻り検証: `plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py`
 - 設計ゲート: `plugins/prompt-creator/skills/assign-prompt-design-evaluator` (C1-C4、fork・findings 出力のみ)
-- Anchor schema 正本: `plugins/skill-creator/skills/run-build-skill/schemas/goal-seek-loop.schema.json` (`intermediate_artifacts[]`)
+- Anchor schema 正本: `plugins/harness-creator/skills/run-build-skill/schemas/goal-seek-loop.schema.json` (`intermediate_artifacts[]`)

@@ -16,7 +16,7 @@
 """loop 実行系スキル(kind=run/wrap/delegate)の SKILL.md frontmatter に
 `feedback_contract.criteria` が存在し SSOT 制約を満たすことを機械検査する。
 
-これは「skill-creator が量産するスキルへ評価基準を毎回 frontmatter に焼き込む」
+これは「harness-creator が量産するスキルへ評価基準を毎回 frontmatter に焼き込む」
 仕組みの fail-closed ゲート。criteria の中身は各スキル固有のため AI が brief から
 導出するが(内容判断の自由度)、欠落・不正は本 lint が CI/pre-push で必ず落とす(機構保証)。
 
@@ -60,7 +60,7 @@ LOOP_KINDS = FC.FEEDBACK_LOOP_KINDS
 # tmp へ差し替えても derive_acceptance_tier のロード元は実 repo のまま。
 # lint-live-trial-verdict.py の HARNESS_SKILL_DIR と同じ流儀)。
 _BUILD_PLAN_PATH = (
-    ROOT / "plugins" / "skill-creator" / "skills" / "run-build-skill"
+    ROOT / "plugins" / "harness-creator" / "skills" / "run-build-skill"
     / "scripts" / "validate-build-plan.py"
 )
 # live-trial ratchet の既存免除 (baseline)。ファイル不在 = 免除ゼロ (fail-closed)。

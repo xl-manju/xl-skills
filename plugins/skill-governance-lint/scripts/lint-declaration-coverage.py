@@ -20,19 +20,19 @@
 に帰着する。突合が配線された宣言面 (feedback_contract / content-review) では
 再発が止まっている実績があるため、manual 宣言の増加を機械遮断する。
 
-ratchet 動作 (creator-kit-ci.yml の coverage-gate ratchet と同思想):
+ratchet 動作 (harness-creator-kit-ci.yml の coverage-gate ratchet と同思想):
   count >  baseline → FAIL (新しい宣言面には突合 lint を同時配線せよ)
   count == baseline → PASS
   count <  baseline → PASS + baseline 更新を促すメッセージ (締め上げ方向は歓迎)
 
 baseline は本スクリプト内定数 MANUAL_BASELINE が正本。CI 配線対象は
-plugins/skill-creator/plugin-composition.yaml であり、baseline はその実残存数
+plugins/harness-creator/plugin-composition.yaml であり、baseline はその実残存数
 (意図的残置 2 項: rubric_refs 順序 / side_effect_scope。elegant-review Phase 順序は
 validate-paradigm-coverage.py --phase-order 着地で機械化済) に一致させる。
 意図的残置には invariant 行内に「manual 維持の理由」注記を要する。
 
 Usage:
-  lint-declaration-coverage.py plugins/skill-creator/plugin-composition.yaml
+  lint-declaration-coverage.py plugins/harness-creator/plugin-composition.yaml
   lint-declaration-coverage.py --self-test
 
 Exit 0 = ok, 1 = violation, 2 = usage error.

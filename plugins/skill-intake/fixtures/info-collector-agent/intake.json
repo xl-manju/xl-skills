@@ -141,10 +141,10 @@
     },
     "8_open_questions": {
       "questions": [
-        {"q": "クライアント実名・契約金額の除外範囲・粒度", "blocking": false, "defer_to": "skill-creator"},
-        {"q": "情報源の絞り込み(X TLアカウント数・arXivカテゴリ範囲)", "blocking": false, "defer_to": "skill-creator"},
-        {"q": "Discord/Slack のどちらをメイン通知先にするか", "blocking": false, "defer_to": "skill-creator"},
-        {"q": "テーマ集合ファイルのスキーマと更新ジョブ実装", "blocking": false, "defer_to": "skill-creator"}
+        {"q": "クライアント実名・契約金額の除外範囲・粒度", "blocking": false, "defer_to": "harness-creator"},
+        {"q": "情報源の絞り込み(X TLアカウント数・arXivカテゴリ範囲)", "blocking": false, "defer_to": "harness-creator"},
+        {"q": "Discord/Slack のどちらをメイン通知先にするか", "blocking": false, "defer_to": "harness-creator"},
+        {"q": "テーマ集合ファイルのスキーマと更新ジョブ実装", "blocking": false, "defer_to": "harness-creator"}
       ],
       "blocking_count": 0,
       "deferred_count": 4
@@ -159,7 +159,7 @@
       "score_rationale": "5軸全 verified、purpose 動詞+目的語に分解済、設計選択(O1/T3/S3)確定",
       "deductions": [
         {"reason": "アウトプット形態の優先順位確定が purpose-excavator まで持ち越し", "points": -7},
-        {"reason": "テーマ集合スキーマが skill-creator 委譲で残った", "points": -5}
+        {"reason": "テーマ集合スキーマが harness-creator 委譲で残った", "points": -5}
       ],
       "question_bank_additions": [
         {"category": "真の課題", "technique": "Reverse Brief", "question_text": "完成して1週間使った朝、最初に開いたときに『一番見たいアウトプット』は何ですか？"},

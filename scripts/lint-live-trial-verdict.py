@@ -18,7 +18,7 @@ verdict が **存在する** 場合の stale-sha / schema 不適合 / FAIL verdi
 
 Usage:
   python3 scripts/lint-live-trial-verdict.py --all [--enforce]
-  python3 scripts/lint-live-trial-verdict.py --plugin skill-creator [--enforce]
+  python3 scripts/lint-live-trial-verdict.py --plugin harness-creator [--enforce]
   python3 scripts/lint-live-trial-verdict.py --self-test
 """
 import argparse
@@ -35,7 +35,7 @@ EVAL_LOG = ROOT / "eval-log"
 # tmp へ差し替えても SSOT 実装のロード元は実 repo のまま)
 HARNESS_SKILL_DIR = (
     Path(__file__).resolve().parent.parent
-    / "plugins" / "skill-creator" / "skills" / "run-skill-live-trial"
+    / "plugins" / "harness-creator" / "skills" / "run-skill-live-trial"
 )
 
 sys.path.insert(0, str(ROOT / "scripts"))

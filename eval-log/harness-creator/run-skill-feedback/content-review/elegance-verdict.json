@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "harness-creator",
+    "skill": "run-skill-feedback",
+    "skill_md_sha256": "21076b939aa0fec22fb2d93407ebeab9b21a8c542b43ea5ede1b27adda425973"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-rename-review-subagent-c",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "feedback_protocol を doc/notion-schema/skill-list.schema.json の唯一の正本(SSOT)とし、SKILL.md / notion-upsert-plugin.py / Notion 本文 §7 の三者を派生と定めた上で、機械検証範囲(発火条件・参照経路は lint-feedback-protocol.py が exit0 検証、対話文面の逐語一致は対象外で正本変更時に手動同期)を明示分離しているため、SSOT 厳守(IN1)と実運用の同期コストが破綻なく両立している。",
+      "利用者がプラグイン名・スキル名を知らない前提を起点に、目的ヒアリング→全 SKILL.md description マッチング→候補提示→現状仕様提示 の 4 ステップ同定を必須先行(plugin 引数があっても省略禁止)とし、対象プラグイン未登録時は dry-run で中断する導線で、孤児レコード防止(IN3)と文脈ズレ防止(OUT1)を手順でなく構造として担保している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "skill-creator→harness-creator 改名後の SKILL.md(実測 sha256 21076b93…)を全文実読し 4 条件で検証。(1) 旧名残存: skill-creator / skill_creator / スキルクリエイター の grep 0 件。設定ローダー参照は plugins/harness-creator/scripts/notion_config.py へ統一され、スキル名 run-skill-feedback は単体 skill への改善要望起票のため skill 表現維持で意味論境界に適合。(2) 改名追従: script_refs(scripts/notion-submit-improvement.py・scripts/lint-feedback-protocol.py・plugins/harness-creator/scripts/notion_config.py)/ schema_refs(doc/notion-schema/*.schema.json)/ reference_refs(../run-build-skill/references/goal-seek-paradigm.md)を実在確認し断線 0。配布注記が script_refs / schema_refs の repo-root 依存(単独配布非対応)を明示しており repo-bundled 前提が宣言済み。(3) C1 矛盾: SSOT・冪等性(重複除去は人手)・token 非露出が Key Rules / Gotchas / Checklist で一貫。notion-upsert-plugin.py(skill 一覧登録側の派生先)と notion-submit-improvement.py(改善要望投入側)は役割が異なり矛盾ではない。(4) C2 漏れ: 同定 4 ステップ・要望収集 7 項目・存在確認・投入・完了通知・people 型 UI 案内を全網羅。criteria IN1(protocol SSOT 派生+lint exit0)/ IN2(token・DB ID を notion_config 経由でのみ解決し非露出)/ IN3(dry-run 存在確認で孤児防止)/ OUT1(目的逆算同定を省略しない)/ OUT2(摩擦最小起動+時系列ログ性質で重複除去を AI 判定しない)を導出し adequacy を確認。4 条件すべて 0 で PASS。"
+}

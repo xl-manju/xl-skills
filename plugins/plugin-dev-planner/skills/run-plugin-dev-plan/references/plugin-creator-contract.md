@@ -5,7 +5,7 @@ kind: reference
 owner: team-platform
 since: 2026-06-30
 source-tier: internal
-source: plugins/skill-creator/skills/run-skill-create/SKILL.md
+source: plugins/harness-creator/skills/run-skill-create/SKILL.md
 ---
 
 # plugin-creator 物理契約 (Claude Code)
@@ -40,7 +40,7 @@ source: plugins/skill-creator/skills/run-skill-create/SKILL.md
 | 既定 policy | `installation: AVAILABLE`、`authentication: ON_INSTALL` |
 | 並び順 | 明示要求が無ければ追記(append-only)。並べ替えない |
 | update flow | 既存 plugin の更新は cachebuster flow を使い、marketplace 手編集をしない |
-| 非配布 | `distributable:false` は marketplace/bundles 非登録で実体保持。skill-creator/prompt-creator は `NEVER_DISTRIBUTE` denylist で二重ロック |
+| 非配布 | `distributable:false` は marketplace/bundles 非登録で実体保持。harness-creator/prompt-creator は `NEVER_DISTRIBUTE` denylist で二重ロック |
 
 ## 計画への含意 (index.plugin_meta)
 

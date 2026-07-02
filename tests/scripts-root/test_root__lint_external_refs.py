@@ -30,7 +30,7 @@ _SPEC.loader.exec_module(LER)
 # ---------- helpers ----------------------------------------------------------
 
 def _skill(tmp_path: pathlib.Path, name: str, body: str) -> pathlib.Path:
-    """plugins/skill-creator/skills/<name>/SKILL.md 風の最小 fixture を作る。"""
+    """plugins/harness-creator/skills/<name>/SKILL.md 風の最小 fixture を作る。"""
     sdir = tmp_path / "skills" / name
     sdir.mkdir(parents=True)
     md = sdir / "SKILL.md"
@@ -198,7 +198,7 @@ def test_main_multiple_skills_sorted(tmp_path, capsys):
 # ---------- subprocess: entrypoint / argparse exit ---------------------------
 
 def test_entrypoint_subprocess_default_dir(tmp_path):
-    # 実 default (plugins/skill-creator/skills) を走らせ exit 0 を確認 (report mode)。
+    # 実 default (plugins/harness-creator/skills) を走らせ exit 0 を確認 (report mode)。
     r = subprocess.run(
         [sys.executable, str(SCRIPT), "--json"],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_BUILD = ROOT / "plugins" / "skill-creator" / "skills" / "run-build-skill"
+RUN_BUILD = ROOT / "plugins" / "harness-creator" / "skills" / "run-build-skill"
 RENDER_COMBINATORS = RUN_BUILD / "scripts" / "render-combinators.py"
 RENDER_FRONTMATTER = RUN_BUILD / "scripts" / "render-frontmatter.py"
 

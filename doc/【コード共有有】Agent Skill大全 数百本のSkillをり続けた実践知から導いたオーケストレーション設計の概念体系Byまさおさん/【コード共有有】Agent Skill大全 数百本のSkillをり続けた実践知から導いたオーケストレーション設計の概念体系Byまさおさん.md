@@ -1137,7 +1137,7 @@ LLM は強調ではなく妥当性で判断する
 
 理由のない令は、新しい文脈に当たった瞬間に上書きされる ──「`ALWAYS validate input` と書いてあるが、ここはテストコードだから skip して良いのでは ?」と。理由が書いてあれば、LLM は 同じ判断軸を新しい状況にも当てはめる ことができる。これが Why-driven の本体だ。
 
-Anthropic 公式メタスキル `skill-creator` も同じ立場をとる ── 「`ALWAYS` / `NEVER` を全大文字で書きそうになったら、それは黄信号。可能なら理由を添えて書き直せ」と明言している。
+Anthropic 公式メタスキル `harness-creator` も同じ立場をとる ── 「`ALWAYS` / `NEVER` を全大文字で書きそうになったら、それは黄信号。可能なら理由を添えて書き直せ」と明言している。
 
 悪い書き方
 **ALWAYS** validate input before passing to API.
@@ -1199,7 +1199,7 @@ Gotchas は、LLM が実際に踏んだ落とし穴の記録である。一般�
 
 HumanLayer は Writing a good CLAUDE.md で 60 行目安・上限 300 行 を提示し、長くなるほど Claude が各セクションを optional 扱いし始めると指摘する。
 
-Anthropic 公式メタスキル `skill-creator` は Gotchas を最も価値のある節の 1 つと位置付ける一方、"stale gotchas"  古くなった落とし穴は Claude を 存在しない問題に追わせる 害になる、とも明示している。1 件あたりが短いほど、書く・読む・捨てるすべてが軽くなる。
+Anthropic 公式メタスキル `harness-creator` は Gotchas を最も価値のある節の 1 つと位置付ける一方、"stale gotchas"  古くなった落とし穴は Claude を 存在しない問題に追わせる 害になる、とも明示している。1 件あたりが短いほど、書く・読む・捨てるすべてが軽くなる。
 
 良い Gotcha の条件:
 

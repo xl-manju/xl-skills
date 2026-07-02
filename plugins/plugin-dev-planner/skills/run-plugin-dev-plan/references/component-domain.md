@@ -86,7 +86,7 @@ component は `component_kind` (分類軸 5 種) と直交する属性 `placemen
 
 - **plugin-root は script のみ**許可する (skill/sub-agent/slash-command/hook は各自の deploy 面を持つため対象外)。
 - **≥2 skill consumer の script は plugin-root 必須**。deploy 境界の内 (skill 配下) / 外 (plugin-root) が dangling 可否を決める (発見方法でなく境界が本質)。共有 script を単一親 skill 配下に固定すると symlink 共有や単独 install で第二 consumer 側から辿れず dangling するため。この強制は `check-runtime-portability.py` が行う。
-- cross-plugin SSOT (別 plugin と共有する SSOT) は **vendoring (byte 一致複製)** か **self-derive fail-soft loader** で携帯性を担保する (先行事例 skill-intake / skill-creator の lint-runtime-portability)。plugin 内共有で足りる場合は plugin-root への hoist で十分 (vendoring 不要)。
+- cross-plugin SSOT (別 plugin と共有する SSOT) は **vendoring (byte 一致複製)** か **self-derive fail-soft loader** で携帯性を担保する (先行事例 skill-intake / harness-creator の lint-runtime-portability)。plugin 内共有で足りる場合は plugin-root への hoist で十分 (vendoring 不要)。
 - component_kind は 5 種のまま (placement_scope は属性であって第 6 の kind ではない)。builder 写像を壊さない。
 
 ## 用語集 (§12)

@@ -5,7 +5,7 @@
 - パターン: A（新規作成）／ Workflow Pattern: B（自動収集配信を主・A従）
 - 深度: detailed（40分相当）
 - 語彙: expert
-- 状態: Gate A 承認済み・skill-creator 引き渡し可能
+- 状態: Gate A 承認済み・harness-creator 引き渡し可能
 - value_realized_score（自己評価）: 88 / 100
 
 ---
@@ -18,7 +18,7 @@
 
 **設計選択**: O1 オーケストレータ × T3 ハイブリッドテーマ抽出 × S3 定刻＋オンデマンド両対応
 
-**引き渡しモード**: fast-track（skill-creator は Phase 2 から実装着手可能）
+**引き渡しモード**: fast-track（harness-creator は Phase 2 から実装着手可能）
 
 ---
 
@@ -289,19 +289,19 @@ flowchart TB
 
 ---
 
-## 8. 未解決事項（skill-creator 引き継ぎ）
+## 8. 未解決事項（harness-creator 引き継ぎ）
 
 | 質問 | ブロッキング | 委譲先 |
 | --- | --- | --- |
-| クライアント実名・契約金額の除外範囲 | × | skill-creator |
-| 情報源の絞り込み（X TLアカウント数・arXivカテゴリ範囲） | × | skill-creator |
-| Discord/Slack のどちらをメイン通知先にするか | × | skill-creator |
-| テーマ集合ファイルのスキーマと更新ジョブ実装 | ○ | skill-creator |
+| クライアント実名・契約金額の除外範囲 | × | harness-creator |
+| 情報源の絞り込み（X TLアカウント数・arXivカテゴリ範囲） | × | harness-creator |
+| Discord/Slack のどちらをメイン通知先にするか | × | harness-creator |
+| テーマ集合ファイルのスキーマと更新ジョブ実装 | ○ | harness-creator |
 
 
 ---
 
-## 9. skill-creator への申し送り（handoff-contract）
+## 9. harness-creator への申し送り（handoff-contract）
 
 - `recommended_next.mode = fast-track`
 - `skip_to_phase = Phase 2`
@@ -326,7 +326,7 @@ flowchart TB
 **控除点**:
 
 - アウトプット形態の優先順位確定が purpose-excavator まで持ち越された（-7）
-- テーマ集合スキーマが skill-creator 委譲で残った（-5）
+- テーマ集合スキーマが harness-creator 委譲で残った（-5）
 
 
 ### 10.3 question-bank.md に追加された質問

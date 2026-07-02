@@ -12,7 +12,7 @@ import json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+sys.path.insert(0, str(ROOT / "plugins" / "harness-creator" / "scripts"))
 import notion_config  # noqa: E402
 
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"

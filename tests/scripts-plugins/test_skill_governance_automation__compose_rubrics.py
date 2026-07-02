@@ -70,7 +70,7 @@ def test_load_ref_direct_path_missing(tmp_path):
 def test_load_ref_prefix_resolves_references_dir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     # references/ 配下を最優先候補として解決すること
-    target = tmp_path / "plugins" / "skill-creator" / "skills" / "ref-x-rubric" / "references" / "rubric.json"
+    target = tmp_path / "plugins" / "harness-creator" / "skills" / "ref-x-rubric" / "references" / "rubric.json"
     _write(target, {"layer": "L1", "rules": [{"id": "a"}]})
     ref, resolved, data = MOD.load_ref("ref-x-rubric")
     assert ref == "ref-x-rubric"
@@ -81,7 +81,7 @@ def test_load_ref_prefix_resolves_references_dir(tmp_path, monkeypatch):
 def test_load_ref_prefix_fallback_to_root(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     # references/ が無く root 直下 rubric.json のみ存在 → フォールバック候補で解決
-    target = tmp_path / "plugins" / "skill-creator" / "skills" / "ref-y-rubric" / "rubric.json"
+    target = tmp_path / "plugins" / "harness-creator" / "skills" / "ref-y-rubric" / "rubric.json"
     _write(target, {"rules": []})
     ref, resolved, data = MOD.load_ref("ref-y-rubric")
     assert resolved == target.resolve()

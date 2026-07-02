@@ -128,7 +128,7 @@ frontmatter は specfm が厳格に operationalize する一方、本文 (prose)
 
 ### core 規律 (全 buildable component が必ず携帯。inventory component エントリへ焼く)
 
-skill-creator ネイティブ規律を参照でなく **inventory component エントリのキーへ焼いて検証**する (operationalize)。`specfm.validate_inventory_component` が component 単位で下記を fail-closed 検査し、`check-spec-frontmatter.py` (構造 + criteria) と `check-spec-gates.py` (quality_gates/harness 値域 + index.plugin_meta) が inventory を走査して機械強制する。
+harness-creator ネイティブ規律を参照でなく **inventory component エントリのキーへ焼いて検証**する (operationalize)。`specfm.validate_inventory_component` が component 単位で下記を fail-closed 検査し、`check-spec-frontmatter.py` (構造 + criteria) と `check-spec-gates.py` (quality_gates/harness 値域 + index.plugin_meta) が inventory を走査して機械強制する。
 
 ```yaml
 quality_gates:
@@ -187,7 +187,7 @@ plugin_meta:
     notion_sink:
       config_key: <DB キー名>   # plan が宣言するのはキーのみ (DB ID は書かない・設置先 .notion-config.json が供給)
       schema_ref: doc/notion-schema/improvement-request.schema.json  # B5 受け皿 schema (パス参照・複製しない)
-      resolution: notion_config  # B4 解決器の名前参照 (実体 plugins/skill-creator/scripts/notion_config.py)
+      resolution: notion_config  # B4 解決器の名前参照 (実体 plugins/harness-creator/scripts/notion_config.py)
     portability: repo-bundled  # repo-bundled | vendored。distributable:true → vendored 強制
   # 条件付き 3 キー (pkg_contract/governance/ssot_dedup) は該当しない構想では
   #   <key>: {applicable: false, reason: "<N/A の根拠>"}
@@ -199,7 +199,7 @@ plugin_meta:
 
 ### plugin-level surface: notion_config (per-project Notion DB の解決宣言・B4/B5)
 
-inventory の `plugin_level_surfaces.notion_config` は、生成 harness が読み書きする **project 可変な Notion DB 全般** (domain DB と `feedback_deploy.notion_sink` の feedback 受け皿の両方) を per-project に解決するための宣言スロット。`databases[]` には harness の component が使う domain DB キーを宣言し、feedback 受け皿キーは `feedback_deploy.notion_sink.config_key` 側が宣言する (二重に載せない)。**解決ロジックは複製せず名前参照のみ** (実体 `plugins/skill-creator/scripts/notion_config.py`・fail 方針は同スクリプトの require_or_skip fail-closed を継承):
+inventory の `plugin_level_surfaces.notion_config` は、生成 harness が読み書きする **project 可変な Notion DB 全般** (domain DB と `feedback_deploy.notion_sink` の feedback 受け皿の両方) を per-project に解決するための宣言スロット。`databases[]` には harness の component が使う domain DB キーを宣言し、feedback 受け皿キーは `feedback_deploy.notion_sink.config_key` 側が宣言する (二重に載せない)。**解決ロジックは複製せず名前参照のみ** (実体 `plugins/harness-creator/scripts/notion_config.py`・fail 方針は同スクリプトの require_or_skip fail-closed を継承):
 
 ```yaml
 notion_config:
@@ -214,7 +214,7 @@ notion_config:
 
 ## §10 検証・完了条件 (xl-skills 接続 / Markdown evidence)
 
-対象スキル(L2)が `run-skill-create` 完了時に満たす条件 (詳細強制内容は skill-creator-spec-reflection.md):
+対象スキル(L2)が `run-skill-create` 完了時に満たす条件 (詳細強制内容は harness-creator-spec-reflection.md):
 
 | 接続先 | 検証 |
 |---|---|
@@ -243,7 +243,7 @@ notion_config:
 `.claude/` は discovery surface (agents/skills/commands の 3 kind) 専用で、`build-claude-symlinks.py` が唯一の SSOT (`VALID_KINDS` 3 種) として展開する。runtime asset (schema/references/scripts/vendor) は install 時に **plugin dir 全体がコピー**され、実行時は `$CLAUDE_PLUGIN_ROOT` / self-relative で plugin 内解決されるため、`.claude/` への別途反映は不要。全反映は二重管理 / drift / 絶対パス混入で有害 (反映すべきは discovery surface のみ)。
 
 **(2) 「install→plugin-root 資産まで実行できる」担保は 3 点で行う。**
-(a) inventory component の `placement_scope` (`skill` | `plugin-root`) で配置境界を宣言する、(b) `check-runtime-portability.py` が「>=2 skill consumer の共有 script は plugin-root 必須」「build_target は plugin 内自己完結 (`plugins/` 始まり・`..` 不在)」を fail-closed 検査する、(c) install-portability 規律 (`skill-creator-spec-reflection.md` の F8) が cross-plugin SSOT は vendoring (byte 一致) または self-derive fail-soft loader で携帯性を担保することを規定する (先行事例 skill-intake / skill-creator)。これにより plugin dir コピー後、第二 consumer 側からも共有 script が dangling せず解決できる。
+(a) inventory component の `placement_scope` (`skill` | `plugin-root`) で配置境界を宣言する、(b) `check-runtime-portability.py` が「>=2 skill consumer の共有 script は plugin-root 必須」「build_target は plugin 内自己完結 (`plugins/` 始まり・`..` 不在)」を fail-closed 検査する、(c) install-portability 規律 (`harness-creator-spec-reflection.md` の F8) が cross-plugin SSOT は vendoring (byte 一致) または self-derive fail-soft loader で携帯性を担保することを規定する (先行事例 skill-intake / harness-creator)。これにより plugin dir コピー後、第二 consumer 側からも共有 script が dangling せず解決できる。
 
 **placement_scope → builder → build_target の写像**: plugin-root script は `builder=plugin-scaffold` / `build_args.script_path` / `build_target=plugins/<slug>/scripts/<name>.py` (親 skill 配下に置かない)。skill placement script は `builder=parent-skill-build` / `build_target=plugins/<slug>/skills/<skill>/scripts/<name>.py`。写像正本は `specfm.builder_for`、検査は `check-runtime-portability.py` (共有判定) + `specfm.validate_inventory_component` (build_target 形状)。
 
@@ -259,14 +259,14 @@ notion_config:
 | `scripts/detect-unassigned.py` | (a) 13 phase ファイル全存在 + §5 section 床、(b) **各 inventory component が ≥1 phase の `entities_covered` に出現** (orphan 防止) + `build_target` 非空 (L3→L4 追跡) (C5) |
 | `scripts/check-spec-frontmatter.py` | **phase ファイル frontmatter (`PHASE_REQUIRED`) を検証** + **inventory components を `specfm.validate_inventory_component` で検証** (component_kind 別構造 + skill loop の criteria purpose-traceability) (C2/C3) |
 | `scripts/check-spec-gates.py` | **inventory components の `quality_gates`** (p0_lint 網羅/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) と `harness_coverage` (min≥80/kind_pass) + index.plugin_meta 値域を機械検証 (A1/A5/A8/C1-C2/F1/F2) |
-| `scripts/check-spec-matrix-coverage.py` | `skill-creator-spec-reflection.md` の46行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で46行 table drift 検出 |
+| `scripts/check-spec-matrix-coverage.py` | `harness-creator-spec-reflection.md` の46行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で46行 table drift 検出 |
 | `scripts/check-surface-inventory.py` | `component-inventory.json` が 5 component_kind の検討証跡 (`considered_component_kinds`) と plugin-level surfaces (`manifest`/`composition`/`harness_eval`/`references_config_assets`/`schemas`/`vendor`/`mcp_app_connector`/`notion_config`) の required/omitted_reason を漏れなく持つことを検査 (`specfm.validate_surface_inventory` 追随) |
 | `scripts/check-build-handoff.py` | `handoff-run-plugin-dev-plan.json` の L3→L4 routing を検証。routes は inventory 由来。builder 種別 (`placement_scope` を写す) / build_kind / build_args / build_target / spec (phase ファイル・任意) 実在 / top-sort / manifest draft / envelope gap reason (旧 本数固定ブロックは廃止) |
 | `scripts/check-runtime-portability.py` | (C2/C4・F8) install 携帯性: (P) >=2 skill から共有される script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist 済み、(Q) 全 component の `build_target` が plugin 内自己完結 (`plugins/` 始まり・`..` 不在)。`--self-test` で P/Q 検出を自己検査 |
 | `scripts/check-plugin-surface-audit.py` | `plugins/` 配下の現物 plugin surface を横断棚卸し。skill/agent/command/hook/script/test/reference/config/assets/schemas/vendor/MCP-app/harness/composition/manifest と owned/symlink 内訳を数え、`--expect-plan-ready` 指定 plugin が必須 surface を dogfood していることを検査 |
 | `scripts/render-spec-skeleton.py` | `specfm.py` から phase skeleton (`--phase N`) / component_kind 別の inventory component skeleton を生成。手書き skeleton ファイルを増やさず、ひな形の正本を実行可能契約へ一本化 |
 | `scripts/render-skill-brief.py` | (射影器・ゲート外) inventory の skill component 1 件を skill-brief JSON へ決定論射影 (`--inventory`/`--component`/`--out`)。planner 固有キーを剥がし `specfm.SKILL_BRIEF_FIELDS` subset へ変換、実 schema 実在時は required 充足+余剰キー 0 を自己検証 |
-| `scripts/check-upstream-pins.py` | (鮮度ゲート・plan 非対象) `references/upstream-pins.json` の引用先 sha256 を再計算し、上流 (skill-creator 等) の契約級ファイル変更を event-driven に検出。in-repo は不一致 exit1 (該当マトリクス行の再監査+pin bump を同一変更で要求)、standalone は verified_at を開示 |
+| `scripts/check-upstream-pins.py` | (鮮度ゲート・plan 非対象) `references/upstream-pins.json` の引用先 sha256 を再計算し、上流 (harness-creator 等) の契約級ファイル変更を event-driven に検出。in-repo は不一致 exit1 (該当マトリクス行の再監査+pin bump を同一変更で要求)、standalone は verified_at を開示 |
 | `scripts/specfm.py` | (import 専用) frontmatter 最小 YAML パーサ + phase (`PHASE_*`) / criteria / component_kind 契約 (`validate_inventory_component`) の SSOT |
 
 `check-spec-matrix-coverage.py` の分類: OP=10 (全 buildable へ機械強制) / conditional=19 (kind/feature/階層でゲート) / N-A=17 (process・reference で per-spec 焼き先キーを持たない=計数のみ)。計 46 (内訳の機械正本は `--self-test` 出力)。

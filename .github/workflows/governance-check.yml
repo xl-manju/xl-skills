@@ -23,10 +23,13 @@ jobs:
       - name: lint skill description (03章 R1-R5)
         run: python3 scripts/lint-skill-description.py
       - name: lint dependency direction
-        run: python3 scripts/lint-dependency-direction.py --skills-dir plugins/skill-creator/skills
+        run: python3 scripts/lint-dependency-direction.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: lint feedback_protocol SSOT (schema/SKILL.md/upsert 整合 - offline)
         run: python3 scripts/lint-feedback-protocol.py --strict
+        continue-on-error: false
+      - name: "lint legacy plugin name (改名済み旧 plugin 固有名の能動層再流入遮断)"
+        run: python3 scripts/lint-legacy-plugin-name.py
         continue-on-error: false
       - name: "lint content-review verdict 成果物存在 (全skill: 存在/PASS/sha一致/criteria突合)"
         run: python3 scripts/lint-content-review.py --all
@@ -50,7 +53,7 @@ jobs:
       - name: check plugin external refs
         run: >
           python3 scripts/lint-external-refs.py
-          --skills-dir plugins/skill-creator/skills
+          --skills-dir plugins/harness-creator/skills
           --allowed-prefix .claude/
           --allowed-prefix eval-log/
           --allowed-prefix references/
@@ -78,56 +81,56 @@ jobs:
       - name: validate plugin completeness (marketplace + bundles registration)
         run: python3 scripts/validate-plugin-completeness.py
         continue-on-error: false
-      - name: lint SSOT duplication (skill-creator 一本化強制)
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict
+      - name: lint SSOT duplication (harness-creator 一本化強制)
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/harness-creator --strict
         continue-on-error: false
       - name: lint goal-seek SSOT drift (engine/fork/max_loops 既定の分散コピー一致)
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
         continue-on-error: false
       - name: lint goal-seek conformance (実行系の固定手順禁止)
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/skill-creator/skills
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: lint skill completeness (kind別必須サポート資産)
-        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-creator/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: validate frontmatter SSOT self-test (commonCore必須集合のdrift検出)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --self-test
         continue-on-error: false
       - name: validate frontmatter (commonCore必須 + SemVer version 再発防止)
-        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: lint skill name (28章 §4)
-        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: lint plugin composition self-test (fixture drift 検出)
         run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py --self-test
         continue-on-error: false
       - name: lint plugin composition (capabilities 重複/実在 + hooks↔plugin.json 配線対応)
-        run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py plugins/skill-creator/plugin-composition.yaml
+        run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py plugins/harness-creator/plugin-composition.yaml
         continue-on-error: false
       - name: lint declaration coverage self-test (ratchet 分岐検査)
         run: python3 plugins/skill-governance-lint/scripts/lint-declaration-coverage.py --self-test
         continue-on-error: false
       - name: lint declaration coverage (enforcement manual 残存数 ratchet, LS-10)
-        run: python3 plugins/skill-governance-lint/scripts/lint-declaration-coverage.py plugins/skill-creator/plugin-composition.yaml
+        run: python3 plugins/skill-governance-lint/scripts/lint-declaration-coverage.py plugins/harness-creator/plugin-composition.yaml
         continue-on-error: false
       - name: lint matrix sync self-test (突合分岐検査)
         run: python3 plugins/skill-governance-lint/scripts/lint-matrix-sync.py --self-test
         continue-on-error: false
       - name: lint matrix sync (lint 集合3消費面の突合, LS-02/LS-07)
-        run: python3 plugins/skill-governance-lint/scripts/lint-matrix-sync.py plugins/skill-creator/references/lint-matrix.json
+        run: python3 plugins/skill-governance-lint/scripts/lint-matrix-sync.py plugins/harness-creator/references/lint-matrix.json
         continue-on-error: false
       - name: lint criteria provenance self-test (写像分岐検査)
         run: python3 plugins/skill-governance-lint/scripts/lint-criteria-provenance.py --self-test
         continue-on-error: false
       - name: lint criteria provenance (Checklist と criteria の写像被覆, LS-05)
-        run: python3 plugins/skill-governance-lint/scripts/lint-criteria-provenance.py --skills-dir plugins/skill-creator/skills
+        run: python3 plugins/skill-governance-lint/scripts/lint-criteria-provenance.py --skills-dir plugins/harness-creator/skills
         continue-on-error: false
       - name: validate build trace (再現性証跡 + RTM 段階導入 WARN)
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py eval-log/skill-build-trace.json
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/validate-build-trace.py eval-log/skill-build-trace.json
         continue-on-error: false
       - name: validate elegant-review phase order (Phase1→2→3 順序, composition invariant 対向)
-        run: python3 plugins/skill-creator/skills/run-elegant-review/scripts/validate-paradigm-coverage.py --phase-order eval-log
+        run: python3 plugins/harness-creator/skills/run-elegant-review/scripts/validate-paradigm-coverage.py --phase-order eval-log
         continue-on-error: false
       - name: criteria roster parity (量産追随の fail-closed。新 loop-kind skill は roster 再生成が必要)
         run: python3 tests/criteria/build_criteria_roster.py
@@ -135,8 +138,8 @@ jobs:
       - name: validate llm coverage (criteria 被覆 ≥80% fail-closed。検証実体は tests/criteria の parametrized genuine 実行)
         run: python3 scripts/validate-llm-coverage.py --all --threshold 80 --gate-new --since 2026-01-01
         continue-on-error: false
-      # ── prompt-creator conformance (skill-creator 仕様準拠) ──
-      # NOTE: skill-creator / prompt-creator は distributable:false (marketplace 非配布 = 層 A-internal) だが、
+      # ── prompt-creator conformance (harness-creator 仕様準拠) ──
+      # NOTE: harness-creator / prompt-creator は distributable:false (marketplace 非配布 = 層 A-internal) だが、
       #   リポジトリ実体として lint / CI 対象であり続ける。配布除外と品質検査は独立した関心事であり
       #   ("配布 ≠ リポジトリ存在")、以下の conformance step を残すことに矛盾はない。
       - name: prompt-creator validate frontmatter (commonCore + SemVer)
@@ -151,7 +154,7 @@ jobs:
       - name: prompt-creator lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/prompt-creator/skills
         continue-on-error: false
-      # ── company-master conformance (skill-creator 仕様準拠) ──
+      # ── company-master conformance (harness-creator 仕様準拠) ──
       - name: company-master validate frontmatter (commonCore + SemVer)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/company-master/skills
         continue-on-error: false
@@ -164,7 +167,7 @@ jobs:
       - name: company-master lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/company-master/skills
         continue-on-error: false
-      # ── contract-generator conformance (skill-creator 仕様準拠) ──
+      # ── contract-generator conformance (harness-creator 仕様準拠) ──
       - name: contract-generator validate frontmatter (commonCore + SemVer)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/contract-generator/skills
         continue-on-error: false
@@ -177,7 +180,7 @@ jobs:
       - name: contract-generator lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/contract-generator/skills
         continue-on-error: false
-      # ── skill-intake conformance (skill-creator 仕様準拠) ──
+      # ── skill-intake conformance (harness-creator 仕様準拠) ──
       # validate-frontmatter は run-intake-revise の effect enum 違反で FAIL するため未配線。
       # lint-plugin-lint-coverage.py の ALLOWLIST に理由付きで宣言済み (後日是正)。
       - name: skill-intake lint skill name (28章 §4)
@@ -189,10 +192,10 @@ jobs:
       - name: skill-intake lint skill completeness (kind別必須サポート資産)
         run: python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-intake/skills
         continue-on-error: false
-      # ── plugin-dev-planner conformance (skill-creator 仕様準拠・dogfooding) ──
+      # ── plugin-dev-planner conformance (harness-creator 仕様準拠・dogfooding) ──
       # NOTE: plugin-dev-planner は distributable:false (marketplace 非配布 = 層 A-internal) で
       #   lint-plugin-lint-coverage.py の required 集合 (marketplace 起点) には入らないが、
-      #   自分が生成 plan へ課す skill-creator 規律を自分自身へも適用する dogfooding として
+      #   自分が生成 plan へ課す harness-creator 規律を自分自身へも適用する dogfooding として
       #   conformance lint を明示配線する (配布除外と品質検査は独立した関心事)。
       - name: plugin-dev-planner validate frontmatter (commonCore + SemVer)
         run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/plugin-dev-planner/skills
@@ -217,17 +220,17 @@ jobs:
         run: python3 scripts/lint-dependency-direction.py --skills-dir plugins
         continue-on-error: false
       - name: lint-knowledge-loop self-test
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
         continue-on-error: false
       - name: knowledge-skeleton scripts self-test
         run: |
-          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py --self-test
-          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/build_index.py --self-test
-          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py --self-test
-          python3 plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/add_entry.py --self-test
+          python3 plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py --self-test
+          python3 plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/build_index.py --self-test
+          python3 plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py --self-test
+          python3 plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/add_entry.py --self-test
         continue-on-error: false
       - name: lint-knowledge-loop Loop B store (--store-only --strict)
-        run: python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/skill-creator --store-only --strict
+        run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/harness-creator --store-only --strict
         continue-on-error: false
       # prompt-placement(正本の向き: prompts=7層SSOT / agents=骨格。逆転禁止)は
-      # creator-kit-ci.yml が canonical lint で全PR・全プラグインを走査するため本workflowでは重複させない。
+      # harness-creator-kit-ci.yml が canonical lint で全PR・全プラグインを走査するため本workflowでは重複させない。

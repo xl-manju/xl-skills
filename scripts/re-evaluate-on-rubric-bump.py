@@ -38,7 +38,7 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]  # scripts/ 直下なので repo root は parents[1]
 UPSTREAM_RUBRIC = (
-    REPO_ROOT / "plugins" / "skill-creator" / "skills" / "ref-skill-design-rubric"
+    REPO_ROOT / "plugins" / "harness-creator" / "skills" / "ref-skill-design-rubric"
     / "references" / "rubric.json"
 )
 EVAL_LOG_DIR = REPO_ROOT / "eval-log"

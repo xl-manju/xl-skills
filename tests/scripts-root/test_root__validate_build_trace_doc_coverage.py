@@ -1,9 +1,9 @@
 """scripts/validate-build-trace.py (doc_coverage 版) の genuine 機能テスト (network 不要)。
 
 注意: 同名スクリプトが
-  plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py
+  plugins/harness-creator/skills/run-build-skill/scripts/validate-build-trace.py
 にも存在し (manifest 検証版)、そちらは tests/test_validate_build_trace.py /
-tests/scripts-plugins/test_skill_creator__validate_build_trace.py が担保する。
+tests/scripts-plugins/test_harness_creator__validate_build_trace.py が担保する。
 本ファイルは別物である **リポジトリ root の scripts/validate-build-trace.py**
 (build-trace JSON の doc_coverage 必須キー検証) を対象とし、重複しない。
 

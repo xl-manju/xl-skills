@@ -1,6 +1,6 @@
 {
-  "purpose": "UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 skill-creator の量産規律 (TDD/評価/goal-seek/feedback-contract/harness>=80%) を継承した 1 plugin へ漏れなく移植する開発計画を作る",
-  "background": "現状 ~/dev/dev/ObsidianMemo/.claude/ 配下に slash-command 2 本・511 行の中核 skill (Phase0-5 統一ハイブリッド構造)・sub-agent 11 本 (6 本 + phase3 step 5 本、うち phase3-interviewer は後方互換リダイレクトスタブ)・shell script 3 本・reference 8 本・asset 5 本・knowledge JSON 群 (6 カテゴリ + schema/router/registry/sync-log、各カテゴリ JSON は curated な北原知見本体) が個別資産として存在し、量産規律の外側で運用されている。新 skill-creator 配下へ plugin 化することで再現性と品質ゲートを獲得する。",
+  "purpose": "UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 harness-creator の量産規律 (TDD/評価/goal-seek/feedback-contract/harness>=80%) を継承した 1 plugin へ漏れなく移植する開発計画を作る",
+  "background": "現状 ~/dev/dev/ObsidianMemo/.claude/ 配下に slash-command 2 本・511 行の中核 skill (Phase0-5 統一ハイブリッド構造)・sub-agent 11 本 (6 本 + phase3 step 5 本、うち phase3-interviewer は後方互換リダイレクトスタブ)・shell script 3 本・reference 8 本・asset 5 本・knowledge JSON 群 (6 カテゴリ + schema/router/registry/sync-log、各カテゴリ JSON は curated な北原知見本体) が個別資産として存在し、量産規律の外側で運用されている。新 harness-creator 配下へ plugin 化することで再現性と品質ゲートを獲得する。",
   "goal": "component-inventory.json が UBM 目標設定・振り返り対話とナレッジ同期の両capabilityを担うcomponent (skill/sub-agent/slash-command/script) を漏れなく列挙し、13 phase ファイルと handoff が決定論ゲートで検証可能な状態になっている",
   "artifact_class": "plugin-plan",
   "target_plugin_slug": "ubm-goal-setting",
@@ -46,7 +46,7 @@
     },
     {
       "id": "C7",
-      "criterion": "全 buildable component が feedback_contract.criteria (loop kind)/quality_gates/harness_coverage>=80 を携帯し skill-creator ネイティブ規律を継承している",
+      "criterion": "全 buildable component が feedback_contract.criteria (loop kind)/quality_gates/harness_coverage>=80 を携帯し harness-creator ネイティブ規律を継承している",
       "done": false,
       "verify_by": "script"
     }

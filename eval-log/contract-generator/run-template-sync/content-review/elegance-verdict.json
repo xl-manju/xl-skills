@@ -1,27 +1,21 @@
 {
-  "target": {
-    "plugin": "contract-generator",
-    "skill": "run-template-sync",
-    "skill_md_sha256": "6c681c23fa4b41f00ae2238beae89c9e3b0239bd916da2734f3350dccb2fb081"
-  },
+  "target": {"plugin":"contract-generator","skill":"run-template-sync","skill_md_sha256":"f87c3fc005656b9186724c7bada8143aee12bc877dec1068bdaf09752e1abcc8"},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
+  "reviewer": "independent-rename-review-subagent-e",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "作成意図と異質な発動条件(ひな形変更)を独立スキルに分離し、Drive API浪費と再生成フラグ誤爆を構造で防ぐ設計判断が秀逸。",
-      "scan_template の exit 0/5 と --apply/--dry-run の二段ゲートにより、診断と破壊的変更(台帳差し戻し)が明確に分離されている。"
-    ],
+    "criteria_evaluated": ["IN1","IN2","OUT1"],
+    "positive_feedback": ["作成意図と異質な発動条件(ひな形変更)を独立スキルへ分離し Drive API 浪費と再生成フラグ誤爆を構造で防ぐ設計判断が秀逸(OUT1 の誤発火防止を裏付け)。", "scan_template の exit 0/5 と --apply/--dry-run の二段ゲートで診断と破壊的変更(台帳差し戻し)を明確分離し、IN1/IN2 が exit コード・書込抑止という機械検証へ紐づく。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を全文精読し criteria を導出。完全性: Purpose & Output Contract / 境界 / ゴール / 完了チェックリスト / 検証が相互整合し欠落なし。一貫性: frontmatter allowed-tools・CLI(--apply/--dry-run)・sync.py shim・lib/scan_template.py 委譲・prompt R1 が整合。IN1(scan_template exit 0/5 と MISSING/UNMAPPED 判定)/IN2(--apply のみ再生成フラグ付与・dry-run は書込抑止)/OUT1(明示意図のみ発火・作成意図で非発火する description 純化)の3基準で adequacy を確認。誤発火防止のための独立スキル化という根本設計が一貫しており PASS。"
+  "notes": "harness-creator 改名に伴う SKILL.md 再評価(SHA=f87c3fc0…)。全文精読で (a) 旧名 skill-creator/skill_creator/スキルクリエイター の残存ゼロ、(b) rubric_refs L14 の harness-creator/run-elegant-review パスが実在解決、(c) 本文 L56 の run-build-skill は単体スキル生成 skill 名として skill 表現維持で意味論境界に整合、を確認。C1-C4 いずれも実害なし。IN1(scan_template exit 0/5・MISSING/UNMAPPED 判定)/IN2(--apply のみ再生成フラグ付与・dry-run/未指定は書込抑止)/OUT1(明示意図のみ発火の description 純化)を Purpose/境界/主要ルール/検証で裏付け PASS。"
 }

@@ -32,7 +32,7 @@ script_refs:
   - ../run-prompt-creator-7layer/scripts/verify-completeness.py
   - ../run-prompt-creator-7layer/scripts/validate-prompt.py
 rubric_refs:
-  - ref-skill-design-rubric              # L0: 共通設計 rubric (skill-creator 正本, 固定)
+  - ref-skill-design-rubric              # L0: 共通設計 rubric (harness-creator 正本, 固定)
   - references/prompt-rubric.json         # L2: 本 evaluator 固有 (C1-C4 prompt 判定)
 reference_refs:
   - references/resource-map.yaml

@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "8611303ecccca0ca5ebacbab4bf3e7e3c50efc630bcb1ace02f51eb166a08f5a"
+    "skill_md_sha256": "a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -13,19 +13,17 @@
     "dependency_break": 0,
     "smell": 0
   },
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-02T10:10:28Z",
+  "reviewer": "independent-rename-review-subagent-g",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "SRP が範例的: 責務=「プラグイン構想 1 件 -> 13 phase ファイル + index + component-inventory.json への目的ドリブン分解」に限定し、境界節で実 build (run-skill-create/run-build-skill)・配布登録・実コード生成・PR 操作を明示除外。L0-L4 の 4 層分離が crisp で R4 評価ロジックを別 skill assign-plugin-plan-evaluator (kind=assign・user-invocable:false) へ昇格し proposer!=approver を skill 分離で構造保証している (prompts/R1-evaluate.md 実在確認)。",
-      "再現性機構が堅牢: 検証 11 本 (core 5 scripts / 6 invocations + 拡張ゲート 6) の決定論ゲートが golden example (examples/sample-plan=14 Markdown + 11 component) で全 exit0 (本レビューで 12 ゲート実走)、pytest 371 passed / 1 skipped を CI cwd (plugin root) から緑確認、check-spec-matrix-coverage --self-test が 46 行 drift 検出、goal-seek 中間成果物アンカー (intermediate.jsonl + original_goal SHA256 照合) で改竄検知。frontmatter=specfm (SSOT) で phase/component 形状凍結、本文=床付き自由記述という『形状と手順の直交』の解が明快。",
-      "frontmatter 完全性が高い (FM-001..005 PASS): name=run-plugin-dev-plan (^(run|ref|assign|wrap|delegate)-... 合致・len<=60)・description は trigger 2 個 (〜とき) + 発動条件のみで動作詳細 (採点する/sha256/exit code) を含まない・responsibility_refs/script_refs(15)/reference_refs(6+cross-skill)/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2) を列挙し全 35 refs dangling 0、goal_seek/feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer)/completeness_exempt を rationale 付きで宣言。Goodhart 回避 (harness 現状値非焼込) を主要ルール6 + Gotchas に明文化。",
-      "skill-creator 量産規律の伝播が監査可能: skill-creator-spec-reflection.md が全 46 行 (F1-F8=8・F8 install-portability + B4/B5 feedback-Notion を追加) を 1:1 収録し、DROP (UBM固有=IPC/Cloudflare/スクショ/PR) と transform (TDD/カバレッジ精神) を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。完全性の証明 (§14.1) で skill-creator 全 31 skill を反映済/含意済/意図的除外+理由でラベル付けし循環論法を解消、上流ドリフトを 3 機械辺 + upstream-pins hash で event-driven 監査する三層方式が over-claim を回避。",
-      "install 携帯性 (F8) を operationalize: placement_scope (skill|plugin-root) 宣言 + check-runtime-portability.py の (P) 共有 script hoist 強制・(Q) build_target 自己完結を fail-closed で焼き、cross-plugin SSOT は vendoring/self-derive で携帯という規律を先行事例 (skill-intake/skill-creator) へ紐づけて成文化。唯一 builder を持たない plugin envelope も契約 spec + 貼れる envelope-draft/plugin.json (manual-apply) + capability-gap 起票の三段で layperson-complete を達成しつつ build 境界を侵さない。"
+      "完全性 — SRP が範例的。責務=『プラグイン構想 1 件 → 13 phase ファイル + index + component-inventory.json への目的ドリブン分解』に限定し、境界節で実 build (run-skill-create/run-build-skill)・配布登録・実コード生成・PR 操作を明示除外。frontmatter は responsibility_refs/script_refs(15)/reference_refs/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2)/goal_seek/feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer) を rationale 付きで宣言し全 refs dangling 0。",
+      "一貫性 (改名) — 量産規律の伝播元呼称が harness-creator へ一貫追従。harness-creator-spec-reflection.md が全 46 行を 1:1 収録し、DROP (UBM固有=IPC/Cloudflare/スクショ/PR) と transform (TDD/カバレッジ精神) を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。upstream-pins.json/CI workflow/参照ファイル名まで harness-creator で三者一致し用語ゆれ 0。単一 skill 概念 (run-skill-create/skill-brief) は skill 維持の意味論境界も適合。",
+      "検証可能性/深度 — 検証 11 本 (core 5 scripts / 6 invocations + 拡張ゲート 6) の決定論ゲートを io-contract §11 表へ単一正本集約し二値判定可能。上流ドリフトをカレンダー期限でなく 3 機械辺 (skill 増減/rule-ID 実在/plugin パス存在) + upstream-pins hash で event-driven 監査する三層方式が over-claim (time-bomb) を回避。install 携帯性 (F8) を placement_scope + check-runtime-portability.py で fail-closed operationalize し、唯一 builder を持たない plugin envelope も契約 spec + 貼れる envelope-draft/plugin.json + capability-gap 起票の三段で layperson-complete を達成。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -33,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric=ref-skill-design-rubric/references/rubric.json (v1.3.0・threshold 80) で kind=skill 適用ルール (FM-001..005 / BD-001..004 / NM-001..003 / PD-001..002) を現行 sha 8611303 に対し全 PASS と判定。FM-001=name run-plugin-dev-plan が ^(run|ref|assign|wrap|delegate)-[a-z0-9-]* 合致・len<=60。FM-002/003=description に trigger phrase 〜とき 2 個 (2..3 hard rule 内) + 句点で終端。FM-004=description が動作詳細語 (採点する/JSONで返す/sha256/exit code) を含まない (発動条件のみ)。FM-005=description が名詞句『プラグイン構想から... 生成したいとき』で開始。BD-001(## 目的と出力契約) 実在、BD-002(## 注意 (Gotchas)) 実在、BD-003=本文 214 行 (frontmatter 除外・total 313 行) で <=300 を実測 PASS、BD-004=description のトリガ (index+13 phase+component-inventory.json 生成・前段計画) <-> 本文局面カタログ R1-R4 の 1:1 整合。PD-001=references/ 実在 (7 ファイル)。PD-002 は冒頭 30 行内に『## 目的と出力契約』+ 禁則語 (二重に持たず/直書きせず) で充足、日本語見出し+禁則語は確立済み localization 校正 (グローバル指示『出力は全て日本語』と整合・localization gap=low)。NM-001=dir 名 run-plugin-dev-plan == frontmatter.name 一致・NM-002/003 命名規約合致。横断 kind ルール (AG/HK/CM/PC/PR/WF) は本評価対象が SKILL (kind=skill) ゆえ非適用、KL-* は knowledge_loop 不在で skip-PASS。決定論ゲート実走で IN1 (verify-index-topsort/detect-unassigned golden exit0)・IN2 (check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage self-test『46行一致』+PLAN exit0)、拡張ゲート (check-plugin-goal-spec/check-requirements-coverage/check-surface-inventory/check-build-handoff/check-runtime-portability self-test+golden/check-plugin-surface-audit dogfood) 全 exit0 を実検証、OUT1 (目的ドリブン DROP/transform 分離で C1-C4 設計妥当)・OUT2 (io-contract §9 が skill-brief 主要 14 フィールドを写す) を設計レベルで妥当と確認。golden 例は 11 component (skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) で 5 kind 網羅し単一 skill 退化を回避。既存 verdict (sha 69bbe4d・44 行版) が指摘した script_refs 11/12・検証 9/10 の未配線 smell は本 sha 8611303 で解消 (script_refs 15=disk 15 一致・検証 11 本表記が実体一致) を確認し rubric ルール違反 0。high/medium severity 違反 0・推定 score>=96/100 >=80 で PASS。既存 verdict から変更: skill_md_sha256 を 8611303 へ更新、reviewed_at 更新、44->46 行化 + script_refs 拡充を反映 (BD-003 本文行数 214 を実測明記・pytest 実走数 371 訂正・script_refs/検証本数 smell 解消を確認)。"
+  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2、FM/BD/NM/PD 系規範も違反 0。現 sha256=a5bc767 実測 (旧 sha=8611303 は改名前で本文に旧名 skill-creator-spec-reflection.md / skill-creator 量産規律 / skill-creator 全 31 skill を残存し stale)。改名観点: (1) 旧名 skill-creator/skill_creator/スキルクリエイター 残存 0 (grep)。(2) harness-creator 参照 (reference_refs/cross-plugin ref/feedback SSOT path/slash namespace/CI workflow) 全実在・dangling 0。(3) 意味論境界: 単一 skill 生成/委譲は skill 維持・ハーネス総体 native 規律は harness-creator 化の二分が正しい。(4) description は trigger 2 個 + 発動条件のみで動作詳細非露出、name/dir 一致。criteria: IN1/IN2 (topsort/frontmatter/gates 契約が改名後も健全)・OUT1 (harness-creator ネイティブ規律の DROP/transform 分離設計)・OUT2 (skill-brief 主要フィールド写像設計) 充足。ブロッキング severity 0 で PASS。"
 }

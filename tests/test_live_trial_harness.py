@@ -17,9 +17,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "plugins" / "skill-creator" / "skills" / "run-skill-live-trial" / "scripts"
+SCRIPTS = ROOT / "plugins" / "harness-creator" / "skills" / "run-skill-live-trial" / "scripts"
 SCHEMA = (
-    ROOT / "plugins" / "skill-creator" / "skills" / "run-skill-live-trial"
+    ROOT / "plugins" / "harness-creator" / "skills" / "run-skill-live-trial"
     / "schemas" / "live-trial-verdict.schema.json"
 )
 
@@ -313,7 +313,7 @@ def test_verdict_denylist_rejected(tmp_path, transcript, capsys):
     workdir = tmp_path / "wd"
     rc = verdict_mod.main([
         "--workdir", str(workdir),
-        "--target-skill", "skill-creator:run-skill-live-trial",
+        "--target-skill", "harness-creator:run-skill-live-trial",
         "--skill-dir", str(_fake_skill_dir(tmp_path)),
         "--transcript", str(transcript),
         "--launch", "PASS", "--completion", "PASS",
@@ -349,8 +349,8 @@ def test_schema_rejects_additional_properties(tmp_path, transcript):
 
 def test_backend_denylist_and_session_names():
     assert backend_mod.deny_target_skill("run-skill-live-trial")
-    assert backend_mod.deny_target_skill("skill-creator:run-skill-iter-improve")
-    assert not backend_mod.deny_target_skill("skill-creator:run-goal-seek")
+    assert backend_mod.deny_target_skill("harness-creator:run-skill-iter-improve")
+    assert not backend_mod.deny_target_skill("harness-creator:run-goal-seek")
     assert backend_mod.valid_session_name("lt-20260702T000000-x")
     assert not backend_mod.valid_session_name("../evil")
     assert not backend_mod.valid_session_name("a/b")
@@ -365,7 +365,7 @@ def test_backend_blocked_without_tmux(monkeypatch):
 
 def test_backend_self_test_cli():
     assert backend_mod.main(["--self-test"]) == 0
-    assert backend_mod.main(["deny-check", "skill-creator:run-goal-seek"]) == 0
+    assert backend_mod.main(["deny-check", "harness-creator:run-goal-seek"]) == 0
     assert backend_mod.main(["deny-check", "run-skill-live-trial"]) == 2
 
 

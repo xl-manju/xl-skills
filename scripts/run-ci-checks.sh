@@ -41,10 +41,10 @@ run_soft() {
 
 # ── 構造・命名・frontmatter ──
 run "lint-script-naming"                   python3 scripts/lint-script-naming.py
-run "lint-skill-description (skill-creator)" python3 scripts/lint-skill-description.py
-run "lint-dependency-direction (skill-creator)" python3 scripts/lint-dependency-direction.py --skills-dir plugins/skill-creator/skills
+run "lint-skill-description (harness-creator)" python3 scripts/lint-skill-description.py
+run "lint-dependency-direction (harness-creator)" python3 scripts/lint-dependency-direction.py --skills-dir plugins/harness-creator/skills
 run "lint-dependency-direction (all)"      python3 scripts/lint-dependency-direction.py --skills-dir plugins
-run "lint-external-refs"                   python3 scripts/lint-external-refs.py --skills-dir plugins/skill-creator/skills --allowed-prefix .claude/ --allowed-prefix eval-log/ --allowed-prefix references/ --allowed-prefix plugins/ --allowed-prefix scripts/ --allowed-prefix doc/ --fail-on-external
+run "lint-external-refs"                   python3 scripts/lint-external-refs.py --skills-dir plugins/harness-creator/skills --allowed-prefix .claude/ --allowed-prefix eval-log/ --allowed-prefix references/ --allowed-prefix plugins/ --allowed-prefix scripts/ --allowed-prefix doc/ --fail-on-external
 
 # ── SSOT / drift ──
 run "lint-feedback-protocol --strict"      python3 scripts/lint-feedback-protocol.py --strict
@@ -52,32 +52,33 @@ run "lint-content-review (all)"            python3 scripts/lint-content-review.p
 run "lint-live-trial-verdict (all)"        python3 scripts/lint-live-trial-verdict.py --all
 run "lint-feedback-contract (all)"         python3 scripts/lint-feedback-contract.py --all
 run "lint-vendored-ssot"                   python3 scripts/lint-vendored-ssot.py
+run "lint-legacy-plugin-name"              python3 scripts/lint-legacy-plugin-name.py
 run "lint-runtime-portability"             python3 scripts/lint-runtime-portability.py
 run "check-scripts-drift"                  bash scripts/check-scripts-drift.sh
 run "build-claude-symlinks --check"        python3 scripts/build-claude-symlinks.py --check
-run "lint-ssot-duplication --strict"       python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/skill-creator --strict
-run "lint-goal-seek --self-test"           python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
-run "lint-goal-seek conformance"           python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/skill-creator/skills
+run "lint-ssot-duplication --strict"       python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/harness-creator --strict
+run "lint-goal-seek --self-test"           python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --self-test
+run "lint-goal-seek conformance"           python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-goal-seek.py --skills-dir plugins/harness-creator/skills
 
-# ── completeness / frontmatter (skill-creator + prompt-creator) ──
-run "lint-skill-tree (skill-creator)"      python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/skill-creator/skills
+# ── completeness / frontmatter (harness-creator + prompt-creator) ──
+run "lint-skill-tree (harness-creator)"      python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/harness-creator/skills
 run "lint-skill-tree (prompt-creator)"     python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir plugins/prompt-creator/skills
-run "lint-skill-completeness (skill-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/skill-creator/skills
+run "lint-skill-completeness (harness-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/harness-creator/skills
 run "validate-frontmatter --self-test"     python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --self-test
-run "validate-frontmatter (skill-creator)" python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+run "validate-frontmatter (harness-creator)" python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/harness-creator/skills
 run "validate-frontmatter (prompt-creator)" python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-name (prompt-creator)"     python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-description (prompt-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/prompt-creator/skills
 run "lint-skill-completeness (prompt-creator)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir plugins/prompt-creator/skills
 
 # ── completeness / frontmatter (全 plugin 段階導入: SS-201) ──
-# skill-creator / prompt-creator は上の strict 行が正。その他 plugin は
+# harness-creator / prompt-creator は上の strict 行が正。その他 plugin は
 # 既存違反の棚卸しが済むまで run_soft (warning) で観測し breakage を避ける。
 for skills_dir in plugins/*/skills; do
   [ -d "$skills_dir" ] || continue
   plugin="$(basename "$(dirname "$skills_dir")")"
   case "$plugin" in
-    skill-creator|prompt-creator) continue ;;  # 上で strict 検査済み
+    harness-creator|prompt-creator) continue ;;  # 上で strict 検査済み
   esac
   run_soft "lint-skill-tree ($plugin)"         python3 plugins/skill-governance-lint/scripts/lint-skill-tree.py --skills-dir "$skills_dir"
   run_soft "lint-skill-completeness ($plugin)" python3 plugins/skill-governance-lint/scripts/lint-skill-completeness.py --skills-dir "$skills_dir"
@@ -97,12 +98,12 @@ run_soft "lint-rubric-refs-exist"          python3 plugins/skill-governance-lint
 if python3 -c "import pytest" 2>/dev/null; then
   run "pytest (governance-lint regressions)" python3 -m pytest plugins/skill-governance-lint/tests/ -q
 else
-  echo "[Warn] pytest 不在のため governance-lint 回帰テストを skip (CI では creator-kit-ci.yml が実行)"
+  echo "[Warn] pytest 不在のため governance-lint 回帰テストを skip (CI では harness-creator-kit-ci.yml が実行)"
 fi
 
 # ── knowledge loop ──
-run "lint-knowledge-loop --self-test"      python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
-run "lint-knowledge-loop --store-only"     python3 plugins/skill-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/skill-creator --store-only --strict
+run "lint-knowledge-loop --self-test"      python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py --self-test
+run "lint-knowledge-loop --store-only"     python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-knowledge-loop.py plugins/harness-creator --store-only --strict
 
 # ── manifest sanity (jq) ──
 if command -v jq >/dev/null 2>&1; then

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# install.sh — skill-creator-kit を現在のプロジェクトに展開する
+# install.sh — harness-creator-kit を現在のプロジェクトに展開する
 #
 # 使い方:
-#   bash creator-kit/install.sh [--mode symlink|copy] [--force]
+#   bash installers/install.sh [--mode symlink|copy] [--force]
 #
 # 動作:
 #   1. manifest.json を読む (stdlib json のみ。PyYAML 不要)
@@ -22,13 +22,13 @@ while [[ $# -gt 0 ]]; do
     --mode) MODE="$2"; shift 2;;
     --force) FORCE="true"; shift;;
     --help|-h)
-      echo "Usage: bash creator-kit/install.sh [--mode symlink|copy] [--force]"
+      echo "Usage: bash installers/install.sh [--mode symlink|copy] [--force]"
       exit 0;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
 
-echo "==> skill-creator-kit installer"
+echo "==> harness-creator-kit installer"
 echo "    kit dir:     $KIT_DIR"
 echo "    project dir: $PROJECT_DIR"
 echo "    mode:        $MODE"
@@ -77,7 +77,7 @@ if [[ ",${SUPPORTED_OS_JSON}," != *",${OS_KIND},"* ]]; then
   cat >&2 <<MSG
 ERROR: 検出 OS '${OS_KIND}' は manifest.json の requirements.os=[${SUPPORTED_OS_JSON}] に含まれていません。
        silent failure を避けるため install を中断します。
-       Windows をフルサポートで使う場合は: powershell -File creator-kit/install.ps1
+       Windows をフルサポートで使う場合は: powershell -File installers/install.ps1
 MSG
   exit 3
 fi

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (
     ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "run-skill-rubric-governance"
     / "scripts"
@@ -240,22 +240,22 @@ def _anomalous_score_jsonl(eval_log: Path) -> None:
 
 
 def test_default_proposals_dir_is_plugin_root(monkeypatch):
-    monkeypatch.delenv("SKILL_CREATOR_PROPOSALS_DIR", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_PROPOSALS_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
     d = MOD._proposals_dir()
     assert d.name == "proposals"
     assert d.parent.name == "run-skill-rubric-governance"
-    assert MOD._plugin_root().name == "skill-creator"
+    assert MOD._plugin_root().name == "harness-creator"
 
 
 def test_proposals_env_override_is_sole_candidate(monkeypatch, tmp_path):
-    monkeypatch.setenv("SKILL_CREATOR_PROPOSALS_DIR", str(tmp_path / "pd"))
+    monkeypatch.setenv("HARNESS_CREATOR_PROPOSALS_DIR", str(tmp_path / "pd"))
     assert MOD._candidate_proposals_dirs() == [(tmp_path / "pd").resolve()]
 
 
 def test_state_fallback_prefers_project_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path / "proj"))
-    assert MOD._state_fallback_root() == tmp_path / "proj" / ".claude" / "state" / "skill-creator"
+    assert MOD._state_fallback_root() == tmp_path / "proj" / ".claude" / "state" / "harness-creator"
 
 
 def test_main_writes_to_primary_when_writable(monkeypatch, tmp_path, capsys):

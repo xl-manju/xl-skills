@@ -11,7 +11,7 @@
 #
 # 優先順序:
 #   1. 既存 $env:CLAUDE_SKILL_DIR / $env:CLAUDE_SKILL_OUT_BASE があれば使用
-#   2. plugins\skill-creator\skills\run-build-skill\ が存在すれば plugin 配置
+#   2. plugins\harness-creator\skills\run-build-skill\ が存在すれば plugin 配置
 #   3. .claude\skills\run-build-skill\ が存在すれば .claude 配置
 #   4. $PSScriptRoot をフォールバック
 #
@@ -22,8 +22,8 @@ $ErrorActionPreference = 'Stop'
 if (-not $env:SKILL_DIR -or $env:SKILL_DIR -eq '') {
     if ($env:CLAUDE_SKILL_DIR -and $env:CLAUDE_SKILL_DIR -ne '') {
         $env:SKILL_DIR = $env:CLAUDE_SKILL_DIR
-    } elseif (Test-Path 'plugins\skill-creator\skills\run-build-skill\scripts\render-frontmatter.py') {
-        $env:SKILL_DIR = 'plugins\skill-creator\skills\run-build-skill'
+    } elseif (Test-Path 'plugins\harness-creator\skills\run-build-skill\scripts\render-frontmatter.py') {
+        $env:SKILL_DIR = 'plugins\harness-creator\skills\run-build-skill'
     } elseif (Test-Path '.claude\skills\run-build-skill\scripts\render-frontmatter.py') {
         $env:SKILL_DIR = '.claude\skills\run-build-skill'
     } else {
@@ -34,8 +34,8 @@ if (-not $env:SKILL_DIR -or $env:SKILL_DIR -eq '') {
 if (-not $env:OUT_BASE -or $env:OUT_BASE -eq '') {
     if ($env:CLAUDE_SKILL_OUT_BASE -and $env:CLAUDE_SKILL_OUT_BASE -ne '') {
         $env:OUT_BASE = $env:CLAUDE_SKILL_OUT_BASE
-    } elseif ($env:SKILL_DIR -like 'plugins\skill-creator*') {
-        $env:OUT_BASE = 'plugins\skill-creator\skills'
+    } elseif ($env:SKILL_DIR -like 'plugins\harness-creator*') {
+        $env:OUT_BASE = 'plugins\harness-creator\skills'
     } else {
         $env:OUT_BASE = '.claude\skills'
     }

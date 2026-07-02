@@ -7,7 +7,7 @@
   - LLM 層 (本 lint の対象外): 評価実行自体はローカル Claude Code で run-elegant-review +
             assign-skill-design-evaluator を SubAgent 起動して行う (リモート CI コスト回避)
 
-ref kind は除外する。skill-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない
+ref kind は除外する。harness-creator 自身は自己改善(dogfooding)対象なので CI/pre-push では除外しない
 (dogfooding 境界の SSOT = scripts/feedback_contract_ssot.py:is_content_review_exempt)。
 
 Usage:
@@ -240,7 +240,7 @@ def main():
         print()
         print("Fix: ローカル Claude Code で run-elegant-review + assign-skill-design-evaluator を")
         print("     対象 skill に対し実行し eval-log/<plugin>/<skill>/content-review/ に verdict json を保存してください。")
-        print("     手順詳細: plugins/skill-creator/skills/run-build-skill/references/content-review-protocol.md")
+        print("     手順詳細: plugins/harness-creator/skills/run-build-skill/references/content-review-protocol.md")
         return 1
 
     print(f"[OK] content-review lint: {len(filtered)} skill(s) verified")

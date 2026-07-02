@@ -15,7 +15,7 @@
 | §6 | 6_five_axes_summary | `mermaid-pie-5axes-weight` (5 軸の比重) | `mermaid-flowchart-knowledge-pipeline` (ingest→update のパイプ) | 5 軸構成 + ナレッジ流通 |
 | §7 | 7_design_decisions | `mermaid-gantt-adoption-timeline` (採択順序) | `mermaid-c4-component-adoptions` (採択構成) | 設計決定の経時 + 構成 |
 | §8 | 8_open_questions | `cvis-traffic-light` (blocking/deferred 信号) | `mermaid-quadrant-question-priority` (緊急度×影響度) | 未解決の信号 + 優先順位象限 |
-| §9 | 9_handoff_contract | `mermaid-flowchart-next-action` (skill-creator 引継ぎフロー) | `mermaid-state-handoff-modes` (fast-track/standard/onboarding 状態) | 引継ぎ経路 + モード分岐 |
+| §9 | 9_handoff_contract | `mermaid-flowchart-next-action` (harness-creator 引継ぎフロー) | `mermaid-state-handoff-modes` (fast-track/standard/onboarding 状態) | 引継ぎ経路 + モード分岐 |
 | §10 | 10_self_updater | `cvis-score-gauge` (value_realized_score) | `mermaid-bar-deductions` (控除点の棒) | スコア計器 + 控除内訳 |
 | §11 | 11_artifact_index | `mermaid-tree-artifact-files` (ファイルツリー) | — | 成果物階層 |
 

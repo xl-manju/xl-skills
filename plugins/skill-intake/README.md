@@ -1,6 +1,6 @@
 # skill-intake plugin
 
-skill-creator の前段ヒアリングを **非技術者にも開く** Claude Code plugin。「スキルを作りたい」という曖昧な要望から、本人も言語化できていない真の課題を引き出し、**Markdown 正本 + JSON 副本 + Notion ページ**の3成果物を一括生成します。さらに公開後の追加要望は `/intake-revise` で同一 Notion ページに PATCH 反映できます。
+harness-creator の前段ヒアリングを **非技術者にも開く** Claude Code plugin。「スキルを作りたい」という曖昧な要望から、本人も言語化できていない真の課題を引き出し、**Markdown 正本 + JSON 副本 + Notion ページ**の3成果物を一括生成します。さらに公開後の追加要望は `/intake-revise` で同一 Notion ページに PATCH 反映できます。
 
 このREADMEは **上から順に手順を実行するだけで導入完了**するよう構成されています。途中スキップせず、各ステップ末尾の **✅ 確認** を必ず通してから次へ進んでください。
 
@@ -12,7 +12,7 @@ skill-creator の前段ヒアリングを **非技術者にも開く** Claude Co
 **`notion-config.fixed.json` に同梱**している。ただしこの固定 DB は **保守者チーム専用** で、
 外部の Integration からは書き込めない（403 になる）。外部利用者は自分の DB ID を
 **`.notion-config.json` (gitignore対象)** で指定する（手順はステップ 7-1）。
-セットアップ手順は **[references/notion-per-repo-setup.md](references/notion-per-repo-setup.md)** 参照（symlink で skill-creator/references/ と共有）。
+セットアップ手順は **[references/notion-per-repo-setup.md](references/notion-per-repo-setup.md)** 参照（symlink で harness-creator/references/ と共有）。
 
 | 項目 | 値 | 格納場所 | 漏洩可否 |
 |---|---|---|---|
@@ -175,12 +175,12 @@ skill-intake の Keychain 取得テスト（keychain_get_secret.py --check）を
 > 移行計画等の保守者専用資材（migration-plan-v2.md / RENAME_PLAN.md / v1→v2 変換系スクリプト）も
 > `package.exclude` により配布から除外済みです。
 > ただし改善要望投入 `/run-skill-feedback`、および生成した intake.json を Skill 本体生成へ流す
-> `run-skill-create` は、いずれも **skill-creator が提供する機能**です。skill-creator は
+> `run-skill-create` は、いずれも **harness-creator が提供する機能**です。harness-creator は
 > **配布対象外（`distributable: false`）** で marketplace から install できないため、これらは
 > **repo を clone した開発環境でのみ**利用できます（skill-intake のコアフロー = ヒアリング →
 > Markdown/JSON 生成 → Notion publish には不要）。つまり skill-intake が生成した brief
-> （intake.json）の**消費先である skill-creator は配布されず、clone 環境で消費**します。
-> なお `xl-skills-intake` bundle は skill-intake + skill-governance-secrets のみで、skill-creator は含みません。
+> （intake.json）の**消費先である harness-creator は配布されず、clone 環境で消費**します。
+> なお `xl-skills-intake` bundle は skill-intake + skill-governance-secrets のみで、harness-creator は含みません。
 
 ### 方式A: GitHub Marketplace から install（推奨）
 
@@ -408,7 +408,7 @@ Claude Code セッション内で:
 | ファイル | 用途 |
 |---|---|
 | `intake.md` | 人間向けヒアリングシート（正本） |
-| `intake.json` | skill-creator 入力用 |
+| `intake.json` | harness-creator 入力用 |
 | `notion-url.txt` | 公開済み Notion ページ URL |
 | `notion-manifest.json` | アセット SHA-256 マニフェスト |
 | `notion-blocks.json` | publisher 中間生成物 |
@@ -552,9 +552,9 @@ plugins/skill-intake/
 
 | Skill | 対象 | 図解 | Notion 公開 |
 |---|---|---|---|
-| `run-skill-elicit` (skill-creator plugin) | 技術者 | ❌ | ❌ |
+| `run-skill-elicit` (harness-creator plugin) | 技術者 | ❌ | ❌ |
 | **`run-skill-intake`** (本 plugin) | **非技術者対応** | ✅ Mermaid 12+SVG 8 | ✅ Keychain × REST API |
-| `run-skill-create` (skill-creator plugin) | スキル本体生成 | — | — |
+| `run-skill-create` (harness-creator plugin) | スキル本体生成 | — | — |
 
 `run-skill-create` から Step 1 を呼ぶ際、ヒアリング対象が非技術者なら本 plugin の `run-skill-intake` を起動。
 

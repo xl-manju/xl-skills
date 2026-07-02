@@ -116,7 +116,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 - [ ] Phase 8 (`skill-intake-summarizer`, SubAgent / context:fork, Gate A) success → `summary.{md,json}` + ユーザー承認取得 (否認時 Phase 4 へ戻し最大 2 周)
 - [ ] Phase 9 (`run-intake-finalize`, Skill) success → `intake.{md,json}` 生成
 - [ ] Phase 10 (`run-notion-intake-publish`, Skill) success → `notion-url.txt` 生成 (fidelity-guard 内部起動、指定 page がある場合は PATCH 専用)
-- [ ] Phase 11 (`run-intake-next-action`, Skill) success → `next-action.json` (Notion 公開完了後に skill-creator 引き渡しモード判定済み)
+- [ ] Phase 11 (`run-intake-next-action`, Skill) success → `next-action.json` (Notion 公開完了後に harness-creator 引き渡しモード判定済み)
 - [ ] `intake.json.notion_target` が存在し、update mode では `notion-publish-result.json.page_id` と一致している。未公開・不一致なら `run-skill-create` へ渡していない
 - [ ] `quality_gate.py output/<hint>/intake.json` PASS
 - [ ] `cross_check.py output/<hint>/intake.json output/<hint>/intake.md` PASS
@@ -149,7 +149,7 @@ intake plugin の中核 orchestrator。`workflow-manifest.json` の `phases[]` �
 5. **Gate A 周回上限**: Phase 8 否認 → Phase 4 戻しは最大 2 周。3 周目は停止。
 6. **Notion トークン**: 環境変数 / リポジトリへ置かず Keychain から都度取得 (`scripts/keychain_get_secret.py`)。
 7. **manifest 二重管理禁止**: phases[] を本 SKILL.md にコピペしない。`lint-manifest-contents.py` を必ず通す。
-8. **next-action を実行と誤読しない (最重要)**: Phase 11 の `next-action.json` / `skill_creator_handoff_phase` / 「skill-creator 引き渡し」という語は **推奨の記述**であって実行指示ではない。完了レポート提示後に `run-skill-create` 等を続けて起動してはならない。「では作成します」と続行せず、`mode` と推奨を提示して停止する (Key Rule 9)。スキル生成が必要ならユーザーが明示的に別途開始する。
+8. **next-action を実行と誤読しない (最重要)**: Phase 11 の `next-action.json` / `harness_creator_handoff_phase` / 「harness-creator 引き渡し」という語は **推奨の記述**であって実行指示ではない。完了レポート提示後に `run-skill-create` 等を続けて起動してはならない。「では作成します」と続行せず、`mode` と推奨を提示して停止する (Key Rule 9)。スキル生成が必要ならユーザーが明示的に別途開始する。
 
 ## Additional Resources
 

@@ -38,7 +38,7 @@ build は phase 順ではなく component の依存 top-sort 順に走る (共�
 ## スコープ外
 - カバレッジ拡充・テスト網羅 (P06)。
 - purpose 受入判定 (P07)・SSOT 重複整理 (P08)。
-- builder 自体の改修 (skill-creator 側の責務・gap は `open_issues` へ起票)。
+- builder 自体の改修 (harness-creator 側の責務・gap は `open_issues` へ起票)。
 
 ## 完了チェックリスト
 - [ ] 依存 top-sort 順に全 component が build され、skill loop の criteria が Green (受入テスト PASS) になる。

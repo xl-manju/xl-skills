@@ -66,9 +66,9 @@ def _valid_record(**over):
 def test_resolve_log_path_uses_eval_log_dir_env(monkeypatch):
     monkeypatch.setenv("EVAL_LOG_DIR", "/eval/base")
     monkeypatch.delenv("PROJECT_ROOT", raising=False)
-    p = MOD.resolve_log_path({"plugin": "skill-creator"})
+    p = MOD.resolve_log_path({"plugin": "harness-creator"})
     date = time.strftime("%Y-%m-%d")
-    assert p == Path("/eval/base") / "skill-creator" / f"{date}-score.jsonl"
+    assert p == Path("/eval/base") / "harness-creator" / f"{date}-score.jsonl"
 
 
 def test_resolve_log_path_falls_back_to_project_root(monkeypatch):
@@ -184,10 +184,10 @@ def test_normalize_none_target_becomes_unknown():
 
 def test_normalize_fills_defaults_from_env(monkeypatch):
     monkeypatch.setenv("RELEASE_VERSION", "v9.9")
-    monkeypatch.setenv("PLUGIN_NAME", "skill-creator")
+    monkeypatch.setenv("PLUGIN_NAME", "harness-creator")
     out = MOD.normalize(_valid_record())
     assert out["release"] == "v9.9"
-    assert out["plugin"] == "skill-creator"
+    assert out["plugin"] == "harness-creator"
     assert out["threshold"] == 80
     assert out["schema_version"] == MOD.SCHEMA_VERSION
     assert "timestamp" in out
@@ -305,14 +305,14 @@ def test_main_resolve_log_path_via_eval_log_dir_env(monkeypatch, tmp_path):
         monkeypatch,
         tmp_path,
         [],
-        stdin_text=json.dumps(_valid_record(plugin="skill-creator")),
+        stdin_text=json.dumps(_valid_record(plugin="harness-creator")),
         env={"EVAL_LOG_DIR": str(base)},
     )
     assert rc == 0
     date = time.strftime("%Y-%m-%d")
-    expected = base / "skill-creator" / f"{date}-score.jsonl"
+    expected = base / "harness-creator" / f"{date}-score.jsonl"
     assert expected.exists()
-    assert json.loads(expected.read_text(encoding="utf-8").strip())["plugin"] == "skill-creator"
+    assert json.loads(expected.read_text(encoding="utf-8").strip())["plugin"] == "harness-creator"
 
 
 # ── CLI subprocess (exit code 実測 / __main__ guard) ─────────────────────────

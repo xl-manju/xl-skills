@@ -279,7 +279,7 @@
       "since": "2026-05-22"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "delegate-codex-skill-review",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -296,7 +296,7 @@
       "since": "2026-05-18"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-build-skill",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -313,7 +313,7 @@
       "since": "2026-05-17"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-elegant-review",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -330,7 +330,7 @@
       "since": "2026-05-18"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-goal-elicit",
       "criteria_total": 3,
       "criteria_covered": 3,
@@ -346,7 +346,7 @@
       "since": "2026-05-24"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-goal-seek",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -363,7 +363,7 @@
       "since": "2026-05-24"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-migrate-audit",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -380,7 +380,7 @@
       "since": "2026-05-19"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-plugin-package-check",
       "criteria_total": 3,
       "criteria_covered": 3,
@@ -396,7 +396,7 @@
       "since": "2026-05-23"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-create",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -413,7 +413,7 @@
       "since": "2026-05-18"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-elicit",
       "criteria_total": 3,
       "criteria_covered": 3,
@@ -429,7 +429,7 @@
       "since": "2026-05-18"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-feedback",
       "criteria_total": 5,
       "criteria_covered": 5,
@@ -447,7 +447,7 @@
       "since": "2026-05-25"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-iter-improve",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -464,7 +464,7 @@
       "since": "2026-07-02"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-live-trial",
       "criteria_total": 5,
       "criteria_covered": 5,
@@ -482,7 +482,7 @@
       "since": "2026-07-02"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-rename",
       "criteria_total": 3,
       "criteria_covered": 3,
@@ -498,7 +498,7 @@
       "since": "2026-05-18"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-rubric-governance",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -515,7 +515,7 @@
       "since": "2026-05-17"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "run-skill-update-notifier",
       "criteria_total": 4,
       "criteria_covered": 4,
@@ -532,7 +532,7 @@
       "since": "2026-05-21"
     },
     {
-      "plugin": "skill-creator",
+      "plugin": "harness-creator",
       "skill": "wrap-git-commit-safe",
       "criteria_total": 3,
       "criteria_covered": 3,

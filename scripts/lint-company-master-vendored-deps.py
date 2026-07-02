@@ -27,7 +27,7 @@ CI で検出する (空 vendor + 外部 import = FAIL / 外部 import + vendor �
 notion_config.py は意図的拡張 (get_gbizinfo_token / plugin_root 上向き探索) を含むため、
 skill-intake 系の byte一致 lint (lint-intake-vendored-ssot.py) を適用できない。代わりに
 **関数単位 AST 比較 + ホワイトリスト宣言** (allowed-patch 方式) を採る: 正本
-(plugins/skill-creator/scripts/notion_config.py) 由来の共通関数群は docstring を除いた
+(plugins/harness-creator/scripts/notion_config.py) 由来の共通関数群は docstring を除いた
 AST が正本と一致しなければ FAIL、vendored 固有の関数/差分はホワイトリスト
 (ALLOWED_EXTRA_FUNCS / ALLOWED_DIVERGENT_FUNCS) に宣言済みでなければ FAIL。
 正本還流 (正本側の変更) は lint-intake-vendored-ssot.py の byte一致を壊すため行わない。
@@ -100,7 +100,7 @@ def imported_top_levels(py: Path) -> set[str]:
 
 # --- vendored notion_config drift check (関数単位 AST 比較 + ホワイトリスト) ----
 
-CANONICAL_NOTION_CONFIG = ROOT / "plugins" / "skill-creator" / "scripts" / "notion_config.py"
+CANONICAL_NOTION_CONFIG = ROOT / "plugins" / "harness-creator" / "scripts" / "notion_config.py"
 VENDORED_NOTION_CONFIG_REL = Path("scripts/notion_config.py")
 
 # company-master 固有拡張のホワイトリスト宣言 (これ以外の差分は drift として FAIL)。
@@ -158,7 +158,7 @@ def check_vendored_notion_config(canonical: Path, vendored: Path) -> list[str]:
             continue  # 意図的差分としてホワイトリスト宣言済み
         if ast.dump(_strip_docstring(fn)) != ast.dump(_strip_docstring(vend_funcs[name])):
             issues.append(
-                f"共通関数 '{name}' が正本 (plugins/skill-creator/scripts/notion_config.py) と"
+                f"共通関数 '{name}' が正本 (plugins/harness-creator/scripts/notion_config.py) と"
                 f" AST 不一致 (drift)。正本の実装へ追従するか、意図的差分なら"
                 f" ALLOWED_DIVERGENT_FUNCS へ宣言を追加すること"
             )

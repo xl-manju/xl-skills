@@ -36,7 +36,7 @@
     "plugin-manifest"
   ],
   "surfaces_enforced_by": {
-    "skills": "governance-check.yml plugin-dev-planner conformance block (validate-frontmatter/name/description/completeness) + creator-kit-ci.yml per-plugin pytest",
+    "skills": "governance-check.yml plugin-dev-planner conformance block (validate-frontmatter/name/description/completeness) + harness-creator-kit-ci.yml per-plugin pytest",
     "agents": "tests/test_plugin_surfaces.py (owner_skill/responsibility_id/isolation を機械固定)",
     "commands": "tests/test_plugin_surfaces.py (存在 + frontmatter 契約)",
     "hooks": "plugin.json PostToolUse 配線 + tests/test_plugin_surfaces.py",

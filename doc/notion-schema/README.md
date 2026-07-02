@@ -12,7 +12,7 @@ xl-skills のプラグイン量産フローを Notion 上の 3 DB と連動さ�
 | `improvement-request.schema.json` | Skill改善要望 | `improvement-request` |
 
 実 DB ID は `<repo-root>/.notion-config.json#databases.<key>.db_id` で解決される。
-他リポジトリへの導入手順は **[plugins/skill-creator/references/notion-per-repo-setup.md](../../plugins/skill-creator/references/notion-per-repo-setup.md)** を参照。
+他リポジトリへの導入手順は **[plugins/harness-creator/references/notion-per-repo-setup.md](../../plugins/harness-creator/references/notion-per-repo-setup.md)** を参照。
 
 ## リレーション
 

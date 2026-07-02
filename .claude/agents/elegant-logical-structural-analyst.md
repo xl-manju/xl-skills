@@ -1,1 +1,1 @@
-../../plugins/skill-creator/agents/elegant-logical-structural-analyst.md
+../../plugins/harness-creator/agents/elegant-logical-structural-analyst.md

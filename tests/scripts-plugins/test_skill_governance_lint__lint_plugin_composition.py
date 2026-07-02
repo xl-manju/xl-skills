@@ -15,7 +15,7 @@
   - check_outputs: 実在パス / 不在パス WARN / glob 一致・不一致 / 概念名 skip
   - lint_composition: 合格 / capabilities 空 exit2 / 壊れた plugin.json exit2
   - main: 合格 OK / 違反 exit1 / 引数無し usage exit2 / --self-test exit0
-  - repo 実ファイル: plugins/skill-creator/plugin-composition.yaml が PASS
+  - repo 実ファイル: plugins/harness-creator/plugin-composition.yaml が PASS
 
 を tmp_path 上に合格 fixture と各違反 fixture を作り実入力で genuine に assert する。
 main は subprocess(sys.executable) で exit code / stdout / stderr を assert する。
@@ -336,7 +336,7 @@ def test_main_self_test():
     assert "self-test ok" in proc.stdout
 
 
-def test_repo_skill_creator_composition_passes():
-    comp = ROOT / "plugins" / "skill-creator" / "plugin-composition.yaml"
+def test_repo_harness_creator_composition_passes():
+    comp = ROOT / "plugins" / "harness-creator" / "plugin-composition.yaml"
     proc = run_cli(str(comp))
     assert proc.returncode == 0, proc.stderr

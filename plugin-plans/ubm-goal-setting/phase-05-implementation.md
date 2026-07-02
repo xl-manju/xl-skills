@@ -54,7 +54,7 @@ build は component 単位で `handoff-run-plugin-dev-plan.json` の routes に�
 ## スコープ外
 - カバレッジ拡充・テスト網羅 (P06)。
 - purpose 受入判定 (P07)・SSOT 重複整理 (P08)。
-- builder 自体の改修 (skill-creator 側の責務・gap は `open_issues` へ起票)。
+- builder 自体の改修 (harness-creator 側の責務・gap は `open_issues` へ起票)。
 
 ## 完了チェックリスト
 - [ ] 依存順に全 18 component が build され、2 skill loop の criteria が Green (受入テスト PASS) になる。

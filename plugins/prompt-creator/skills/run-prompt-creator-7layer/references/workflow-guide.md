@@ -87,7 +87,7 @@ Pass 強化マッピングも同 enum に従属する。**本書では値を再�
 
 - **ゴール**: 完了チェックリスト (evaluation_priorities 基づく自己評価含む) が全充足、または上限到達で差し戻し判断が確定した状態。ユーザー介入不要 (結果のみ最終報告に含める)。
 - **完了条件**: `verify-completeness.py` (+ layers_required サブセット時は `--layers`) + `validate-prompt.py --phase prompt` exit 0。反復上限 3 回。
-- **Anchor 契約 (必須)**: 各周回末に `eval-log/prompt-creator-intermediate.jsonl` へ `original_goal` (不変) / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal` を append する。schema 正本: skill-creator `run-build-skill/schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]` (再宣言しない)。次周回の手順立案は直前行の `merged_directive_for_next` + `original_goal` を必須入力とする。
+- **Anchor 契約 (必須)**: 各周回末に `eval-log/prompt-creator-intermediate.jsonl` へ `original_goal` (不変) / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal` を append する。schema 正本: harness-creator `run-build-skill/schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]` (再宣言しない)。次周回の手順立案は直前行の `merged_directive_for_next` + `original_goal` を必須入力とする。
 - **戻り先判断基準**:
 
 | 修正の種類 | 戻り先 | 理由 |

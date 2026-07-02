@@ -219,7 +219,7 @@ prompts:
   # ----- handoff -----
   handoff:
     id: prompts.handoff
-    title: "skill-creator への申し送り"
+    title: "harness-creator への申し送り"
     responsibility_id: R-INTAKE-FINAL-HANDOFF
     layer1_basic:
       purpose: "fast-track / standard / human-review / draft-only から引き渡しモードを 1 つ確定する"

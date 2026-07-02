@@ -26,15 +26,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import feedback_contract_ssot as FC  # noqa: E402
 
-SKILL_DIR = ROOT / "plugins/skill-creator/skills/run-skill-iter-improve"
+SKILL_DIR = ROOT / "plugins/harness-creator/skills/run-skill-iter-improve"
 SCHEMA_PATH = SKILL_DIR / "schemas/interrogation-log.schema.json"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 GOAL_SPEC_SCHEMA = (
-    ROOT / "plugins/skill-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json"
+    ROOT / "plugins/harness-creator/skills/run-goal-elicit/schemas/goal-spec.schema.json"
 )
 CONVERGENCE_POLICY = (
     ROOT
-    / "plugins/skill-creator/skills/run-elegant-review/references/convergence-policy.json"
+    / "plugins/harness-creator/skills/run-elegant-review/references/convergence-policy.json"
 )
 VALIDATE_FRONTMATTER = (
     ROOT / "plugins/skill-governance-lint/scripts/validate-frontmatter.py"
@@ -296,8 +296,8 @@ def test_loop_bounds_iter_improve_params_exist():
 def test_engine_closure_includes_self():
     # INVARIANT 7: 本 skill はエンジン閉包に属し、自己適用時は被験体コピー必須
     assert "run-skill-iter-improve" in FC.ENGINE_SKILLS
-    assert FC.requires_subject_copy("skill-creator", "run-skill-iter-improve") is True
-    assert FC.requires_subject_copy("skill-creator", "run-skill-rename") is False
+    assert FC.requires_subject_copy("harness-creator", "run-skill-iter-improve") is True
+    assert FC.requires_subject_copy("harness-creator", "run-skill-rename") is False
 
 
 def test_goal_spec_has_forbidden_loosening_field():

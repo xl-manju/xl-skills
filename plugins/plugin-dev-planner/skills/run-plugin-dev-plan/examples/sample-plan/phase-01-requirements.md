@@ -23,7 +23,7 @@ applicability:
 
 ## 前提条件
 - プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望) が入力として与えられている。
-- 汎用の `run-goal-elicit` (skill-creator) が利用可能で、purpose/background/goal/checklist を `goal-spec.schema.json` で抽出できる (再実装しない)。
+- 汎用の `run-goal-elicit` (harness-creator) が利用可能で、purpose/background/goal/checklist を `goal-spec.schema.json` で抽出できる (再実装しない)。
 - このフェーズは特定 component へ紐づかない (責務は goal-spec 確定・target_plugin_slug 固定)。
 
 ## ドメイン知識

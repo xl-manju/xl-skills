@@ -2,6 +2,16 @@
 
 このファイルは、リポジトリ直下で共有する運用規約を記録する。
 
+## 用語規約: ハーネス / スキル (2026-07-02 意味論境界)
+
+plugin `harness-creator` (旧名 `skill-creator`、2026-07-02 改名) に関わる語彙は次の境界に従う。定義の正本は `plugins/harness-creator/skills/ref-skill-glossary/references/terms.md` の「ハーネス」エントリ。
+
+1. **単体スキルを作る概念** (部品単位の生成・改善・改名) → 「スキル / skill」表現を維持する。例: `run-skill-create`, `run-build-skill`。`SKILL.md` / `skills/` / Skill tool はプラットフォーム予約語彙でもある。
+2. **ハーネス全体を構築する概念** (skill/agent/hook/command/評価/統治の総体を作るメタ能力) → 「ハーネス / harness」表現を使う。例: plugin 名 `harness-creator`, `harness-creator-kit`。
+3. 適用レベルはファイル名・ディレクトリ名・本文・項目内容のすべて。機械的一括置換ではなく出現箇所の概念で判定する。迷ったら**操作/生成の対象の単位**で判定 — 単一 skill なら skill、plugin 総体・Capability 横断なら harness。部品の集合名は harness 側。
+4. 既存の harness 語 (`doc/harness-coverage-spec.md` = 構築物総体の品質装具、meta-harness 系) は同系譜の概念であり、衝突ではなく統合先。修飾なしの harness 単独語の新規使用は避け、plugin を指すときは `harness-creator` と書く。
+5. 旧固有名 (`skill-creator` / `skill_creator` / `スキルクリエイター`) の能動層への再流入は `scripts/lint-legacy-plugin-name.py` が fail-closed で遮断する (凍結層 = eval-log 履歴・`doc/参考Skill/`・changelog 系は対象外)。
+
 ## 三層モデル
 
 `xl-skills` では、plugin 移行中のファイル責務を層 A / 層 B / 層 C に分ける。以後の変更は、まずこの三層モデルで所属を判定してから実施する。
@@ -18,19 +28,19 @@
 
 #### 層 A-internal: リポジトリ実体だが marketplace 非配布
 
-層 A のうち `distributable: false` を宣言した plugin を **層 A-internal** と呼ぶ。リポジトリには実体として存在し、lint / CI / 社内利用の対象になるが、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象外**である。現時点では `plugins/skill-creator/` と `plugins/prompt-creator/` (Skill / plugin を量産するための社内開発基盤) が該当し、利用は repo を clone した環境に限る (`.claude/` symlink 経由)。
+層 A のうち `distributable: false` を宣言した plugin を **層 A-internal** と呼ぶ。リポジトリには実体として存在し、lint / CI / 社内利用の対象になるが、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象外**である。現時点では `plugins/harness-creator/` と `plugins/prompt-creator/` (Skill / plugin を量産するための社内開発基盤) が該当し、利用は repo を clone した環境に限る (`.claude/` symlink 経由)。
 
-この区別が示すのは **「配布 ≠ リポジトリ存在」** という原則である。ここでいう「配布」とは `.claude-plugin/marketplace.json` / `.claude-plugin/bundles.json` への登録のみを指す。公開 git repo 上にソースが物理存在することは配布とは独立であり、`distributable: false` の plugin もソースは repo に残り clone 開発に用いる。層 A-internal は「リポジトリには在るが (両 JSON へ登録しないため) 配布しない」状態を指す。現状の層 A-internal は `skill-creator` / `prompt-creator` が該当する (= `distributable: false` を宣言した plugin。固有名は `scripts/validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` でロックされ、フラグが漂流しても fail-closed で再配布を阻止する)。件数を断定しないのは、層 A-internal が増減しても本節が silent に陳腐化しないためである。
+この区別が示すのは **「配布 ≠ リポジトリ存在」** という原則である。ここでいう「配布」とは `.claude-plugin/marketplace.json` / `.claude-plugin/bundles.json` への登録のみを指す。公開 git repo 上にソースが物理存在することは配布とは独立であり、`distributable: false` の plugin もソースは repo に残り clone 開発に用いる。層 A-internal は「リポジトリには在るが (両 JSON へ登録しないため) 配布しない」状態を指す。現状の層 A-internal は `harness-creator` / `prompt-creator` が該当する (= `distributable: false` を宣言した plugin。固有名は `scripts/validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` でロックされ、フラグが漂流しても fail-closed で再配布を阻止する)。件数を断定しないのは、層 A-internal が増減しても本節が silent に陳腐化しないためである。
 
 ### パス列挙
 
-- `plugins/<name>/`: 層 A。plugin として配布する正本。ただし `distributable: false` を宣言した plugin は層 A-internal (リポジトリ実体・lint 対象だが marketplace 非配布。skill-creator / prompt-creator が該当)。
+- `plugins/<name>/`: 層 A。plugin として配布する正本。ただし `distributable: false` を宣言した plugin は層 A-internal (リポジトリ実体・lint 対象だが marketplace 非配布。harness-creator / prompt-creator が該当)。
 - `.claude/`: 層 B。開発環境で使う symlink、自動生成 settings、ローカル運用情報。
 - `doc/`: 層 B。設計書とタスク仕様書の正本。
 - `eval-log/`: 層 B。検証ログ、レビュー承認、移行証跡。
 - `scripts/`: 層 B。ただし旧構造からの未仕分け script は層 C として扱い、Phase 4 までに A/B へ移すか除却する。
 - `references/`: 層 B。ただし旧構造からの未仕分け reference は層 C として扱い、Phase 4 までに A/B へ移すか除却する。
-- `creator-kit/`: 層 C。試験移行前の暫定正本であり、最終形では `plugins/skill-creator/` に吸収する。
+- `creator-kit/`: 層 C。試験移行前の暫定正本であり、最終形では `plugins/harness-creator/` に吸収する。
 
 ### 参照規則
 
@@ -105,7 +115,7 @@ Phase 0-2 では A -> B 禁止に例外を作らない。例外が必要な場�
 
 層A 配下に並ぶ plugin 7 件 + 既存試験移行済 1 件:
 
-- `plugins/skill-creator/` (試験移行済)
+- `plugins/harness-creator/` (試験移行済)
 - `plugins/skill-governance-adapters/`
 - `plugins/skill-governance-hooks/`
 - `plugins/skill-governance-lint/`

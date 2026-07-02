@@ -15,7 +15,7 @@
 # ///
 """lint 集合3箇所分散 (LS-02/LS-07) の突合 lint。
 
-正本 = plugins/skill-creator/references/lint-matrix.json。検査:
+正本 = plugins/harness-creator/references/lint-matrix.json。検査:
   (a) build-preflight: run-build-skill SKILL.md の Step 4 セクション bash ブロックの
       lint/validate script 集合 == matrix[build-preflight]  (双方向・集合一致)
   (b) p0-gate: run-skill-create workflow-manifest.json の p0-lint.commands の

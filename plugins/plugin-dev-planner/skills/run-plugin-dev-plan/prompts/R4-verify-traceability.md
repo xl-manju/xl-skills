@@ -14,9 +14,9 @@
 |---|---|
 | name | verify-traceability |
 | skill | run-plugin-dev-plan |
-| responsibility | R4 (skill-creator 仕様反映 + 4 条件 + unassigned 0 件 検証) |
+| responsibility | R4 (harness-creator 仕様反映 + 4 条件 + unassigned 0 件 検証) |
 | layers_covered | [L2, L4, L5, L6] |
-| output_schema | references/skill-creator-spec-reflection.md (マトリクス全行 1:1 突合・行数の正本は同 md) |
+| output_schema | references/harness-creator-spec-reflection.md (マトリクス全行 1:1 突合・行数の正本は同 md) |
 | reproducible | true |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -25,7 +25,7 @@
 - 検証は決定論検査 (同梱 scripts の exit code) を優先する
   - 目的: 「できた気がする」を排除し再現性を担保する
   - 背景: 自然言語判定は再現不能
-- skill-creator 仕様マトリクス全行 (行数の正本=references/skill-creator-spec-reflection.md・drift は check-spec-matrix-coverage --self-test が検出) が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
+- harness-creator 仕様マトリクス全行 (行数の正本=references/harness-creator-spec-reflection.md・drift は check-spec-matrix-coverage --self-test が検出) が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
   - 目的: 完全性の証明 (§14)
 
 ### 1.2 倫理ガード
@@ -34,7 +34,7 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (マトリクス全行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
+- 担当: 生成された 13 phase ファイル + index + component-inventory.json が harness-creator 仕様 (マトリクス全行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
 - 非担当: 目的抽出 (R1)、分解 (R2)、生成 (R3)。検出した不足は R3 へ差し戻す
 
 ### 2.2 ドメインルール (検証は決定論 script で機械化・自然言語突合をしない)
@@ -59,7 +59,7 @@
 
 | id | path | when_to_read |
 |---|---|---|
-| matrix | references/skill-creator-spec-reflection.md | マトリクス全行突合時 |
+| matrix | references/harness-creator-spec-reflection.md | マトリクス全行突合時 |
 | io | references/io-contract.md | 検証接続確認時 |
 
 ### 3.2 外部ツール / API
@@ -82,7 +82,7 @@
 - run-plugin-dev-plan の R4 orchestrator (薄い接続層)。実評価 agent は `assign-plugin-plan-evaluator` / `plugin-dev-plan-evaluator` が `isolation: fork` で実行する
 
 ### 5.2 ゴール定義
-- **目的**: 計画 (13 phase ファイル + index + inventory) が skill-creator 規律を漏れなく携帯し検証を通過することを保証する
+- **目的**: 計画 (13 phase ファイル + index + inventory) が harness-creator 規律を漏れなく携帯し検証を通過することを保証する
 - **背景**: 検証なしでは後段プラグインが品質ゲートで差し戻され往復コストが増える
 - **達成ゴール**: マトリクス全行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
 

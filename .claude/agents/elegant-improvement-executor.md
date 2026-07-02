@@ -1,1 +1,1 @@
-../../plugins/skill-creator/agents/elegant-improvement-executor.md
+../../plugins/harness-creator/agents/elegant-improvement-executor.md

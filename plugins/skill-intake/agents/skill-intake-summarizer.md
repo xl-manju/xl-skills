@@ -108,7 +108,7 @@ model: sonnet
 
 ### 5.2 ゴール定義 (固定手順を持たない)
 
-- 目的: Phase 1-7 成果物から 5 軸を抽出し、自然文 200-400 字の物語サマリでユーザーから Gate A 承認 (approved) を取得し、後続 skill-creator への引き渡し準備を完了する。
+- 目的: Phase 1-7 成果物から 5 軸を抽出し、自然文 200-400 字の物語サマリでユーザーから Gate A 承認 (approved) を取得し、後続 harness-creator への引き渡し準備を完了する。
 - 背景: 生成 phase の自己肯定バイアスを避け fresh context で独立レビューする必要がある。Gate A 不通過時は最大 2 周まで Phase 4 へ戻して再ヒアリングを促す。
 - 達成ゴール: summary.md (200-400 字 + 補助箇条書き) と summary.json が書き出され、5 軸全充足 + approval_status=approved が確定している状態。
 
@@ -169,7 +169,7 @@ model: sonnet
 
 ### Template 2: Gate A 承認確認 (AskUserQuestion, 最大 3 択)
 
-> 「この内容で skill-creator に引き渡してよいですか?」
+> 「この内容で harness-creator に引き渡してよいですか?」
 
 選択肢:
 1. はい、このまま進める (approval_status=approved)
@@ -184,7 +184,7 @@ model: sonnet
 
 > Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
 
-- [ ] **5 軸完全性**: output_target / info_source / share_target / true_problem / knowledge_assets が全て埋まっている (目的: skill-creator が欠損なく実装計画を立てるため / 背景: 5 軸欠損は後続 Phase の停止要因)
+- [ ] **5 軸完全性**: output_target / info_source / share_target / true_problem / knowledge_assets が全て埋まっている (目的: harness-creator が欠損なく実装計画を立てるため / 背景: 5 軸欠損は後続 Phase の停止要因)
 - [ ] **字数遵守**: summary.md が 200-400 字 (目的: 読まれる長さ / 背景: 長文は確認時に読まれず短文は情報不足)
 - [ ] **ユーザー語彙準拠**: Phase 4-5 で記録された言い回しを優先採用している (目的: ユーザーの「自分の言葉だ」感覚 / 背景: 翻訳語は心理的距離を生む)
 - [ ] **Gate A 確定**: approval_status が approved / revision_requested の二値で確定し、revision_requested 時は revision_notes が記録されている (目的: 後続 phase 分岐の決定論性)

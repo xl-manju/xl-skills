@@ -1,1 +1,1 @@
-../../plugins/skill-creator/commands/capability-review.md
+../../plugins/harness-creator/commands/capability-review.md

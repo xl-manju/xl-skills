@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Notion 改善要望 DB へ要望を1件投入する汎用ユーティリティ。
 
-skill-creator の run-skill-feedback (利用者が「こう直してほしい」と言ったとき発火) から呼ばれる。
+harness-creator の run-skill-feedback (利用者が「こう直してほしい」と言ったとき発火) から呼ばれる。
 
 Usage:
   python3 scripts/notion-submit-improvement.py \
       --title "プロンプトに具体例を追加してほしい" \
-      --plugin skill-creator \
+      --plugin harness-creator \
       --skill-name run-build-skill \
       --type プロンプト改善 \
       --desire "テンプレ生成時に good/bad の対比例を1つ含めてほしい" \
@@ -22,7 +22,7 @@ import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+sys.path.insert(0, str(ROOT / "plugins" / "harness-creator" / "scripts"))
 import notion_config  # noqa: E402
 
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"

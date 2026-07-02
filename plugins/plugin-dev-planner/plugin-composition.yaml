@@ -38,11 +38,11 @@ dependencies:
   - { from: skills/assign-plugin-plan-evaluator, to: agents/plugin-dev-plan-evaluator, type: calls, note: "R1(evaluate) を fork 実行" }
   - { from: agents/plugin-dev-plan-elicitor,  to: agents/plugin-dev-plan-architect,  type: handoff, note: "goal-spec.json" }
   - { from: agents/plugin-dev-plan-architect, to: agents/plugin-dev-plan-evaluator, type: handoff, note: "plan ディレクトリ (13 phase files + inventory + index)" }
-  # 外部 (cross-plugin, skill-creator への一方向のみ — 実 build は委譲)
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-skill-create,   type: routes_to, note: "skill component の L4 実 build route を handoff に記録 (本 plugin は投入しない)" }
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-build-skill,    type: routes_to, note: "非 skill capability の kind dispatch route を handoff に記録 (本 plugin は投入しない)" }
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-elegant-review, type: calls, note: "昇格前 C1-C4 検証" }
-  - { from: skills/run-plugin-dev-plan, to: ../skill-creator/skills/run-goal-elicit,    type: calls, note: "R1 が goal-spec 生成本体を委譲" }
+  # 外部 (cross-plugin, harness-creator への一方向のみ — 実 build は委譲)
+  - { from: skills/run-plugin-dev-plan, to: ../harness-creator/skills/run-skill-create,   type: routes_to, note: "skill component の L4 実 build route を handoff に記録 (本 plugin は投入しない)" }
+  - { from: skills/run-plugin-dev-plan, to: ../harness-creator/skills/run-build-skill,    type: routes_to, note: "非 skill capability の kind dispatch route を handoff に記録 (本 plugin は投入しない)" }
+  - { from: skills/run-plugin-dev-plan, to: ../harness-creator/skills/run-elegant-review, type: calls, note: "昇格前 C1-C4 検証" }
+  - { from: skills/run-plugin-dev-plan, to: ../harness-creator/skills/run-goal-elicit,    type: calls, note: "R1 が goal-spec 生成本体を委譲" }
 quality_gates:
   - python3 scripts/validate-plugin-completeness.py
   - python3 -m pytest plugins/plugin-dev-planner/skills/run-plugin-dev-plan/tests -q

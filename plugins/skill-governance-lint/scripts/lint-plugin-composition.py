@@ -34,7 +34,7 @@ flow-mapping 行 `- { kind: x, ref: y, tier: z }` と block 形
 `- kind: x` + 字下げ `ref:/path:` の両形式を行ベースで読む。
 
 Usage:
-  lint-plugin-composition.py plugins/skill-creator/plugin-composition.yaml
+  lint-plugin-composition.py plugins/harness-creator/plugin-composition.yaml
   lint-plugin-composition.py --self-test
 
 Exit 0 = ok (WARN は許容), 1 = violation, 2 = usage/parse error.

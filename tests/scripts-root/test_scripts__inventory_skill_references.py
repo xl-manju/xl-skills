@@ -156,7 +156,7 @@ def test_inventory_skill_hardcode_and_script_and_refsfile(tmp_path):
         "---\n"
         "name: run-bar\n"
         "---\n"
-        "See plugins/skill-creator/skills/ref-target for details.\n"
+        "See plugins/harness-creator/skills/ref-target for details.\n"
         "Also .claude/skills/run-other works.\n"
         "Run: python3 scripts/do-thing.py\n"
         "And source helpers/setup.sh\n"
@@ -233,7 +233,7 @@ def test_main_skills_dir_not_found_exit_2(tmp_path):
 
 
 def test_main_default_skills_dir_when_missing_exit_2(tmp_path):
-    # cwd を tmp_path にすると default の plugins/skill-creator/skills は無い -> exit 2
+    # cwd を tmp_path にすると default の plugins/harness-creator/skills は無い -> exit 2
     proc = _run([], cwd=tmp_path)
     assert proc.returncode == 2
     assert "skills directory not found" in proc.stderr

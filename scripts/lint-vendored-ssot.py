@@ -26,15 +26,15 @@ ROOT = Path(__file__).resolve().parent.parent
 VENDORED_PAIRS = [
     # skill-intake 単独 install 用に同梱した Notion config ローダ。
     (
-        ROOT / "plugins" / "skill-creator" / "scripts" / "notion_config.py",
+        ROOT / "plugins" / "harness-creator" / "scripts" / "notion_config.py",
         ROOT / "plugins" / "skill-intake" / "scripts" / "notion_config.py",
     ),
-    # skill-creator 単独 install 用に同梱した feedback_contract 境界 SSOT。
+    # harness-creator 単独 install 用に同梱した feedback_contract 境界 SSOT。
     # runtime hook (check-review-trigger.py) / build-time validator が import-time に
     # 解決するため、plugin 外 repo-root への依存を断ち plugin 内へ vendoring する。
     (
         ROOT / "scripts" / "feedback_contract_ssot.py",
-        ROOT / "plugins" / "skill-creator" / "scripts" / "feedback_contract_ssot.py",
+        ROOT / "plugins" / "harness-creator" / "scripts" / "feedback_contract_ssot.py",
     ),
 ]
 

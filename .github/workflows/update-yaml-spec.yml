@@ -29,7 +29,7 @@ jobs:
         id: fetch
         run: |
           # build 前に現行キャッシュを退避し、後段で実 diff を計算する
-          cp plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md /tmp/prev-yaml-spec-cache.md 2>/dev/null || true
+          cp plugins/harness-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md /tmp/prev-yaml-spec-cache.md 2>/dev/null || true
           python3 scripts/build-yaml-spec-cache.py
           FETCH_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           echo "fetch_date=${FETCH_DATE}" >> $GITHUB_OUTPUT
@@ -38,7 +38,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md
+          git add plugins/harness-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md
           git diff --staged --quiet || git commit -m "chore: update yaml-spec-cache (${{ steps.fetch.outputs.fetch_date }})"
 
 
@@ -51,7 +51,7 @@ jobs:
           # consumer (SKILL.md / R1 / resource-map) が読む references/ に一本化する。
           # git add は symlink 経由不可 ("beyond a symbolic link") のため実 plugins パスを使う
           # (.claude/... は同ファイルへの symlink だが git pathspec が通らない)。
-          BASE = "plugins/skill-creator/skills/ref-yaml-spec-fetcher/references"
+          BASE = "plugins/harness-creator/skills/ref-yaml-spec-fetcher/references"
           HISTORY = pathlib.Path(f"{BASE}/spec-diff-history.md")
           CACHE = pathlib.Path(f"{BASE}/yaml-spec-cache.md")
           PREV = pathlib.Path("/tmp/prev-yaml-spec-cache.md")
@@ -102,7 +102,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md
+          git add plugins/harness-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md
           git diff --staged --quiet || git commit -m "chore: update spec-diff-history (${{ steps.fetch.outputs.fetch_date }})"
 
       - name: Push changes
@@ -134,9 +134,9 @@ jobs:
                 '',
                 '## 対応手順',
                 '',
-                '1. `plugins/skill-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md` の最新差分を確認する。',
+                '1. `plugins/harness-creator/skills/ref-yaml-spec-fetcher/references/spec-diff-history.md` の最新差分を確認する。',
                 '2. 変更が frontmatter / settings フィールド (名称・型・必須・enum) に及ぶか判定する。',
-                '3. 及ぶ場合は `plugins/skill-creator/**/rubric.json`・テンプレート・schema を更新する。',
+                '3. 及ぶ場合は `plugins/harness-creator/**/rubric.json`・テンプレート・schema を更新する。',
                 '4. 対応完了後この issue を close する (次の実変更で再通知される)。',
               ].join('\n');
               await github.rest.issues.create({

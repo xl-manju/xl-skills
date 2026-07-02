@@ -187,7 +187,7 @@
           {
             "type": "text",
             "text": {
-              "content": "状態: Gate A 承認済み・skill-creator 引き渡し可能"
+              "content": "状態: Gate A 承認済み・harness-creator 引き渡し可能"
             }
           }
         ]
@@ -280,7 +280,7 @@
           {
             "type": "text",
             "text": {
-              "content": "引き渡しモード: fast-track（skill-creator は Phase 2 から実装着手可能）"
+              "content": "引き渡しモード: fast-track（harness-creator は Phase 2 から実装着手可能）"
             }
           }
         ]
@@ -1743,7 +1743,7 @@
           {
             "type": "text",
             "text": {
-              "content": "[×] クライアント実名・契約金額の除外範囲 → skill-creator"
+              "content": "[×] クライアント実名・契約金額の除外範囲 → harness-creator"
             }
           }
         ]
@@ -1757,7 +1757,7 @@
           {
             "type": "text",
             "text": {
-              "content": "[×] 情報源の絞り込み（X TLアカウント数・arXivカテゴリ範囲） → skill-creator"
+              "content": "[×] 情報源の絞り込み（X TLアカウント数・arXivカテゴリ範囲） → harness-creator"
             }
           }
         ]
@@ -1771,7 +1771,7 @@
           {
             "type": "text",
             "text": {
-              "content": "[×] Discord/Slack のどちらをメイン通知先にするか → skill-creator"
+              "content": "[×] Discord/Slack のどちらをメイン通知先にするか → harness-creator"
             }
           }
         ]
@@ -1785,7 +1785,7 @@
           {
             "type": "text",
             "text": {
-              "content": "[○] テーマ集合ファイルのスキーマと更新ジョブ実装 → skill-creator"
+              "content": "[○] テーマ集合ファイルのスキーマと更新ジョブ実装 → harness-creator"
             }
           }
         ]
@@ -1804,7 +1804,7 @@
           {
             "type": "text",
             "text": {
-              "content": "9. skill-creator への申し送り"
+              "content": "9. harness-creator への申し送り"
             }
           }
         ]
@@ -1977,7 +1977,7 @@
           {
             "type": "text",
             "text": {
-              "content": "控除 -5: テーマ集合スキーマが skill-creator 委譲で残った"
+              "content": "控除 -5: テーマ集合スキーマが harness-creator 委譲で残った"
             }
           }
         ]

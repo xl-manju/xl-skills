@@ -4,11 +4,11 @@
 
 ## 短期 (本 PR 〜 次 1-2 スプリント)
 
-**目標**: skill-creator 仕様準拠化を完遂し、独立 evaluator + ゲート制御 orchestrator を自走させる。**成果物**: 4 SKILL.md commonCore 化 / `plugin-composition.yaml` / Script First (python3) 全面移行 / CI 配線 / 移行スクリプトの正式リネーム (PENDING 解除)。**KPI**: P0 lint 全緑率 100%、design-evaluate overall=PASS 率 >= 90%、PENDING_RENAME 残数 0。
+**目標**: harness-creator 仕様準拠化を完遂し、独立 evaluator + ゲート制御 orchestrator を自走させる。**成果物**: 4 SKILL.md commonCore 化 / `plugin-composition.yaml` / Script First (python3) 全面移行 / CI 配線 / 移行スクリプトの正式リネーム (PENDING 解除)。**KPI**: P0 lint 全緑率 100%、design-evaluate overall=PASS 率 >= 90%、PENDING_RENAME 残数 0。
 
 ## 中期 (3-6 ヶ月)
 
-**目標**: 7 層プロンプトの冪等更新ループを完成させ、既存プロンプトの肥大化を抑制しながら継続改善を回す。**成果物**: 冪等更新 policy の lint 化 (重複要素検出)、prompt-rubric.json L1 (ドメイン層) の整備、prompt-creator → skill-creator への評価 feedback 自動化。**KPI**: 同一スキルの 2 回目以降更新で要素重複増加率 <= 5%、L1 rubric 採用プロンプト割合 >= 50%、feedback PR 月次マージ >= 1 本。
+**目標**: 7 層プロンプトの冪等更新ループを完成させ、既存プロンプトの肥大化を抑制しながら継続改善を回す。**成果物**: 冪等更新 policy の lint 化 (重複要素検出)、prompt-rubric.json L1 (ドメイン層) の整備、prompt-creator → harness-creator への評価 feedback 自動化。**KPI**: 同一スキルの 2 回目以降更新で要素重複増加率 <= 5%、L1 rubric 採用プロンプト割合 >= 50%、feedback PR 月次マージ >= 1 本。
 
 ### Follow-up (elegant-review v2 / 2026-05-24 検出 → 2026-07-02 elegant-review で処遇確定)
 

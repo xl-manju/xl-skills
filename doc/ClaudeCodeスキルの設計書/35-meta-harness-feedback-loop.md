@@ -14,7 +14,7 @@ Stanford IRIS Lab の Meta-Harness（execution traces → harness end-to-end 最
 |---|---|
 | 観測対象 failure mode の閉じた列挙 | `plugins/skill-governance-config/config/meta-harness-observables.json`（配布正本） / `.claude/config/meta-harness-observables.json`（導入先コピー） |
 | ガバナンス境界（log由来改善のカテゴリ） | `33-change-governance.md` § log-driven ref-* 改善 |
-| 改善の周回ロジック（既存の elegant-review 周回） | `plugins/skill-creator/skills/run-elegant-review/references/{amplified-patterns,convergence-policy}.json` |
+| 改善の周回ロジック（既存の elegant-review 周回） | `plugins/harness-creator/skills/run-elegant-review/references/{amplified-patterns,convergence-policy}.json` |
 | 本章で扱うこと | パイプライン全体（収集 → 分類 → 起票 → ガバナンス接続） |
 
 ## 中核原則
@@ -186,7 +186,7 @@ intake → build → review → lessons-learned → rubric-governance → 次回
 
 | 機構 | 役割 | 正本パス |
 |---|---|---|
-| **auto-record-lesson hook** | review 完了時に failure_mode を bundle 直下 `lessons-learned/` へ自動追記 | (Phase 3 で実装予定。PostToolUse hook として `plugins/skill-creator/.claude-plugin/plugin.json` または独立 `kind: hook` manifest に登録) |
+| **auto-record-lesson hook** | review 完了時に failure_mode を bundle 直下 `lessons-learned/` へ自動追記 | (Phase 3 で実装予定。PostToolUse hook として `plugins/harness-creator/.claude-plugin/plugin.json` または独立 `kind: hook` manifest に登録) |
 | **aggregate-evals script** | bundle 直下 `EVALS.json` を時系列集計し、閾値超え failure_mode を検出 | `plugins/skill-governance-automation/scripts/aggregate-evals.py` (Phase 2 で実装予定) |
 | **observables.json** | 閉じた failure_mode 列挙 | `plugins/skill-governance-config/config/meta-harness-observables.json` / `.claude/config/meta-harness-observables.json` |
 | **log schema v1.0** | session log の正本スキーマ | `plugins/skill-governance-config/config/meta-harness-log-schema-v1.0.json` / `.claude/logs/schema-v1.0.json` |

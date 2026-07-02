@@ -22,12 +22,12 @@ handoff routes[].build_args.brief_path (plan_dir 相対・推奨 briefs/skill-br
   (1) planner 固有キー (build 軸 routing / plan 品質ゲート / loop 配線) を除去する
   (2) skill_kind→kind へ写像する (inventory は component_kind との衝突回避で skill_kind を
       canonical に携帯する。解決は specfm._skill_kind_of と同一)
-  (3) 実 schema (plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json
+  (3) 実 schema (plugins/harness-creator/skills/run-skill-create/schemas/skill-brief.schema.json
       additionalProperties:false) と突合し base required + allOf 条件付き required の充足と
       余剰キー 0 を自己検証する。単独 install 等で実 schema が無ければ突合を skip し
       standalone を stderr へ情報開示する (fail-open の明示)
 
-skill-brief の語彙は実 schema を正本とする引用形連携で、skill-creator の解決ロジックは
+skill-brief の語彙は実 schema を正本とする引用形連携で、harness-creator の解決ロジックは
 再実装しない (base required 14 の複製は specfm.SKILL_BRIEF_FIELDS として二重保持台帳に登録済・
 本 script はそれを import する)。突合は required 充足 + 余剰キー 0 の床のみで、型/pattern/
 minItems 等の全量検証は消費側 run-skill-create の schema 検証に残す (二層分離)。
@@ -52,7 +52,7 @@ PLANNER_ONLY_KEYS = frozenset({
     "prompt_layer", "combinators", "goal_seek", "feedback_contract",
 })
 # 実 schema (owner) の plugins/ 配下相対パス。
-SCHEMA_REL = "skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json"
+SCHEMA_REL = "harness-creator/skills/run-skill-create/schemas/skill-brief.schema.json"
 
 
 def find_schema_path() -> Path | None:

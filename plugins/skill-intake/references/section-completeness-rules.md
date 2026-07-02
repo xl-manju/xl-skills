@@ -159,7 +159,7 @@ type: reference
 | 図解 | traffic-light（解決状態） |
 | 説明文 | blocking / deferred の区別 200 字 |
 | 質問 | 「いま決められないことは？」 |
-| 選択肢 | 「無し」「後で決める」「skill-creator に任せる」 |
+| 選択肢 | 「無し」「後で決める」「harness-creator に任せる」 |
 | サンプル | 「フォーム閉鎖後の自動アーカイブは v2」 |
 | アンチパターン | 「完璧主義」型 |
 

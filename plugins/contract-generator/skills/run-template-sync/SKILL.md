@@ -11,7 +11,7 @@ since: 2026-05-30
 role_suffix: generator
 hierarchy_level: L1
 rubric_refs:
-  - "../../../skill-creator/skills/run-elegant-review/references/thought-methods.yaml"
+  - "../../../harness-creator/skills/run-elegant-review/references/thought-methods.yaml"
   - "../../lib/scan_template.py"
   - "../../lib/ledger.py"
 responsibility_refs: [prompts/R1-diagnose-and-resync.md, ../../agents/template-sync-agent.md, scripts/sync.py]

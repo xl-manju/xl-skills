@@ -54,7 +54,7 @@ Claude Code セッションを起動し、以下を打ちます。
 
 用途に合わせて選んでください。**まずは 1 つだけ入れて試すことをおすすめします。**
 
-> ℹ️ **marketplace から配布される plugin は 12 件です。** Skill 作成基盤の `skill-creator` / `prompt-creator` は `distributable: false` を宣言しており marketplace 一覧に出ません (`/plugin install` できません)。これらは社内で Skill / plugin を量産するための開発基盤で、利用は repo を clone した環境に限ります → [開発者向け: skill-creator / prompt-creator](#開発者向け-skill-creator--prompt-creator-clone-時のみ)。
+> ℹ️ **marketplace から配布される plugin は 12 件です。** Skill 作成基盤の `harness-creator` / `prompt-creator` は `distributable: false` を宣言しており marketplace 一覧に出ません (`/plugin install` できません)。これらは社内で Skill / plugin を量産するための開発基盤で、利用は repo を clone した環境に限ります → [開発者向け: harness-creator / prompt-creator](#開発者向け-harness-creator--prompt-creator-clone-時のみ)。
 
 ### 2a. まず 1 つ試す (最小構成)
 
@@ -80,7 +80,7 @@ Claude Code セッションを起動し、以下を打ちます。
 
 配布対象の 12 plugin を入れるには、`/plugin install <name>@xl-skills` を plugin ごとに繰り返します (一覧は [Part 3](#part-3-plugin-一覧と役割))。
 
-> **bundle (バンドル)について**: `xl-skills-full` (配布 12 件) / `xl-skills-intake` (skill-intake + skill-governance-secrets) という一括導入セットの定義はありますが、これを 1 行で展開する手段 (`/skill-creator:install-bundle` スラッシュコマンド・`scripts/install-bundle.sh`) はいずれも **repo を clone した開発環境専用**です ([開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ) 参照)。clone していない配布ユーザは上記のとおり 1 つずつ install してください。
+> **bundle (バンドル)について**: `xl-skills-full` (配布 12 件) / `xl-skills-intake` (skill-intake + skill-governance-secrets) という一括導入セットの定義はありますが、これを 1 行で展開する手段 (`/harness-creator:install-bundle` スラッシュコマンド・`scripts/install-bundle.sh`) はいずれも **repo を clone した開発環境専用**です ([開発者向け](#開発者向け-harness-creator--prompt-creator-clone-時のみ) 参照)。clone していない配布ユーザは上記のとおり 1 つずつ install してください。
 
 ✅ **確認**:
 
@@ -112,9 +112,9 @@ Claude Code セッションを起動し、以下を打ちます。
 /plugin marketplace remove xl-skills
 ```
 
-## 開発者向け: skill-creator / prompt-creator (clone 時のみ)
+## 開発者向け: harness-creator / prompt-creator (clone 時のみ)
 
-Skill 作成基盤の **skill-creator** (Skill を設計・評価・統治する司令塔) と **prompt-creator** (7 層プロンプトを生成) は `distributable: false` を宣言しており、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象になりません**。社内で新しい Skill / plugin を量産するための開発基盤で、利用するにはリポジトリを clone します。
+Skill 作成基盤の **harness-creator** (Skill を設計・評価・統治する司令塔) と **prompt-creator** (7 層プロンプトを生成) は `distributable: false` を宣言しており、**marketplace 一覧・配布 bundle には現れず `/plugin install <name>@xl-skills` の対象になりません**。社内で新しい Skill / plugin を量産するための開発基盤で、利用するにはリポジトリを clone します。
 
 ```bash
 git clone https://github.com/xl-manju/xl-skills.git
@@ -122,17 +122,17 @@ cd xl-skills
 claude
 ```
 
-clone した worktree では、`plugins/` 配下の正本が `.claude/` の symlink を通してそのまま使えます (symlink は `make sync` で生成・更新)。skill-creator / prompt-creator のスラッシュコマンドや agent は、この状態で直接呼び出せます (marketplace への install は不要)。
+clone した worktree では、`plugins/` 配下の正本が `.claude/` の symlink を通してそのまま使えます (symlink は `make sync` で生成・更新)。harness-creator / prompt-creator のスラッシュコマンドや agent は、この状態で直接呼び出せます (marketplace への install は不要)。
 
 配布対象の 12 plugin もまとめて入れたい場合は、この clone 環境でだけ bundle helper が使えます。
 
 ```bash
 # clone 環境でのみ利用可
-#   slash command: /skill-creator:install-bundle xl-skills-full
+#   slash command: /harness-creator:install-bundle xl-skills-full
 bash scripts/install-bundle.sh xl-skills-full
 ```
 
-> **`distributable: false` とは**: その plugin が marketplace 一覧・配布 bundle に現れず、`/plugin install <name>@xl-skills` の対象にもならないことを示すフラグです。リポジトリには実体・lint 対象として存在しますが配布はされません。つまり **「配布 ≠ リポジトリ存在」**。該当するのは `distributable: false` を宣言した plugin (現時点では skill-creator / prompt-creator) です。
+> **`distributable: false` とは**: その plugin が marketplace 一覧・配布 bundle に現れず、`/plugin install <name>@xl-skills` の対象にもならないことを示すフラグです。リポジトリには実体・lint 対象として存在しますが配布はされません。つまり **「配布 ≠ リポジトリ存在」**。該当するのは `distributable: false` を宣言した plugin (現時点では harness-creator / prompt-creator) です。
 
 ## トラブルシュート
 
@@ -222,7 +222,7 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 | **mf-kessai-invoice-check** | マネーフォワード掛け払いの請求書発行漏れを月次でチェック | 請求のやり忘れを見張る経理 |
 | **notion-gmail-send** | Notion 2DB を入力に Gmail を一斉個別送信 | 宛名を差し替えて一斉送付する受付 |
 
-> Skill 作成基盤の **skill-creator** / **prompt-creator** はここには出ません。配布対象外 (`distributable: false`、開発者が clone した時のみ使用) です → [開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ)。
+> Skill 作成基盤の **harness-creator** / **prompt-creator** はここには出ません。配布対象外 (`distributable: false`、開発者が clone した時のみ使用) です → [開発者向け](#開発者向け-harness-creator--prompt-creator-clone-時のみ)。
 
 ## 運用検査 plugin (品質を保つ)
 
@@ -250,7 +250,7 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 - **非エンジニアからヒアリングしたい** → `skill-intake`
 - **チームで Skill の品質を保ちたい** → `skill-governance-config` / `lint` / `hooks`
 - **配布 plugin を全部** → 12 plugin を 1 つずつ install (一括導入 helper は clone 環境のみ)
-- **Skill / plugin を新規に量産したい (開発者)** → repo を clone し skill-creator / prompt-creator を使う → [開発者向け](#開発者向け-skill-creator--prompt-creator-clone-時のみ)
+- **Skill / plugin を新規に量産したい (開発者)** → repo を clone し harness-creator / prompt-creator を使う → [開発者向け](#開発者向け-harness-creator--prompt-creator-clone-時のみ)
 
 ---
 
@@ -264,7 +264,7 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 
 | 部品 | 役割 | 利用方法 |
 |---|---|---|
-| **Skill (スキル)** | 作業手順書 + 知識資料 | `/skill-creator:run-skill-create` のようにスラッシュコマンドで呼ぶ。または AI が自動で発火条件を見て呼ぶ |
+| **Skill (スキル)** | 作業手順書 + 知識資料 | `/harness-creator:run-skill-create` のようにスラッシュコマンドで呼ぶ。または AI が自動で発火条件を見て呼ぶ |
 | **SubAgent (サブエージェント)** | 独立した別 AI として動く専門家 | Skill から呼ばれて、別の文脈で 1 つの仕事だけをこなす |
 | **Hook (フック)** | 特定タイミングで自動実行されるスクリプト | ユーザーが直接呼ばない。「保存したら走る」「コマンド前に走る」など |
 | **Slash Command (スラッシュコマンド)** | `/コマンド名` で呼べるショートカット | ユーザーが直接タイプする |
@@ -276,7 +276,7 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 Skill は **1 つのフォルダ** で、中に以下のような構造を持ちます。
 
 ```
-plugins/skill-creator/skills/run-skill-create/
+plugins/harness-creator/skills/run-skill-create/
 ├── SKILL.md           ← 必須。何のスキルか、いつ呼ぶか、手順を書く
 ├── references/        ← 補助資料 (長い仕様書や採点表)
 │   ├── resource-map.yaml  ← 補助資料の索引
@@ -363,7 +363,7 @@ plugins/my-plugin/
 
 Claude Code は `/plugin marketplace add xl-manju/xl-skills` を実行すると、この `marketplace.json` を読み、`plugins/` 配下から実体をキャッシュにコピーします。
 
-> `distributable: false` を宣言した plugin (skill-creator / prompt-creator) は、この一覧 (=配布目録) に登録されないため `/plugin install` の対象になりません。リポジトリには `plugins/` 配下に実体として存在しますが配布はされない、という区別です ("配布 ≠ リポジトリ存在")。
+> `distributable: false` を宣言した plugin (harness-creator / prompt-creator) は、この一覧 (=配布目録) に登録されないため `/plugin install` の対象になりません。リポジトリには `plugins/` 配下に実体として存在しますが配布はされない、という区別です ("配布 ≠ リポジトリ存在")。
 
 ## 4.4 `.claude/` と `~/.claude/` の役割
 

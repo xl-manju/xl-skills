@@ -6,7 +6,7 @@
 
 > 本章の核心キーワード「prefix駆動型」「manifest駆動contract」「三層contractモデル」は本章でのみ定義する。他章は参照リンクのみ。
 
-> **Capability 抽象への汎化注記 (2026-05-22):** 本章が定義する三層 contract モデル (`workflow-manifest.json` + `schemas/` + `prompts/<R-id>.md`) は、当初 `kind: skill` を前提として書かれたが、23章 § Capability 抽象への拡張 にて Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow の 7 kind 横断に汎化された。本章の **prefix 規約は `kind: skill` 配下のサブ分類** として継続有効であり、他 kind の Capability も同一の三層 contract に従う (intent/interface/invariant の写像は 23章 § Capability 横断適用 表を参照)。Capability の共通核スキーマ正本は `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json`。
+> **Capability 抽象への汎化注記 (2026-05-22):** 本章が定義する三層 contract モデル (`workflow-manifest.json` + `schemas/` + `prompts/<R-id>.md`) は、当初 `kind: skill` を前提として書かれたが、23章 § Capability 抽象への拡張 にて Skill / Agent / Hook / Command / Plugin-Composition / Prompt / Workflow の 7 kind 横断に汎化された。本章の **prefix 規約は `kind: skill` 配下のサブ分類** として継続有効であり、他 kind の Capability も同一の三層 contract に従う (intent/interface/invariant の写像は 23章 § Capability 横断適用 表を参照)。Capability の共通核スキーマ正本は `plugins/harness-creator/skills/run-build-skill/references/capability-manifest.schema.json`。
 
 ---
 
@@ -61,7 +61,7 @@ Step / Gate / handoff の正本は `workflow-manifest.json` + `schemas/` + `prom
 
 ## § 4 各ディレクトリの役割定義（三層 contract モデル）
 
-> **Capability 共通核との接続**: 本節 4.1〜4.6 は `kind: skill` の場合の具体配置を示すが、他 kind (`agent / hook / command / plugin-composition / prompt / workflow`) の Capability も、共通核フィールド (`name / description / kind / version / owner / tags / since`) は `CapabilityManifest` として `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json` に従って宣言する。kind 固有スキーマは同 schema に注入される (23章 § Capability 抽象への拡張 を参照)。
+> **Capability 共通核との接続**: 本節 4.1〜4.6 は `kind: skill` の場合の具体配置を示すが、他 kind (`agent / hook / command / plugin-composition / prompt / workflow`) の Capability も、共通核フィールド (`name / description / kind / version / owner / tags / since`) は `CapabilityManifest` として `plugins/harness-creator/skills/run-build-skill/references/capability-manifest.schema.json` に従って宣言する。kind 固有スキーマは同 schema に注入される (23章 § Capability 抽象への拡張 を参照)。
 
 ### 4.1 workflow-manifest.json （第1層: 実行手順の正本）
 
@@ -186,7 +186,7 @@ self_evaluation_checklist: [...]
 
 ## § 8 参考実装との比較
 
-| 観点 | `doc/参考Skill/skill-creator/` | 本章が定める prefix 駆動型 |
+| 観点 | `doc/参考Skill/harness-creator/` | 本章が定める prefix 駆動型 |
 |---|---|---|
 | 構造単位 | 単一スキル内マルチ責務（1 SKILL.md に build / lint / eval が同居） | 横展開 + 内部規約（prefix 別 Skill に分離し、内部は非対称） |
 | contract の置き場 | SKILL.md 散文 + scripts/ の README | `workflow-manifest.json` + `schemas/` + `prompts/<R-id>.yaml` の三層 |

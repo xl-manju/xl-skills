@@ -134,7 +134,7 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 | YAML (`.yaml`) | 既存資産 / 機械生成 pipeline | 許容 (新規禁止) |
 | JSON (`.json`) | tool args として埋め込む場合のみ | 限定 |
 
-## skill-creator 連携
+## harness-creator 連携
 
 - `run-build-skill` の scaffold は `seven-layer-format.md` を正本とし、本テンプレを提示形式の補助として参照して `.md` を生成する。
 - `run-skill-create` の P0 lint は `prompts/*.md` を優先検出し、`.yaml` のみ存在する場合は warn を出す (block しない)。

@@ -50,7 +50,7 @@ plugin_meta:
 ## 基本定義
 - **プラグイン slug**: `notion-task-sync` (plan_dir=`plugin-plans/notion-task-sync/`・同一構想は常に同一出力先=再現性アンカー)。
 - **最上位目的 (purpose)**: タスク台帳を Notion DB へ冪等同期する。
-- **仕様駆動 (大前提)**: 本計画は skill-creator 仕様を基に作成される (規律の焼き先=`skill-creator-spec-reflection.md` マトリクスの引用・独自流儀の発明禁止)。要件の正本は `goal-spec.json` の checklist (C1/C2)、仕様書 (本 index + 13 phase) はその被覆であり、実装との乖離が出たら**仕様を先に更新**してから build へ戻す (spec-first)。
+- **仕様駆動 (大前提)**: 本計画は harness-creator 仕様を基に作成される (規律の焼き先=`harness-creator-spec-reflection.md` マトリクスの引用・独自流儀の発明禁止)。要件の正本は `goal-spec.json` の checklist (C1/C2)、仕様書 (本 index + 13 phase) はその被覆であり、実装との乖離が出たら**仕様を先に更新**してから build へ戻す (spec-first)。
 - **スコープ (含む)**: index + 13 フェーズ計画 + `component-inventory.json` の生成 (計画=L3 契約)。
 - **スコープ (含まない)**: 実プラグイン/実コードの build (L4・後段 run-skill-create / run-build-skill へ委譲)、PR/配布登録。
 

@@ -1,0 +1,26 @@
+{
+  "target": {
+    "plugin": "harness-creator",
+    "skill": "run-skill-feedback",
+    "skill_md_sha256": "21076b939aa0fec22fb2d93407ebeab9b21a8c542b43ea5ede1b27adda425973"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "reviewer": "independent-rename-review-subagent-c",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "token / DB ID の解決順(CLI 引数 > env NOTION_TOKEN/NOTION_*_DATABASE_ID > per-repo .notion-config.json > macOS Keychain slug-namespaced key)が Key Rules 4・Gotchas 3・Checklist・投入コマンド節で一貫して反復され、notion_config.require_or_skip() 単一 loader へ集約されているため、非露出要件(IN2)が検証可能な単一経路として確認できる。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "quality-rubric.md の 5 次元で現 SKILL.md(sha256 21076b93…)を採点。完全性=3(全フロー・SSOT 節・配布注記・completeness_exempt で prompts 免除理由を明記)。一貫性=3(feedback_protocol SSOT・冪等性・token 非露出の用語と規約が三者派生を通じ一貫)。深度=3(利用者が plugin 名を知らない前提からの目的逆算同定、孤児防止、時系列ログ性質の維持など設計判断が表層を越えている)。検証可能性=3(dry-run / lint-feedback-protocol.py / notion-submit-improvement.py の具体コマンドと引数、解決順の数値的列挙)。簡潔性=2(局面カタログ構造で適切、正本 schema へ委譲)。全次元 ≥2 で PASS。改名追従(旧名 0・参照断線 0・意味論境界適合)も併せ確認。"
+}

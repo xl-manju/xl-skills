@@ -32,7 +32,7 @@ SKILL.md / agents/*.md の description フィールドを 03章 §description設
 usage:
   python3 scripts/lint-skill-description.py
   python3 scripts/lint-skill-description.py --report
-  python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
+  python3 scripts/lint-skill-description.py --skills-dir plugins/harness-creator/skills
   python3 scripts/lint-skill-description.py --skills-dir .claude/skills
 
 exit code: 0 OK / 1 違反検出 / 2 設定エラー
@@ -55,7 +55,7 @@ TRIGGER_RE = re.compile(r"(?:とき|場合|際|時に)")
 MAX_LEN = 280
 
 SKILL_GLOBS = [
-    "plugins/skill-creator/skills/*/SKILL.md",
+    "plugins/harness-creator/skills/*/SKILL.md",
     ".claude/skills/*/SKILL.md",
     ".claude/agents/*.md",
 ]
