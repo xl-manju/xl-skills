@@ -1,72 +1,53 @@
-# ワークフロー詳細ガイド
+# ワークフロー詳細ガイド (宣言核)
 
-Phase 1〜5の詳細実行手順。
+Phase 1〜5 の**ゴール (到達状態)・完了条件・判断基準**を宣言する。
+実行順・依存関係・fatal exit code の機械正本は `../workflow-manifest.json` (phases[].dependsOn)。
+手順は各 Phase のゴールへ向けてゴールシークループで都度立案する (固定ステップ表を持たない)。
+
+## 呼出モード (全 Phase 共通の前提)
+
+| モード | 条件 | ユーザー対話 |
+|--------|------|-------------|
+| brief 供給 (orchestrator / run-build-skill 呼出) | skill-brief / hearing-result が入力に含まれる | **Phase 1-3 の全ユーザー対話を skip**。導出確認は brief の `user_confirmed` に委譲 |
+| 単独起動 | ユーザーが直接起動し brief なし | Phase 1-3 で対話可 (下記の各 Phase 記述は単独起動時のみ適用) |
 
 ## Phase 1: ヒアリング
 
-AskUserQuestionで以下を段階的に収集する。一度に全部聞かず、回答に応じて深掘りする。
+- **ゴール**: 検証済み hearing-result が存在する状態。
+- **完了条件**: `validate-prompt.py --phase hearing` exit 0。
+- **判断基準**:
+  - hearing-result / brief 供給時は本 Phase を skip する。
+  - 無ければ **run-prompt-elicit へ委譲**する (interview-user agent を直接呼ばない。収集経路を一本化しドリフト源を作らないため)。
+  - 質問設計・ラウンド運用・導出確認の正本は run-prompt-elicit 側 (`run-prompt-elicit/SKILL.md` / `references/elicit-question-bank.md`)。
 
-### 必須ヒアリング項目
+### 収集すべきゴール材料 (委譲先が満たすべき情報要件)
 
-| # | 質問カテゴリ | 目的 |
-|---|------------|------|
-| 1 | プロンプトで何をしたいか | 目的・ゴールの特定 |
-| 2 | 誰が使うか | 利用者像の明確化 |
-| 3 | なぜ必要か | 背景・課題の把握 |
-| 4 | どんな出力がほしいか | 成果物イメージの具体化 |
-| 5 | 何が出来上がれば完了か（ゴール・完了条件） | Layer 5 ゴール定義・完了チェックリストの材料 |
-| 6 | 制約・注意点はあるか | 品質基準・禁止事項の設定 |
-| 7 | 何を重視するか（評価優先度） | 動的評価基準の生成材料 |
+| # | 情報 | 使い先 |
+|---|------|--------|
+| 1 | 目的・ゴール (何をしたいか) | Layer 1 最上位目的 |
+| 2 | 利用者像 | Layer 1 / Layer 7 |
+| 3 | 背景・課題 | Layer 1 / Layer 2 |
+| 4 | 出力イメージ | Layer 5 インターフェース |
+| 5 | 達成状態と完了条件 (**手順ではない**。手順は実行時に AI が自律生成) | Layer 5 ゴール定義・完了チェックリスト |
+| 6 | 制約・注意点 | Layer 4 |
+| 7 | 評価優先度 | 動的評価基準 (Pass 0) の材料 |
 
-> 項目5は「手順」ではなく「達成状態と完了条件」を聞く。手順は各エージェントが実行時に自律生成するため、設計時に固定手順を収集しない。
+### 評価優先度 (evaluation_priorities) — SSOT 従属注記
 
-### ヒアリングのルール
-
-- 回答が曖昧な場合は具体例を示して再質問
-- 情報が十分な項目はスキップ
-- ユーザーが既に提供した情報は再度聞かない
-- 最大3ラウンドで完了を目指す
-- **AIが推定・仮定した設計判断は必ず導出確認で承認を得る**
-
-### Round 2.5: 評価優先度の収集
-
-選択肢から最大2つを選んでもらう（低摩擦設計: 自由記述不要）：
-
-| 選択肢 | 意味 |
-|--------|------|
-| 正確性・精度 | 出力の正しさを最優先 |
-| 創造性・柔軟性 | 多様な出力を生み出す |
-| ユーザー親和性 | 初心者でも迷わず使える |
-| ドメイン専門性 | 業界固有の知識・用語を正確に扱う |
-| 実行速度・効率 | 最小限の入力で最大の出力 |
-
-→ 結果は `evaluation_priorities` としてヒアリング結果JSONに格納
-
-参照: [agents/interview-user.md](../agents/interview-user.md)
+選択肢の語彙と上限の正本は `../../run-prompt-elicit/schemas/hearing-result.schema.json` の
+`evaluation_priorities` enum (日本語 5 値・最大 2)。`quality-criteria.md` §7.2 の
+Pass 強化マッピングも同 enum に従属する。**本書では値を再定義しない** (経路間の語彙分裂防止)。
 
 ---
 
 ## Phase 2: Prompt作成シート生成 + 導出確認
 
-1. LLMがヒアリング結果をJSON構造化（schemas/hearing-result.schema.json準拠）
-2. `python3 scripts/generate-sheet.py <hearing.json>` でテンプレート展開 [Script]
-3. `python3 scripts/validate-sheet.py <hearing.json>` で充足度検証 [Script]
-4. 未充足フィールドがあればLLMが追加質問を設計 [LLM]
-5. シートをユーザーに提示
-6. **導出確認**: AIの解釈・設計判断をユーザーに透明化して最終承認を得る
-
-### 導出確認（Derivation Confirmation）
-
-> シート生成後、AIがどのように情報を解釈してプロンプト設計に反映したかを提示する。
-
-| あなたの入力 | → AIの設計判断 | 根拠 |
-|-------------|---------------|------|
-| （ユーザー回答） | → （設計判断） | （なぜそう判断したか） |
-
-- ユーザー承認 → Phase 3へ
-- ユーザー修正指示 → 該当箇所を修正して再度導出確認
-
-> 導出確認は最終承認を兼ねる。別途の確認ステップは不要。
+- **ゴール**: goals / checklist を含む内部正規形材料が確定し、AI の設計判断がユーザー (または brief) に承認された状態。
+- **完了条件**: `generate-sheet.py` + `validate-sheet.py` exit 0 (未充足フィールド・ゴール手順列挙なし)。
+- **判断基準**:
+  - 未充足フィールドは追加質問を設計する前に AI 最尤仮説での補完可否を検討する。
+  - **導出確認** (単独起動時のみ): AI が推定・仮定した設計判断を「あなたの入力 → AI の設計判断 → 根拠」の形で透明化し最終承認を得る。承認 → Phase 3 / 修正指示 → 該当箇所を修正して再確認。導出確認は最終承認を兼ねる。
+  - **brief 供給時**: `brief.user_confirmed` が承認済みを意味するため導出確認を skip する。
 
 参照: [references/prompt-sheet-template.md](prompt-sheet-template.md)
 
@@ -74,103 +55,61 @@ AskUserQuestionで以下を段階的に収集する。一度に全部聞かず�
 
 ## Phase 3: フォーマット・出力先選択
 
-AskUserQuestionで以下を確認：
-
-1. **出力フォーマット**: YAML / Markdown / JSON / XML
-2. **出力先パス**: ユーザーに自由入力で指定してもらう
-3. **エージェント数**: 単一 / 複数（複数の場合は何体か）
+- **ゴール**: 出力フォーマットと出力先パスが一意に確定した状態。
+- **完了条件**: format ∈ {md, yaml, json, xml} (md 既定)、出力先パスが規約または指定で解決済み。
+- **判断基準**:
+  - **brief 供給時 / ループ呼出時**: md 既定・規約パス (skill-local-v1) で skip。
+  - **単独起動時のみ**: AskUserQuestion でフォーマット・出力先パス・エージェント数 (単一/複数) を確認する。
+  - YAML は内部正規形または legacy 互換に限定する。
 
 ---
 
 ## Phase 4: 構造化プロンプト生成
 
-### Phase 4-A: Layer単位生成
+### Phase 4-A: Layer 単位生成
 
-| Step | アクション | 担当 |
-|------|-----------|------|
-| A-1 | `scaffold-prompt.py`で7層骨格を決定論的生成 | Script |
-| A-2 | Layer 1: 基本定義を充填 | LLM |
-| A-3 | Layer 2: ドメイン定義を充填 | LLM |
-| A-4 | Layer 3: インフラストラクチャを充填 | LLM |
-| A-5 | Layer 4: 共通ポリシーを充填 | LLM |
-| A-6 | Layer 5: エージェント定義を充填（ゴール定義+完了チェックリスト。固定手順は書かない） | LLM |
-| A-7 | Layer 6: オーケストレーションを充填 | LLM |
-| A-8 | Layer 7: ユーザーインタラクションを充填 | LLM |
-| A-9 | `merge-layers.py`で7ファイルを合算 | Script |
+- **ゴール**: 7 層 (または brief.layers_required サブセット) の Layer 別 artifact が揃い、`merge-layers.py` で 1 つの正規形に統合された状態。
+- **完了条件**: 各 layer artifact 実在 + `merge-layers.py` exit 0。
+- **判断基準 (生成ルール)**:
+  - **1 Layer = 1 出力**: 独立した LLM 呼び出しで生成 (一括生成禁止)。
+  - **要素原子性**: 1 フィールド = 1 概念 = 1 短文 (目安 50 文字以内)。複合内容はリスト・テーブル・サブキーに分解。
+  - **前 Layer 参照**: Layer N 生成時に Layer 1〜(N-1) を参照して整合性確保。省略記法 (「以下同様」) 禁止。
+  - **ゴールシーク (Layer 5)**: 達成ゴールは成果状態で記述。固定手順を書かず、実行方式 (6 ステップ+Anchor のループ) に委ねる。サブ構造の正本: `seven-layer-format.md`「Layer 5 契約」(l5-contract v2.0.0)。
+  - **ハンドオフ (Layer 5/6)**: 出力(受領先)→次の入力(提供元)を接続し、直列/並列の連鎖を明示。
 
-各Layer生成ルール:
-- **1Layer=1出力**: 独立したLLM呼び出しで生成
-- **要素原子性**: 各フィールド値は1概念=1短文（目安50文字以内）で記述
-- **長文分割**: 複合的な内容はリスト・テーブル・サブキーに分解
-- **前Layer参照**: Layer N生成時にLayer 1〜(N-1)を参照して整合性確保
-- **省略禁止**: 「以下同様」は使わず全項目書き出し
-- **ゴールシーク（Layer 5）**: 達成ゴールは成果状態で記述。固定手順（思考プロセスのステップ列挙）を書かず、手順はエージェントの実行方式（自律生成ループ）に委ねる
-- **ハンドオフ（Layer 5/6）**: 各エージェントの出力(受領先)と次エージェントの入力(提供元)を接続し、直列/並列の連鎖を明示
+### Phase 4-B: 多段階検証 (4 パスレビュー)
 
-### Phase 4-B: 多段階検証（パイプライン方式）
+- **ゴール**: Pass 0 (evaluation_priorities からの動的基準生成) と Pass 1 網羅性 / Pass 2 整合性 / Pass 3 深度 / Pass 4 実用性の findings が確定した状態。
+- **完了条件**: `validate-prompt.py` exit 0 + 全 Pass PASS (NG は該当 Pass の修正指示付き findings)。
+- **判断基準**: 各 Pass の判定質問・合格条件の正本は `quality-criteria.md` (§1-§7)。derivation_log 反映は Pass 1 で確認する。
 
-| Step | アクション | 担当 |
-|------|-----------|------|
-| B-1 | `validate-prompt.py`で7層構造検証 | Script |
-| B-1.5 | Pass 0: `evaluation_priorities`から動的評価基準を生成 | LLM |
-| B-2 | Pass 1: 網羅性チェック（+ derivation_log反映確認） | LLM |
-| B-3 | Pass 2: 整合性チェック | LLM |
-| B-4 | Pass 3: 深度チェック | LLM |
-| B-5 | Pass 4: 実用性チェック | LLM |
-| B-6 | 全Pass完了 → 4-C / NG → 該当Pass修正後再実行 | Gate |
+### Phase 4-C: AI 自律評価・改善
 
-参照: [agents/review-prompt.md](../agents/review-prompt.md)
-
-### Phase 4-C: AI自律評価・改善
-
-> **目的**: 4パス検証後、AIが `evaluation_priorities` に基づき自己評価を行い、不足があれば自律的に修正する。
-> **ユーザー介入不要**: 評価・改善はAIが自律実行し、結果のみ最終報告に含める。
-
-| Step | アクション | 担当 |
-|------|-----------|------|
-| C-1 | AIが `evaluation_priorities` に基づく自己評価を実行 | LLM |
-| C-2 | 不合格項目の修正種別を判定（下記参照） | LLM |
-| C-3 | 修正実行 → 再評価（最大3回まで反復） | LLM |
-| C-4 | 全項目合格 or 最大回数到達 → Phase 4-Dへ | Gate |
-
-#### 修正時の戻り先判断基準
+- **ゴール**: 完了チェックリスト (evaluation_priorities 基づく自己評価含む) が全充足、または上限到達で差し戻し判断が確定した状態。ユーザー介入不要 (結果のみ最終報告に含める)。
+- **完了条件**: `verify-completeness.py` (+ layers_required サブセット時は `--layers`) + `validate-prompt.py --phase prompt` exit 0。反復上限 3 回。
+- **Anchor 契約 (必須)**: 各周回末に `eval-log/prompt-creator-intermediate.jsonl` へ `original_goal` (不変) / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal` を append する。schema 正本: skill-creator `run-build-skill/schemas/goal-seek-loop.schema.json` の `intermediate_artifacts[]` (再宣言しない)。次周回の手順立案は直前行の `merged_directive_for_next` + `original_goal` を必須入力とする。
+- **戻り先判断基準**:
 
 | 修正の種類 | 戻り先 | 理由 |
 |-----------|--------|------|
-| 内容の追加・変更（Layerの中身を書き換え） | Phase 4-A（該当Layer再生成） | Layer再生成が必要 |
-| 品質の改善（表現の曖昧さ、整合性の問題） | Phase 4-B（該当Pass再実行） | 再検証で改善可能 |
+| 内容の追加・変更 (Layer の中身を書き換え) | Phase 4-A (該当 Layer 再生成) | Layer 再生成が必要 |
+| 品質の改善 (表現の曖昧さ・整合性) | Phase 4-B (該当 Pass 再実行) | 再検証で改善可能 |
 
-#### 評価結果の記録
-
-評価結果は最終報告（Phase 4-D）に含める：
-
-```
-## AI自律評価結果
-evaluation_priorities: [{{priority_1}}, {{priority_2}}]
-
-| 評価項目 | 結果 | 修正内容（該当時） |
-|---------|------|-------------------|
-| {{項目名}} | PASS/修正済み | {{修正内容}} |
-
-改善回数: {{N}}回 / 最大3回
-```
+- **評価結果の記録**: 評価項目ごとの PASS/修正済みと改善回数 (N 回 / 最大 3 回) を最終報告 (Phase 4-D) に含める。
 
 ### Phase 4-D: フォーマット変換・ファイル出力
 
-| Step | アクション | 担当 |
-|------|-----------|------|
-| D-1 | YAML正規形 → 指定フォーマットに変換 | Script |
-| D-2 | `validate-prompt.py`で変換後の再検証 | Script |
-| D-3 | 指定パスにファイル書き出し | Write |
-| D-4 | ユーザーに出力完了を報告 | LLM |
+- **ゴール**: 指定フォーマットの最終成果物が出力先に書き出され、再検証済みの状態。
+- **完了条件**: `convert-format.py` exit 0 + 変換後の `validate-prompt.py` exit 0 + ファイル実在。
+- **判断基準**: owner_agent 指定時の注入 diff は inject-sections (Prompt Templates / Self-Evaluation。呼出元非依存の不変契約) 内に閉じること。
 
 ---
 
-## Phase 5: ファイル出力
+## Phase 5: 戻り検証 + 設計ゲート
 
-> Phase 4-D で変換・検証済みのため、このPhaseは書き出しとログのみ。
-
-1. 指定パスにプロンプトファイルを書き出す [Write]
-2. `python3 scripts/log-usage.py --result success --phase "Phase 5"` [Script]
-3. ユーザーに出力完了を報告
-4. 必要に応じてPrompt作成シートも同じディレクトリに保存
+- **ゴール**: 全機械ゲートと C1-C4 設計ゲートが PASS し、利用記録が残った状態。
+- **完了条件**: `lint-agent-prompt-section.py` exit 0 + C1-C4 設計評価 (`assign-prompt-design-evaluator` fork・findings 出力のみ) PASS + `log-usage.py` で LOGS.md 記録。
+- **判断基準**:
+  - FAIL は Phase 4-A 再起動 (最大 3 周)。超過時は orchestrator へ差し戻す。
+  - 設計ゲートの免除は、呼出元が同等ゲート (例: run-prompt-create Step 3b) を機械証跡 (design-findings JSON パス) で保証する場合のみ。
+  - 単独起動時は必要に応じて Prompt 作成シートも同じディレクトリに保存する。

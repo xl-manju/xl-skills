@@ -22,7 +22,7 @@ owner skill `assign-prompt-design-evaluator` の R1 (evaluate) を実行する�
 - `brief` (`eval-log/prompt-brief.json`)
 - `output` (省略時 `eval-log/docs/<NN>-<timestamp>.json`)
 - SSOT 責務: `skills/assign-prompt-design-evaluator/prompts/R1-evaluate.md`
-- rubric: `skills/assign-prompt-design-evaluator/references/prompt-rubric.json` (C1-C4 機械判定)
+- rubric: `skills/assign-prompt-design-evaluator/references/prompt-rubric.json` (C1-C4 機械判定。version 2.0.0 / L5 判定基準は l5-contract v2.0.0 従属)
 - criteria: `skills/assign-prompt-design-evaluator/references/c1-c4-criteria.md` (意味判定基準)
 - scripts: `skills/run-prompt-creator-7layer/scripts/verify-completeness.py` / `validate-prompt.py`
 
@@ -45,14 +45,11 @@ owner skill `assign-prompt-design-evaluator` の R1 (evaluate) を実行する�
 
 ## Steps
 
-正本 `R1-evaluate.md` の Layer 5.2 推論手順に従う。要約:
+固定手順は持たない。正本 `R1-evaluate.md` Layer 5 のゴール定義 (l5-contract v2.0.0) へ向けて、5.3 完了チェックリストの未達項目を埋める評価手順を都度設計する (一度の read-only 採点で完結、runtime loop なし)。
 
-1. `prompt-rubric.json` を Read し C1-C4 機械判定ルールを取得。
-2. `verify-completeness.py` / `validate-prompt.py` を実行し completeness_score・構造検証を取得。
-3. C1-C4 の scripted checks (regex_match / regex_absent) を実行。
-4. C1-C4 の non-scripted checks と 4 パスレビュー (Pass 0 動的基準→Pass 1 網羅性→Pass 2 整合性→Pass 3 深度→Pass 4 実用性) を意味判定。
-5. findings[] を id/severity/bucket/observations(/suggested_fix) で構築。bucket は C1-C4 または rubric id (C1-001 等)。
-6. verdicts (C1-C4 を PASS/FAIL/N/A) を確定し、findings.schema.json 準拠で `eval-log/docs/<NN>-<timestamp>.json` に Write。
+- **ゴール**: 全 rubric checks (scripted + non-scripted) と 4 パスレビュー (Pass 0 動的基準→Pass 1 網羅性→Pass 2 整合性→Pass 3 深度→Pass 4 実用性) を被覆した findings.json が `eval-log/docs/<NN>-<timestamp>.json` に存在する状態。
+- **完了条件**: verdicts (C1-C4 = PASS/FAIL/N/A) 確定 / completeness_score 算出済み / findings[] が id/severity/bucket/observations(/suggested_fix) で非空 / 評価対象は無変更。
+- **判定材料**: `prompt-rubric.json` (機械判定ルール) / `verify-completeness.py`・`validate-prompt.py` (決定論検査) / `c1-c4-criteria.md` (意味判定)。scripted checks を先に済ませ、LLM は意味判定のみ担う。
 
 ## Constraints
 
@@ -73,12 +70,12 @@ owner skill `assign-prompt-design-evaluator` の R1 (evaluate) を実行する�
 
 ## Self-Evaluation
 
-正本 `R1-evaluate.md` Layer 5.3 の self_evaluation_checklist で自己採点。
+正本 `R1-evaluate.md` 5.3 完了チェックリスト (l5-contract v2.0.0) で自己採点。検証可能性・完全性・一貫性の観点:
 
 - [ ] verdicts に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっているか
 - [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含むか
 - [ ] high severity がある場合 suggested_fix が明記されているか
-- [ ] completeness_score >= 0.95 か (未満なら verdicts に反映)
+- [ ] completeness_score >= 0.95 か (rubric global_thresholds 正本。未満なら verdicts に反映)
 - [ ] context:fork 下で実行され評価対象を書き換えていないか
 
 未達は 1 回自己修正、再未達なら caller へ findings を返す。

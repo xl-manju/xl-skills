@@ -146,6 +146,8 @@ validate-prompt.py（Script）の構造検証を補完する意味的品質チ�
 
 > ゴールシーク型では「手順の深さ」ではなく「ゴールと完了条件の検証可能性」を見る。
 > 固定手順が書かれていないこと自体が合格要件。
+> L5 サブ構造（節構成・禁止/必須事項）の正本は `seven-layer-format.md`「Layer 5 契約」
+> (l5-contract v2.0.0)。本節と §3.3 の判定質問はその契約に従属する。
 
 | 質的基準 | 判定質問 | 合格条件 |
 |---------|---------|---------|
@@ -203,6 +205,11 @@ validate-prompt.py（Script）の構造検証を補完する意味的品質チ�
 
 > ヒアリング時に収集した `evaluation_priorities` に基づき、Pass 1-4の各チェック項目を動的に強化する。
 > これにより、ユーザーが重視する品質観点が優先的にレビューされる。
+> **正本 (SSOT)**: `evaluation_priorities` の語彙（日本語 5 値）と上限（最大 2）の機械正本は
+> `run-prompt-elicit/schemas/hearing-result.schema.json` の `evaluation_priorities` enum（2026-07-02 移行済み）。
+> 本節 §7.2 は同 enum 値の**意味マッピング（優先度→Pass 強化）のみ**を定義し、値を再定義しない
+> （enum 変更時は §7.2 のマッピング行を追従更新する）。workflow-guide.md Round 2.5 /
+> run-prompt-elicit R1-interview / interview-user agent の質問文言・個数は同 enum に従属する。
 
 ### 7.1 動的基準の生成プロセス
 

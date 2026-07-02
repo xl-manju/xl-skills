@@ -37,7 +37,7 @@ rubric_refs:
 reference_refs:
   - references/resource-map.yaml
   - references/c1-c4-criteria.md
-source: doc/prompt-creator/references/quality-criteria.md
+source: ../run-prompt-creator-7layer/references/quality-criteria.md
 source-tier: internal
 last-audited: 2026-05-22
 audit-trigger: quarterly
@@ -70,12 +70,12 @@ role_suffix: evaluator
 |---|---|---|
 | **C1** | Layer 整合 | L1-L7 が seven-layer-format.md と整合、Layer 番号と役割の対応が崩れていない |
 | **C2** | 依存方向 | L7→L1 の単方向参照のみ。Layer N が Layer N-1 以外を参照していない |
-| **C3** | 再現性 | reproducible=true。同じ入力で同じ出力を得る根拠 (script_refs / schema / checklist) が揃う |
-| **C4** | Self-Evaluation 充足 | L5.3 self_evaluation_checklist が 5-8 項目、客観判定可能な条件で書かれる |
+| **C3** | 再現性 | reproducible=true。再現性根拠 (output_schema / script_refs / 検証可能な完了チェックリスト) が揃い、5.2 ゴール定義が成果状態で固定手順列挙を含まない (l5-contract v2.0.0) |
+| **C4** | Self-Evaluation 充足 | L5.3 完了チェックリスト (停止条件) が非空で、全項目が第三者に YES/NO 判定可能 (数量レンジは l5-contract v2.0.0 で廃止) |
 
 ## 4 パスレビュー (Pass 0-4)
 
-doc/prompt-creator/references/quality-criteria.md 由来:
+`../run-prompt-creator-7layer/references/quality-criteria.md` §7 由来:
 - **Pass 0** 動的評価基準生成: `evaluation_priorities` から重み付けし以下 Pass を調整
 - **Pass 1** 網羅性: 必須フィールド漏れがないか
 - **Pass 2** 整合性: Layer 間/メタ/responsibility_id が矛盾しないか
@@ -91,22 +91,19 @@ doc/prompt-creator/references/quality-criteria.md 由来:
 5. **空 findings 禁止**: PASS でも info severity で「確認した観点」を 1 件以上残す。
 6. **mass_production_risk**: 同型 prompt 量産でリスクが高い設計欠陥は high を付ける。
 
-## Steps
+## ゴール駆動評価 (固定手順なし)
 
-### Step 1: 客観検証 (script)
-```bash
-python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py --input ${PROMPT_PATH}
-python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py --input ${PROMPT_PATH} --phase prompt
-```
+> 正本責務は `prompts/R1-evaluate.md` Layer 5 (l5-contract v2.0.0)。単発評価 (read-only、runtime loop なし。goal-seek-paradigm 適用マトリクス: `assign-*` はループ非対象) で、検査の実施内容と順序は下記局面カタログから都度導出する。
 
-### Step 2: C1-C4 機械評価
-`references/prompt-rubric.json` を読み、prompt_path の Layer 構造と突合。
+**ゴール**: C1-C4 verdict + 4 パス結果が `findings.schema.json` 準拠 JSON として保存され、呼出元が `global_thresholds` で auto-approve 可否を機械判定できる状態。
 
-### Step 3: 4 パスレビュー (LLM)
-Pass 0 → Pass 1 → Pass 2 → Pass 3 → Pass 4 を順次実行。各 Pass の結果を findings に集約。
+**完了条件** (停止条件の正本 = `prompts/R1-evaluate.md` 5.3): verdicts 全付与 / scripted checks の実行証跡 / findings 非空 (PASS 時も info) / high・medium への suggested_fix / schema 検証通過 / 評価対象への書換 0 件。
 
-### Step 4: findings.json 出力
-`schemas/findings.schema.json` 準拠で Write。verdicts に C1-C4 PASS/FAIL/N/A、findings に severity-bucket-observations。
+**局面カタログ** (順序は都度判断):
+- **客観検証 (script)**: `verify-completeness.py --input ${PROMPT_PATH}` / `validate-prompt.py --input ${PROMPT_PATH} --phase prompt` を実行し exit code を証跡化。
+- **C1-C4 機械評価**: `references/prompt-rubric.json` の scripted checks (regex_match / regex_absent) を prompt_path の Layer 構造と突合。
+- **意味判定 (LLM)**: non-scripted checks と Pass 0-4 (`references/c1-c4-criteria.md` / quality-criteria.md §7 準拠) を評価し findings に集約。
+- **findings 出力**: `schemas/findings.schema.json` 準拠で Write。verdicts に C1-C4 PASS/FAIL/N/A、findings に severity-bucket-observations。
 
 ## Gotchas
 

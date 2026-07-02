@@ -168,12 +168,14 @@ def scaffold_yaml(data, agent_count):
         方針: |
           固定手順を持たない。ゴール定義と完了チェックリストを唯一の指針とし、
           入力・状況に応じて必要な手順をその都度自ら設計して実行する。
+        # ループは goal-seek-paradigm 正本の 6 ステップ（Step 5=Anchor Step）に追従（l5-contract v2.0.0）。
         ループ:
-          - "完了チェックリストの未充足項目を特定する"
-          - "未充足を解消する手順をその場で立案する"
-          - "立案した手順を実行し、成果物を更新する"
-          - "完了チェックリストで自己評価する"
-          - "全項目充足まで反復する（上限: Layer 4 最大反復回数）"
+          - "1. 現状評価: 完了チェックリストの未充足項目を特定する（全充足なら完了）"
+          - "2. 手順生成: 直前周回の中間成果物（original_goal + merged_directive_for_next）を必須入力に、未充足を解消する手順をその場で立案する"
+          - "3. 実行: 立案した手順を実行し、成果物を更新する"
+          - "4. 検証: 完了チェックリストで自己評価し、充足項目を更新する"
+          - "5. 中間成果物アンカー: 周回末に original_goal（不変）/ current_goal_snapshot / delta_from_original / merged_directive_for_next / drift_signal を記録する"
+          - "6. 反復/逸脱: 全項目充足まで 1→5 を反復する（上限: Layer 4 最大反復回数）。上限到達・drift 継続時は逸脱時対応へ"
         逸脱時: |
           {{{{LLM_FILL: 上限到達・解消不能時の対応}}}}
 
@@ -348,11 +350,14 @@ def scaffold_yaml(data, agent_count):
     並列: "独立ゴールを持つエージェントへ配布し結果を統合"
     統合: "{{{{LLM_FILL: 並列結果のマージ・コンフリクト解決}}}}"
 
+  # goal-seek-paradigm 正本の 6 ステップ（Step 5=Anchor Step）に追従
   ゴールシークループ:
-    - "全体ゴール（Layer 1 成功基準）の未達分を特定"
-    - "担当エージェントへ委譲（チェックリスト充足まで）"
-    - "出力を後続/並列エージェントへハンドオフ"
-    - "成功基準で再評価 → 未達なら再選択"
+    - "1. 現状評価: 全体ゴール（Layer 1 成功基準）の未達分を特定"
+    - "2. 選択: 直前周回の中間成果物（original_goal + merged_directive_for_next）を必須入力に、担当エージェントへ委譲（チェックリスト充足まで）"
+    - "3. ハンドオフ: 出力を後続/並列エージェントへ引き渡す"
+    - "4. 検証: Layer 1 成功基準で再評価"
+    - "5. 中間成果物アンカー: 周回末に original_goal（不変）/ current_goal_snapshot / delta_from_original / merged_directive_for_next / drift_signal を記録"
+    - "6. 反復: 未達なら 1→5 を反復"
     上限: "Layer 4 最大反復回数"
 
   完了判定:
@@ -404,7 +409,7 @@ def scaffold_markdown(data, agent_count):
 {checklist_lines}
 - [ ] 事実確認: 不確実な情報に限定詞を使用
 
-**実行方式**: 固定手順を持たない。未充足項目を特定→手順を都度立案→実行→チェックリストで自己評価→全項目充足まで反復（上限: 最大反復回数）。
+**実行方式**: 固定手順を持たない。現状評価→手順を都度立案→実行→検証→中間成果物アンカー記録（original_goal 不変+delta_from_original+merged_directive_for_next+drift_signal）→全項目充足まで反復（6 ステップ・Step 5=Anchor。上限: Layer 4 最大反復回数）。
 
 **ハンドオフ**
 - 入力(提供元): {input_provider}
@@ -514,7 +519,14 @@ def scaffold_json(data, agent_count):
                 "完了チェックリスト": [{"項目": item, "判定": "{{LLM_FILL}}"} for item in checklist_source],
                 "実行方式": {
                     "方針": "固定手順を持たない。ゴールとチェックリストを指針に手順を都度生成・実行・自己評価",
-                    "ループ": ["未充足項目を特定", "手順を立案", "実行", "自己評価", "全項目充足まで反復"],
+                    "ループ": [
+                        "1. 現状評価: 未充足項目を特定",
+                        "2. 手順生成: 直前周回の中間成果物(original_goal+merged_directive_for_next)を必須入力に手順を立案",
+                        "3. 実行",
+                        "4. 検証: チェックリストで自己評価",
+                        "5. 中間成果物アンカー: original_goal(不変)/current_goal_snapshot/delta_from_original/merged_directive_for_next/drift_signal を記録",
+                        "6. 反復: 全項目充足まで 1→5 を反復（上限: 最大反復回数）",
+                    ],
                 },
                 "インターフェース": {
                     "入力": [{"提供元": "外部/ユーザー" if i == 0 else "{{LLM_FILL}}"}],
@@ -610,7 +622,7 @@ def scaffold_xml(data, agent_count):
       <completion-checklist>
 {checklist_xml}
       </completion-checklist>
-      <execution-mode><![CDATA[固定手順なし。未充足項目を特定→手順を都度立案→実行→自己評価→全項目充足まで反復]]></execution-mode>
+      <execution-mode><![CDATA[固定手順なし。現状評価→手順を都度立案→実行→検証→中間成果物アンカー記録(original_goal不変/current_goal_snapshot/delta_from_original/merged_directive_for_next/drift_signal)→全項目充足まで反復(6ステップ・Step 5=Anchor。上限: 最大反復回数)]]></execution-mode>
       <handoff>
         <input from="{input_from}"/>
         <output to="{output_to}"/>

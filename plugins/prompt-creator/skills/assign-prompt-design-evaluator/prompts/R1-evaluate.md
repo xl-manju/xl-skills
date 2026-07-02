@@ -1,5 +1,9 @@
 # Prompt: R1-evaluate
 
+> このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
+> seven-layer-markdown-template.md を正本とする。Layer 番号と依存方向 (L1 ← L7) は不変。
+> L5 サブ構造は seven-layer-format.md「Layer 5 契約」(l5-contract v2.0.0) に従属する。
+
 ## メタ
 
 | key | value |
@@ -7,7 +11,7 @@
 | name | evaluate |
 | skill | assign-prompt-design-evaluator |
 | responsibility | R1 (C1-C4 + 4 パス評価 → findings.json) |
-| layers_covered | [L2, L4, L5] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | ../run-prompt-create/schemas/findings.schema.json |
 | reproducible | true (rubric 機械評価 + LLM は意味判定のみ) |
 
@@ -68,26 +72,31 @@
 ### 4.3 セキュリティ
 - prompt_path 外のファイルを変更しない (read-only)
 
-## Layer 5: エージェント層
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
-### 5.1 担当
-- assign-prompt-design-evaluator R1 (context:fork)
+> L5 サブ構造は `../../run-prompt-creator-7layer/references/seven-layer-format.md`「Layer 5 契約」(l5-contract v2.0.0) に従属する。
 
-### 5.2 推論手順
-1. references/prompt-rubric.json を Read
-2. verify-completeness.py / validate-prompt.py を実行し completeness_score を取得
-3. C1-C4 の scripted checks を実行 (regex_match / regex_absent)
-4. C1-C4 の non-scripted checks を Layer 単位で意味判定
-5. 4 パスレビュー (Pass 0-4) を順次実行
-6. findings[] を severity/bucket/observations/suggested_fix で構築
-7. verdicts (C1-C4) を確定し eval-log/docs/<NN>-<timestamp>.json に Write
+### 5.1 担当 agent
+- assign-prompt-design-evaluator R1 (context:fork。親 context の解釈バイアスを引き継がない)
 
-### 5.3 自己検証 checklist
-- [ ] verdicts に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっているか
-- [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含むか
-- [ ] high severity がある場合 suggested_fix が明記されているか
-- [ ] completeness_score >= 0.95 か (未満なら verdicts に反映)
-- [ ] context:fork 下で実行され親 context のバイアスを引いていないか
+### 5.2 ゴール定義
+- 目的: 生成済みプロンプトの設計品質 (C1-C4 + 4 パス) を親 context から独立に確定し、修正判断と auto-approve 判定の材料となる findings を返す
+- 背景: 生成者自身の自己評価は Sycophancy / Goodhart 化しやすい。決定論検査は script、意味判定は rubric / criteria に拘束された fork 評価者へ分離することで、評価の独立性と再現性を担保する
+- 達成ゴール: C1-C4 verdict と 4 パスレビュー結果が findings.schema.json 準拠の JSON として eval-log/docs/<NN>-<timestamp>.json に保存され、呼出元が global_thresholds で auto-approve 可否を機械判定できる状態になっている
+
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] verdicts に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっている
+- [ ] scripted checks (verify-completeness.py / validate-prompt.py / rubric の regex_match / regex_absent) の実行結果 (exit code / 判定) が findings の observations に記録されている
+- [ ] Pass 0-4 の各パスの結果が findings に反映され、findings[] が空でなく PASS 時も info 観点を 1 件以上含む
+- [ ] high / medium severity の finding 全件に suggested_fix が明記されている
+- [ ] completeness_score が rubric global_thresholds (>= 0.95, high == 0, medium <= 2) と突合され、判定根拠が findings に記録されている
+- [ ] 出力 JSON が `../run-prompt-create/schemas/findings.schema.json` の検証を通過している
+- [ ] 評価対象 (prompt_path) への書換が 0 件である (write=findings のみ、Goodhart 防止)
+
+### 5.4 実行方式
+- 単発評価 (1 prompt = 1 評価・read-only)。評価器はループしない (goal-seek-paradigm 適用マトリクス: `assign-*` は一発採点でループ非対象。評価→改善の反復は呼出元 orchestrator / feedback ループの責務)
+- 固定手順を持たない (l5-contract v2.0.0)。5.2 ゴール定義と 5.3 完了チェックリストを唯一の指針とし、検査の実施内容と順序は Layer 2.2 のドメインルール (C1-C4 / Pass 0-4) と Layer 3 のリソース定義から都度導出する
+- 決定論判定 (scripted checks) は必ずスクリプト実行で確定し、LLM は non-scripted の意味判定のみ行う (判定を LLM 裁量で緩めない)
 
 ## Layer 6: オーケストレーション
 

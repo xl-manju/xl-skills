@@ -11,7 +11,7 @@ resources:
   - file: ../../run-prompt-create/schemas/findings.schema.json
     topic: evaluator が emit する findings 共通形式 (C1-C4 verdict)
     read_when: emit_findings で出力を構築・検証するとき
-  - file: ../prompts/evaluate.md
+  - file: ../prompts/R1-evaluate.md
     topic: R1 評価責務プロンプト
     read_when: 評価フローの責務境界を確認するとき
   - file: ../../run-prompt-creator-7layer/scripts/verify-completeness.py

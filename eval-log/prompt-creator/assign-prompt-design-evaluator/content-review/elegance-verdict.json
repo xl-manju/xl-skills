@@ -2,26 +2,32 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "assign-prompt-design-evaluator",
-    "skill_md_sha256": "f84b7afb72f1247b7703225131bd360b9d4ca2876d5ec4e1262aea7b1818a5c7"
+    "skill_md_sha256": "d75d88cc41c04a678768b3044da5c390885b94a507d5e926d354d9584eaa576f"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewer": "elegant-review-20260702-independent-content-reviewer",
+  "reviewed_at": "2026-07-02T01:09:06Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "outer",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "context:fork 起動と write=findings only の invariant が frontmatter contract.invariant で明示され、評価対象書き換え (Goodhart) を構造で封じている",
-      "C1-C4 と 4 パス (Pass 0-4) の責務が表形式で分離され、客観検証 (script) と意味判定 (LLM) を Step1-4 で段階分けしており評価器として整合的"
+      "宣言型転換 (Steps 1-4 → ゴール駆動評価) が l5-contract v2.0.0 と正しく同型: SKILL.md 本文はゴール+完了条件+局面カタログのみを持ち、停止条件の正本を prompts/R1-evaluate.md 5.3 へ単一ポインタで委譲しており、手順の二重定義 (SKILL.md と R1 プロンプトの drift 温床) が構造的に消えている",
+      "assign-* の非ループ性が goal-seek-paradigm 適用マトリクス (assign-* = Goal/Checklist 必須・runtime loop 対象外) を明示引用して宣言され、R1-evaluate.md 5.4 でも同一根拠で説明されている (単発評価の正当化が二箇所で同語同根拠、矛盾なし)",
+      "context:fork / write=findings only / 空 findings 禁止 / high 1 件で FAIL の invariant 4 点が frontmatter contract.invariant・Key Rules・R1-evaluate.md L1 不変ルールで三面一致しており、Goodhart/Sycophancy 防止の設計意図が転換後も保存されている",
+      "旧数量レンジ基準 (C3 3-7 ステップ / C4 5-8 項目) の廃止が SKILL.md C1-C4 表・prompt-rubric.json v2.0.0 ($comment + C3-004/C4-001)・c1-c4-criteria.md の三層で版数 l5-contract v2.0.0 併記つきで同期しており、drift 検出可能な形で宣言型再定義されている",
+      "前回指摘 2 件が修正解消を実測確認: (1) resource-map.yaml の R1 プロンプト索引が `../prompts/R1-evaluate.md` へ更新され dangling 解消 (references/ 起点で実在パスへ解決)、(2) frontmatter source と L78 の出典が `../run-prompt-creator-7layer/references/quality-criteria.md` へ現行化され §7 (動的評価基準フレームワーク) の実在まで確認。source-tier=internal とも整合し、skill ディレクトリ内に stale な doc/prompt-creator パスの残存ゼロ"
     ],
-    "negative_feedback": [],
-    "iteration": 1,
+    "negative_feedback": [
+      "SKILL.md 完了条件サマリ (L100) は R1-evaluate.md 5.3 の 7 項目中 completeness_score と global_thresholds の突合項目を省略している (ゴール文の auto-approve 機械判定要件で間接的にカバーされ、正本ポインタも明示のため実害なし・低)",
+      "frontmatter last-audited (2026-05-22) が source パス現行化後も未更新 (出典差替は監査に相当するため次回変更時の日付更新を推奨・軽微)"
+    ],
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "assign-prompt-design-evaluator SKILL.md を全文実読し elegance adequacy を確認。read-only 評価器 (kind=assign, write=findings only, context:fork) のため loop実行系でなく feedback_contract.criteria は N/A。重大な論理矛盾・依存逆転・置き換え可能な冗長性は検出されず PASS。"
+  "notes": "修正後 SKILL.md (sha d75d88cc) を全文再精読し elegance adequacy を genuine 再評価 (iteration 2)。前回 negative 3 件のうち実欠陥 2 件 (resource-map.yaml dangling / stale 出典パス) は修正を実測確認して解消。参照実在を再実測: prompts/R1-evaluate.md / references/prompt-rubric.json (version 2.0.0, l5_contract_version キー) / references/c1-c4-criteria.md / ../run-prompt-creator-7layer/scripts/{verify-completeness,validate-prompt}.py / ../run-prompt-creator-7layer/references/quality-criteria.md §7 / ../run-prompt-create/schemas/findings.schema.json / seven-layer-format.md#Layer 5 契約 (l5-contract v2.0.0) 全て存在。残 negative 2 件は非ブロッキングの軽微事項のため PASS。read-only 評価器 (kind=assign) のため frontmatter feedback_contract は非携帯で criteria_evaluated は skill-design rubric C1-C4 を記載。"
 }
