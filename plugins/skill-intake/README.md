@@ -9,20 +9,23 @@ skill-creator の前段ヒアリングを **非技術者にも開く** Claude Co
 ## Non-Secrets（漏洩可情報）
 
 ヒアリングシートの Notion DB ID は固定出力先として
-**`notion-config.fixed.json` に同梱**している。ローカルで別DBへ向けたい場合だけ
-**`<repo-root>/.notion-config.json` (gitignore対象)** で上書きする。
+**`notion-config.fixed.json` に同梱**している。ただしこの固定 DB は **保守者チーム専用** で、
+外部の Integration からは書き込めない（403 になる）。外部利用者は自分の DB ID を
+**`.notion-config.json` (gitignore対象)** で指定する（手順はステップ 7-1）。
 セットアップ手順は **[references/notion-per-repo-setup.md](references/notion-per-repo-setup.md)** 参照（symlink で skill-creator/references/ と共有）。
 
 | 項目 | 値 | 格納場所 | 漏洩可否 |
 |---|---|---|---|
-| Notion Parent Page ID | 固定設定 | `notion-config.fixed.json#parent_page` / 上書きは `.notion-config.json` or env `INTAKE_NOTION_PARENT_PAGE_ID` | OK |
+| Notion Parent Page ID | 既定は未設定（DB 新規作成時のみ指定） | `.notion-config.json#parent_page` or env `INTAKE_NOTION_PARENT_PAGE_ID`（`notion-config.fixed.json` では空） | OK |
 | Notion Database ID | 固定設定 | `notion-config.fixed.json#databases.hearing-sheet.db_id` / 上書きは `.notion-config.json` or env `INTAKE_NOTION_DATABASE_ID` | OK |
 | Keychain service 名（既定） | `notion-api-key.xl-skills` | `.notion-config.json#keychain_service` / env `INTAKE_KEYCHAIN_SERVICE` で上書き可 | OK |
 | Keychain account 名（既定） | `xl-skills` | `.notion-config.json#keychain_account` / env `INTAKE_KEYCHAIN_ACCOUNT` で上書き可 | OK |
 | Notion-Version ヘッダ | `2022-06-28` | `scripts/notion_http.py` / env `INTAKE_NOTION_VERSION` で上書き可 | OK |
 
-DB ID 解決順: `--database-id` CLI > env `INTAKE_NOTION_DATABASE_ID` > `.notion-config.json`（env `NOTION_CONFIG_PATH` > repo-root 直下 > **plugin-root 直下**）> `notion-config.fixed.json`。
-Parent Page ID 解決順: `--parent-page` / `--parent-page-url` CLI > env `INTAKE_NOTION_PARENT_PAGE_ID` > `.notion-config.json#parent_page` > `notion-config.fixed.json#parent_page`。
+DB ID 解決順: `--database-id` CLI > env `INTAKE_NOTION_DATABASE_ID` > 設定ファイル。
+Parent Page ID 解決順: `--parent-page` / `--parent-page-url` CLI > env `INTAKE_NOTION_PARENT_PAGE_ID` > 設定ファイルの `parent_page`（既定の `notion-config.fixed.json` では未設定）。
+設定ファイルは **ファイル単位の先勝ち** で 1 つだけ選ばれる: env `NOTION_CONFIG_PATH` の指すファイル > repo-root 直下 `.notion-config.json` > **plugin-root 直下** `.notion-config.json` > 同梱 `notion-config.fixed.json`。
+上書き config が見つかった場合は **そのファイルのみが有効** で、不足キーを `notion-config.fixed.json` へキー単位でフォールバックすることは **ない**（上書き config には必要キーをすべて記載する。雛形は `.notion-config.example.json`）。
 単独 install で repo-root が無い環境でも、plugin-root 直下の `.notion-config.json` か env で解決できる。
 
 ### 機密情報（Keychain のみ）との対比
@@ -62,9 +65,12 @@ Non-Secrets は「どの DB か」「どの Keychain エントリか」を指す
 | Python package | 同梱済み | `vendor/python` の `jinja2` を自動使用。JSON Schema 検証は標準ライブラリ fallback を使用。手動 `pip install` 不要 |
 | Claude Code CLI | `claude --version` | バージョン表示 |
 | Git | `git --version` | バージョン表示 |
+| Node.js + Mermaid CLI（必須） | `mmdc --version` | バージョン表示。図解 PNG 生成に必須で、未導入だと図解 render が exit 3 で停止します |
 | Notion アカウント | https://notion.so にログイン可能 | — |
 
-✅ **確認**: 上記すべて満たしている。
+> `mmdc` が未導入の場合: Node.js（https://nodejs.org）を導入後、ターミナルで `npm install -g @mermaid-js/mermaid-cli` を実行し、`mmdc --version` が表示されれば完了です。
+
+✅ **確認**: 上記すべて満たしている（`mmdc --version` がバージョンを表示することを含む）。
 
 ---
 
@@ -138,12 +144,17 @@ security add-generic-password \
 
 ### 3-3. 取得テスト
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check
-# → OK: トークン取得成功 が出れば成功（トークン本体は表示されません）
+Claude Code のチャットで次のように頼みます（plugin インストール前の場合は、ステップ 4 完了後に §6-1 で確認すれば OK です）:
+
+```
+skill-intake の Keychain 取得テスト（keychain_get_secret.py --check）を実行して
 ```
 
-✅ **確認**: Notion トークンが Keychain から取得できる。
+→ `OK: トークン取得成功` が出れば成功（トークン本体は表示されません）。
+
+> clone 開発者向け: repo-root の端末から `python3 plugins/skill-intake/scripts/keychain_get_secret.py --check` を直接実行しても確認できます。単独 install では `${CLAUDE_PLUGIN_ROOT}` が端末シェルでは解決されないため、端末からの直接実行はできません。
+
+✅ **確認**: Notion トークンが Keychain から取得できる（後回しにした場合は §6-1 で確認）。
 
 ---
 
@@ -156,11 +167,13 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.
 > 自己完結して動作**します（共有ローダ `notion_config.py` を vendoring 同梱）。
 > Python runtime 依存も plugin 配下 `vendor/` に同梱され、`.claude-plugin/plugin.json`
 > の `package.include` で `vendor/**` を配布対象として明示しています。
-> Notion publish には DB ID と Keychain token が必要です。ヒアリングシート DB ID は
-> `notion-config.fixed.json` に同梱済みで、別DBへ向ける場合だけ plugin-root 直下の
-> `.notion-config.json` か env (`NOTION_CONFIG_PATH` / `INTAKE_NOTION_DATABASE_ID`) で上書きします
+> Notion publish には DB ID と Keychain token が必要です。同梱の固定ヒアリングシート DB
+> (`notion-config.fixed.json`) は保守者チーム専用のため、外部利用者は自分の DB ID を
+> `.notion-config.json` か env (`NOTION_CONFIG_PATH` / `INTAKE_NOTION_DATABASE_ID`) で指定します
 > （セットアップは [references/notion-per-repo-setup.md](references/notion-per-repo-setup.md) §1 の単独 install 既定経路）。
 > drift 検証 lint / sync 等は repo 保守者専用で、単独 install には不要・未同梱です。
+> 移行計画等の保守者専用資材（migration-plan-v2.md / RENAME_PLAN.md / v1→v2 変換系スクリプト）も
+> `package.exclude` により配布から除外済みです。
 > ただし改善要望投入 `/run-skill-feedback`、および生成した intake.json を Skill 本体生成へ流す
 > `run-skill-create` は、いずれも **skill-creator が提供する機能**です。skill-creator は
 > **配布対象外（`distributable: false`）** で marketplace から install できないため、これらは
@@ -173,21 +186,23 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.
 
 Claude Code セッション内で:
 
-インストール後の vendor 配布確認:
-
-```bash
-python3 "${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_plugin_vendor.py"
-```
-
-期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
-`typing_extensions` と標準ライブラリ schema fallback を、site-packages に頼らず確認します。
-
 ```
 /plugin marketplace add xl-manju/xl-skills
 /plugin install skill-intake@xl-skills
 ```
 
 これで agents/commands/hooks/skills すべて自動有効化されます。
+
+インストール後の vendor 配布確認は、Claude Code のチャットで次のように頼みます:
+
+```
+skill-intake の vendor 配布確認（validate-plugin-vendor.py）を実行して
+```
+
+期待値: `"ok": true`。この検査は `vendor/python` の `jinja2` / `markupsafe` /
+`typing_extensions` と標準ライブラリ schema fallback を、site-packages に頼らず確認します。
+
+> clone 開発者向け: repo-root の端末から `python3 plugins/skill-intake/scripts/validate-plugin-vendor.py` でも実行できます（単独 install では `${CLAUDE_PLUGIN_ROOT}` が端末シェルでは解決されないため、端末からの直接実行は不可）。
 
 ### 方式B: ローカル開発（clone してそのまま使う）
 
@@ -244,7 +259,7 @@ env による override は **CI/staging 限定の用途**:
 
 Keychain への `security` コマンド直叩きを禁止します（Claude が誤ってシークレットを読み出すのを防止）。
 
-`plugins/skill-intake/.claude/settings.json.example` を見本に、`~/.claude/settings.json` または プロジェクトの `.claude/settings.json` に **以下のキーをマージ**:
+`~/.claude/settings.json` または プロジェクトの `.claude/settings.json` に **以下のキーをそのままマージ**します（このスニペットが正本です。ファイルが無ければ以下の内容で新規作成）:
 
 ```json
 {
@@ -265,48 +280,57 @@ Keychain への `security` コマンド直叩きを禁止します（Claude が�
 
 ## 6. 動作確認テスト
 
+各テストは **Claude Code のチャットで依頼するのが一次手段**です。
+
+> clone 開発者向け: 各テストの `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/...` コマンドは repo-root の端末からも直接実行できます（単独 install では `${CLAUDE_PLUGIN_ROOT}` が端末シェルでは解決されないため、端末からの直接実行は不可）。
+
 ### 6-1. Keychain 取得
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check
+Claude Code のチャットで:
+
 ```
+skill-intake の Keychain 取得テスト（keychain_get_secret.py --check）を実行して
+```
+
 → `OK: トークン取得成功`。`exit 44` ならステップ3に戻る。
+
+> clone 開発者向け直接実行: `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --check`
 
 ### 6-2. Notion DB スキーマ検証
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/verify_notion_schema.py \
-  --database-id "<2-3 でメモした 32文字 ID>" \
-  --on-conflict skip-warn
+Claude Code のチャットで:
+
 ```
+skill-intake の verify_notion_schema.py を --database-id <2-3 でメモした 32文字 ID> --on-conflict skip-warn で実行して
+```
+
 → 200 OK + プロパティ列挙が出れば成功。403 なら 2-2 の Connections を見直し。
+
+> clone 開発者向け直接実行: `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/verify_notion_schema.py --database-id "<32文字 ID>" --on-conflict skip-warn`
 
 ### 6-3. Slack hook テスト（任意）
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py \
-  --service slack-incoming-webhook --account xl-skills --check
+Claude Code のチャットで:
+
 ```
+skill-intake の keychain_get_secret.py を --service slack-incoming-webhook --account xl-skills --check で実行して
+```
+
 → `OK` なら Slack 通知も自動で有効。`exit 44` でも公開フローは silent skip で続行。
+
+> clone 開発者向け直接実行: `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/keychain_get_secret.py --service slack-incoming-webhook --account xl-skills --check`
 
 ### 6-4. 実接続 publish smoke（検証用ページのみ）
 
-まずは非 mutation で、実行されるコマンドだけを確認します。
+まずは非 mutation で、実行されるコマンドだけを確認します。Claude Code のチャットで:
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish.py \
-  --hint "<output-hint>" \
-  --page-url "https://www.notion.so/<検証用ページURL>"
+```
+skill-intake の smoke_notion_publish.py を --hint <output-hint> --page-url <検証用ページURL> で実行して（--execute は付けない）
 ```
 
-実際に検証用ページへ PATCH 更新する場合だけ `--execute` を付けます。本番ページでは実行しないでください。
+実際に検証用ページへ PATCH 更新する場合だけ `--execute` を付けて依頼します。本番ページでは実行しないでください。
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish.py \
-  --hint "<output-hint>" \
-  --page-url "https://www.notion.so/<検証用ページURL>" \
-  --execute
-```
+> clone 開発者向け直接実行: `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish.py --hint "<output-hint>" --page-url "https://www.notion.so/<検証用ページURL>" [--execute]`
 
 この smoke は新規ページを作成しません。`--page-url` / `--page-id` が無ければ exit 2、page_id が解決できなければ下位 pipeline が exit 51 で停止します。
 
@@ -315,6 +339,39 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/smoke_notion_publish
 ---
 
 ## 7. 初回ヒアリング実行
+
+### 7-1. 出力先 DB を `.notion-config.json` に設定（必須）
+
+同梱の既定 DB（`notion-config.fixed.json` のヒアリングシート DB）は **保守者チーム専用**で、あなたが 2-1 で作成した Integration からは書き込めません（そのまま実行すると 403 になります）。**2-3 でメモした Database ID を `.notion-config.json` に設定してから**次へ進んでください。
+
+一番かんたんな方法は、Claude Code のチャットで次のように頼むことです:
+
+```
+.notion-config.json を作って。skill-intake 用で、databases.hearing-sheet.db_id は <2-3 でメモした 32文字の ID> にして
+```
+
+手で作る場合は、以下の内容で `.notion-config.json` を作成します（同梱の `.notion-config.example.json` が雛形。上書き config はファイル単位で有効になるため、必要キーをすべて記載します）:
+
+```json
+{
+  "keychain_service": "notion-api-key.xl-skills",
+  "keychain_account": "xl-skills",
+  "databases": {
+    "hearing-sheet": {
+      "db_id": "<2-3 でメモした 32文字の Database ID>"
+    }
+  }
+}
+```
+
+置き場所:
+
+- repo を clone して作業している場合: **repo-root 直下**
+- plugin を単独 install した場合: **Claude Code を起動する作業フォルダ直下**（解決されない場合は env `NOTION_CONFIG_PATH=<ファイルの絶対パス>` で明示できます）
+
+✅ **確認**: Claude Code のチャットで「skill-intake の validate-notion-ready.py を実行して」と頼み、`OK Notion ready ...` が表示され、`database=` に自分の DB ID が出る。
+
+### 7-2. ヒアリング起動
 
 Claude Code セッション内で:
 
@@ -344,7 +401,7 @@ Claude Code セッション内で:
 | 8 | `skill-intake-summarizer` | Gate A サマリ → 承認依頼 |
 | 9 | `run-intake-finalize` | intake.md + intake.json + quality_gate + cross_check |
 | 10 | `run-notion-intake-publish` | Notion REST API で指定ページへ PATCH。create fallback 禁止 |
-| 11 | `run-intake-next-action` | Notion 公開完了後に skill-creator 引き渡しモード A/B/C/D/E 判定 |
+| 11 | `run-intake-next-action` | Notion 公開完了後に引き渡しモード A/B/C/D/E/P 判定（P は plugin 規模案件を `run-plugin-dev-plan` へ引き渡し） |
 
 完了後 `output/<hint>/` に生成されるファイル:
 
@@ -398,13 +455,14 @@ Claude Code セッション内で:
 |---|---|---|
 | `/intake` が表示されない | plugin 未認識 | ステップ4の方式A/B/Cを再実施 |
 | `exit 44` Keychain | トークン未登録 | ステップ3を再実施 |
-| 403 Forbidden (Notion API) | DB に Integration 未 Connect | ステップ2-2 Connections 追加 |
+| 403 Forbidden (Notion API) | DB に Integration 未 Connect / 既定の固定 DB（保守者チーム専用）のまま実行 | ステップ2-2 Connections 追加。既定の固定 DB のまま実行した場合は、自分で作成した DB の ID を `.notion-config.json` に設定（ステップ7-1） |
 | `database_id is required` | `.notion-config.json` / `INTAKE_NOTION_DATABASE_ID` / `--database-id` が未設定 | 通常は `.notion-config.json` に `databases.hearing-sheet.db_id` を設定。CI/staging では env を明示 export |
 | Slack 通知が来ない | Webhook 未登録 or URL 誤り | ステップ3-2 で再登録。silent skip 仕様のため公開は止まらない |
 | `security` コマンドが Bash で拒否 | 二段防御が効いている | 正常。`scripts/keychain_get_secret.py` 経由でアクセス |
 | `halted_score_decline` | 値実現スコア2回連続低下 | `output/<hint>/question-bank.snapshot.md` から `--rollback` |
 | `halted_capacity` | question-bank が 3000 行超過 | 質問銀行を手動で精査・整理 |
-| Notion ページ作成中に PNG が欠落 | `verify_notion_assets.py` の All-or-Nothing 停止 | `assets/` 配下の Mermaid/SVG 生成を再実行 |
+| 図解 render が exit 3 で停止 | `mmdc` (Mermaid CLI) 未導入（fail-fast 仕様） | Node.js 導入後 `npm install -g @mermaid-js/mermaid-cli`（§1 前提条件）。`--allow-placeholder` は CI 専用のため通常利用では使わない |
+| Notion ページ作成中に PNG が欠落 | `verify_notion_assets.py` の All-or-Nothing 停止。根本原因が `mmdc` 未導入のケースあり | `mmdc --version` を確認し、未導入なら Node.js 導入後 `npm install -g @mermaid-js/mermaid-cli`。その後 `assets/` 配下の Mermaid/SVG 生成を再実行 |
 | `/intake-revise` / `/intake-publish` exit 51 | 指定 page_id / notion-url.txt / result file から更新先を解決できない、または不一致 | `--page-url` / `--page-id` を明示して再実行。意図的に新規作成する場合だけ新規 hint で `/intake` |
 | `/intake-revise` exit 60 | revision 5 回超過 | 新規 hint へ移行 |
 
@@ -419,14 +477,13 @@ Claude Code セッション内で:
 ```
 plugins/skill-intake/
 ├── .claude-plugin/plugin.json         # plugin メタデータ + hooks 配線
-├── .claude/settings.json.example      # permissions.deny の見本
 ├── commands/                          # スラッシュコマンド (4個)
 │   ├── intake.md                      # /intake [topic]
 │   ├── intake-publish.md              # /intake-publish <hint>
 │   ├── intake-revise.md               # /intake-revise <hint> [--dry-run]
 │   └── intake-status.md               # /intake-status [<hint>]
 ├── agents/                            # SubAgent (4個) — assumption-challenger / user-profiler / purpose-excavator / summarizer
-├── references/                        # 共有 references (35本) — 旧 aggregator から移設した SSOT 正本
+├── references/                        # 共有 references — 旧 aggregator から移設した SSOT 正本
 ├── assets/                            # Mermaid 12 + samples 8 + SVG 8 カタログ (28本) — 旧 aggregator から移設
 ├── schemas/                           # handoff / findings / intake-final (3本) — 旧 aggregator から移設
 ├── hooks/                             # PreToolUse / PostToolUse / Stop / SessionEnd / 手動 (5本 + README)
@@ -468,7 +525,7 @@ plugins/skill-intake/
     ├── run-intake-visualize/          # Phase 7 補助
     ├── run-intake-finalize/           # Phase 9 補助 (統合 + quality_gate)
     ├── run-intake-next-action/        # Phase 11 決定論 (公開後の引き渡しモード判定)
-    ├── run-notion-intake-publish/     # 再公開専用 (intake_publish_pipeline.py の薄い wrapper)
+    ├── run-notion-intake-publish/     # 初回 publish (P10 委譲) + 再公開 (intake_publish_pipeline.py の薄い wrapper)
     ├── assign-notion-fidelity-evaluator/     # Notion 公開前粒度検証
     └── run-intake-revise/             # 追加要望 PATCH 反映 (Gate R + revision-log)
 ```
@@ -505,7 +562,7 @@ plugins/skill-intake/
 
 | 変数 | 既定値 | 必須 | 用途 |
 |---|---|---|---|
-| `INTAKE_NOTION_PARENT_PAGE_ID` | `notion-config.fixed.json` | 任意 | DB 新規作成時の親 Notion ページ ID。固定値を上書きする場合のみ使用 |
+| `INTAKE_NOTION_PARENT_PAGE_ID` | なし（既定の fixed config では未設定） | 任意 | DB 新規作成時の親 Notion ページ ID。既定の `notion-config.fixed.json` では空のため、DB を新規作成する場合は `.notion-config.json#parent_page` で自分のページ ID を指定必須（env はその上書き用） |
 | `INTAKE_NOTION_DATABASE_ID` | `notion-config.fixed.json` | 任意（CI/staging のみ） | Notion DB ID (32文字)。固定ヒアリングシートDBを上書きする場合のみ使用 |
 | `NOTION_CONFIG_PATH` | なし | 任意 | `.notion-config.json` の明示パス。存在しない場合は fail-closed |
 | `INTAKE_ALLOW_ENV_TOKEN` | なし | 任意（CI/dry-run のみ） | `1` のときだけ `NOTION_TOKEN` fallback を許可 |
@@ -515,7 +572,7 @@ plugins/skill-intake/
 
 ### eval-log 集計
 
-`/intake` 実行ごとに `eval-log/skill-intake/<YYYY-MM-DD>.jsonl` に1行追記（value_realized_score / sections_count / questions_added / status）。横串集計用。詳細: [`eval-log/skill-intake/README.md`](../../eval-log/skill-intake/README.md)
+`/intake` 実行ごとに `eval-log/skill-intake/<YYYY-MM-DD>.jsonl` に1行追記（value_realized_score / sections_count / questions_added / status）。横串集計用。記録仕様の詳細は `scripts/append_eval_log.py` の docstring を参照。集計は repo 保守者専用で、単独 install では対象外です（`eval-log/` は配布に含まれません）。
 
 ### Skill design 原則
 
@@ -534,5 +591,5 @@ plugins/skill-intake/
 ## ライセンス・所有
 
 - **owner**: team-platform
-- **since**: 2026-05-20
-- **version**: 0.1.0
+- **since**: 2026-05-22
+- **version**: 0.1.2

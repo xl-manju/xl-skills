@@ -54,7 +54,7 @@
     {
       "date": "2026-07-01",
       "skill": "assign-notion-fidelity-evaluator",
-      "kind": "run",
+      "kind": "assign",
       "verdict": "baseline",
       "findings": []
     },

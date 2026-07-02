@@ -1,6 +1,6 @@
 ---
 name: run-intake-next-action
-description: skill-creator への引き渡しモードを判定したいとき、summary.json から A/B/C/D/E のいずれかを決定論的に確定したいときに使う。
+description: skill-creator / plugin-dev-planner への引き渡しモードを判定したいとき、summary.json から A/B/C/D/E/P のいずれかを決定論的に確定したいときに使う。
 allowed-tools:
   - Read
   - Write
@@ -46,32 +46,36 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Purpose & Output Contract
 
-Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.json` と Notion 公開ログから、`run-skill-create` への引き渡しモード A/B/C/D/E を **決定論的に**確定し、後続アクション (handoff phase) を確定する単一責務スキル。判定表 (`references/mode-catalog.md`) で引いた mode と判定条件を `reason` に必ず残し、Phase 1 暫定 `kickoff.json.pattern` と一致しない場合のみ AskUserQuestion で 1 問追認する。
+Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.json` と Notion 公開ログから、引き渡しモード A/B/C/D/E (`run-skill-create` 向け) / P (`run-plugin-dev-plan` 向け plugin 規模構想) を **決定論的に**確定し、後続アクション (handoff_target + handoff phase) を確定する単一責務スキル。判定表 (`references/mode-catalog.md`) で引いた mode と判定条件を `reason` に必ず残し、Phase 1 暫定 `kickoff.json.pattern` と一致しない場合のみ AskUserQuestion で 1 問追認する。
 
 **入力**: `output/<hint>/summary.json` / `purpose.json` / `options.json` / `kickoff.json`
 **出力**: `output/<hint>/next-action.json` (`schemas/output.schema.json` 準拠、`additionalProperties:false`)
 
 ```json
 {
-  "mode": "A|B|C|D|E",
-  "reason": "kickoff.pattern=B を採用 (mode-catalog B 行: 既存類似 80%+)",
+  "mode": "A|B|C|D|E|P",
+  "reason": "kickoff.pattern=B を採用",
   "multi_skill_suspicion": false,
   "split_candidates": [{"name": "...", "responsibility": "..."}],
   "confirmed_with_user": false,
-  "skill_creator_handoff_phase": "Phase 1 (kickoff)"
+  "handoff_target": "skill-creator|plugin-dev-planner",
+  "skill_creator_handoff_phase": "Step 1 (elicit)"
 }
 ```
 
 **完了条件**: `mode` 確定 + `reason` に判定根拠 (引いた mode / 判定条件) 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
+
+**完了レポートの環境 degrade 文言 (出力契約)**: handoff 先 skill (`run-skill-create` / `run-plugin-dev-plan`) が実行環境に存在しない単独 install 時は、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を必ず含める (推奨が実行不能な環境で完了形を誤認させない)。
 
 **必須前提 (precondition gate)**: skill 生成 (`run-skill-create`) へ進む handoff を確定する前に、**Notion 公開完了が必須前提**である。`scripts/decide-mode.py` は `output/<hint>/notion-publish-result.json` が存在し `notion-log.json.status=="published"` (かつ `page_id` 有り) であることを assert し、不成立なら **exit 2** で停止して未公開のまま skill 生成へ横流れさせない (逸脱B封鎖)。CI / dry-run のみ `--allow-skip` で緩和可。
 
 ## Key Rules
 
 1. **決定論判定**: `scripts/decide-mode.py` が `references/mode-catalog.md` 判定表から `mode` を導出する。LLM 勘の介在禁止。同点時のみタイブレークで LLM が選び `reason` に記録。
-2. **Phase 1 突合の追認は不一致時のみ**: `kickoff.json.pattern` と一致なら AskUserQuestion 省略、不一致なら 1 問のみ (並列禁止)。
+2. **Phase 1 突合の追認は不一致時のみ**: `kickoff.json.pattern` と一致なら AskUserQuestion 省略、不一致なら 1 問のみ (並列禁止)。mode P は pattern 軸 (A-E enum) の外のため常に不一致となり、追認 1 問を必発とする (意図済み)。
 3. **D 格下げ規則**: `mode=D` で `split_candidates` が空のままなら `mode=E` に格下げし、`reason` に格下げ理由を残す。
-4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="Phase 1 (re-intake)"` を必ず指定。
+4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="P1-kickoff (re-intake)"` を必ず指定。
+4b. **P は plugin-dev-planner 行き**: `mode=P` (plugin 規模構想: `plugin_scale=true` 宣言 / `component_requests[]` に hook/command 等の非 skill 種別 / skill 系 2 件以上、正本は `references/mode-catalog.md`「mode P 判定条件」) は `handoff_target="plugin-dev-planner"` とし、intake.json を `run-plugin-dev-plan` R1 の構想材料として推奨する (渡す § は plugin-root 正本 `plugins/skill-intake/references/handoff-contract.md`「plugin-dev-planner 分岐 (mode P)」参照)。P の `split_candidates[]` は planner R2 へ渡す任意の初期候補であり、空でも D のような格下げはしない。mode A-E は `handoff_target="skill-creator"`。
 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
 7. **責務単一・生成は起動禁止**: 本スキルは mode 判定と `next-action.json` 生成のみ。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **起動しない (allowed-tools に Skill/Task を持たないので構造的にも不可)**。`mode` / `skill_creator_handoff_phase` は後続への**推奨情報**であり、本スキルや呼び出し元がそれを自動実行することは意図しない (実行はユーザーの明示的な別アクション)。ただし Notion 公開「完了」は推奨を出す必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
@@ -81,7 +85,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 
 ### ゴール (Goal)
 
-4 つの intake JSON から `run-skill-create` へ引き渡すモード A/B/C/D/E が決定論的に確定し、`reason` (引いた mode / 判定条件) と `confirmed_with_user` が機械検証可能な `next-action.json` が schema 準拠で出力された状態になっている。
+4 つの intake JSON から引き渡すモード A/B/C/D/E (`run-skill-create` 向け) / P (`run-plugin-dev-plan` 向け) が決定論的に確定し、`reason` (引いた mode / 判定条件) と `handoff_target` と `confirmed_with_user` が機械検証可能な `next-action.json` が schema 準拠で出力された状態になっている。
 
 ### 目的・背景 (Why)
 
@@ -94,7 +98,9 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその引いた mode / 判定条件を文字列で含めている
 - [ ] `kickoff.json.pattern` と `mode` が一致時は AskUserQuestion を発行せず `confirmed_with_user=false` のまま、不一致時は AskUserQuestion 1 問で `confirmed_with_user=true` を埋めている
 - [ ] `mode=D` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空のまま残ったら `mode=E` に格下げし `reason` に格下げ理由を追記している
-- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `Phase 1 (re-intake)` になっている
+- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `P1-kickoff (re-intake)` になっている
+- [ ] `handoff_target` が mode P で `plugin-dev-planner`、mode A-E で `skill-creator` になっている (schema の allOf 条件)
+- [ ] handoff 先 skill が環境に存在しない単独 install 時、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を含めている
 - [ ] `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名が転記されていない
 - [ ] `output/<hint>/next-action.json` が `schemas/output.schema.json` で検証 exit 0 (manifest `P4-emit` の `validate-next-action` hook)
 - [ ] 同一入力 4 ファイルで 2 回連続実行した `next-action.json` の `(mode, reason)` が完全一致 (determinism)
@@ -117,9 +123,9 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - `workflow-manifest.json` — `P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit` の機械可読定義 (`dependsOn` / `exitHook` / `fatal_exit_codes`)
 - `prompts/R1-main.md` — R1-deterministic-mode-decision 責務プロンプト (7 層構造、`@next-action-advisor` agent)
 - `schemas/output.schema.json` — `next-action.json` 出力契約 (`additionalProperties:false`)
-- `references/mode-catalog.md` — A/B/C/D/E と handoff phase の対応表 (drift 防止の正本)
+- `references/mode-catalog.md` — A/B/C/D/E/P と handoff_target / handoff phase の対応表 (drift 防止の正本)
 - `references/pattern-recognition-rules-pointer.md` — Phase 1 pattern 突合ルール集約 pointer
 - `references/resource-map.yaml` — 参照ファイル一覧 (先読み用)
 - `scripts/decide-mode.py` — 決定論判定ロジック (`--kickoff` / `--purpose` / `--options` / `--summary` / `--out` / `--allow-skip`)。冒頭で Notion 公開完了 precondition gate を実行 (不成立=exit 2)
-- 親スキル: `run-skill-intake` (Phase 8→9 委譲元)
-- 後続スキル: `run-skill-create` (本スキル出力 `next-action.json` の `mode` を受領)
+- 親スキル: `run-skill-intake` (P11 委譲元。phase id は workflow-manifest.json の P11-next-action が正本)
+- 後続スキル: `run-skill-create` (mode A-E) / `run-plugin-dev-plan` (mode P) — 本スキル出力 `next-action.json` の `mode` / `handoff_target` を受領

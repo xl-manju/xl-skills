@@ -2,26 +2,27 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-option-catalog",
-    "skill_md_sha256": "078c09ad5e7375ac32fcf48d38878bcc8a0770e4fba3135cf4ba449abaf50ffc"
+    "skill_md_sha256": "0b80853d4529adfc012e8afcb34871720bec608d99ab24c2c3668878195b46d2"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewed_at": "2026-07-02T00:00:00Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
       "description が「外部連携カタログから候補を引いて選択肢化したいとき」と発火条件を動詞句で明示し、kind:run / user-invocable:true / prefix:run と命名規約が整合。出力契約(output/<hint>/options.json の selected_integrations/rejected)が Purpose・Checklist・期待出力例で三重一致しており rubric の明確性・整合性基準を満たす。",
-      "ゴールシーク Checklist が purpose.json 抽出→カタログ参照→tier 付与→ユーザー提示→reason 記録→書き出し→自己確認の反復構造で、完了条件(tier=required が全て確定し reason 付き rejected も充足)へ機械的に収束する設計になっている。"
+      "ゴールシーク Checklist が purpose.json 抽出→カタログ参照→tier 付与→ユーザー提示→reason 記録→書き出し→自己確認の反復構造で、完了条件(tier=required が全て確定し reason 付き rejected も充足)へ機械的に収束する設計になっている。",
+      "追加された mode P 判定入力フィールド(plugin_scale/component_requests[])は任意出力として output 契約に明記され、下流 decide-mode.py の mode P 判定入力と整合する。責務は連携選択肢生成に単一化されたまま(write は options.json のみ)で FM/PD 観点の依存整合も維持されている。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を実読し設計品質 rubric(発火条件の明確性・出力契約の検証可能性・責務の単一性・依存整合)に照らして評価した。導出した criteria(IN1=options.json 形式と tier/reason の機械検証 / IN2=カタログ実在 id・カタログ外混入なし / OUT1=verb_object 親和の引き当てと責務最小化)はいずれもスキル固有で、SKILL.md の Key Rules・Gotchas に裏付けがある。references/integration-catalog-pointer.md 経由の参照(直接ハードコード禁止)と manifest: references/resource-map.yaml の依存記述に断線がなく、responsibility_refs(prompts/R1-search-summarize.md)が実在し責務が単一。重大な矛盾・漏れ・依存破綻は検出されず PASS と判定した。"
+  "notes": "iteration 2 (mode P 判定入力フィールド追加 SKILL.md L52 に伴う genuine 再レビュー・sha256 を 0b80853d... と実計算で確認): SKILL.md を実読し設計品質 rubric(発火条件の明確性・出力契約の検証可能性・責務の単一性・依存整合)に照らして評価した。導出した criteria(IN1=options.json 形式と tier/reason の機械検証 / IN2=カタログ実在 id・カタログ外混入なし / OUT1=verb_object 親和の引き当てと責務最小化)はいずれもスキル固有で、SKILL.md の Key Rules・Gotchas に裏付けがある。追加された plugin_scale/component_requests[] は任意出力に閉じ、下流 decide-mode.py が mode P 判定に読む契約と整合し responsibility(連携選択肢生成・options.json のみ write)は不変。references/integration-catalog-pointer.md 経由の参照(直接ハードコード禁止)と manifest: references/resource-map.yaml の依存記述に断線がなく、responsibility_refs(prompts/R1-search-summarize.md)が実在し責務が単一。重大な矛盾・漏れ・依存破綻は検出されず PASS と判定した。"
 }

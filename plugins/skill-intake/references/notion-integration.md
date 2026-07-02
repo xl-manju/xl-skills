@@ -118,7 +118,7 @@ DB が存在しない場合は `scripts/create_notion_database.py --mode=create`
 
 Notion は SVG ネイティブ表示が不安定なため **PNG を必須**とする。
 
-1. Mermaid / 独自 SVG を `scripts/render_to_image.py` で PNG 化
+1. `scripts/render_to_image.py` で PNG を用意 (Mermaid は mmdc で変換、独自 SVG は同梱済み `assets/cvis-*.png` をコピー配置)
 2. PNG を一旦どこかにアップロード（Notion file_upload API またはユーザー指定 CDN）
 3. `image` ブロックとして添付。`caption` には one_liner（60 字以内）
 

@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://xl-skills/plugins/skill-intake/handoff.schema.json",
   "title": "skill-intake SubAgent handoff",
-  "description": "各 phase 通過時に eval-log/handoff-<phase>.json として保存する共通形式。PostCompact hook で復元される。",
+  "description": "各 phase 通過時に eval-log/handoff-<phase>.json として append-only で記録する共通形式。自動復元機構は無い (compaction 後に必要なら orchestrator が該当ファイルを Read して文脈を再構築する)。",
   "type": "object",
   "additionalProperties": false,
   "required": ["phase", "responsibility_id", "status", "input_refs", "output_refs", "timestamp"],
   "properties": {
     "phase": {
       "type": "string",
-      "description": "aggregator phase 識別子 (例: phase-05-purpose-excavate)"
+      "description": "workflow-manifest.json の phase 識別子 (P1-kickoff .. P11-next-action。例: P5-excavation)"
     },
     "responsibility_id": {
       "type": "string",

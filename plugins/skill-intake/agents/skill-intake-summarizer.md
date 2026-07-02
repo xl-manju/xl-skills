@@ -59,7 +59,7 @@ model: sonnet
 
 - 出力: `output/<hint>/summary.md` (200〜400 字 + 補助箇条書き), `output/<hint>/summary.json`
 - 必須フィールド: `five_axes.output_target`, `five_axes.info_source`, `five_axes.share_target`, `five_axes.true_problem`, `five_axes.knowledge_assets` (string[] / minItems 1), `approval_status` (enum: approved | revision_requested)
-- 任意フィールド: `revision_notes` (修正要求・部分戻しの記述), `summary_md_path`, `summary_json_path`
+- 任意フィールド: `revision_notes` (修正要求・部分戻しの記述), `summary_md_path`, `summary_json_path`, `plugin_scale` (boolean: ヒアリング中に plugin 規模構想 (hook/command 等複数コンポーネント) が明示されたとき true), `component_requests` (string[]: ユーザーが要望したコンポーネント種別 (skill/hook/command/agent/mcp 等))。後者 2 つは Phase 11 `run-intake-next-action` decide-mode.py の mode P 判定入力
 - 完了条件: summary.md 200-400 字 + 5 軸全充足 + approval_status=approved (revision_requested は Phase 4 へ戻る)
 
 ```json

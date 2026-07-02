@@ -12,4 +12,4 @@
 
 ## 長期 (6 ヶ月以降)
 
-**目標**: intake → skill-creator 引き渡しの自動化と、ヒアリング資産(question-bank / vocabulary-tiers)の自己改善ループを確立する。**成果物**: run-intake-next-action の引き渡しモード判定精度向上、eval-log からの question-bank 自動更新パイプライン、非技術者語彙(vocabulary-tiers)の使用実績に基づく継続改善。**KPI**: 引き渡しモード判定の妥当率 >= 90%、question-bank 更新の月次反映数 >= 2 本、非エンジニア完走率 >= 80%。
+**目標**: intake → skill-creator (単一 skill 規模) / plugin-dev-planner (mode P: plugin 規模構想、0.1.2 で契約化済み) の三段パイプライン引き渡しの自動化と、ヒアリング資産(question-bank / vocabulary-tiers)の自己改善ループを確立する。**成果物**: run-intake-next-action の引き渡しモード判定精度向上、eval-log からの question-bank 自動更新パイプライン、非技術者語彙(vocabulary-tiers)の使用実績に基づく継続改善。**KPI**: 引き渡しモード判定の妥当率 >= 90%、question-bank 更新の月次反映数 >= 2 本、非エンジニア完走率 >= 80%。

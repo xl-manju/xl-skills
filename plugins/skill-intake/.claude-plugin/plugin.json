@@ -1,6 +1,6 @@
 {
   "name": "skill-intake",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "package_mode": "bundle",
   "description": "skill-creator の前段ヒアリングを非技術者にも開く plugin。Markdown 正本+JSON 副本+Notion ページを生成し、macOS Keychain 経由の Notion PAT/Internal Integration で公開する。図解マスト要件と 5 軸ヒアリング (出力先/情報源/共有相手/真の課題/ナレッジ資産) を機械検証する。本 plugin は単独インストールで intake→Notion publish のコアフローが自己完結動作する (notion_config.py を同梱)。改善要望投入 (`/run-skill-feedback`) は skill-creator 併用時のみ利用可能。",
   "author": {
@@ -72,7 +72,11 @@
       "**/*.so",
       "skills/run-skill-feedback/**",
       "eval-log/**",
-      "output/**"
+      "output/**",
+      "references/migration-plan-v2.md",
+      "scripts/RENAME_PLAN.md",
+      "scripts/m3_deprecation_reverse_index.py",
+      "scripts/convert_v1_to_v2_context.py"
     ]
   },
   "hooks": {

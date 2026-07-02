@@ -71,6 +71,34 @@ def check_publish_precondition(out_path: Path):
     return True, "Notion 公開完了を確認 (status=published, page_id 有り, target 一致)"
 
 
+NON_SKILL_COMPONENT_KINDS = {"hook", "command", "slash-command", "agent", "sub-agent", "mcp"}
+
+
+def detect_plugin_scale(kick, opts, summ):
+    """mode P (plugin 規模構想) の決定論判定。正本: references/mode-catalog.md「mode P 判定条件」。
+    返り値: (is_p: bool, reason: str)。既存 A-E 判定より先に評価する。"""
+    for label, src in (("summary", summ), ("options", opts), ("kickoff", kick)):
+        if isinstance(src, dict) and src.get("plugin_scale") is True:
+            return True, f"{label}.plugin_scale=true の明示宣言 (mode-catalog P 行: plugin 規模構想)"
+    requests = []
+    for src in (summ, opts):
+        if isinstance(src, dict) and isinstance(src.get("component_requests"), list):
+            requests.extend(str(x).strip().lower() for x in src["component_requests"])
+    non_skill = sorted({r for r in requests if r in NON_SKILL_COMPONENT_KINDS})
+    if non_skill:
+        return True, (
+            f"component_requests に非 skill コンポーネント {non_skill} の要望 "
+            "(mode-catalog P 行: 複数コンポーネント/hook/command 要望)"
+        )
+    skill_like = [r for r in requests if r not in NON_SKILL_COMPONENT_KINDS]
+    if len(skill_like) >= 2:
+        return True, (
+            f"component_requests に skill 系要素が {len(skill_like)} 件 "
+            "(mode-catalog P 行: 複数 skill 分解が濃厚)"
+        )
+    return False, ""
+
+
 def load_json_required(path: str, label: str):
     p = Path(path)
     if not p.exists():
@@ -119,25 +147,33 @@ def main():
     _opts = load_json_required(a.options, "options")
     summ = load_json_required(a.summary, "summary")
     verb = purp.get("true_purpose", {}).get("verb_object", "")
-    # 簡易判定: Phase 1 の暫定 pattern を尊重しつつ、verb 空・分裂検知時のみ E/D に格下げ。
+    # 簡易判定: plugin 規模徴候 (mode P) を最優先で評価し、無ければ Phase 1 の暫定 pattern を
+    # 尊重しつつ、verb 空・分裂検知時のみ E/D に格下げ。
     init = kick.get("pattern", "E")
     mode = init
     reason = f"kickoff.pattern={init} を採用"
     multi = False
     splits = []
-    if not verb.strip():
+    is_p, p_reason = detect_plugin_scale(kick, _opts, summ)
+    if is_p:
+        mode = "P"
+        multi = True
+        reason = p_reason
+    elif not verb.strip():
         mode = "E"
         reason = "true_purpose.verb_object が空のため判定不能"
     elif " と " in verb or "+" in verb:
         mode = "D"
         multi = True
         reason = "verb_object に複数責務の徴候 (連結語) あり"
+    # 右列文言は references/mode-catalog.md の逐語コピー (drift 防止)。
     handoff = {
-        "A": "Phase 1 (kickoff)",
-        "B": "Phase 2 (existing reuse)",
-        "C": "Phase 7 (prompt-only update)",
-        "D": "Phase 1 (split first)",
-        "E": "Phase 1 (re-intake)",
+        "A": "Step 1 (elicit)",
+        "B": "Step 1 (elicit --mode update)",
+        "C": "Step 1 (elicit --mode update, prompt-only)",
+        "D": "Step 1 (elicit, split first)",
+        "E": "P1-kickoff (re-intake)",
+        "P": "R1 (elicit-goal)",
     }[mode]
     out = {
         "mode": mode,
@@ -145,6 +181,7 @@ def main():
         "multi_skill_suspicion": multi,
         "split_candidates": splits,
         "confirmed_with_user": False,
+        "handoff_target": "plugin-dev-planner" if mode == "P" else "skill-creator",
         "skill_creator_handoff_phase": handoff,
     }
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

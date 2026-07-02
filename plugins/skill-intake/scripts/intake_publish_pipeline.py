@@ -43,8 +43,12 @@ def _write_repaired_result(result_path, page_id, page_url):
 def _write_log(log_path, url_path, status, exit_code, stage, page_id='', url='', mode=''):
     try:
         Path(log_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(url_path, 'w', encoding='utf-8') as f:
-            f.write((url + '\n') if url else '')
+        # notion-url.txt は成功 URL 確定時のみ書く。失敗時に空ファイルを残すと
+        # 初回翻訳ゲート (_has_publish_artifact) が恒久 False 化し、初回 publish の
+        # 一時失敗が exit 51 デッドエンドになるため (retry で自動回復させる)。
+        if url:
+            with open(url_path, 'w', encoding='utf-8') as f:
+                f.write(url + '\n')
         with open(log_path, 'w', encoding='utf-8') as f:
             json.dump({
                 'status': status,
@@ -58,6 +62,30 @@ def _write_log(log_path, url_path, status, exit_code, stage, page_id='', url='',
             f.write('\n')
     except Exception as e:
         sys.stderr.write(f'[pipeline] notion-url/log write error: {e}\n')
+
+
+def _has_publish_artifact(result_path, url_path):
+    """過去 publish 成功の痕跡を内容ベースで判定する (初回翻訳ゲートの再公開判定)。
+
+    空 notion-url.txt / page_id 無し result (失敗残置) は痕跡とみなさない
+    (初回 publish が一度失敗しても再実行で初回翻訳経路が回復する)。
+    読取り不能なファイルは不明状態として True (fail-closed: create 翻訳を無効化) に倒す。
+    """
+    if os.path.exists(url_path):
+        try:
+            with open(url_path, 'r', encoding='utf-8') as f:
+                if f.read().strip():
+                    return True
+        except Exception:
+            return True
+    if os.path.exists(result_path):
+        try:
+            data = _read_json(result_path)
+            if isinstance(data, dict) and (data.get('page_id') or data.get('id')):
+                return True
+        except Exception:
+            return True
+    return False
 
 
 def run(label, script, args, capture_stdout_to=None):
@@ -94,6 +122,8 @@ def main():
                         help='更新対象の Notion ページ URL (page_id を自動抽出)')
     parser.add_argument('--allow-create', dest='allow_create', action='store_true',
                         help='明示された初回作成だけ許可する。既定は create 禁止')
+    parser.add_argument('--skip-assets', dest='skip_assets', action='store_true',
+                        help='verify_notion_assets の All-or-Nothing 検査を skip する (CI/テスト専用。通常運用では使わない)')
     parser.add_argument('--dry-run', dest='dry_run', action='store_true')
     args = parser.parse_args()
 
@@ -122,6 +152,25 @@ def main():
         revise_page_id = _extract_page_id_from_url(args.page_id)
     elif args.page_url:
         revise_page_id = _extract_page_id_from_url(args.page_url)
+    # 初回 publish の一本化 (workflow-manifest P10 委譲): --revise でなく明示 target も無い初回
+    # (notion-url.txt の有効 URL / notion-publish-result.json の page_id とも不在) は、
+    # intake.json の notion_target (mode=create-explicit かつ allow_create=true) を
+    # --allow-create 相当へ翻訳して publish へ伝搬する。判定は内容ベース
+    # (_has_publish_artifact): 失敗残置の空ファイルでは再公開扱いにせず、再実行で本経路が回復する。
+    if (not args.revise and not revise_page_id and not args.allow_create
+            and not _has_publish_artifact(result_path, url_path)):
+        try:
+            notion_target = (_read_json(intake_path) or {}).get('notion_target') or {}
+        except Exception:
+            notion_target = {}
+        if (isinstance(notion_target, dict)
+                and notion_target.get('mode') == 'create-explicit'
+                and notion_target.get('allow_create') is True):
+            args.allow_create = True
+            sys.stderr.write(
+                '[pipeline] first publish: intake.json notion_target '
+                '(mode=create-explicit, allow_create=true) を --allow-create へ翻訳\n'
+            )
     if not args.revise and not revise_page_id and not args.allow_create:
         sys.stderr.write(
             'target page is required. create fallback is disabled by default '
@@ -162,8 +211,11 @@ def main():
                 _write_log(log_path, url_path, 'failed', 2, 'result_repair')
                 return 2
 
-    if args.manifest:
-        manifest_path = os.path.abspath(args.manifest)
+    # All-or-Nothing: assets 検査は常時実行 (--manifest 未指定時は out_dir 既定の
+    # notion-manifest.json を自動解決)。skip は明示 --skip-assets (CI/テスト専用) のみ。
+    if not args.skip_assets:
+        manifest_path = os.path.abspath(args.manifest) if args.manifest \
+            else os.path.join(out_dir, 'notion-manifest.json')
         if not os.path.exists(manifest_path):
             sys.stderr.write(f'manifest not found: {manifest_path}\n')
             _write_log(log_path, url_path, 'failed', 2, 'manifest_missing')
@@ -242,8 +294,9 @@ def main():
     stdout_text = proc.stdout.decode('utf-8', errors='replace') if proc.stdout else ''
     sys.stderr.write(stdout_text)
 
-    # silent-fail 禁止: 成否に関わらず notion-log.json / notion-url.txt を書く
+    # silent-fail 禁止: 成否に関わらず notion-log.json を書く
     # (republish-contract.md 不変条件 4 / SKILL.md 完了チェック #2,#3)。
+    # notion-url.txt は成功 URL 確定時のみ書く (_write_log 内で判定。初回失敗の retry 回復性)。
     result = {}
     try:
         result = json.loads(stdout_text) if stdout_text.strip() else {}
