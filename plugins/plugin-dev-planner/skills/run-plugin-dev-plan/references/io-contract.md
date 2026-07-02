@@ -16,7 +16,7 @@ source-tier: internal
 - **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)。`--mode create|update`。任意で **skill-intake の intake.json** (schema_version 2.0.0) を構造化 `plugin_concept` 入力として受理する: `sections.0_executive_summary` (true_purpose_oneliner / pattern) / `sections.3_purpose_excavator` (true_purpose / underlying_motivation / output_priority) / next-action.json の `split_candidates[]` を goal-spec (purpose/background/goal/checklist) 写像の材料とする (供給側契約は `plugins/skill-intake/references/handoff-contract.md` の「plugin-dev-planner 分岐 (mode P)」節)。
 - **処理**: R1(要件定義)→R2(分解)→R3(生成)→R4(検証) の責務を goal-seek ループで実行し、13 フェーズ (`phase-lifecycle.md` §8 の P01..P13) を成果物へ写像する。各責務の詳細プロンプトは `prompts/R1-R4`。
 - **出力** (2 軸直交・単一 SSOT + 複数 projection。詳細は `component-domain.md`):
-  1. **13 phase ファイル (Markdown)** — `phase-01-requirements.md` … `phase-13-release.md`。各々が §2 の phase frontmatter (`PHASE_REQUIRED`) を携帯し、本文は上から順に読める実行可能タスク仕様 (ライフサイクル軸=人間向け primary deliverable)。命名は `phase-NN-<kebab>.md` (NN=ゼロ埋め 2 桁・kebab は `specfm.PHASE_NAMES`)。
+  1. **13 phase ファイル (Markdown)** — `phase-01-requirements.md` … `phase-13-release.md`。各々が §2 の phase frontmatter (`PHASE_REQUIRED`) を携帯し、本文は上から順に読める宣言型タスク仕様 (8 節・§5 表参照・ライフサイクル軸=人間向け primary deliverable)。命名は `phase-NN-<kebab>.md` (NN=ゼロ埋め 2 桁・kebab は `specfm.PHASE_NAMES`)。
   2. **index.md(main)** = P01..P13 を **phase_number 昇順**で列挙した目次 + 全体完了条件 + 受入確認 (build 後の見方) + plugin 階層規律 (`plugin_meta`)。§3 参照。
   3. **component-inventory.json** = buildable 実体軸 (機械) の**唯一の SSOT**。5 種を検討した証跡 (`considered_component_kinds`) と、実際に生成する buildable components (build routing・1 実体=1 `build_target`・依存 DAG・品質機構=旧 C*.md frontmatter の載せ替え先)、plugin-level surfaces の採否・不要理由。省略理由の正本キーは `plugin_level_surfaces.<surface>.omitted_reason` 一本のみ (評価器が読むのもこのキーのみ)。
 
@@ -76,16 +76,20 @@ phase ファイルは build_target/depends_on を**再記述しない** (正規�
 
 `run-skill-create` は **skill 専用**。非 skill 4 種は単独投入せず、親 skill の build フロー (run-build-skill の kind dispatch / `--with-*`) で生成される。
 
-### phase ファイル本文 section 契約 (frontmatter と別軸・`detect-unassigned.py` の正本)
+### phase ファイル本文 section 契約 (§5・宣言型 8 節・正本=`specfm.PHASE_BODY_SECTIONS`)
 
-frontmatter は specfm が厳格に operationalize する一方、本文 (prose) は LLM の判断を要するため形状を凍結しない。ただし**空セクションを許すと品質精度の床が抜ける**ため、本文にも最小の機械的な床を敷く。これが `scripts/detect-unassigned.py` の `REQUIRED_SECTIONS` / `empty_body_sections` の正本 (各 `phase-NN-<kebab>.md` に適用):
+frontmatter は specfm が厳格に operationalize する一方、本文 (prose) は LLM の判断を要するため形状を凍結しない。ただし**空セクションを許すと品質精度の床が抜ける**ため、本文にも最小の機械的な床を敷く。**節集合の正本は `specfm.PHASE_BODY_SECTIONS` (宣言型 8 節) で、下表はその人間可読 projection** — `scripts/detect-unassigned.py` は同定数を `REQUIRED_SECTIONS` として import し床 (`empty_body_sections`) を fail-closed 強制する。**宣言型** = 手続き的な「実行タスク」節を置かず、前提/目的/背景と到達状態 (成果物) + 二値条件 (完了チェックリスト) で書く (HOW=具体手順は後段 build/実行者に委ねる)。8 節は**単独実行の自足性** (実行者が当該 phase ファイルだけで着手→完了判定→次 phase へ移行できる) を狙う — ドメイン知識が phase 固有の前提知識を、スコープ外が「どこで止めて誰に渡すか」の境界を宣言する。各 `phase-NN-<kebab>.md` に適用:
 
 | section | 必須 | 中身の床 (機械強制) | 中身の指針 (非強制・ゴールデン例が手本) |
 |---|---|---|---|
-| `## 目的` | yes | 見出し存在 + 直後に非空本文 | このフェーズが達成する到達状態を目的ドリブンに 1-3 文 |
-| `## 実行タスク` | yes | 見出し存在 + 直後に非空本文 | 上から順に実行できるタスク。該当する `entities_covered` があれば component id を併記 |
-| `## 成果物` | yes | 見出し存在 + 直後に非空本文 | このフェーズで確定/生成する成果物 (build 実体は inventory が SSOT) |
-| `## 完了条件` | yes | 見出し存在 + 直後に非空本文 | 観測可能な二値の完了条件 (gate フェーズは gate_type の合否) |
+| `## 目的` | yes | 見出し存在 + 直後に非空本文 | このフェーズが達成する到達状態の意図を 1-3 文 |
+| `## 背景` | yes | 見出し存在 + 直後に非空本文 | 文脈・前段の状況・関連制約 |
+| `## 前提条件` | yes | 見出し存在 + 直後に非空本文 | 開始前に満たすべき状態・受け取る入力 (先行成果物/参照/component id) |
+| `## ドメイン知識` | yes | 見出し存在 + 直後に非空本文 | 実行者が repo/前段成果物から導出できない phase 固有の用語・不変条件・外部制約。plan 全体の用語集は index `## ドメイン知識` を引用し**差分のみ**記載 (重複焼込禁止)。phase 固有分が無ければ「index の用語集で足りる」旨を明示 (情報の膨張でなく漏れの封鎖が目的) |
+| `## 成果物` | yes | 見出し存在 + 直後に非空本文 | 確定/生成する到達成果物 (build 実体は inventory が SSOT) |
+| `## スコープ外` | yes | 見出し存在 + 直後に非空本文 | このフェーズで**扱わない**事項と委譲先 phase/component (境界宣言)。次タスクへの移行点を確定し、実行者のスコープ逸脱 (先回り実装・手続き化) を防ぐ |
+| `## 完了チェックリスト` | yes | 見出し存在 + 直後に非空本文 | 完了=達成を宣言的に判定する観測可能な二値項目 (gate フェーズは gate_type の合否) |
+| `## 参照情報` | yes | 見出し存在 + 直後に非空本文 | 参照すべき正本・資料・関連 component/phase |
 
 `applicability.applicable == false` の phase は section 床を免除し、`reason` を本文に記す (非該当フェーズの N/A 明示)。機械の床は「見出し存在 + 非空本文」までに留める (意味検査はしない=Goodhart 回避)。床を超える本文の精度は**下流トラスト** (後述 §10) と evaluator の意味判定に委ねる。skeleton 穴埋めファイルは置かない (形状の正本は frontmatter=specfm、本文は床付きの自由記述・`scripts/render-spec-skeleton.py --phase N` が specfm から生成する)。
 
@@ -104,10 +108,23 @@ frontmatter は specfm が厳格に operationalize する一方、本文 (prose)
 | `routes[].build_kind` | skill→`skill`、sub-agent→`agent`、slash-command→`command`、hook→`hook`、script→`script` (`specfm.BUILD_KIND_BY_KIND` が SSOT)。`run-build-skill` の Capability 7 kind へ渡す実行 kind を明示する |
 | `routes[].placement_scope` | (script のみ・任意/既定 `skill`) `skill` = 親 skill 配下に畳む / `plugin-root` = `plugins/<slug>/scripts/` へ hoist した共有 script。inventory component の `placement_scope` と一致させる |
 | `routes[].build_args` | 後段 builder へ渡す最小引数。`run-build-skill` route では `kind == build_kind` を必須にする。`plugin-scaffold` route (plugin-root script) は `script_path` 非空必須 (親 skill 不要) |
+| `routes[].build_args.brief_path` | (skill route のみ) `scripts/render-skill-brief.py --inventory <PLAN_DIR>/component-inventory.json --component <id>` が inventory から決定論射影する skill-brief JSON の PLAN_DIR 相対出力先。brief 実体は plan に置かない (render で生成される宣言) |
+| `routes[].builder_status` | `executor-backed` (実行 skill が実在) / `contract-only` (routing 語彙のみ・単独実行実体が未整備)。SSOT は `specfm.BUILDER_STATUS`。contract-only route は `gap_ref` 必須 (`check-build-handoff.py` が fail-closed 強制) |
+| `routes[].gap_ref` | contract-only route が参照する `open_issues[].id` (既知 capability-gap の構造化参照。executor gap の無音隠蔽を防ぐ) |
+| `routes[].requires_parent_scaffold` | (placement=skill script のみ) `build_target` が親 skill の `build_target` ディレクトリ配下にある script は、二相 build (scaffold→fill) の順序逆転を後段 consumer が routes 配列順でなく守れるよう、自身を内包する親 skill の id を機械可読に宣言する。`check-build-handoff.py` が `build_target` 包含から親を特定し一致を fail-closed 検査する (散文 `build_sequencing_notes` 依存の機械可読化・M2)。plugin-root へ hoist した共有 script は親 skill 配下でないため不要 |
 | `envelope` | manifest/marketplace 等 plugin-level surface の owner/status/build_target。`external_gap` / `manual-user-gated` は gap/approval reason 必須。**`envelope.manifest.draft_path` = `<PLAN_DIR>/envelope-draft/plugin.json`** (Phase02=設計 が owner) |
 | `envelope.manifest.draft_path` | `<PLAN_DIR>` 相対の manifest draft。存在・JSON parse・`name == target_plugin_slug`・TODO placeholder 不在を検査する |
 
-`scripts/check-build-handoff.py` が spec (phase ファイル・任意) 実在、top-sort、builder/build_kind/build_args 整合、routes↔inventory 件数/`build_target` 一致、manifest draft、envelope gap reason を検査する。これにより「inventory をもとにプラグインを構築できるか」の最低条件を、実 build 実行前に fail-closed で確認する。
+**builder → 実行手段の解決表** (SSOT=`specfm.BUILDER_STATUS`・消費側が routes を dispatch する際の唯一の対応表):
+
+| builder | builder_status | 実行手段 |
+|---|---|---|
+| `run-skill-create` | executor-backed | skill component を 1 本ずつ L4 build (`build_args.brief_path` の skill-brief を投入) |
+| `run-build-skill` | executor-backed | sub-agent/slash-command/hook を Capability kind dispatch で build |
+| `parent-skill-build` | contract-only | 親 skill の build に随伴生成 (単独実行実体なし・`gap_ref` 必須) |
+| `plugin-scaffold` | contract-only | plugin-root 共有 script hoist / envelope scaffold。単独実行実体は未整備 (`gap_ref` 必須・当面は `run-build-skill` の build フロー内で代替生成) |
+
+`scripts/check-build-handoff.py` が spec (phase ファイル・任意) 実在、top-sort、builder/build_kind/build_args 整合、builder_status/gap_ref (contract-only の gap 起票)、二相 build 順序 (`requires_parent_scaffold`・placement=skill script の scaffold→fill)、routes↔inventory 件数/`build_target` 一致、manifest draft、envelope gap reason を検査する。これにより「inventory をもとにプラグインを構築できるか」の最低条件を、実 build 実行前に fail-closed で確認する。
 
 ### core 規律 (全 buildable component が必ず携帯。inventory component エントリへ焼く)
 
@@ -136,7 +153,7 @@ harness_coverage:
 | `prompt_layer: 7layer` (A11/E5/E6) | prompts を持つ component (skill run/assign, sub-agent) のみ | inventory component |
 | `knowledge_loop` (G1) | opt-in (`features: [knowledge_loop]`) 時のみ | inventory component |
 | `combinators` (D5/G2) | 全 skill (build flag 非該当時は空配列 `combinators: []` で no-flag を明示)。`check-spec-matrix-coverage.py` の述語 `_is_skill` が全 skill component に焼き先キー存在を要求する | inventory component |
-| manifest/marketplace/cachebuster/配布判定/bundles/PKG/governance/CI/SSOT重複 (plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6) | **plugin 階層** (per-component でなく) | index(main) の `plugin_meta` |
+| manifest/marketplace/cachebuster/配布判定/bundles/PKG/governance/CI/SSOT重複/feedback+Notion 受け皿 (plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6/B4/B5) | **plugin 階層** (per-component でなく) | index(main) の `plugin_meta` (+ inventory `plugin_level_surfaces.notion_config`) |
 
 `skill-brief.schema.json` 主要フィールドへ無加工で写せること (schema parity) は skill component で要件化する。
 
@@ -164,14 +181,36 @@ plugin_meta:
   governance: {...}          # A10 (rubric governance runbook)・条件付き(下記)
   ci: {...}                  # F6 (governance-check.yml 配線)・コア(常に必須)
   ssot_dedup: {...}          # F7 (lint-ssot-duplication)・条件付き(下記)
-  feedback_deploy: {...}     # D6 (量産先への run-skill-feedback 配備)・条件付き(下記)
-  # 条件付き 4 キー (pkg_contract/governance/ssot_dedup/feedback_deploy) は該当しない構想では
+  feedback_deploy:           # D6+B4/B5 (量産先への run-skill-feedback 配備 + Notion 受け皿)・コア(常に必須)
+    deploy: run-skill-feedback
+    enabled: true            # 配備しない構想は {enabled: false, reason: <非空>} の明示 opt-out のみ許す
+    notion_sink:
+      config_key: <DB キー名>   # plan が宣言するのはキーのみ (DB ID は書かない・設置先 .notion-config.json が供給)
+      schema_ref: doc/notion-schema/improvement-request.schema.json  # B5 受け皿 schema (パス参照・複製しない)
+      resolution: notion_config  # B4 解決器の名前参照 (実体 plugins/skill-creator/scripts/notion_config.py)
+    portability: repo-bundled  # repo-bundled | vendored。distributable:true → vendored 強制
+  # 条件付き 3 キー (pkg_contract/governance/ssot_dedup) は該当しない構想では
   #   <key>: {applicable: false, reason: "<N/A の根拠>"}
   # と明示宣言できる (例 skill のみ・非配布構想で PKG packaging が不要 → A7「skill-only は PKG 一部 N/A」と整合)。
   # 空 dict / 欠落は不可 (省略は必ず根拠付き明示=plugin_level_surfaces.<surface>.omitted_reason 原則と同型)。
 ```
 
-`check-spec-gates.py` が plugin_meta を**値域検証**する (存在チェックでない): `manifest.path` は `.claude-plugin/plugin.json`、`manifest.validate_plugin` は true。`marketplace.policy.installation` は `NOT_AVAILABLE` / `AVAILABLE` / `INSTALLED_BY_DEFAULT`、`marketplace.policy.authentication` は `ON_INSTALL` / `ON_USE`、`category` は非空。`distributable` は bool 必須。`distributable:false` なら `bundles` は空 (=非登録を明示) かつ `marketplace` は false/不在 (非配布整合)。`distributable:true` なら `bundles` に最低 1 件。**コア** `manifest`/`marketplace`/`ci` は常に非空 dict。**条件付き** `pkg_contract`/`governance`/`ssot_dedup`/`feedback_deploy` は非空 dict だが、該当しない構想では `{applicable: false, reason: <非空>}` で明示 N/A 可 (reason 空はエラー)。matrix-coverage は焼き先スロットの addressed (空コンテナ・`{applicable:false}` 含む)、gates は値域、と責務分離する。
+`check-spec-gates.py` が plugin_meta を**値域検証**する (存在チェックでない): `manifest.path` は `.claude-plugin/plugin.json`、`manifest.validate_plugin` は true。`marketplace.policy.installation` は `NOT_AVAILABLE` / `AVAILABLE` / `INSTALLED_BY_DEFAULT`、`marketplace.policy.authentication` は `ON_INSTALL` / `ON_USE`、`category` は非空。`distributable` は bool 必須。`distributable:false` なら `bundles` は空 (=非登録を明示) かつ `marketplace` は false/不在 (非配布整合)。`distributable:true` なら `bundles` に最低 1 件。**コア** `manifest`/`marketplace`/`ci`/`feedback_deploy` は常に非空 dict (正本 `specfm.PLUGIN_META_CORE_DICTS`)。`feedback_deploy` は enabled:true なら `notion_sink` 値域 (config_key 非空 / schema_ref パス / resolution==`notion_config`) + `portability`∈{repo-bundled, vendored} を検証し、**`distributable:true` → `portability==vendored` を強制**、opt-out は `{enabled: false, reason: <非空>}` のみ許す。**条件付き** `pkg_contract`/`governance`/`ssot_dedup` は非空 dict だが、該当しない構想では `{applicable: false, reason: <非空>}` で明示 N/A 可 (reason 空はエラー)。matrix-coverage は焼き先スロットの addressed (空コンテナ・`{applicable:false}` 含む)、gates は値域、と責務分離する。
+
+### plugin-level surface: notion_config (per-project Notion DB の解決宣言・B4/B5)
+
+inventory の `plugin_level_surfaces.notion_config` は、生成 harness が読み書きする **project 可変な Notion DB 全般** (domain DB と `feedback_deploy.notion_sink` の feedback 受け皿の両方) を per-project に解決するための宣言スロット。`databases[]` には harness の component が使う domain DB キーを宣言し、feedback 受け皿キーは `feedback_deploy.notion_sink.config_key` 側が宣言する (二重に載せない)。**解決ロジックは複製せず名前参照のみ** (実体 `plugins/skill-creator/scripts/notion_config.py`・fail 方針は同スクリプトの require_or_skip fail-closed を継承):
+
+```yaml
+notion_config:
+  required: <bool>
+  resolution: notion_config   # 解決器の名前参照 (再実装禁止)
+  databases: [{key: <DB キー名>, used_by: <component id>, direction: read|write|readwrite}]
+  token: keychain             # トークン供給元の宣言のみ (値は書かない)
+  omitted_reason: <required:false のとき非空>
+```
+
+`specfm.validate_surface_inventory` が required:true → `databases` 非空 + 各 `used_by` が実在 component id / required:false → `omitted_reason` 必須を fail-closed 検査する。**二層分離**: DB キー (論理名) は plan が宣言し、DB ID (具体値) は設置先 repo-root の `.notion-config.json` (gitignore) が供給する — plan 成果物に DB ID・トークンを一切書かない。
 
 ## §10 検証・完了条件 (xl-skills 接続 / Markdown evidence)
 
@@ -208,21 +247,26 @@ plugin_meta:
 
 **placement_scope → builder → build_target の写像**: plugin-root script は `builder=plugin-scaffold` / `build_args.script_path` / `build_target=plugins/<slug>/scripts/<name>.py` (親 skill 配下に置かない)。skill placement script は `builder=parent-skill-build` / `build_target=plugins/<slug>/skills/<skill>/scripts/<name>.py`。写像正本は `specfm.builder_for`、検査は `check-runtime-portability.py` (共有判定) + `specfm.validate_inventory_component` (build_target 形状)。
 
-## 本スキル同梱の決定論検査スクリプト (R1 入力ゲート + R4 検証を自然言語突合から機械化)
+## §11 本スキル同梱の決定論検査スクリプト (R1 入力ゲート + R4 検証を自然言語突合から機械化)
+
+呼称は 2 層: **core 5 scripts / 6 invocations** (`verify-index-topsort` / `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage`=`--self-test`+PLAN の 2 invocation) + **拡張ゲート 6 本** (`check-plugin-goal-spec` / `check-requirements-coverage` / `check-surface-inventory` / `check-build-handoff` / `check-runtime-portability` / `check-plugin-surface-audit`)。名称+起動引数の実行可能正本は `specfm.GATE_SCRIPTS`、**総数 (検証 11 本) と一覧の単一正本は下表** — SKILL.md / golden index の記述はこの projection であり、本数を再定義しない。
 
 | スクリプト | 役割 (検査する完了チェックリスト項目) |
 |---|---|
 | `scripts/check-plugin-goal-spec.py` | R1 入力ゲート: `goal-spec.json` が汎用 goal-spec + plugin 固有アンカー (`target_plugin_slug`/`plan_dir`。`requested_count` は任意存置・本数固定フラグは廃止) を満たすか検証 (schema 契約は `schemas/plugin-goal-spec.schema.json`、両者の parity は `tests/test_check_plugin_goal_spec.py`) |
+| `scripts/check-requirements-coverage.py` | (SDD・RTM) 要件→計画のトレーサビリティ: `goal-spec.json` checklist の各要件 id が index の `## 完了チェックリスト` / `## 受入確認` で引用されることを fail-closed 検査 (要件 orphan=silent drop 防止・detect-unassigned の component orphan 検査と鏡像)。id 照合は境界安全 (C1 が C01/C11 に誤マッチしない)。床は id トークン出現まで=充足の意味判定は evaluator (Goodhart 回避) (C2) |
 | `scripts/verify-index-topsort.py` | (二層) index が P01..P13 を **phase_number 昇順**で全列挙 (phase 完全性) + `component-inventory.json` の component DAG 非循環 (top-sort 可能) を検査 (C1/C4) |
 | `scripts/detect-unassigned.py` | (a) 13 phase ファイル全存在 + §5 section 床、(b) **各 inventory component が ≥1 phase の `entities_covered` に出現** (orphan 防止) + `build_target` 非空 (L3→L4 追跡) (C5) |
 | `scripts/check-spec-frontmatter.py` | **phase ファイル frontmatter (`PHASE_REQUIRED`) を検証** + **inventory components を `specfm.validate_inventory_component` で検証** (component_kind 別構造 + skill loop の criteria purpose-traceability) (C2/C3) |
 | `scripts/check-spec-gates.py` | **inventory components の `quality_gates`** (p0_lint 網羅/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) と `harness_coverage` (min≥80/kind_pass) + index.plugin_meta 値域を機械検証 (A1/A5/A8/C1-C2/F1/F2) |
-| `scripts/check-spec-matrix-coverage.py` | `skill-creator-spec-reflection.md` の44行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で44行 table drift 検出 |
-| `scripts/check-surface-inventory.py` | `component-inventory.json` が 5 component_kind の検討証跡 (`considered_component_kinds`) と plugin-level surfaces (`manifest`/`composition`/`harness_eval`/`references_config_assets`/`schemas`/`vendor`/`mcp_app_connector`) の required/omitted_reason を漏れなく持つことを検査 (`specfm.validate_surface_inventory` 追随) |
+| `scripts/check-spec-matrix-coverage.py` | `skill-creator-spec-reflection.md` の46行を component_kind/階層別適用述語で評価し、適用行の焼き先 (**inventory component** / index plugin_meta) の存在を検査。OP/conditional/N-A 内訳を出力。`--self-test` で46行 table drift 検出 |
+| `scripts/check-surface-inventory.py` | `component-inventory.json` が 5 component_kind の検討証跡 (`considered_component_kinds`) と plugin-level surfaces (`manifest`/`composition`/`harness_eval`/`references_config_assets`/`schemas`/`vendor`/`mcp_app_connector`/`notion_config`) の required/omitted_reason を漏れなく持つことを検査 (`specfm.validate_surface_inventory` 追随) |
 | `scripts/check-build-handoff.py` | `handoff-run-plugin-dev-plan.json` の L3→L4 routing を検証。routes は inventory 由来。builder 種別 (`placement_scope` を写す) / build_kind / build_args / build_target / spec (phase ファイル・任意) 実在 / top-sort / manifest draft / envelope gap reason (旧 本数固定ブロックは廃止) |
 | `scripts/check-runtime-portability.py` | (C2/C4・F8) install 携帯性: (P) >=2 skill から共有される script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist 済み、(Q) 全 component の `build_target` が plugin 内自己完結 (`plugins/` 始まり・`..` 不在)。`--self-test` で P/Q 検出を自己検査 |
 | `scripts/check-plugin-surface-audit.py` | `plugins/` 配下の現物 plugin surface を横断棚卸し。skill/agent/command/hook/script/test/reference/config/assets/schemas/vendor/MCP-app/harness/composition/manifest と owned/symlink 内訳を数え、`--expect-plan-ready` 指定 plugin が必須 surface を dogfood していることを検査 |
 | `scripts/render-spec-skeleton.py` | `specfm.py` から phase skeleton (`--phase N`) / component_kind 別の inventory component skeleton を生成。手書き skeleton ファイルを増やさず、ひな形の正本を実行可能契約へ一本化 |
+| `scripts/render-skill-brief.py` | (射影器・ゲート外) inventory の skill component 1 件を skill-brief JSON へ決定論射影 (`--inventory`/`--component`/`--out`)。planner 固有キーを剥がし `specfm.SKILL_BRIEF_FIELDS` subset へ変換、実 schema 実在時は required 充足+余剰キー 0 を自己検証 |
+| `scripts/check-upstream-pins.py` | (鮮度ゲート・plan 非対象) `references/upstream-pins.json` の引用先 sha256 を再計算し、上流 (skill-creator 等) の契約級ファイル変更を event-driven に検出。in-repo は不一致 exit1 (該当マトリクス行の再監査+pin bump を同一変更で要求)、standalone は verified_at を開示 |
 | `scripts/specfm.py` | (import 専用) frontmatter 最小 YAML パーサ + phase (`PHASE_*`) / criteria / component_kind 契約 (`validate_inventory_component`) の SSOT |
 
-`check-spec-matrix-coverage.py` の分類: OP=10 (全 buildable へ機械強制) / conditional=17 (kind/feature/階層でゲート) / N-A=17 (process・reference で per-spec 焼き先キーを持たない=計数のみ)。計 44。
+`check-spec-matrix-coverage.py` の分類: OP=10 (全 buildable へ機械強制) / conditional=19 (kind/feature/階層でゲート) / N-A=17 (process・reference で per-spec 焼き先キーを持たない=計数のみ)。計 46 (内訳の機械正本は `--self-test` 出力)。

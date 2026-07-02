@@ -22,13 +22,19 @@ scripts:
     read_when: C2 quality_gates + harness を判定する時
   - id: matrix
     path: ../run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py
-    read_when: C3 整合性 (44 行被覆) を判定する時
+    read_when: C3 整合性 (マトリクス全行被覆) を判定する時
   - id: surfaces
     path: ../run-plugin-dev-plan/scripts/check-surface-inventory.py
     read_when: C2 plugin-level surface 採否と 5 種検討証跡を判定する時
   - id: handoff
     path: ../run-plugin-dev-plan/scripts/check-build-handoff.py
     read_when: C1/C4 L3→L4 routing と envelope gap を判定する時
+  - id: requirements
+    path: ../run-plugin-dev-plan/scripts/check-requirements-coverage.py
+    read_when: C2 要件被覆 (goal-spec checklist の各 id が index へ被覆) を判定する時
+  - id: runtime_portability
+    path: ../run-plugin-dev-plan/scripts/check-runtime-portability.py
+    read_when: C4 install 携帯性 (共有 script hoist + build_target 自己完結) を判定する時
   - id: runner
     path: scripts/evaluate-plan.py
     read_when: 4条件 + 全 gate を一括で plan-findings.json に集約する時

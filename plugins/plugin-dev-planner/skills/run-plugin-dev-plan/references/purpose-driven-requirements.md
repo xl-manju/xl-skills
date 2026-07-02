@@ -23,8 +23,17 @@ source-tier: internal
 
 6. **TDD 対応づけ**: Red→Green = 「未達チェックリスト項目 → goal-seek ループで埋める → 検証 exit0/PASS」。
 
+## 仕様駆動開発 (SDD) の三本柱 (本スキルへの写像)
+
+タスク仕様書は**仕様駆動開発**の正本である — 仕様が先・実装は従、という向きを植え付ける 3 要素を要件化する:
+
+1. **仕様=正本 (spec-first)**: 要件の正本は `goal-spec.json` の checklist、仕様書 (index + 13 phase) はその被覆、実装 (L4 build) は仕様書の被覆。実装との乖離が出たら**仕様を先に更新**してから build へ戻す (逆流=実装に合わせた仕様の黙認改変は禁止)。大前提として、規律の中身は skill-creator 仕様の引用で構成する (`skill-creator-spec-reflection.md` マトリクス+`upstream-pins.json`・独自流儀の発明禁止)。
+2. **要件トレーサビリティ (RTM)**: 全要件 id が index の `## 完了チェックリスト` / `## 受入確認` へ引用されること (要件 orphan=silent drop の封鎖) を `check-requirements-coverage.py` が fail-closed 機械検査する。detect-unassigned の component orphan 検査と対 (要件→計画 / 実体→計画 の双方向被覆)。
+3. **受入基準の宣言型記述 (EARS 推奨・非強制指針)**: checklist の criterion と phase 完了チェックリスト項目は、可能なら EARS 形 —「<状態/イベント> のとき、<対象> は <観測可能な結果> を満たす」(例:「同一台帳を二回同期したとき、二周目の追加/更新が 0 件である」) — で書く。トリガと観測結果を一文に固定すると verify_by の機械判定に写しやすい。床は二値判定可能性まで (EARS 形自体は機械強制しない=Goodhart 回避)。
+
 ## 本スキルへの適用
 
 - R1 (R1-elicit-goal.md) が構想から goal-spec を確定する (目的ドリブン要件定義)。
 - 本スキル自身の `## ゴールシーク実行` も上記 4 ブロック + 6 ステップで構成し、`### ゴールシーク配線` に中間成果物アンカー (`intermediate.jsonl`/`original_goal`/`merged_directive_for_next`) を配線する。
 - 量産する各 inventory component (と対応 phase ファイル) にも、上記 1-6 を「生成プラグインが満たすべき設計」として焼き込む (D1-D6 の焼き先)。
+- R3 は index `## 基本定義` に仕様駆動の大前提 (skill-creator 仕様基点・spec-first・要件正本=goal-spec) を宣言し、goal-spec checklist の全 id を `## 完了チェックリスト` / `## 受入確認` で引用する (RTM ゲートが機械強制)。

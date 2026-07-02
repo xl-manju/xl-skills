@@ -18,7 +18,7 @@ def _phase_text(specfm_mod, n: int = 3, **overrides) -> str:
             fm.pop(key, None)
         else:
             fm[key] = value
-    body = "\n# phase\n## 目的\nx\n## 実行タスク\nx\n## 成果物\nx\n## 完了条件\nx\n"
+    body = "\n# phase\n" + "".join(f"{sec}\nx\n" for sec in specfm_mod.PHASE_BODY_SECTIONS)
     return "---\n" + "\n".join(specfm_mod.yaml_lines(fm)) + "\n---" + body
 
 

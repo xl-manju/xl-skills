@@ -2,12 +2,12 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "208ea94a5db9a536764297bab06e275a5de70a30ee4ef7d75c4e9f1b6c0e7288"
+    "skill_md_sha256": "7a610cfa1ded8eccbad0fe09a76a3238d0fed56b8e48d43c77ffea76c31a3839"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-01T12:19:26Z",
+  "reviewed_at": "2026-07-02T10:10:44Z",
   "iterations": 1,
   "findings_summary": {
     "contradiction": 0,
@@ -35,19 +35,19 @@
       "RG-001"
     ],
     "positive_feedback": [
-      "proposer != approver を構造で担保: context:fork 起動 + allowed-tools から Edit を除外して評価対象 plan を物理的に read-only 化し、自作 plan への迎合採点 (Goodhart) を tool 境界で封じている。assign- prefix + role_suffix:evaluator + pair:run-plugin-dev-plan も命名で生成者/評価者分離を表現。43→44 行化 + surface 集合拡張後も invariant (context:fork 必須 / write=findings only / high 1 件で FAIL) は無改変で維持 (FM-001/NM-001 PASS)。",
-      "SSOT 規律が徹底: 8 決定論ゲート定義と global_thresholds を plan-rubric.json から読み出し (evaluate-plan.py _load_thresholds/_gate_defs)、test_gate_parity.py が runner↔rubric↔EVALS.json↔人間可読 projection(agent/SKILL Step1 bash) の forward-parity を fail-closed 強制。本 SHA で REQUIRED_PLUGIN_SURFACES へ schemas/vendor を追加 (5→7) したが specfm.PLUGIN_LEVEL_SURFACES も同期し、test_required_plugin_surfaces_parity_with_specfm が tuple 一致を維持強制。評価器価値命題 (drift 封止) と実装が完全整合 (再現性機構 genuine: pytest 11/11 PASS)。",
-      "ドキュメント altitude が適切: SKILL.md=契約サマリ (本文 ~76 行、300 行制約に余裕) / prompts/R1-evaluate.md=責務 SSOT(7層) / agents/plugin-dev-plan-evaluator.md=fork 実体の薄いアダプタ、の三層で重複定義を回避。resource-map.yaml が正本ポインタを read_when 付き集約し、44 行化 (matrix read_when=『C3 整合性 (44 行被覆) を判定する時』) も追従済 (BD-003 PASS)。",
-      "rubric 継承を正しく宣言: rubric_refs に L0(ref-skill-design-rubric 共通正本) と L2(references/plan-rubric.json 固有 4 条件) を二層明示し、評価器自身が評価基準の出所であること (kind:assign は feedback_contract.criteria を携帯しない設計) を Gotcha5/R1 で文書化。C1-C4 ラベルの inner(機械ゲート)/outer(elegant-review)二層性も SKILL.md L84 で disambiguate 済み。"
+      "FM-001/NM-001/FM-005 PASS — name=assign-plugin-plan-evaluator が ^(run|ref|assign|wrap|delegate)- prefix + kebab-case + len<=60 に適合し、dir basename と完全一致 (loader 解決可能)。assign- prefix + role_suffix:evaluator + pair:run-plugin-dev-plan が生成者/評価者分離を命名で表現。description は『生成済み plan を...評価したいとき』で動詞句始まり (FM-005)。",
+      "BD-001/BD-002/BD-003/PD-001/PD-002 PASS — body 69 行 (300 行制約に大幅な余裕・BD-003)、'## Purpose & Output Contract' 厳格一致 (BD-001) が冒頭に配置され PD-002 (冒頭30行に目的+禁則) を包含充足、'## Gotchas' で反パターン明示 (BD-002)、references/ に plan-rubric.json/four-condition-criteria.md/resource-map.yaml が存在し PD (progressive disclosure) を満たす。SKILL.md=契約サマリ / prompts/R1-evaluate.md=7層責務SSOT / agents/plugin-dev-plan-evaluator.md=fork 実体アダプタ の三層で重複定義を回避 (altitude 適切)。",
+      "FM-002/FM-003/BD-004 PASS — description に発動条件 'とき' 2 個 (2-3 スイートスポット内) + 末尾 '。'。'4条件で評価' '独立評価結果を取得' の 2 トリガが body Steps (Step1 決定論ゲート / Step4 findings 出力) と 1:1 対応し、description↔body の整合 (BD-004) を満たす。単一 skill 退化の検出という価値命題が Key Rules #4 と Gotchas #2 で body 化されている。",
+      "SSOT 規律 (再現性機構 genuine) — 8 決定論ゲート定義と global_thresholds を plan-rubric.json から読み出し (evaluate-plan.py _load_thresholds/_gate_defs)、test_gate_parity.py が runner↔rubric↔specfm↔EVALS.json↔人間可読 projection の forward-parity を fail-closed 強制。REQUIRED_PLUGIN_SURFACES (8 要素) と specfm.PLUGIN_LEVEL_SURFACES の tuple 一致も test_required_plugin_surfaces_parity_with_specfm で維持強制。rubric_refs に L0(ref-skill-design-rubric 共通正本) + L2(plan-rubric.json 固有 4 条件) を二層明示し、kind:assign が feedback_contract.criteria を携帯しない設計を Gotcha5/R1 で文書化。CI cwd から pytest 13/13 PASS 実走で機構が genuine と確認。"
     ],
     "negative_feedback": [
-      "[RG-001 low, 非ブロッキング] 出力 plan-findings.json に採点正本 plan-rubric.json の rubric_hash を埋め込まないため、rubric drift 後の verdict 期限切れを findings 成果物単体からは機械検出できない。test_gate_parity の forward-parity で部分緩和されるが、content-review-verdict の skill_md_sha256 と同等の hash 失効検知を plan-findings 側にも持たせる余地がある (前回同様の deferred)。",
-      "[low smell, 非ブロッキング] 『core 5 scripts / 6 invocations + surface inventory gate + build handoff gate』という決定論ゲート総称が SKILL.md/R1-evaluate.md/agent.md に多数 verbatim 反復。意味は正確 (合計 8 ゲート) だが命名定数化 (例: 『8 決定論ゲート』) で簡潔化の余地。加えて SKILL.md Key Rules #3 の bucket 例 'PLAN-001' は rubric に定義が無い id 形式で誤誘導 (前回 elegance でも指摘・未修正)。"
+      "[FM-004 low smell, 非ブロッキング] description の『4条件と決定論ゲートで評価』はやや動作寄りの語彙だが、FM-004 が禁ずる内部実装暴露 (採点する/JSONで返す/sha256/exit code) には該当せず、発動条件文脈での言及に留まる。company-master で確立したキャリブレーション (内部動作の暴露のみ FAIL・発動条件文脈の言及は PASS) と同様に low smell 判定。是正するなら『plan を独立評価したいとき』へ抽象化する余地。",
+      "[RG-001 low, 非ブロッキング] 出力 plan-findings.json に採点正本 plan-rubric.json の rubric_hash を埋め込まないため、rubric drift 後の verdict 期限切れを findings 成果物単体からは機械検出できない。test_gate_parity の forward-parity と本 content-review の skill_md_sha256 失効検知で部分緩和されているが、plan-findings 側にも同等の hash 失効検知を持たせる余地がある (前回同様の deferred)。加えて SKILL.md Key Rules #3 の bucket 例 'PLAN-001' は rubric に定義が無い id 形式で誤誘導 (前回も指摘・未修正)。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SHA=208ea94。kind:assign の独立評価器 (approver) として規範構成は全軸合格 (ref-skill-design-rubric, threshold 80/100, high severity 0)。本 SHA の本 skill 配下変更 (SKILL.md C3 行 43→44 / four-condition-criteria.md self-test 記述 43→44 / resource-map.yaml matrix read_when 43→44 / evaluate-plan.py REQUIRED_PLUGIN_SURFACES へ schemas,vendor 追加) を実読し、命名=assign- prefix+role_suffix:evaluator 適合・責務単一性=評価のみ (生成/ヒアリング/修正非担当を R1 Layer2.1 明示)・frontmatter 完全性=contract+script_refs/rubric_refs/schema_refs/responsibilities/agent_refs/pair/role_suffix 完備+Edit 非保持で read-only 強制、を確認。再現性機構=CI cwd (skill root) から pytest 11/11 PASS を実走 genuine、check-spec-matrix-coverage.py --self-test は 44 行 drift なし exit0。既存 verdict (SHA 4dea662) からの変更: skill_md_sha256 を 208ea94 へ更新、reviewed_at 更新、43→44 行化追従 (surface 集合 schemas/vendor 拡張下でも specfm parity 維持) を positive_feedback へ反映。findings は前回同様 high 0 / smell 2 (RG-001 rubric_hash 未埋込 + ゲート総称冗長/PLAN-001 誤例示) で不変。threshold/PASS を脅かす high は 0 で総合 PASS。"
+  "notes": "現 SKILL.md sha256=7a610cf を実測。ref-skill-design-rubric (rubric_version 1.3.0, threshold 80/100) の kind=skill 適用ルール (applies_to_kinds に 'skill' or '*' を含む FM-001..005 / BD-001..004 / NM-001 / PD-001..002 / RG-001) で採点。機械照合実測: NM-001 (dir basename==name) PASS / BD-003 (body 69 行<=300) PASS / FM-002-003 (トリガ 'とき' 2 個) PASS / BD-001 ('## Purpose & Output Contract' 1 個) PASS / BD-002 ('## Gotchas' 1 個) PASS。既存 verdict (SHA 208ea94) は『8 ゲート / surface 5→7 / 44行 / pytest 11』前提で stale だったため現物 (G1-G10 の 10 ゲート・surface 8 要素・46行マトリクス・pytest 13 passed) で再評価。再現性機構 genuine: CI cwd (skill root=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator) から python3 -m pytest -q → 13 passed 実走。全 high severity 規範 (FM-001/BD-001/BD-003/NM-001) PASS、smell は FM-004 語彙 + RG-001 rubric_hash 未埋込/PLAN-001 誤例示の low 2 件のみ。threshold 80 を脅かす high は 0 で総合 PASS。"
 }

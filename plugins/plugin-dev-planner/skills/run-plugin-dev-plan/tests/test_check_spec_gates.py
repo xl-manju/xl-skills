@@ -134,7 +134,6 @@ def test_plugin_meta_conditional_na_with_reason_ok(gates):
     pm = valid_plugin_meta(distributable=False)
     pm["pkg_contract"] = {"applicable": False, "reason": "単一 skill・PKG packaging 不要"}
     pm["governance"] = {"applicable": False, "reason": "rubric 改訂を伴わない"}
-    pm["feedback_deploy"] = {"applicable": False, "reason": "loop-kind skill 不在"}
     assert gates.check_plugin_meta(pm) == []
 
 
@@ -221,6 +220,51 @@ def test_plugin_meta_missing_required_dict(gates):
     errs = gates.check_plugin_meta(pm)
     assert any("plugin_meta.ci" in e for e in errs)
     assert any("plugin_meta.governance" in e for e in errs)
+
+
+# ─────────────────── feedback_deploy 値域検証 (core 昇格) ───────────────────
+def test_feedback_deploy_applicable_false_form_rejected(gates):
+    """core 昇格後は {applicable: false} 形の N/A を許さない (opt-out は enabled:false+reason のみ)。"""
+    pm = valid_plugin_meta(distributable=False)
+    pm["feedback_deploy"] = {"applicable": False, "reason": "loop-kind skill 不在"}
+    errs = gates.check_plugin_meta(pm)
+    assert any("feedback_deploy は core 規律" in e for e in errs)
+
+
+def test_feedback_deploy_opt_out_with_reason_ok(gates):
+    """opt-out は {enabled: false, reason: <非空>} の明示例外のみ許容。"""
+    pm = valid_plugin_meta(distributable=False)
+    pm["feedback_deploy"] = {"enabled": False, "reason": "loop-kind skill 不在で評価ループ対象外"}
+    assert gates.check_plugin_meta(pm) == []
+
+
+def test_feedback_deploy_opt_out_without_reason_fails(gates):
+    """enabled:false で reason 欠落/空は明示例外の根拠不足としてエラー。"""
+    pm = valid_plugin_meta(distributable=False)
+    pm["feedback_deploy"] = {"enabled": False}
+    errs = gates.check_plugin_meta(pm)
+    assert any("feedback_deploy.enabled:false (opt-out) は reason 非空必須" in e for e in errs)
+
+
+def test_feedback_deploy_value_domain(gates):
+    """採用時は deploy=run-skill-feedback / notion_sink.config_key 非空 / portability enum を強制。"""
+    pm = valid_plugin_meta(distributable=False)
+    pm["feedback_deploy"] = {"deploy": "other-skill", "enabled": True,
+                             "notion_sink": {"config_key": ""}, "portability": "symlink"}
+    errs = gates.check_plugin_meta(pm)
+    assert any("feedback_deploy.deploy は 'run-skill-feedback'" in e for e in errs)
+    assert any("notion_sink.config_key が非空でない" in e for e in errs)
+    assert any("portability は repo-bundled|vendored のみ" in e for e in errs)
+
+
+def test_feedback_deploy_distributable_requires_vendored(gates):
+    """distributable:true は portability=vendored を強制 (単独 install 携帯性・D6 symlink 禁止と同根)。"""
+    pm = valid_plugin_meta(distributable=True)
+    pm["feedback_deploy"]["portability"] = "repo-bundled"
+    errs = gates.check_plugin_meta(pm)
+    assert any("portability=vendored を要求" in e for e in errs)
+    # 非配布は repo-bundled のままで良い (valid_plugin_meta(distributable=False) の既定)
+    assert gates.check_plugin_meta(valid_plugin_meta(distributable=False)) == []
 
 
 # ─────────────────── main 統合 (index plugin_meta + inventory) ───────────────────

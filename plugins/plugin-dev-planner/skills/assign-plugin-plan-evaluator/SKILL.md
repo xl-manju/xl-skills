@@ -26,7 +26,7 @@ contract:
     - 必ず context:fork で起動し、親 (architect / orchestrator) の解釈バイアスを引き継がないこと
     - 評価対象 plan を書き換えず findings の出力のみ行うこと (write=findings only、Goodhart 防止)
     - 4条件 verdict を全付与し、空 findings を残さない (PASS でも info を 1 件以上) こと
-    - 決定論ゲート (core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code) を一次根拠とし、自然言語で PASS 判定しないこと
+    - plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code を一次根拠とし、自然言語で PASS 判定しないこと
     - high severity が 1 件でもあれば全体を FAIL とすること
 since: 2026-06-30
 script_refs:
@@ -37,6 +37,7 @@ script_refs:
   - ../run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py
   - ../run-plugin-dev-plan/scripts/check-surface-inventory.py
   - ../run-plugin-dev-plan/scripts/check-build-handoff.py
+  - ../run-plugin-dev-plan/scripts/check-requirements-coverage.py
   - scripts/evaluate-plan.py
 rubric_refs:
   - ref-skill-design-rubric              # L0: 共通設計 rubric (skill-creator 正本, 固定)
@@ -70,18 +71,18 @@ role_suffix: evaluator
 
 **入力**: plan_dir (評価対象 plan ディレクトリ = `index.md` + 13 phase files (`phase-01-*.md` … `phase-13-*.md`) + `component-inventory.json` 機械SSOT + `handoff-run-plugin-dev-plan.json`) / output (省略時 `<PLAN_DIR>/plan-findings.json`)
 **出力**: `<PLAN_DIR>/plan-findings.json` (`schemas/plan-findings.schema.json` 準拠)
-**完了条件**: 4条件 verdict 全付与 + findings[] に severity 配列 + core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の gate_results。
+**完了条件**: 4条件 verdict 全付与 + findings[] に severity 配列 + plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の gate_results。
 
 ## 4条件 評価軸 (R4 の独立 skill 昇格)
 
 | Gate | 観点 | 一次根拠 (決定論ゲート) |
 |---|---|---|
 | **C1 矛盾なし** | component_kind / handoff / manifest / harness の契約が衝突しない | 意味判定 (script では捕捉不能、契約間突合) |
-| **C2 漏れなし** | 5 種 component_kind × N 実体 + plugin-level surface を必要性ベースで全確認 (同一 kind 複数実体可・各 component が ≥1 phase の entities_covered に出現)・単一 skill 退化なし | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` exit0 |
-| **C3 整合性あり** | 用語 / frontmatter / plugin_meta / quality_gates が同一語彙・44 行被覆 | `check-spec-matrix-coverage --self-test` / PLAN exit0 |
-| **C4 依存関係整合** | index が P01..P13 を phase_number 昇順で全列挙・inventory component DAG 非循環・orphan 0 | `verify-index-topsort` / `detect-unassigned` exit0 |
+| **C2 漏れなし** | 5 種 component_kind × N 実体 + plugin-level surface を必要性ベースで全確認 (同一 kind 複数実体可・各 component が ≥1 phase の entities_covered に出現)・単一 skill 退化なし | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` / `check-requirements-coverage` exit0 |
+| **C3 整合性あり** | 用語 / frontmatter / plugin_meta / quality_gates が同一語彙・マトリクス全行被覆 (行数正本=skill-creator-spec-reflection.md) | `check-spec-matrix-coverage --self-test` / PLAN exit0 |
+| **C4 依存関係整合** | index が P01..P13 を phase_number 昇順で全列挙・inventory component DAG 非循環・orphan 0 | `verify-index-topsort` / `detect-unassigned` / `check-build-handoff` / `check-runtime-portability` exit0 |
 
-> **C1-C4 ラベルの二層性 (語彙 disambiguate)**: 本 skill の C1-C4 は **inner の機械ゲート** (決定論 core 5 scripts + surface inventory gate + build handoff gate による plan の構造検証)。`run-plugin-dev-plan` が昇格前に通す `run-elegant-review` の C1-C4 は **outer の設計レビュー** (30 思考法による elegance lint)。両者は同じ 4 概念 (矛盾なし/漏れなし/整合性あり/依存関係整合) を**別 loop-scope・別手法で二段検証する意図的な階層**であり、冗長ではない。同一ラベルが指すゲートは文脈で異なる (本 skill=inner / elegant-review=outer)。
+> **C1-C4 ラベルの二層性 (語彙 disambiguate)**: 本 skill の C1-C4 は **inner の機械ゲート** (plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) による plan の構造検証)。`run-plugin-dev-plan` が昇格前に通す `run-elegant-review` の C1-C4 は **outer の設計レビュー** (30 思考法による elegance lint)。両者は同じ 4 概念 (矛盾なし/漏れなし/整合性あり/依存関係整合) を**別 loop-scope・別手法で二段検証する意図的な階層**であり、冗長ではない。同一ラベルが指すゲートは文脈で異なる (本 skill=inner / elegant-review=outer)。
 
 ## Key Rules
 
@@ -99,16 +100,9 @@ role_suffix: evaluator
 
 ### Step 1: 決定論ゲート (script、一次根拠)
 ```bash
-SKILL_DIR=plugins/plugin-dev-planner/skills/run-plugin-dev-plan
 EVALUATOR_DIR=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator
-python3 "$SKILL_DIR/scripts/verify-index-topsort.py" "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json"
-python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json"
+# 全 plan-scoped 決定論ゲート (G1-G10) を束ねて実行し plan-findings.json を出力
+# (個別ゲート一覧の可読正本は run-plugin-dev-plan/references/io-contract.md §11 表)
 python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 ```
 
@@ -119,7 +113,7 @@ python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 `scripts/evaluate-plan.py` は決定論ゲートと plugin-level surface 明示性だけを機械判定する。C1 の契約衝突や単一 skill 退化の意味判定は、本 assign skill の LLM 評価レイヤーで `plan-rubric.json` の `semantic_checks` を読んで追加 finding として扱う。
 
 ### Step 4: findings 出力
-`schemas/plan-findings.schema.json` 準拠で `<PLAN_DIR>/plan-findings.json` を Write。verdict に 4 条件 PASS/FAIL、gate_results に core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code。
+`schemas/plan-findings.schema.json` 準拠で `<PLAN_DIR>/plan-findings.json` を Write。verdict に 4 条件 PASS/FAIL、gate_results に plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code。
 
 ## Gotchas
 

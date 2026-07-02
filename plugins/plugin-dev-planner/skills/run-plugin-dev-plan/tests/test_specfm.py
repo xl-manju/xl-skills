@@ -200,10 +200,10 @@ def test_contract_tables_present(specfm_mod):
 
 
 def test_plugin_level_surfaces_include_schemas_vendor(specfm_mod):
-    """PLUGIN_LEVEL_SURFACES が schemas / vendor を含む 7 面 (配布携帯性の面を追加)。"""
+    """PLUGIN_LEVEL_SURFACES が schemas / vendor / notion_config を含む 8 面 (feedback+Notion 連携面を追加)。"""
     assert set(specfm_mod.PLUGIN_LEVEL_SURFACES) == {
         "manifest", "composition", "harness_eval", "references_config_assets",
-        "schemas", "vendor", "mcp_app_connector",
+        "schemas", "vendor", "mcp_app_connector", "notion_config",
     }
 
 
@@ -304,11 +304,11 @@ def test_validate_component_skill_placement_script_needs_scripts_dir(specfm_mod)
 
 
 def test_plugin_meta_core_conditional_partition(specfm_mod):
-    """core/conditional が従来 7 キーを重複なく分割する (後方互換=和集合不変)。"""
+    """core/conditional が従来 7 キーを重複なく分割する (feedback_deploy は core 昇格・和集合不変)。"""
     core = set(specfm_mod.PLUGIN_META_CORE_DICTS)
     cond = set(specfm_mod.PLUGIN_META_CONDITIONAL_DICTS)
-    assert core == {"manifest", "marketplace", "ci"}
-    assert cond == {"pkg_contract", "governance", "ssot_dedup", "feedback_deploy"}
+    assert core == {"manifest", "marketplace", "ci", "feedback_deploy"}
+    assert cond == {"pkg_contract", "governance", "ssot_dedup"}
     assert core.isdisjoint(cond)
     assert core | cond == set(specfm_mod.PLUGIN_META_REQUIRED_DICTS)
 
@@ -389,12 +389,27 @@ def test_render_spec_skeleton_kind_cli(skeleton, specfm_mod, capsys):
     assert specfm_mod.validate_inventory_component(comp) == []
 
 
-def test_render_spec_skeleton_phase_cli(skeleton, specfm, capsys):
+def test_render_spec_skeleton_phase_cli(skeleton, specfm, specfm_mod, capsys):
     assert skeleton.main(["--phase", "3"]) == 0
     out = capsys.readouterr().out
     assert "id: P03" in out
-    assert "## 実行タスク" in out
+    for sec in specfm_mod.PHASE_BODY_SECTIONS:  # §5 宣言型 8 節が全て在る
+        assert sec in out
     assert specfm.check_phase(out) == []
+
+
+def test_render_spec_skeleton_index_cli(skeleton, topsort, specfm_mod, capsys):
+    assert skeleton.main(["--index", "--plugin-slug", "notion-task-sync"]) == 0
+    out = capsys.readouterr().out
+    assert "notion-task-sync" in out
+    # §9 基盤層+全体制御 section 床を全て備え verify-index-topsort の層0 床を通る
+    for sec in specfm_mod.INDEX_REQUIRED_SECTIONS:
+        assert sec in out
+    body = topsort.body_after_frontmatter(out)
+    assert topsort.index_section_floor_errors(body) == []
+    # フェーズ一覧が P01..P13 を昇順全列挙する (層1 も満たす)
+    ordered, has_section = topsort.extract_phase_list_ids(body)
+    assert has_section and ordered == topsort.expected_phase_ids()
 
 
 # ─────────────────── 13 フェーズ定義 (per-phase 転換の ADD) ───────────────────
@@ -450,11 +465,26 @@ def test_minimal_phase_frontmatter(specfm_mod):
 def test_render_minimal_phase(specfm_mod):
     text = specfm_mod.render_minimal_phase(5)
     assert "id: P05" in text
-    for sec in ("## 目的", "## 実行タスク", "## 成果物", "## 完了条件"):
+    for sec in specfm_mod.PHASE_BODY_SECTIONS:  # 宣言型 8 節 (SSOT)
         assert sec in text
+    # 宣言型方針で排した手続き節は skeleton に現れない
+    assert "## 実行タスク" not in text
     # frontmatter が再パースできて PHASE_REQUIRED を満たす
     fm = specfm_mod.parse_frontmatter(text)
     assert all(k in fm for k in specfm_mod.PHASE_REQUIRED)
+
+
+def test_render_minimal_index(specfm_mod):
+    text = specfm_mod.render_minimal_index(plugin_slug="notion-task-sync")
+    assert "notion-task-sync" in text
+    for sec in specfm_mod.INDEX_REQUIRED_SECTIONS:  # 基盤層+全体制御 7 節 (SSOT)
+        assert sec in text
+    # フェーズ一覧が P01..P13 を昇順列挙する
+    for n in range(1, 14):
+        assert specfm_mod.phase_id(n) in text
+    # plugin_meta frontmatter が再パースできる
+    fm = specfm_mod.parse_frontmatter(text)
+    assert isinstance(fm.get("plugin_meta"), dict)
 
 
 # ─────────────────── validate_inventory_component (ADD) ───────────────────
@@ -466,7 +496,10 @@ def _skill_component(specfm_mod, **over) -> dict:
         "placement_candidates": ["Skill"], "cli_tools": [], "deterministic_checks": [],
         "external_systems": [], "mcp_tools": [], "needs_independent_context": False,
         "needs_lifecycle_enforcement": False, "goal": "台帳を同期し差分0", "purpose_background": "bg",
-        "checklist": ["同期"], "responsibilities": ["R1"], "prompt_layer": "7layer",
+        "checklist": ["同期"],
+        # skill-brief.schema allOf (kind∈{run,assign}) の shape: object 配列 + prompt_required:true ≥1 件。
+        "responsibilities": [{"id": "R1", "summary": "台帳同期を実装可能な入力へ落とす", "prompt_required": True}],
+        "prompt_layer": "7layer",
         "combinators": ["with-goal-seek"], "goal_seek": {"engine": "inline"},
         "feedback_contract": {"criteria": [
             {"id": "IN1", "loop_scope": "inner", "text": "同期の必須キーを検証", "verify_by": "script"},

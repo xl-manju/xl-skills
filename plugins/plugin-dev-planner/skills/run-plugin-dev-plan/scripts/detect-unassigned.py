@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: detect-unassigned
-# purpose: 13 フェーズファイル(P01..P13)が全存在し §5 section 床(目的/実行タスク/成果物/完了条件)を満たすこと、各 inventory component が >=1 phase の entities_covered に出現(orphan 防止)し build_target 非空であることを検証する決定論ゲート。
+# purpose: 13 フェーズファイル(P01..P13)が全存在し §5 section 床(specfm.PHASE_BODY_SECTIONS=目的/背景/前提条件/ドメイン知識/成果物/スコープ外/完了チェックリスト/参照情報)を満たすこと、各 inventory component が >=1 phase の entities_covered に出現(orphan 防止)し build_target 非空であることを検証する決定論ゲート。
 # inputs:
 #   - argv: --inventory FILE --specs-dir DIR
 # outputs:
@@ -18,8 +18,10 @@
 
 per-phase 転換 (凍結契約 §5/§8/§13-C2):
   (a) 13 フェーズファイル (P01..P13) が全存在し、各ファイルが §5 section 床
-      (## 目的 / ## 実行タスク / ## 成果物 / ## 完了条件 の見出し + 直後の非空本文) を満たす。
-      applicability.applicable == false の phase は section 床を免除する。
+      (specfm.PHASE_BODY_SECTIONS の全見出し + 各直後の非空本文) を満たす。宣言型の仕様書標準
+      セクション = 目的/背景/前提条件/ドメイン知識/成果物/スコープ外/完了チェックリスト/参照情報
+      (手続き的な実行タスクは宣言型方針ゆえ排除)。applicability.applicable == false の phase は
+      section 床を免除する。
   (b) component-inventory.json の各 component が >=1 phase の entities_covered に出現する
       (orphan 防止) + build_target が非空 (L3 計画 → L4 実体化先の追跡)。
 
@@ -36,8 +38,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import specfm  # noqa: E402
 
-# §5 phase 本文 section 契約 (床のみ機械強制・意味は下流トラスト)。
-REQUIRED_SECTIONS = ("## 目的", "## 実行タスク", "## 成果物", "## 完了条件")
+# §5 phase 本文 section 契約 (床のみ機械強制・意味は下流トラスト)。宣言型の仕様書標準
+# セクション集合は specfm.PHASE_BODY_SECTIONS を単一正本とする (目的/背景/前提条件/
+# ドメイン知識/成果物/スコープ外/完了チェックリスト/参照情報)。
+REQUIRED_SECTIONS = specfm.PHASE_BODY_SECTIONS
 
 
 def expected_phase_filename(phase_number: int) -> str:

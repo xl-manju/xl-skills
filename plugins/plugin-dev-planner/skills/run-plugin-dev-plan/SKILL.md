@@ -38,8 +38,12 @@ script_refs:
   - scripts/check-spec-matrix-coverage.py
   - scripts/check-surface-inventory.py
   - scripts/check-build-handoff.py
+  - scripts/check-requirements-coverage.py
+  - scripts/check-runtime-portability.py
   - scripts/check-plugin-surface-audit.py
+  - scripts/check-upstream-pins.py
   - scripts/render-spec-skeleton.py
+  - scripts/render-skill-brief.py
   - scripts/specfm.py
 reference_refs:
   - references/component-domain.md
@@ -96,19 +100,19 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/skill-creator/scripts/f
 
 # run-plugin-dev-plan
 
-> **配布注記**: 本 skill の cross-skill `reference_refs` (`../../../skill-creator/...goal-seek-paradigm.md`) は repo-bundled 前提。plugin-dev-planner は `distributable:false` フラグで marketplace/bundles へ登録しない (`scripts/validate-plugin-completeness.py` が distributable:false プラグインの非登録を機械強制)。これは単一フラグによる非配布であり、`NEVER_DISTRIBUTE` denylist による二重ロック (skill-creator/prompt-creator 専用) とは別。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。
+> **配布注記**: 本 skill の cross-skill `reference_refs` (`../../../skill-creator/...goal-seek-paradigm.md`) は repo-bundled 前提。plugin-dev-planner は `distributable:false` フラグで marketplace/bundles へ登録しない (`scripts/validate-plugin-completeness.py` が distributable:false プラグインの非登録を機械強制)。加えて plugin-dev-planner は `NEVER_DISTRIBUTE` denylist (`validate-plugin-completeness.py`) にも登録済みで、フラグが true へ漂流しても固有名検査が fail-closed で配布を阻止する二重ロック。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。また standalone 配布時は repo 側の schema parity テスト網 (upstream 突合) が skip され drift を検知しないため、repo-bundled 運用を既定とする。
 
 ## 目的と出力契約
 
-プラグイン構想 1 件を、目的ドリブンで **2 軸直交** (ライフサイクル軸=13 フェーズ / 成果物実体軸=N 個の buildable component) に分解し、`run-skill-create` が段階実行できる **index(main) + 13 フェーズファイル + component-inventory.json** に変換する前段の計画スキル。フェーズファイルは上から順に読める実行可能タスク仕様 (人間向け primary deliverable)、`component-inventory.json` は buildable 実体の build routing・依存 DAG・評価基準を保持する唯一の機械 SSOT、index は plugin-creator の manifest / marketplace / cachebuster / validation 契約を `plugin_meta` で携帯する。両軸は build_target/depends_on を二重に持たず (正規化)、component は `entities_covered: [C01, ...]` の id 参照だけでフェーズに紐づく。
+プラグイン構想 1 件を、目的ドリブンで **2 軸直交** (ライフサイクル軸=13 フェーズ / 成果物実体軸=N 個の buildable component) に分解し、`run-skill-create` が段階実行できる **index(main) + 13 フェーズファイル + component-inventory.json** に変換する前段の計画スキル。フェーズファイルは上から順に読める宣言型タスク仕様 (8 節・人間向け primary deliverable)、`component-inventory.json` は buildable 実体の build routing・依存 DAG・評価基準を保持する唯一の機械 SSOT、index は plugin-creator の manifest / marketplace / cachebuster / validation 契約を `plugin_meta` で携帯する。両軸は build_target/depends_on を二重に持たず (正規化)、component は `entities_covered: [C01, ...]` の id 参照だけでフェーズに紐づく。
 
 - **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)、`--mode create|update`、任意 `--out-dir <path>`。
 - **出力**: **決定論的に解決される可視・永続の plan ディレクトリ** (既定 `plugin-plans/<plugin-slug>/`・`--out-dir` で上書き・正本 `references/io-contract.md` §9) へ (1) `goal-spec.json` (2) **13 フェーズファイル `phase-01-requirements.md` … `phase-13-release.md`** (フェーズ 1 段階=1 ファイル・§2 frontmatter + §5 本文) (3) `index.md`(main) = P01..P13 を phase_number 昇順で列挙した目次 + 全体完了条件 + 受入確認 (4) **`component-inventory.json`** (buildable 実体の唯一の SSOT・品質機構を component エントリへ焼く) (5) `handoff-run-plugin-dev-plan.json` / `plan-findings.json`。同一構想は常に同一出力先 (再現性)。deliverable は tracked、goal-seek transient (progress/intermediate) のみ gitignore。
-- **完了条件**: `check-plugin-goal-spec.py` が R1 goal-spec + plugin 固有アンカーを検証し、同梱 core 5 scripts / 6 invocations が全 exit0 (index が P01..P13 全列挙 + inventory DAG 非循環 / unassigned 0 件=各 component が ≥1 phase に出現 / 13 phase frontmatter+section 床 + inventory component の criteria・harness≥80% 携帯 / plugin_meta 値域 / 44 行反映 self-test + PLAN) に加え、`check-surface-inventory.py` が 5種検討証跡と plugin-level surface 採否を、`check-build-handoff.py` が `handoff-run-plugin-dev-plan.json` の build routing (inventory 由来) / `build_kind` / `build_args` / manifest draft を、`check-plugin-surface-audit.py` が `plugins/` 配下の現物 surface 棚卸しを exit0 検証する。skill-creator 仕様 44 行と plugin-creator 物理契約が反映され、elegant-review C1-C4 全 PASS の設計が記述されている。
+- **完了条件**: 同梱 core 5 scripts / 6 invocations が全 exit0 (index が P01..P13 全列挙 + inventory DAG 非循環 / unassigned 0 件=各 component が ≥1 phase に出現 / 13 phase frontmatter+section 床 + inventory component の criteria・harness≥80% 携帯 / plugin_meta 値域 / 46 行反映 self-test + PLAN) に加え、拡張ゲート 6 本 — `check-plugin-goal-spec.py` (R1 goal-spec + plugin 固有アンカー)、`check-requirements-coverage.py` (SDD 要件トレーサビリティ=goal-spec checklist の各 id が index 完了チェックリスト/受入確認へ被覆)、`check-surface-inventory.py` (5種検討証跡 + plugin-level surface 採否)、`check-build-handoff.py` (`handoff-run-plugin-dev-plan.json` の build routing (inventory 由来) / `build_kind` / `build_args` / manifest draft)、`check-runtime-portability.py` (共有 script hoist + build_target 自己完結の install 携帯性)、`check-plugin-surface-audit.py` (`plugins/` 配下の現物 surface 棚卸し) — が exit0 検証する (呼称 2 層=core 5+拡張ゲート・総数と一覧の単一正本は `references/io-contract.md` §11 表)。skill-creator 仕様 46 行と plugin-creator 物理契約が反映され、elegant-review C1-C4 全 PASS の設計が記述されている。
 
 ## 13 フェーズ写像 (ライフサイクル軸・成果物 primary deliverable)
 
-ファイル軸は**13 フェーズ固定**。従来の機能開発 Phase 1-13 をプラグイン開発ドメインへ 1:1 写像し (UBM 固有物は DROP/REPLACE)、各フェーズ = 1 Markdown `phase-NN-<kebab>.md` を上から順に読める実行可能タスク仕様として出力する。正本は `references/phase-lifecycle.md` §8、id/kebab/category/gate_type の実行可能正本は `scripts/specfm.py` の `PHASE_*` dict + `schemas/phase-spec.schema.json`。
+ファイル軸は**13 フェーズ固定**。従来の機能開発 Phase 1-13 をプラグイン開発ドメインへ 1:1 写像し (UBM 固有物は DROP/REPLACE)、各フェーズ = 1 Markdown `phase-NN-<kebab>.md` を上から順に読める宣言型タスク仕様 (8 節・本文床の正本=`specfm.PHASE_BODY_SECTIONS`、人間可読表=`references/io-contract.md` §5) として出力する。正本は `references/phase-lifecycle.md` §8、id/kebab/category/gate_type の実行可能正本は `scripts/specfm.py` の `PHASE_*` dict + `schemas/phase-spec.schema.json`。
 
 | # | id | phase_name | 日本語 | category | gate_type |
 |---|---|---|---|---|---|
@@ -140,7 +144,7 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/skill-creator/scripts/f
 2. **5 種の component_kind × N 実体を inventory へ分解 (skill 偏重を解消)**: 各 buildable 実体を skill/sub-agent/slash-command/hook/script の 5 種のいずれかへ写像し `component-inventory.json` の `components[]` に `component_kind` 宣言 + kind 別構造キーで載せる。**同一 kind の複数実体 (skill 複数・agent 複数 等) はそれぞれ独立 component** にする (1 実体 = 1 component = 1 build_target の shadow-tree 同型)。加えて plugin-level surface として harness/eval、plugin manifest、plugin-composition、references/config/assets の要否を index の `plugin_meta` と inventory の `plugin_level_surfaces` に記録する。buildable 実体数 N は対象プラグインが持つ実体の数に依存して変動し (13 フェーズ数とは独立)、実プラグインでは自然に 10 実体超になる。正本 `references/component-domain.md` / `references/io-contract.md`。
 3. **2 軸を二重に持たない (正規化)**: ライフサイクル軸=13 phase ファイル (人間向け・上から順に読める)、成果物実体軸=`component-inventory.json` (機械 SSOT・build routing/DAG/品質機構)。build_target/depends_on は inventory のみが持ち、phase ファイルは再記述せず `entities_covered: [C01, ...]` の id 参照だけで component に紐づく。plugin 階層の横断規律は `index.md` の `plugin_meta` に集約する。
 4. **plugin-creator 物理契約を index に集約**: `.claude-plugin/plugin.json`、manifest name と folder name の一致、TODO placeholder 禁止、personal marketplace default、policy.installation/authentication/category、update cachebuster、`validate-plugin-completeness.py` 実行を `plugin_meta` に焼く。正本 `references/plugin-creator-contract.md`。
-5. **評価基準を inventory component エントリへ operationalize**: 全 buildable component が core 規律 `quality_gates`(p0_lint(kind別)/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) + `harness_coverage`(block: min≥80/kind_pass) を携帯し `check-spec-gates.py` が inventory を走査して機械検証する。参照ポインタでなく具体キーへ焼く。条件付き規律 (feedback_contract criteria/goal_seek/prompt_layer/knowledge_loop/combinators) は kind/feature でゲート、plugin 階層規律 (manifest/marketplace/配布/bundles/PKG/governance/CI/SSOT) は index の `plugin_meta` へ焼く。焼き先正本は `references/skill-creator-spec-reflection.md` の 44 行マトリクス (operationalize 状況は `check-spec-matrix-coverage.py` が検査)。**品質ゲートだけでなく成果物評価 (purpose-acceptance) も焼く**: skill loop kind の `feedback_contract.criteria` は当該 component の goal/checklist 由来 (汎用ゲート言い換えへの退化を `check-spec-frontmatter.py` の purpose-traceability が機械検出)、index に「受入確認 (build 後の見方)」章を持たせ build 後に「組み上がった実プラグインが purpose を満たすか」を確認できる trace を通す (実行は L4・plan は契約として焼くのみ)。正本 `references/io-contract.md` §10「成果物評価の境界」。
+5. **評価基準を inventory component エントリへ operationalize**: 全 buildable component が core 規律 `quality_gates`(p0_lint(kind別)/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) + `harness_coverage`(block: min≥80/kind_pass) を携帯し `check-spec-gates.py` が inventory を走査して機械検証する。参照ポインタでなく具体キーへ焼く。条件付き規律 (feedback_contract criteria/goal_seek/prompt_layer/knowledge_loop/combinators) は kind/feature でゲート、plugin 階層規律 (manifest/marketplace/配布/bundles/PKG/governance/CI/SSOT) は index の `plugin_meta` へ焼く。焼き先正本は `references/skill-creator-spec-reflection.md` の 46 行マトリクス (operationalize 状況は `check-spec-matrix-coverage.py` が検査)。**品質ゲートだけでなく成果物評価 (purpose-acceptance) も焼く**: skill loop kind の `feedback_contract.criteria` は当該 component の goal/checklist 由来 (汎用ゲート言い換えへの退化を `check-spec-frontmatter.py` の purpose-traceability が機械検出)、index に「受入確認 (build 後の見方)」章を持たせ build 後に「組み上がった実プラグインが purpose を満たすか」を確認できる trace を通す (実行は L4・plan は契約として焼くのみ)。正本 `references/io-contract.md` §10「成果物評価の境界」。
 6. **現状数値非焼込**: 「≥80% を満たす設計」を要件化し、harness 現状未達数値は component エントリへ焼かない (Goodhart 回避)。
 7. **schema parity**: skill component は `skill-brief.schema.json` 主要 14 フィールド相当へ無加工で写せる粒度にする (`references/io-contract.md`)。
 8. **配置非依存・変数化・install 携帯性**: 具体値は直書きせず `{{PROJECT_ROOT}}`/`$CLAUDE_PLUGIN_ROOT`/self-relative で表現する。Python 標準ライブラリ正本 (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。共有 script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist し (**≥2 skill consumer は plugin-root 必須**)、cross-plugin SSOT は vendoring/self-derive で携帯する (`check-runtime-portability.py` が強制・詳細は `references/io-contract.md`「配布・.claude 反映・install 携帯性」)。
@@ -172,10 +176,11 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/skill-creator/scripts/f
 - [ ] skill loop kind の criteria が当該 component の goal/checklist 由来 (purpose-acceptance) で汎用ゲート言い換えに退化していない + index に「受入確認 (build 後の見方)」章がある (成果物評価の operationalize)
 - [ ] index が P01..P13 を phase_number 昇順で全列挙し plugin_meta (plugin 階層規律) を持つ
 - [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件) し全 phase ファイルが frontmatter+section 床を満たす
-- [ ] R4: 適用される skill-creator 仕様 44 行の焼き先が反映され、elegant-review C1-C4 全 PASS の設計が記述されている
+- [ ] R4: 適用される skill-creator 仕様 46 行の焼き先が反映され、elegant-review C1-C4 全 PASS の設計が記述されている
 - [ ] 同梱 core 5 scripts / 6 invocations (`verify-index-topsort` / `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage --self-test` / `check-spec-matrix-coverage PLAN`) が全 exit0
 - [ ] `check-surface-inventory.py <PLAN_DIR>/component-inventory.json` が exit0 で、5種検討証跡と plugin-level surface 採否が検証済み
 - [ ] `check-build-handoff.py <PLAN_DIR>/handoff-run-plugin-dev-plan.json` が exit0 で、各 component の builder / build_kind / build_args / build_target / envelope draft/gap が検証済み
+- [ ] `check-runtime-portability.py <PLAN_DIR>` が exit0 で、共有 script の plugin-root hoist と build_target の plugin 内自己完結 (install 携帯性・F8) が検証済み
 - [ ] plugin-dev-planner 自身の dogfood では `check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner` が exit0 で、現物 plugin surface が横断棚卸し済み
 
 ### ゴールシークループ
@@ -183,7 +188,7 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/skill-creator/scripts/f
 正本 `goal-seek-paradigm.md` の 6 ステップ (現状評価→手順生成→実行→検証→Anchor Step→反復/差し戻し) に従う。本スキル固有の差分:
 
 - 現状評価は上記チェックリストの未達項目を対象にし、それを埋める局面を下記「局面カタログ」から選ぶ (順序は都度判断)。
-- 検証は決定論検査 (同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code) を優先する。
+- 検証は決定論検査 (同梱 core 5 scripts / 6 invocations + 拡張ゲートの exit code・一覧の正本は `references/io-contract.md` §11 表) を優先する。
 - ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
 - ループ本体は親セッションで直接回さず `Agent` ツールで SubAgent に fork し、親へは最終成果物パスと handoff 要約のみ返す。R*.md は prompt 正本 (SSOT) として維持し、plugin root の 3 agent (`agents/plugin-dev-plan-{elicitor,architect,evaluator}.md`) を **prompt-creator 仕様準拠の薄いアダプタ**として使う (各 agent は owner_skill=run-plugin-dev-plan / responsibility_id で SSOT を指し、本文に責務を重複定義しない)。R 責務と 1:1 対応: **elicitor=R1** (goal-spec 確定・`isolation:inherit` で会話履歴保持。R1 は推定に親 context を要するため fork しない)、**architect=R2/R3** (component 分解 + 13 phase ファイル + inventory 生成・`isolation:fork`)。**R4 (4条件と決定論ゲートの独立評価) は独立 skill `assign-plugin-plan-evaluator` (kind=assign) へ委譲し**、その R1(evaluate) を **evaluator agent** (`isolation:fork`/read-only) が fork 実行する (proposer≠approver を skill 分離で構造保証)。pipeline は elicitor→architect→(assign-plugin-plan-evaluator→)evaluator の単方向 handoff。Bash 依存検証は親が実行し結果を fork 先へ事実として渡す (背景 SubAgent は権限承認待ちで停止しうるため)。
 
@@ -225,10 +230,11 @@ python3 "$SKILL_DIR/scripts/verify-index-topsort.py" "$PLAN_DIR"
 python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"
 python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"   # component_kind 別構造 + core 規律
 python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"          # quality_gates + harness 深掘り
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test            # 44 行 table drift
+python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test            # 46 行 table drift
 python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"            # 適用行の焼き先反映 + OP/conditional/N-A 内訳
 python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json" # 5種検討証跡 + surface 採否
 python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json" # L3→L4 routing / build_kind / manifest draft
+python3 "$SKILL_DIR/scripts/check-runtime-portability.py" "$PLAN_DIR"              # install 携帯性 (共有 script hoist + build_target 自己完結)
 # plugin-dev-planner 自身の dogfood (現物 surface 横断棚卸し・PLAN_DIR でなく plugins/ を対象)
 python3 "$SKILL_DIR/scripts/check-plugin-surface-audit.py" --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner
 ```
@@ -247,19 +253,19 @@ python3 "$SKILL_DIR/scripts/check-plugin-surface-audit.py" --plugins-dir plugins
 
 ### 局面: 13 phase ファイル + index + inventory 生成 (R3)
 
-`prompts/R3-emit-specs.md`。13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) を §2 frontmatter (`PHASE_REQUIRED`) + §5 本文 (目的/実行タスク/成果物/完了条件) で生成し、各 inventory component へ core 規律 (quality_gates/harness block) + 条件付き規律 (feedback_contract/goal_seek/prompt_layer 等) を焼く。index(main) に P01..P13 phase_number 昇順の目次 + `plugin_meta` (plugin 階層規律) + 受入確認章を焼く。キー契約は `references/io-contract.md`、焼き先正本は `references/skill-creator-spec-reflection.md` の 44 行。
+`prompts/R3-emit-specs.md`。13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) を §2 frontmatter (`PHASE_REQUIRED`) + §5 本文 (宣言型 8 節・正本=`specfm.PHASE_BODY_SECTIONS`、人間可読表=`references/io-contract.md` §5) で生成し、各 inventory component へ core 規律 (quality_gates/harness block) + 条件付き規律 (feedback_contract/goal_seek/prompt_layer 等) を焼く。index(main) に P01..P13 phase_number 昇順の目次 + `plugin_meta` (plugin 階層規律) + 受入確認章を焼く。キー契約は `references/io-contract.md`、焼き先正本は `references/skill-creator-spec-reflection.md` の 46 行。
 
 ### 局面: トレーサビリティ検証 (R4)
 
-`prompts/R4-verify-traceability.md` (評価ロジックの正本は独立 skill `assign-plugin-plan-evaluator` の `prompts/R1-evaluate.md` へ昇格)。**R4 は `assign-plugin-plan-evaluator` (kind=assign・user-invocable:false・context:fork) へ委譲**し、同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を実行して index の P01..P13 完全性 + inventory DAG・unassigned 0 件 (orphan 0)・component_kind 別構造・quality_gates/harness・44 行 operationalize 被覆 (OP/conditional/N-A 内訳)・5種検討証跡・L3→L4 routing/build_kind/build_args・manifest draft を機械検証する (自然言語突合しない)。評価器は plan を書き換えず `<PLAN_DIR>/plan-findings.json` のみ返す (proposer≠approver)。NG は R3 へ差し戻す (最大 3 周)。
+`prompts/R4-verify-traceability.md` (評価ロジックの正本は独立 skill `assign-plugin-plan-evaluator` の `prompts/R1-evaluate.md` へ昇格)。**R4 は `assign-plugin-plan-evaluator` (kind=assign・user-invocable:false・context:fork) へ委譲**し、同梱 core 5 scripts / 6 invocations + 拡張ゲート (io-contract §11 表) を実行して index の P01..P13 完全性 + inventory DAG・unassigned 0 件 (orphan 0)・component_kind 別構造・quality_gates/harness・46 行 operationalize 被覆 (OP/conditional/N-A 内訳)・5種検討証跡・L3→L4 routing/build_kind/build_args・manifest draft・install 携帯性を機械検証する (自然言語突合しない)。評価器は plan を書き換えず `<PLAN_DIR>/plan-findings.json` のみ返す (proposer≠approver)。NG は R3 へ差し戻す (最大 3 周)。
 
 ## ハンドオフ (component_kind でルーティング)
 
 routes[] は `component-inventory.json` の `components[]` から導出する (phase からではない=build は component 単位)。
 
-- **skill component** → `run-skill-create`(L1) へ 1 本ずつ投入し L4 実 build を委譲 (run-skill-create は skill 専用)。
+- **skill component** → `run-skill-create`(L1) へ 1 本ずつ投入し L4 実 build を委譲 (run-skill-create は skill 専用。投入 brief は `scripts/render-skill-brief.py` が inventory component から決定論射影し routes[].build_args の `brief_path` で渡す)。
 - **sub-agent / slash-command / hook component** → `run-build-skill` の Capability kind dispatch で生成 (sub-agent→`kind=agent` または `--with-subagent` / slash-command→`kind=command` / hook→`kind=hook` または `--with-hooks`)。run-build-skill の 7 kind = skill/agent/hook/command/plugin-composition/prompt/workflow。単独 run-skill-create 投入はしない。本 plugin 自身にも `agents/`、`commands/`、`hooks/` の実体を持たせ、単一 skill だけの plan にならないことを dogfood する。
-- **script component** → **run-build-skill に `script` kind は無い**。単一 skill 専用スクリプトは親 skill の build で `scripts/` + `tests/` として生成され (独立 Capability でなく skill 付随物)、計画上は依存元 skill に紐付ける。**ただし ≥2 skill が共有する script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist し `plugin-scaffold` が生成する** (単一 skill 配下固定は cross-skill/単独 install で dangling するため・`check-runtime-portability.py` が強制)。
+- **script component** → **run-build-skill に `script` kind は無い**。単一 skill 専用スクリプトは親 skill の build で `scripts/` + `tests/` として生成され (独立 Capability でなく skill 付随物)、計画上は依存元 skill に紐付ける。**ただし ≥2 skill が共有する script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist する** (routing 上の builder 語彙=`plugin-scaffold`。単一 skill 配下固定は cross-skill/単独 install で dangling するため・`check-runtime-portability.py` が強制)。**`plugin-scaffold` / `parent-skill-build` は contract-only の builder 語彙で単独実行実体は未整備** (capability-gap 起票済・当面は `run-build-skill` の build フロー内で代替生成)。builder→実行手段の解決表は `references/io-contract.md` の build handoff 契約に 1 表固定。
 - **harness/eval 仕様** → `EVALS.json` と `plugin-composition.yaml` に集約し、mechanical と llm_eval の両方を持つ。個別 component_kind に無理に押し込まない。
 - **plugin envelope (外殻) 仕様** → N 個の capability を 1 つの plugin に束ねる**外殻の生成 owner を明示する** (skill 偏重・component だけの plan にしないための要):
   - `plugin-composition.yaml` → `run-build-skill kind=plugin-composition` または `/skill-creator:plugin-compose` が生成・更新する。
@@ -274,12 +280,13 @@ routes[] は `component-inventory.json` の `components[]` から導出する (p
 - **実プラグインを作らない**: 成果物は計画 (index + 13 phase ファイル + component-inventory.json) のみ。実コード/実プラグイン生成と混同しない (build は `run-skill-create` へ委譲)。
 - **cwd 前提**: lint・同梱スクリプト起動は repo-root cwd 前提。skill 資産は self-relative / `$CLAUDE_PLUGIN_ROOT` で参照し、具体値を直書きしない。
 - **symlink 同期**: `.claude/skills/run-plugin-dev-plan` は symlink 派生。build/更新後に `make sync` を忘れると古い版が動く。
-- **非配布フラグの漂流**: `distributable:false` は単一フラグ。`true` へ変えると配布対象化するため変更時は要注意 (同等の fail-closed 二重ロックが要るなら `validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` への追加を検討)。
+- **非配布フラグの漂流**: `distributable:false` に加え `validate-plugin-completeness.py` の `NEVER_DISTRIBUTE` denylist へ登録済み (二重ロック)。フラグが true へ漂流しても固有名検査が fail-closed で配布を阻止する。配布化する正当な決定時のみ両方を外す。
 - **scripts 規約**: Python 標準ライブラリのみ (.sh/.js 新規禁止・scripts 内 `yaml` import 禁止)。
 - **全書き換え禁止**: `--mode update` は Edit 差分のみ。
 - **Goodhart 回避**: harness 現状未達の実数値を component エントリへ焼かない (「≥80% を満たす設計」を要件化する)。
 - **criteria を品質ゲートの言い換えに退化させない (成果物評価の核)**: `feedback_contract.criteria` は当該 component の goal/checklist 由来の受入条件 (purpose-acceptance) にする。「P0 lint exit0」「elegant-review C1-C4 PASS」のみだと purpose を一度も検証せず**全ゲート PASS だが purpose 未達の空プラグイン**を許す (緑のパラドクス)。`check-spec-frontmatter.py` の purpose-traceability が「goal/checklist 語彙ゼロ参照」を fail-closed で弾く (意味の正否=criterion が purpose を正しく受入検証するかは evaluator の意味判定に残す二層分離)。skeleton 生成器 (`specfm.minimal_frontmatter` / `render-spec-skeleton.py`) も purpose 由来雛形を吐くので、実 component では domain purpose へ置換する。
-- **上流 (skill-creator) ドリフトの検知方針 (DEF-1/DEF-1b)**: 44 行マトリクスが引用する skill-creator 規律の鮮度は、**実ドリフト検知**で担保する — skill 増減=`test_completeness_proof_enumerates_all_skill_creator_skills`・引用 rule-ID 実在=`test_matrix_rows_cite_real_rubric_rule_ids`・`plugins/` 引用パス存在=`test_matrix_rows_cite_existing_plugin_paths` の 3 機械辺が、上流の改名/移動/skill 増減を CI 時点で fail させる。**カレンダー (last-audited から N 日) ベースの freshness ゲートは敢えて設けない** (コード無変更で CI が時限崩壊する time-bomb・アンチパターンゆえ)。実ドリフト検知はカレンダー期限より強い信号 (実際に変わった瞬間に発火) で、これが calendar-WARN を代替する。意味ラベルの faithfulness・しきい値値・既存 skill 内部の規律変化のみ `audit-trigger: quarterly` の人手再監査 + 独立 SubAgent 二段確認に委ねる (機械化は Goodhart)。正本 `references/skill-creator-spec-reflection.md` §14.1「機械保証の射程」。
+- **上流 (skill-creator) ドリフトの検知方針 (DEF-1/DEF-1b)**: 46 行マトリクスが引用する skill-creator 規律の鮮度は、**実ドリフト検知**で担保する — skill 増減=`test_completeness_proof_enumerates_all_skill_creator_skills`・引用 rule-ID 実在=`test_matrix_rows_cite_real_rubric_rule_ids`・`plugins/` 引用パス存在=`test_matrix_rows_cite_existing_plugin_paths` の 3 機械辺が、上流の改名/移動/skill 増減を CI 時点で fail させる。**カレンダー (last-audited から N 日) ベースの freshness ゲートは敢えて設けない** (コード無変更で CI が時限崩壊する time-bomb・アンチパターンゆえ)。表示用に複製した数値は parity test で上流実体と突合し、意味ラベル (gloss) は `references/upstream-pins.json` の hash 不一致を発火点とする event-driven 再監査 (`check-upstream-pins.py`) + `audit-trigger: quarterly` の人手再監査 + 独立 SubAgent 二段確認に委ねる (意味の機械化は Goodhart)。三層の正本 `references/skill-creator-spec-reflection.md` §14.1「機械保証の射程」。
+- **上流複製の二重保持台帳**: 上流値の表示用複製 (定数・閾値・lint 集合) を新設するときは、`scripts/specfm.py` 冒頭の二重保持台帳 (定数名/upstream パス/parity test 名) と値 parity test を必ず同時追加する (台帳外の複製は禁止)。
 - **hook の責務境界**: `hooks/hook-validate-plugin-plan.py` は同梱 `examples/sample-plan` (生きた手本) の drift 検出器であり、`plugin-plans/` 配下に生成される**実 plan の製品ゲートではない**。実生成 plan の 4 条件検証は `assign-plugin-plan-evaluator` (context:fork) が担う (proposer≠approver)。hook へ製品検証を背負わせない。
 - **自己検証の CI 配線 (dogfooding)**: 本 plugin の tests (`skills/run-plugin-dev-plan/tests`) は `creator-kit-ci.yml` の per-plugin pytest で、conformance lint は `governance-check.yml` の plugin-dev-planner block で CI 実走する (`tests/test_ci_integration.py` が配線存在を機械固定)。**PR 前提条件**: 両 skill の content-review verdict (`eval-log/plugin-dev-planner/<skill>/content-review/{elegance,rubric}-verdict.json`) を `run-elegant-review` + `assign-skill-design-evaluator` で genuine 生成すること (`lint-content-review.py --all` が fail-closed・SHA 手書換は偽装ゆえ禁止)。
 
@@ -300,7 +307,7 @@ routes[] は `component-inventory.json` の `components[]` から導出する (p
 - `references/io-contract.md` — 入出力契約 (13 phase files + index + inventory sidecar) と検証接続 / evidence (§9/§10)
 - `references/plugin-creator-contract.md` — `.claude-plugin/plugin.json` / marketplace / cachebuster / validation 契約
 - `references/purpose-driven-requirements.md` — 目的ドリブン要件定義 (§13)
-- `references/skill-creator-spec-reflection.md` — skill-creator 仕様 反映マトリクス全 44 行 (§14)
+- `references/skill-creator-spec-reflection.md` — skill-creator 仕様 反映マトリクス全 46 行 (§14)
 - `references/resource-map.yaml` — task category → 参照 references
-- `examples/sample-plan/` — **ゴールデン出力の実例** (構想「notion-task-sync」を index.md + **13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`)** + component-inventory.json (**11 の buildable component**: skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) + handoff-run-plugin-dev-plan.json + envelope-draft/plugin.json で表現)。13 フェーズのライフサイクル軸と inventory の同一 kind 複数実体を実演し「kind ごと 1 本」への退化を防ぐ生きた手本。同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を全 exit0 で通る。R3 生成時の形状参照・新規利用者の到達点確認に使う (`tests/test_examples_golden.py` が 13 phase + index=14 Markdown と inventory の 5-kind 網羅を回帰固定)
-- `scripts/` — 検証 9 本 (`check-plugin-goal-spec` / `verify-index-topsort` / `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage` / `check-surface-inventory` / `check-build-handoff` / `check-plugin-surface-audit`) + skeleton renderer (`render-spec-skeleton`) + 共有 SSOT `specfm.py`。`tests/` に機能テスト (行カバレッジ ≥80%)
+- `examples/sample-plan/` — **ゴールデン出力の実例** (構想「notion-task-sync」を index.md + **13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`)** + component-inventory.json (**11 の buildable component**: skill×3/sub-agent×3/slash-command×2/hook×1/共有 script×2) + handoff-run-plugin-dev-plan.json + envelope-draft/plugin.json で表現)。13 フェーズのライフサイクル軸と inventory の同一 kind 複数実体を実演し「kind ごと 1 本」への退化を防ぐ生きた手本。同梱の決定論ゲート (core 5 + 拡張ゲート・一覧は `references/io-contract.md` §11 表) を全 exit0 で通る。R3 生成時の形状参照・新規利用者の到達点確認に使う (`tests/test_examples_golden.py` が 13 phase + index=14 Markdown と inventory の 5-kind 網羅を回帰固定)
+- `scripts/` — 検証 11 本 (呼称 2 層: core 5 + 拡張ゲート 6。一覧と総数の単一正本は `references/io-contract.md` §11 表 / `specfm.GATE_SCRIPTS`) + skeleton renderer (`render-spec-skeleton`) + 共有 SSOT `specfm.py`。`tests/` に機能テスト (行カバレッジ ≥80%)

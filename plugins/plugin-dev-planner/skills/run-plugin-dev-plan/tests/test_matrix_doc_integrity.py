@@ -90,7 +90,7 @@ def _row_cells(line: str) -> list[str]:
 
 
 def _cited_plugin_paths(md_text: str) -> list[tuple[str, str]]:
-    """44行『絶対パス』列から plugins/ 接頭の引用パスを (row-id, path) で抽出する。
+    """マトリクス『絶対パス』列から plugins/ 接頭の引用パスを (row-id, path) で抽出する。
 
     cross-plugin upstream 結合 (skill-creator / skill-governance-lint / prompt-creator) のみ
     対象とし、brace 展開 ({a,b}) / glob (*) を含むトークン (複数実体を畳む) と、bare ファイル名
@@ -167,7 +167,7 @@ def test_matrix_integrity_catches_misattribution(tmp_path):
 
 
 def test_matrix_rows_cite_existing_plugin_paths():
-    """44行『絶対パス』列が引用する plugins/ 配下の実体が存在する (上流改名の無音 stale 化封止)。
+    """マトリクス『絶対パス』列が引用する plugins/ 配下の実体が存在する (上流改名の無音 stale 化封止)。
 
     rule-ID 整合 (test_matrix_rows_cite_real_rubric_rule_ids) + skill 列挙
     (test_completeness_proof_enumerates_all_skill_creator_skills) に続く、上流結合の最後の辺
@@ -208,7 +208,7 @@ def test_completeness_proof_enumerates_all_skill_creator_skills():
     """循環論法 (分母自己定義) 解消の核 =「完全性の証明」のサーフェス全列挙が
     skill-creator/skills の実体と一致する。skill-creator が skill を増減したら
     本表の追記/削除漏れを機械検出し、『未分類の漏れ 0』証明の無音陳腐化を防ぐ
-    (--self-test の 44 行 drift 検査 + 本テストのサーフェス被覆 = 二層機械保証)。"""
+    (--self-test の行 ID 集合 drift 検査 + 本テストのサーフェス被覆 = 二層機械保証)。"""
     if not _SKILL_CREATOR_SKILLS.is_dir():
         pytest.skip(f"skill-creator/skills 不在 (standalone 配布?): {_SKILL_CREATOR_SKILLS}")
     if not _REFLECTION.is_file():
@@ -223,6 +223,125 @@ def test_completeness_proof_enumerates_all_skill_creator_skills():
         "完全性の証明サーフェス列挙が skill-creator/skills と drift: "
         f"表に未登録の実体={missing} / 実体に無い表エントリ={extra}"
     )
+
+
+# ─────────────────── 閾値の値 parity (島D: 数値=複製+値 parity) ───────────────────
+# 三層方式「引用=path/ID+実在テスト、数値=複製+値 parity、意味 gloss=event-driven 監査」の
+# 数値層。マトリクス散文と specfm が複製保持する数値を、引用先の機械可読値と突合する
+# (sha256 pin (check-upstream-pins) は「変わったこと」しか言えない — どの数値が正か迄縛る)。
+
+_ELEGANT_REFS = _REPO_ROOT / "plugins" / "skill-creator" / "skills" / "run-elegant-review" / "references"
+_CONVERGENCE = _ELEGANT_REFS / "convergence-policy.json"
+_FOUR_CONDITIONS = _ELEGANT_REFS / "4-conditions.json"
+_HARNESS_SPEC = _REPO_ROOT / "doc" / "harness-coverage-spec.md"
+_EVALUATOR_SKILL = (
+    _REPO_ROOT / "plugins" / "skill-creator" / "skills" / "assign-skill-design-evaluator" / "SKILL.md"
+)
+
+
+def _matrix_row(row_id: str) -> str:
+    """reflection.md の 46 行マトリクスから row_id の行を返す (不在は skip)。"""
+    if not _REFLECTION.is_file():
+        pytest.skip(f"reflection.md 不在: {_REFLECTION}")
+    for line in _REFLECTION.read_text(encoding="utf-8").splitlines():
+        if re.match(rf"^\|\s*{row_id}\s*\|", line):
+            return line
+    pytest.skip(f"マトリクスに {row_id} 行が無い")
+
+
+def _load_or_skip(path: Path) -> dict:
+    if not path.is_file():
+        pytest.skip(f"引用先不在 (standalone 配布?): {path}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_matrix_a4_numbers_match_convergence_policy():
+    """A4 行の数値 gloss ↔ convergence-policy.json の機械可読値 (収束閾値の値 parity)。"""
+    row = _matrix_row("A4")
+    policy = _load_or_skip(_CONVERGENCE)
+    neg = policy["negative_feedback"]["thresholds"]
+    params = policy["parameters"]
+    bounds = policy["loop_bounds"]
+    expectations = {
+        "all_conditions_score_min": neg["all_conditions_score_min"],
+        "delta_max_ratio": neg["delta_findings_count_max_ratio"],
+        "max_iterations": params["max_iterations"],
+        "rubric_min_score": params["rubric_min_score"],
+    }
+    for label, upstream in expectations.items():
+        m = re.search(rf"{label}=([0-9.]+)", row)
+        assert m, f"A4 行に {label}=<数値> の gloss が無い"
+        assert float(m.group(1)) == float(upstream), (
+            f"A4 行 {label}={m.group(1)} が convergence-policy.json の {upstream} と不一致 "
+            "(数値複製は引用先変更と同一変更で追従すること)"
+        )
+    m = re.search(r"Δ<([0-9.]+)", row)
+    assert m and float(m.group(1)) == float(params["delta_threshold"]), (
+        f"A4 行の Δ 閾値が convergence-policy.json の delta_threshold={params['delta_threshold']} と不一致"
+    )
+    m = re.search(r"loop_bounds\((\d+)/(\d+)/(\d+)\)", row)
+    assert m, "A4 行に loop_bounds(x/y/z) の gloss が無い"
+    assert [int(g) for g in m.groups()] == [
+        bounds["goal_seek_inner"]["value"],
+        bounds["content_review_inner_reeval"]["value"],
+        bounds["content_review_outer_reeval"]["value"],
+    ], "A4 行の loop_bounds が convergence-policy.json の 3 ループ値と不一致"
+
+
+def test_matrix_a1_matches_4_conditions():
+    """A1 行の loop_limit / 各条件 severity ↔ 4-conditions.json の機械可読値。"""
+    row = _matrix_row("A1")
+    cond = _load_or_skip(_FOUR_CONDITIONS)
+    m = re.search(r"loop_limit=(\d+)", row)
+    assert m and int(m.group(1)) == cond["completion"]["loop_limit"], (
+        f"A1 行の loop_limit が 4-conditions.json の {cond['completion']['loop_limit']} と不一致"
+    )
+    for c in cond["conditions"]:
+        cm = re.search(rf"{c['id']}\s+\S*\(([^)]*)\)", row)
+        assert cm, f"A1 行に {c['id']} の gloss が無い"
+        assert c["severity_on_fail"] in cm.group(1), (
+            f"A1 行 {c['id']} の severity gloss ({cm.group(1)}) が "
+            f"4-conditions.json の severity_on_fail={c['severity_on_fail']} と不一致"
+        )
+
+
+def test_specfm_harness_min_matches_coverage_spec(specfm_mod):
+    """specfm.HARNESS_MIN_REQUIRED (=C1 行の ≥80%) が doc/harness-coverage-spec.md の
+    閾値表現と一致する (散文 anchor による値 parity — 上流が値を 85 等へ改訂すれば
+    「80% 以上」表現が消えて fail し、specfm 側の追従を強制する)。"""
+    if not _HARNESS_SPEC.is_file():
+        pytest.skip(f"harness-coverage-spec.md 不在 (standalone 配布?): {_HARNESS_SPEC}")
+    text = _HARNESS_SPEC.read_text(encoding="utf-8")
+    anchor = f"{specfm_mod.HARNESS_MIN_REQUIRED}% 以上"
+    assert anchor in text, (
+        f"harness-coverage-spec.md に『{anchor}』表現が無い — 上流閾値の改訂? "
+        "specfm.HARNESS_MIN_REQUIRED を追従し pin bump と同一変更で更新すること"
+    )
+
+
+def test_specfm_evaluator_threshold_matches_evaluator_skill(specfm_mod):
+    """specfm 複製の evaluator threshold (valid_quality_gates が焼く 80) が
+    assign-skill-design-evaluator の契約例 (SKILL.md 内 fenced JSON) と一致する。"""
+    if not _EVALUATOR_SKILL.is_file():
+        pytest.skip(f"assign-skill-design-evaluator/SKILL.md 不在 (standalone 配布?): {_EVALUATOR_SKILL}")
+    threshold = specfm_mod.valid_quality_gates("skill")["evaluator"]["threshold"]
+    anchor = f'"threshold": {threshold}'
+    assert anchor in _EVALUATOR_SKILL.read_text(encoding="utf-8"), (
+        f"evaluator SKILL.md に {anchor} が無い — 上流閾値の改訂? specfm の evaluator "
+        "threshold (valid_quality_gates / validate_component_quality_gates) を追従すること"
+    )
+
+
+def test_specfm_evaluator_high_max_upstream_prose_only():
+    """evaluator high_max==0 の値 parity は機械化不能 — fail-open の明示 skip。
+
+    引用先候補を走査した結果: 4-conditions.json は条件定義のみ (high_max 数値なし)、
+    evaluator-output.schema.json は threshold の型域のみ、assign-skill-design-evaluator
+    SKILL.md は severity weight (high -20) の散文のみで high_max=0 の機械可読正本が無い。
+    値の凍結は upstream-pins.json の sha256 pin (event-driven 監査=drift 時に matrix_rows
+    再監査) が担い、本テストは検査対象不在を記録として明示する。
+    """
+    pytest.skip("high_max=0 の上流機械可読正本なし — sha256 pin (check-upstream-pins) の再監査運用で担保")
 
 
 def test_completeness_proof_parser_excludes_header():
@@ -242,3 +361,62 @@ def test_completeness_proof_parser_excludes_header():
     assert names == {
         "run-build-skill", "ref-pkg-contract", "ref-output-routing", "run-contract-finalize",
     }
+
+
+# ─────────────────── マトリクス行数の値 parity (二重保持台帳の機械辺) ───────────────────
+# 散文の「46 行」複製が上流 (reflection.md の実行 ID 数) と乖離すると stale になる
+# (旧「44 行」が R4/assign 側で実際に腐った前例)。行数を散文に残すファイルは
+# ここで実数と突合する (行が増減したら散文も同一変更で更新することを強制)。
+
+_MATRIX_ROW_ID_RE = re.compile(r"^\|\s*([A-G][0-9]+)\s*\|")
+
+
+def _matrix_row_count() -> int:
+    """reflection.md マトリクスの実行 ID 数 (A1..G6 形式の table 行) を数える。"""
+    if not _REFLECTION.is_file():
+        pytest.skip(f"reflection.md 不在: {_REFLECTION}")
+    ids = {
+        m.group(1)
+        for line in _REFLECTION.read_text(encoding="utf-8").splitlines()
+        if (m := _MATRIX_ROW_ID_RE.match(line))
+    }
+    return len(ids)
+
+
+def test_matrix_row_count_prose_parity():
+    """散文の行数複製 (「全 N 行」「N 行マトリクス」等) が実行 ID 数と一致する。
+
+    対象 = 行数を数値で明記する主要 projection (reflection.md 自身 / SKILL.md /
+    io-contract §11 / docs 設計書)。数値を書かない引用形 (「マトリクス全行」) は対象外。
+    """
+    actual = _matrix_row_count()
+    skill_dir = Path(__file__).resolve().parents[1]
+    plugin_root = skill_dir.parents[1]
+    # agents/*.md・commands/*.md も走査母数に含める。2026-07-02 elegant-review (M1/S8):
+    # architect agent が「44 行」で腐ったのに parity 対象が SKILL/io-contract/reflection の
+    # 3 ファイル固定で agents/commands を取りこぼしていた構造穴を封じる (drift 生息域の網羅)。
+    prose_files = [
+        _REFLECTION,
+        skill_dir / "SKILL.md",
+        skill_dir / "references" / "io-contract.md",
+        *sorted((plugin_root / "agents").glob("*.md")),
+        *sorted((plugin_root / "commands").glob("*.md")),
+    ]
+    pat = re.compile(r"(?:全\s*)?(\d+)\s*行(?:マトリクス|反映|を|の|と|」)?")
+    for path in prose_files:
+        if not path.is_file():
+            pytest.skip(f"projection 不在: {path}")
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for m in pat.finditer(line):
+                n = int(m.group(1))
+                # マトリクス行数を指す文脈のみ突合 (「13 フェーズ」「43 行 (指示インベントリ)」等の
+                # 他数値と区別するため、同一行に reflection/マトリクス/仕様 の語がある場合に限る)
+                context = ("マトリクス" in line or "skill-creator 仕様" in line
+                           or "skill-creator-spec-reflection" in line or "46行" in line)
+                if not context or n in {43, 13}:  # 43=指示インベントリの歴史的内訳・13=フェーズ数
+                    continue
+                if 40 <= n <= 60:  # マトリクス行数域の数値のみ検査
+                    assert n == actual, (
+                        f"{path.name}:{lineno} の行数複製 {n} が実マトリクス {actual} 行と乖離 "
+                        f"(行を増減したら散文も同一変更で更新する=二重保持台帳の規律)"
+                    )

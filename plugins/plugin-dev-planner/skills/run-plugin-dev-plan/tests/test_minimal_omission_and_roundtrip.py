@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from conftest import component_entry, write_all_phases, write_inventory, write_phase_index
 
 _PLAN = Path(__file__).resolve().parent.parent / "examples" / "sample-plan"
@@ -53,3 +55,62 @@ def test_sample_skill_components_roundtrip_to_skill_brief_required(specfm_mod):
         required = set(specfm_mod.SKILL_BRIEF_FIELDS) | set(specfm_mod.skill_conditional_required(kind))
         missing = sorted(f for f in required if f not in c)
         assert not missing, f"{c.get('id')}: skill-brief 必須フィールド欠落 (round-trip 不可): {missing}"
+
+
+def _sample_skill_components() -> list[dict]:
+    data = json.loads((_PLAN / "component-inventory.json").read_text(encoding="utf-8"))
+    return [c for c in data.get("components", [])
+            if isinstance(c, dict) and str(c.get("component_kind", "")).strip() == "skill"]
+
+
+def test_sample_skill_responsibilities_shape(specfm_mod):
+    """run/assign skill の responsibilities が object 配列 + prompt_required:true ≥1 件 (presence→shape 強化)。
+
+    旧 roundtrip test はキー存在のみで、文字列配列 ['R1-elicit', ...] が実 schema
+    (items=object + contains{prompt_required:true}) に落ちる欠陥 (島B LS-10) を素通りしていた。
+    shape 床は specfm.validate_inventory_component にも写した (test_specfm) — ここは golden
+    実データがその床を実際に満たすことを固定する。
+    """
+    checked = 0
+    for c in _sample_skill_components():
+        if specfm_mod._skill_kind_of(c) not in ("run", "assign"):
+            continue
+        resp = c.get("responsibilities")
+        assert isinstance(resp, list) and resp, f"{c.get('id')}: responsibilities が非空 list でない"
+        assert all(isinstance(r, dict) for r in resp), (
+            f"{c.get('id')}: responsibilities に非 object 項目 (文字列配列は round-trip 不能)"
+        )
+        assert any(r.get("prompt_required") is True for r in resp), (
+            f"{c.get('id')}: prompt_required:true の責務が 1 件も無い (実 schema allOf contains 違反)"
+        )
+        for r in resp:
+            assert str(r.get("id", "")).strip() and str(r.get("summary", "")).strip(), (
+                f"{c.get('id')}: responsibilities 項目に id/summary 非空が無い: {r}"
+            )
+        checked += 1
+    assert checked, "run/assign skill が sample-plan に無く shape 床を検査できない"
+
+
+def test_sample_skill_brief_projection_roundtrip(skill_brief, specfm_mod):
+    """render-skill-brief.py の射影出力が実 schema の required 充足 + 余剰キー 0 を満たす (OUT2 完結)。
+
+    handoff routes[].build_args.brief_path が宣言する brief を全 skill component について射影し、
+    (i) planner 固有キーが漏れない (ii) 実 schema 存在時は base+allOf required 充足かつ
+    additionalProperties:false で reject されないことを検査する。実 schema 不在 (standalone) は
+    schema 突合のみ skip する (射影自体は検査)。
+    """
+    schema_path = skill_brief.find_schema_path()
+    schema = (
+        json.loads(schema_path.read_text(encoding="utf-8")) if schema_path is not None else None
+    )
+    for c in _sample_skill_components():
+        brief = skill_brief.project_brief(c)
+        leaked = sorted(set(brief) & (skill_brief.PLANNER_ONLY_KEYS | {"skill_kind"}))
+        assert not leaked, f"{c.get('id')}: planner 固有キーが brief へ漏れた: {leaked}"
+        assert brief.get("kind") == specfm_mod._skill_kind_of(c)
+        if schema is None:
+            continue
+        errs = skill_brief.validate_against_schema(brief, schema)
+        assert errs == [], f"{c.get('id')}: 射影 brief が実 schema 突合に落ちる: {errs}"
+    if schema is None:
+        pytest.skip("実 skill-brief.schema.json 不在 (standalone 配布): 射影のみ検査し schema 突合を skip")

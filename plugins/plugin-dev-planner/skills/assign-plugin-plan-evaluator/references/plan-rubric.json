@@ -19,6 +19,7 @@
         "check-spec-frontmatter exits 0",
         "check-spec-gates exits 0",
         "check-surface-inventory exits 0",
+        "check-requirements-coverage exits 0",
         "semantic_surface_omission_count is 0"
       ]
     },
@@ -38,7 +39,8 @@
       "pass_when": [
         "verify-index-topsort exits 0",
         "detect-unassigned exits 0",
-        "check-build-handoff exits 0"
+        "check-build-handoff exits 0",
+        "check-runtime-portability exits 0"
       ]
     }
   },
@@ -46,49 +48,85 @@
     {
       "id": "G1",
       "name": "verify-index-topsort",
-      "conditions": ["C4"],
+      "conditions": [
+        "C4"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G2",
       "name": "detect-unassigned",
-      "conditions": ["C2", "C4"],
+      "conditions": [
+        "C2",
+        "C4"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G3",
       "name": "check-spec-frontmatter",
-      "conditions": ["C2", "C3"],
+      "conditions": [
+        "C2",
+        "C3"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G4",
       "name": "check-spec-gates",
-      "conditions": ["C2", "C3"],
+      "conditions": [
+        "C2",
+        "C3"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G5",
       "name": "check-spec-matrix-coverage-self-test",
-      "conditions": ["C3"],
+      "conditions": [
+        "C3"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G6",
       "name": "check-spec-matrix-coverage-plan",
-      "conditions": ["C3"],
+      "conditions": [
+        "C3"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G7",
       "name": "check-surface-inventory",
-      "conditions": ["C2"],
+      "conditions": [
+        "C2"
+      ],
       "severity_on_fail": "high"
     },
     {
       "id": "G8",
       "name": "check-build-handoff",
-      "conditions": ["C1", "C4"],
+      "conditions": [
+        "C1",
+        "C4"
+      ],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G9",
+      "name": "check-requirements-coverage",
+      "conditions": [
+        "C2"
+      ],
+      "severity_on_fail": "high"
+    },
+    {
+      "id": "G10",
+      "name": "check-runtime-portability",
+      "conditions": [
+        "C4"
+      ],
       "severity_on_fail": "high"
     }
   ],
@@ -96,7 +134,9 @@
     {
       "id": "S1",
       "name": "contract-conflict",
-      "conditions": ["C1"],
+      "conditions": [
+        "C1"
+      ],
       "severity_on_fail": "high",
       "source": "handoff route builder and plugin_meta contract meaning",
       "runner": "llm-only"
@@ -104,7 +144,9 @@
     {
       "id": "S2",
       "name": "plugin-level-surface-coverage",
-      "conditions": ["C2"],
+      "conditions": [
+        "C2"
+      ],
       "severity_on_fail": "high",
       "source": "component-inventory.plugin_level_surfaces",
       "runner": "mechanical-plus-llm"

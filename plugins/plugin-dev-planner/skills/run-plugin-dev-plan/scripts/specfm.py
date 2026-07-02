@@ -23,6 +23,23 @@ from __future__ import annotations
 
 import re
 
+# ─────────────────────────── 二重保持台帳 (複製契約の登録簿) ───────────────────────────
+# 本 module は plugin 自己完結のため上流契約を複製保持する。**新規複製は本台帳へ登録し
+# parity test を同時に追加すること** (登録漏れ = 無音 drift の温床)。「(projection)」は
+# 本 module 側が機械正本で相手が人間可読写像、無印は相手側が正本で本 module が複製。
+# | 定数 / 値 | 相手 (upstream パス or projection 先) | parity test |
+# |---|---|---|
+# | CRITERIA_ID_RE / CRITERIA_VERIFY_BY / LOOP_SCOPES / REQUIRED_CRITERION_KEYS / FEEDBACK_LOOP_SKILL_KINDS | plugins/skill-creator/scripts/feedback_contract_ssot.py | tests/test_schema_parity.py |
+# | SKILL_BRIEF_FIELDS / SKILL_BRIEF_PRESENCE_ONLY / skill_conditional_required | plugins/skill-creator/skills/run-skill-create/schemas/skill-brief.schema.json | tests/test_schema_parity.py |
+# | SKILL_P0_LINTS | plugins/skill-governance-lint/scripts/*.py (実体 glob) | tests/test_schema_parity.py |
+# | evaluator threshold>=80 / high_max==0 (validate_component_quality_gates) | plugins/skill-creator/skills/assign-skill-design-evaluator/ + references/4-conditions.json | tests/test_matrix_doc_integrity.py |
+# | HARNESS_MIN_REQUIRED=80 | doc/harness-coverage-spec.md | tests/test_matrix_doc_integrity.py |
+# | BUILDER_BY_KIND / BUILD_KIND_BY_KIND / BUILDER_STATUS | references/io-contract.md §9 build handoff 契約 (projection) | tests/test_kind_key_doc_parity.py |
+# | PHASE_BODY_SECTIONS | references/io-contract.md §5 表 / prompts/R3-emit-specs.md (projection) | tests/test_kind_key_doc_parity.py |
+# | INDEX_REQUIRED_SECTIONS | references/io-contract.md §9 / verify-index-topsort docstring (projection) | tests/test_kind_key_doc_parity.py |
+# | GATE_SCRIPTS | references/io-contract.md §11 表 / SKILL.md / golden index.md (projection) | tests/test_kind_key_doc_parity.py |
+# | GATE_SCOPE / evaluator_plan_gate_scripts | assign-plugin-plan-evaluator/scripts/evaluate-plan.py の _gate_defs (projection) | assign-plugin-plan-evaluator/tests/test_gate_parity.py |
+
 # --- feedback_contract.criteria SSOT 制約 (feedback_contract_ssot.py 逐語) ---
 CRITERIA_ID_RE = re.compile(r"^(IN|OUT|C)[0-9]+$")
 CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "live-trial", "human"}
@@ -46,6 +63,10 @@ PLUGIN_LEVEL_SURFACES = (
     "schemas",
     "vendor",
     "mcp_app_connector",
+    # feedback+Notion 連携の宣言スロット (Option 1)。DB キー=plan 宣言 / DB ID=設置先
+    # .notion-config.json 供給の二層分離 (解決 SSOT=plugins/skill-creator/scripts/notion_config.py
+    # の名前参照のみ・ロジック再実装禁止)。required:true の値域は validate_surface_inventory が検査。
+    "notion_config",
 )
 
 # --- component_kind 別の構造的必須 frontmatter キー (kind 別分岐) ---
@@ -105,7 +126,7 @@ P0_LINT_BY_KIND = {
     "script": ("lint-script-frontmatter",),
 }
 
-# --- component_kind → 後段 builder / build_kind マッピング (io-contract §6 handoff の SSOT) ---
+# --- component_kind → 後段 builder / build_kind マッピング (io-contract §9 build handoff 契約の SSOT) ---
 # routes[] は component-inventory.json の components[] から導出する (phase からではない)。
 # builder/build_kind の整合はこの写像を正本にして validate_inventory_component / check-build-handoff が検査する。
 BUILDER_BY_KIND = {
@@ -122,8 +143,87 @@ BUILD_KIND_BY_KIND = {
     "hook": "hook",
     "script": "script",
 }
+# builder → 実行実体の有無 (io-contract §9 build handoff 契約「builder → 実行手段の解決表」の機械正本)。
+# executor-backed = 実在 skill が build を実行できる / contract-only = 契約 (routing 語彙) のみで
+# 専用 executor 未整備 (当面 run-build-skill 内代替)。contract-only の route は handoff の
+# open_issues に capability-gap を起票し routes[].gap_ref で追跡することを check-build-handoff が
+# fail-closed 強制する (executor gap の無音隠蔽を防ぐ)。
+BUILDER_STATUSES = ("executor-backed", "contract-only")
+BUILDER_STATUS = {
+    "run-skill-create": "executor-backed",
+    "run-build-skill": "executor-backed",
+    "parent-skill-build": "contract-only",
+    "plugin-scaffold": "contract-only",
+}
 # elegant-review 4 条件 (quality_gates.elegant_review.conditions の SSOT)。
 ELEGANT_CONDITIONS = ("C1", "C2", "C3", "C4")
+
+# ─────────────────────────── 決定論ゲートの単一正本 (名称 + 起動引数・2 層命名) ───────────────────────────
+# core = plan 本体の 5 scripts / 6 invocations (matrix-coverage は --self-test と PLAN の 2 起動)。
+# extended = 入力ゲート/採否/routing/install 携帯性/dogfood の拡張ゲート。SKILL.md・golden index・
+# io-contract §11 の列挙は本定数の人間可読 projection (総数の散文正本は io-contract §11 表)。
+# <PLAN_DIR> は plan_output_dir が解決する計画出力先へ置換して起動する (repo-root cwd 前提)。
+GATE_SCRIPTS = {
+    "core": (
+        ("verify-index-topsort.py", "<PLAN_DIR>"),
+        ("detect-unassigned.py", "--inventory <PLAN_DIR>/component-inventory.json --specs-dir <PLAN_DIR>"),
+        ("check-spec-frontmatter.py", "--specs-dir <PLAN_DIR>"),
+        ("check-spec-gates.py", "--specs-dir <PLAN_DIR>"),
+        ("check-spec-matrix-coverage.py", "--self-test"),
+        ("check-spec-matrix-coverage.py", "<PLAN_DIR>"),
+    ),
+    "extended": (
+        ("check-plugin-goal-spec.py", "<PLAN_DIR>/goal-spec.json"),
+        ("check-requirements-coverage.py", "<PLAN_DIR>"),
+        ("check-surface-inventory.py", "<PLAN_DIR>/component-inventory.json"),
+        ("check-build-handoff.py", "<PLAN_DIR>/handoff-run-plugin-dev-plan.json"),
+        ("check-runtime-portability.py", "<PLAN_DIR>"),
+        ("check-plugin-surface-audit.py", "--plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner"),
+    ),
+}
+
+# ─────────── ゲート実行 scope 分類 (独立評価器が PLAN に回す集合の SSOT・S2/S11) ───────────
+# 独立評価器 (assign-plugin-plan-evaluator の evaluate-plan.py._gate_defs) がどのゲートを
+# PLAN_DIR に対し必ず実行するかを GATE_SCRIPTS から導く分類。extended へゲートを足したとき
+# 評価器の実行経路へ伝播したかを test_gate_parity が本分類で機械照合する。
+# 2026-06-30 build-handoff / 2026-07-02 runtime-portability の「planner 側 SSOT には載ったが
+# 評価器 _gate_defs へ伝播せず、壊れた plan が独立評価を PASS しうる」Goodhart 穴の再発を封じる根。
+#   plan-scoped = 評価器が PLAN_DIR に対し必ず実行 (plan の 4 条件に直結)
+#   input-gate  = R1 が goal-spec に対し実行 (評価器は requirements-coverage で被覆を検査するため再実行しない)
+#   dogfood     = plugin-dev-planner 自身の現物 surface 検査 (PLAN_DIR 非対象ゆえ評価器から除外)
+GATE_SCOPE = {
+    "verify-index-topsort.py": "plan-scoped",
+    "detect-unassigned.py": "plan-scoped",
+    "check-spec-frontmatter.py": "plan-scoped",
+    "check-spec-gates.py": "plan-scoped",
+    "check-spec-matrix-coverage.py": "plan-scoped",
+    "check-requirements-coverage.py": "plan-scoped",
+    "check-surface-inventory.py": "plan-scoped",
+    "check-build-handoff.py": "plan-scoped",
+    "check-runtime-portability.py": "plan-scoped",
+    "check-plugin-goal-spec.py": "input-gate",
+    "check-plugin-surface-audit.py": "dogfood",
+}
+
+
+def all_gate_scripts() -> tuple[str, ...]:
+    """GATE_SCRIPTS 全 group の script 名を出現順・重複排除で返す (matrix は 1 script)。"""
+    seen: list[str] = []
+    for group in GATE_SCRIPTS.values():
+        for name, _args in group:
+            if name not in seen:
+                seen.append(name)
+    return tuple(seen)
+
+
+def evaluator_plan_gate_scripts() -> tuple[str, ...]:
+    """独立評価器が PLAN_DIR に対し実行すべきゲート script 名 (plan-scoped 集合)。
+
+    GATE_SCRIPTS を GATE_SCOPE で filter した唯一の導出。evaluate-plan.py._gate_defs は
+    この集合を漏れなく実行しなければならず、test_gate_parity が両者を機械照合する
+    (input-gate=goal-spec / dogfood=surface-audit は PLAN 非対象ゆえ評価器から除外)。
+    """
+    return tuple(s for s in all_gate_scripts() if GATE_SCOPE.get(s) == "plan-scoped")
 
 
 def placement_of(comp: dict) -> str:
@@ -136,7 +236,7 @@ def builder_for(component_kind: str, placement_scope: str = "skill") -> str:
     """placement_scope を builder 選択へ写す。plugin-root 実体化は plugin-scaffold が担う。
 
     共有 script (plugin-root へ hoist) は親 skill build でなく plugin-scaffold が
-    plugins/<slug>/scripts/ 直下へ実体化する。その他は §6 の kind→builder 写像に従う。
+    plugins/<slug>/scripts/ 直下へ実体化する。その他は §9 build handoff 契約の kind→builder 写像に従う。
     """
     if component_kind == "script" and placement_scope == "plugin-root":
         return "plugin-scaffold"
@@ -191,6 +291,39 @@ PHASE_STATUS = {"未実施", "進行中", "完了"}
 PHASE_REQUIRED = (
     "id", "phase_number", "phase_name", "category", "prev_phase",
     "next_phase", "status", "gate_type", "entities_covered", "applicability",
+)
+# ─────────────────────────── 宣言型セクション床の SSOT (仕様書標準・毎回再現性) ───────────────────────────
+# 「宣言型 + 毎回再現性」= セクション構造を specfm で凍結し detect-unassigned / verify-index-topsort が
+# 床 (見出し存在 + 直後の非空本文) を機械強制する。各節の散文内容は下流トラスト (形状と手順の直交)。
+# 各 phase ドキュメント本文 (§5) が備える仕様書標準セクション。宣言型 (declarative) 方針で
+# 手続き的な「実行タスク」を排し、到達すべき状態 (成果物) と満たすべき二値条件 (完了チェックリスト)
+# だけを宣言する (HOW = 具体手順は後段 build/実行者に委ねる)。意味的に独立な最小集合へ畳んだ
+# (冗長統合: ゴール⊂成果物 / 達成条件・完了条件⊂完了チェックリスト / 入力⊂前提条件・
+# 実行タスクは宣言型ゆえ排除)。単独実行の自足性 (実行者が phase ファイルだけで着手→完了判定
+# →次 phase へ移行できる) のため、ドメイン知識 (phase 固有の前提知識) とスコープ外 (境界宣言)
+# を持つ。読み順=目的→背景→前提条件→ドメイン知識→成果物→スコープ外→完了チェックリスト→参照情報。
+# detect-unassigned が REQUIRED_SECTIONS として import する。
+PHASE_BODY_SECTIONS = (
+    "## 目的",              # なぜこのフェーズが要るか (到達状態の意図)
+    "## 背景",              # 文脈・前段の状況・関連制約
+    "## 前提条件",          # 開始前に満たすべき状態・受け取る入力 (先行成果物/参照/component id)
+    "## ドメイン知識",      # phase 固有の用語・不変条件・外部制約 (plan 全体の用語集=index ## ドメイン知識 への引用+差分のみ・重複焼込禁止)
+    "## 成果物",            # 確定/生成する到達成果物 (=ゴール状態の具体化・build 実体は component-inventory.json が SSOT)
+    "## スコープ外",        # このフェーズで扱わない事項と委譲先 phase/component (境界宣言・次タスクへの移行点を確定)
+    "## 完了チェックリスト",  # 完了=達成を宣言的に判定する観測可能な二値項目 (gate フェーズは gate_type 合否)
+    "## 参照情報",          # 参照すべき正本・資料・関連 component/phase
+)
+# index(main) が備える基盤層 + 全体制御セクション。elegant-review 7 層 (Layer1 基本定義 / Layer2 ドメイン /
+# Layer3 インフラ / Layer4 共通ポリシー) を計画の土台として index へ焼き、フェーズ一覧・完了チェックリスト・
+# 受入確認と併せて verify-index-topsort が床を機械強制する (計画全体の宣言型コンテキストの再現性)。
+INDEX_REQUIRED_SECTIONS = (
+    "## 基本定義",        # メタ情報・最上位目的・スコープ (Layer 1)
+    "## ドメイン知識",    # 用語集・ドメイン前提知識 (Layer 2)
+    "## インフラ",        # ツール・実行環境・依存 (Layer 3)
+    "## 環境ポリシー",    # 品質基準・共通ポリシー・エスカレーション (Layer 4)
+    "## フェーズ一覧",    # P01..P13 を phase_number 昇順で全列挙 (verify-index-topsort が別途 top-sort 検証)
+    "## 完了チェックリスト",  # 計画全体の完了=達成を判定する観測可能な二値項目 (基盤層〜inventory 網羅の充足)
+    "## 受入確認",        # build 後に purpose 充足を確認する trace (成果物評価)
 )
 
 
@@ -446,11 +579,14 @@ def as_int(v) -> int | None:
 
 # --- index.plugin_meta が要求する plugin 階層キー (値域検証用) ---
 # core = 全 plugin で必須の非空 dict (manifest/marketplace は別途 field 検証も持つ・ci は CI 配線)。
-PLUGIN_META_CORE_DICTS = ("manifest", "marketplace", "ci")
+# feedback_deploy は conditional→core へ昇格 (評価フィードバックループは全構想の既定装備)。
+# opt-out は {enabled: false, reason: <非空>} の明示例外のみ (applicable:false 形は不可)。
+# 値域 (deploy/notion_sink/portability) は check-spec-gates.py が検証する。
+PLUGIN_META_CORE_DICTS = ("manifest", "marketplace", "ci", "feedback_deploy")
 # conditional = 該当しない構想では {applicable: false, reason: <非空>} で明示 N/A 可。
 # reflection.md A7「skill-only は PKG 一部 N/A」と gate 実装を一致させる (無条件強制を緩和)。
 # 空/欠落は不可 (省略は必ず根拠付き明示=「不要なら plugin_level_surfaces.<surface>.omitted_reason に理由」原則と同型)。
-PLUGIN_META_CONDITIONAL_DICTS = ("pkg_contract", "governance", "ssot_dedup", "feedback_deploy")
+PLUGIN_META_CONDITIONAL_DICTS = ("pkg_contract", "governance", "ssot_dedup")
 # 後方互換: plugin 階層キー全体 (core + conditional)。集合として従来 7 キーと等価。
 PLUGIN_META_REQUIRED_DICTS = PLUGIN_META_CORE_DICTS + PLUGIN_META_CONDITIONAL_DICTS
 
@@ -628,7 +764,7 @@ def validate_inventory_component(comp: dict) -> list[str]:
     per-phase 転換で C*.md frontmatter は inventory の components[] エントリへ載せ替わったため、旧
     check-spec-frontmatter.py + check-spec-gates.py の per-spec 検査ロジックをここへ移送する:
       - component_kind ∈ 5 種 enum
-      - build_target 非空 / builder・build_kind が §6 マッピングと整合
+      - build_target 非空 / builder・build_kind が §9 build handoff 契約のマッピングと整合
       - component_kind 別の構造的必須キー (STRUCTURAL_REQUIRED・presence-only 込み)
       - skill: skill_kind enum + 条件付き必須 (skill_conditional_required) + loop(run/wrap/delegate) は
         feedback_contract.criteria を validate_criteria + criteria_purpose_traceability_errors で検査
@@ -658,7 +794,7 @@ def validate_inventory_component(comp: dict) -> list[str]:
     if not str(comp.get("build_target", "")).strip():
         errs.append(f"{prefix} build_target が空")
 
-    # 2. builder / build_kind が §6 マッピングと整合 (builder は placement_scope を写す)
+    # 2. builder / build_kind が §9 build handoff 契約のマッピングと整合 (builder は placement_scope を写す)
     exp_builder, exp_build_kind = builder_for(ck, ps), BUILD_KIND_BY_KIND[ck]
     builder = str(comp.get("builder", "")).strip()
     if not builder:
@@ -685,6 +821,22 @@ def validate_inventory_component(comp: dict) -> list[str]:
         for field in skill_conditional_required(skill_kind):
             if field not in comp or comp[field] in (None, "", []):
                 errs.append(f"{prefix} [skill] skill_kind={skill_kind} の条件付き必須フィールド欠落: {field}")
+        # responsibilities の shape 床: skill-brief.schema.json allOf (kind∈{run,assign}) の
+        # fail-closed 制約のみ写す = object 配列 + prompt_required:true を 1 件以上含む (contains)。
+        # 文字列配列は brief round-trip で実 schema に落ちるため plan 段階で弾く。緩い上限は写さない。
+        if skill_kind in ("run", "assign"):
+            resp = comp.get("responsibilities")
+            if isinstance(resp, list) and resp:
+                if not all(isinstance(r, dict) for r in resp):
+                    errs.append(
+                        f"{prefix} [skill] responsibilities は object 配列であること "
+                        "(skill-brief.schema の items=object。文字列配列は round-trip 不能)"
+                    )
+                elif not any(r.get("prompt_required") is True for r in resp):
+                    errs.append(
+                        f"{prefix} [skill] responsibilities に prompt_required:true の項目が 1 件以上必要 "
+                        "(skill-brief.schema allOf contains)"
+                    )
         fc = comp.get("feedback_contract")
         if skill_kind in FEEDBACK_LOOP_SKILL_KINDS:
             if not isinstance(fc, dict):
@@ -769,6 +921,36 @@ def validate_surface_inventory(data: dict) -> list[str]:
                 f"plugin_level_surfaces.{surface} は required:true または "
                 "required:false + omitted_reason 非空で明示すること"
             )
+        # notion_config surface の値域: required:true は databases[] 非空 + 各 entry の
+        # key/direction 非空 + used_by が実在 component id を指すこと。DB ID は設置先
+        # .notion-config.json 供給の二層分離ゆえ plan には key のみ宣言する (ID を焼かない)。
+        nc = surfaces.get("notion_config")
+        if isinstance(nc, dict) and nc.get("required") is True:
+            comp_ids = {
+                str(c.get("id", "")).strip()
+                for c in (components if isinstance(components, list) else [])
+                if isinstance(c, dict) and str(c.get("id", "")).strip()
+            }
+            dbs = nc.get("databases")
+            if not isinstance(dbs, list) or not dbs:
+                errs.append("plugin_level_surfaces.notion_config は required:true なら databases[] 非空であること")
+            else:
+                for idx, db in enumerate(dbs):
+                    p = f"plugin_level_surfaces.notion_config.databases[{idx}]"
+                    if not isinstance(db, dict):
+                        errs.append(f"{p} が object でない")
+                        continue
+                    if not str(db.get("key", "")).strip():
+                        errs.append(f"{p}.key が空 (plan は DB キーのみ宣言・ID は設置先 config 供給)")
+                    used_by = db.get("used_by")
+                    if not isinstance(used_by, list) or not used_by:
+                        errs.append(f"{p}.used_by が非空 list でない (消費 component id を宣言)")
+                    else:
+                        for u in used_by:
+                            if str(u).strip() not in comp_ids:
+                                errs.append(f"{p}.used_by={u!r} が components[].id に存在しない")
+                    if not str(db.get("direction", "")).strip():
+                        errs.append(f"{p}.direction が空 (read|write 等の向きを宣言)")
     return errs
 
 
@@ -836,7 +1018,12 @@ def minimal_frontmatter(component_kind: str, *, spec_id: str = "C01", skill_kind
                 "checklist": ["frontmatter 契約を満たす", "本文の目的・成果物・完了条件が非空"],
             })
         if skill_kind in ("run", "assign"):
-            fm["responsibilities"] = ["component spec の責務を実装可能な入力へ落とす"]
+            # skill-brief.schema allOf (kind∈{run,assign}) の shape: object 配列 + prompt_required:true ≥1 件。
+            fm["responsibilities"] = [{
+                "id": "R1-core",
+                "summary": "component spec の責務を実装可能な入力へ落とす",
+                "prompt_required": True,
+            }]
             fm["prompt_layer"] = "7layer"
         if skill_kind == "wrap":
             fm["base_skill"] = "run-base"
@@ -971,18 +1158,75 @@ def minimal_phase_frontmatter(phase_number: int) -> dict:
     }
 
 
+# PHASE_BODY_SECTIONS 各節の宣言型プレースホルダ (skeleton 本文の床を満たす最小 prose)。
+# 実 spec では domain purpose へ置換する。汎用フォールバックのままでも床 (非空) は通るが、
+# 意味の正否は下流トラスト / evaluator の意味判定に委ねる (Goodhart 回避)。
+_PHASE_SECTION_HINT = {
+    "## 目的": "このフェーズが達成する到達状態を目的ドリブンに宣言する (なぜ必要か)。",
+    "## 背景": "このフェーズが要る文脈・前段の状況・関連する制約を宣言する。",
+    "## 前提条件": "開始前に満たされているべき状態・先行フェーズの成果物・受け取る入力を宣言的に列挙する。",
+    "## ドメイン知識": "実行者が repo/前段成果物から導出できない phase 固有の用語・不変条件・外部制約を列挙する (plan 全体の用語集は index ## ドメイン知識 を引用し差分のみ記載。phase 固有分が無ければ引用で足りる旨を明示)。",
+    "## 成果物": "このフェーズで確定/生成する到達成果物を宣言的に列挙する (build 実体は component-inventory.json が SSOT)。",
+    "## スコープ外": "このフェーズで扱わない事項と、その委譲先 phase/component を宣言する (境界=次タスクへの移行点)。",
+    "## 完了チェックリスト": "完了=達成を判定する受入基準を観測可能な二値項目で宣言的に列挙する (gate フェーズは gate_type の合否)。",
+    "## 参照情報": "参照すべき正本・資料・関連 component/phase を列挙する。",
+}
+
+
 def render_minimal_phase(phase_number: int) -> str:
-    """§5 本文 section 床 (目的/実行タスク/成果物/完了条件) を満たす phase Markdown skeleton を返す。"""
+    """§5 本文 section 床 (PHASE_BODY_SECTIONS = 宣言型 8 節) を満たす phase Markdown skeleton を返す。"""
     fm = minimal_phase_frontmatter(phase_number)
-    body = (
-        f"\n# {fm['id']} — {fm['phase_name']} ({fm['category']})\n\n"
-        "## 目的\n"
-        "このフェーズが達成する到達状態を目的ドリブンに具体化する。\n\n"
-        "## 実行タスク\n"
-        "上から順に実行できるタスクを列挙する (該当する entities_covered があれば component id を併記)。\n\n"
-        "## 成果物\n"
-        "このフェーズで確定/生成する成果物を列挙する (build 実体は component-inventory.json が SSOT)。\n\n"
-        "## 完了条件\n"
-        "観測可能な二値の完了条件を列挙する (gate フェーズは gate_type の合否)。\n"
-    )
-    return "---\n" + "\n".join(yaml_lines(fm)) + "\n---" + body
+    parts = [f"\n# {fm['id']} — {fm['phase_name']} ({fm['category']})\n"]
+    for sec in PHASE_BODY_SECTIONS:
+        parts.append(f"\n{sec}\n{_PHASE_SECTION_HINT[sec]}\n")
+    return "---\n" + "\n".join(yaml_lines(fm)) + "\n---\n" + "".join(parts)
+
+
+# INDEX_REQUIRED_SECTIONS 各節の宣言型プレースホルダ (index skeleton 本文の床を満たす最小 prose)。
+# 注: `## フェーズ一覧` は enumeration 本体をそのまま本文にするため hint を持たない (hint 文に phase-id
+# トークンを埋めると extract_phase_list_ids が誤って拾い skeleton が自身の層1 検証に落ちるのを構造で回避)。
+_INDEX_SECTION_HINT = {
+    "## 基本定義": "メタ情報 (プロジェクトID/構想slug)・最上位目的 (goal-spec.purpose)・仕様駆動の大前提 (skill-creator 仕様基点・spec-first・要件正本=goal-spec checklist)・スコープ (含む/含まない) を宣言する。",
+    "## ドメイン知識": "用語集とドメイン前提知識を列挙する (後段 build と評価者が同じ語彙で解釈できるように)。",
+    "## インフラ": "ツール・実行環境・cwd 前提・依存 (Python 標準ライブラリ規約等) を宣言する。",
+    "## 環境ポリシー": "品質基準 (harness>=80/評価ゲート)・共通ポリシー・エスカレーション方針を宣言する。",
+    "## 完了チェックリスト": "基本定義/ドメイン/インフラ/環境ポリシー/フェーズ完全性/component 網羅を二値で列挙する (goal-spec checklist の要件 id をここか受入確認で引用する=RTM)。",
+    "## 受入確認": "build 後に組み上がった実プラグインが purpose を満たすか確認する trace を宣言する。",
+}
+
+
+def render_minimal_index(*, plugin_slug: str = "sample-plugin") -> str:
+    """INDEX_REQUIRED_SECTIONS の床を満たす index(main) skeleton を返す (基盤層 + フェーズ一覧 + チェックリスト + 受入確認)。
+
+    plugin_meta は値域検証を持つため最小妥当な conditional N/A 形で出す (実 plan では architect が焼く)。
+    フェーズ一覧は P01..P13 を昇順列挙し verify-index-topsort の phase 完全性も同時に満たす。
+    """
+    meta = {
+        "id": "IDX0",
+        "title": f"{plugin_slug} 開発計画 index (main)",
+        "plugin_meta": {
+            "manifest": {"required": True, "path": ".claude-plugin/plugin.json",
+                         "name_matches_folder": True, "no_todo_placeholders": True, "validate_plugin": True},
+            "marketplace": {"default_personal": True,
+                            "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL", "category": "Productivity"},
+                            "cachebuster_for_update": True},
+            "ci": {"workflow": "governance-check"},
+            "pkg_contract": {"applicable": False, "reason": "skeleton (実 plan で確定)"},
+            "governance": {"applicable": False, "reason": "skeleton (実 plan で確定)"},
+            "ssot_dedup": {"applicable": False, "reason": "skeleton (実 plan で確定)"},
+            # feedback_deploy は core 昇格につき opt-out 形 (enabled:false+reason) で床を満たす
+            # (実 plan では deploy/notion_sink/portability の拡張形へ確定する)。
+            "feedback_deploy": {"enabled": False, "reason": "skeleton (実 plan で確定)"},
+        },
+    }
+    lines = [f"\n# {meta['title']}\n"]
+    for sec in INDEX_REQUIRED_SECTIONS:
+        if sec == "## フェーズ一覧":
+            # enumeration 本体を本文にする (hint を挟まない=phase-id トークン汚染の構造回避)。
+            lines.append(f"\n{sec}\n\n")
+            for n in range(1, 14):
+                name = PHASE_NAMES[n - 1]
+                lines.append(f"{n}. {phase_id(n)} — {name} ({PHASE_CATEGORY[name]}) / 未実施\n")
+        else:
+            lines.append(f"\n{sec}\n{_INDEX_SECTION_HINT[sec]}\n")
+    return "---\n" + "\n".join(yaml_lines(meta)) + "\n---\n" + "".join(lines)

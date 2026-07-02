@@ -97,7 +97,11 @@
       "output_language": "ja",
       "placement_candidates": ["Skill"],
       "mass_production_profile": "strict",
-      "responsibilities": ["R1-elicit", "R2-plan", "R3-sync"],
+      "responsibilities": [
+        {"id": "R1-elicit", "summary": "同期対象のタスク台帳と Notion DB 設定・差分抽出条件をヒアリングして確定する", "prompt_required": true},
+        {"id": "R2-plan", "summary": "台帳と Notion 実体の差分を抽出し冪等 upsert 計画 (追加/更新/skip) を組み立てる", "prompt_required": true},
+        {"id": "R3-sync", "summary": "差分を idempotency-key 付きで Notion へ冪等 upsert し同期レポートを返す", "prompt_required": true}
+      ],
       "cli_tools": [],
       "mcp_tools": ["notion"],
       "external_systems": ["Notion API"],
@@ -144,7 +148,11 @@
       "output_language": "ja",
       "placement_candidates": ["Skill"],
       "mass_production_profile": "strict",
-      "responsibilities": ["R1-elicit", "R2-plan", "R3-backfill"],
+      "responsibilities": [
+        {"id": "R1-elicit", "summary": "移行対象の既存台帳全件と初期投入の範囲・除外条件をヒアリングして確定する", "prompt_required": true},
+        {"id": "R2-plan", "summary": "全件抽出と Notion 未登録判定から一括投入計画を組み立てる", "prompt_required": true},
+        {"id": "R3-backfill", "summary": "未登録タスクを一括 upsert し取りこぼし 0 の投入レポートを返す", "prompt_required": true}
+      ],
       "cli_tools": [],
       "mcp_tools": ["notion"],
       "external_systems": ["Notion API"],
@@ -191,7 +199,11 @@
       "output_language": "ja",
       "placement_candidates": ["Skill"],
       "mass_production_profile": "strict",
-      "responsibilities": ["R1-elicit", "R2-plan", "R3-reconcile"],
+      "responsibilities": [
+        {"id": "R1-elicit", "summary": "照合対象の台帳範囲と発行実績の突合キー (金額/名前等) をヒアリングして確定する", "prompt_required": true},
+        {"id": "R2-plan", "summary": "台帳と Notion 実体の突合計画 (発行漏れ/重複の判定基準) を組み立てる", "prompt_required": true},
+        {"id": "R3-reconcile", "summary": "両者を照合し発行漏れ一覧・重複一覧・網羅率の照合レポートを返す", "prompt_required": true}
+      ],
       "cli_tools": [],
       "mcp_tools": ["notion"],
       "external_systems": ["Notion API"],
@@ -336,6 +348,14 @@
     "references_config_assets": {"required": true, "record_in": "index.plugin_meta.ssot_dedup"},
     "schemas": {"required": false, "omitted_reason": "同期ペイロードは共有 script (validate-sync-payload.py) 内で検証し独立 JSON schema を持たない"},
     "vendor": {"required": false, "omitted_reason": "cross-plugin SSOT を持たず plugin-root 共有 script の hoist で携帯性を満たすため vendoring 不要"},
-    "mcp_app_connector": {"required": false, "omitted_reason": "Notion sync は既存 Skill/Bash 経路で扱い MCP/app connector を新設しない"}
+    "mcp_app_connector": {"required": false, "omitted_reason": "Notion sync は既存 Skill/Bash 経路で扱い MCP/app connector を新設しない"},
+    "notion_config": {
+      "required": true,
+      "resolution": "notion_config",
+      "token": "keychain",
+      "databases": [
+        {"key": "task-ledger", "used_by": ["C01", "C02", "C03"], "direction": "write"}
+      ]
+    }
   }
 }

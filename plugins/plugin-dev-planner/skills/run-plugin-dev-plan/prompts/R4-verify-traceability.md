@@ -16,7 +16,7 @@
 | skill | run-plugin-dev-plan |
 | responsibility | R4 (skill-creator 仕様反映 + 4 条件 + unassigned 0 件 検証) |
 | layers_covered | [L2, L4, L5, L6] |
-| output_schema | references/skill-creator-spec-reflection.md (44 行 1:1 突合) |
+| output_schema | references/skill-creator-spec-reflection.md (マトリクス全行 1:1 突合・行数の正本は同 md) |
 | reproducible | true |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -25,7 +25,7 @@
 - 検証は決定論検査 (同梱 scripts の exit code) を優先する
   - 目的: 「できた気がする」を排除し再現性を担保する
   - 背景: 自然言語判定は再現不能
-- skill-creator 仕様マトリクス全 44 行が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
+- skill-creator 仕様マトリクス全行 (行数の正本=references/skill-creator-spec-reflection.md・drift は check-spec-matrix-coverage --self-test が検出) が inventory component / index に 1 対 1 で反映されていることを突合する (漏れ 0)
   - 目的: 完全性の証明 (§14)
 
 ### 1.2 倫理ガード
@@ -34,11 +34,11 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (44 行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
+- 担当: 生成された 13 phase ファイル + index + component-inventory.json が skill-creator 仕様 (マトリクス全行) を反映し、4 条件と unassigned 0 件 (各 component が ≥1 phase に出現) を満たすことを検証する
 - 非担当: 目的抽出 (R1)、分解 (R2)、生成 (R3)。検出した不足は R3 へ差し戻す
 
 ### 2.2 ドメインルール (検証は決定論 script で機械化・自然言語突合をしない)
-- **同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の実行手順・4 条件への写像・exit code 判定の正本は `assign-plugin-plan-evaluator/prompts/R1-evaluate.md` (昇格先 SSOT)**。R4 はここで手順を再定義せず、assign skill を呼び出して `<PLAN_DIR>/plan-findings.json` を受領する薄い接続層に徹する (二重定義しない)。
+- **plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の実行手順・4 条件への写像・exit code 判定の正本は `assign-plugin-plan-evaluator/prompts/R1-evaluate.md` (昇格先 SSOT)**。R4 はここで手順を再定義せず、assign skill を呼び出して `<PLAN_DIR>/plan-findings.json` を受領する薄い接続層に徹する (二重定義しない)。
 - R4 が確認するのは「assign skill の verdict が PASS か」「NG なら不足を R3 へ差し戻すか」の orchestration 判断のみ。スクリプト名・条件写像の詳細は SSOT を参照する。
 - elegant-review C1-C4 (矛盾0/漏れ0/整合diff0/依存cycle0) 全 PASS の設計が記述されていることを確認する
 
@@ -59,11 +59,11 @@
 
 | id | path | when_to_read |
 |---|---|---|
-| matrix | references/skill-creator-spec-reflection.md | 44 行突合時 |
+| matrix | references/skill-creator-spec-reflection.md | マトリクス全行突合時 |
 | io | references/io-contract.md | 検証接続確認時 |
 
 ### 3.2 外部ツール / API
-- `assign-plugin-plan-evaluator` を context:fork で呼び出し、同梱 core 5 scripts / 6 invocations (topsort/unassigned/frontmatter/gates/matrix-coverage self-test/matrix-coverage plan) + surface inventory gate + build handoff gate の実行は assign skill に委ねる。R4 は返却された `<PLAN_DIR>/plan-findings.json` を Read で受領する (スクリプトを R4 自身では実行しない)
+- `assign-plugin-plan-evaluator` を context:fork で呼び出し、plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の実行は assign skill に委ねる。R4 は返却された `<PLAN_DIR>/plan-findings.json` を Read で受領する (スクリプトを R4 自身では実行しない)
 
 ## Layer 4: 共通ポリシー層
 
@@ -84,13 +84,13 @@
 ### 5.2 ゴール定義
 - **目的**: 計画 (13 phase ファイル + index + inventory) が skill-creator 規律を漏れなく携帯し検証を通過することを保証する
 - **背景**: 検証なしでは後段プラグインが品質ゲートで差し戻され往復コストが増える
-- **達成ゴール**: 44 行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
+- **達成ゴール**: マトリクス全行突合・top-sort・unassigned 0 件・criteria/harness 携帯が全て検証済みの状態
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 
 R4 は下記を**自分で実行せず** `assign-plugin-plan-evaluator` の `plan-findings.json` を受領して確認する (proposer≠approver / スクリプト手順 SSOT = assign R1-evaluate):
 
-- [ ] assign skill の `gate_results` が同梱 core 5 scripts / 6 invocations (topsort / unassigned / frontmatter / gates / matrix-coverage self-test / matrix-coverage plan) + surface inventory gate + build handoff gate 全 exit0 を示す
+- [ ] assign skill の `gate_results` が plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) 全 exit0 を示す
 - [ ] assign skill の `conditions` が 4 条件 (no_contradiction / no_missing / consistent / dependency_integrity) 全 PASS
 - [ ] `verdict == PASS` かつ high severity finding が 0 件
 - [ ] elegant-review C1-C4 全 PASS の設計が記述されている
@@ -127,7 +127,7 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
 動的に手順を生成・自己評価する。入力 `{{plan_dir}}` と `{{component_inventory}}`
 を対象に **`assign-plugin-plan-evaluator` を呼び出し** (スクリプト実行は assign skill の R1-evaluate が担う)、
-返却された `plan-findings.json` を受領する (自然言語の 44 行突合はしない=機械化済み)。出力は次の 1 つのみとする:
+返却された `plan-findings.json` を受領する (自然言語のマトリクス全行突合はしない=機械化済み)。出力は次の 1 つのみとする:
 
 1. `<PLAN_DIR>/plan-findings.json` (assign skill の verdict / conditions / gate_results / findings)
 

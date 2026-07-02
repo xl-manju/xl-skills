@@ -104,6 +104,41 @@ def check_plugin_meta(pm: dict) -> list[str]:
             reason = v.get("reason")
             if not (isinstance(reason, str) and reason.strip()):
                 errs.append(f"plugin_meta.{key} が applicable:false だが reason が空 (N/A の根拠を明示すること)")
+
+    # feedback_deploy 値域 (core 昇格・B4/B5): opt-out は enabled:false+reason の明示例外のみ。
+    # 採用時は deploy=run-skill-feedback / notion_sink.config_key 非空 (DB キー宣言・ID は設置先
+    # .notion-config.json 供給の二層) / portability∈{repo-bundled,vendored}、かつ配布プラグイン
+    # (distributable:true) は単独 install 携帯性のため vendored を強制する (D6 symlink 禁止と同根)。
+    fd = pm.get("feedback_deploy")
+    if isinstance(fd, dict) and fd:
+        if specfm.is_plugin_meta_na(fd):
+            errs.append(
+                "plugin_meta.feedback_deploy は core 規律 (applicable:false 形は不可)。"
+                "opt-out は {enabled: false, reason: <非空>} で明示すること"
+            )
+        elif fd.get("enabled") is False:
+            reason = fd.get("reason")
+            if not (isinstance(reason, str) and reason.strip()):
+                errs.append("feedback_deploy.enabled:false (opt-out) は reason 非空必須 (明示例外の根拠)")
+        else:
+            if str(fd.get("deploy", "")).strip() != "run-skill-feedback":
+                errs.append(f"feedback_deploy.deploy は 'run-skill-feedback' であること (現値 {fd.get('deploy')!r})")
+            ns = fd.get("notion_sink")
+            if not isinstance(ns, dict) or not str(ns.get("config_key", "")).strip():
+                errs.append("feedback_deploy.notion_sink.config_key が非空でない (Notion 受け皿 DB のキーを宣言)")
+            else:
+                if not str(ns.get("schema_ref", "")).strip():
+                    errs.append("feedback_deploy.notion_sink.schema_ref が非空でない (受け皿 DB schema のパス参照)")
+                if str(ns.get("resolution", "")).strip() != "notion_config":
+                    errs.append(
+                        "feedback_deploy.notion_sink.resolution は 'notion_config' であること"
+                        f" (現値 {ns.get('resolution')!r}・解決器の名前参照・再実装禁止)"
+                    )
+            port = fd.get("portability")
+            if port not in ("repo-bundled", "vendored"):
+                errs.append(f"feedback_deploy.portability は repo-bundled|vendored のみ (現値 {port!r})")
+            elif isinstance(dist, dict) and dist.get("distributable") is True and port != "vendored":
+                errs.append("distributable:true は feedback_deploy.portability=vendored を要求 (単独 install 携帯性)")
     return errs
 
 

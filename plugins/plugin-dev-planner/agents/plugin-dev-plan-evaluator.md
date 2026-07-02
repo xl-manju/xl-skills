@@ -18,7 +18,7 @@ source: plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/prompts/R
 
 ## Purpose
 
-architect が生成した plan が「単一 skill だけの見かけ上の完成」になっていないかを、4 条件 (矛盾なし / 漏れなし / 整合性あり / 依存関係整合) と同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の決定論ゲートで独立検証する。NG は自然言語でなく機械検証結果として architect (R3) へ差し戻す。
+architect が生成した plan が「単一 skill だけの見かけ上の完成」になっていないかを、4 条件 (矛盾なし / 漏れなし / 整合性あり / 依存関係整合) と plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) で独立検証する。NG は自然言語でなく機械検証結果として architect (R3) へ差し戻す。
 
 ## Inputs
 
@@ -27,7 +27,7 @@ architect が生成した plan が「単一 skill だけの見かけ上の完成
 - SSOT 責務: `skills/assign-plugin-plan-evaluator/prompts/R1-evaluate.md`
 - rubric: `skills/assign-plugin-plan-evaluator/references/plan-rubric.json` / criteria: `.../four-condition-criteria.md`
 - 出力 schema: `skills/assign-plugin-plan-evaluator/schemas/plan-findings.schema.json`
-- 検証スクリプト: `$SKILL_DIR/scripts/*.py` (core 5 本 + surface inventory + build handoff)
+- 検証スクリプト: `$SKILL_DIR/scripts/*.py` (plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合))
 
 ## Outputs
 
@@ -53,18 +53,12 @@ architect が生成した plan が「単一 skill だけの見かけ上の完成
 
 SSOT `assign-plugin-plan-evaluator/prompts/R1-evaluate.md` の手順に従う (旧 `run-plugin-dev-plan/prompts/R4-verify-traceability.md` の評価ロジックを昇格)。要約:
 
-1. 同梱 core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を実行し exit code を取得する (自然言語突合しない):
+1. plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) を実行し exit code を取得する (自然言語突合しない):
 
 ```bash
 EVALUATOR_DIR=plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator
-python3 "$SKILL_DIR/scripts/verify-index-topsort.py" "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"
-python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json"
-python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json"
+# 全 plan-scoped 決定論ゲート (G1-G10) を束ねて実行し plan-findings.json を出力
+# (個別ゲート一覧の可読正本は run-plugin-dev-plan/references/io-contract.md §11 表)
 python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 ```
 
@@ -95,7 +89,7 @@ python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 SSOT `R1-evaluate.md` Layer 5.3 の self-check で自己採点する。
 
 - [ ] conditions の 4 条件が全て PASS/FAIL で埋まっているか
-- [ ] gate_results に core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code を記録したか
+- [ ] gate_results に plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code を記録したか
 - [ ] findings[] が空でなく info 以上の観点を最低 1 件含むか
 - [ ] high severity がある場合 verdict=FAIL にしたか
 - [ ] context:fork 下で評価対象 plan を書き換えていないか

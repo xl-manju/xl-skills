@@ -88,6 +88,36 @@ def test_eval_harness_runs_every_gate_script():
     assert not missing, f"EVALS.json mechanical[] が次のゲートスクリプトを欠く: {missing}"
 
 
+def test_gate_defs_covers_specfm_plan_scoped_gates():
+    """独立評価器 _gate_defs が specfm.evaluator_plan_gate_scripts (= GATE_SCRIPTS の
+    plan-scoped 集合) を漏れなく実行する。
+
+    2026-07-02 elegant-review (S2/S11): planner 側 SSOT GATE_SCRIPTS.extended へ
+    check-runtime-portability を足したのに評価器 _gate_defs へ伝播せず、install 携帯性の
+    壊れた plan が独立評価 (proposer≠approver) を PASS しうる Goodhart 穴を検出した。
+    build-handoff (2026-06-30) と完全同型の再発。真因は GATE_SCRIPTS→_gate_defs を縛る
+    parity 辺の不在。本テストが plan-scoped ゲートを足したら評価器が実行しないと fail させ、
+    invocation 集合 parity の欠けていた辺を恒久で閉じる。"""
+    sf = _load_specfm()
+    runner = {_gate_script(g["command"]) for g in _gate_defs()}
+    expected = set(sf.evaluator_plan_gate_scripts())
+    assert runner == expected, (
+        "evaluate-plan.py._gate_defs と specfm.evaluator_plan_gate_scripts が drift。"
+        f"評価器欠落={sorted(expected - runner)} / 余剰={sorted(runner - expected)}。"
+        "plan-scoped ゲートを増減したら _gate_defs と GATE_SCOPE を同時更新すること"
+    )
+
+
+def test_gate_scope_classifies_every_gate_script():
+    """specfm.GATE_SCOPE が GATE_SCRIPTS の全 script を過不足なく scope 分類する
+    (分類漏れ = scope 不明ゲートの無音混入。plan-scoped 集合の導出母数を健全に保つ)。"""
+    sf = _load_specfm()
+    assert set(sf.GATE_SCOPE) == set(sf.all_gate_scripts()), (
+        "GATE_SCOPE と GATE_SCRIPTS が drift: "
+        f"{sorted(set(sf.GATE_SCOPE) ^ set(sf.all_gate_scripts()))}"
+    )
+
+
 def test_evaluator_projections_invoke_mechanical_runner():
     """評価器の人間可読 projection (agent / assign SKILL の Step1 bash) が、全ゲートを束ねる
     決定論ランナー evaluate-plan.py を実際に起動する。projection が実行を伴わない『紙ゲート』へ

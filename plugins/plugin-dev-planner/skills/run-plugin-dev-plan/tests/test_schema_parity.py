@@ -20,6 +20,7 @@ import pytest
 _PLUGINS = Path(__file__).resolve().parents[4]
 _SCHEMA = _PLUGINS / "skill-creator" / "skills" / "run-skill-create" / "schemas" / "skill-brief.schema.json"
 _FC_SSOT = _PLUGINS / "skill-creator" / "scripts" / "feedback_contract_ssot.py"
+_GOV_SCRIPTS = _PLUGINS / "skill-governance-lint" / "scripts"
 # per-phase 転換: phase-spec schema は本 plugin 同梱 (必ず存在)。
 _PHASE_SCHEMA = Path(__file__).resolve().parents[1] / "schemas" / "phase-spec.schema.json"
 
@@ -96,6 +97,26 @@ def test_feedback_contract_constants_parity(specfm_mod):
     assert specfm_mod.REQUIRED_CRITERION_KEYS == ssot.REQUIRED_CRITERION_KEYS, "REQUIRED_CRITERION_KEYS drift"
     assert set(specfm_mod.FEEDBACK_LOOP_SKILL_KINDS) == set(ssot.FEEDBACK_LOOP_KINDS), (
         "FEEDBACK_LOOP_SKILL_KINDS が実 SSOT の FEEDBACK_LOOP_KINDS と不一致"
+    )
+
+
+def test_p0_lint_names_exist_in_skill_governance_lint(specfm_mod):
+    """SKILL_P0_LINTS / P0_LINT_BY_KIND の各 lint 名が skill-governance-lint/scripts/<name>.py
+    実体と突合する (島D (i))。
+
+    p0_lint は生成 spec の quality_gates へ「lint 名」で焼かれる引用 — 上流が lint を改名/削除
+    すると生成 plan が dead lint 名を携帯し build 時の p0 実行で初めて発覚する。引用=path/ID
+    +実在テストの三層方式に従い、plan/CI 時点で名前↔実体の辺を機械保証する。standalone
+    配布で上流 scripts 不在なら skip (repo 文脈で機能)。
+    """
+    if not _GOV_SCRIPTS.is_dir():
+        pytest.skip(f"skill-governance-lint/scripts 不在 (standalone 配布): {_GOV_SCRIPTS}")
+    cited = set(specfm_mod.SKILL_P0_LINTS)
+    for names in specfm_mod.P0_LINT_BY_KIND.values():
+        cited |= set(names)
+    missing = sorted(n for n in cited if not (_GOV_SCRIPTS / f"{n}.py").is_file())
+    assert not missing, (
+        f"specfm の p0 lint 名が skill-governance-lint/scripts の実体に無い (上流改名/削除?): {missing}"
     )
 
 

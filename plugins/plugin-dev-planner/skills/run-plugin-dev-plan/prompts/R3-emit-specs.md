@@ -17,6 +17,9 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
+- **仕様駆動の大前提**: タスク仕様書は skill-creator 仕様を基に作成する (規律の中身は `skill-creator-spec-reflection.md` マトリクス+`upstream-pins.json` の引用で構成・独自流儀の発明禁止)。要件正本は goal-spec checklist で、その全 id を index の 完了チェックリスト/受入確認 に引用する (RTM・`check-requirements-coverage.py` が機械強制)。index `## 基本定義` に本前提 (skill-creator 仕様基点・spec-first) を宣言する
+  - 目的: 仕様が先・実装は従の向きを生成物側にも植え付ける (乖離時は仕様を先に更新)
+  - 背景: 三本柱の正本は `references/purpose-driven-requirements.md` SDD 節
 - 各 skill inventory component は skill-brief 主要フィールドを無加工で写せる形 (schema parity) で書く
   - 目的: 後段 run-skill-create へそのまま投入できる粒度を保証する
   - 背景: 変換が要る component は再現性を壊す
@@ -36,11 +39,11 @@
 
 ### 2.2 ドメインルール (phase ファイル + inventory component emission)
 
-> phase frontmatter の正本は `scripts/specfm.py` の `PHASE_REQUIRED` + `schemas/phase-spec.schema.json`。inventory component の kind→必須キーの正本は `specfm.STRUCTURAL_REQUIRED`。下記列挙はその projection で、`tests/test_kind_key_doc_parity.py` が specfm との一致を機械強制する (specfm にキーを足して本節を忘れると fail)。phase 本文 section 契約 (目的/実行タスク/成果物/完了条件 + 非空本文の床) は `references/io-contract.md` §9 §5 を正本とする。
+> phase frontmatter の正本は `scripts/specfm.py` の `PHASE_REQUIRED` + `schemas/phase-spec.schema.json`。inventory component の kind→必須キーの正本は `specfm.STRUCTURAL_REQUIRED`。下記列挙はその projection で、`tests/test_kind_key_doc_parity.py` が specfm との一致を機械強制する (specfm にキーを足して本節を忘れると fail)。phase 本文 section 契約 (宣言型 8 節 + 非空本文の床) の正本は `specfm.PHASE_BODY_SECTIONS`、人間可読表は `references/io-contract.md` §5 (本 prompt は節名を再列挙しない=引用形一本化)。
 
 **(A) 13 phase ファイル** (`phase-NN-<kebab>.md`・ライフサイクル軸=人間向け primary deliverable):
 - frontmatter (`PHASE_REQUIRED`): `id`(P01..P13)/`phase_number`(1-13)/`phase_name`(`specfm.PHASE_NAMES` の kebab)/`category`(日本語)/`prev_phase`/`next_phase`/`status`(未実施|進行中|完了)/`gate_type`(`specfm.GATE_TYPES` の 8 enum)/`entities_covered`([C<NN>] 参照・該当なければ [])/`applicability`({applicable:bool, reason})。build_target/quality_gates/harness_coverage/feedback_contract は phase frontmatter に**置かない**。
-- 本文 (§5 床): `## 目的` / `## 実行タスク` (該当 `entities_covered` があれば component id 併記) / `## 成果物` / `## 完了条件` を持ち各見出し直後に非空本文。`applicability.applicable == false` の phase (典型は P08) は床免除で `reason` を本文に記す。
+- 本文 (§5 床): `specfm.PHASE_BODY_SECTIONS` の宣言型 8 節 (人間可読表=`references/io-contract.md` §5) を持ち各見出し直後に非空本文 (該当 `entities_covered` があれば component id を併記)。ドメイン知識は index 用語集への引用+phase 固有差分のみ (重複焼込禁止・固有分が無ければ引用で足りる旨を明示)、スコープ外は扱わない事項と委譲先 phase/component を宣言する (単独実行の自足性)。`applicability.applicable == false` の phase (典型は P08) は床免除で `reason` を本文に記す。
 
 **(B) component-inventory.json の各 component エントリ** (成果物実体軸=機械 SSOT):
 - 全 component 共通: `component_kind` 宣言 + `id`/`depends_on` + core 規律ブロック (`quality_gates`{p0_lint(kind別),build_trace:required,elegant_review{conditions[C1-C4],all_pass:true},content_review{verdict:PASS,sha_match:true},evaluator{threshold:80,high_max:0}} + `harness_coverage`{min:80,kind_pass})。`harness_coverage` はスカラでなくブロック。
@@ -51,7 +54,7 @@
 - **hook**: `event`(PreToolUse|PostToolUse|Stop|UserPromptSubmit|SessionEnd)/`matcher`/`exit_semantics`(fail-closed=exit2)/`settings_wiring`/`fail_closed: true` + core 規律。
 - **script**: `script_name`/`purpose`/`inputs`/`outputs`/`exit_codes`/`network`/`write_scope` + `stdlib_only: true` + `tests_min: 80` + core 規律。
 
-**(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6 を焼く) を保持する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
+**(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6/B4/B5 を焼く。feedback_deploy はコア=常時・notion_sink 契約は io-contract §9) を保持する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
 - `plugin_meta.manifest`: `required:true`、`path:.claude-plugin/plugin.json`、`name_matches_folder:true`、`no_todo_placeholders:true`、`validate_plugin:true` を必須にする。
 - `plugin_meta.marketplace`: `default_personal` は bool、`policy.installation` は `AVAILABLE` 既定、`policy.authentication` は `ON_INSTALL` 既定、`policy.category` は非空、`cachebuster_for_update:true` を必須にする。
 - 焼き先の正本キーは io-contract.md の表 (「焼き先はマトリクスに従う」総称ポインタでなく具体キー)。条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) は kind/feature/階層ゲートに従い盲目的に全 component へ焼かない。
@@ -113,6 +116,7 @@
 - [ ] index(main) に「受入確認 (build 後の見方)」章を持ち、goal-spec.purpose 由来の受入観点と確認の見方を平易語で記した
 - [ ] 条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) を kind/feature/階層ゲートに従って焼いた
 - [ ] index(main) を P01..P13 phase_number 昇順で全列挙し、完了条件・コンポーネント目録の所在・`plugin_meta`(manifest/marketplace/cachebuster/validation を含む plugin 階層規律) を記載した
+- [ ] index `## 基本定義` に仕様駆動の大前提 (skill-creator 仕様基点・spec-first・要件正本=goal-spec) を宣言し、goal-spec checklist の全 id を 完了チェックリスト/受入確認 で引用した (`check-requirements-coverage.py` が exit0)
 - [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件)
 - [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` / `detect-unassigned.py` が exit0 になった
 - [ ] `handoff-run-plugin-dev-plan.json` を生成し、`check-build-handoff.py` が exit0 になった
@@ -152,7 +156,7 @@ Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件
 
 1. 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md` / io-contract.md §2 frontmatter + §5 本文床を満たす)
 2. index.md (P01..P13 phase_number 昇順 + コンポーネント目録の所在 + 全体完了条件 + 受入確認 + plugin_meta)
-3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来)
+3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来)。**placement=skill の script route (builder=parent-skill-build) で build_target が親 skill の build_target 配下にあるものは、二相 build (scaffold→fill) の順序逆転を機械可読にするため `requires_parent_scaffold: <親 skill の component id>` を必ず付す** (io-contract §9・check-build-handoff.py が fail-closed 強制。plugin-root へ hoist した共有 script は親 skill 配下でないため不要)
 4. (plugin-plan 時) `<PLAN_DIR>/envelope-draft/plugin.json` = 貼れる manifest ドラフト (manual-apply artifact・実 `plugins/` には書かない)
 
 余計な前置き・後書き・思考過程出力は禁止。

@@ -37,6 +37,11 @@ def plugin_goal_spec() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def requirements_coverage() -> ModuleType:
+    return _load("check-requirements-coverage")
+
+
+@pytest.fixture(scope="session")
 def unassigned() -> ModuleType:
     return _load("detect-unassigned")
 
@@ -84,6 +89,16 @@ def runtime() -> ModuleType:
 @pytest.fixture(scope="session")
 def skeleton() -> ModuleType:
     return _load("render-spec-skeleton")
+
+
+@pytest.fixture(scope="session")
+def upstream_pins() -> ModuleType:
+    return _load("check-upstream-pins")
+
+
+@pytest.fixture(scope="session")
+def skill_brief() -> ModuleType:
+    return _load("render-skill-brief")
 
 
 # ─────────────────────────── YAML 出力ヘルパ ───────────────────────────
@@ -161,7 +176,8 @@ def _base_fm(spec_id: str, ck: str, skill_kind: str) -> dict:
             fm.update({"goal": "観測可能な完了状態", "purpose_background": "目的と背景",
                        "checklist": ["c1", "c2"]})
         if skill_kind in ("run", "assign"):
-            fm["responsibilities"] = ["R1"]
+            # skill-brief.schema allOf (kind∈{run,assign}) の shape: object 配列 + prompt_required:true ≥1 件。
+            fm["responsibilities"] = [{"id": "R1", "summary": "責務を実装可能な入力へ落とす", "prompt_required": True}]
         if skill_kind == "wrap":
             fm["base_skill"] = "run-base"
         if skill_kind == "delegate":
@@ -247,6 +263,7 @@ def default_surfaces() -> dict:
         "schemas": {"required": False, "omitted_reason": "独立 JSON schema 不要"},
         "vendor": {"required": False, "omitted_reason": "cross-plugin SSOT 無しで vendoring 不要"},
         "mcp_app_connector": {"required": False, "omitted_reason": "MCP/app connector 不要"},
+        "notion_config": {"required": False, "omitted_reason": "Notion 連携 DB を持たない"},
     }
 
 
@@ -271,7 +288,8 @@ def write_inventory(
     return path
 
 
-_PHASE_SECTIONS_BODY = "\n# phase\n## 目的\nx\n## 実行タスク\nx\n## 成果物\nx\n## 完了条件\nx\n"
+# §5 本文床は specfm.PHASE_BODY_SECTIONS を単一正本にする (節集合が変わってもテストが SSOT 追従)。
+_PHASE_SECTIONS_BODY = "\n# phase\n" + "".join(f"{sec}\nx\n" for sec in SPECFM.PHASE_BODY_SECTIONS)
 
 
 def write_phase_spec(
@@ -320,14 +338,24 @@ def write_phase_index(
     distributable: bool = False,
     heading: str = "フェーズ一覧",
 ) -> Path:
-    """index(main) を `## フェーズ一覧` 付きで生成する (verify-index-topsort 用)。"""
+    """index(main) を INDEX_REQUIRED_SECTIONS の床 (基盤層+全体制御) 付きで生成する (verify-index-topsort 用)。
+
+    フェーズ一覧 section には phase enumeration を、他の必須 section (基本定義/ドメイン知識/インフラ/
+    環境ポリシー/完了チェックリスト/受入確認) には非空プレースホルダを入れて層0 (index section 床) を満たす。
+    節集合は SPECFM.INDEX_REQUIRED_SECTIONS を単一正本にする (SSOT 追従)。`heading` を差し替えると
+    フェーズ一覧 section 欠落を再現できる (負例テスト用)。"""
     ids = order if order is not None else [SPECFM.phase_id(n) for n in range(1, 14)]
     fm: dict = {"id": "IDX0", "title": "plan index"}
     if plugin_meta:
         fm["plugin_meta"] = valid_plugin_meta(distributable)
-    lines = "".join(f"{i + 1}. {pid} — phase / 未実施\n" for i, pid in enumerate(ids))
-    body = f"\n# index\n## {heading}\n\n{lines}"
-    text = "---\n" + "\n".join(_emit(fm)) + "\n---" + body
+    enum_lines = "".join(f"{i + 1}. {pid} — phase / 未実施\n" for i, pid in enumerate(ids))
+    parts = ["\n# index\n"]
+    for sec in SPECFM.INDEX_REQUIRED_SECTIONS:
+        if sec == "## フェーズ一覧":
+            parts.append(f"\n## {heading}\n\n{enum_lines}")
+        else:
+            parts.append(f"\n{sec}\nx\n")
+    text = "---\n" + "\n".join(_emit(fm)) + "\n---" + "".join(parts)
     p = directory / "index.md"
     p.write_text(text, encoding="utf-8")
     return p
@@ -358,5 +386,15 @@ def valid_plugin_meta(distributable: bool = False) -> dict:
         "governance": {"runbook": "required"},
         "ci": {"workflow": "governance-check"},
         "ssot_dedup": {"lint": "ssot-duplication"},
-        "feedback_deploy": {"deploy": "run-skill-feedback"},
+        # core 昇格後の拡張形 (check-spec-gates が値域検証)。distributable:true は vendored 強制。
+        "feedback_deploy": {
+            "deploy": "run-skill-feedback",
+            "enabled": True,
+            "notion_sink": {
+                "config_key": "improvement-request",
+                "schema_ref": "doc/notion-schema/improvement-request.schema.json",
+                "resolution": "notion_config",
+            },
+            "portability": "vendored" if distributable else "repo-bundled",
+        },
     }

@@ -61,7 +61,7 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
     rid = _require_str(route, "id", errors, prefix)
     ck = _require_str(route, "component_kind", errors, prefix)
     _require_str(route, "name", errors, prefix)
-    # per-phase 転換 (§6): route.spec は「参照する phase ファイル」で任意 (build は component 単位ゆえ
+    # per-phase 転換: route.spec は「参照する phase ファイル」で任意 (build は component 単位ゆえ
     # phase 参照は必須でない・推奨は phase-05-implementation.md)。存在時のみ実在検査する。
     spec_raw = route.get("spec")
     spec_rel = ""
@@ -88,8 +88,16 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
         errors.append(f"{prefix}.build_args が非空 object でない")
     elif builder == "run-build-skill" and build_args.get("kind") != build_kind:
         errors.append(f"{prefix}.build_args.kind={build_args.get('kind')!r} が build_kind={build_kind!r} と不一致")
-    elif builder == "run-skill-create" and not str(build_args.get("skill_name", "")).strip():
-        errors.append(f"{prefix}.build_args.skill_name が空")
+    elif builder == "run-skill-create":
+        if not str(build_args.get("skill_name", "")).strip():
+            errors.append(f"{prefix}.build_args.skill_name が空")
+        # brief_path は render-skill-brief.py 出力先の宣言 (plan_dir 相対・推奨
+        # briefs/skill-brief-<id>.json)。実体は render で生成されるため実在検査せず、
+        # 宣言時のみ非空 string を強制する。
+        if "brief_path" in build_args and not (
+            isinstance(build_args["brief_path"], str) and build_args["brief_path"].strip()
+        ):
+            errors.append(f"{prefix}.build_args.brief_path は宣言するなら非空 string であること")
     elif builder == "parent-skill-build":
         for key in ("parent_skill", "script_path"):
             if not str(build_args.get(key, "")).strip():
@@ -117,6 +125,41 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
     return errors
 
 
+def _check_builder_status(routes: list[dict], open_issue_ids: set[str]) -> list[str]:
+    """builder の実行実体有無 (specfm.BUILDER_STATUS) を routes へ fail-closed 強制する。
+
+    contract-only builder (専用 executor 未整備・当面 run-build-skill 内代替) の route は
+    `builder_status: contract-only` の明示宣言 + open_issues 内の gap id への `gap_ref` を必須に
+    する (executor gap の無音隠蔽を防ぐ)。executor-backed は builder_status 省略可 (宣言時は
+    一致必須)。manual-user-gated 等 写像外 builder は本検査の対象外。
+    """
+    errors: list[str] = []
+    for idx, route in enumerate(routes):
+        prefix = f"routes[{idx}]"
+        builder = str(route.get("builder", "")).strip()
+        declared = route.get("builder_status")
+        if declared is not None and declared not in specfm.BUILDER_STATUSES:
+            errors.append(f"{prefix}.builder_status={declared!r} が enum 外 {list(specfm.BUILDER_STATUSES)}")
+            continue
+        expected = specfm.BUILDER_STATUS.get(builder)
+        if expected is None:
+            continue
+        if declared is not None and declared != expected:
+            errors.append(f"{prefix}: builder={builder} は builder_status={expected!r} を要求 (現値 {declared!r})")
+        if expected == "contract-only":
+            if declared != "contract-only":
+                errors.append(
+                    f"{prefix}: builder={builder} は executor 未整備 (contract-only)。"
+                    "builder_status: contract-only を明示宣言すること"
+                )
+            gap_ref = str(route.get("gap_ref", "")).strip()
+            if not gap_ref:
+                errors.append(f"{prefix}: contract-only route は gap_ref (open_issues の gap id) 必須")
+            elif gap_ref not in open_issue_ids:
+                errors.append(f"{prefix}.gap_ref={gap_ref!r} が open_issues[].id に存在しない")
+    return errors
+
+
 def _check_toposort(routes: list[dict]) -> list[str]:
     seen: set[str] = set()
     errors: list[str] = []
@@ -130,8 +173,58 @@ def _check_toposort(routes: list[dict]) -> list[str]:
     return errors
 
 
+def _check_parent_scaffold(routes: list[dict]) -> list[str]:
+    """二相 skill build (scaffold→fill) の順序制約を機械可読契約として強制する。
+
+    placement_scope=skill の script (builder=parent-skill-build) は build_target が親 skill の
+    build_target ディレクトリ配下に置かれるため、toposort 上は script が親 skill より先に build
+    されるのに物理ディレクトリは親 skill scaffold 内という順序逆転が生じる。この逆転を後段
+    consumer が routes 配列順でなく守れるよう、当該 script route は `requires_parent_scaffold` で
+    自身を内包する親 skill の id を機械可読に宣言しなければならない (散文 build_sequencing_notes
+    依存の解消)。plugin-root へ hoist した共有 script (builder=plugin-scaffold) は親 skill 配下に
+    置かれず逆転が起きないため対象外。"""
+    errors: list[str] = []
+    skill_targets: dict[str, str] = {}
+    for route in routes:
+        if not isinstance(route, dict):
+            continue
+        if str(route.get("component_kind", "")).strip() != "skill":
+            continue
+        bt = str(route.get("build_target", "")).strip().rstrip("/")
+        rid = str(route.get("id", "")).strip()
+        if bt and rid:
+            skill_targets[rid] = bt + "/"
+    for idx, route in enumerate(routes):
+        if not isinstance(route, dict):
+            continue
+        if str(route.get("component_kind", "")).strip() != "script":
+            continue
+        if str(route.get("builder", "")).strip() != "parent-skill-build":
+            continue
+        bt = str(route.get("build_target", "")).strip()
+        if not bt:
+            continue
+        parents = sorted(sid for sid, st in skill_targets.items() if bt.startswith(st))
+        if not parents:
+            continue  # 親 skill 配下でない = 順序逆転なし (対象外)
+        prefix = f"routes[{idx}]"
+        rps = str(route.get("requires_parent_scaffold", "")).strip()
+        if not rps:
+            errors.append(
+                f"{prefix}: parent-skill-build script の build_target が親 skill 配下 {parents} にあり "
+                "二相 build (scaffold→fill) の順序逆転が生じるため requires_parent_scaffold (親 skill id) "
+                "を機械可読に明示すること (散文 build_sequencing_notes 依存の解消)"
+            )
+        elif rps not in parents:
+            errors.append(
+                f"{prefix}.requires_parent_scaffold={rps!r} が build_target を内包する親 skill "
+                f"{parents} のいずれでもない"
+            )
+    return errors
+
+
 def _check_inventory_provenance(routes: list[dict], plan_dir: Path) -> list[str]:
-    """routes が component-inventory.json 由来 (§6) であることを検証する。
+    """routes が component-inventory.json 由来 (§9 build handoff 契約) であることを検証する。
 
     plan_dir 直下に component-inventory.json が在るときのみ活性化する (孤立 handoff fixture は
     スキップ)。routes id 集合 == inventory component id 集合 (漏れ/余分 0) かつ各 route の
@@ -234,7 +327,7 @@ def validate_handoff(data: object, handoff_path: Path) -> list[str]:
     mode = data.get("mode")
     if mode not in ("create", "update"):
         errors.append(f"handoff.mode={mode!r} は create|update のみ")
-    # per-phase 転換 (§6): 本数固定/カウント/pin の各機構は 13 フェーズ固定で削除した。
+    # per-phase 転換: 本数固定/カウント/pin の各機構は 13 フェーズ固定で削除した。
     # routes[] は component-inventory.json の components[] 由来ゆえ本数強制ブロックは撤廃した。
 
     # spec / build_target の解決は cwd 非依存にする。handoff は必ず <PLAN_DIR> 直下に
@@ -260,6 +353,14 @@ def validate_handoff(data: object, handoff_path: Path) -> list[str]:
             continue
         errors.extend(_route_errors(route, idx, ids, plan_dir))
     errors.extend(_check_toposort([r for r in routes if isinstance(r, dict)]))
+    errors.extend(_check_parent_scaffold([r for r in routes if isinstance(r, dict)]))
+    open_issues = data.get("open_issues")
+    open_issue_ids = {
+        str(i.get("id", "")).strip()
+        for i in (open_issues if isinstance(open_issues, list) else [])
+        if isinstance(i, dict) and str(i.get("id", "")).strip()
+    }
+    errors.extend(_check_builder_status([r for r in routes if isinstance(r, dict)], open_issue_ids))
     errors.extend(_check_inventory_provenance(routes, plan_dir))
     errors.extend(_check_envelope(data.get("envelope"), plan_dir, target_plugin_slug))
     return errors
