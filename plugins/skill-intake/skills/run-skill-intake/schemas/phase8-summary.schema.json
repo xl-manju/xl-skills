@@ -27,6 +27,8 @@
     },
     "revision_notes": {"type": "string"},
     "summary_md_path": {"type": "string"},
-    "summary_json_path": {"type": "string"}
+    "summary_json_path": {"type": "string"},
+    "plugin_scale": {"type": "boolean", "description": "任意: ヒアリング中に plugin 規模構想 (hook/command 等複数コンポーネント) が明示されたとき true。run-intake-next-action の decide-mode.py が mode P 判定入力として読む。"},
+    "component_requests": {"type": "array", "items": {"type": "string"}, "description": "任意: ユーザーが要望したコンポーネント種別 (skill/hook/command/agent/mcp 等)。run-intake-next-action の decide-mode.py が mode P 判定入力として読む。"}
   }
 }

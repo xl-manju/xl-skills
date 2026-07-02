@@ -2,27 +2,36 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "run-prompt-elicit",
-    "skill_md_sha256": "a0742405c72904d337d20a7e591922898aed7bbc43b0cb559ed1ea29a3069a4e"
+    "skill_md_sha256": "14fd272881123e7db294dece00128dc34d35cd0416b2ebfeb9b5a70b6cdd29fe"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewer": "elegant-review-20260702-independent-content-reviewer",
+  "reviewed_at": "2026-07-02T01:10:37Z",
+  "iterations": 2,
   "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "smell": 1
+  },
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "ヒアリングの中核原則(導出確認なしに AI 推定を confirm 化しない / 1セッション3-5問+評価優先度に集約)が contract.invariant・Key Rules・Step 3 で一貫して反復され、後続 build が迷わず依拠できる brief を生むという Step 1 責務に直結している。",
-      "responsibility_id を target_skill responsibilities[].id と 1:1 で束縛し、不在時は confirm せず open_questions へ退避する設計により、未確定情報を事実化しない安全側のフォールバックが構造で担保されている。",
-      "batch モードで AskUserQuestion を不使用とし topic/target_skill/responsibility_id 全指定を必須化することで、対話前提と非対話前提の分岐が明確に分離され、自動化経路でのヒアリング誤起動を防いでいる。"
+      "iteration 1 で FAIL とした standalone×brief schema 矛盾が構造レベルで解消: prompt-brief.schema.json が draft 2020-12 の if/then/else で 2 モードを機械判別 (target_skill キー有→responsibility_id 必須 / 無=standalone→output_path 必須+properties.responsibility_id:false で R-id 混入を fail-visible に reject、additionalProperties:false 維持)。本レビューが独自設計した正例2+負例6 の 8 ケース全てで宣言通りの受理/拒否を Draft202012Validator で実測確認 (standalone の owner_agent_or_skill 欠落 reject 含む)。",
+      "SKILL.md Key Rule 5 に standalone brief 契約 (target_skill/responsibility_id をキーごと省く / output_path 必須・ユーザー指定 / owner_agent_or_skill='standalone' 規約 / 共通必須 8 フィールド) が明文化され、schema $comment 側も『run-prompt-elicit SKILL.md Key Rule 4/5 と 1:1』と相互参照する双方向アンカーで drift を封鎖。局面カタログ brief 構築にも『Key Rule 5 の brief 契約に従い…キーごと省く』が伝播し、IN1 の standalone 代替条項と 1:1 化された。",
+      "宣言型転換の質 (iteration 1 から継続): ゴール/Why/完了チェックリスト/局面カタログの分離、反復上限の feedback_contract.max_iterations(3) 束縛、超過時 open_questions 差し戻しの有界 fail-visible 設計。evaluation_priorities enum SSOT (hearing-result.schema.json 正本、question bank/R1-interview/agent の従属宣言連鎖) と goals/checklist invariant の全層伝播も健全。",
+      "下流破壊なしを確認: brief を読む唯一の script evaluate-create-gates.py は output_path を optional 参照するのみで新分岐に非依存。中央テストは hearing-result schema 拡張 (goals/checklist/evaluation_priorities required 化) へ追従済み。"
     ],
-    "negative_feedback": [],
-    "iteration": 1,
+    "negative_feedback": [
+      "[low/smell] brief schema の if/then/else 分岐に対する repo 常設の regression test が未収載 (executor と本レビューの機械検証はいずれも ad-hoc)。将来の schema 編集で分岐が壊れても pytest 層で検知されないため、正負例を tests/ へ固定化する hardening を推奨 (PASS 阻害なし)。"
+    ],
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を全文精読し criteria を導出。完全性: Purpose & Output Contract / Key Rules / Steps(1-5) / Gotchas / Additional Resources が相互整合し、入力(topic/target_skill/responsibility_id/batch)から出力(prompt-brief.json + hearing-result.json)への流れに欠落なし。一貫性: frontmatter allowed-tools(AskUserQuestion/Task)・responsibility_refs=prompts/R1-interview.md(実在確認)・delegate agent prompt-creator-interview-user(実在確認)・schema_refs(prompt-brief / hearing-result)が整合。IN1(brief schema 妥当 + R-id 1:1 実在 / 不在は open_questions)・IN2(batch 全指定必須かつ AskUserQuestion 不使用)・OUT1(導出確認原則と3-5問集約が SKILL.md / prompt SSOT / agent アダプタまで一貫)の3基準で adequacy を確認。Step 1 ヒアリング責務として中核原則が層をまたいで一貫しており PASS。"
+  "notes": "iteration 1 の FAIL (standalone 公認と brief schema required の contradiction / standalone brief 埋め方の omission / question bank 数量文言の inconsistency) に対する修正を現ファイル再精読+独立機械検証で二段確認。(1) schema 分岐は自前 8 ケースで実測 8/8 宣言通り、(2) Key Rule 5 明文化は schema と双方向 1:1、(3) question bank は『非空・各 80 字以内の原子性…数量レンジは撤廃済み』へ是正され質ベース判定原則と整合。参照実在 (prompts/R1-interview.md / schemas/hearing-result.schema.json / references 2 件 / ../run-prompt-create/schemas/prompt-brief.schema.json / interview-user agent / goal-seek-paradigm.md) は iteration 1 で確認済みかつ不変。IN1 (schema 妥当+R-id 1:1 / standalone は output_path 代替 — 今回充足可能化)・IN2 (batch 全指定必須+AskUserQuestion 不使用)・OUT1 (導出確認/3-5問集約の SKILL.md→R1 SSOT→agent 層横断一貫) の 3 基準 adequate。残余は low smell 1 件のみで未解決 high なし、PASS。"
 }

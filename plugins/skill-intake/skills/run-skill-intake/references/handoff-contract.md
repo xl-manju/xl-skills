@@ -1,65 +1,7 @@
-# Handoff Contract (run-skill-intake 11 phase)
+# Handoff Contract (pointer)
 
-各 phase の JSON schema 概要。詳細スキーマは旧 aggregator `references/handoff-contract.md` を継承する (Phase C で本ファイルへ統合予定)。
+正本: `plugins/skill-intake/references/handoff-contract.md` (plugin-root)。本ファイルは正本参照。複製禁止 (cross-boundary invariant) — phase 間 schema をここへインライン複製しない (旧複製は mode A-E のみ・`handoff_target` 無しの stale drift を起こした)。
 
-## Phase 1: kickoff.json
-
-```json
-{"pattern":"A|B|C|D|E","depth":"quick|standard|detailed","skill_name_hint":"...","pain_ranking":[{"task":"...","frequency_per_week":N,"minutes_per_run":N}],"initial_utterance":"...","timestamp":"ISO8601"}
-```
-
-## Phase 2: assumption.json
-
-```json
-{"surface_request":"...","deep_candidates":[{"id":"D1","label":"..."}],"user_picked":"D1","confirmed_deep_problem":"...","time_freed_intent":"...","blind_spots":["..."]}
-```
-
-## Phase 3: profile.json
-
-```json
-{"dimensions":{"expertise":{"level":"low","evidence":"...","confidence":"high"},"role":{...},"context":{...},"constraints":{...},"motivation":{...},"sharing_intent":{...}},"vocabulary_tier":"beginner|intermediate|expert"}
-```
-
-## Phase 4: interview.json
-
-```json
-{"filled_ratio":0.85,"five_axes_complete":true,"unresolved":["..."],"needs_excavation":true,"abstract_answers":["..."]}
-```
-
-## Phase 5: purpose.json
-
-```json
-{"techniques_used":["5whys"],"rounds":4,"agreement_loop_detected":false,"true_purpose":{"verb_object":"...","underlying_motivation":"...","time_freed_minutes_per_week":N,"use_of_freed_time":"..."},"remaining_doubts":[]}
-```
-
-## Phase 6: options.json
-
-```json
-{"selected_integrations":[{"id":"...","name":"...","tier":"required|optional"}],"rejected":[{"id":"...","reason":"..."}]}
-```
-
-## Phase 7: visuals.json
-
-```json
-{"sections":[{"section_id":"§3","mermaid_refs":["mtmpl-flow"],"svg_refs":["cvis-axes"],"png_paths":["visuals/§3.png"]}]}
-```
-
-## Phase 8: summary.json
-
-```json
-{"five_axes":{"output_target":"...","info_source":"...","share_target":"...","true_problem":"...","knowledge_assets":{"needed":true,"existing_sources":["..."]}},"approval_status":"approved|revision_requested","user_feedback":"..."}
-```
-
-## Phase 9: intake.json
-
-旧 aggregator `references/handoff-contract.md` の `intake-final-schema.json` に準拠。
-
-## Phase 10: notion-url.txt
-
-Notion ページ URL を 1 行で記録。
-
-## Phase 11: next-action.json
-
-```json
-{"mode":"A|B|C|D|E","reason":"...","multi_skill_suspicion":false,"split_candidates":[{"name":"...","responsibility":"..."}],"skill_creator_handoff_phase":"Phase 1 (kickoff)"}
-```
+- 各 phase の handoff JSON 契約は各 phase 担当 skill / schema が正本: 委譲 skill (`run-intake-kickoff` 等) は各 `schemas/output.schema.json`、SubAgent phase (P2/P3/P5/P8) は `workflow-manifest.json` の `outputSchemaId` が指す `./schemas/phase*-*.schema.json`。
+- Phase 11 `next-action.json` (mode A-E/P + `handoff_target`) の正本は `plugins/skill-intake/skills/run-intake-next-action/schemas/output.schema.json`。
+- intake.json (Phase 9) と下流 (skill-creator / plugin-dev-planner) への引き渡し契約は正本の「skill-creator 入力契約マッピング」「plugin-dev-planner 分岐 (mode P)」節を参照。

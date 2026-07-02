@@ -64,8 +64,10 @@ def generate_sheet(data):
 
     required_info = "\n".join(f"- {r}" for r in data.get("required_info") or []) or "- 未定義"
 
+    # 固定先頭行は l5-contract v2.0.0 追従: 「各ステップ毎」(固定手順前提) ではなく
+    # ゴールシークループの周回末アンカー (Step 5=Anchor) を成果物確認点とする。
     constraints = "\n".join(
-        ["- 各ステップ毎に成果物を出力して、ユーザーに確認する"]
+        ["- 各周回末に中間成果物アンカーを記録し、完了チェックリストで充足を確認する"]
         + [f"- {c}" for c in data.get("constraints") or []]
     )
 

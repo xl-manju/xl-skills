@@ -19,7 +19,12 @@
 """validate_sheet.js の python 移植。元の検証ロジック・終了コードを維持する。"""
 import json
 import os
+import re
 import sys
+
+# 手順列挙の疑いパターン (l5-contract v2.0.0: goals は成果状態で記述し手順で書かない)
+STEP_TOKEN_RE = re.compile(r"(?:ステップ|[Ss]teps?)\s*[0-9０-９]")
+INLINE_ENUM_RE = re.compile(r"(?:^|\s)1\s*[.)．、].+2\s*[.)．、]", re.DOTALL)
 
 # 必須フィールド定義
 REQUIRED_FIELDS = [
@@ -39,6 +44,8 @@ REQUIRED_FIELDS = [
 
 
 # 達成ゴールの検証（ゴールシーク型: 成果状態で記述され、手順列挙でないこと）
+# l5-contract v2.0.0 追従: 空チェックに加え、手順列挙 (ステップN / 連番チェーン) の
+# 疑いを検出する（docstring 主張と実装能力の一致）。
 def validate_goals(goals):
     issues = []
     if not isinstance(goals, list):
@@ -53,6 +60,17 @@ def validate_goals(goals):
             desc = ""
         if not desc or desc.strip() == "":
             issues.append({"field": f"goals[{i}]", "message": f"ゴール{i + 1}の記述が空"})
+            continue
+        if STEP_TOKEN_RE.search(desc) or INLINE_ENUM_RE.search(desc):
+            issues.append(
+                {
+                    "field": f"goals[{i}]",
+                    "message": (
+                        f"ゴール{i + 1}が手順列挙の疑い — 成果状態（何が出来上がれば到達か）で"
+                        "記述する。手順は実行時に AI が自律生成する"
+                    ),
+                }
+            )
     return issues
 
 

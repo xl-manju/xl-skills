@@ -84,22 +84,70 @@ def test_write_log_full(tmp_path):
     assert d["mode"] == "update"
 
 
-def test_write_log_empty_url(tmp_path):
+def test_write_log_empty_url_does_not_write_url_file(tmp_path):
+    # 失敗時 (url 空) は notion-url.txt を書かない (成功 URL 確定時のみ)。
+    # 空ファイル残置は初回翻訳ゲートを恒久 False 化し retry デッドエンドになるため。
     log = tmp_path / "notion-log.json"
     url = tmp_path / "notion-url.txt"
     IPP._write_log(str(log), str(url), "failed", 51, "target_resolution")
-    assert url.read_text(encoding="utf-8") == ""
+    assert not url.exists()
     assert json.loads(log.read_text(encoding="utf-8"))["exit_code"] == 51
 
 
+def test_write_log_empty_url_keeps_existing_url_file(tmp_path):
+    # 前回成功 URL が既にある状態での失敗は notion-url.txt を破壊しない (truncate しない)。
+    log = tmp_path / "notion-log.json"
+    url = tmp_path / "notion-url.txt"
+    url.write_text("https://www.notion.so/prev\n", encoding="utf-8")
+    IPP._write_log(str(log), str(url), "failed", 8, "publish")
+    assert url.read_text(encoding="utf-8") == "https://www.notion.so/prev\n"
+
+
 def test_write_log_swallows_errors(tmp_path, capsys):
-    # 書き込み不能パス (親が存在しないファイル名) でも例外を上げず stderr へ。
-    # url_path を「ディレクトリ」にして open(url_path, 'w') を IsADirectoryError にする。
+    # 書き込み不能パスでも例外を上げず stderr へ。
+    # url_path を「ディレクトリ」にして open(url_path, 'w') を IsADirectoryError にする
+    # (url 非空でのみ url 書き込みが走るため url を渡す)。
     bad_dir = tmp_path / "asdir"
     bad_dir.mkdir()
-    IPP._write_log(str(tmp_path / "log.json"), str(bad_dir), "failed", 2, "x")
+    IPP._write_log(str(tmp_path / "log.json"), str(bad_dir), "failed", 2, "x",
+                   url="https://u")
     err = capsys.readouterr().err
     assert "notion-url/log write error" in err
+
+
+# ===================== _has_publish_artifact (初回翻訳ゲートの内容ベース判定) =====================
+
+def test_has_publish_artifact_none(tmp_path):
+    assert IPP._has_publish_artifact(
+        str(tmp_path / "notion-publish-result.json"), str(tmp_path / "notion-url.txt")) is False
+
+
+def test_has_publish_artifact_empty_leftovers_ignored(tmp_path):
+    # 失敗残置 (空 url / page_id 無し result) は痕跡とみなさない → 初回経路が回復する。
+    url = tmp_path / "notion-url.txt"
+    url.write_text("", encoding="utf-8")
+    result = tmp_path / "notion-publish-result.json"
+    result.write_text("{}", encoding="utf-8")
+    assert IPP._has_publish_artifact(str(result), str(url)) is False
+
+
+def test_has_publish_artifact_url_content(tmp_path):
+    url = tmp_path / "notion-url.txt"
+    url.write_text("https://www.notion.so/x\n", encoding="utf-8")
+    assert IPP._has_publish_artifact(str(tmp_path / "r.json"), str(url)) is True
+
+
+def test_has_publish_artifact_result_page_id(tmp_path):
+    result = tmp_path / "notion-publish-result.json"
+    result.write_text(json.dumps({"page_id": "pid"}), encoding="utf-8")
+    assert IPP._has_publish_artifact(str(result), str(tmp_path / "u.txt")) is True
+
+
+def test_has_publish_artifact_unreadable_result_fail_closed(tmp_path):
+    # 破損 result は不明状態 → True (create 翻訳を無効化する fail-closed)。
+    result = tmp_path / "notion-publish-result.json"
+    result.write_text("{broken", encoding="utf-8")
+    assert IPP._has_publish_artifact(str(result), str(tmp_path / "u.txt")) is True
 
 
 # ===================== run() ヘルパ (subprocess を stub) =====================
@@ -159,9 +207,13 @@ def test_run_capture_stdout_nonzero_echoes(monkeypatch, tmp_path, capsysbinary):
 
 # ===================== main() in-process =====================
 
-def _intake(tmp_path, payload="{}", name="intake.json"):
+def _intake(tmp_path, payload="{}", name="intake.json", manifest=True):
     p = tmp_path / name
     p.write_text(payload, encoding="utf-8")
+    if manifest:
+        # All-or-Nothing 常時実行化 (F-0110) に伴い、out_dir 既定の notion-manifest.json を
+        # 配置する (verify_assets 段は _stub_stages が rc を返す)。manifest=False で不在を模す。
+        (tmp_path / "notion-manifest.json").write_text("{}", encoding="utf-8")
     return p
 
 
@@ -444,6 +496,116 @@ def test_main_blocks_out_override(monkeypatch, capsys, tmp_path):
     assert IPP.main() == 0
     render_args = [r for r in rec if r[0] == "render"][0][1]
     assert str(blocks) in render_args
+
+
+def test_main_default_manifest_missing_exits_2(monkeypatch, capsys, tmp_path):
+    # F-0110: --manifest 未指定でも out_dir 既定 notion-manifest.json を検査し、不在なら exit 2。
+    intake = _intake(tmp_path, manifest=False)
+    _stub_stages(monkeypatch)
+    _set_argv(monkeypatch, "--intake", str(intake), "--allow-create")
+    assert IPP.main() == 2
+    assert "notion-manifest.json" in capsys.readouterr().err
+    log = json.loads((tmp_path / "notion-log.json").read_text(encoding="utf-8"))
+    assert log["stage"] == "manifest_missing"
+
+
+def test_main_skip_assets_flag_skips_verification(monkeypatch, capsys, tmp_path):
+    # F-0110: 明示 --skip-assets (CI/テスト専用) のみ verify_assets を skip できる。
+    intake = _intake(tmp_path, manifest=False)
+    pub_out = json.dumps({"id": "p", "url": "https://u", "mode": "create"}).encode()
+    rec = _stub_stages(monkeypatch, publish_rc=0, publish_stdout=pub_out)
+    _set_argv(monkeypatch, "--intake", str(intake), "--allow-create", "--skip-assets")
+    assert IPP.main() == 0
+    assert not any(r[0] == "verify_assets" for r in rec)
+
+
+def test_main_default_manifest_autoresolved_runs_assets(monkeypatch, capsys, tmp_path):
+    # F-0110: --manifest 未指定でも out_dir 既定パスを自動解決して verify_assets が常時実行される。
+    intake = _intake(tmp_path)
+    pub_out = json.dumps({"id": "p", "url": "https://u", "mode": "create"}).encode()
+    rec = _stub_stages(monkeypatch, publish_rc=0, publish_stdout=pub_out)
+    _set_argv(monkeypatch, "--intake", str(intake), "--allow-create")
+    assert IPP.main() == 0
+    assets = [r for r in rec if r[0] == "verify_assets"]
+    assert len(assets) == 1
+    assert assets[0][1] == [str(tmp_path / "notion-manifest.json")]
+
+
+def test_main_first_publish_translates_notion_target(monkeypatch, capsys, tmp_path):
+    # F-0109: 初回 (url/result 不在, --revise/--allow-create 無し) は intake.json の
+    # notion_target (mode=create-explicit, allow_create=true) を --allow-create へ翻訳する。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": True}})
+    intake = _intake(tmp_path, payload=payload)
+    pub_out = json.dumps({"id": "p", "url": "https://u", "mode": "create"}).encode()
+    rec = _stub_stages(monkeypatch, publish_rc=0, publish_stdout=pub_out)
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 0
+    pub_cmd = [r for r in rec if r[0] == "publish_proc"][0][1]
+    assert "--allow-create" in pub_cmd
+
+
+def test_main_first_publish_translation_requires_allow_create_true(monkeypatch, capsys, tmp_path):
+    # F-0109: notion_target.allow_create が true でなければ翻訳せず fail-closed (exit 51)。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": False}})
+    intake = _intake(tmp_path, payload=payload)
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 51
+
+
+def test_main_first_publish_translation_skipped_when_republish_artifacts_exist(monkeypatch, capsys, tmp_path):
+    # F-0109: notion-url.txt が既存 (=再公開局面) なら初回翻訳を発動しない → 既定 fail-closed 51。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": True}})
+    intake = _intake(tmp_path, payload=payload)
+    (tmp_path / "notion-url.txt").write_text("https://www.notion.so/x\n", encoding="utf-8")
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 51
+
+
+def test_main_first_publish_translation_skipped_when_result_has_page_id(monkeypatch, capsys, tmp_path):
+    # notion-publish-result.json に page_id が実在すれば再公開局面 → 初回翻訳を発動しない (51)。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": True}})
+    intake = _intake(tmp_path, payload=payload)
+    (tmp_path / "notion-publish-result.json").write_text(
+        json.dumps({"page_id": "12345678-1234-1234-1234-123456789abc"}), encoding="utf-8")
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 51
+
+
+def test_main_first_publish_stage_failure_then_retry_recovers(monkeypatch, capsys, tmp_path):
+    # リトライ・デッドエンド regression: 初回 publish が stage 失敗 (assets 欠落 exit 2) しても
+    # notion-url.txt を残さず、再実行で初回翻訳経路が再度有効になり --allow-create が伝搬する。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": True}})
+    intake = _intake(tmp_path, payload=payload)
+
+    # 1回目: verify_assets 失敗 → exit 2。空 notion-url.txt を残さない (log は書く)。
+    _stub_stages(monkeypatch, assets_rc=2)
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 2
+    assert not (tmp_path / "notion-url.txt").exists()
+    log = json.loads((tmp_path / "notion-log.json").read_text(encoding="utf-8"))
+    assert log["stage"] == "verify_assets"
+
+    # 2回目 (原因解消後の再実行): 初回翻訳ゲートが再度有効 → --allow-create が publish へ伝搬。
+    pub_out = json.dumps({"id": "p", "url": "https://u", "mode": "create"}).encode()
+    rec = _stub_stages(monkeypatch, publish_rc=0, publish_stdout=pub_out)
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 0
+    pub_cmd = [r for r in rec if r[0] == "publish_proc"][0][1]
+    assert "--allow-create" in pub_cmd
+    assert (tmp_path / "notion-url.txt").read_text(encoding="utf-8") == "https://u\n"
+
+
+def test_main_first_publish_translation_survives_legacy_empty_url_file(monkeypatch, capsys, tmp_path):
+    # 旧実装が残した空 notion-url.txt (失敗残置) があっても内容ベース判定で初回経路が有効。
+    payload = json.dumps({"notion_target": {"mode": "create-explicit", "allow_create": True}})
+    intake = _intake(tmp_path, payload=payload)
+    (tmp_path / "notion-url.txt").write_text("", encoding="utf-8")
+    pub_out = json.dumps({"id": "p", "url": "https://u", "mode": "create"}).encode()
+    rec = _stub_stages(monkeypatch, publish_rc=0, publish_stdout=pub_out)
+    _set_argv(monkeypatch, "--intake", str(intake))
+    assert IPP.main() == 0
+    pub_cmd = [r for r in rec if r[0] == "publish_proc"][0][1]
+    assert "--allow-create" in pub_cmd
 
 
 def test_main_publish_invalid_stdout_json_treated_failed(monkeypatch, capsys, tmp_path):

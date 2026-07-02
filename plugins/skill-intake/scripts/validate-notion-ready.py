@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -17,6 +18,19 @@ def main() -> int:
     parser.add_argument("--check-api", action="store_true", help="Also perform a read-only Notion database GET")
     parser.add_argument("--json", action="store_true", dest="json_out")
     args = parser.parse_args()
+
+    # mmdc preflight (execution-contract.md 終了コード規約: 3 = DEPENDENCY_ERROR)。
+    # render 系 (render_to_image.py / render_to_svg.py) が mmdc 必須のため publish 前に fail-fast する。
+    if shutil.which("mmdc") is None:
+        print(
+            "[check_notion_ready] mmdc (Mermaid CLI) が見つかりません。図の描画に必須です。\n"
+            "導入手順:\n"
+            "  1. Node.js をインストール (https://nodejs.org)\n"
+            "  2. ターミナルで: npm install -g @mermaid-js/mermaid-cli\n"
+            "  3. mmdc --version が表示されれば導入完了",
+            file=sys.stderr,
+        )
+        return 3
 
     try:
         cfg = notion_config.load_config()
@@ -48,6 +62,7 @@ def main() -> int:
         "database_id": db_id,
         "parent_page_id": notion_config.get_parent_page_id(),
         "token": "available",
+        "mmdc": "available",
         "api": "not_checked",
     }
 

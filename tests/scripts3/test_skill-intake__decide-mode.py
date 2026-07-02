@@ -12,10 +12,14 @@ precondition gate(逸脱B封鎖)を持つ。よって本テストは:
      intake target が一致する OK 経路)
   - load_json_required: 欠落(exit3) / 不正JSON(exit3) は main 経由 subprocess で
   - main: precondition gate(BLOCK exit2)/ --allow-skip(env 無し BLOCK / env 有り続行)/
-    mode 判定(verb 空→E / 連結語→D / 単一→kickoff.pattern 採用)/ handoff マップ /
+    mode 判定(P 徴候→P / verb 空→E / 連結語→D / 単一→kickoff.pattern 採用)/
+    handoff マップ(references/mode-catalog.md 右列の逐語コピー)/ handoff_target /
     out 書き出し内容
+  - detect_plugin_scale: plugin_scale 明示宣言 / component_requests 非 skill 種別 /
+    skill 系 2 件以上 / 徴候なし
 
 を tmp_path 上の実ファイルで genuine に assert する(repo 非汚染)。
+handoff phase 文言は F-0313 で skill-creator 実在語彙 (Step 1 elicit 等) へ更新済み。
 """
 import importlib.util
 import json
@@ -310,7 +314,8 @@ def test_cli_allow_skip_with_env_continues(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     # kickoff.pattern=A を採用、verb 非空・連結語無しなので A のまま。
     assert data["mode"] == "A"
-    assert data["skill_creator_handoff_phase"] == "Phase 1 (kickoff)"
+    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit)"
+    assert data["handoff_target"] == "skill-creator"
     assert data["confirmed_with_user"] is False
 
 
@@ -336,7 +341,7 @@ def test_cli_published_mode_d_for_concatenated_verb(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["mode"] == "D"
     assert data["multi_skill_suspicion"] is True
-    assert data["skill_creator_handoff_phase"] == "Phase 1 (split first)"
+    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit, split first)"
 
 
 def test_cli_published_mode_d_for_plus_verb(tmp_path):
@@ -361,7 +366,7 @@ def test_cli_published_mode_e_for_empty_verb(tmp_path):
     data = json.loads(out.read_text())
     assert data["mode"] == "E"
     assert "判定不能" in data["reason"]
-    assert data["skill_creator_handoff_phase"] == "Phase 1 (re-intake)"
+    assert data["skill_creator_handoff_phase"] == "P1-kickoff (re-intake)"
 
 
 def test_cli_published_preserves_kickoff_pattern_b(tmp_path):
@@ -375,7 +380,7 @@ def test_cli_published_preserves_kickoff_pattern_b(tmp_path):
     assert proc.returncode == 0, proc.stderr
     data = json.loads(out.read_text())
     assert data["mode"] == "B"
-    assert data["skill_creator_handoff_phase"] == "Phase 2 (existing reuse)"
+    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit --mode update)"
 
 
 def test_cli_published_default_pattern_e_when_missing(tmp_path):
@@ -388,6 +393,41 @@ def test_cli_published_default_pattern_e_when_missing(tmp_path):
     proc = _run(_argv(paths, out), cwd=str(tmp_path))
     assert proc.returncode == 0, proc.stderr
     assert json.loads(out.read_text())["mode"] == "E"
+
+
+def test_cli_published_mode_p_plugin_scale_flag(tmp_path):
+    # summary.plugin_scale=true → mode P (plugin-dev-planner 行き)。既存 A-E 判定より優先。
+    paths, out = _published_inputs(
+        tmp_path,
+        kickoff={"pattern": "A"},
+        purpose={"true_purpose": {"verb_object": "請求書を生成する"}},
+        summary={"plugin_scale": True},
+    )
+    proc = _run(_argv(paths, out), cwd=str(tmp_path))
+    assert proc.returncode == 0, proc.stderr
+    assert "mode=P" in proc.stdout
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["mode"] == "P"
+    assert data["handoff_target"] == "plugin-dev-planner"
+    assert data["skill_creator_handoff_phase"] == "R1 (elicit-goal)"
+    assert data["multi_skill_suspicion"] is True
+    assert "plugin_scale" in data["reason"]
+
+
+def test_cli_published_mode_p_wins_over_d(tmp_path):
+    # P 徴候 (component_requests に hook) は連結語 D 判定より優先される。
+    paths, out = _published_inputs(
+        tmp_path,
+        kickoff={"pattern": "A"},
+        purpose={"true_purpose": {"verb_object": "集計 と 出力"}},
+        options={"component_requests": ["skill", "hook"]},
+    )
+    proc = _run(_argv(paths, out), cwd=str(tmp_path))
+    assert proc.returncode == 0, proc.stderr
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["mode"] == "P"
+    assert data["handoff_target"] == "plugin-dev-planner"
+    assert "hook" in data["reason"]
 
 
 def test_cli_input_missing_exit3(tmp_path):
@@ -405,6 +445,44 @@ def test_cli_input_invalid_json_exit3(tmp_path):
     proc = _run(_argv(paths, out), cwd=str(tmp_path))
     assert proc.returncode == 3
     assert "input invalid" in proc.stderr and "purpose" in proc.stderr
+
+
+# --------------------------------------------------------------------------
+# detect_plugin_scale: 純関数 (mode P 判定表の正本 = references/mode-catalog.md)
+# --------------------------------------------------------------------------
+
+def test_detect_plugin_scale_explicit_flag_each_source():
+    for src_kwargs in (
+        {"kick": {"plugin_scale": True}, "opts": {}, "summ": {}},
+        {"kick": {}, "opts": {"plugin_scale": True}, "summ": {}},
+        {"kick": {}, "opts": {}, "summ": {"plugin_scale": True}},
+    ):
+        is_p, reason = MOD.detect_plugin_scale(**src_kwargs)
+        assert is_p is True
+        assert "plugin_scale=true" in reason
+
+
+def test_detect_plugin_scale_non_skill_component_kinds():
+    is_p, reason = MOD.detect_plugin_scale(
+        {}, {"component_requests": ["skill", "command"]}, {},
+    )
+    assert is_p is True
+    assert "command" in reason
+
+
+def test_detect_plugin_scale_two_or_more_skills():
+    is_p, reason = MOD.detect_plugin_scale(
+        {}, {}, {"component_requests": ["skill-a", "skill-b"]},
+    )
+    assert is_p is True
+    assert "2 件" in reason
+
+
+def test_detect_plugin_scale_negative_paths():
+    # 徴候なし / 単一 skill 要望 / plugin_scale が truthy でも True 以外は徴候にしない。
+    assert MOD.detect_plugin_scale({}, {}, {})[0] is False
+    assert MOD.detect_plugin_scale({}, {"component_requests": ["skill"]}, {})[0] is False
+    assert MOD.detect_plugin_scale({"plugin_scale": "yes"}, {}, {})[0] is False
 
 
 # --------------------------------------------------------------------------
@@ -451,7 +529,7 @@ def test_main_inprocess_published_mode_a(tmp_path, monkeypatch, capsys):
     assert "mode=A" in captured.out
     data = json.loads(out.read_text())
     assert data["mode"] == "A"
-    assert data["skill_creator_handoff_phase"] == "Phase 1 (kickoff)"
+    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit)"
 
 
 def test_main_inprocess_mode_d_concatenated(tmp_path, monkeypatch, capsys):
@@ -478,7 +556,7 @@ def test_main_inprocess_mode_e_empty_verb(tmp_path, monkeypatch, capsys):
 
 
 def test_main_inprocess_each_handoff_phase(tmp_path, monkeypatch, capsys):
-    # pattern C → Phase 7 (prompt-only update) を踏む(handoff マップの C 経路)。
+    # pattern C → Step 1 (elicit --mode update, prompt-only) を踏む(handoff マップの C 経路)。
     paths, out = _published_inputs(
         tmp_path,
         kickoff={"pattern": "C"},
@@ -486,7 +564,22 @@ def test_main_inprocess_each_handoff_phase(tmp_path, monkeypatch, capsys):
     )
     _run_main(monkeypatch, _argv(paths, out))
     assert capsys.readouterr().out.strip() == "mode=C"
-    assert json.loads(out.read_text())["skill_creator_handoff_phase"] == "Phase 7 (prompt-only update)"
+    assert json.loads(out.read_text())["skill_creator_handoff_phase"] == "Step 1 (elicit --mode update, prompt-only)"
+
+
+def test_main_inprocess_mode_p_component_requests(tmp_path, monkeypatch, capsys):
+    paths, out = _published_inputs(
+        tmp_path,
+        kickoff={"pattern": "A"},
+        purpose={"true_purpose": {"verb_object": "タスクを同期する"}},
+        summary={"component_requests": ["skill", "hook", "command"]},
+    )
+    _run_main(monkeypatch, _argv(paths, out))
+    assert "mode=P" in capsys.readouterr().out
+    data = json.loads(out.read_text())
+    assert data["mode"] == "P"
+    assert data["handoff_target"] == "plugin-dev-planner"
+    assert data["skill_creator_handoff_phase"] == "R1 (elicit-goal)"
 
 
 def test_main_inprocess_block_without_publish_exit2(tmp_path, monkeypatch, capsys):

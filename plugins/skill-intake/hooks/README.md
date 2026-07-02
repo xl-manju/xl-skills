@@ -55,8 +55,9 @@ bash ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/hooks/post-keychain-add.sh
 
 ### 4. PostToolUse hook (Slack 通知)
 
-`post-publish-notify.sh` を PostToolUse / Bash matcher に配線する。`.claude/settings.json.example` に
-ひな型あり。プラグインインストール時は `.claude-plugin/plugin.json` の hooks 経由で自動配線される。
+`post-publish-notify.sh` を PostToolUse / Bash matcher に配線する (書式は「配線方法 1.」の
+PreToolUse と同じ。`command` を `$CLAUDE_PLUGIN_ROOT/hooks/post-publish-notify.sh` にする)。
+プラグインインストール時は `.claude-plugin/plugin.json` の hooks 経由で自動配線される。
 
 #### Slack Webhook の Keychain 登録 (初回セットアップのみ)
 

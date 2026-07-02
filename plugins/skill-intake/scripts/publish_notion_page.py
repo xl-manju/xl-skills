@@ -430,6 +430,14 @@ def main():
             res = notion_fetch('/pages', method='POST', body=body)
             page_id = res.get('id')
             page_url = res.get('url')
+            # POST 成功直後に page_id を即時永続化 (partial-create 窓の封鎖):
+            # 後続 children PATCH が失敗しても成功痕跡が残り、再実行は update mode で
+            # 同一ページへ収束する (再 create によるページ重複を構造的に防ぐ)。
+            try:
+                _write_result(args.result_out, page_id, page_url, 'create', database_id)
+            except Exception as e:
+                print(f'[publish_notion_page] result write failed ({args.result_out}): {e}', file=sys.stderr)
+                return 2
             for i in range(0, len(remaining), MAX_FIRST):
                 chunk = remaining[i:i + MAX_FIRST]
                 notion_fetch(f'/blocks/{page_id}/children', method='PATCH', body={'children': chunk})

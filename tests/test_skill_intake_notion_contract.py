@@ -37,11 +37,22 @@ def test_intake_manifest_publishes_before_next_action():
     assert phases["P11-next-action"]["dependsOn"] == ["P10-notion"]
 
 
-def test_publish_pipeline_rejects_missing_target_by_default():
+def test_publish_pipeline_rejects_missing_target_by_default(tmp_path):
+    # 有効な notion_target (mode=create-explicit かつ allow_create=true) が無い intake は
+    # 既定で create fallback せず exit 51 (fail-closed)。fixture 直参照だと pipeline が
+    # out_dir=fixture へ notion-log.json を書く副作用があるため tmp_path へ複製して起動する。
+    src = json.loads(
+        (ROOT / "plugins/skill-intake/fixtures/intake-final-smoke/context.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    src.pop("notion_target", None)
+    intake = tmp_path / "context.json"
+    intake.write_text(json.dumps(src, ensure_ascii=False), encoding="utf-8")
     result = run_cmd(
         "plugins/skill-intake/scripts/intake_publish_pipeline.py",
         "--intake",
-        "plugins/skill-intake/fixtures/intake-final-smoke/context.json",
+        str(intake),
         "--manifest",
         "plugins/skill-intake/fixtures/intake-final-smoke/notion-blocks.json",
         "--dry-run",
@@ -152,6 +163,41 @@ def test_bundled_fixed_config_contains_default_hearing_sheet_target():
     )
 
 
+def test_bundled_fixed_config_parent_page_is_blank_fail_closed():
+    # 同梱 fixed config の parent_page は意図的に空。DB を親ページとして誤指定する
+    # 回帰 (parent_page.page_id == databases.*.db_id) を封じ、DB 新規作成をユーザー
+    # 指定の親ページ必須 (fail-closed) にする。
+    fixed = json.loads((ROOT / "plugins/skill-intake/notion-config.fixed.json").read_text(encoding="utf-8"))
+    assert fixed["parent_page"]["page_id"] == ""
+    assert fixed["parent_page"]["page_url"] == ""
+
+
+def test_create_notion_database_rejects_parent_page_equal_to_db_id(tmp_path):
+    # 親ページ ID が databases.*.db_id と同一 (親が DB を指す誤設定) は create を拒否する。
+    cfg = tmp_path / ".notion-config.json"
+    cfg.write_text(
+        json.dumps({
+            "parent_page": {"page_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"},
+            "databases": {
+                "hearing-sheet": {"db_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"}
+            },
+        }),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["NOTION_CONFIG_PATH"] = str(cfg)
+    env.pop("INTAKE_NOTION_PARENT_PAGE_ID", None)
+
+    result = run_cmd(
+        "plugins/skill-intake/scripts/create_notion_database.py",
+        "--mode=create",
+        "--dry-run",
+        env=env,
+    )
+    assert result.returncode == 2
+    assert "DB新規作成には親“ページ”IDが必要です" in result.stderr
+
+
 def test_check_notion_ready_reports_fixed_target_with_env_token(tmp_path):
     plugin_root = tmp_path / "skill-intake"
     plugin_root.mkdir()
@@ -170,6 +216,12 @@ def test_check_notion_ready_reports_fixed_target_with_env_token(tmp_path):
     env.pop("INTAKE_NOTION_DATABASE_ID", None)
     env["INTAKE_ALLOW_ENV_TOKEN"] = "1"
     env["NOTION_TOKEN"] = "secret_test"
+    # mmdc preflight (DEPENDENCY_ERROR=3) を通すため、実 mmdc 非依存の shim を PATH 先頭に置く。
+    mmdc_dir = tmp_path / "bin"
+    mmdc_dir.mkdir()
+    (mmdc_dir / "mmdc").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (mmdc_dir / "mmdc").chmod(0o755)
+    env["PATH"] = f"{mmdc_dir}{os.pathsep}{env.get('PATH', '')}"
 
     result = run_cmd(
         "plugins/skill-intake/scripts/validate-notion-ready.py",
@@ -180,6 +232,7 @@ def test_check_notion_ready_reports_fixed_target_with_env_token(tmp_path):
     assert result.returncode == 0
     assert payload["database_id"] == "36607a0c-d18c-80bf-9eff-c74aa736645c"
     assert payload["token"] == "available"
+    assert payload["mmdc"] == "available"
     assert payload["api"] == "not_checked"
 
 

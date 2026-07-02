@@ -13,7 +13,7 @@ source-tier: internal
 
 ## §9 生成スキルの入出力契約
 
-- **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)。`--mode create|update`。
+- **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)。`--mode create|update`。任意で **skill-intake の intake.json** (schema_version 2.0.0) を構造化 `plugin_concept` 入力として受理する: `sections.0_executive_summary` (true_purpose_oneliner / pattern) / `sections.3_purpose_excavator` (true_purpose / underlying_motivation / output_priority) / next-action.json の `split_candidates[]` を goal-spec (purpose/background/goal/checklist) 写像の材料とする (供給側契約は `plugins/skill-intake/references/handoff-contract.md` の「plugin-dev-planner 分岐 (mode P)」節)。
 - **処理**: R1(要件定義)→R2(分解)→R3(生成)→R4(検証) の責務を goal-seek ループで実行し、13 フェーズ (`phase-lifecycle.md` §8 の P01..P13) を成果物へ写像する。各責務の詳細プロンプトは `prompts/R1-R4`。
 - **出力** (2 軸直交・単一 SSOT + 複数 projection。詳細は `component-domain.md`):
   1. **13 phase ファイル (Markdown)** — `phase-01-requirements.md` … `phase-13-release.md`。各々が §2 の phase frontmatter (`PHASE_REQUIRED`) を携帯し、本文は上から順に読める宣言型タスク仕様 (8 節・§5 表参照・ライフサイクル軸=人間向け primary deliverable)。命名は `phase-NN-<kebab>.md` (NN=ゼロ埋め 2 桁・kebab は `specfm.PHASE_NAMES`)。
