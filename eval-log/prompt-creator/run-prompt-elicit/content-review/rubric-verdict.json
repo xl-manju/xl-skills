@@ -2,26 +2,33 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "run-prompt-elicit",
-    "skill_md_sha256": "a0742405c72904d337d20a7e591922898aed7bbc43b0cb559ed1ea29a3069a4e"
+    "skill_md_sha256": "14fd272881123e7db294dece00128dc34d35cd0416b2ebfeb9b5a70b6cdd29fe"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewer": "skill-design-evaluator-20260702-independent-content-reviewer",
+  "reviewed_at": "2026-07-02T01:10:37Z",
+  "iterations": 2,
   "human_review_required": false,
+  "findings_summary": {
+    "contradiction": 0,
+    "smell": 1
+  },
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "description が発動条件(prompt-brief.json 生成 / target_skill・responsibility_id 確定)を具体的に記述し、ヒアリング Step 1 という単一責務に絞られている。",
-      "Step 5 自己検証(prompt_name パターン / R-id 実在 / layers_required サブセット / trigger 件数・文字数 / boundary 文字数)が機械検証可能な完了条件として明示され、IN1 の lint 検証要件と整合している。"
+      "iteration 1 で FAIL とした『IN1 が standalone 分岐で充足不能』は解消: prompt-brief.schema.json の if/then/else 条件分岐により standalone brief (target_skill/responsibility_id 省略+output_path 必須) が schema 妥当になり得る状態を独立再現の 8 ケース機械検証で確認。IN1 の『schema 妥当』と『standalone 時 output_path 代替』が両立可能になり、完了チェックリスト項目2 (schema validation 無条件) と項目5 (モード別分岐) も standalone で同時充足可能化 — 評価契約の到達可能性が回復した。",
+      "description が発動条件 2 経路 (target_skill/responsibility_id 確定・standalone 汎用要望) を具体的に記述し、単一責務 (ヒアリングのみ。build/evaluate 非担当、caller への差し戻し境界明示) を維持。Key Rule 5 の brief 契約明文化は『機械正本 = brief schema の if/then/else』と正本の所在を宣言しており、文書と機械層の役割分担 (二層分離) が明確。",
+      "完了チェックリスト 8 項目が schema validation 通過 / enum 内・最大2 / 実在突合 / 未確認推定 0 件 / 再質問 0 件 / batch 時 AskUserQuestion 0 回など二値判定可能な停止条件文で書かれ、feedback_contract criteria の inner/outer 分離+verify_by 写像 (IN1=lint/IN2=test/OUT1=elegant-review) とともに携帯され lint-content-review の突合と整合する。"
     ],
-    "negative_feedback": [],
-    "iteration": 1,
+    "negative_feedback": [
+      "[low/smell] IN2 は verify_by: test を宣言するが、batch モードの必須引数欠落 fail を検証する実テストは今回も tests/ 配下に未収載 (grep 走査で不在確認)。LLM 挙動 (AskUserQuestion 不使用) はテスト困難だが、引数欠落 fail 側は fixture 化可能なため、実テスト追加か verify_by の reasoning への写像見直しを推奨 (未解決 high ではなく PASS 阻害なし)。"
+    ],
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric 観点で SKILL.md を精読。発動条件の具体性(description が prompt-brief.json 生成と target_skill/responsibility_id 確定を明示)・単一責務(Step 1 ヒアリングのみ・build/evaluate は別 skill へ委譲)・出力契約の明確性(prompt-brief.json + hearing-result.json + 各 schema_refs)・完了条件の検証可能性(Step 5 self-check + schema validation)を確認。IN1(brief schema 妥当 + responsibility_id 1:1 実在)・IN2(batch 非対話分岐の正当性)・OUT1(導出確認/3-5問集約原則の層横断一貫性)の3基準とも rubric 上で adequate。重大な設計欠陥(責務肥大・契約曖昧・検証不能)は検出されず PASS。"
+  "notes": "rubric 観点 (発動条件の具体性 / 単一責務 / 出力契約の明確性 / 完了条件の検証可能性・到達可能性 / criteria の verify_by 整合) で修正後 SKILL.md を再精読。iteration 1 の high 2 件 (IN1 充足不能 / チェックリスト項目2×5 同時充足不能) は schema 条件分岐+Key Rule 5 明文化で解消し、Draft202012Validator による独立 8 ケース実測 (正例2+負例6、responsibility_id 混入 reject・owner_agent_or_skill 欠落 reject 含む) で二段確認済み。question bank の trigger_conditions 数量文言も非空+原子性へ是正され質ベース判定規範に整合。下流 (evaluate-create-gates.py) は output_path optional 参照のみで契約変更に非依存。残余は IN2 の verify_by/実テスト断線 (low smell) のみで、rubric 規範への未解決 high 違反なし、PASS。"
 }

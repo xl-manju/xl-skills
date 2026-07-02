@@ -106,13 +106,14 @@ def test_parse_args_defaults_none(monkeypatch):
     assert a.input is None and a.phase is None and a.schema is None
 
 
-def test_parse_args_ignores_unrecognized(monkeypatch):
-    # parse_known_args: 未知の --debug は黙って捨てる
+def test_parse_args_rejects_unrecognized_failfast(monkeypatch):
+    # A4-10: parse_known_args の黙殺を廃止。未知の --debug は argparse が exit 2 で failfast。
     monkeypatch.setattr(
         MOD.sys, "argv", ["validate-prompt.py", "--input", "p.md", "--debug", "1"]
     )
-    a = MOD.parse_args()
-    assert a.input == "p.md"
+    with pytest.raises(SystemExit) as exc:
+        MOD.parse_args()
+    assert exc.value.code == 2
 
 
 # ── load_json ────────────────────────────────────────────────────────────────
@@ -413,7 +414,18 @@ def test_main_default_schema_resolved_for_trace(monkeypatch, tmp_path, capsys):
 
 
 def test_main_default_schema_resolved_for_hearing(monkeypatch, tmp_path, capsys):
-    data = _wj(tmp_path / "h.json", {"session_id": "s", "timestamp": "t", "answers": []})
+    data = _wj(
+        tmp_path / "h.json",
+        {
+            "session_id": "s",
+            "timestamp": "t",
+            "answers": [],
+            # 3b schema 拡張 (required 追加: goals/checklist/evaluation_priorities) に追従
+            "goals": ["検証済み成果物が出力された状態になっている"],
+            "checklist": ["schema 検証を通過している"],
+            "evaluation_priorities": ["正確性・精度"],
+        },
+    )
     code = _main_exit(monkeypatch, ["validate-prompt.py", "--input", str(data), "--phase", "hearing"])
     assert code == 0
     assert "OK phase=hearing" in capsys.readouterr().out

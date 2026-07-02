@@ -2,6 +2,14 @@
 
 7 層プロンプトアーキテクチャで、プロンプトのヒアリング、生成、評価、governance までを実行する Claude Code plugin です。正本フローは `/prompt-creator:run-prompt-create` です。`run-prompt-creator-7layer` は Step 2 の生成 worker で、Markdown (`.md`) を既定成果物とし、YAML は内部正規形または legacy 互換に限定します。SubAgent `.md` の **Prompt Templates** / **Self-Evaluation** 注入は `owner_agent` 指定時だけの付随機能です。
 
+**1 分判別表** — あなたの要望 → 使う skill:
+
+| あなたの要望 | 使う skill |
+| --- | --- |
+| 迷ったら / ヒアリング→生成→評価→governance を一括 | `/prompt-creator:run-prompt-create` |
+| brief 確定済みで 7 層プロンプトの単体生成のみ | `/prompt-creator:run-prompt-creator-7layer` |
+| どの skill にも紐付かない汎用プロンプトの要望整理 | `/prompt-creator:run-prompt-elicit` (standalone モード。出力先はユーザー指定) |
+
 ---
 
 ## 目次
@@ -102,7 +110,7 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 ### 5-0. 正本の位置づけ
 
 - ユーザー向け正本フロー: `skills/run-prompt-create/workflow-manifest.json`
-- ヒアリング raw data: `skills/run-prompt-elicit/schemas/hearing-result.schema.json`
+- ヒアリング raw data: `skills/run-prompt-elicit/schemas/hearing-result.schema.json` (`evaluation_priorities` enum / goals / checklist の SSOT)
 - 生成 worker の legacy sheet input: `skills/run-prompt-creator-7layer/schemas/hearing-result.schema.json`
 - 生成成果物: Markdown (`.md`) が既定。YAML は内部正規形または legacy 互換
 - 重複判断の上位正本: `plugins/skill-creator/references/ssot-dedup-procedure.md`。prompt-creator 内の冪等更新要約は `skills/run-prompt-creator-7layer/references/idempotent-update-policy.md`
@@ -131,15 +139,7 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 /prompt-creator:run-prompt-creator-7layer
 ```
 
-単体起動時は、7 層プロンプト生成 worker として次のフェーズを実行します。
-
-| Phase | 役割                                       | 主な SubAgent                  |
-| ----- | ------------------------------------------ | ------------------------------ |
-| 1     | ヒアリング (7 層分の入力収集)              | `prompt-creator-interview-user` |
-| 2     | シート生成 (`generate-sheet.py`)           | (script)                       |
-| 3     | プロンプト生成 (7 層マージ)                | `prompt-creator-generate-prompt` |
-| 4     | レビュー & 整形 (validate/verify/convert)  | `prompt-creator-review-prompt` |
-| 5     | 完了・LOGS.md 記録 (`log-usage.py`)        | (script)                       |
+単体起動時の Phase 構成は `skills/run-prompt-creator-7layer/SKILL.md` を正本として参照してください (README への転記は二重管理になるため行いません)。ヒアリング (Phase 1) は `run-prompt-elicit` への委譲に一本化されています。
 
 ### 5-3. 出力物
 
@@ -148,6 +148,14 @@ Claude Code 内で次を実行し、`prompt-creator` 関連のエントリが見
 - `plugins/<plugin>/skills/<skill>/prompts/<R-id>-<slug>.md`: 既定成果物
 - `tmp/prompt.yaml`: 内部正規形または中間成果物
 - `LOGS.md`: 実行ログ (自動追記)
+
+### 5-4. 宣言型 (ゴールシーク) 転換の概要
+
+生成・評価・自己プロンプトの全層は **Layer 5 契約** (`skills/run-prompt-creator-7layer/references/seven-layer-format.md`「Layer 5 契約」= l5-contract v2.0.0) に従属します。
+
+- Layer 5 は「5.2 ゴール定義 / 5.3 完了チェックリスト (停止条件) / 5.4 実行方式 (6 ステップ+Anchor のゴールシークループ)」で構成し、固定手順は書きません (旧「5.2 推論手順 / 5.3 自己検証 checklist」は廃止)。
+- 評価 rubric (`prompt-rubric.json` v2.0.0) は数量レンジ基準を廃止し、非空 (構造下限) + 検証可能性 (質ベース) で判定します。
+- ヒアリングは goals (達成ゴール=成果状態文) と checklist (YES/NO 判定文) を必須収集し、`evaluation_priorities` の語彙・上限は `skills/run-prompt-elicit/schemas/hearing-result.schema.json` の enum (5 値・最大 2) が正本 (SSOT) です。
 
 ---
 

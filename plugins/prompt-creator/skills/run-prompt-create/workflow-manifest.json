@@ -15,8 +15,8 @@
       "exitHook": "validate-prompt-brief",
       "resourceIds": [
         "schemas/prompt-brief.schema.json",
-        "prompts/elicit.md",
-        "prompts/gate-review.md"
+        "prompts/R1-elicit.md",
+        "prompts/R2-gate-review.md"
       ],
       "delegateSkill": "run-prompt-elicit",
       "fatal_exit_codes": [2],
@@ -88,7 +88,7 @@
       "condition": "new_prompt OR diff_lines > 30",
       "resourceIds": [
         "schemas/findings.schema.json",
-        "prompts/gate-review.md"
+        "prompts/R2-gate-review.md"
       ],
       "delegateSkill": "run-elegant-review",
       "context": "fork",
@@ -105,24 +105,57 @@
       "entryHook": null,
       "exitHook": null,
       "resourceIds": [
-        "prompts/governance-decide.md",
-        "prompts/gate-review.md",
+        "prompts/R3-governance-decide.md",
+        "prompts/R2-gate-review.md",
         "schemas/handoff.schema.json"
       ],
       "delegateSkill": "run-skill-rubric-governance",
+      "preconditions": {
+        "$comment": "環境前提 (静的な運用構成値)。成果物の品質条件ではないため auto_approve_conditions から分離 (恒真の静的条件を合否条件に混ぜない)。値の正本は references/governance-params.json。いずれかが false の環境では auto_approve 評価に入らず run-skill-rubric-governance の手動承認フローへ。",
+        "solo_operator_mode": "references/governance-params.json#/solo_operator_mode",
+        "stable_frozen": "references/governance-params.json#/stable_frozen"
+      },
       "auto_approve_conditions": [
-        "solo_operator_mode == true",
-        "stable_frozen == true",
-        "newly_failing == 0",
-        "llm_reviewer == PASS",
-        "layer_dependency_violations == 0",
-        "self_evaluation_checklist_present == true",
-        "markdown_format_default_kept == true",
-        "lint_agent_prompt_section == PASS",
-        "verify_completeness_score >= 0.95",
-        "responsibility_id_matches_owner_skill == true",
-        "atomic_field_violations == 0",
-        "translated_placeholder_residue == 0"
+        {
+          "condition": "newly_failing == 0",
+          "evidence": "判定手続き: p0-lint (step 3a) commands の実行結果を eval-log/handoff-after_prompt_lint.json に記録し、HEAD 時点に存在しなかった新規 FAIL が 0 件であることを突合する"
+        },
+        {
+          "condition": "llm_reviewer == PASS",
+          "evidence": "artifact: eval-log/docs/<NN>-<timestamp>.json (schemas/findings.schema.json 準拠、assign-prompt-design-evaluator 出力) の verdicts C1-C4 に FAIL がない"
+        },
+        {
+          "condition": "layer_dependency_violations == 0",
+          "evidence": "artifact: 同 findings.json の bucket=C2 に severity high/medium の findings が 0 件 (c1-c4-criteria.md C2 基準)"
+        },
+        {
+          "condition": "completion_checklist_verifiable == true",
+          "evidence": "script: plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py --input ${PROMPT_OUTPUT} exit 0 (5.3 完了チェックリスト非空) かつ findings.json の bucket=C4 に severity high の findings 0 件 (全項目 YES/NO 判定可能 = prompt-rubric C4-001/C4-002、l5-contract v2.0.0。旧 self_evaluation_checklist_present は旧構成の報酬化のため廃止)"
+        },
+        {
+          "condition": "markdown_format_default_kept == true",
+          "evidence": "判定手続き: eval-log/prompt-brief.json の format が md (未指定は md 扱い。yaml/json/xml は legacy 経路のみ)"
+        },
+        {
+          "condition": "lint_agent_prompt_section == PASS",
+          "evidence": "script: plugins/skill-governance-lint/scripts/lint-agent-prompt-section.py ${TARGET_AGENT_OR_SKILL} exit 0 (p0-lint 内で実行済み)"
+        },
+        {
+          "condition": "verify_completeness == PASS",
+          "evidence": "script: plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py --input ${PROMPT_OUTPUT} exit 0 (7 層網羅 + L5 ゴールシーク必須要素 + 固定手順不在。旧 verify_completeness_score >= 0.95 は score を算出する主体が実在しない名目条件だったため exit code 判定へ正準化)"
+        },
+        {
+          "condition": "responsibility_id_matches_owner_skill == true",
+          "evidence": "判定手続き: eval-log/prompt-brief.json の responsibility_id が target_skill の SKILL.md frontmatter responsibilities[].id に実在し、生成 prompt メタ表の responsibility と一致することを Read 突合する"
+        },
+        {
+          "condition": "atomic_field_violations == 0",
+          "evidence": "artifact: findings.json に要素原子性 (1 フィールド=1 概念、50 字目安) 違反を指摘する severity high/medium の findings が 0 件 (evaluator Pass 3)"
+        },
+        {
+          "condition": "translated_placeholder_residue == 0",
+          "evidence": "script: plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/validate-prompt.py --input ${PROMPT_OUTPUT} --phase prompt exit 0 (未展開 {{...}} / TODO 残存検出) + prompt-rubric C4-003 regex_absent"
+        }
       ],
       "user_question_budget": 1,
       "user_question_budget_scope": "Gate 1 (brief 確定) のみ。Gate 2-4 は自動承認既定。",

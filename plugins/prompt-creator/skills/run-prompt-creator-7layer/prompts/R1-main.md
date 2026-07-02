@@ -96,27 +96,30 @@
 - 類似要素（同一対象/同一意図/同一改善ポイント）があれば上書き統合、無ければ新規追加する。
 - 同一意図の要素を 2 つ以上残さない（重複ゼロ）。正本 `references/idempotent-update-policy.md`。
 
-## Layer 5: エージェント層 (実行主体定義)
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
+
+> L5 サブ構造は `references/seven-layer-format.md`「Layer 5 契約」(l5-contract v2.0.0) に従属する。
 
 ### 5.1 担当 agent
-- `prompt-creator-interview-user` / `prompt-creator-generate-prompt` / `prompt-creator-review-prompt`
-- context-fork: Phase 4-A の Layer 別生成は agent ごとに分離 context で行う。
+- `prompt-creator-generate-prompt` / `prompt-creator-review-prompt`（ヒアリングは `run-prompt-elicit` へ委譲し、hearing-result / brief 供給時は Phase 1 を skip する）
+- context-fork: Phase 4-A の Layer 別生成と Phase 4-C の改善反復は分離 context で行う。
 
-### 5.2 推論手順 (再現可能)
-1. ヒアリング結果を `schemas/hearing-result.schema.json` で検証する。
-2. `scaffold-prompt.py` で Layer 別 .md 雛形を生成する。
-3. 1 Layer = 1 出力で本文を充填する (一括生成禁止)。生成物の Layer 5 はゴール定義+完了チェックリストで宣言し、固定手順 (思考プロセスのステップ列挙) を書かない。
-4. `merge-layers.py` で 1 つの prompt .md に統合する。
-5. `validate-prompt.py` → `verify-completeness.py` → `lint-agent-prompt-section.py` を順に実行する。
-6. `owner_agent` がある場合のみ対象 SubAgent .md へ Edit で注入する。
-7. `eval-log/prompt-build-trace.json` を build-trace schema に従い出力し、補助的に `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` に従い出力する。
+### 5.2 ゴール定義
+- 目的: skill-brief / ヒアリング結果を、呼出元非依存の品質保証つき 7 層プロンプトへ変換する。
+- 背景: 生成物は配布先で単独動作するため、生成時点で構造 (7 層 + l5-contract) と設計品質 (C1-C4) が機械証跡つきで検証済みである必要がある。
+- 達成ゴール: 検証済み 7 層プロンプト (Layer 5 はゴール定義+完了チェックリスト+実行方式で宣言) と build-trace が出力され、owner_agent 指定時は対象 SubAgent .md の注入セクションのみが更新された状態になっている。
 
-### 5.3 自己検証 checklist
-- [ ] 1 Layer = 1 出力を遵守したか (一括生成していないか)
-- [ ] 全ルール / 制約に目的 + 背景を併記したか (`writing-style-principles.md`)
-- [ ] SKILL.md / SubAgent .md が各 300 行以下に収まっているか
-- [ ] `validate-prompt.py` / `verify-completeness.py` / `lint-agent-prompt-section.py` が全 PASS したか
-- [ ] prompt-build-trace.json と worker-local trace の sha256 が layer .md の実体と一致するか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] 生成物が 1 Layer = 1 出力で構成され、一括生成でない (trace の layer_artifact_path で判定できる)
+- [ ] `validate-prompt.py` / `verify-completeness.py` / `lint-agent-prompt-section.py` が全 PASS (exit 0) している
+- [ ] C1-C4 設計評価 (assign-prompt-design-evaluator を fork・findings 出力のみ) が PASS、または呼出元の同等ゲートの機械証跡が trace に記録済み
+- [ ] 全ルール / 制約に目的 + 背景が併記されている (`writing-style-principles.md`)
+- [ ] prompt-build-trace.json と worker-local trace の sha256 が layer .md の実体と一致している
+- [ ] owner_agent 指定時、Edit 差分が inject-sections (Prompt Templates / Self-Evaluation) 内に閉じている
+
+### 5.4 実行方式
+- 固定手順を持たない (l5-contract v2.0.0)。5.2 ゴール定義と 5.3 完了チェックリストを唯一の指針とし、現状評価→手順を都度立案→実行→検証→中間成果物アンカー記録 (original_goal 不変+delta_from_original+merged_directive_for_next+drift_signal を `eval-log/prompt-creator-intermediate.jsonl` へ追記)→全項目充足まで反復する (6 ステップ・Step 5=Anchor。上限: Layer 4 の最大 3 回、超過時は 4.1 失敗時挙動へ)。
+- 決定論操作の実体 (scaffold→merge→validate の script 列と phase 順序) は Layer 3.2 のツール定義と `workflow-manifest.json` (機械正本) の phase 依存関係から都度導出する。
 
 ## Layer 6: オーケストレーション層
 
@@ -149,8 +152,10 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 入力 `{{skill-brief}}` / `{{responsibility-id}}` / `{{target-agent}}` / `{{format}}` /
-`{{inject-sections}}` を受け取り、Layer 5.2 の手順に従って 7 層プロンプトを生成・
-注入・trace 出力する。出力は Layer 2.4 で宣言した
+`{{inject-sections}}` を受け取り、Layer 5.2 のゴール定義へ向けて 5.3 完了チェックリストを
+停止条件に、5.4 実行方式 (ゴールシークループ) で 7 層プロンプトを生成・注入・trace 出力する。
+手順は固定せず、`workflow-manifest.json` の phase 依存関係と Layer 3 のツール定義から
+都度立案する。出力は Layer 2.4 で宣言した
 `schemas/output.schema.json` に準拠した JSON のみとし、前置き・後書き・思考過程は
 出力しない。論理構造は `references/seven-layer-format.md` を正本とし、Markdown 生成物は
 `references/seven-layer-markdown-template.md` を提示形式の補助として参照しつつ、

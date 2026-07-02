@@ -2,28 +2,30 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "assign-prompt-design-evaluator",
-    "skill_md_sha256": "f84b7afb72f1247b7703225131bd360b9d4ca2876d5ec4e1262aea7b1818a5c7"
+    "skill_md_sha256": "d75d88cc41c04a678768b3044da5c390885b94a507d5e926d354d9584eaa576f"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewer": "elegant-review-20260702-independent-content-reviewer",
+  "reviewed_at": "2026-07-02T01:09:06Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "outer",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "C1(矛盾なし): name/description/contract.intent/responsibilities(R1) が相互に整合し、評価器という単一責務に収束している",
-      "C2(漏れなし): script_refs/rubric_refs/reference_refs/schema_refs/responsibility_refs が全て解決可能パスで列挙され、findings 出力契約 (schema 準拠) まで閉じている",
-      "C3(整合性): kind=assign / effect=local-artifact / context:fork / write=findings only が invariant と一貫し評価器の read-only 性が破綻していない",
-      "C4(依存整合): script_refs は pair の run-prompt-creator-7layer、schema は run-prompt-create を相対参照し、caller (run-prompt-create Step 3b) との依存方向が一方向で循環がない"
+      "C1(矛盾なし): name/description/contract.intent/「ゴール駆動評価」節/R1-evaluate.md 5.2 が「fork 独立の C1-C4+4 パス採点で findings.json を返す」単一責務に収束。SKILL.md の C3/C4 合格条件と prompt-rubric.json v2.0.0 (C3-004 成果状態+固定手順列挙なし / C4-001 非空+YES/NO 判定可能・数量レンジ廃止) が版数 l5-contract v2.0.0 併記で一致し、旧基準の残存記述なし",
+      "C2(漏れなし): frontmatter の script_refs 2 本・rubric_refs・reference_refs・responsibility_refs・schema_refs・source が全て実在パスへ解決 (実測確認)。前回指摘の resource-map.yaml 内 dangling エントリは `../prompts/R1-evaluate.md` へ修正済みで、Progressive Disclosure 索引 6 エントリが全解決。宣言型転換で消えた Steps の情報は局面カタログ 4 項目に無損失で移設され、停止条件は R1-evaluate.md 5.3 (7 項目・全て YES/NO 判定可能) が正本として補完",
+      "C3(整合性): kind=assign / context:fork / effect=local-artifact / write=findings only が invariant・Key Rules・R1 L4.3 (read-only) と一貫。単発評価でループを配線しない設計は goal-seek-paradigm 適用マトリクス (assign-* = checklist 必須・runtime loop 対象外) と seven-layer-format.md の従属者一覧 (prompt-rubric.json C3-004/C4-001, c1-c4-criteria.md が明示登録) の双方に適合。source パスの現行化は source-tier=internal 宣言とも整合",
+      "C4(依存整合): script_refs と 4 パス出典は pair の run-prompt-creator-7layer、schema は caller 側 run-prompt-create を相対参照し依存は一方向・循環なし。rubric の l5_contract_source と c1-c4-criteria.md L3 の出典 (`../../run-prompt-creator-7layer/references/quality-criteria.md` §7) は references/ 起点で実在パスへ解決し、l5_contract_version キー (l5-contract v2.0.0) で drift 照合可能"
     ],
-    "negative_feedback": [],
-    "iteration": 1,
+    "negative_feedback": [
+      "c1-c4-criteria.md 内のパス表記が不統一: L3 は解決可能な相対パス (`../../run-prompt-creator-7layer/...`) だが L4 の seven-layer-format.md 参照は bare 表記 (`run-prompt-creator-7layer/references/...`) で references/ 起点では解決しない散文参照 (実体は存在し特定可能なため実害なし・軽微。次回変更時に L3 と同形へ統一を推奨)"
+    ],
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "assign-prompt-design-evaluator SKILL.md を実読し rubric C1-C4 (矛盾なし/漏れなし/整合性/依存整合) を adequacy 評価。read-only 評価器 (kind=assign, write=findings only) のため loop実行系でなく feedback_contract.criteria は N/A。重大問題なく全条件充足のため PASS。"
+  "notes": "修正後 SKILL.md (sha d75d88cc) を実読し rubric C1-C4 (矛盾なし/漏れなし/整合性/依存整合) を genuine 再評価 (iteration 2)。前回 negative 2 件 (resource-map.yaml dangling / stale 出典パス) の修正を実測確認: `../prompts/R1-evaluate.md` と `../run-prompt-creator-7layer/references/quality-criteria.md` §7 (L204 動的評価基準フレームワーク) がいずれも実在パスへ解決、c1-c4-criteria.md L3 の同根出典も現行化済み、skill ディレクトリ内に doc/prompt-creator 残存ゼロ。検証実測: 全 frontmatter refs 存在、prompt-rubric.json version 2.0.0 + l5_contract_version キー + 数量レンジ廃止宣言、R1-evaluate.md 5.4 単発評価宣言と goal-seek 適用マトリクス突合、verify-completeness.py の Layer 5 必須要素検査 (C4-001 note の機械 signal 主張) の実装確認。残 negative 1 件はパス表記スタイルの軽微な不統一で判定連鎖を毀損しないため PASS。read-only 評価器 (kind=assign) のため frontmatter feedback_contract は非携帯で criteria_evaluated は skill-design rubric C1-C4 を記載。"
 }

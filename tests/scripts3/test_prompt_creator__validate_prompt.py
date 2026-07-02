@@ -7,7 +7,7 @@ main は subprocess(sys.executable) で argv 依存の分岐(phase 自動判定/
 exit code 0=OK 1=検証失敗 2=引数・schema 不在)を確認する。
 
 カバー分岐:
-- parse_args: --input/--phase/--schema パース、未知引数の無視 (parse_known_args)
+- parse_args: --input/--phase/--schema パース、未知引数の failfast (A4-10: parse_args, exit 2)
 - load_json: 正常 JSON ロード
 - default_schema_for: hearing/sheet/trace の各 schema パス, その他 None
 - check_required: 全充足(空 missing) / None・空文字を missing 計上 / 非 dict 入力
@@ -84,15 +84,14 @@ def test_parse_args_all_flags(monkeypatch):
     assert args.schema == "s.json"
 
 
-def test_parse_args_ignores_unknown(monkeypatch):
-    # parse_known_args なので未知引数 --extra は無視される
+def test_parse_args_rejects_unknown_failfast(monkeypatch):
+    # A4-10: parse_known_args の黙殺を廃止。未知引数 --extra は argparse が exit 2 で failfast。
     monkeypatch.setattr(
         MOD.sys, "argv", ["validate-prompt.py", "--input", "x.txt", "--extra", "v"]
     )
-    args = MOD.parse_args()
-    assert args.input == "x.txt"
-    assert args.phase is None
-    assert args.schema is None
+    with pytest.raises(SystemExit) as exc:
+        MOD.parse_args()
+    assert exc.value.code == 2
 
 
 # ── load_json ────────────────────────────────────────────────────────────────
@@ -371,7 +370,15 @@ def test_main_json_default_schema_resolved(monkeypatch, tmp_path, capsys):
 def test_main_hearing_default_schema(monkeypatch, tmp_path, capsys):
     data = _write_json(
         tmp_path / "h.json",
-        {"session_id": "s", "timestamp": "2026-01-01T00:00:00Z", "answers": []},
+        {
+            "session_id": "s",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "answers": [],
+            # 3b schema 拡張 (required 追加: goals/checklist/evaluation_priorities) に追従
+            "goals": ["検証済み成果物が出力された状態になっている"],
+            "checklist": ["schema 検証を通過している"],
+            "evaluation_priorities": ["正確性・精度"],
+        },
     )
     code = _call_main(
         monkeypatch, ["validate-prompt.py", "--input", str(data), "--phase", "hearing"]

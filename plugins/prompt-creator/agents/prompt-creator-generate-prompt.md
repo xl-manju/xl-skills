@@ -10,10 +10,12 @@ since: 2026-05-22
 last-audited: 2026-05-22
 ---
 
+> 本 agent は owner skill `run-prompt-creator-7layer` の R1 責務 (SSOT: `skills/run-prompt-creator-7layer/prompts/R1-main.md`) を context:fork 実行する薄いアダプタ。出力契約・不変ルールは SSOT を正本とし、本ファイルは重複定義しない。
+
 ## Purpose
 
 Phase 1 trace から 7 層 (L1基本定義 / L2ドメイン / L3インフラ / L4共通ポリシー / L5エージェント定義 / L6オーケストレーション / L7ユーザーインタラクション) を **Layer 単位** で個別生成→`merge-layers.py` 合算。一括生成禁止 (精度低下回避)。
-Layer 5 はゴールシーク型: 達成ゴール+完了チェックリスト+実行方式を生成し、固定手順 (思考プロセスのステップ列挙) は書かない。手順はエージェントが実行時に自律生成する。
+Layer 5 はゴールシーク型 (l5-contract v2.0.0): ゴール定義 (目的・背景・達成ゴール)+完了チェックリスト+実行方式を生成し、固定手順 (ステップ列挙) は書かない。手順はエージェントが実行時に自律生成する。
 
 ## Inputs
 
@@ -47,12 +49,11 @@ worker-local trace は owner skill の `schemas/output.schema.json` に準拠す
 
 ## Steps
 
-1. Phase 1 trace 読込→role/context/goal/completion_checklist/constraints 確定値取得。
-2. `scaffold-prompt.py` で骨格生成後、L1→L7 順で 1 Layer ずつ充填、`tmp/prompt-layers/L{N}.yaml` 書出。
-3. Layer 5 はゴール定義 (目的・背景・達成ゴール)+完了チェックリスト+実行方式を生成。固定手順は書かない。
-4. 要素原子性 (1 値 50 文字目安) 厳守、長文はリスト/サブキー分解。
-5. `python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py --layers tmp/prompt-layers/ --output tmp/prompt.yaml`
-6. `eval-log/prompt-creator-trace.json` を `schemas/output.schema.json` 準拠で記録→Handoff。
+固定手順は持たない。SSOT (`R1-main.md` Layer 5) のゴール定義へ向けて、完了条件の未達項目を埋める生成・修正手順を都度立案して反復する。
+
+- **ゴール**: `tmp/prompt.yaml` (7 層 merge 済み内部正規形) と `eval-log/prompt-creator-trace.json` (`schemas/output.schema.json` 準拠) が検証 PASS で存在する状態。
+- **完了条件**: Phase 1 trace の確定値 (role/context/goal/completion_checklist/constraints) を全て反映 / 7 Layer 全て非空 (Layer 単位で個別生成、`tmp/prompt-layers/L{N}.yaml` へ書出) / Layer 5 が l5-contract v2.0.0 構成 (固定手順不在) / 要素原子性 (1 値 50 文字目安) / `merge-layers.py` exit 0。
+- **自律ループ**: 未達 Layer・検証 FAIL を列挙→充填/修正手順を立案→実行→再検証。決定論処理は script (`scaffold-prompt.py` 骨格生成 / `python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py --layers tmp/prompt-layers/ --output tmp/prompt.yaml`) へ委譲し、LLM は意味充填のみ担う。
 
 ## Constraints
 

@@ -24,7 +24,7 @@ contract:
     - evaluator (assign-*) は必ず context:fork で起動し、評価対象を書き換えず findings のみ出力すること (Goodhart 防止)
     - 決定論的処理は python3 スクリプト、LLM は意味判断のみ (Script First)
     - 成果物本文・レビュー・完了レポートは日本語、パラメーター名・JSON キー・CLI 引数は英語のままとすること
-    - cross-plugin 参照は skill-creator (run-build-skill / run-elegant-review / run-skill-rubric-governance) への一方向のみ
+    - cross-plugin 参照は skill-creator (run-build-skill / run-elegant-review / run-skill-rubric-governance) と skill-governance-lint (lint scripts 直呼び) への一方向のみ
 
 capabilities:
   # === Skills (kind=skill) ===
@@ -47,9 +47,11 @@ dependencies:
   - { from: skills/run-prompt-creator-7layer,      to: agents/prompt-creator-generate-prompt, type: calls }
   - { from: skills/assign-prompt-design-evaluator, to: agents/prompt-creator-review-prompt,   type: calls }
   - { from: skills/assign-prompt-design-evaluator, to: skills/run-prompt-creator-7layer,      type: evaluates }
-  # cross-plugin (out-going, skill-creator への一方向のみ — invariant で許可済み)
+  # cross-plugin (out-going, skill-creator / skill-governance-lint への一方向のみ — invariant で許可済み)
   - { from: skills/run-prompt-create, to: ../skill-creator/skills/run-elegant-review,          type: calls,    note: "Step 4 elegant-review (条件: new or >30 行)" }
   - { from: skills/run-prompt-create, to: ../skill-creator/skills/run-skill-rubric-governance, type: calls,    note: "Step 5 governance (auto_approve 不充足時)" }
+  - { from: skills/run-prompt-create,         to: ../skill-governance-lint,                    type: calls,    note: "p0-lint (workflow-manifest phases) で lint scripts 直呼び (plugin.json depends_on と対応)" }
+  - { from: skills/run-prompt-creator-7layer, to: ../skill-governance-lint,                    type: calls,    note: "Phase 5 で lint-agent-prompt-section.py 直呼び (plugin.json depends_on と対応)" }
   # cross-plugin (in-coming, called-by — 情報的記述、DAG 逆方向ではない)
   - { from: ../skill-creator/skills/run-build-skill, to: skills/run-prompt-creator-7layer,    type: called-by, note: "Step 7.5 で prompt 生成委譲を受ける (informational)" }
 
