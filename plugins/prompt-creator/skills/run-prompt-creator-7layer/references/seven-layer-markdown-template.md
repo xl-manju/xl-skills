@@ -3,6 +3,7 @@
 > 論理構造の正本は `seven-layer-format.md`。本ファイルはその Markdown 提示形式を示す補助テンプレであり、唯一の正規骨格ではない。
 > 各 skill は本テンプレを参照しつつ、内容を domain に置換する。Layer 番号と依存方向 (L1 ← L7) は seven-layer-format.md に従う。
 > Layer 5 はゴールシーク型 (達成ゴール+完了チェックリスト+実行方式)。固定手順は書かない。
+> **L5 サブ構造 (5.1-5.4 の節番号・見出し名・禁止/必須事項) は seven-layer-format.md「Layer 5 契約」(l5-contract v2.0.0) に従属する。本テンプレ側で再定義・改名しない。**
 
 ---
 
@@ -86,7 +87,7 @@
 - [ ] <達成条件 2>
 
 ### 5.4 実行方式
-- 固定手順を持たない。未充足項目を特定→手順を都度立案→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
+- 固定手順を持たない。現状評価→手順を都度立案→実行→検証→中間成果物アンカー記録 (original_goal 不変+delta_from_original+merged_directive_for_next+drift_signal)→全項目充足まで反復 (6 ステップ・Step 5=Anchor。上限: Layer 4 最大反復回数、既定 5 の出所は convergence-policy loop_bounds.goal_seek_inner)。
 
 ## Layer 6: オーケストレーション層 (ゴールシーク制御)
 

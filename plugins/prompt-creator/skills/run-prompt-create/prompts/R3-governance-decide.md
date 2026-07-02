@@ -2,6 +2,7 @@
 
 > このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
 > seven-layer-markdown-template.md を正本とする。Layer 番号と依存方向 (L1 ← L7) は不変。
+> L5 サブ構造は seven-layer-format.md「Layer 5 契約」(l5-contract v2.0.0) に従属する。
 
 ## メタ
 
@@ -10,7 +11,7 @@
 | name | governance-decide |
 | skill | run-prompt-create |
 | responsibility | R3 (Step 5 governance 承認判定) |
-| layers_covered | [L5, L6, L7] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/handoff.schema.json |
 | reproducible | true (workflow-manifest.json の auto_approve_conditions 機械評価) |
 
@@ -18,7 +19,7 @@
 
 ### 1.1 不変ルール
 - workflow-manifest.json の auto_approve_conditions を機械的に評価する (LLM 判断で甘くしない)
-- solo_operator_mode=false なら必ず手動承認フロー
+- preconditions (環境前提: solo_operator_mode / stable_frozen。値の正本 references/governance-params.json) のいずれかが false なら auto_approve 評価に入らず必ず手動承認フロー
 - 判定結果は handoff-after_prompt_governance.json に書き出す
 
 ### 1.2 倫理ガード
@@ -31,9 +32,9 @@
 - 非担当: ヒアリング (R1)、Gate 確認 (R2)、Layer 生成
 
 ### 2.2 ドメインルール
-自動承認条件: `workflow-manifest.json` の governance phase にある `auto_approve_conditions` を SSOT とする。`references/governance-params.json` は `solo_operator_mode` などの評価パラメーターを提供する。
+自動承認条件: `workflow-manifest.json` の governance phase にある `auto_approve_conditions` (各条件に evidence=判定手続き・入力 artifact が 1:1 紐付く) を SSOT とする。`references/governance-params.json` は `preconditions` (solo_operator_mode / stable_frozen = 環境前提。成果物の品質条件ではない) の値と各条件の rationale を提供する。
 
-いずれか欠ければ run-skill-rubric-governance を起動し通常 governance フローへ遷移する。
+preconditions 不成立、または品質条件のいずれか不充足なら run-skill-rubric-governance を起動し通常 governance フローへ遷移する。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -54,7 +55,7 @@
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| params | references/governance-params.json | solo_operator_mode 確認時 |
+| params | references/governance-params.json | preconditions (環境前提) と rationale 確認時 |
 | findings | eval-log/findings.json | verdicts 確認時 |
 
 ### 3.2 外部ツール / API
@@ -76,20 +77,22 @@
 ### 5.1 担当 agent
 - run-prompt-create 配下の R3 SubAgent
 
-### 5.2 推論手順 (再現可能)
-1. references/governance-params.json を Read し solo_operator_mode を取得
-2. workflow-manifest.json の governance.auto_approve_conditions を Read
-3. eval-log/findings.json と evaluator_result を Read し全条件を機械評価
-4. 全条件充足 → approver=solo_operator_auto で handoff 出力
-5. いずれか不充足 → Skill(run-skill-rubric-governance) を起動し approver=user で handoff 出力
-6. handoff-after_prompt_governance.json に書き出す
+### 5.2 ゴール定義
+- 目的: 成果物の品質条件 (auto_approve_conditions) を evidence で機械評価し、自動承認か手動 governance かを確定する
+- 背景: LLM 裁量の承認は評価が名目化する (Goodhart)。preconditions (環境前提) と品質条件を分離した manifest 契約に従い、証跡付き判定のみを許す
+- 達成ゴール: preconditions 確認と全 auto_approve_conditions の evidence 評価が完了し、approver=solo_operator_auto または user が確定した handoff-after_prompt_governance.json が保存され、next_phase=report に接続している
 
-### 5.3 自己検証 checklist
-- [ ] workflow-manifest.json の auto_approve_conditions を機械的に評価したか
-- [ ] solo_operator_mode=false なら必ず手動承認フローに回したか
-- [ ] 否認時の required_fixes[] が後続 Step に再投入可能な形か
-- [ ] approver フィールドが正しく solo_operator_auto / user のどちらかか
-- [ ] handoff 出力が next_phase=report に繋がるか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] preconditions (solo_operator_mode / stable_frozen) が references/governance-params.json から読まれ、false 時は auto_approve 評価に入らず手動承認フローへ回されている
+- [ ] auto_approve_conditions の全条件が manifest 記載の evidence (script exit / artifact 突合 / 判定手続き) で評価されている (LLM 自己申告の充足判定がない)
+- [ ] 判定不能の条件が手動承認フローへ回されている (safe-fail)
+- [ ] approver が solo_operator_auto / user のいずれかである
+- [ ] 否認時の required_fixes[] が後続 Step に再投入可能な形である
+- [ ] handoff 出力が next_phase=report に接続している
+
+### 5.4 実行方式
+- 固定手順を持たない (l5-contract v2.0.0)。5.2 ゴール定義と 5.3 完了チェックリストを唯一の指針とし、現状評価 → 手順を都度立案 → 実行 → 検証 → 中間成果物アンカー記録 → 全項目充足まで反復する (6 ステップ・Step 5=Anchor。上限: Layer 4 の失敗時挙動=判定不能時は safe-fail で手動承認へ)
+- 決定論操作 (params/manifest/findings の Read・evidence 評価・handoff Write・run-skill-rubric-governance 起動) は Layer 3 のツール定義と Layer 6 の接続契約に従う
 
 ## Layer 6: オーケストレーション層
 

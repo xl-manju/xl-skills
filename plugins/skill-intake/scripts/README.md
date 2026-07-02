@@ -2,7 +2,7 @@
 
 本ディレクトリの責務: `run-skill-intake` および sibling skill `run-notion-intake-publish` から呼ばれる**決定論処理を担う Python 3 スクリプト集**。LLM 判断に依存せず、入力に対して常に同じ出力を返すロジックのみを置く (Script First 原則)。macOS 標準 `/usr/bin/python3` で動作する。最終 Markdown レンダリング用の `jinja2` は plugin 配下 `vendor/python` に同梱し、JSON Schema 検証は `scripts/_jsonschema_compat.py` の標準ライブラリ fallback を使う。
 
-**スクリプト数: 計 51 本** = 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) **43 本** + 個別 skill 配下 (`skills/<name>/scripts/`) **8 本**。データファイル `notion_limits.json` は本数に含めない。
+**配置**: 本ディレクトリ (plugin 直下 `plugins/skill-intake/scripts/`) と個別 skill 配下 (`skills/<name>/scripts/`) の 2 箇所に分かれる。データファイル `notion_limits.json` はスクリプトではない。
 
 ## カテゴリ別一覧
 
@@ -53,15 +53,15 @@
 | `enforce_visualization_rules.py` | 非エンジニア対応マスト 8 ルール強制。 |
 | `optimize_layout.py` | 図解レイアウト最適化 (ノード配置調整)。 |
 | `render_to_svg.py` | Mermaid → SVG 変換。 |
-| `render_to_image.py` | SVG → PNG 化 (Notion は SVG ネイティブ表示不可)。 |
+| `render_to_image.py` | Mermaid (.mmd) → PNG (mmdc 必須) + 静的 SVG (.svg) → 同梱 PNG (`assets/cvis-*.png`) コピー配置 (不在時 cairosvg fallback、両不可は exit 3)。Notion は SVG ネイティブ表示不可。 |
 
 ### 取得・レンダリング系 (5 本)
 
 | スクリプト | サマリ |
 |---|---|
 | `convert_md_to_json.py` | intake.md から intake.json への derive 検証。 |
-| `convert_v1_to_v2_context.py` | v1 intake.json を v2 intake-final-context.json へ変換 (後方互換 migration)。 |
-| `render_v2_adapter.py` | v2 context を既存 renderer 互換形式へ正規化する adapter。 |
+| `convert_v1_to_v2_context.py` | v1 intake.json を v2 intake-final-context.json へ変換 (後方互換 migration)。repo 保守者専用・配布除外 (`package.exclude`)。 |
+| `render_v2_adapter.py` | v2 context を既存 renderer 互換形式へ正規化する adapter。repo 保守者専用・配布除外 (`package.exclude`)。 |
 | `render-intake-final.py` | intake-final-context.json から §0〜§11 完全版 Markdown を生成 (Jinja2 + JSON Schema 検証)。 |
 | `dry_render_notion.py` | Notion API を叩かず blocks JSON のみ生成する dry-run。 |
 
@@ -70,7 +70,7 @@
 | スクリプト | サマリ |
 |---|---|
 | `update_question_bank.py` | question-bank.md にパッチ適用 (`--apply` / `--rollback <hint>`)。 |
-| `m3_deprecation_reverse_index.py` | M3 マイグレーションの非推奨項目を逆引き index 化し、self-updater 経由で警告。 |
+| `m3_deprecation_reverse_index.py` | M3 マイグレーションの非推奨項目を逆引き index 化し、self-updater 経由で警告。repo 保守者専用・配布除外 (`package.exclude`)。 |
 
 ### dogfooding / pipeline 系 (3 本)
 
@@ -84,5 +84,5 @@
 
 - **Python 3.9 以上** (macOS 標準 `/usr/bin/python3` 可)
 - **Python package**: `jinja2` は `vendor/python` に同梱済み。通常利用者の手動 `pip install` は不要。
-- **Vendor smoke**: `python3 scripts/smoke_plugin_vendor.py` が `"ok": true` を返すこと。
+- **Vendor 検査**: `python3 scripts/validate-plugin-vendor.py` が `"ok": true` を返すこと。
 - 認証情報は必ず `keychain_get_secret.py` 経由で取得。環境変数・`.env`・コミット履歴に平文を残さない。

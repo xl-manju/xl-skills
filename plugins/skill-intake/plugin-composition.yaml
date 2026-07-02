@@ -6,7 +6,7 @@
 name: skill-intake
 description: skill-creator の前段ヒアリングを非エンジニアに開く plugin。曖昧要望から intake 仕様(Markdown 正本 + JSON 副本 + Notion ページ)を 11 phase で生成し、macOS Keychain 経由の Notion PAT で公開する。
 kind: plugin-composition
-version: 0.1.1
+version: 0.1.2
 owner: team-platform
 since: 2026-05-22
 last-audited: 2026-07-01
@@ -20,13 +20,14 @@ contract:
     outputs: [intake.md, intake.json, notion-url.txt, next-action.json, eval-log/intake-trace.json]
   invariant:
     # enforcement 注記: 機械執行(hook/lint/script)がある項目はその名前を、無い項目は manual を併記する。
-    - "run-skill-intake は業務ロジックを持たない薄い orchestrator であり、11 phase を Skill / SubAgent へ委譲し handoff JSON 契約のみで橋渡しすること (enforcement: run-skill-intake feedback_contract IN1 / scripts/lint-manifest-contents.py)"
-    - "phases[] の SSOT は workflow-manifest.json であり、SKILL.md 本文へ複製しないこと(二重管理 drift 禁止) (enforcement: scripts/lint-manifest-contents.py exit 0)"
+    - "run-skill-intake は業務ロジックを持たない薄い orchestrator であり、11 phase を Skill / SubAgent へ委譲し handoff JSON 契約のみで橋渡しすること (enforcement: run-skill-intake feedback_contract IN1 / plugins/skill-governance-lint/scripts/lint-manifest-contents.py = repo 保守者専用・単独 install 非同梱)"
+    - "phases[] の SSOT は workflow-manifest.json であり、SKILL.md 本文へ複製しないこと(二重管理 drift 禁止) (enforcement: plugins/skill-governance-lint/scripts/lint-manifest-contents.py exit 0 = repo 保守者専用・単独 install 非同梱)"
     - "intake 実行中にスキル生成スキル(run-skill-create / run-build-skill / capability-build)を Skill / Task / Bash いずれでも起動しないこと。保証主体は hook 層 (enforcement: hooks/hook-guard-skillgen.py PreToolUse:Skill|Task|Bash exit 2 + tests/test_skill_intake_guard_skillgen.py)"
     - "Notion トークン等の機密はリポジトリへ書き込まず macOS Keychain から都度取得すること(Secret-Out-of-Repo) (enforcement: hooks/pre-publish-secret-scrub.sh + scripts/keychain_get_secret.py)"
     - "各セクションに図解を最低 1 枚配置する図解マスト要件を満たすこと (enforcement: scripts/enforce_visualization_rules.py + references/visualization-mandatory-rules.md)"
     - "Notion 明示指定(--page-url / --page-id / --database-id)は notion_target として Phase 10 publish まで保持し、update mode では PATCH 専用で page を新規作成しないこと (enforcement: manual + scripts/intake_publish_pipeline.py)"
     - "runtime hook script は自 plugin root 外を import-time に fail-closed 依存しないこと(jinja2 / markupsafe / typing_extensions は vendor/ へ同梱)。単独 install でも全フックが exit 0 を維持する (enforcement: scripts/_vendor.py fail-soft ローダ)"
+    - "cross-boundary (他 plugin 契約 / 環境前提 / 観測宣言) の写しはインライン複製禁止。参照一本化 (正本ポインタ) または parity lint による byte/値一致検証を必須とする (enforcement: manual + references/handoff-contract.md の正本参照規約)"
 
 capabilities:
   # === Skills (kind=skill) — .claude-plugin/plugin.json entry_points.skills と一致 ===
@@ -87,6 +88,8 @@ dependencies:
   - { from: skills/run-intake-interview,      to: references/intent-contract.schema.json,       type: reads }   # 入力→出力インテント正本
   - { from: skills/run-intake-interview,      to: references/probe-pattern-table.json,          type: reads }   # 未充足時の引き出しの型
   - { from: skills/run-intake-finalize,       to: references/intent-contract.schema.json,       type: reads }   # build-intent.py が参照
+  # cross-plugin 依存 (G4 配線): P11 mode=P のとき intake.json を plugin-dev-planner R1 の構想材料として推奨引き渡し (emits=成果物の受け手宣言。起動はしない。併用 install 時のみ有効)
+  - { from: skills/run-intake-next-action,    to: plugins/plugin-dev-planner/skills/run-plugin-dev-plan, type: emits }
 
 eval_sinks:
   - EVALS.json
@@ -108,6 +111,8 @@ observability:
     - Stop/hook-guard-skillgen
     - SessionEnd/hook-guard-skillgen
     - PostToolUse-Bash/post-publish-notify
+  # metrics は宣言のみで集計 producer script は未実装 (ROADMAP 中期の compute-intake-metrics 前倒し対象)。
+  # 素材は scripts/append_eval_log.py の eval-log/skill-intake/<date>.jsonl と eval-log/intake-trace.json。
   metrics:
     - phases_completed_per_run
     - gate_a_rejection_rate

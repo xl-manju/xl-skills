@@ -14,7 +14,7 @@ last-audited: 2026-05-22
 
 ## Purpose
 
-run-prompt-elicit Step 3 の対話ヒアリングを担当。必要項目をユーザーに聞き取り `eval-log/hearing-result.json` (ユーザー回答原文の中間生データ) に保存する。既存 brief があれば差分のみヒアリング。
+run-prompt-elicit の対話ヒアリング局面を担当。必要項目をユーザーに聞き取り `eval-log/hearing-result.json` (ユーザー回答原文の中間生データ) に保存する。既存 brief があれば差分のみヒアリング。
 ゴールシーク型のため固定手順は収集せず、達成ゴール（成果状態）と完了条件を聞き出す。手順は各エージェントが実行時に自律生成する。
 
 ## Inputs
@@ -25,14 +25,14 @@ run-prompt-elicit Step 3 の対話ヒアリングを担当。必要項目をユ�
 
 ## Outputs
 
-`eval-log/hearing-result.json` (owner skill の `schemas/hearing-result.schema.json` 準拠。required: `session_id` / `timestamp` / `answers`、`additionalProperties: false`):
+`eval-log/hearing-result.json` (owner skill の `schemas/hearing-result.schema.json` 準拠。required: `session_id` / `timestamp` / `answers` / `goals` / `checklist` / `evaluation_priorities`、`additionalProperties: false`):
 
 ```json
 {
   "session_id": "<セッション識別子>",
   "timestamp": "<ISO 8601 date-time>",
   "topic": "<要望キーワード (任意)>",
-  "target_skill_input": "<対象 skill (任意)>",
+  "target_skill_input": "<対象 skill (任意、未指定 = standalone)>",
   "responsibility_id_input": "<R-id (任意)>",
   "answers": [
     {
@@ -42,21 +42,24 @@ run-prompt-elicit Step 3 の対話ヒアリングを担当。必要項目をユ�
       "user_confirmed": false
     }
   ],
-  "evaluation_priorities": ["<重みを増す評価観点 2-3 個>"],
-  "open_questions": ["<回答不能で保留した項目>"]
+  "goals": ["<達成ゴール (成果状態文)>"],
+  "checklist": ["<完了チェックリスト (第三者 YES/NO 判定文)>"],
+  "evaluation_priorities": ["<schema enum 5 値から最大 2>"],
+  "open_questions": ["<回答不能で保留した項目 / enum 外の優先度回答>"]
 }
 ```
 
 AI 推定値を含む回答は `ai_derived: true` とし、導出確認でユーザー承認を得たもののみ `user_confirmed: true` にする。
-後続: owner skill の Step 4 (brief 構築) が本 hearing-result を読み `eval-log/prompt-brief.json` に正規化する。
+`evaluation_priorities` の語彙は schema の enum (SSOT) に従属し、enum 外の回答は `open_questions` へ fail-visible に記録する。
+後続: owner skill の brief 構築局面が本 hearing-result を読み `eval-log/prompt-brief.json` に正規化する。
 
 ## Steps
 
-1. 既存 `eval-log/prompt-brief.json` があれば既知部分を抽出 (再質問しない)。
-2. 不足分を `elicit-question-bank.md` から選び 3-5 問の AskUserQuestion で差分ヒアリング。
-3. 評価優先度を 2-3 個収集。
-4. AI 推定箇所は導出確認→ユーザー承認 (`ai_derived`/`user_confirmed` を記録)。
-5. `eval-log/hearing-result.json` を schema 準拠で書き出し→owner skill Step 4 へ Handoff。
+固定手順は持たない。SSOT (`R1-interview.md` Layer 5) のゴール定義へ向けて、5.3 完了チェックリストの未達項目を埋める質問・導出確認を都度設計して反復する (上限: owner skill `feedback_contract.max_iterations`)。
+
+- **ゴール**: hearing-result.json が schema 妥当 + AI 推定値全件導出確認済みの状態。
+- **完了条件**: SSOT の 5.3 完了チェックリスト (schema validation / goals・checklist 非空 / enum 準拠 / 再質問 0 件 / 質問 3-5 問) 全充足。
+- **自律ループ**: 未達項目→質問 or 補完を立案→AskUserQuestion 実行→チェックリスト再評価。既存 brief の既知部分は最初に抽出して再質問を防ぐ。
 
 ## Constraints
 
@@ -79,7 +82,9 @@ AI 推定値を含む回答は `ai_derived: true` とし、導出確認でユー
 
 ### Round 3: 評価優先度
 
-> 「妥協できない品質観点は? (accuracy/completeness/conciseness/safety、複数可)」
+> 「妥協できない品質観点は? 次から最大 2 つ: 正確性・精度 / 創造性・柔軟性 / ユーザー親和性 / ドメイン専門性 / 実行速度・効率」
+
+(選択肢の正本は `hearing-result.schema.json` の enum。上記 5 値以外の回答は open_questions へ記録)
 
 ### Round 4: 導出確認
 
@@ -87,18 +92,18 @@ AI 推定値を含む回答は `ai_derived: true` とし、導出確認でユー
 
 ## Self-Evaluation
 
-owner skill SSOT (`R1-interview.md` Layer 5.3 checklist) で自己採点。
+owner skill SSOT (`R1-interview.md` 5.3 完了チェックリスト / l5-contract v2.0.0) で自己採点。
 
 | 次元 | 重点 |
 |---|---|
-| 完全性 | hearing-result の required (session_id/timestamp/answers) 全充填 |
+| 完全性 | hearing-result の required (session_id/timestamp/answers/goals/checklist/evaluation_priorities) 全充填 |
 | 一貫性 | 既存 brief との整合・既知項目を再質問していない |
-| 深度 | evaluation_priorities が 2-3 個、優先度の根拠把握 |
-| 検証可能性 | hearing-result.schema.json に妥当 (additionalProperties 違反なし) |
+| 深度 | goals が成果状態文・checklist が YES/NO 判定文、優先度の根拠把握 |
+| 検証可能性 | hearing-result.schema.json に妥当 (enum / maxItems 2 / additionalProperties 違反なし) |
 | 簡潔性 | 質問 3-5 問 + 評価優先度 1 セット遵守 |
 
 AI 推定値は導出確認を経て `user_confirmed: true` になっているか確認。未達は 1 回自己修正、再未達なら orchestrator 差し戻し。
 
 ## Handoff
 
-owner skill `run-prompt-elicit` の Step 4 (brief 構築) へ `eval-log/hearing-result.json` を渡す。
+owner skill `run-prompt-elicit` の brief 構築局面へ `eval-log/hearing-result.json` を渡す。

@@ -7,8 +7,9 @@ entry: SKILL.md
 resources:
   - path: references/republish-contract.md
     when_to_read: |
-      再公開の入力前提条件 (intake.json / notion-manifest.json の整合性チェック)
-      と exit code 規約 (0=publish成功 / 1=skip / 2=hard-fail) を確認するとき。
+      公開 / 再公開の入力前提条件 (intake.json / notion-manifest.json の整合性チェック)
+      と exit code 規約 (0=publish成功 / 1=skip / 2=hard-fail / 51=target解決不能・
+      page_id mismatch) を確認するとき。
     size_hint: small
 
   - path: references/abstraction-contract.md
@@ -34,8 +35,8 @@ scripts:
   # 実体は plugins/skill-intake/scripts/ の共有 pipeline を委譲呼び出しする。
   - path: ../../scripts/intake_publish_pipeline.py
     invoked_by: R1 (republish-dispatch) — 唯一の発火点
-  - path: ../../scripts/keychain_get_secret.py
-    invoked_by: R1 precheck (Keychain 接続検査)
+  - path: ../../scripts/validate-notion-ready.py
+    invoked_by: R1 precheck (Keychain / Notion API 接続検査。exit 44 で Keychain セットアップ案内)
   - path: ../../scripts/verify_notion_schema.py
     invoked_by: R1 precheck (Notion DB スキーマ整合)
   - path: ../../scripts/verify_notion_assets.py

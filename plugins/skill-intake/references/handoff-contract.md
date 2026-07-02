@@ -1,19 +1,19 @@
 ---
 name: handoff-contract
-description: skill-creator (run-skill-create) への引き渡し JSON (intake.json) の正規スキーマ
+description: skill-creator (run-skill-create) / plugin-dev-planner (run-plugin-dev-plan) への引き渡し JSON (intake.json) の正本参照と入力契約マッピング
 type: reference
 ---
 
 # ハンドオフ契約 JSON Schema
 
-`skill-intake-handoff` SubAgent の最終出力 `intake.json` の正規スキーマ。`run-skill-create` はこの JSON を読み込んで Phase 0-0 を簡略化または飛ばす。
+`skill-intake-handoff` SubAgent の最終出力 `intake.json` の契約。**スキーマ正本は `references/intake.schema.json` (schema_version 2.0.0, `sections` 12 章構造)** であり、本ファイルは配置規約と下流 (skill-creator / plugin-dev-planner) への入力契約マッピングを定める。`run-skill-create` はこの JSON を読み込んで Phase 0-0 を簡略化または飛ばす。
 
 ## ファイル配置
 
 ```
 output/<skill-name-hint>/
 ├── intake.md            # 人間用・正本
-├── intake.json          # skill-creator 用・副本（このスキーマ準拠）
+├── intake.json          # skill-creator / plugin-dev-planner 用・副本（references/intake.schema.json 準拠）
 ├── notion-url.txt       # 公開後の Notion URL
 ├── notion-blocks.json   # dry-run 用 Notion ブロック JSON
 └── self-update.json     # question-bank への追記候補
@@ -21,250 +21,22 @@ output/<skill-name-hint>/
 
 Slack ログは本スキルのスコープ外（差別化済み）。
 
-## JSON Schema（draft-07）
+## JSON Schema (正本参照)
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "IntakeResult",
-  "type": "object",
-  "required": [
-    "schema_version",
-    "skill_name_hint",
-    "purpose",
-    "user_profile",
-    "five_axes",
-    "workflow_pattern",
-    "notion_target",
-    "completed_sheets",
-    "recommended_next"
-  ],
-  "properties": {
-    "schema_version": { "type": "string", "const": "1.0.0" },
-    "generated_at": { "type": "string", "format": "date-time" },
-    "skill_name_hint": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*$",
-      "description": "kebab-case 推奨スキル名 (最終決定は run-skill-create)"
-    },
-    "purpose": {
-      "type": "object",
-      "required": ["stated", "excavated", "jtbd"],
-      "properties": {
-        "stated":   { "type": "string", "description": "表層要望（原文）" },
-        "excavated":{ "type": "string", "description": "5 Whys 等で掘った真の課題" },
-        "jtbd": {
-          "type": "object",
-          "required": ["when", "want_to", "so_i_can"],
-          "properties": {
-            "when":     { "type": "string" },
-            "want_to":  { "type": "string" },
-            "so_i_can": { "type": "string" }
-          }
-        },
-        "magic_wand_vision": { "type": "string" },
-        "pain_stories": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "when":          { "type": "string" },
-              "what_happened": { "type": "string" },
-              "felt":          { "type": "string" },
-              "cost_minutes":  { "type": "number" }
-            }
-          }
-        }
-      }
-    },
-    "user_profile": {
-      "type": "object",
-      "required": ["technical_level", "role", "context"],
-      "properties": {
-        "technical_level": { "enum": ["非技術", "中級", "上級"] },
-        "role":            { "type": "string" },
-        "context":         { "enum": ["業務", "個人", "学習", "趣味"] },
-        "constraints":     { "type": "array", "items": { "type": "string" } },
-        "motivation":      { "type": "string" },
-        "share_target":    { "enum": ["自分のみ", "少人数", "不特定多数", "顧客"] }
-      }
-    },
-    "five_axes": {
-      "type": "object",
-      "required": ["output_target", "info_source", "share_target", "true_problem", "knowledge_assets"],
-      "description": "5 軸: 4 軸 (出力先/情報源/共有相手/真の課題) + ナレッジ資産軸 (MUST)",
-      "properties": {
-        "output_target": {
-          "type": "object",
-          "properties": {
-            "answer":   { "type": "string" },
-            "depth":    { "enum": ["quick", "standard", "deep"] },
-            "verified": { "type": "boolean" }
-          }
-        },
-        "info_source":  { "$ref": "#/properties/five_axes/properties/output_target" },
-        "share_target": { "$ref": "#/properties/five_axes/properties/output_target" },
-        "true_problem": { "$ref": "#/properties/five_axes/properties/output_target" },
-        "knowledge_assets": {
-          "type": "object",
-          "required": ["needed", "verified"],
-          "properties": {
-            "needed":   { "type": "boolean" },
-            "verified": { "type": "boolean" },
-            "depth":    { "enum": ["quick", "standard", "deep"] },
-            "existing_sources": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["type", "location"],
-                "properties": {
-                  "type":     { "enum": ["notion", "obsidian", "memo", "chat_log", "file", "url", "book", "video", "other"] },
-                  "location": { "type": "string" },
-                  "summary":  { "type": "string" }
-                }
-              }
-            },
-            "external_inputs": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "title":   { "type": "string" },
-                  "url":     { "type": "string" },
-                  "purpose": { "type": "string" }
-                }
-              }
-            },
-            "tacit_knowledge": { "type": "array", "items": { "type": "string" } },
-            "extraction_pipeline": {
-              "type": "object",
-              "properties": {
-                "needed":           { "type": "boolean" },
-                "ingest_format":    { "type": "string" },
-                "analysis_method":  { "type": "string" },
-                "storage":          { "type": "string" },
-                "retrieval":        { "type": "string" },
-                "update_frequency": { "enum": ["fixed", "manual", "weekly", "monthly", "on_demand"] }
-              }
-            },
-            "exclusions": { "type": "array", "items": { "type": "string" } }
-          }
-        }
-      }
-    },
-    "workflow_pattern": {
-      "enum": ["A", "B", "C", "D", "E"],
-      "description": "スキル種別軸。値の正本ラベルは notion-db-schema.json#/properties/ワークフロー を参照 (A 単体 / B 自動収集配信 / C ナレッジ集約 / D レビュー / E その他)。この A-E は mode 軸 (next-action-advisor のスキル生成方針 A-E) およびパターン軸 (ライフサイクル A-E) とは独立した分類である。二重定義防止のためラベルはここにベタ書きせず正本を単一真実源とする。"
-    },
-    "notion_target": {
-      "type": "object",
-      "required": ["mode"],
-      "description": "Notion 出力先の正本。--page-url / --page-id 指定時は update 専用で page_id 必須。create fallback は禁止し、初回作成は mode=create-explicit + allow_create=true の明示時だけ許可。",
-      "properties": {
-        "mode": { "enum": ["update", "create-explicit"] },
-        "page_id": { "type": "string" },
-        "page_url": { "type": "string" },
-        "database_id": { "type": "string" },
-        "source": { "enum": ["arg", "url", "result_file", "explicit_create"] },
-        "require_update": { "type": "boolean" },
-        "allow_create": { "type": "boolean" }
-      }
-    },
-    "completed_sheets": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["section_id", "title", "status"],
-        "properties": {
-          "section_id": { "type": "string" },
-          "title":      { "type": "string" },
-          "status":     { "enum": ["complete", "partial", "skipped"] },
-          "filled_at":  { "type": "string", "format": "date-time" }
-        }
-      }
-    },
-    "open_questions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "question":    { "type": "string" },
-          "blocking":    { "type": "boolean" },
-          "deferred_to": { "enum": ["skill-creator", "later"] }
-        }
-      }
-    },
-    "recommended_next": {
-      "type": "object",
-      "required": ["mode", "skip_to_phase"],
-      "properties": {
-        "mode":          { "enum": ["full", "fast-track", "verify-only"] },
-        "skip_to_phase": { "type": "string" },
-        "rationale":     { "type": "string" }
-      }
-    },
-    "visualizations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["type", "section", "svg_path", "one_liner"],
-        "properties": {
-          "type": {
-            "enum": [
-              "flowchart", "sequence", "state", "class", "er", "gantt",
-              "pie", "mindmap", "timeline", "journey", "quadrant", "sankey",
-              "numbered-steps", "persona-card", "before-after",
-              "comparison-table", "traffic-light", "progress-bar",
-              "icon-grid", "sankey-aux"
-            ]
-          },
-          "section":        { "type": "string" },
-          "svg_path":       { "type": "string" },
-          "png_path":       { "type": "string" },
-          "one_liner":      { "type": "string", "maxLength": 60 },
-          "non_tech_score": { "type": "integer", "minimum": 1, "maximum": 3 }
-        }
-      }
-    }
-  }
-}
-```
+intake.json の正規スキーマは **`references/intake.schema.json` (schema_version 2.0.0, `sections` 12 章構造) を唯一の正本**とする。本ファイルへのスキーマ複製 (インライン写し) は禁止する (cross-boundary 複製禁止 invariant)。実形状の例は `fixtures/example-team-onboarding/intake.json` / `fixtures/example-data-quality-survey/intake.json` を参照する。
 
-## 必須フィールド最小例（google-forms-generator）
-
-```json
-{
-  "schema_version": "1.0.0",
-  "skill_name_hint": "google-forms-generator",
-  "purpose": {
-    "stated": "申込フォームを自動で作りたい",
-    "excavated": "セミナー告知の 3 日前に 5 分でフォームと集計まで完了させ、SNS 拡散に時間を回したい",
-    "jtbd": {
-      "when": "セミナー告知の 3 日前",
-      "want_to": "申込フォームを 5 分で作る",
-      "so_i_can": "SNS 拡散に時間を回せる"
-    }
-  },
-  "user_profile": { "technical_level": "中級", "role": "個人事業主", "context": "業務", "share_target": "不特定多数" },
-  "five_axes": {
-    "output_target": { "answer": "Google Forms + Sheets", "depth": "standard", "verified": true },
-    "info_source":   { "answer": "セミナー概要メモ (手元)", "depth": "standard", "verified": true },
-    "share_target":  { "answer": "セミナー参加希望者", "depth": "standard", "verified": true },
-    "true_problem":  { "answer": "告知準備 90 分→10 分", "depth": "deep", "verified": true },
-    "knowledge_assets": { "needed": true, "verified": true }
-  },
-  "workflow_pattern": "A",
-  "completed_sheets": [{ "section_id": "purpose", "title": "目的", "status": "complete" }],
-  "recommended_next": { "mode": "fast-track", "skip_to_phase": "Phase 1", "rationale": "5 軸全充足" }
-}
-```
+- ルート必須: `schema_version` (const `"2.0.0"`) / `source_of_truth` / `sections` / `notion_target`
+- `sections` は `0_executive_summary` 〜 `11_artifact_index` の 12 キー必須 (`additionalProperties: false`)
+- 旧 v1 (schema_version 1.0.0, flat 構造: `purpose.*` / `five_axes.*` / `recommended_next.*` 直下) は廃止済み。v1 パスの残置参照を見つけたら本ファイルでなく正本 schema (v2 `sections.*`) へ追従させること
+- `sections.0_executive_summary.workflow_pattern` (スキル種別軸) の値ラベル正本は `notion-db-schema.json#/properties/ワークフロー` を参照する。この A-E は mode 軸 (run-intake-next-action の引き渡しモード A-E/P) およびパターン軸 (ライフサイクル A-E) とは独立した分類である。二重定義防止のためラベルは本ファイルへベタ書きせず正本を単一真実源とする
 
 ## バリデーション
 
-- `scripts/validate_intake.py` が schema 準拠を検証
+- `scripts/validate_intake_schema.py` が `references/intake.schema.json` 準拠を検証 (pre-publish hook 兼用。cross-field rule `handoff_mode_consistency` = §0 `handoff_mode` と §9 `recommended_next.mode` の一致検証を含む)
+- `scripts/validate_intake.py` が 5 軸 + user_profile の必須キー存在を検証 (v1 flat / v2 双方を正規化して受理する後方互換レイヤー)
 - 必須欠落 → ヒアリング差し戻し
-- `five_axes.*.verified=false` が 1 つでも残れば `recommended_next.mode="full"` 強制
-- `knowledge_assets.verified` は **MUST**（false は不可、`needed=false` の verified=true は OK）
+- `sections.8_open_questions.blocking_count` は 0 必須 (blocking 残存のまま handoff へ進めない)
+- `sections.6_five_axes_summary.axes[]` は 5 軸 (knowledge_asset 含む) 全件必須
 
 ## skill-creator 入力契約マッピング
 
@@ -274,44 +46,56 @@ Slack ログは本スキルのスコープ外（差別化済み）。
 
 `plugins/skill-creator/skills/run-build-skill/references/agent-template.md` で定義される SubAgent ファイルの 9 セクション固定構造に、intake.json の各フィールドがどう投入されるか。
 
-| # | SubAgent セクション | intake.json 主派生元 | 役割 (Layer 対応) |
+| # | SubAgent セクション | intake.json 主派生元 (v2 sections パス) | 役割 (Layer 対応) |
 |---|---|---|---|
-| 1 | Frontmatter (name/description/tools/model) | `meta.skill_name_hint` + `recommended_next.mode` + `five_axes` から `pair`/`kind` 推定 | エージェント識別と最小権限宣言 |
-| 2 | Purpose | `purpose.excavated` + `purpose.jtbd` | Layer 1 不変定義 (役割の正本) |
-| 3 | Inputs | `five_axes.*.adopted` の参照 reference + `connectors` | Layer 2 ドメイン定義 (前提・参照リソース) |
-| 4 | Outputs | `recommended_next.skip_to_phase` + `meta.output_dir` 規約 | Layer 6 出力契約 (成果物パス + JSON 雛形) |
-| 5 | Steps | `purpose.magic_wand_vision` の段階分解 + `five_axes.workflow.adopted` | Layer 5/6 実行仕様 (思考プロセス番号付き) |
-| 6 | Constraints | `user_profile.constraints` + `open_questions[].blocking=true` | Layer 4 ガードレール (禁止事項) |
-| 7 | Prompt Templates | `user_profile.technical_level` で vocabulary_tier 決定 + `responsibilities[]` anchor | Layer 7 実発話例 (responsibility ごとに Round 配置) |
-| 8 | Self-Evaluation | `five_axes` の verified 状態 + `value_realized_score` | quality-rubric.md 5 次元採点の重点定義 |
-| 9 | Handoff | `recommended_next.mode` + 次 agent の接続情報 | 次 agent と引き継ぎデータ |
+| 1 | Frontmatter (name/description/tools/model) | `skill_name_hint` + `sections.9_handoff_contract.recommended_next.mode` + `sections.6_five_axes_summary` から `pair`/`kind` 推定 | エージェント識別と最小権限宣言 |
+| 2 | Purpose | `sections.3_purpose_excavator.true_purpose` + `.underlying_motivation` | Layer 1 不変定義 (役割の正本) |
+| 3 | Inputs | `sections.4_option_presenter.decision_tables[].options[adopted=true]` + `sections.4_option_presenter.connectors` | Layer 2 ドメイン定義 (前提・参照リソース) |
+| 4 | Outputs | `sections.9_handoff_contract.recommended_next.skip_to_phase` + `sections.11_artifact_index.base_path` 規約 | Layer 6 出力契約 (成果物パス + JSON 雛形) |
+| 5 | Steps | `sections.3_purpose_excavator.output_priority` の段階分解 + `sections.7_design_decisions.adoptions` | Layer 5/6 実行仕様 (思考プロセス番号付き) |
+| 6 | Constraints | `sections.2_user_profile.dimensions[dim=constraints]` + `sections.8_open_questions.questions[blocking=true]` | Layer 4 ガードレール (禁止事項) |
+| 7 | Prompt Templates | `sections.2_user_profile.vocabulary_tier` で語彙難易度決定 + `responsibilities[]` anchor | Layer 7 実発話例 (responsibility ごとに Round 配置) |
+| 8 | Self-Evaluation | `sections.6_five_axes_summary.axes[].depth` + `sections.0_executive_summary.value_realized_score` | quality-rubric.md 5 次元採点の重点定義 |
+| 9 | Handoff | `sections.9_handoff_contract.recommended_next.mode` + 次 agent の接続情報 | 次 agent と引き継ぎデータ |
 
-**lint Tier 2 必須**: intake.json の `responsibilities[]` (将来追加予定) → SubAgent.md の `<!-- responsibility: <R-id> -->` anchor 集合一致。kind ∈ {run, assign} のとき必須。
+**lint Tier 2 (未発効・将来予定)**: intake.json の `responsibilities[]` (契約未追加) → SubAgent.md の `<!-- responsibility: <R-id> -->` anchor 集合一致 (kind ∈ {run, assign} 対象)。`responsibilities[]` が正本 schema (`references/intake.schema.json`) へ追加された時点で発効する。現時点では必須ではない。
 
 ### 軸 B: ビルドフロー Step 1〜9 ← intake §0〜§11 投入箇所
 
 `build-steps.md` のビルド手順 (Step 1〜9; Step 3.5/7.5 を含み実質 11 段だが正規 9 ステップ表記) に、skill-intake が生成する §0〜§11 をどこで読むか。
 
-| skill-intake §x (canonical_map) | intake.json フィールド | skill-creator Step | 役割 |
+| skill-intake §x (canonical_map) | intake.json フィールド (v2 sections パス) | skill-creator Step | 役割 |
 |---|---|---|---|
-| §0 executive_summary | `meta` + `purpose.excavated` + `recommended_next.mode` | Step 1 (skip_to_phase 判定根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
-| §1 assumption_challenger | `purpose.stated` / `purpose.excavated` | Step 1 (kind 確定の前提) | 表層 vs 深層の分離を brief に渡す |
-| §2 user_profile | `user_profile.*` | Step 1 (語彙難易度) / Step 2 (テンプレ選択) | vocabulary_tier を SubAgent §7 へ伝搬 |
-| §3 purpose_excavator | `purpose.excavated` / `purpose.jtbd` / `purpose.magic_wand_vision` | Step 1 (true_purpose 正本) / Step 5 (フォーク評価) | SubAgent §2 Purpose の正本 |
-| §4 option_presenter | `five_axes.*.adopted` + `connectors` | Step 2 (テンプレ展開) / Step 3 (補助ファイル生成) | SubAgent §3 Inputs の初期値 |
-| §5 visualizer (図解 5 枚) | `visualizations[]` | Step 3 (`templates/`/`assets/` 配置候補) | 図解資産を skill 本体へ移植 |
-| §6 five_axes_summary | `five_axes` (5 軸 + knowledge_assets MUST) | Step 1 / Step 6 ゲート判定 | rubric score >= 80 の前提 |
-| §7 design_decisions | §4 adopted の集約 (intake.json 未明示) | Step 2 (kind / pair / hooks の宣言値) | SubAgent §1 Frontmatter の `pair`/`kind`/`script_refs` |
-| §8 open_questions | `open_questions[]` (blocking / deferred_to) | Step 1 (deferred_to=skill-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
-| §9 handoff_contract | `recommended_next` (mode / skip_to_phase / rationale) | Step 1 → Step 2 ジャンプ条件 | mode=fast-track で Step 1 簡略化 |
-| §10 self_updater | `self-update.json` | (skill-creator スコープ外) | skill-intake 自己進化専用 |
-| §11 artifact_index | `output/<hint>/` ファイル一覧 | Step 3.5 再現性トレース | skill-build-trace.json の source_docs に登録 |
+| §0 executive_summary | `sections.0_executive_summary` (pattern / depth / true_purpose_oneliner / handoff_mode) | Step 1 (skip_to_phase 判定根拠) | スキル名候補・パターン・引き渡しモードを 1 枚で読ませる |
+| §1 assumption_challenger | `sections.1_assumption_challenger.surface_request` / `.adopted_deep_problem` | Step 1 (kind 確定の前提) | 表層 vs 深層の分離を brief に渡す |
+| §2 user_profile | `sections.2_user_profile.dimensions` / `.vocabulary_tier` | Step 1 (語彙難易度) / Step 2 (テンプレ選択) | vocabulary_tier を SubAgent §7 へ伝搬 |
+| §3 purpose_excavator | `sections.3_purpose_excavator.true_purpose` / `.underlying_motivation` / `.output_priority` | Step 1 (true_purpose 正本) / Step 5 (フォーク評価) | SubAgent §2 Purpose の正本 |
+| §4 option_presenter | `sections.4_option_presenter.decision_tables[].adopted_id` + `.connectors` | Step 2 (テンプレ展開) / Step 3 (補助ファイル生成) | SubAgent §3 Inputs の初期値 |
+| §5 visualizer (図解 5 枚) | `sections.5_visualizer.figures[]` | Step 3 (`templates/`/`assets/` 配置候補) | 図解資産を skill 本体へ移植 |
+| §6 five_axes_summary | `sections.6_five_axes_summary` (axes 5 軸 + intent_contract + knowledge_pipeline) | Step 1 / Step 6 ゲート判定 | rubric score >= 80 の前提 |
+| §7 design_decisions | `sections.7_design_decisions.adoptions` / `.output_priority_finalized` | Step 2 (kind / pair / hooks の宣言値) | SubAgent §1 Frontmatter の `pair`/`kind`/`script_refs` |
+| §8 open_questions | `sections.8_open_questions.questions[]` (blocking / defer_to) | Step 1 (defer_to=skill-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
+| §9 handoff_contract | `sections.9_handoff_contract.recommended_next` (mode / skip_to_phase / reason) | Step 1 → Step 2 ジャンプ条件 | mode=fast-track で Step 1 簡略化 |
+| §10 self_updater | `sections.10_self_updater` (+ `self-update.json`) | (skill-creator スコープ外) | skill-intake 自己進化専用 |
+| §11 artifact_index | `sections.11_artifact_index.base_path` / `.artifacts[]` | Step 3.5 再現性トレース | skill-build-trace.json の source_docs に登録 |
 
 Step 1 が読むのは §1/§2/§3/§6/§8/§9。Step 2 は §4/§7。Step 3 は §5/§11。§0/§10 は人間レビュー専用。
 
 ### 軸 A と軸 B の関係
 
 軸 B (ビルドフロー) は **手順**、軸 A (SubAgent 9 セクション) は **成果物の構造正本**。intake.json は両軸を同時に駆動するため、本契約では「intake.json → 軸 A 派生 → 軸 B の各 Step が軸 A を充填」という 2 段の責務分離を保証する。`agent-template.md` 改版時は軸 A 表を、`build-steps.md` 改版時は軸 B 表を独立に更新すること。
+
+## plugin-dev-planner 分岐 (mode P)
+
+`run-intake-next-action` が `mode=P` (plugin 規模構想) を確定した場合、引き渡し先は `run-skill-create` でなく **`plugins/plugin-dev-planner/skills/run-plugin-dev-plan` の R1 (elicit-goal)** になる (`next-action.json.handoff_target="plugin-dev-planner"`)。intake.json の以下の § を R1 の `plugin_concept` 材料として渡す:
+
+| intake.json §x (v2 sections パス) | R1 (goal-spec) への写像 |
+|---|---|
+| `sections.0_executive_summary` (true_purpose_oneliner / pattern / handoff_mode) | `purpose` / `background` の推定材料 |
+| `sections.3_purpose_excavator` (true_purpose / underlying_motivation / output_priority) | `goal` (観測可能な完了形 1 文) と `checklist` の導出材料 |
+| `next-action.json.split_candidates[]` (mode P 判定時の複数コンポーネント/skill 候補) | コンポーネント分解 (R2) へ渡す初期候補 |
+
+受け側契約の正本は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/references/io-contract.md` §9 (intake.json は**任意の構造化入力**であり必須ではない)。skill-creator 分岐 (mode A-D) と同じく、intake 側は推奨を出して停止し `run-plugin-dev-plan` を起動しない。
 
 ## `run-skill-elicit` との互換
 

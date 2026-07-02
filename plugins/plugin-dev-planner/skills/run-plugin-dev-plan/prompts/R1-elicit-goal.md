@@ -48,6 +48,7 @@
 |---|---|---|---|
 | plugin_concept | text | yes | プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望) |
 | mode | enum | no | create / update |
+| intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator / next-action.json の split_candidates[] を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本) |
 
 ### 2.4 出力契約
 - schema: `schemas/plugin-goal-spec.schema.json` 準拠。`run-goal-elicit/schemas/goal-spec.schema.json` は purpose/background/goal/checklist 抽出にだけ使い、plugin 固有アンカーは専用 schema で検証する

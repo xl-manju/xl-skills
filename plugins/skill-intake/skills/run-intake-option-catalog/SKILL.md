@@ -49,6 +49,7 @@ Phase 6 担当の **連携選択肢生成 run skill**。orchestrator (`run-skill
 
 **入力**: `purpose.json`, `references/integration-catalog-pointer.md` 経由の integration カタログ
 **出力**: `output/<hint>/options.json` (`selected_integrations` / `rejected` 配列)
+**任意フィールド (mode P 判定入力)**: `plugin_scale` (boolean: ヒアリング中に plugin 規模構想 (hook/command 等複数コンポーネント) が明示されたとき true) / `component_requests[]` (string[]: ユーザーが要望したコンポーネント種別 (skill/hook/command/agent/mcp 等))。Phase 11 `run-intake-next-action` の decide-mode.py が mode P 判定入力として読む。
 **完了条件**: tier=required の連携が全て選択または除外 (reason 付き) で確定し、ユーザーが選択肢確認に応答済み。
 **性質**: run kind。責務プロンプトは `prompts/R1-search-summarize.md`、参照カタログは `references/` 配下に閉じる。カタログの書き換えは行わない (write は `options.json` のみ)。
 

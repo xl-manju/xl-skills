@@ -26,6 +26,7 @@
     },
     "initial_utterance": {"type": "string"},
     "timestamp": {"type": "string", "minLength": 1},
+    "plugin_scale": {"type": "boolean", "description": "任意: ヒアリング中に plugin 規模構想 (hook/command 等複数コンポーネント) が明示されたとき true。run-intake-next-action の decide-mode.py が mode P 判定入力として読む。"},
     "qa_log": {
       "type": "array",
       "items": {

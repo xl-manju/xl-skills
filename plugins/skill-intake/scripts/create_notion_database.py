@@ -88,11 +88,28 @@ def resolve_parent_page(args: dict[str, Any]) -> str | None:
     )
 
 
+def configured_db_ids() -> set[str]:
+    """config の databases.*.db_id 集合 (canonical UUID)。親ページ誤設定ガード用。"""
+    cfg = notion_config.load_config() or {}
+    ids: set[str] = set()
+    for entry in (cfg.get('databases') or {}).values():
+        if not isinstance(entry, dict):
+            continue
+        canon = notion_config.canonical_notion_id(entry.get('db_id'))
+        if canon:
+            ids.add(canon)
+    return ids
+
+
 def create_db(parent_page: str | None, title: str | None, schema: dict[str, Any], dry_run: bool) -> dict[str, Any] | None:
-    if not parent_page:
+    # fail-closed guard: 親ページ ID が空/未設定、または databases.*.db_id と同一
+    # (親が DB を指す誤設定) の場合は DB を作成しない。
+    if not parent_page or parent_page in configured_db_ids():
         sys.stderr.write(
-            '--parent-page, --parent-page-url, INTAKE_NOTION_PARENT_PAGE_ID, '
-            'or .notion-config.json#parent_page is required for --mode=create\n'
+            'DB新規作成には親“ページ”IDが必要です。.notion-config.json の '
+            'parent_page.page_id にご自身の Notion ページ ID を設定してください '
+            '(--parent-page / --parent-page-url / env INTAKE_NOTION_PARENT_PAGE_ID でも指定可。'
+            'databases.*.db_id と同一の ID は DB を指すため親ページとして使えません)\n'
         )
         sys.exit(2)
     body = {

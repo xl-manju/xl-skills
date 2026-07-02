@@ -11,7 +11,7 @@ resources:
   - file: elicit-question-bank.md
     topic: ヒアリング質問テンプレ集
     read_when: interview で質問を設計するとき
-  - file: ../prompts/interview.md
+  - file: ../prompts/R1-interview.md
     topic: R1 ヒアリング責務プロンプト
     read_when: interview agent へ渡す context を組み立てるとき
   - file: ../../../agents/prompt-creator-interview-user.md

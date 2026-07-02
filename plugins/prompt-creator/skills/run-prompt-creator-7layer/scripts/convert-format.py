@@ -32,8 +32,8 @@ def parse_args():
     parser.add_argument("--input")
     parser.add_argument("--format", default="md")
     parser.add_argument("--output")
-    args, _ = parser.parse_known_args()
-    return args
+    # A4-10: parse_known_args の黙殺を廃止 (failfast)。未知引数は argparse が exit 2。
+    return parser.parse_args()
 
 
 # 「# Layer N: <title>」マーカーで本文を 7 層に分割し、本文を verbatim 保持する。

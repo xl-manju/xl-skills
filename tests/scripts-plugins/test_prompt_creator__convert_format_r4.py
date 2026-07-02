@@ -18,6 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "plugins"
@@ -85,15 +87,16 @@ def test_parse_args_defaults_format_md(monkeypatch):
     assert args.output is None
 
 
-def test_parse_args_ignores_unknown_args(monkeypatch):
-    # parse_known_args のため未知フラグでも例外を出さず無視する
+def test_parse_args_rejects_unknown_failfast(monkeypatch):
+    # A4-10: parse_known_args の黙殺を廃止。未知フラグ --bogus は argparse が exit 2 で failfast。
     monkeypatch.setattr(
         MOD.sys,
         "argv",
         ["convert-format.py", "--input", "a", "--output", "b", "--bogus", "z"],
     )
-    args = MOD.parse_args()
-    assert args.input == "a" and args.output == "b"
+    with pytest.raises(SystemExit) as exc:
+        MOD.parse_args()
+    assert exc.value.code == 2
 
 
 # ── parse_layers 純関数: 分割・本文保持・全角コロン・件数 ────────────────────

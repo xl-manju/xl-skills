@@ -8,13 +8,6 @@
   "databases": {
     "hearing-sheet": {
       "db_id": "<your-notion-database-id>"
-    },
-    "skill-list": {
-      "db_id": ""
-    },
-    "improvement-request": {
-      "db_id": ""
     }
-  },
-  "schema_dir": "plugins/skill-intake/references"
+  }
 }

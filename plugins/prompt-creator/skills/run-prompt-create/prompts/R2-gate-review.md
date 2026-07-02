@@ -2,6 +2,7 @@
 
 > このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
 > seven-layer-markdown-template.md を正本とする。Layer 番号と依存方向 (L1 ← L7) は不変。
+> L5 サブ構造は seven-layer-format.md「Layer 5 契約」(l5-contract v2.0.0) に従属する。
 
 ## メタ
 
@@ -10,7 +11,7 @@
 | name | gate-review |
 | skill | run-prompt-create |
 | responsibility | R2 (Gate 1 AskUserQuestion + Gate 2-4 auto-gate handoff) |
-| layers_covered | [L4, L5, L6] |
+| layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/handoff.schema.json |
 | reproducible | true (承認結果が handoff に確定保存) |
 
@@ -78,20 +79,24 @@
 ### 5.1 担当 agent
 - run-prompt-create 配下の R2 SubAgent
 
-### 5.2 推論手順 (再現可能)
-1. gate_id に対応する artifacts を集約する
-2. Gate 1 は AskUserQuestion を発行し、承認時に approver=user, next_phase 更新
-3. Gate 2-4 は workflow-manifest.json の auto_approve_conditions を評価する
-4. 自動承認条件を満たす → approver=solo_operator_auto / system_auto
-5. 否認または条件不充足 → required_fixes[] を埋め、dependsOn 前段へ戻る (最大 3 周)
-6. schemas/handoff.schema.json に従い JSON を Write
+### 5.2 ゴール定義
+- 目的: 各 Gate の通過可否を証跡付きで確定し、承認結果を handoff として永続化する
+- 背景: 承認証跡のないフェーズ遷移は再現性と監査可能性を壊す。Gate 1 のみ人間対話、Gate 2-4 は機械評価が本 skill の invariant
+- 達成ゴール: gate_id の承認判定が確定し、`schemas/handoff.schema.json` 準拠の handoff-after_<gate>.json が保存され、next_phase が一意に決まっている
 
-### 5.3 自己検証 checklist
-- [ ] approver フィールドが user / solo_operator_auto / system_auto のいずれかか
-- [ ] artifacts[] が当該ゲートの対象成果物を網羅しているか
-- [ ] next_phase が workflow-manifest.json phases[].id と一致するか
-- [ ] 否認時は required_fixes[] に修正項目を残したか
-- [ ] gate_id が manifest の gate 値と一致するか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] handoff JSON が `schemas/handoff.schema.json` の検証を通過している
+- [ ] approver が user / solo_operator_auto / system_auto のいずれかである (Gate 1 は user のみ)
+- [ ] Gate 2-4 の判定に workflow-manifest.json auto_approve_conditions の evidence 評価結果が記録されている (LLM 自己申告の充足判定がない)
+- [ ] artifacts[] が当該ゲートの対象成果物を網羅している
+- [ ] next_phase が workflow-manifest.json phases[].id のいずれかと一致している
+- [ ] gate_id が manifest の gate 値と一致している
+- [ ] 否認時は required_fixes[] に修正項目が記録されている
+
+### 5.4 実行方式
+- 固定手順を持たない (l5-contract v2.0.0)。5.2 ゴール定義と 5.3 完了チェックリストを唯一の指針とし、現状評価 → 手順を都度立案 → 実行 → 検証 → 中間成果物アンカー記録 → 全項目充足まで反復する (6 ステップ・Step 5=Anchor。上限: Layer 4 の反復上限=否認 3 周)
+- 決定論操作 (auto_approve_conditions の evidence 評価・handoff 検証/Write) は Layer 2 ドメインルールと Layer 3 ツール定義に従い、判定を LLM 裁量で緩めない
+- Gate 1 の AskUserQuestion 発行以外でユーザーへ質問しない (user_question_budget=1 の invariant)
 
 ## Layer 6: オーケストレーション層
 

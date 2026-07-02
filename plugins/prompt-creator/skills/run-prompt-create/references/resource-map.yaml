@@ -18,14 +18,14 @@ resources:
   - file: ../schemas/handoff.schema.json
     topic: Gate 通過時の handoff JSON 共通スキーマ
     read_when: eval-log/handoff-<step>.json を生成・検証するとき
-  - file: ../prompts/elicit.md
+  - file: ../prompts/R1-elicit.md
     topic: Step 1 ヒアリング委譲プロンプト (R1)
     read_when: run-prompt-elicit へ渡す context を組み立てるとき
-  - file: ../prompts/gate-review.md
+  - file: ../prompts/R2-gate-review.md
     topic: Gate 1-4 共通 AskUserQuestion テンプレ (R2)
     read_when: ゲート前にユーザー承認を取るとき
-  - file: ../prompts/governance-decide.md
-    topic: Step 5 solo_operator_mode 自動承認判定プロンプト (R3)
+  - file: ../prompts/R3-governance-decide.md
+    topic: Step 5 governance 自動承認判定プロンプト (R3。preconditions=solo_operator_mode/stable_frozen は環境前提)
     read_when: governance 承認条件を機械評価するとき
   - file: governance-params.json
     topic: governance 自動承認しきい値パラメーター

@@ -26,7 +26,8 @@ contract:
     outputs: [seven-layer-prompt.md, prompt-build-trace.json, findings.json, "handoff-*.json", completion-report]
   invariant:
     - Gate 1 (brief 確認) のみユーザー対話を行い、Gate 2-4 は workflow-manifest.json の auto_approve_conditions を機械評価すること
-    - 各フェーズは独立 Skill へ委譲し、本スキルは制御のみを担うこと
+    - 委譲先 worker のユーザー対話は brief 供給時 skip し、導出確認は brief 内容と Gate 1 承認に委譲すること (user_question_budget=1)
+    - 各フェーズは独立 Skill へ委譲し、本スキルは制御のみを担うこと (手順の機械正本は workflow-manifest.json、散文はゴール+完了条件のみ宣言)
     - evaluator / governance reviewer は必ず context:fork で起動すること (Sycophancy 防止)
     - 各ゲート通過時に handoff-<step>.json を schemas/handoff.schema.json 準拠で永続化すること
     - Layer 依存方向 L7→L1 を逸脱した生成物は Gate で差し戻すこと
@@ -108,7 +109,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ## Key Rules
 
-1. **自動承認既定**: 初回 brief 確定 (Gate 1) のみユーザーに AskUserQuestion を発行。Gate 2-4 は `workflow-manifest.json` の `auto_approve_conditions` を機械評価し、全充足時は `solo_operator_auto` で自動承認。
+1. **自動承認既定**: 初回 brief 確定 (Gate 1) のみユーザーに AskUserQuestion を発行。Gate 2-4 は `workflow-manifest.json` の `auto_approve_conditions` を機械評価し、全充足時は `solo_operator_auto` で自動承認。brief を供給して委譲する worker 側のユーザー対話 (導出確認・出力先指定等) は skip し、導出確認は brief 内容と Gate 1 承認に委譲する (user_question_budget=1)。
 2. **条件不充足時のみ停止**: P0 lint fail / evaluator FAIL / Layer 依存違反 / 充足率 95% 未満などのいずれかで停止し findings 提示。
 3. **子スキルへの委譲**: 各フェーズは独立 Skill を Skill tool で起動 (`workflow-manifest.json` の `delegateSkill`)。本スキルは制御のみ。
 4. **context:fork**: evaluator/governance reviewer は必ず context:fork で起動 (Sycophancy 防止)。
@@ -121,7 +122,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 11. **要素原子性**: 1 フィールド=1 概念、1 値=1 短文 (50 字目安)。長文は分解。
 12. **目的+背景併記**: 全ルール/制約に「目的」と「背景」を必ず併記する記述スタイル。
 
-## End-to-End Flow
+## End-to-End Flow (概観図。正本は workflow-manifest.json)
 
 ```
 [Step 1 elicit] run-prompt-elicit ─→ prompt-brief.json ─[Gate 1 ★唯一の対話]─▶
@@ -135,38 +136,21 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 ★ ユーザー対話は Gate 1 のみ。Gate 2-4 は `workflow-manifest.json` の `auto_approve_conditions` を機械評価し、全充足で自動承認。1 条件でも不充足なら findings 提示 + 修正ループ。
 
-依存・entryHook/exitHook・resourceIds・fatal_exit_codes は `workflow-manifest.json` 参照。
+## Phase 別ゴールと完了条件 (宣言核)
 
-## Steps (圧縮形)
+**手順の機械正本は `workflow-manifest.json`** (phases[].dependsOn / entryHook / exitHook / resourceIds / commands / max_retry / fatal_exit_codes / handoff)。本節は各 phase の到達状態と受入条件のみを宣言し、遷移・実行の細部は実行時に manifest とゴールから導出する (手続き列挙の二重管理をしない)。責務別の停止条件は `prompts/R1-elicit.md` / `prompts/R2-gate-review.md` / `prompts/R3-governance-decide.md` の「5.3 完了チェックリスト」(l5-contract v2.0.0)。
 
-### Step 1: 要求ヒアリング (phase=elicit)
-`Skill(run-prompt-elicit, args=topic)` → `eval-log/prompt-brief.json`。プロンプトは `prompts/elicit.md` (R1)。スキーマは `schemas/prompt-brief.schema.json`。
+| phase (step/gate) | ゴール (到達状態) | 完了条件 (受入基準) |
+|---|---|---|
+| elicit (1/G1) | goals (成果状態)・checklist (item+judgement) を含む schema 準拠 brief が `eval-log/prompt-brief.json` に保存済み | R1 5.3 全充足 + Gate 1 ユーザー承認 (唯一の対話。否認は最大 3 周) |
+| build (2/-) | 7 層プロンプトと `eval-log/prompt-build-trace.json` (build-trace.schema.json 準拠・Layer coverage 全 PASS/N/A/skip 理由付き) が生成済み | trace schema 検証 exit 0 (Gate 2 前提) |
+| p0-lint (3a/G2) | manifest `phases[id=p0-lint].commands` (8 本) が全 exit 0 の状態 | 全 exit 0。fail / `TODO` / 未展開 `{{...}}` / 英語仮文残存 (パラメーター名除く) は findings 付きで build へ差し戻し (最大 3 周) |
+| design-evaluate (3b/-) | fork した evaluator の findings (`eval-log/docs/<NN>-<timestamp>.json`, findings.schema.json 準拠) に C1-C4 FAIL がない | FAIL は build へ自律差し戻し (最大 3 周)。未収束は governance へ昇格し solo_operator_auto 失効を判定 |
+| elegant-review (4/G3) | (new_prompt or diff>30 行のみ。判定 `scripts/evaluate-create-gates.py`) C1-C4 全 PASS | FAIL 残存時のみ停止し修正ループへ |
+| governance (5/G4) | preconditions (環境前提) 成立かつ `auto_approve_conditions` 全充足が各 evidence で機械評価済み → solo_operator_auto。不成立は `run-skill-rubric-governance` の手動承認確定 | manifest `governance.auto_approve_conditions` の evidence 全 PASS または手動承認 handoff (R3 5.3 全充足) |
+| report (6/-) | 下記形式の完了レポートが提示され `handoff-prompt_done.json` 保存済み | レポート必須項目が全て埋まっている |
 
-### Gate 1: brief 確認
-`prompts/gate-review.md` テンプレで承認取得。否認時は Step 1 へ戻る (最大 3 回)。
-
-### Step 2: プロンプト生成 (phase=build)
-`Skill(run-prompt-creator-7layer, args=[responsibility_id, output, target_agent, prompt_brief, format])`。`eval-log/prompt-build-trace.json` が `schemas/build-trace.schema.json` 準拠で Layer coverage 全 PASS/N/A/skip 理由付きであることを Gate 2 前提とする。
-
-### Step 3a: P0 lint (自動) (phase=p0-lint)
-`workflow-manifest.json phases[id=p0-lint].commands` に集約 (8 本)。**全 exit 0 必須**、失敗時は findings → Step 2 (最大 3 周)。`TODO` / 未展開 `{{...}}` / 英語仮文残存も Step 2 へ戻す (パラメーター名除く)。
-
-### Gate 2: lint/diff 自動判定
-`git diff` と `eval-log/prompt-build-trace.json` をもとに manifest 条件を機械評価し、全充足なら handoff を `solo_operator_auto` で保存。条件不充足時のみ findings を提示して停止する。
-
-### Step 3b: 設計評価 (phase=design-evaluate)
-`Skill(assign-prompt-design-evaluator, args=<prompt_path>, context=fork)` → `eval-log/docs/<NN>-<timestamp>.json` (`schemas/findings.schema.json` 準拠)。FAIL 項目は findings を Step 2 へ自律差し戻し (最大 3 周回)。3 周未収束は Step 5 governance-decide へ昇格して solo_operator_auto 失効を判定する。
-
-### Step 4: パラダイム評価 (phase=elegant-review, 条件付き)
-新規または >30 行変更時のみ。判定は `scripts/evaluate-create-gates.py`。`Skill(run-elegant-review, args=[prompt, <prompt_path>], context=fork)` で C1-C4 全 PASS 必須。
-
-### Gate 3: 評価結果自動判定
-findings と C1-C4 を機械評価し、全充足なら handoff を `solo_operator_auto` で保存。FAIL 残存時のみ findings を提示して修正ループへ戻す。
-
-### Step 5: governance 承認 (phase=governance) + Gate 4
-`prompts/governance-decide.md` (R3) は `workflow-manifest.json` の `auto_approve_conditions` と `references/governance-params.json` を読み、全充足で自動承認。それ以外は `run-skill-rubric-governance` 起動。
-
-### Step 6: 完了レポート (phase=report)
+### 完了レポート形式 (phase=report の出力契約)
 ```markdown
 # Prompt Creation Report: <prompt_name>
 - mode: create|update
@@ -200,5 +184,5 @@ findings と C1-C4 を機械評価し、全充足なら handoff を `solo_operat
 - `schemas/handoff.schema.json` — Gate 通過時 handoff 共通形式
 - `schemas/findings.schema.json` — evaluator/elegant-review 出力形式 (C1-C4)
 - `schemas/build-trace.schema.json` — Step 2 emit する Layer 別 coverage 形式
-- `prompts/elicit.md` / `prompts/gate-review.md` / `prompts/governance-decide.md` — R1/R2/R3 責務別プロンプト
+- `prompts/R1-elicit.md` / `prompts/R2-gate-review.md` / `prompts/R3-governance-decide.md` — R1/R2/R3 責務別プロンプト
 - 子スキル: `run-prompt-elicit`, `run-prompt-creator-7layer`, `assign-prompt-design-evaluator`, `run-elegant-review` (skill-creator), `run-skill-rubric-governance` (skill-creator)

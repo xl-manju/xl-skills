@@ -2,26 +2,31 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "run-prompt-creator-7layer",
-    "skill_md_sha256": "463e8f768774b8488430d4e697e119422cc490419aa03c2a596d5285218b368d"
+    "skill_md_sha256": "785cfc4514353fd4fd99d9579fb868986e64ad56ac0a23034cfac968c252496a"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewer": "assign-skill-design-evaluator-20260702-independent-content-reviewer",
+  "reviewed_at": "2026-07-02T01:09:16Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "論理構造の正本を references/seven-layer-format.md へ、提示形式を seven-layer-markdown-template.md へ、冪等更新規約を idempotent-update-policy.md へと SSOT 委譲し SKILL 側で再定義せず Progressive Disclosure で Phase 直前読込とすることで片側更新ドリフトを回避している。",
-      "戻り検証(Phase 5)で lint-agent-prompt-section.py 通過必須・FAIL 時最大 3 回自律修正→未達なら orchestrator 差戻と停止条件/完了条件が二値で明確に定義されており loop 実行系として検証可能。"
+      "検証可能性 (IN2 修正で達成): 新 IN2 の機械検証主張 3 項目 (7 層マーカー実在 / Layer 本文の未展開 placeholder 残存なし / TODO(human) 以外の TODO 残存なし) を validate-prompt.py の実装と突合し全て一致 — Layer 1-7 マーカー regex、「出力指示」節より前に限定した {{...}} 検出 (「Layer 本文の」という文言限定と正確対応)、TODO(?!\\(human\\)) 負先読み、FAIL 時 exit 1。要素原子性 (1 値 50 文字目安)・同一意図重複排除・生成物スキーマ妥当性は「機械検証対象外」と明示して quality-criteria.md §8 + idempotent-update-policy.md に基づく Phase 4-B/4-C の LLM レビューへ委譲され、担保先の実在 (quality-criteria §8 冪等更新基準・Script vs LLM 検証範囲表・idempotent-update-policy の 50 文字目安規範) を実文書で確認した。IN1 (verify-completeness.py の banned 見出し+連番検出・--layers N/A skip・l5-contract v2.0.0) と合わせ、inner criteria 2 件とも verify_by: script の主張と機械層の実能力が過不足なく一致し、機械層/LLM 層の責務境界が criteria 正本上で明示された。",
+      "完全性: 中核要件 (7 層 L1-L7・Layer 単位生成→merge・L5 ゴールシーク宣言 l5-contract v2.0.0・冪等更新・セッション分離・300 行制約・brief 供給時対話 skip・C1-C4 worker 内蔵ゲート・Phase 4-C アンカー) が contract invariant 9 項・Key Rules 12・局面カタログ 8 行・Gotchas 13 に漏れなく分担され、旧 Steps の手順情報は workflow-manifest.json と workflow-guide.md へ損失なく移管されている。",
+      "一貫性: L5 サブ構造は seven-layer-format.md「Layer 5 契約」(l5-contract v2.0.0) 正本へ従属、アンカー schema は goal-seek-loop.schema.json intermediate_artifacts[] へ委譲し再宣言なし (フィールド名・drift_signal enum の一致を確認済)、ヒアリング収集正本は run-prompt-elicit へ一本化、9 セクション骨格非生成 — SSOT 従属の向きが全て単方向。",
+      "簡潔性: 局面カタログ縮約により SKILL.md は 202 行 (300 行制約内)。IN2 修正も既存 criteria の文言整列であり新規機構の追加なし (肥大ゼロで欠陥解消)。"
     ],
-    "negative_feedback": [],
-    "iteration": 1,
+    "negative_feedback": [
+      "(前回から据え置き・HEAD 継承) 一貫性: End-to-End Flow と局面カタログは「4-D 変換+注入 → Phase 5 戻り検証 (lint-agent-prompt-section.py)+設計ゲート」の順だが、実行順の機械正本と宣言された workflow-manifest.json は phase-return-verify (lint 含む) → phase-design-gate → phase-inject の順で注入が最後。manifest 順では注入後の agent .md を worker 内で lint する局面が存在しない (owner_agent legacy 経路のみ影響)。正本宣言により実行器の解釈は manifest へ決定論的に解決されるが、文書間の順序矛盾として整列が望ましい。",
+      "(前回から据え置き・軽微) 完全性: Phase 4-C アンカー契約の列挙フィールドが 5 項で、schema 正本 intermediate_artifacts[].required が要求する iteration を列挙から省いている。schema へ委譲する宣言があるため実害は低いが、列挙サブセットを required 全項と誤読させない注記があるとよい。"
+    ],
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric 観点(完全性/一貫性/検証可能性/簡潔性)で SKILL.md を精読し本スキル固有の criteria(IN1=Layer 5 ゴール宣言+Layer 単位生成の verify-completeness.py 検出 / IN2=要素原子性・スキーマ妥当性・重複回避の validate-prompt.py 機械検証 / OUT1=本質目的と設計原則の整合)を導出して照合した。7 層 L1-L7 の役割表(Clean Arch/DDD 対応)・Layer 単位生成→merge・Layer 5 ゴールシーク・冪等更新・セッション分離・300 行制約という中核要件がすべて Purpose/Flow/Key Rules/Gotchas に反映され漏れがない(完全性)。固定手順禁止と verify-completeness.py の FAIL、9 セクション骨格非生成(run-build-skill 責務)、Markdown 既定で内部正規形 YAML という記述が SKILL/script/reference 間で一貫(一貫性)。各 Phase の具体 python3 コマンドと lint-agent-prompt-section.py 戻り検証で機械検証可能(検証可能性)。本文を references/schemas/agents へ委譲し簡潔(簡潔性)。重大な不足は検出されず PASS と判定した。"
+  "notes": "rubric 観点 (完全性/一貫性/検証可能性/簡潔性) での再評価 (sha=785cfc45... 現ファイル全文再精読)。変更点は frontmatter feedback_contract IN2 の文言のみで本文は前回評価時と同一であることを確認。今回の主眼 = IN2 の claim-implementation parity を validate-prompt.py ソースとの突合で重点検証し達成を確認した (機械検証 3 項目の 1:1 一致 + 機械検証対象外 3 項目の LLM 層委譲先実在)。前回記録した negative 3 件のうち IN2 過大主張は本修正で解消。残 2 件 (注入/戻り検証の manifest との順序矛盾・アンカー列挙の iteration 省略) は HEAD 継承かつ実行時品質は別層で担保されるため据え置き記録とし、総合 PASS。OUT1 (本質目的整合) は責務純化 (成果物プロンプト生成が主・注入は legacy 付随)・L7→L1 単方向・冪等更新・セッション分離の一貫を前回同様に確認。参照実在 (scripts 8/references 8/prompts/R1-main.md/schemas 2/workflow-manifest.json/cross-plugin: goal-seek-loop.schema.json・lint-agent-prompt-section.py・assign-prompt-design-evaluator・run-prompt-elicit・run-prompt-create Step 3b) は前回確認から変化なし。"
 }

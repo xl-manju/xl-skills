@@ -25,7 +25,8 @@ def main():
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument("--layers")
     parser.add_argument("--output")
-    args, _ = parser.parse_known_args()
+    # A4-10: parse_known_args の黙殺を廃止 (failfast)。未知引数は argparse が exit 2。
+    args = parser.parse_args()
 
     layers_dir = args.layers
     output = args.output

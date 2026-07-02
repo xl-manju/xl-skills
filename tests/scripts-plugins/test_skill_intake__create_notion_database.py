@@ -148,11 +148,51 @@ def test_resolve_parent_page_falls_back_to_url_then_config(monkeypatch):
     assert MOD.resolve_parent_page({}) == "FALLBACK"
 
 
+# ---- configured_db_ids (親ページ誤設定ガードの材料) ----
+def test_configured_db_ids_canonicalizes_and_skips_empty(monkeypatch):
+    monkeypatch.setattr(
+        MOD.notion_config,
+        "load_config",
+        lambda *a, **k: {
+            "databases": {
+                "hearing-sheet": {"db_id": "36607a0cd18c80bf9effc74aa736645c"},
+                "skill-list": {"db_id": ""},
+            }
+        },
+    )
+    assert MOD.configured_db_ids() == {"36607a0c-d18c-80bf-9eff-c74aa736645c"}
+
+
+def test_configured_db_ids_empty_when_no_config(monkeypatch):
+    monkeypatch.setattr(MOD.notion_config, "load_config", lambda *a, **k: None)
+    assert MOD.configured_db_ids() == set()
+
+
 # ---- create_db ----
-def test_create_db_requires_parent_page_exits_2():
+def test_create_db_requires_parent_page_exits_2(capsys):
     with pytest.raises(SystemExit) as exc:
         MOD.create_db(None, "title", {"properties": {}}, dry_run=False)
     assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "DB新規作成には親“ページ”IDが必要です" in err
+    assert "parent_page.page_id" in err
+
+
+def test_create_db_rejects_parent_equal_to_configured_db_id(monkeypatch, capsys):
+    # fail-closed guard: 親ページ ID が databases.*.db_id と同一 (親が DB を指す誤設定) は拒否。
+    monkeypatch.setattr(
+        MOD.notion_config,
+        "load_config",
+        lambda *a, **k: {
+            "databases": {"hearing-sheet": {"db_id": "36607a0c-d18c-80bf-9eff-c74aa736645c"}}
+        },
+    )
+    with pytest.raises(SystemExit) as exc:
+        MOD.create_db(
+            "36607a0c-d18c-80bf-9eff-c74aa736645c", None, {"properties": {}}, dry_run=True
+        )
+    assert exc.value.code == 2
+    assert "DB新規作成には親“ページ”IDが必要です" in capsys.readouterr().err
 
 
 def test_create_db_dry_run_does_not_call_notion(monkeypatch, capsys):

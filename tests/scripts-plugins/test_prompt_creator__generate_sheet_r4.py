@@ -138,7 +138,7 @@ def test_generate_sheet_challenges_required_info_constraints():
     assert "- 課題1" in md and "- 課題2" in md
     assert "- 前月台帳" in md and "- 今月台帳" in md
     # constraints は固定先頭行 + ユーザー定義
-    assert "- 各ステップ毎に成果物を出力して、ユーザーに確認する" in md
+    assert "- 各周回末に中間成果物アンカーを記録し、完了チェックリストで充足を確認する" in md
     assert "- 標準ライブラリのみ" in md
 
 
@@ -168,7 +168,7 @@ def test_generate_sheet_empty_uses_all_fallbacks():
 def test_generate_sheet_constraints_only_fixed_line_when_empty():
     md = MOD.generate_sheet({})
     # 制約セクションは空でも固定先頭行が常に出る
-    assert "- 各ステップ毎に成果物を出力して、ユーザーに確認する" in md
+    assert "- 各周回末に中間成果物アンカーを記録し、完了チェックリストで充足を確認する" in md
 
 
 def test_generate_sheet_goal_dict_description_none_falls_back():

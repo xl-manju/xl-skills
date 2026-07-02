@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """build-yaml-spec-cache.py
 
-Claude Code 公式の YAML frontmatter / settings 仕様を取得し、
+Claude Code 公式の実仕様ページ群 (frontmatter / settings / hooks / permissions /
+agent-teams / commands / plugins など) と製品 CHANGELOG を取得し、
 `.claude/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md`
 に書き出す。GitHub Actions の `update-yaml-spec.yml` から週次起動される。
+
+監視対象は設計書 `doc/ClaudeCodeスキルの設計書/15-official-source-notes.md` の
+依存宣言 (Skills / Subagents / Hooks / Settings / Permissions / Agent Teams …) と
+一致させる。ここに無い依存宣言があれば SOURCES 側の取りこぼしなので追加する。
 
 CONVENTIONS:
 - stdlib only (urllib, html.parser, datetime, pathlib, sys)
@@ -17,10 +22,26 @@ import sys
 import urllib.error
 import urllib.request
 
+# (name, url)。docs ページは HTML、CHANGELOG は raw markdown だが、いずれも
+# TextExtractor を通して text 化 → diff 検知に用いる (markdown は tag が無いため
+# 実質そのまま通過する)。新規追加時は 200 応答を必ず事前確認すること
+# (FETCH_FAILED は exit 2 → 週次ジョブが恒常失敗するため)。
 SOURCES = [
+    # ── frontmatter / 実行境界の一次仕様 (設計書が明示依存) ──
     ("skills", "https://docs.claude.com/en/docs/claude-code/skills"),
     ("settings", "https://docs.claude.com/en/docs/claude-code/settings"),
     ("subagents", "https://docs.claude.com/en/docs/claude-code/sub-agents"),
+    ("hooks", "https://docs.claude.com/en/docs/claude-code/hooks"),
+    ("permissions", "https://docs.claude.com/en/docs/claude-code/permissions"),
+    ("agent-teams", "https://docs.claude.com/en/docs/claude-code/agent-teams"),
+    # ── skill / plugin 生成が契約を直接消費するページ ──
+    ("commands", "https://docs.claude.com/en/docs/claude-code/commands"),
+    ("plugins", "https://docs.claude.com/en/docs/claude-code/plugins"),
+    ("plugins-reference", "https://docs.claude.com/en/docs/claude-code/plugins-reference"),
+    ("output-styles", "https://docs.claude.com/en/docs/claude-code/output-styles"),
+    ("tools-reference", "https://docs.claude.com/en/docs/claude-code/tools-reference"),
+    # ── 製品レベル変更の広域センサー (単一ファイルで「何かあったか」を検知) ──
+    ("changelog", "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md"),
 ]
 
 OUT_PATH = pathlib.Path(

@@ -26,11 +26,12 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から skill-creator 引き渡しモード (A-E) を**判定し推奨として記録する**。
+- 担当: Notion 公開完了を確認したうえで、summary/purpose/options/kickoff の 4 入力から引き渡しモード (A-E: skill-creator 行き / P: plugin-dev-planner 行き) と `handoff_target` を**判定し推奨として記録する**。
 - 非担当 (起動禁止): skill 本体生成 (`run-skill-create` / `run-build-skill` / `capability-build`)、ヒアリング深掘り、Notion 公開。これらを Skill/Task で起動しない。mode は推奨であり実行に移さない。
 
 ### 2.2 ドメインルール
-- mode は A〜E の 5 値のみ。
+- mode は A〜E + P の 6 値のみ (A-E: `handoff_target="skill-creator"` / P: `handoff_target="plugin-dev-planner"`)。
+- mode P (plugin 規模構想) は `plugin_scale: true` の明示宣言 / `component_requests[]` に非 skill コンポーネント種別 (hook/command 等) / skill 系 2 件以上、のいずれかで確定し、**D/E 判定より先に評価する** (正本: `references/mode-catalog.md`「mode P 判定条件」)。
 - 単一スキルに収まらない responsibility 群が見つかれば `multi_skill_suspicion=true`、`split_candidates[]` に責務記述付きで列挙。
 - 不一致確認は AskUserQuestion 1 問のみ (並列禁止)。
 
@@ -45,7 +46,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json` (additionalProperties:false)
-- 必須フィールド: `mode`, `reason`, `multi_skill_suspicion`, `split_candidates[]`, `confirmed_with_user`
+- 必須フィールド: `mode`, `reason`, `multi_skill_suspicion`, `confirmed_with_user`, `handoff_target`, `skill_creator_handoff_phase` (schema required と逐語一致。`split_candidates[]` は任意フィールド)
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -55,6 +56,7 @@
 |---|---|---|
 | mode-catalog | references/mode-catalog.md | 4 JSON を読み終えて判定表に入力するとき |
 | pattern-rules | references/pattern-recognition-rules-pointer.md | kickoff の pattern と mode を突合するとき |
+| handoff-contract | plugins/skill-intake/references/handoff-contract.md (plugin-root 正本) | mode P 確定時に plugin-dev-planner へ渡す § を確認するとき |
 
 ### 3.2 外部ツール / API
 - `scripts/decide-mode.py` (mode 決定論判定・Notion 公開 precondition gate 内包)
@@ -81,7 +83,7 @@
 - `@next-action-advisor` (非対話バッチ、確認時のみ AskUserQuestion を 1 回起動、context-fork 不要)
 
 ### 5.2 ゴール定義
-- 目的: Notion 公開完了後に、4 入力 (summary / purpose / options / kickoff) から skill-creator 引き渡しモード (A-E) を再現可能に確定する。
+- 目的: Notion 公開完了後に、4 入力 (summary / purpose / options / kickoff) から引き渡しモード (A-E: skill-creator / P: plugin-dev-planner) と `handoff_target` を再現可能に確定する。
 - 背景: mode が曖昧だと後続 skill-creator が誤起動し、責務分割や生成パスが破綻する。判定の属人化を機構で防ぐ必要がある。
 - 達成ゴール: next-action.json (output.schema.json 準拠) が決定論的に確定し、判定根拠 (reason) とユーザー確認状態 (confirmed_with_user) が機械検証可能な状態。
 
@@ -90,8 +92,9 @@
 - [ ] mode が mode-catalog.md 判定表のいずれか 1 行から決定論的に導出されている (LLM 勘の介在ゼロ)
 - [ ] reason に判定表の引いた行 id / 条件が文字列として含まれている
 - [ ] pattern と mode が一致時は確認を省略、不一致時のみ AskUserQuestion 1 問で `confirmed_with_user` を埋めている
-- [ ] `multi_skill_suspicion=true` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空なら `mode=E` に格下げし `reason` に格下げ理由を追記している
-- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `"Phase 1 (re-intake)"` になっている
+- [ ] `mode=D` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空なら `mode=E` に格下げし `reason` に格下げ理由を追記している (mode P は `multi_skill_suspicion=true` かつ `split_candidates=[]` が正常出力 — SKILL.md Rule 4b どおり格下げしない)
+- [ ] `skill_creator_handoff_phase` が decide-mode.py の handoff 表と逐語一致している — A: `Step 1 (elicit)` / B: `Step 1 (elicit --mode update)` / C: `Step 1 (elicit --mode update, prompt-only)` / D: `Step 1 (elicit, split first)` / E: `P1-kickoff (re-intake)` / P: `R1 (elicit-goal)`
+- [ ] `handoff_target` が mode P で `plugin-dev-planner`、mode A-E で `skill-creator` になっている (schema allOf 条件)
 - [ ] 同一 (summary, purpose, options, kickoff) 入力で next-action.json の (mode, reason) が 2 回連続実行で完全一致 (determinism)
 - [ ] 個人名・社名が split_candidates に転記されていない (variable_abstraction)
 
@@ -114,7 +117,7 @@
 - next-action.json (output.schema.json 準拠)
 
 ### 7.2 言語
-- 本文: 日本語 (mode コード A-E や schema key は英語のまま)
+- 本文: 日本語 (mode コード A-E/P や schema key は英語のまま)
 
 ---
 

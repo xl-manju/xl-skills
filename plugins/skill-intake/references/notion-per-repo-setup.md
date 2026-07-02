@@ -14,24 +14,30 @@ DB ID / API key 解決のみ per-environment に分離する **shape vs identity
 
 ## 1. セットアップ手順
 
-> **単独 install (A) の方はこちら（既定経路）**: 固定DBを使う場合は §1.2 → §1.4。
-> 別DBへ上書きする場合だけ §1.1 も実施。
+> **単独 install (A) の方はこちら**: 同梱の固定DB既定値は**保守者チーム専用**
+> (外部ワークスペースの Integration からは書き込めない = 403)。
+> 外部ワークスペースへ出力する場合は §1.1 → §1.2 → §1.4 を実施。
+> 保守者チーム (社内 express 経路) のみ §1.2 → §1.4 で足りる。
 > `scripts/build-notion-config.py` / `sync-notion-schema.py` は **repo 保守者専用**で
 > 単独 install には同梱されないため使いません。
 
-### 1.1 設定ファイル生成 (任意 — 固定DBを上書きする場合のみ)
+### 1.1 設定ファイル生成 (自分のワークスペースの DB へ出力する場合は必須)
+
+同梱の固定DB既定値 (`notion-config.fixed.json`) は保守者チーム専用で、外部ワークスペースの
+Integration からは書き込めない (403)。外部利用では本節の `.notion-config.json` 作成が必須。
 
 ```bash
-# plugin-root (または repo-root) 直下に作成。固定DBを使う場合は不要。
+# plugin-root (または repo-root) 直下に作成。保守者チーム (社内 express 経路) のみ不要。
 cp .notion-config.example.json .notion-config.json
-# <REPLACE_WITH_REPO_SLUG> を任意の識別子に置換
 # <your-parent-page-id> / <your-parent-page-url> を DB を置く親ページに置換
 # <your-*-db-id> を実 DB ID に置換
+# (repo 共有運用の repo-root 雛形では <REPLACE_WITH_REPO_SLUG> も任意の識別子に置換)
 ```
 
 `skill-intake` 単独 install では、固定設定は plugin-root の
 `plugins/skill-intake/notion-config.fixed.json` に同梱される。雛形は
-`plugins/skill-intake/.notion-config.example.json` に残してあり、固定DBを上書きする場合だけ使う。
+`plugins/skill-intake/.notion-config.example.json` にあり、自分のワークスペースへ
+出力する場合に使う (必要キーのみの最小構成)。
 カレントディレクトリが plugin-root でない場合は次のように明示する。
 
 ```bash
@@ -73,6 +79,10 @@ Notion 側に 3 つの DB を作成する。単独 install のヒアリングシ
 DB を新規作成する場合は、`.notion-config.json#parent_page`（または
 env `INTAKE_NOTION_PARENT_PAGE_ID`）で指定した親ページ配下に作成する。これにより
 各 DB がユーザー指定の Notion ページへ集約され、別ページへの誤作成を防ぐ。
+同梱 `notion-config.fixed.json` の `parent_page` は**意図的に空**であり、DB 新規作成には
+`.notion-config.json#parent_page.page_id` へ**ご自身の Notion ページ ID の指定が必須**。
+未指定、または `databases.*.db_id` と同一の ID（親が DB を指す誤設定）の場合、
+`create_notion_database.py --mode=create` は exit 2 で fail-closed する。
 
 > repo 保守者は monorepo 内で `python3 scripts/sync-notion-schema.py --apply`
 > により各 DB の properties を schema と idempotent に一致させられる（単独 install 未同梱）。
@@ -89,22 +99,32 @@ python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/notion_config.py
 
 ## 2. 解決順序
 
+Config ファイル (`notion_config.find_config_path()` SSOT — **ファイル単位の先勝ち**):
+
+1. env `NOTION_CONFIG_PATH` が指すファイル（不在なら fail-closed。別 config へフォールバックしない）
+2. repo-root 直下の `.notion-config.json`
+3. plugin-root 直下の `.notion-config.json`
+4. plugin-root の `notion-config.fixed.json`
+
+> **重要**: 上書き config ファイル (1〜3) が見つかった場合、そのファイル**のみ**が有効になり、
+> `notion-config.fixed.json` への**キー単位フォールバックは行われない**。上書き config には
+> 必要キー（`databases.hearing-sheet.db_id` 等）を**すべて**記載すること。
+
 DB ID (`notion_config.get_db_id(key)` SSOT):
 
 1. `--database-id` CLI フラグ（個別スクリプト）
 2. env (key-specific): `INTAKE_NOTION_DATABASE_ID` / `NOTION_DB_SKILL_LIST` / `NOTION_DB_IMPROVEMENT_REQUEST`
-3. `.notion-config.json` の `databases.<key>.db_id`（探索順: env `NOTION_CONFIG_PATH` → repo-root 直下 → plugin-root 直下）
-4. plugin-root の `notion-config.fixed.json#databases.<key>.db_id`
-5. 未設定なら exit 2（schema 内 `database_id_default` へはフォールバックしない）
+3. 上記で解決された**単一の** config ファイルの `databases.<key>.db_id`
+4. 未設定なら exit 2（schema 内 `database_id_default` へはフォールバックしない）
 
 Parent Page ID (`notion_config.get_parent_page_id()` SSOT):
 
 1. env `INTAKE_NOTION_PARENT_PAGE_ID`
-2. `.notion-config.json#parent_page.page_id`
-3. `.notion-config.json#parent_page.page_url`
-4. `.notion-config.json#parent_page_id`（旧互換）
-5. plugin-root の `notion-config.fixed.json#parent_page`
-6. 未設定なら DB 作成系は exit 2（任意の別ページへフォールバックしない）
+2. 上記で解決された**単一の** config ファイル内で `parent_page.page_id` →
+   `parent_page.page_url` → `parent_page_id`（旧互換）の順（同一ファイル内のキー間フォールバックのみ）
+3. 未設定なら DB 作成系は exit 2（任意の別ページへフォールバックしない）。同梱
+   `notion-config.fixed.json` の `parent_page` は空のため、DB 新規作成には `.notion-config.json`
+   等での親ページ指定が必須。`databases.*.db_id` と同一の ID も親ページとして拒否される（§1.3）。
 
 `app.notion.com` の URL は、query `p` / `page_id` があれば path より優先して page ID として解釈する。
 
