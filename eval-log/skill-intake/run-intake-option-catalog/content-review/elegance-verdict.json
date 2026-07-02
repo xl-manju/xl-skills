@@ -2,26 +2,27 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-option-catalog",
-    "skill_md_sha256": "078c09ad5e7375ac32fcf48d38878bcc8a0770e4fba3135cf4ba449abaf50ffc"
+    "skill_md_sha256": "0b80853d4529adfc012e8afcb34871720bec608d99ab24c2c3668878195b46d2"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
   "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-06-24T00:00:00Z",
-  "iterations": 1,
+  "reviewed_at": "2026-07-02T00:00:00Z",
+  "iterations": 2,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
       "write スコープを options.json 生成のみに構造的に限定し(Key Rule 1・Gotcha 4)、カタログを読み取り専用に保つ責務最小化が allowed-tools(Read/Write のみ)と Purpose の write 限定記述で一貫しており、Phase 6 の単一責務が明快。",
-      "tier=required も「除外可だが reason 必須」とすることで(Gotcha 1・Key Rule 3)、必須連携の判断材料を下流 skill に欠落なく引き渡す設計になっており、後続 phase の責務分離が崩れない不変条件と整合している。"
+      "tier=required も「除外可だが reason 必須」とすることで(Gotcha 1・Key Rule 3)、必須連携の判断材料を下流 skill に欠落なく引き渡す設計になっており、後続 phase の責務分離が崩れない不変条件と整合している。",
+      "今回追加された mode P 判定入力フィールド(plugin_scale:boolean / component_requests[]:string[])は options.json の任意出力に閉じ、Phase 11 run-intake-next-action の decide-mode.py が mode P 判定入力として読む下流契約と整合する。write 対象は options.json のみで副作用逸脱がなく、連携選択肢生成という責務最小化を保ったまま plugin 規模構想の受け渡しを可能にしている。"
     ],
     "negative_feedback": [],
-    "iteration": 1,
+    "iteration": 2,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md を全文精読し本スキル固有の criteria(IN1=options.json の2配列形式と tier/id/name 付与・rejected の reason 非空を機械検証 / IN2=selected の全 id がカタログ実在・カタログ外混入なし / OUT1=verb_object 親和連携の過不足ない引き当てと責務最小化)を導出して adequacy を確認した。Purpose & Output Contract・Key Rules 1-4・ゴールシーク Checklist・Gotchas が相互に矛盾なく、入力 purpose.json→静的カタログ参照→ユーザー選択→options.json 生成という中核フローが一貫している。カタログ参照は pointer 経由でハードコードを避け(Gotcha 3)、カタログ外候補は本 skill で補完せず別 phase の skill 拡張要求へ回す境界(Key Rule 4・Gotcha 2)が責務を過不足なく区切っており、4条件すべて PASS と判定した。"
+  "notes": "iteration 2 (mode P 判定入力フィールド追加 SKILL.md L52 に伴う genuine 再レビュー・sha256 を 0b80853d... と実計算で確認): SKILL.md を全文精読し本スキル固有の criteria(IN1=options.json の2配列形式と tier/id/name 付与・rejected の reason 非空を機械検証 / IN2=selected の全 id がカタログ実在・カタログ外混入なし / OUT1=verb_object 親和連携の過不足ない引き当てと責務最小化)を導出して adequacy を確認した。Purpose & Output Contract・Key Rules 1-4・ゴールシーク Checklist・Gotchas が相互に矛盾なく、入力 purpose.json→静的カタログ参照→ユーザー選択→options.json 生成という中核フローが一貫している。追加された plugin_scale/component_requests[] は任意出力フィールドで下流 decide-mode.py が mode P 判定に読む契約と整合し、responsibility(連携選択肢生成・write は options.json のみ)は不変。カタログ参照は pointer 経由でハードコードを避け(Gotcha 3)、カタログ外候補は本 skill で補完せず別 phase の skill 拡張要求へ回す境界(Key Rule 4・Gotcha 2)が責務を過不足なく区切っており、4条件すべて PASS と判定した。"
 }

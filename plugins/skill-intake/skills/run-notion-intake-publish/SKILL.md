@@ -1,6 +1,6 @@
 ---
 name: run-notion-intake-publish
-description: intake 成果物を Notion へ公開 / 再公開したいときに使う。初回 publish (workflow-manifest P10 委譲) と、ヒアリングをやり直さず Notion 側だけ更新する再公開の両方に対応する。
+description: intake 成果物を Notion へ初回公開したいとき、ヒアリングをやり直さず Notion 側だけ更新して再公開したいときに使う。
 allowed-tools:
   - Read
   - Write
