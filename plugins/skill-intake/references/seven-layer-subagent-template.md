@@ -85,21 +85,13 @@ model: sonnet
 ### 5.1 context_fork 要否
 - <true: 理由 (Sycophancy 防止 / 独立判定) | false: 理由>
 
-### 5.2 推論手順 (再現可能, 番号付き)
-1. <入力ロード>
-2. <ルール適用>
-3. <出力生成>
-4. <self-eval rubric 実行>
-5. <output 書き出し + handoff JSON 保存>
+### 5.2 ゴール定義 (固定手順を持たない)
+- 目的: <この出力が必要な理由>
+- 背景: <目的の背景 (なぜ他の手段では駄目か)>
+- 達成ゴール: <観測可能な完了状態 1 文 (schema validate PASS 等の機械判定を含める)>
 
-### 5.3 Self-Evaluation rubric
-完了前に必ず以下を 0/1 で自己採点。1 つでも 0 なら出力前に修正。
-
-- [ ] **完全性**: 出力 schema の required フィールドが全て埋まっている
-- [ ] **再現性**: 同入力で同出力になる (LLM 判断の揺れ要素を排除)
-- [ ] **責務遵守**: 「やらないこと」に該当する出力を含まない
-- [ ] **言語遵守**: 本文日本語 / パラメーター名・schema key 英語
-- [ ] **<phase 固有>**: <この SubAgent に特化した品質基準を 1 つ以上>
+### 5.3 実行方式
+固定手順を持たない。`## Self-Evaluation` の完了チェックリスト未充足項目を特定→手順を都度立案→実行→自己評価を全項目充足まで反復する (上限: Layer 4 最大反復回数)。固定手順見出し (推論手順/思考プロセス) を置かない (l5-contract v2.0.0)。
 
 ## Layer 6: オーケストレーション層
 
@@ -130,12 +122,24 @@ model: sonnet
 
 ## Prompt Templates (任意, AskUserQuestion 等で使う場合)
 
+> `{{var}}` 置換変数はこの節内のみ許容 (節外に書くと lint SE-no-todo が未展開プレースホルダとして error)。
+
 ### <Round N: 用途>
 > 「<質問文>」
 選択肢:
 1. <選択肢 1>
 2. <選択肢 2>
 3. <選択肢 3>
+
+## Self-Evaluation
+
+> Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。完了前に必ず 0/1 で自己採点し、1 つでも 0 なら出力前に修正。
+
+- [ ] **完全性**: 出力 schema の required フィールドが全て埋まっている
+- [ ] **再現性**: 同入力で同出力になる (LLM 判断の揺れ要素を排除)
+- [ ] **責務遵守**: 「やらないこと」に該当する出力を含まない
+- [ ] **言語遵守**: 本文日本語 / パラメーター名・schema key 英語
+- [ ] **<phase 固有>**: <この SubAgent に特化した品質基準を 1 つ以上>
 
 ## Handoff
 
@@ -152,7 +156,7 @@ model: sonnet
 
 ## Self-Evaluation rubric の設計指針
 
-Layer 5.3 の **5 項目目「phase 固有」** が SubAgent ごとの暗黙知を明示化する核。以下のパターンを参考に設計する:
+本文末尾 `## Self-Evaluation` の **「phase 固有」項目** が SubAgent ごとの暗黙知を明示化する核。以下のパターンを参考に設計する:
 
 | SubAgent カテゴリ | 推奨 phase 固有 rubric |
 |---|---|
@@ -164,8 +168,10 @@ Layer 5.3 の **5 項目目「phase 固有」** が SubAgent ごとの暗黙知�
 
 ## Lint との接続
 
-`scripts/lint-subagent-seven-layer.py` (Wave 2) が本テンプレ準拠を機械検証する。
+`scripts/lint_subagent_seven_layer.py` が本テンプレ準拠を機械検証する (rubric 正本: `references/rubric.json`)。
 - frontmatter 4 キー必須
 - 本文に `## Layer 1` 〜 `## Layer 7` 見出しが順序通り存在
-- `## Self-Evaluation rubric` の checklist が 5 項目以上
+- Layer 5 が宣言型 (`### 5.2 ゴール定義` + `### 5.3 実行方式`) で、固定手順見出し (推論手順/思考プロセス) を含まない (l5-contract v2.0.0)
+- 本文末尾 `## Self-Evaluation` の checklist が 5 項目以上
+- `{{var}}` 置換変数は `## Prompt Templates` 節内のみ許容
 - `input_schema` / `output_schema` で参照される schema ファイルが存在

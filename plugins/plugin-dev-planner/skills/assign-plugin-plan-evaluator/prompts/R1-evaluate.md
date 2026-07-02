@@ -68,26 +68,29 @@
 ### 4.3 セキュリティ
 - plan_dir 外のファイルを変更しない (read-only)
 
-## Layer 5: エージェント層
+## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
-### 5.1 担当
+### 5.1 担当 agent
 - assign-plugin-plan-evaluator R1 (context:fork)。fork 実体は `agents/plugin-dev-plan-evaluator.md`
 
-### 5.2 推論手順
-1. references/plan-rubric.json を Read
-2. `evaluate-plan.py` が plan-scoped 決定論ゲートを束ねて実行し各 exit code を取得する (individual list=io-contract §11 の plan-scoped 集合)
-3. C2/C3/C4 の scripted checks を exit code で判定
-4. C1 (契約衝突) と C2-004 (単一 skill 退化の根拠) を LLM 意味判定し、必要なら high finding を追加
-5. findings[] を severity/bucket/observation/evidence/suggested_fix で構築
-6. verdict (4条件) を確定し <PLAN_DIR>/plan-findings.json に Write
+### 5.2 ゴール定義
+- **目的**: architect が生成した plan の見かけ上の完成 (単一 skill 退化・契約衝突) を独立検証し、機械根拠付き findings に固定する
+- **背景**: 生成者の自己評価は Sycophancy と解釈バイアスで甘くなるため、fork した評価者が決定論ゲートの exit code を一次根拠に判定する
+- **達成ゴール**: `<PLAN_DIR>/plan-findings.json` が `plan-findings.schema.json` に準拠し、C1-C4 verdict / plan-scoped 決定論ゲートの exit code / info 以上の findings ≥1 件が揃った状態
 
-### 5.3 自己検証 checklist
-- [ ] conditions に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっているか
-- [ ] gate_results に plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code が記録されているか
-- [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含むか
-- [ ] high severity がある場合 suggested_fix が明記されているか
-- [ ] 単一 skill 退化の根拠欠落を C2 で検査したか
-- [ ] context:fork 下で実行され plan を書き換えていないか
+### 5.3 完了チェックリスト (ゴール到達の停止条件)
+- [ ] references/plan-rubric.json と four-condition-criteria.md を評価前に読み込んだ
+- [ ] `evaluate-plan.py` で plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) を実行し、gate_results に各 exit code を記録した
+- [ ] C2/C3/C4 の scripted checks を exit code で判定した (自然言語で PASS 判定しない)
+- [ ] C1 (契約衝突) と C2-004 (単一 skill 退化の根拠) を LLM 意味判定し、必要な high finding を追加した
+- [ ] conditions に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっている
+- [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含む (severity/bucket/observation/evidence/suggested_fix)
+- [ ] high severity がある場合 suggested_fix が明記されている
+- [ ] verdict を global_thresholds で確定し `<PLAN_DIR>/plan-findings.json` に Write した
+- [ ] context:fork 下で実行され plan を書き換えていない (read-only)
+
+### 5.4 実行方式
+- 固定手順を持たない。5.3 の未充足項目を特定→手順を都度立案→実行→自己評価→全項目充足まで反復する。評価は 1 plan = 1 パスで完結し、NG 差し戻しループ (最大 3 周) は caller (run-plugin-dev-plan) が管理する。
 
 ## Layer 6: オーケストレーション
 
