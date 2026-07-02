@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import notion_config  # config/token SSOT loader (本 plugin に同梱。skill-creator 版と byte 一致を lint 検証)
+import notion_config  # config/token SSOT loader (本 plugin に同梱。harness-creator 版と byte 一致を lint 検証)
 from keychain_get_secret import get_secret, KeychainError
 
 NOTION_VERSION = os.environ.get('INTAKE_NOTION_VERSION', '2022-06-28')

@@ -1,1 +1,1 @@
-../../plugins/skill-creator/commands/plugin-compose.md
+../../plugins/harness-creator/commands/plugin-compose.md

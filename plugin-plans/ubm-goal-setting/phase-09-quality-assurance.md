@@ -41,7 +41,7 @@ applicability:
 ## スコープ外
 - プラグイン全域の最終審査 (P10 final-gate・本 gate は component 単位)。
 - evidence の集約記録 (P11)。
-- lint ルール自体の改変 (lint 正本は skill-creator 側・plan からは引用のみ)。
+- lint ルール自体の改変 (lint 正本は harness-creator 側・plan からは引用のみ)。
 
 ## 完了チェックリスト
 - [ ] 全 component で P0 lint が component_kind 別に exit0。

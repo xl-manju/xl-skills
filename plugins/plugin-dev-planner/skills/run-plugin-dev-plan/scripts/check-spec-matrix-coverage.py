@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-spec-matrix-coverage
-# purpose: skill-creator-spec-reflection.md の46行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
+# purpose: harness-creator-spec-reflection.md の46行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
 # inputs:
 #   - argv: <plan-dir> [--matrix PATH] [--index NAME] [--inventory FILE] | --self-test
 # outputs:
@@ -26,7 +26,7 @@ per-phase 転換 (凍結契約 §4/§11): 焼き先は 3 scope へ写像され�
 --self-test は (a) reflection.md の行 id 集合と本 table の id 集合の drift (46 行・集合完全一致) と
 (b) reflection.md 焼き先列の粗トークン (inventory / plugin_meta) と ROWS scope の矛盾を検出する
 (md が機械アンカーを謳うのに table が別 scope に登録される片肺 drift を塞ぐ)。
-skill-creator-spec-reflection.md の焼き先列と同期する。
+harness-creator-spec-reflection.md の焼き先列と同期する。
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import specfm  # noqa: E402
 
-_DEFAULT_MATRIX = Path(__file__).resolve().parent.parent / "references" / "skill-creator-spec-reflection.md"
+_DEFAULT_MATRIX = Path(__file__).resolve().parent.parent / "references" / "harness-creator-spec-reflection.md"
 _ROW_ID_RE = re.compile(r"^\|\s*([A-G]\d{1,2})\s*\|")
 
 

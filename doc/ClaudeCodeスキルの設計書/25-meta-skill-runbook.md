@@ -79,7 +79,7 @@ Phase 2 以降の標準運用では、配布単位は `creator-kit/` ではな�
 
 | 追加物 | creator-kit登録 |
 |---|---|
-| Skill Creator の生成・更新・評価・governance に関係する Skill | 登録する |
+| Harness Creator の生成・更新・評価・governance に関係する Skill | 登録する |
 | 複数プロジェクトで使う `ref-*` / rubric / reference | 登録する |
 | hook / lint / adapter / secret helper / config雛形 | 登録する |
 | 特定プロジェクトだけの業務Skill | 登録しない |

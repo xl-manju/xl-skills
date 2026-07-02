@@ -1,1 +1,1 @@
-../../plugins/skill-creator/commands/capability-build.md
+../../plugins/harness-creator/commands/capability-build.md

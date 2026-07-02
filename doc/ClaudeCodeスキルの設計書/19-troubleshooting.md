@@ -86,12 +86,12 @@ Skill factory / generator / evaluator などの量産フローを回す際に起
 
 | 変数 | 意味 | sample expansion |
 |---|---|---|
-| `{{factory_skill_name}}` | factory 全体を代表する Skill | `skill-creator` |
+| `{{factory_skill_name}}` | factory 全体を代表する Skill | `harness-creator` |
 | `{{create_skill}}` | 作成・更新を担う Skill | `run-skill-create` |
 | `{{build_skill}}` | build を担う Skill | `run-build-skill` |
 | `{{elicit_skill}}` | brief / 要件収集を担う Skill | `run-skill-elicit` |
 | `{{handoff_file}}` | handoff JSON | `eval-log/handoff-<step>.json` |
-| `{{handoff_schema_path}}` | handoff schema の正本 | `plugins/skill-creator/skills/run-skill-create/schemas/handoff.schema.json` |
+| `{{handoff_schema_path}}` | handoff schema の正本 | `plugins/harness-creator/skills/run-skill-create/schemas/handoff.schema.json` |
 | `{{trace_file}}` | build trace | `eval-log/skill-build-trace.json` |
 | `{{evaluator_skill}}` | 評価を担う Skill | `assign-skill-design-evaluator` |
 | `{{context_log_path}}` | context mode を記録する証跡 | `eval-log/docs/<NN>-*.json` |
@@ -104,7 +104,7 @@ Skill factory / generator / evaluator などの量産フローを回す際に起
 | `{{source_skills_dir}}` | source / canonical 側 Skill directory | `creator-kit/skills/` |
 | `{{migration_phase}}` | 移行フェーズ名 | `Phase 0` |
 
-Sample expansion: `{{factory_skill_name}}=skill-creator`, `{{create_skill}}=run-skill-create`, `{{build_skill}}=run-build-skill`, `{{elicit_skill}}=run-skill-elicit`。
+Sample expansion: `{{factory_skill_name}}=harness-creator`, `{{create_skill}}=run-skill-create`, `{{build_skill}}=run-build-skill`, `{{elicit_skill}}=run-skill-elicit`。
 
 ### 1. P0 lint 3 周ループ上限到達 (`governance_decision: loop_exceeded`)
 

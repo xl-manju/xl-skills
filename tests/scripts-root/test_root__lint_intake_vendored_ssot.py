@@ -1,6 +1,6 @@
 """scripts/lint-intake-vendored-ssot.py (後方互換ラッパ) の機能テスト。
 
-歴史的経緯: 本 lint は skill-intake へ vendoring した notion_config.py が skill-creator
+歴史的経緯: 本 lint は skill-intake へ vendoring した notion_config.py が harness-creator
 正本と byte 一致するかを検証する専用 lint だった。検査ロジックは後継
 scripts/lint-vendored-ssot.py に一般化され、本ファイルは notion_config ペアのみを抽出して
 後継 check_pairs へ委譲する薄いシムになった。

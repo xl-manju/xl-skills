@@ -1,1 +1,1 @@
-../../plugins/skill-creator/agents/elegant-system-strategic-analyst.md
+../../plugins/harness-creator/agents/elegant-system-strategic-analyst.md

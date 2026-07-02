@@ -47,7 +47,7 @@ PENDING_RENAME_PATHS = {
     # company-master (PR: 日本郵便 addresszip 移行): scripts/*.py は相互 import される
     # Python モジュール (import notion_config / postal_api 等) のため §4.3 のハイフン命名を
     # 適用できず underscore 許容。skill-intake の同種モジュール群と同じ PENDING 扱い
-    # (後続 Change Governance PR で一括リネーム検討。正本 skill-creator/scripts/notion_config.py も PENDING)。
+    # (後続 Change Governance PR で一括リネーム検討。正本 harness-creator/scripts/notion_config.py も PENDING)。
     "plugins/company-master/scripts/notion_config.py",
     "plugins/company-master/scripts/notion_upsert.py",
     "plugins/company-master/scripts/postal_api.py",
@@ -78,9 +78,9 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-governance-migration/scripts/migrate/audit.py",
     "plugins/skill-governance-migration/scripts/migrate/to-brief.py",
     "plugins/skill-governance-migration/scripts/migrate/backfill-source-tier.py",
-    "plugins/skill-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
-    "plugins/skill-creator/skills/run-skill-create/scripts/resolve-brief-to-category.py",
-    "plugins/skill-creator/skills/run-build-skill/scripts/set-frontmatter-field.py",
+    "plugins/harness-creator/skills/wrap-git-commit-safe/scripts/pre-commit-secret-scan.py",
+    "plugins/harness-creator/skills/run-skill-create/scripts/resolve-brief-to-category.py",
+    "plugins/harness-creator/skills/run-build-skill/scripts/set-frontmatter-field.py",
     "scripts/phase2/gen-rollback.py",
     # skill-intake js→py migration (PR #4): keep snake_case until kebab-case rename PR
     "plugins/skill-intake/scripts/append_eval_log.py",
@@ -119,10 +119,10 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-intake/scripts/dogfooding_regression.py",
     "plugins/skill-intake/scripts/validate_intake_schema.py",
     # prompt-creator scaffold (PR #4): non-standard verb until renamed
-    "plugins/skill-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py",
-    "plugins/skill-creator/skills/run-skill-create/scripts/evaluate-create-gates.py",
-    "plugins/skill-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py",
-    # PR #12: skill-intake / prompt-creator / skill-creator 拡張に伴う暫定 PENDING (Change Governance で rename 予定)
+    "plugins/harness-creator/skills/run-build-skill/scripts/resolve-skill-dirs.py",
+    "plugins/harness-creator/skills/run-skill-create/scripts/evaluate-create-gates.py",
+    "plugins/harness-creator/skills/delegate-codex-skill-review/scripts/check-codex-installed.py",
+    # PR #12: skill-intake / prompt-creator / harness-creator 拡張に伴う暫定 PENDING (Change Governance で rename 予定)
     "plugins/prompt-creator/skills/run-prompt-create/scripts/evaluate-create-gates.py",
     "plugins/skill-intake/scripts/analyze_user_intent.py",
     "plugins/skill-intake/scripts/convert_v1_to_v2_context.py",
@@ -130,22 +130,22 @@ PENDING_RENAME_PATHS = {
     "plugins/skill-intake/skills/run-intake-next-action/scripts/decide-mode.py",
     "plugins/skill-intake/skills/run-intake-interview/scripts/check-five-axes-coverage.py",
     "plugins/skill-intake/skills/run-intake-visualize/scripts/verify-visuals.py",
-    "plugins/skill-creator/scripts/compute-dogfooding-metrics.py",
-    "plugins/skill-creator/skills/run-build-skill/scripts/auto-record-lesson.py",
-    "plugins/skill-creator/skills/run-elegant-review/scripts/check-review-trigger.py",
-    "plugins/skill-creator/skills/wrap-git-commit-safe/scripts/preflight-git-commit.py",
-    "plugins/skill-creator/skills/run-skill-rubric-governance/scripts/aggregate-evals.py",
-    "plugins/skill-creator/skills/ref-task-context-map/scripts/preload-context-map.py",
+    "plugins/harness-creator/scripts/compute-dogfooding-metrics.py",
+    "plugins/harness-creator/skills/run-build-skill/scripts/auto-record-lesson.py",
+    "plugins/harness-creator/skills/run-elegant-review/scripts/check-review-trigger.py",
+    "plugins/harness-creator/skills/wrap-git-commit-safe/scripts/preflight-git-commit.py",
+    "plugins/harness-creator/skills/run-skill-rubric-governance/scripts/aggregate-evals.py",
+    "plugins/harness-creator/skills/ref-task-context-map/scripts/preload-context-map.py",
     # run-skill-update-notifier (PR #8): notifier verb pending allowed-list extension
-    "plugins/skill-creator/skills/run-skill-update-notifier/scripts/notifier-check.py",
+    "plugins/harness-creator/skills/run-skill-update-notifier/scripts/notifier-check.py",
     # PR #13: elegant-review v2 / plugin-package-check の新規 verb (emit/aggregate) pending rename
-    "plugins/skill-creator/skills/run-elegant-review/scripts/emit-observable.py",
-    "plugins/skill-creator/skills/run-plugin-package-check/scripts/aggregate-pkg-findings.py",
+    "plugins/harness-creator/skills/run-elegant-review/scripts/emit-observable.py",
+    "plugins/harness-creator/skills/run-plugin-package-check/scripts/aggregate-pkg-findings.py",
     # PR #15: run-build-skill knowledge-skeleton template scripts (生成後 rename)
-    "plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/add_entry.py",
-    "plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/build_index.py",
-    "plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py",
-    "plugins/skill-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py",
+    "plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/add_entry.py",
+    "plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/build_index.py",
+    "plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/record_usage.py",
+    "plugins/harness-creator/skills/run-build-skill/templates/knowledge-skeleton/scripts/search_knowledge.py",
     # prompt-creator js→py 移行 (PR: spec-reflection): 旧 JS 名 (merge/verify/scaffold/generate/convert/log)
     # を踏襲。許可動詞へのリネームは後続 Change Governance PR で SKILL.md/agent/manifest 参照と同時実施。
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py",
@@ -154,12 +154,12 @@ PENDING_RENAME_PATHS = {
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/generate-sheet.py",
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/convert-format.py",
     "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/log-usage.py",
-    # PR #16: notion 3DB schema-as-code / skill-creator 連動 (notion-/sync- verb pending allowed-list extension)
+    # PR #16: notion 3DB schema-as-code / harness-creator 連動 (notion-/sync- verb pending allowed-list extension)
     "scripts/notion-submit-improvement.py",
     "scripts/notion-upsert-plugin.py",
     "scripts/sync-notion-schema.py",
     # PR #16: build-trace SSOT shim (Python import がハイフン不可のため underscore 許容、§4.3 例外)
-    "plugins/skill-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
+    "plugins/harness-creator/skills/run-build-skill/scripts/validate_build_trace_shim.py",
     # feedback_contract criteria の単一 SSOT モジュール。validate-build-trace.py /
     # lint-feedback-contract.py / lint-content-review.py から import される共有 module の
     # ため Python import 上ハイフン不可 (§4.3 恒久例外)。
@@ -168,14 +168,14 @@ PENDING_RENAME_PATHS = {
     # lint-test-discovery-coverage.py と tests/test_lint_test_discovery_coverage.py から
     # `import discover_repo_tests` される共有 module のため Python import 上ハイフン不可 (§4.3 恒久例外)。
     "scripts/discover_repo_tests.py",
-    # 上記正本の vendored 実体コピー (skill-creator 単独 install 用)。runtime hook /
+    # 上記正本の vendored 実体コピー (harness-creator 単独 install 用)。runtime hook /
     # build-time validator が plugin 内で import するため、正本と byte 完全一致を要件とし
     # underscore 名のまま固定する (リネームすると import 名が変わり byte 一致が崩れる)。
     # byte 一致は scripts/lint-vendored-ssot.py が強制 (§4.3 恒久例外)。
-    "plugins/skill-creator/scripts/feedback_contract_ssot.py",
+    "plugins/harness-creator/scripts/feedback_contract_ssot.py",
     # PR #17: per-repo Notion config SSOT loader (Python import 必須、§4.3 例外。
-    # skill-intake 側は skill-creator 側への symlink で SSOT 維持)
-    "plugins/skill-creator/scripts/notion_config.py",
+    # skill-intake 側は harness-creator 側への symlink で SSOT 維持)
+    "plugins/harness-creator/scripts/notion_config.py",
     "plugins/skill-intake/scripts/notion_config.py",
     # contract-generator 初回投入: 各 run-* スキルの実体スクリプト。
     # 旧 v1 由来の名詞名 (draft/finalize/sync) を SKILL.md/prompts/README 参照と
@@ -264,12 +264,12 @@ PENDING_RENAME_PATHS = {
     # backend は tmux 輸送層の版依存モジュール境界 (唯一の tmux 呼出点) の固有名。許可動詞化
     # は SKILL.md(script_refs)/references/tests 参照と同時に実施する後続 Change Governance PR
     # まで PENDING (notion-gmail-send / plugin-dev-planner と同種の「初回投入時の verb pending」扱い)。
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-backend.py",
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-boot.py",
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-send.py",
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
-    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-backend.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-boot.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-send.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
+    "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

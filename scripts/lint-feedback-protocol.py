@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import feedback_contract_ssot as FC  # noqa: E402
 SCHEMA = ROOT / "doc" / "notion-schema" / "skill-list.schema.json"
-SKILL_MD = ROOT / "plugins" / "skill-creator" / "skills" / "run-skill-feedback" / "SKILL.md"
+SKILL_MD = ROOT / "plugins" / "harness-creator" / "skills" / "run-skill-feedback" / "SKILL.md"
 UPSERT = ROOT / "scripts" / "notion-upsert-plugin.py"
 
 

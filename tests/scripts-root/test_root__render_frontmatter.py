@@ -1,8 +1,8 @@
 """Genuine functional tests for scripts/render-frontmatter.py (repo-root variant).
 
 NOTE: this is a DIFFERENT script from
-plugins/skill-creator/skills/run-build-skill/scripts/render-frontmatter.py
-(tested in test_skill_creator__render_frontmatter.py). This variant exposes
+plugins/harness-creator/skills/run-build-skill/scripts/render-frontmatter.py
+(tested in test_harness_creator__render_frontmatter.py). This variant exposes
 render(brief: dict) -> str, needs_os_preamble(brief) -> bool, and a main() that
 reads a brief JSON file and writes/prints SKILL.md.
 

@@ -20,7 +20,7 @@ since: 2026-06-30
 |---|---|---|
 | cwd | repo ルート (`xl-skills/`) で起動する | lint・同梱スクリプトは repo-root 相対で動く |
 | python | `python3 >= 3.10` (標準ライブラリのみ。`yaml`/`.sh`/`.js` 不使用) | `python3 --version` |
-| 依存 plugin | `plugins/skill-creator/` が同梱されている (repo-bundled) | `run-skill-create` / `run-build-skill` / `run-elegant-review` / `run-goal-elicit` / `goal-seek-paradigm.md` を参照するため |
+| 依存 plugin | `plugins/harness-creator/` が同梱されている (repo-bundled) | `run-skill-create` / `run-build-skill` / `run-elegant-review` / `run-goal-elicit` / `goal-seek-paradigm.md` を参照するため |
 | symlink | 更新後は `make sync` で `.claude/` へ展開済み | `.claude/skills/run-plugin-dev-plan` は symlink 派生 (未同期だと旧版が動く) |
 | 配布 | `distributable:false` (marketplace/bundles 非登録) | 計画専用・本 plugin は配布対象でない |
 
@@ -87,4 +87,4 @@ python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugi
 
 - 実プラグイン/実コードを生成しない (成果物は計画のみ)。
 - 具体値を直書きせず `{{PROJECT_ROOT}}` / `$CLAUDE_PLUGIN_ROOT` / self-relative で表現する。
-- `--mode update` は Edit 差分のみ。capability の実 build は `/skill-creator:capability-build` 系へ委譲する。
+- `--mode update` は Edit 差分のみ。capability の実 build は `/harness-creator:capability-build` 系へ委譲する。

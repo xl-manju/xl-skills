@@ -2,7 +2,7 @@
 """[後方互換ラッパ] vendored SSOT byte 一致検証を lint-vendored-ssot.py へ委譲する。
 
 歴史的経緯: 本 lint は skill-intake 単独 install 用の notion_config.py vendoring を検査する
-専用 lint だった。その後 skill-creator の feedback_contract_ssot.py も同型の vendoring が
+専用 lint だった。その後 harness-creator の feedback_contract_ssot.py も同型の vendoring が
 必要になり (単独 install で plugin 外 repo-root への import-time 依存が ImportError になる
 回帰)、検査ロジックを汎用 scripts/lint-vendored-ssot.py に一般化した。
 

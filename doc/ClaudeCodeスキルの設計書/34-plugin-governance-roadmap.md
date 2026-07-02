@@ -61,7 +61,7 @@ plugin 移行前に確認が必要な公式制約を明示する。全て PASS �
 |---|---|---|
 | SKILL.md 外部参照棚卸し完了 | 人間 | 全外部参照が一覧化され、plugin 境界内に収める計画が立っている |
 | メタガバナンス集約レイヤー設計完了 | 人間 | 設計書に反映済み |
-| plugin 試験移行の対象 Skill 選定 | 人間 | skill-creator 1件のみを試験対象に絞り込んでいる |
+| plugin 試験移行の対象 Skill 選定 | 人間 | harness-creator 1件のみを試験対象に絞り込んでいる |
 | 公式制約 a/b/d/e の PASS 確認 | 人間 + lint | 照合表の a/b/d/e が全て PASS |
 
 ### Phase 2 (1ヶ月: 試験 plugin 移行)
@@ -70,9 +70,9 @@ plugin 移行前に確認が必要な公式制約を明示する。全て PASS �
 
 | タスク | 担当 | 完了条件 |
 |---|---|---|
-| skill-creator 1件のみ試験 plugin 移行 | 人間 + AI | `plugins/skill-creator/` が正常動作 |
+| harness-creator 1件のみ試験 plugin 移行 | 人間 + AI | `plugins/harness-creator/` が正常動作 |
 | plugin 境界内での動作確認 | 人間 | 外部参照ゼロを確認 |
-| eval-log plugin 対応パスへの移行 | 人間 | `eval-log/skill-creator/` にログが記録される |
+| eval-log plugin 対応パスへの移行 | 人間 | `eval-log/harness-creator/` にログが記録される |
 | 3ヶ月評価開始 | 人間 | 評価基準と観測項目が決定している |
 
 ### Phase 3 (条件達成後: marketplace + 手動 merge 運用確立)
@@ -154,12 +154,12 @@ Phase 移行の前にこのチェックリストを確認する。
 - [ ] 全 SKILL.md 外部参照棚卸し完了（一覧化 + plugin 境界計画）
 - [ ] 公式制約 a/b/d/e が全て PASS
 - [ ] **制約 c (classify_change CI強制) の状態確認**: CI未接続の場合は手動 P0_breaking 運用で補完
-- [ ] 試験移行対象 Skill が skill-creator 1件のみに絞られている
+- [ ] 試験移行対象 Skill が harness-creator 1件のみに絞られている
 - [ ] メタガバナンス集約レイヤー設計完了
 
 ### Phase 2 → Phase 3 移行ゲート
 
-- [ ] skill-creator の試験 plugin が3ヶ月正常動作
+- [ ] harness-creator の試験 plugin が3ヶ月正常動作
 - [ ] 機能/コスト比 >= 1 の評価結果
 - [ ] eval-log plugin 対応パス動作確認
 - [ ] plugin 境界外参照ゼロ確認
@@ -182,7 +182,7 @@ xl-skills/                          # marketplace リポジトリ
 ├── .claude-plugin/
 │   └── marketplace.json            # marketplace 宣言（plugins 配列）
 ├── plugins/                        # ★ 正本（source of truth）
-│   ├── skill-creator/              # 現 creator-kit 相当
+│   ├── harness-creator/              # 現 creator-kit 相当
 │   │   ├── .claude-plugin/
 │   │   │   └── plugin.json         # name, version, description, hooks 等
 │   │   ├── agents/                 # subagent
@@ -263,12 +263,12 @@ xl-skills/                          # marketplace リポジトリ
 
 1. plugin 配下 hook を `.claude/settings.json` に**手書きしない**（`/plugin install` 経路と二重発動する）
 2. `.claude/settings.json` の generated section は手編集禁止（build CLI で上書きされる）
-3. 既存の `.claude/settings.creator-kit-hooks.json.example` は `plugins/skill-creator/hooks/` に移植（Phase 0 完了後の Phase 1 で実施。現在は `.claude/` 直下を維持）
+3. 既存の `.claude/settings.harness-creator-kit-hooks.json.example` は `plugins/harness-creator/hooks/` に移植（Phase 0 完了後の Phase 1 で実施。現在は `.claude/` 直下を維持）
 4. 35章の `.claude/settings.meta-harness-hooks.json.example` も同様に対応 plugin の `hooks/` へ移植（Phase 0 完了後の Phase 1 で実施。現在は `.claude/` 直下を維持）
 
 ### Phase 0 ゲート（実物理移行の前提、再掲）
 
-実物理移行（`creator-kit/` → `plugins/skill-creator/` の P0_breaking 変更）は以下が全て揃ってから着手:
+実物理移行（`creator-kit/` → `plugins/harness-creator/` の P0_breaking 変更）は以下が全て揃ってから着手:
 
 - [ ] `classify_change()` 実装完了
 - [ ] 全 SKILL.md の外部参照棚卸し完了

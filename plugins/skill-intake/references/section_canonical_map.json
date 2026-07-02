@@ -222,7 +222,7 @@
     {
       "user_canonical_section": "§8",
       "section_key": "8_open_questions",
-      "title": "8. 未解決事項（skill-creator 引き継ぎ）",
+      "title": "8. 未解決事項（harness-creator 引き継ぎ）",
       "responsible_subagent": ["skill-intake-handoff"],
       "role_label": "blocking と deferred を traffic-light で分離し、委譲先を明示する",
       "purpose_slots": {
@@ -246,13 +246,13 @@
     {
       "user_canonical_section": "§9",
       "section_key": "9_handoff_contract",
-      "title": "9. skill-creator への申し送り（handoff-contract）",
+      "title": "9. harness-creator への申し送り（handoff-contract）",
       "responsible_subagent": ["skill-intake-next-action-advisor", "skill-intake-handoff"],
       "role_label": "recommended_next.mode / skip_to_phase / handoff 理由を1行で固定する",
       "purpose_slots": {
         "decides_what": "recommended_next.mode (fast-track|standard|onboarding) / skip_to_phase / 起点 intake.json パス",
-        "ensures_what": "skill-creator が intake.json を起点に最短経路で実装着手できる",
-        "prevents_what": "skill-creator が要件再ヒアリングからやり直すループ"
+        "ensures_what": "harness-creator が intake.json を起点に最短経路で実装着手できる",
+        "prevents_what": "harness-creator が要件再ヒアリングからやり直すループ"
       },
       "required_fields": [
         {"key": "recommended_next", "type": "object", "constraint": "{mode, skip_to_phase, reason}", "absence_behavior": "block"},

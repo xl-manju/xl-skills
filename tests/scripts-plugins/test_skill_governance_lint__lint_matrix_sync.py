@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "plugins" / "skill-governance-lint" / "scripts" / "lint-matrix-sync.py"
-REAL_MATRIX = ROOT / "plugins" / "skill-creator" / "references" / "lint-matrix.json"
+REAL_MATRIX = ROOT / "plugins" / "harness-creator" / "references" / "lint-matrix.json"
 
 _SPEC = importlib.util.spec_from_file_location("lint_matrix_sync_under_test", SCRIPT)
 MOD = importlib.util.module_from_spec(_SPEC)

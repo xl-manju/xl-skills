@@ -1,7 +1,7 @@
-# install.ps1 — skill-creator-kit を Windows 環境に展開する
+# install.ps1 — harness-creator-kit を Windows 環境に展開する
 #
 # 使い方:
-#   powershell -ExecutionPolicy Bypass -File creator-kit/install.ps1 [-Mode symlink|copy] [-Force]
+#   powershell -ExecutionPolicy Bypass -File installers/install.ps1 [-Mode symlink|copy] [-Force]
 #
 # 動作 (doc/22 cross-platform-runtime 準拠):
 #   1. OS判定 (Windows のみ許可、それ以外は停止しユーザーへ確認)
@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 $KitDir = Split-Path -Parent $PSCommandPath
 $ProjectDir = (Get-Location).Path
 
-Write-Host "==> skill-creator-kit installer (Windows)"
+Write-Host "==> harness-creator-kit installer (Windows)"
 Write-Host "    kit dir:     $KitDir"
 Write-Host "    project dir: $ProjectDir"
 Write-Host "    mode:        $Mode"

@@ -49,8 +49,8 @@ plugin_meta:
 
 ## 基本定義
 - **プラグイン slug**: `ubm-goal-setting` (plan_dir=`plugin-plans/ubm-goal-setting/`・同一構想は常に同一出力先=再現性アンカー)。
-- **最上位目的 (purpose)**: 北原さん式ゴールセッティングの目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 skill-creator の量産規律を継承した 1 plugin へ漏れなく移植する。
-- **仕様駆動 (大前提)**: 本計画は skill-creator 仕様を基に作成される (規律の焼き先=`skill-creator-spec-reflection.md` マトリクスの引用・独自流儀の発明禁止)。要件の正本は `goal-spec.json` の checklist (C1-C7)、仕様書 (本 index + 13 phase) はその被覆であり、実装との乖離が出たら**仕様を先に更新**してから build へ戻す (spec-first)。
+- **最上位目的 (purpose)**: 北原さん式ゴールセッティングの目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 harness-creator の量産規律を継承した 1 plugin へ漏れなく移植する。
+- **仕様駆動 (大前提)**: 本計画は harness-creator 仕様を基に作成される (規律の焼き先=`harness-creator-spec-reflection.md` マトリクスの引用・独自流儀の発明禁止)。要件の正本は `goal-spec.json` の checklist (C1-C7)、仕様書 (本 index + 13 phase) はその被覆であり、実装との乖離が出たら**仕様を先に更新**してから build へ戻す (spec-first)。
 - **スコープ (含む)**: index + 13 フェーズ計画 + `component-inventory.json` の生成 (計画=L3 契約)。移植元 (`~/dev/dev/ObsidianMemo/.claude/` 配下) の読み取り専用参照。
 - **スコープ (含まない)**: 実プラグイン/実コードの build (L4・後段 run-skill-create / run-build-skill へ委譲)、PR/配布登録 (distributable:false のため個人利用に留める)。移植元のフォーク・複製。
 
@@ -78,7 +78,7 @@ plugin_meta:
   | references_config_assets | required | reference 8本+asset 5本の per-file build_target を `component-inventory.json` の `plugin_level_surfaces.references_config_assets.files` に列挙、`plugin_meta.ssot_dedup` に記録 |
   | schemas | required | `plugins/ubm-goal-setting/knowledge/schema.json` (C16/C17 が対称参照する plugin-root 共有 surface) |
   | vendor | required | component inventory の `plugin_level_surfaces.vendor.tiers` (L1 curated=北原知見本体28JSON+router.jsonをvendor同梱シード / L2 raw vault sources=`UBM_VAULT_ROOT`で外部解決 / L3 bookkeeping=registry.json+sync-log.jsonl+kitahara-principles-db.mdを空seed+writeback-config) |
-  | notion_config | omitted | component inventory の `plugin_level_surfaces.notion_config.omitted_reason` (機能上 Notion 非使用。skill-creator メタ改善ループの feedback 受け皿は `plugin_meta.feedback_deploy.notion_sink` で別途宣言) |
+  | notion_config | omitted | component inventory の `plugin_level_surfaces.notion_config.omitted_reason` (機能上 Notion 非使用。harness-creator メタ改善ループの feedback 受け皿は `plugin_meta.feedback_deploy.notion_sink` で別途宣言) |
   | mcp_app_connector | omitted | component inventory の `plugin_level_surfaces.mcp_app_connector.omitted_reason` |
 
 ## 環境ポリシー
@@ -123,7 +123,7 @@ plugin_meta:
 
 ## 受入確認 (build 後の見方)
 
-> 計画 (上記) が満たすのは「各 component が評価基準を携帯し決定論ゲートを通る」こと。**組み上がった実プラグインが当初 purpose を満たすか**は build 後に下記で確認する。plan は受入基準を**契約として焼く**だけで、実行は後段 build (run-skill-create の harness criteria-test)。purpose の正本 = `goal-spec.purpose`「UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 skill-creator の量産規律を継承した 1 plugin へ漏れなく移植する」。なお本表・C16 goal・C16 criteria(IN1)・C01 purpose に反復出現する「統一ハイブリッド構造 21 項目」の定義正本は、移送される reference `references/output-formats.md` + `references/data-contract.md`(`plugin_level_surfaces.references_config_assets.files` に列挙)であり、validate-goal-output.py はこの正本に基づき 21 項目を検査する(数値が宙に浮かないよう定義元をここに pin する)。
+> 計画 (上記) が満たすのは「各 component が評価基準を携帯し決定論ゲートを通る」こと。**組み上がった実プラグインが当初 purpose を満たすか**は build 後に下記で確認する。plan は受入基準を**契約として焼く**だけで、実行は後段 build (run-skill-create の harness criteria-test)。purpose の正本 = `goal-spec.purpose`「UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 harness-creator の量産規律を継承した 1 plugin へ漏れなく移植する」。なお本表・C16 goal・C16 criteria(IN1)・C01 purpose に反復出現する「統一ハイブリッド構造 21 項目」の定義正本は、移送される reference `references/output-formats.md` + `references/data-contract.md`(`plugin_level_surfaces.references_config_assets.files` に列挙)であり、validate-goal-output.py はこの正本に基づき 21 項目を検査する(数値が宙に浮かないよう定義元をここに pin する)。
 
 | 受入観点 (purpose 由来) | 確認の見方 (build 後) | 焼き先 |
 |---|---|---|

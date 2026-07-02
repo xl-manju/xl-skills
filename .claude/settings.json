@@ -111,7 +111,7 @@
     ]
   },
   "enabledPlugins": {
-    "skill-creator@xl-skills": true,
+    "harness-creator@xl-skills": true,
     "skill-intake@xl-skills": true,
     "contract-generator@xl-skills": true,
     "company-master@xl-skills": true,

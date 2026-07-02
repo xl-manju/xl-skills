@@ -87,6 +87,275 @@
       "since": "2026-05-30"
     },
     {
+      "plugin": "harness-creator",
+      "skill": "delegate-codex-skill-review",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 4,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-build-skill",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 11,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-17"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-elegant-review",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 9,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-goal-elicit",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 5,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-24"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-goal-seek",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 3,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-05-24"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-migrate-audit",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 11,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-19"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-plugin-package-check",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-23"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-create",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 13,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-elicit",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 9,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-feedback",
+      "criteria_total": 5,
+      "criteria_covered": 5,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "IN3",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 8,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-25"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-iter-improve",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-02"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-live-trial",
+      "criteria_total": 5,
+      "criteria_covered": 5,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2",
+        "OUT3"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-02"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-rename",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 8,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-rubric-governance",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 12,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-17"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "run-skill-update-notifier",
+      "criteria_total": 4,
+      "criteria_covered": 4,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "IN3",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 10,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-21"
+    },
+    {
+      "plugin": "harness-creator",
+      "skill": "wrap-git-commit-safe",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "IN2",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 4,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-05-18"
+    },
+    {
       "plugin": "mf-kessai-invoice-check",
       "skill": "run-mf-initial-month-enrich",
       "criteria_total": 3,
@@ -225,7 +494,7 @@
         "OUT2"
       ],
       "uncovered_ids": [],
-      "checklist_items": 15,
+      "checklist_items": 16,
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-06-29"
@@ -277,275 +546,6 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "delegate-codex-skill-review",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 4,
-      "under_derived": false,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-build-skill",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 11,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-17"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-elegant-review",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 9,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-goal-elicit",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 5,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-24"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-goal-seek",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 3,
-      "under_derived": false,
-      "coverage_pct": 100.0,
-      "since": "2026-05-24"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-migrate-audit",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 11,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-19"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-plugin-package-check",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 7,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-23"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-create",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 13,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-elicit",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 9,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-feedback",
-      "criteria_total": 5,
-      "criteria_covered": 5,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "IN3",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 8,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-25"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-iter-improve",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 7,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-07-02"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-live-trial",
-      "criteria_total": 5,
-      "criteria_covered": 5,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2",
-        "OUT3"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 7,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-07-02"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-rename",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 8,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-rubric-governance",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1",
-        "OUT2"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 12,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-17"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "run-skill-update-notifier",
-      "criteria_total": 4,
-      "criteria_covered": 4,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "IN3",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 10,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-21"
-    },
-    {
-      "plugin": "skill-creator",
-      "skill": "wrap-git-commit-safe",
-      "criteria_total": 3,
-      "criteria_covered": 3,
-      "covered_ids": [
-        "IN1",
-        "IN2",
-        "OUT1"
-      ],
-      "uncovered_ids": [],
-      "checklist_items": 4,
-      "under_derived": true,
-      "coverage_pct": 100.0,
-      "since": "2026-05-18"
     },
     {
       "plugin": "skill-intake",

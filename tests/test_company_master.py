@@ -1,7 +1,7 @@
 """company-master 機能テスト (再現性不変条件の回帰検証)。
 
 company-master プラグインの「再現性」を pytest で機械保証する。CI の
-`python3 -m pytest tests/ -q` (creator-kit-ci.yml) が本ファイルを自動的に拾う。
+`python3 -m pytest tests/ -q` (harness-creator-kit-ci.yml) が本ファイルを自動的に拾う。
 
 検証する不変条件:
   - enrich の決定論性 (同入力 → 同出力)

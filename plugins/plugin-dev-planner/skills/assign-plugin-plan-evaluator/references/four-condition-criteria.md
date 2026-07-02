@@ -39,7 +39,7 @@ plan 内の契約が相互に衝突しないこと。`check-build-handoff.py` ex
 
 用語・フォーマット・データ構造が統一されていること。
 
-- `check-spec-matrix-coverage.py --self-test` exit0: マトリクス (skill-creator-spec-reflection.md) の行 ID 集合に drift がない (行数の正本は同 md)。
+- `check-spec-matrix-coverage.py --self-test` exit0: マトリクス (harness-creator-spec-reflection.md) の行 ID 集合に drift がない (行数の正本は同 md)。
 - `check-spec-matrix-coverage.py PLAN` exit0: 適用行の焼き先が反映され OP/conditional/N-A 内訳が整合。
 - 用語 (component_kind / plugin_meta / quality_gates) が inventory component 間・phase ファイル間・index 間で同一語彙。
 

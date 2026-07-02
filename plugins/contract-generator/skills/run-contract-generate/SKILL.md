@@ -11,7 +11,7 @@ since: 2026-05-29
 role_suffix: generator
 hierarchy_level: L1
 rubric_refs:
-  - "../../../skill-creator/skills/run-elegant-review/references/thought-methods.yaml"
+  - "../../../harness-creator/skills/run-elegant-review/references/thought-methods.yaml"
   - "references/concept.md"
   - "../../lib/validate.py"
   - "../../lib/scan_template.py"

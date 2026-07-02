@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (
     ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "run-build-skill"
     / "scripts"
@@ -53,23 +53,23 @@ def _run_main_with_stdin(monkeypatch, capsys, stdin_text):
 # --- 既定: plugin-root 配下 (dev 既存挙動・dogfooding 互換) ---
 
 def test_default_dir_is_plugin_root(monkeypatch):
-    monkeypatch.delenv("SKILL_CREATOR_LESSONS_DIR", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_LESSONS_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
     d = MOD._lessons_dir()
     assert d == MOD._plugin_root() / "lessons-learned"
-    # plugin-root は skill-creator を指す
-    assert MOD._plugin_root().name == "skill-creator"
+    # plugin-root は harness-creator を指す
+    assert MOD._plugin_root().name == "harness-creator"
 
 
 def test_env_plugin_root_override(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(tmp_path))
-    monkeypatch.delenv("SKILL_CREATOR_LESSONS_DIR", raising=False)
+    monkeypatch.delenv("HARNESS_CREATOR_LESSONS_DIR", raising=False)
     assert MOD._plugin_root() == tmp_path.resolve()
     assert MOD._lessons_dir() == tmp_path.resolve() / "lessons-learned"
 
 
 def test_env_lessons_dir_override_is_sole_candidate(monkeypatch, tmp_path):
-    monkeypatch.setenv("SKILL_CREATOR_LESSONS_DIR", str(tmp_path / "ld"))
+    monkeypatch.setenv("HARNESS_CREATOR_LESSONS_DIR", str(tmp_path / "ld"))
     cands = MOD._candidate_dirs()
     assert cands == [(tmp_path / "ld").resolve()]
 
@@ -129,14 +129,14 @@ def test_no_failure_signature_is_silent_exit0(monkeypatch, capsys):
 def test_state_fallback_prefers_project_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path / "proj"))
     root = MOD._state_fallback_root()
-    assert root == tmp_path / "proj" / ".claude" / "state" / "skill-creator"
+    assert root == tmp_path / "proj" / ".claude" / "state" / "harness-creator"
 
 
 def test_state_fallback_uses_xdg(monkeypatch, tmp_path):
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg"))
     root = MOD._state_fallback_root()
-    assert root == tmp_path / "xdg" / "skill-creator"
+    assert root == tmp_path / "xdg" / "harness-creator"
 
 
 def test_dir_is_writable_walks_to_existing_ancestor(tmp_path):

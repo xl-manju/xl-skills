@@ -38,7 +38,7 @@ MoneyForward 掛け払いの**請求書発行漏れ**を毎月検知し、結果
 |---|---|---|---|
 | P0 | 環境監査・dev 依存の導入 | ✅ 完了 | `requirements-dev.txt` 作成、6 パッケージ import OK (`/tmp/mfk_pipinstall.txt`) |
 | P1 | 標準ローカルテスト基盤 | ✅ 完了 | `pytest.ini` (importlib+pythonpath)、sys.path 撤去、**41 passed / exit 0** をランダム順・並列・カバレッジで実証 (`/tmp/mfk_verify.txt`) |
-| P2 | CI 配線 (再発防止の根本修正) | ✅ 完了 | `creator-kit-ci.yml` に per-plugin pytest ステップ追加。ローカルでループ実証 (`/tmp/mfk_ci_sim.txt`、found=1/exit 0/YAML_OK) |
+| P2 | CI 配線 (再発防止の根本修正) | ✅ 完了 | `harness-creator-kit-ci.yml` に per-plugin pytest ステップ追加。ローカルでループ実証 (`/tmp/mfk_ci_sim.txt`、found=1/exit 0/YAML_OK) |
 | P3 | この SSOT ドキュメント | ✅ 完了 (随時更新) | 本ファイル |
 | P4 | L3 real_test (実 Notion 往復) | ✅ 完了 | `tests/test_real_notion.py` 作成。secrets 無しで **2 skipped / exit 0**、既存 41 は緑を実証 (`/tmp/mfk_l3.txt`)。`MFK_TEST_DATABASE_ID` を持つ運用者環境でのみ実 API 往復 |
 | P5 | 自己検証ループ (別 SubAgent レビュー) | ✅ 完了 (ADEQUATE) | §6。round1 R2=FAIL→3死角是正→**round2 で別contextが M3/M4 再ミューテーションし検出を確認、overall=ADEQUATE**。45 passed |
@@ -108,7 +108,7 @@ VERIFIED fail-closed といった**契約を必ず意味ある assertion で固�
   唯一の合否。pytest-randomly が毎回**実行順をランダム化**し順序依存バグを自動検出。
   `-n auto` (xdist) で並列。`--cov-fail-under=80` (pytest.ini) が 80% 未満で exit 1 にする
   **機械ゲート** (単なる可視化でなく合否条件)。
-- **CI** (`.github/workflows/creator-kit-ci.yml`): `plugins/*/tests` を**総当り**で pytest 実行。
+- **CI** (`.github/workflows/harness-creator-kit-ci.yml`): `plugins/*/tests` を**総当り**で pytest 実行。
   新規 plugin が `tests/` を足せば自動で CI 対象になり「配線忘れで無言腐敗」を構造的に封じる。
   dev 依存は `requirements-dev.txt` 一枚を SSOT として install。
 - **再発防止の原理**: 「人間が一個ずつ叩いて目視」を、CI の exit code 門番に置換した。壊れた

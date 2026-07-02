@@ -29,14 +29,14 @@ MOD = _load_module()
 
 
 # ---------- _target_plugins ----------
-def test_target_plugins_picks_manifest_holders_and_excludes_skill_creator(tmp_path, monkeypatch):
+def test_target_plugins_picks_manifest_holders_and_excludes_harness_creator(tmp_path, monkeypatch):
     pdir = tmp_path / "plugins"
     # manifest 保持 plugin
     (pdir / "alpha" / ".claude-plugin").mkdir(parents=True)
     (pdir / "alpha" / ".claude-plugin" / "plugin.json").write_text("{}")
-    # skill-creator は除外対象
-    (pdir / "skill-creator").mkdir(parents=True)
-    (pdir / "skill-creator" / "plugin.json").write_text("{}")
+    # harness-creator は除外対象
+    (pdir / "harness-creator").mkdir(parents=True)
+    (pdir / "harness-creator" / "plugin.json").write_text("{}")
     # manifest 無し plugin は無視
     (pdir / "no-manifest").mkdir(parents=True)
     monkeypatch.setattr(MOD, "PLUGINS_DIR", pdir)

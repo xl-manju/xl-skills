@@ -1,6 +1,6 @@
 """dogfooding: plugin-dev-planner 自身の CI/governance 配線が存在することを固定する。
 
-本 plugin は『生成 plan に skill-creator 規律を課す』(layer a) だけでなく、自分自身も
+本 plugin は『生成 plan に harness-creator 規律を課す』(layer a) だけでなく、自分自身も
 その規律で CI 検証される (layer b = 自己適用) ことを保証する。CI 配線が静かに外れたら
 本テストが落ちて気づける。標準 install (repo 外) では .github/workflows/ が無いため
 skip する (単独 install 移植性を壊さない)。
@@ -31,7 +31,7 @@ def test_creator_kit_ci_discovers_all_plugin_test_files():
     hooks/tests に加え、scripts/test_*.py / hooks/*_test.py のような tests/ 外 colocated
     test files も取りこぼすため、探索はファイル名ベースにする。
     """
-    ci = _read_or_skip("creator-kit-ci.yml")
+    ci = _read_or_skip("harness-creator-kit-ci.yml")
     required = [
         'fnmatch.fnmatch(filename, "test_*.py")',
         'fnmatch.fnmatch(filename, "*_test.py")',
@@ -41,7 +41,7 @@ def test_creator_kit_ci_discovers_all_plugin_test_files():
     ]
     missing = [text for text in required if text not in ci]
     assert missing == [], (
-        "creator-kit-ci.yml の per-plugin pytest が plugins/** の test files を "
+        "harness-creator-kit-ci.yml の per-plugin pytest が plugins/** の test files を "
         f"収集していない。欠落: {missing}"
     )
 
@@ -70,7 +70,7 @@ def test_evals_surfaces_each_have_enforced_by():
 def test_handoff_gate_green_from_skill_dir_cwd():
     """CI が cd する skill dir cwd から handoff gate (旧 cwd 依存) が exit0 になることを
     subprocess で実証する。配線『文字列の存在』だけでなく『配線したゲートが CI cwd で緑』を
-    検査し、wiring と実挙動の乖離を防ぐ (creator-kit-ci は各 plugin/skill dir へ cd して pytest)。
+    検査し、wiring と実挙動の乖離を防ぐ (harness-creator-kit-ci は各 plugin/skill dir へ cd して pytest)。
     """
     import subprocess
     import sys

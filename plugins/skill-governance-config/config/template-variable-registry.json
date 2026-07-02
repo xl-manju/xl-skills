@@ -21,7 +21,7 @@
     { "name": "{{DESIGN_DOC_DATABASE_ID}}", "type": "string", "default": "project-specific", "required": false, "not_applicable_when": "design-doc Notion route を使わない場合" },
     { "name": "{{DOC_OUTPUT_DIR}}", "type": "path", "default": "doc/", "required": false, "not_applicable_when": "design-doc local route を使わない場合" },
     { "name": "{{DOMAIN_RUBRIC_REFS}}", "type": "string", "default": "resolved from rubric-registry.json", "required": false, "not_applicable_when": "L1 rubric を使わない場合" },
-    { "name": "{{PLUGIN_NAME}}", "type": "string", "default": "skill-creator", "required": false, "not_applicable_when": "plugin移行を扱わない場合" },
+    { "name": "{{PLUGIN_NAME}}", "type": "string", "default": "harness-creator", "required": false, "not_applicable_when": "plugin移行を扱わない場合" },
     { "name": "{{PLUGIN_ROOT}}", "type": "path", "default": "{{PROJECT_ROOT}}/plugins/{{PLUGIN_NAME}}", "required": false, "not_applicable_when": "plugin移行を扱わない場合" },
     { "name": "{{CLAUDE_ROOT}}", "type": "path", "default": "{{PROJECT_ROOT}}/.claude", "required": false, "not_applicable_when": ".claude派生を使わない場合" },
     { "name": "{{SCRIPT_ROOT}}", "type": "path", "default": "{{PROJECT_ROOT}}/scripts", "required": false, "not_applicable_when": "root scriptsを使わない場合" },

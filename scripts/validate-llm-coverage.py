@@ -184,6 +184,8 @@ def main() -> int:
     ap.add_argument("--gate-new", action="store_true", help="--since 以降の新規 skill のみ閾値未満で exit1")
     ap.add_argument("--since", default="", help="新規 skill 判定の境界日 (YYYY-MM-DD)")
     ap.add_argument("--json", default=str(EVAL_LOG / "llm-coverage.json"))
+    ap.add_argument("--check", action="store_true",
+                    help="書き込まず、生成結果が既存 llm-coverage.json と一致するか parity 検査 (乖離で exit1)")
     args = ap.parse_args()
     if args.gate_new and not args.since:
         print("usage: --gate-new requires --since YYYY-MM-DD", file=sys.stderr)
@@ -196,15 +198,33 @@ def main() -> int:
 
     below = [r for r in reports if r["coverage_pct"] < args.threshold]
     out_path = Path(args.json)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     avg = round(sum(r["coverage_pct"] for r in reports) / len(reports), 1) if reports else 100.0
-    out_path.write_text(json.dumps({
+    content = json.dumps({
         "threshold": args.threshold,
         "skills_measured": len(reports),
         "below_threshold": len(below),
         "average_coverage_pct": avg,
         "reports": reports,
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    }, ensure_ascii=False, indent=2)
+
+    # --check: 書き込まず、生成結果が既存 llm-coverage.json と一致するか parity 検査。
+    # llm-coverage.json は毎回無条件 write される派生レポートで、roster のような
+    # git-stale 検出が無いと skill 変更/改名時の更新漏れを CI が見逃す (2026-07-02 の
+    # harness-creator 改名で checklist_items stale が長期潜伏していた事故の恒久対策)。
+    if args.check:
+        existing = out_path.read_text(encoding="utf-8") if out_path.exists() else ""
+        if existing == content:
+            print(f"OK: {out_path.name} は最新 ({len(reports)} skills / 平均 {avg}%)")
+            return 0
+        print(
+            f"STALE: {out_path.name} が生成結果と乖離。"
+            "make llm-coverage (python3 scripts/validate-llm-coverage.py --all) で再生成してください。",
+            file=sys.stderr,
+        )
+        return 1
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(content, encoding="utf-8")
 
     print(f"[llm-coverage] {len(reports)} loop-kind skill 計測 / 平均 {avg}% / 閾値 {args.threshold}%")
     for r in below:

@@ -35,7 +35,7 @@
 - 非担当: コンポーネント分解 + inventory (R2)、13 phase ファイル + index 生成 (R3)、検証 (R4)
 
 ### 2.2 ドメインルール
-- 単語置換でなく目的駆動。UBM 機能開発固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し、skill-creator ネイティブ規律 (TDD/評価/goal-seek/feedback-contract) は伝播対象として goal-spec に保持する
+- 単語置換でなく目的駆動。UBM 機能開発固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し、harness-creator ネイティブ規律 (TDD/評価/goal-seek/feedback-contract) は伝播対象として goal-spec に保持する
 - 入口で成果物種別を分類する。`skill` 単体で足りる要求、既存 plugin の小更新で足りる要求、plugin packaging / marketplace / manifest 境界を持つ要求を混同しない
 - plugin と判定した場合は `.claude-plugin/plugin.json`、marketplace、update cachebuster、`validate-plugin-completeness.py` の物理契約を後続 R3 の `plugin_meta` へ渡す意図を goal-spec に残す
 - 対象 plugin 名から `target_plugin_slug` を決定論的に導出し、`plan_dir` を `plugin-plans/<target_plugin_slug>/` (または `--out-dir`) に固定する。全成果物は plugin 別 `PLAN_DIR` 配下に置き、`plugin-plans/` 直下へ散らさない
@@ -64,7 +64,7 @@
 |---|---|---|
 | purpose_driven | references/purpose-driven-requirements.md | 目的ドリブン要件定義の規約確認時 |
 | plugin_contract | references/plugin-creator-contract.md | plugin packaging / marketplace 境界の分類時 |
-| goal_seek | ../../../skill-creator/skills/run-build-skill/references/goal-seek-paradigm.md | ゴール推定方針の確認時 |
+| goal_seek | ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md | ゴール推定方針の確認時 |
 
 ### 3.2 外部ツール / API
 - Read / Write のみ (CLI / MCP 不使用)
@@ -98,7 +98,7 @@
 - [ ] 成果物種別を `skill-only` / `plugin-plan` / `existing-plugin-update` のいずれかに分類した (ユーザーが具体的本数を求めた場合は `requested_count` に任意記録・gate 強制しない)
 - [ ] `target_plugin_slug` と `plan_dir` を固定し、既定時は `plugin-plans/<plugin-slug>/` になることを明示した
 - [ ] plugin-plan の場合、manifest / marketplace / cachebuster / validate_plugin の契約を後続へ渡す意図を残した
-- [ ] UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し skill-creator ネイティブ規律の伝播意図を残した
+- [ ] UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し harness-creator ネイティブ規律の伝播意図を残した
 - [ ] `<PLAN_DIR>/goal-spec.json` が `check-plugin-goal-spec.py` で schema 検証を通過した
 
 ### 5.4 実行方式

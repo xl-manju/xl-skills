@@ -38,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 UPSTREAM = (
     REPO_ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "ref-skill-design-rubric"
     / "references"
@@ -47,7 +47,7 @@ UPSTREAM = (
 DERIVED = (
     REPO_ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "assign-skill-design-evaluator"
     / "references"

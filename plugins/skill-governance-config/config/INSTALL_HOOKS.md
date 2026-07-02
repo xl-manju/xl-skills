@@ -146,7 +146,7 @@ python3 -m json.tool .claude/settings.json > /dev/null && echo "OK: valid JSON"
 
 ### C) 実発動確認
 
-`plugins/skill-creator/skills/ref-skill-design-rubric/rubric.json` を Edit してみて、
+`plugins/harness-creator/skills/ref-skill-design-rubric/rubric.json` を Edit してみて、
 PreToolUse hook が走り `hook-guard-rubric.py` のメッセージが出ることを確認。
 
 ## ロールバック

@@ -40,7 +40,7 @@ script_refs:
   - ../run-plugin-dev-plan/scripts/check-requirements-coverage.py
   - scripts/evaluate-plan.py
 rubric_refs:
-  - ref-skill-design-rubric              # L0: 共通設計 rubric (skill-creator 正本, 固定)
+  - ref-skill-design-rubric              # L0: 共通設計 rubric (harness-creator 正本, 固定)
   - references/plan-rubric.json           # L2: 本 evaluator 固有 (4条件 plan 判定)
 reference_refs:
   - references/resource-map.yaml
@@ -79,7 +79,7 @@ role_suffix: evaluator
 |---|---|---|
 | **C1 矛盾なし** | component_kind / handoff / manifest / harness の契約が衝突しない | 意味判定 (script では捕捉不能、契約間突合) |
 | **C2 漏れなし** | 5 種 component_kind × N 実体 + plugin-level surface を必要性ベースで全確認 (同一 kind 複数実体可・各 component が ≥1 phase の entities_covered に出現)・単一 skill 退化なし | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` / `check-requirements-coverage` exit0 |
-| **C3 整合性あり** | 用語 / frontmatter / plugin_meta / quality_gates が同一語彙・マトリクス全行被覆 (行数正本=skill-creator-spec-reflection.md) | `check-spec-matrix-coverage --self-test` / PLAN exit0 |
+| **C3 整合性あり** | 用語 / frontmatter / plugin_meta / quality_gates が同一語彙・マトリクス全行被覆 (行数正本=harness-creator-spec-reflection.md) | `check-spec-matrix-coverage --self-test` / PLAN exit0 |
 | **C4 依存関係整合** | index が P01..P13 を phase_number 昇順で全列挙・inventory component DAG 非循環・orphan 0 | `verify-index-topsort` / `detect-unassigned` / `check-build-handoff` / `check-runtime-portability` exit0 |
 
 > **C1-C4 ラベルの二層性 (語彙 disambiguate)**: 本 skill の C1-C4 は **inner の機械ゲート** (plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) による plan の構造検証)。`run-plugin-dev-plan` が昇格前に通す `run-elegant-review` の C1-C4 は **outer の設計レビュー** (30 思考法による elegance lint)。両者は同じ 4 概念 (矛盾なし/漏れなし/整合性あり/依存関係整合) を**別 loop-scope・別手法で二段検証する意図的な階層**であり、冗長ではない。同一ラベルが指すゲートは文脈で異なる (本 skill=inner / elegant-review=outer)。

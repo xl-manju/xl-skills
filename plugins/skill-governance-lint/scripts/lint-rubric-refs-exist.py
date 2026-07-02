@@ -4,7 +4,7 @@
 # version: 0.1.0
 # purpose: SKILL.md frontmatter の rubric_refs と rubric-registry.json の rubrics[].rubric が物理存在することを検証する
 # inputs:
-#   - argv[1..]: 検査対象 SKILL.md パス (省略時は plugins/skill-creator/skills/**/SKILL.md を走査)
+#   - argv[1..]: 検査対象 SKILL.md パス (省略時は plugins/harness-creator/skills/**/SKILL.md を走査)
 # outputs:
 #   - stdout: 検査結果サマリ
 #   - exit code: 0=PASS / 1=FAIL (未解決 rubric_refs を検出)
@@ -99,7 +99,7 @@ def main() -> int:
     if len(sys.argv) > 1:
         targets = [Path(p) for p in sys.argv[1:]]
     else:
-        targets.extend(PROJECT_ROOT.glob("plugins/skill-creator/skills/*/SKILL.md"))
+        targets.extend(PROJECT_ROOT.glob("plugins/harness-creator/skills/*/SKILL.md"))
         base = PROJECT_ROOT / ".claude" / "skills"
         if base.exists():
             targets.extend(base.glob("*/SKILL.md"))

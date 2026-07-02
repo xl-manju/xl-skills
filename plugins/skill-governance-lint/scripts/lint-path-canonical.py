@@ -25,7 +25,7 @@
      残存参照検出 (fail-closed)。自分自身 (本スクリプト) の検査ルール定義行は除外。
 
 usage:
-  python3 lint-path-canonical.py --skills-dir plugins/skill-creator/skills
+  python3 lint-path-canonical.py --skills-dir plugins/harness-creator/skills
   python3 lint-path-canonical.py --skill-md /path/to/SKILL.md
 """
 from __future__ import annotations

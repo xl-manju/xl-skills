@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "kit_name": "skill-creator-kit",
+  "kit_name": "harness-creator-kit",
   "kit_version": "1.0.1",
-  "description": "Claude Code Skill を作る/評価する/承認する/出力先にルーティングするためのメタスキル群一式。プロジェクト非依存・portable。",
+  "description": "Claude Code のハーネス (Skill と評価・統治機構の総体) を構築する/評価する/承認する/出力先にルーティングするためのハーネス構成部品一式。プロジェクト非依存・portable。",
   "skills": [
     {
       "name": "run-skill-create",
@@ -242,7 +242,7 @@
     },
     {
       "source": "config/claude-settings-hooks.json.example",
-      "target": ".claude/settings.creator-kit-hooks.json.example",
+      "target": ".claude/settings.harness-creator-kit-hooks.json.example",
       "mode": "copy"
     },
     {

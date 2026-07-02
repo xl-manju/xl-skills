@@ -19,7 +19,7 @@
     "enabled": false,
     "self_approval_conditions": [
       "安定版凍結済み: freeze.consecutive_runs 連続で violation_rate <= freeze.violation_rate_ceiling",
-      "newly_failing_count == 0 (plugins/skill-creator/skills/run-skill-rubric-governance/scripts/diff-rubric-impact.py 出力)",
+      "newly_failing_count == 0 (plugins/harness-creator/skills/run-skill-rubric-governance/scripts/diff-rubric-impact.py 出力)",
       "LLM-reviewer pass: run-skill-rubric-governance の Step2 影響評価で problem=none"
     ],
     "note": "デフォルトは false（Proposer/Approver 兼任禁止＝Goodhart 罠回避）。1人運用で兼任が構造上不可避な場合に限り true に切替え、self_approval_conditions の3条件すべての evidence を governance log に必ず記録すること。true 中は major bump 禁止。組織メンバー追加時は false に戻す。"

@@ -1,6 +1,6 @@
 # Makefile — xl-skills ローカル開発補助
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
-# CI では --check gate (creator-kit-ci.yml) が走るため二重防護となる。
+# CI では --check gate (harness-creator-kit-ci.yml) が走るため二重防護となる。
 
 .PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
 
@@ -18,10 +18,10 @@ sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
 ## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime/README ポータビリティ + company-master vendored 検証を実行する
-lint: contract-intake vendored-ssot runtime-portability readme-portability company-master-vendored
-	python3 scripts/lint-skill-name.py --skills-dir plugins/skill-creator/skills
-	python3 scripts/lint-skill-description.py --skills-dir plugins/skill-creator/skills
-	python3 scripts/validate-frontmatter.py --skills-dir plugins/skill-creator/skills
+lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readme-portability company-master-vendored
+	python3 scripts/lint-skill-name.py --skills-dir plugins/harness-creator/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/harness-creator/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/harness-creator/skills
 	python3 scripts/lint-skill-name.py --skills-dir plugins/company-master/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/company-master/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/company-master/skills
@@ -50,6 +50,10 @@ lint: contract-intake vendored-ssot runtime-portability readme-portability compa
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:
 	python3 scripts/lint-vendored-ssot.py
+
+## legacy-plugin-name: 改名済み旧 plugin 固有名の能動層再流入を遮断 (2026-07-02 改名)
+legacy-plugin-name:
+	python3 scripts/lint-legacy-plugin-name.py
 
 ## runtime-portability: runtime hook script が import-time に自 plugin 外を fail-closed 依存しないか静的検査
 ##   単独 install (plugin のみ install) で全フックが exit 0 を維持する不変条件を機械担保する。

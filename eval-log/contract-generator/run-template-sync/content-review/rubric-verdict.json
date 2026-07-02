@@ -1,27 +1,21 @@
 {
-  "target": {
-    "plugin": "contract-generator",
-    "skill": "run-template-sync",
-    "skill_md_sha256": "6c681c23fa4b41f00ae2238beae89c9e3b0239bd916da2734f3350dccb2fb081"
-  },
+  "target": {"plugin":"contract-generator","skill":"run-template-sync","skill_md_sha256":"f87c3fc005656b9186724c7bada8143aee12bc877dec1068bdaf09752e1abcc8"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-06-24T00:00:00Z",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
+  "reviewer": "independent-rename-review-subagent-e",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1"],
-    "positive_feedback": [
-      "差込アンカーは template-mapping.json、folder ID/spreadsheet_id は google-config.json へ外部化され、SKILL.md に具体値の直書きリークがない。",
-      "正負シグナル定義表を prompts/R1 の L4.4 を SSOT とし SKILL.md には再掲しないなど、二重定義を避ける SSOT 規律が徹底されている。"
-    ],
+    "criteria_evaluated": ["IN1","IN2","OUT1"],
+    "positive_feedback": ["簡潔性(3): 正負シグナル定義表を prompts/R1 の L4.4 を SSOT とし SKILL.md には再掲しない二重定義回避の SSOT 規律が徹底。差込アンカー=template-mapping.json / folder ID=google-config.json へ外部化し具体値の直書きリークなし。", "検証可能性(2): 完了チェックリスト6項目が scan_template exit 0/5・--apply 後の再生成フラグ◯・--dry-run 書込抑止という観測可能な手順に紐づき IN1/IN2/OUT1 へ追跡可能。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "rubric 観点(目的適合・境界明確・検証可能・SSOT規律)で SKILL.md を実読評価。境界記述が下書き生成(run-contract-generate)/PDF確定(run-contract-finalize)と明確に分離され責務が単一。完了チェックリスト6項目が IN1/IN2/OUT1 の各 criteria に追跡可能で、検証手順(scan_template exit 0/5・--apply 後の再生成フラグ◯・--dry-run の書込抑止)も具体的。条文非改変・差込アンカーのみ更新対象という不変条件も明記され、量産スキルとして adequacy 十分のため PASS。"
+  "notes": "harness-creator quality-rubric.md の5次元で採点(SHA=f87c3fc0…)。完全性2/一貫性3(境界が下書き生成=generate・PDF確定=finalize と明確分離で責務単一)/深度2(Why で法務課随時更新・黙って壊れる vs 検知して知らせるを対比)/検証可能性2/簡潔性3。全次元≥2 で PASS。旧名残存なし・harness-creator パス実在・意味論境界(run-build-skill は skill 表現維持)を確認。"
 }

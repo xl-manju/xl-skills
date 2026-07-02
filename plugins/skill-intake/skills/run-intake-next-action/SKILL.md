@@ -1,6 +1,6 @@
 ---
 name: run-intake-next-action
-description: skill-creator / plugin-dev-planner への引き渡しモードを判定したいとき、summary.json から A/B/C/D/E/P のいずれかを決定論的に確定したいときに使う。
+description: harness-creator / plugin-dev-planner への引き渡しモードを判定したいとき、summary.json から A/B/C/D/E/P のいずれかを決定論的に確定したいときに使う。
 allowed-tools:
   - Read
   - Write
@@ -58,8 +58,8 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
   "multi_skill_suspicion": false,
   "split_candidates": [{"name": "...", "responsibility": "..."}],
   "confirmed_with_user": false,
-  "handoff_target": "skill-creator|plugin-dev-planner",
-  "skill_creator_handoff_phase": "Step 1 (elicit)"
+  "handoff_target": "harness-creator|plugin-dev-planner",
+  "harness_creator_handoff_phase": "Step 1 (elicit)"
 }
 ```
 
@@ -74,11 +74,11 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 1. **決定論判定**: `scripts/decide-mode.py` が `references/mode-catalog.md` 判定表から `mode` を導出する。LLM 勘の介在禁止。同点時のみタイブレークで LLM が選び `reason` に記録。
 2. **Phase 1 突合の追認は不一致時のみ**: `kickoff.json.pattern` と一致なら AskUserQuestion 省略、不一致なら 1 問のみ (並列禁止)。mode P は pattern 軸 (A-E enum) の外のため常に不一致となり、追認 1 問を必発とする (意図済み)。
 3. **D 格下げ規則**: `mode=D` で `split_candidates` が空のままなら `mode=E` に格下げし、`reason` に格下げ理由を残す。
-4. **E は再ヒアリング扱い**: `mode=E` 確定時は `skill_creator_handoff_phase="P1-kickoff (re-intake)"` を必ず指定。
-4b. **P は plugin-dev-planner 行き**: `mode=P` (plugin 規模構想: `plugin_scale=true` 宣言 / `component_requests[]` に hook/command 等の非 skill 種別 / skill 系 2 件以上、正本は `references/mode-catalog.md`「mode P 判定条件」) は `handoff_target="plugin-dev-planner"` とし、intake.json を `run-plugin-dev-plan` R1 の構想材料として推奨する (渡す § は plugin-root 正本 `plugins/skill-intake/references/handoff-contract.md`「plugin-dev-planner 分岐 (mode P)」参照)。P の `split_candidates[]` は planner R2 へ渡す任意の初期候補であり、空でも D のような格下げはしない。mode A-E は `handoff_target="skill-creator"`。
+4. **E は再ヒアリング扱い**: `mode=E` 確定時は `harness_creator_handoff_phase="P1-kickoff (re-intake)"` を必ず指定。
+4b. **P は plugin-dev-planner 行き**: `mode=P` (plugin 規模構想: `plugin_scale=true` 宣言 / `component_requests[]` に hook/command 等の非 skill 種別 / skill 系 2 件以上、正本は `references/mode-catalog.md`「mode P 判定条件」) は `handoff_target="plugin-dev-planner"` とし、intake.json を `run-plugin-dev-plan` R1 の構想材料として推奨する (渡す § は plugin-root 正本 `plugins/skill-intake/references/handoff-contract.md`「plugin-dev-planner 分岐 (mode P)」参照)。P の `split_candidates[]` は planner R2 へ渡す任意の初期候補であり、空でも D のような格下げはしない。mode A-E は `handoff_target="harness-creator"`。
 5. **固有名詞の非転記**: `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名を残さない (variable_abstraction)。
 6. **schema 準拠**: 出力は `schemas/output.schema.json` の `additionalProperties:false` を満たす。前置き・後書き禁止。
-7. **責務単一・生成は起動禁止**: 本スキルは mode 判定と `next-action.json` 生成のみ。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **起動しない (allowed-tools に Skill/Task を持たないので構造的にも不可)**。`mode` / `skill_creator_handoff_phase` は後続への**推奨情報**であり、本スキルや呼び出し元がそれを自動実行することは意図しない (実行はユーザーの明示的な別アクション)。ただし Notion 公開「完了」は推奨を出す必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
+7. **責務単一・生成は起動禁止**: 本スキルは mode 判定と `next-action.json` 生成のみ。`run-skill-create` / `run-build-skill` / `capability-build` 等のスキル生成スキルを **起動しない (allowed-tools に Skill/Task を持たないので構造的にも不可)**。`mode` / `harness_creator_handoff_phase` は後続への**推奨情報**であり、本スキルや呼び出し元がそれを自動実行することは意図しない (実行はユーザーの明示的な別アクション)。ただし Notion 公開「完了」は推奨を出す必須前提として **検証** する (Rule 8、公開の実行はしないが未公開での横流れは封じる)。
 8. **Notion 公開完了の precondition 検証**: `decide-mode.py` は handoff 確定前に `output/<hint>/notion-publish-result.json` 存在 + `notion-log.json.status=="published"` + `page_id` 有りを assert する。不成立なら exit 2 で停止 (逸脱B封鎖)。CI/dry-run のみ `--allow-skip` で緩和。
 
 ## ゴールシーク実行
@@ -98,8 +98,8 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - [ ] `scripts/decide-mode.py` が `references/mode-catalog.md` の判定表 1 行から `mode` を導出し、`reason` にその引いた mode / 判定条件を文字列で含めている
 - [ ] `kickoff.json.pattern` と `mode` が一致時は AskUserQuestion を発行せず `confirmed_with_user=false` のまま、不一致時は AskUserQuestion 1 問で `confirmed_with_user=true` を埋めている
 - [ ] `mode=D` のとき `split_candidates[]` の各要素に `name` と `responsibility` 文字列が存在する。空のまま残ったら `mode=E` に格下げし `reason` に格下げ理由を追記している
-- [ ] `mode=E` のとき `skill_creator_handoff_phase` が `P1-kickoff (re-intake)` になっている
-- [ ] `handoff_target` が mode P で `plugin-dev-planner`、mode A-E で `skill-creator` になっている (schema の allOf 条件)
+- [ ] `mode=E` のとき `harness_creator_handoff_phase` が `P1-kickoff (re-intake)` になっている
+- [ ] `handoff_target` が mode P で `plugin-dev-planner`、mode A-E で `harness-creator` になっている (schema の allOf 条件)
 - [ ] handoff 先 skill が環境に存在しない単独 install 時、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を含めている
 - [ ] `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名が転記されていない
 - [ ] `output/<hint>/next-action.json` が `schemas/output.schema.json` で検証 exit 0 (manifest `P4-emit` の `validate-next-action` hook)
@@ -115,7 +115,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 2. **AskUserQuestion 並列禁止**: 不一致追認は 1 問ずつ。複数項目を 1 回でまとめない。
 3. **schema 違反は exit 3**: `additionalProperties:false` を満たさない追加キーを出力に混ぜない。
 4. **D の split は提案であり強制ではない**: ユーザーが単一スキル維持を選んだ場合は `multi_skill_suspicion=true` のまま `mode` を `A/B/C` に確定し直し、`reason` に上書き理由を残す。
-5. **後続 phase 文言の固定**: `skill_creator_handoff_phase` は `references/mode-catalog.md` の右列文言を逐語コピー (drift 防止)。
+5. **後続 phase 文言の固定**: `harness_creator_handoff_phase` は `references/mode-catalog.md` の右列文言を逐語コピー (drift 防止)。
 6. **再ヒアリングループ防止**: `mode=E` が 2 回連続で出た場合は親 aggregator に escalate (本スキル単独でループしない)。
 
 ## Additional Resources

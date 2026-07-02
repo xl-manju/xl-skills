@@ -4,7 +4,7 @@
 # purpose: repo 全域の全 test_*.py / *_test.py が CI のテスト実行で 1 回以上到達することを fail-closed 検証するメタ lint。境界外 (tests/・plugins/ 以外) に置かれた test の無言未実行を封鎖する。
 # inputs:
 #   - repo 全域の test_*.py / *_test.py (discover_repo_tests 経由)
-#   - .github/workflows/creator-kit-ci.yml (到達 root の実行 step 検証; 不在なら skip)
+#   - .github/workflows/harness-creator-kit-ci.yml (到達 root の実行 step 検証; 不在なら skip)
 # outputs:
 #   - stdout: 探索サマリ + OK
 #   - stderr: orphan test と修正方法
@@ -17,7 +17,7 @@
 """全 test が CI で実行される機械保証 (test discovery coverage)。
 
 背景 (elegant-review 2026-06-30, 3 analyst 収束 LS-F1 / SS-02 / SS-05):
-  CI のテスト探索は creator-kit-ci.yml の 2 機構 (機構A: `pytest tests/` /
+  CI のテスト探索は harness-creator-kit-ci.yml の 2 機構 (機構A: `pytest tests/` /
   機構B: plugins/ walk) に分裂し、和集合 = 「tests/ または plugins/ 配下」。
   この境界の外 (repo-root 直下・scripts/・doc/・新規 top-level) に置いた test は
   どちらにも拾われず無言で未実行になる。にもかかわらず、実 test 集合が CI 到達集合に
@@ -26,7 +26,7 @@
 
   本 lint は discover_repo_tests を SSOT に、(1) 全 test ファイルが CI 到達集合
   (discover_repo_tests.CI_REACHABLE_TOP_LEVEL) に属する (orphan=0) ことと、
-  (2) creator-kit-ci.yml が各到達 root を実際に pytest 実行している ことを fail-closed
+  (2) harness-creator-kit-ci.yml が各到達 root を実際に pytest 実行している ことを fail-closed
   検証する。判定は *到達集合への set membership* で、test ファイル数や coverage% とは
   混ぜない (Goodhart 回避; coverage% は validate-harness-coverage.py の責務)。
 
@@ -56,7 +56,7 @@ import discover_repo_tests as drt  # noqa: E402
 # 現状は空 (orphan=0)。将来 tests/・plugins/ 外に test を置く正当な理由が生じたときのみ追加。
 ALLOWLIST: dict[str, str] = {}
 
-# 各到達 top-level が CI で実際に実行されている証跡 (creator-kit-ci.yml 内の耐久的部分文字列)。
+# 各到達 top-level が CI で実際に実行されている証跡 (harness-creator-kit-ci.yml 内の耐久的部分文字列)。
 # 二次ガード: orphan=0 (test が root 配下にある) を満たしても、その root を CI が実行
 # しなくなれば test は走らない。両方を閉じて「全 test が CI 実行される」を保証する。
 CI_RUN_EVIDENCE: dict[str, tuple[str, ...]] = {
@@ -66,7 +66,7 @@ CI_RUN_EVIDENCE: dict[str, tuple[str, ...]] = {
     "plugins": ('Path("plugins")', '"-m", "pytest"'),
 }
 
-CI_WORKFLOW_REL = ".github/workflows/creator-kit-ci.yml"
+CI_WORKFLOW_REL = ".github/workflows/harness-creator-kit-ci.yml"
 
 
 def _join_continuations(text: str) -> str:
@@ -103,7 +103,7 @@ def check_orphans(
             f"(到達 top-level = {list(drt.CI_REACHABLE_TOP_LEVEL)})。"
             "修正方法: (1) この test を tests/ または plugins/<plugin>/ 配下へ移す "
             "(CI 機構A/Bが拾う)、(2) CI 到達 root を増やすなら "
-            "discover_repo_tests.CI_REACHABLE_TOP_LEVEL と creator-kit-ci.yml の実行 step を "
+            "discover_repo_tests.CI_REACHABLE_TOP_LEVEL と harness-creator-kit-ci.yml の実行 step を "
             "連動更新する、(3) 意図的に CI 非実行なら ALLOWLIST に理由付きで宣言する"
         )
 
@@ -138,7 +138,7 @@ def check_evidence_parity() -> tuple[list[str], list[str]]:
 
 
 def check_ci_runs_roots(root: Path) -> tuple[list[str], list[str]]:
-    """creator-kit-ci.yml が各到達 root を実際に pytest 実行しているか (二次ガード)。"""
+    """harness-creator-kit-ci.yml が各到達 root を実際に pytest 実行しているか (二次ガード)。"""
     errors: list[str] = []
     report: list[str] = []
     ci_path = root / CI_WORKFLOW_REL
@@ -150,7 +150,7 @@ def check_ci_runs_roots(root: Path) -> tuple[list[str], list[str]]:
         missing = [ev for ev in evidences if ev not in ci]
         if missing:
             errors.append(
-                f"到達 root '{top}/' を CI が実行する証跡が creator-kit-ci.yml に無い "
+                f"到達 root '{top}/' を CI が実行する証跡が harness-creator-kit-ci.yml に無い "
                 f"(欠落: {missing})。'{top}/' 配下の test が無言で未実行になりうる。"
                 "CI 実行 step を復元するか、root を廃止するなら "
                 "discover_repo_tests.CI_REACHABLE_TOP_LEVEL と CI_RUN_EVIDENCE を連動更新する"

@@ -25,7 +25,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "notion-upsert-plugin.py"
 
-# notion-upsert-plugin.py は import 時に plugins/skill-creator/scripts を sys.path へ
+# notion-upsert-plugin.py は import 時に plugins/harness-creator/scripts を sys.path へ
 # 入れて `import notion_config` する。module body をそのまま exec すれば解決される。
 # invalidate_caches で stale .pyc を無効化し coverage が必ず行をトレースできるようにする。
 importlib.invalidate_caches()
@@ -363,9 +363,9 @@ def test_build_page_children_with_skills_full_structure():
              "argument_hint": "", "kind": "ref", "purpose": ""},
         ],
     }
-    blocks = NUP.build_page_children("skill-creator", info)
+    blocks = NUP.build_page_children("harness-creator", info)
     types = _block_types(blocks)
-    # 既知 overview (skill-creator) が callout の先頭に出る
+    # 既知 overview (harness-creator) が callout の先頭に出る
     assert blocks[0]["type"] == "callout"
     assert "土台プラグイン" in blocks[0]["callout"]["rich_text"][0]["text"]["content"]
     # 主要見出しが全部入る

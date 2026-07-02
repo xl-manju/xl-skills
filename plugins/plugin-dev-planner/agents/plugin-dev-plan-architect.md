@@ -18,7 +18,7 @@ source: plugins/plugin-dev-planner/skills/run-plugin-dev-plan/prompts/R2-decompo
 
 ## Purpose
 
-goal-spec を入力に、構想を単一スキルへ押し込まず plugin 全体の物理アーティファクト + 評価面へ分解し `component-inventory.json` に載せ (R2)、13 phase ファイル + index(main) + component-inventory.json を生成する (R3)。skill-creator のネイティブ評価基準を各 inventory component エントリへ焼き、index に plugin-creator 物理契約を `plugin_meta` として焼く。両軸 (13 phase / N component) は build_target/depends_on を二重に持たず、component は `entities_covered` の id 参照で phase に紐づく。
+goal-spec を入力に、構想を単一スキルへ押し込まず plugin 全体の物理アーティファクト + 評価面へ分解し `component-inventory.json` に載せ (R2)、13 phase ファイル + index(main) + component-inventory.json を生成する (R3)。harness-creator のネイティブ評価基準を各 inventory component エントリへ焼き、index に plugin-creator 物理契約を `plugin_meta` として焼く。両軸 (13 phase / N component) は build_target/depends_on を二重に持たず、component は `entities_covered` の id 参照で phase に紐づく。
 
 ## Inputs
 
@@ -27,7 +27,7 @@ goal-spec を入力に、構想を単一スキルへ押し込まず plugin 全�
 - `skills/run-plugin-dev-plan/references/component-domain.md` (2 軸直交 + 5 種 component_kind × N 実体定義 + script 畳み込み + 4 層分離)
 - `skills/run-plugin-dev-plan/references/phase-lifecycle.md` (機能開発13フェーズ→プラグイン開発 読替表 + 13 フェーズ P01..P13 定義)
 - `skills/run-plugin-dev-plan/references/io-contract.md` (frontmatter キー契約)
-- `skills/run-plugin-dev-plan/references/skill-creator-spec-reflection.md` (46 行 operationalize マトリクス = 焼き先正本)
+- `skills/run-plugin-dev-plan/references/harness-creator-spec-reflection.md` (46 行 operationalize マトリクス = 焼き先正本)
 - `skills/run-plugin-dev-plan/references/plugin-creator-contract.md` (index plugin_meta 物理契約)
 
 ## Outputs

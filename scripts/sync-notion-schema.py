@@ -6,13 +6,13 @@ Usage:
   python3 scripts/sync-notion-schema.py --apply   # Notion へ差分適用
 
 Per-repo 設定: <repo-root>/.notion-config.json (gitignore対象)
-  詳細: plugins/skill-creator/references/notion-per-repo-setup.md
+  詳細: plugins/harness-creator/references/notion-per-repo-setup.md
 """
 import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "plugins" / "skill-creator" / "scripts"))
+sys.path.insert(0, str(ROOT / "plugins" / "harness-creator" / "scripts"))
 import notion_config  # noqa: E402
 
 SCHEMA_DIR = ROOT / "doc" / "notion-schema"

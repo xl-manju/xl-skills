@@ -17,7 +17,7 @@
 
 Usage:
   lint-skill-tree.py /path/to/skill-dir
-  lint-skill-tree.py --skills-dir plugins/skill-creator/skills   # 全 Skill を一括検査
+  lint-skill-tree.py --skills-dir plugins/harness-creator/skills   # 全 Skill を一括検査
 """
 from __future__ import annotations
 import re

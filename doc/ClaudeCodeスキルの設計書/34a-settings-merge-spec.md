@@ -8,7 +8,7 @@
 
 本章は 34章の plugin 物理レイアウトを補完する。CLI 引数の詳細は `doc/migration/phase0/04-settings-merge-cli-specification.md`、実装は `doc/migration/phase0/07-build-claude-settings-implementation.md` が従う。
 
-Skill Creator が量産する plugin package にどの hooks / settings / permissions を同梱するかの判定は `36-plugin-package-harness-contract.md` を正本とする。本章は、同梱された設定断片を開発用 `.claude/settings.json` にどう安全に派生生成するかだけを扱う。
+Harness Creator が量産する plugin package にどの hooks / settings / permissions を同梱するかの判定は `36-plugin-package-harness-contract.md` を正本とする。本章は、同梱された設定断片を開発用 `.claude/settings.json` にどう安全に派生生成するかだけを扱う。
 
 ## §2 三層モデル参照と正本境界
 
@@ -233,7 +233,7 @@ if conflicts:
 
 ```json
 {
-  "name": "skill-creator",
+  "name": "harness-creator",
   "hooks": {
     "PreToolUse": [
       {
@@ -241,7 +241,7 @@ if conflicts:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/skill-creator/scripts/hook-validate-skill-md.py"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/harness-creator/scripts/hook-validate-skill-md.py"
           }
         ]
       }
@@ -259,8 +259,8 @@ if conflicts:
       {
         "event": "PreToolUse",
         "matcher": "Write|Edit",
-        "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/skill-creator/scripts/hook-validate-skill-md.py",
-        "from_plugin": "skill-creator"
+        "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/harness-creator/scripts/hook-validate-skill-md.py",
+        "from_plugin": "harness-creator"
       }
     ]
   },
@@ -271,7 +271,7 @@ if conflicts:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/skill-creator/scripts/hook-validate-skill-md.py"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/plugins/harness-creator/scripts/hook-validate-skill-md.py"
           }
         ]
       }
@@ -282,11 +282,11 @@ if conflicts:
 
 ### 例 2: 複数 plugin マージ
 
-`alpha` と `skill-creator` が異なる matcher または command を提供する場合は、plugin name 辞書順で生成 hook 配列に並べる。
+`alpha` と `harness-creator` が異なる matcher または command を提供する場合は、plugin name 辞書順で生成 hook 配列に並べる。
 
 ### 例 3: 衝突 ERROR
 
-`alpha` と `skill-creator` が同一 `PreToolUse`、同一 `Write|Edit`、同一 command を提供する場合は exit 2。target は更新しない。
+`alpha` と `harness-creator` が同一 `PreToolUse`、同一 `Write|Edit`、同一 command を提供する場合は exit 2。target は更新しない。
 
 ## §11 機械検証手段
 
@@ -314,7 +314,7 @@ if conflicts:
 | **(A) inline 宣言** (従来) | `plugin.json` の `hooks` フィールド | bundle に密着し単一目的な小規模 hook | §7 マージアルゴリズム通り、`from_plugin` として直接抽出 |
 | **(B) 独立 CapabilityManifest** (新規) | `plugins/<name>/capabilities/<hook-name>.manifest.json` (`kind: hook`) | bundle 横断で再利用される hook、independent versioning が必要な hook | manifest の `interface.event / matcher / command` を §7 入力として展開 |
 
-経路 (B) の `CapabilityManifest` は、共通核 (`name / description / kind: "hook" / version / owner / tags / since`) と、kind=hook 固有の `interface` (`event / matcher / command`) と `invariant` (`event ∈ 公式 hook event 名 / 副作用境界宣言`) を持つ。schema は `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json` の `oneOf[kind=hook]` 分岐に従う。
+経路 (B) の `CapabilityManifest` は、共通核 (`name / description / kind: "hook" / version / owner / tags / since`) と、kind=hook 固有の `interface` (`event / matcher / command`) と `invariant` (`event ∈ 公式 hook event 名 / 副作用境界宣言`) を持つ。schema は `plugins/harness-creator/skills/run-build-skill/references/capability-manifest.schema.json` の `oneOf[kind=hook]` 分岐に従う。
 
 ### settings merge への変更点
 

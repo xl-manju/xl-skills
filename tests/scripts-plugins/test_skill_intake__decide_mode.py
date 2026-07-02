@@ -19,7 +19,7 @@ precondition gate(逸脱B封鎖)を持つ。よって本テストは:
     skill 系 2 件以上 / 徴候なし
 
 を tmp_path 上の実ファイルで genuine に assert する(repo 非汚染)。
-handoff phase 文言は F-0313 で skill-creator 実在語彙 (Step 1 elicit 等) へ更新済み。
+handoff phase 文言は F-0313 で harness-creator 実在語彙 (Step 1 elicit 等) へ更新済み。
 """
 import importlib.util
 import json
@@ -314,8 +314,8 @@ def test_cli_allow_skip_with_env_continues(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     # kickoff.pattern=A を採用、verb 非空・連結語無しなので A のまま。
     assert data["mode"] == "A"
-    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit)"
-    assert data["handoff_target"] == "skill-creator"
+    assert data["harness_creator_handoff_phase"] == "Step 1 (elicit)"
+    assert data["handoff_target"] == "harness-creator"
     assert data["confirmed_with_user"] is False
 
 
@@ -341,7 +341,7 @@ def test_cli_published_mode_d_for_concatenated_verb(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["mode"] == "D"
     assert data["multi_skill_suspicion"] is True
-    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit, split first)"
+    assert data["harness_creator_handoff_phase"] == "Step 1 (elicit, split first)"
 
 
 def test_cli_published_mode_d_for_plus_verb(tmp_path):
@@ -366,7 +366,7 @@ def test_cli_published_mode_e_for_empty_verb(tmp_path):
     data = json.loads(out.read_text())
     assert data["mode"] == "E"
     assert "判定不能" in data["reason"]
-    assert data["skill_creator_handoff_phase"] == "P1-kickoff (re-intake)"
+    assert data["harness_creator_handoff_phase"] == "P1-kickoff (re-intake)"
 
 
 def test_cli_published_preserves_kickoff_pattern_b(tmp_path):
@@ -380,7 +380,7 @@ def test_cli_published_preserves_kickoff_pattern_b(tmp_path):
     assert proc.returncode == 0, proc.stderr
     data = json.loads(out.read_text())
     assert data["mode"] == "B"
-    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit --mode update)"
+    assert data["harness_creator_handoff_phase"] == "Step 1 (elicit --mode update)"
 
 
 def test_cli_published_default_pattern_e_when_missing(tmp_path):
@@ -409,7 +409,7 @@ def test_cli_published_mode_p_plugin_scale_flag(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["mode"] == "P"
     assert data["handoff_target"] == "plugin-dev-planner"
-    assert data["skill_creator_handoff_phase"] == "R1 (elicit-goal)"
+    assert data["harness_creator_handoff_phase"] == "R1 (elicit-goal)"
     assert data["multi_skill_suspicion"] is True
     assert "plugin_scale" in data["reason"]
 
@@ -529,7 +529,7 @@ def test_main_inprocess_published_mode_a(tmp_path, monkeypatch, capsys):
     assert "mode=A" in captured.out
     data = json.loads(out.read_text())
     assert data["mode"] == "A"
-    assert data["skill_creator_handoff_phase"] == "Step 1 (elicit)"
+    assert data["harness_creator_handoff_phase"] == "Step 1 (elicit)"
 
 
 def test_main_inprocess_mode_d_concatenated(tmp_path, monkeypatch, capsys):
@@ -564,7 +564,7 @@ def test_main_inprocess_each_handoff_phase(tmp_path, monkeypatch, capsys):
     )
     _run_main(monkeypatch, _argv(paths, out))
     assert capsys.readouterr().out.strip() == "mode=C"
-    assert json.loads(out.read_text())["skill_creator_handoff_phase"] == "Step 1 (elicit --mode update, prompt-only)"
+    assert json.loads(out.read_text())["harness_creator_handoff_phase"] == "Step 1 (elicit --mode update, prompt-only)"
 
 
 def test_main_inprocess_mode_p_component_requests(tmp_path, monkeypatch, capsys):
@@ -579,7 +579,7 @@ def test_main_inprocess_mode_p_component_requests(tmp_path, monkeypatch, capsys)
     data = json.loads(out.read_text())
     assert data["mode"] == "P"
     assert data["handoff_target"] == "plugin-dev-planner"
-    assert data["skill_creator_handoff_phase"] == "R1 (elicit-goal)"
+    assert data["harness_creator_handoff_phase"] == "R1 (elicit-goal)"
 
 
 def test_main_inprocess_block_without_publish_exit2(tmp_path, monkeypatch, capsys):

@@ -100,7 +100,7 @@ def main() -> int:
     print(f"       {keychain_cmd}")
     print(f"     (replace secret_xxxx with your actual integration token)")
     print(f"  3. Verify:")
-    print(f"       python3 plugins/skill-creator/scripts/notion_config.py")
+    print(f"       python3 plugins/harness-creator/scripts/notion_config.py")
     print(f"       python3 plugins/skill-intake/scripts/keychain_get_secret.py "
           f"--service {service} --account {account} --check")
     return 0

@@ -10,7 +10,7 @@ baseline 定数と突合する ratchet lint (finding LS-10: 宣言面追加時�
   - evaluate: 増加→FAIL exit1 / 同数→PASS / 減少→PASS+baseline 更新促し
   - lint_file: baseline 注入で超過・一致・欠落ファイル (exit 2)
   - main: 合格 OK / 違反 exit1 / 引数無し usage exit2 / --self-test exit0
-  - baseline 同期: repo 実ファイル (plugins/skill-creator/plugin-composition.yaml)
+  - baseline 同期: repo 実ファイル (plugins/harness-creator/plugin-composition.yaml)
     の実残存数が MANUAL_BASELINE と一致する (drift 検出の二重化。composition の
     manual を増減させたら本定数も同時更新する契約を pytest 側でも強制)
 
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = (
     ROOT / "plugins" / "skill-governance-lint" / "scripts" / "lint-declaration-coverage.py"
 )
-COMPOSITION = ROOT / "plugins" / "skill-creator" / "plugin-composition.yaml"
+COMPOSITION = ROOT / "plugins" / "harness-creator" / "plugin-composition.yaml"
 
 _SPEC = importlib.util.spec_from_file_location(
     "lint_declaration_coverage_under_test", SCRIPT
@@ -117,7 +117,7 @@ def test_lint_file_missing_is_usage_error(tmp_path):
 def test_repo_composition_matches_baseline():
     text = COMPOSITION.read_text(encoding="utf-8")
     assert MOD.count_manual(text) == MOD.MANUAL_BASELINE, (
-        "plugins/skill-creator/plugin-composition.yaml の enforcement: manual 残存数が"
+        "plugins/harness-creator/plugin-composition.yaml の enforcement: manual 残存数が"
         " MANUAL_BASELINE と不一致。manual を増減させたら lint-declaration-coverage.py"
         " の定数も同時更新すること (増加は突合 lint 同時配線が原則)"
     )

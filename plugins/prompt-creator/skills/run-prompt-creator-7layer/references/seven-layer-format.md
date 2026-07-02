@@ -54,7 +54,7 @@
 - **ハンドオフ連鎖**: 各エージェントの出力は次エージェント（直列）または並列エージェントが
   そのまま入力として実行できる形式・粒度で受け渡す。
 - **正本追従**: 本節と各ループ定義（Layer 5 実行方式.ループ / Layer 6 ゴールシークループ）は
-  skill-creator `run-build-skill/references/goal-seek-paradigm.md`
+  harness-creator `run-build-skill/references/goal-seek-paradigm.md`
   （since 2026-05-24 / **6 ステップ・Step 5=Anchor Step 版** / 追従日 2026-07-02）に追従する。
   生成物は配布先で単独動作するため自己完結記述を維持し、正本更新時は本ファイルを追従更新して
   本行の追従日を書き換える（drift 検出用）。反復上限の既定値は

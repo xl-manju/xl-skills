@@ -1,0 +1,34 @@
+{
+  "target": {
+    "plugin": "harness-creator",
+    "skill": "run-build-skill",
+    "skill_md_sha256": "2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-rename-review-subagent-a",
+  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "改名の意味論境界が本 skill で最も精緻に適用されている: 単一 Capability を 1 本構築する部品なので名前 run-build-skill を維持 (CONVENTIONS 用語規約 1 の明示例) しつつ、plugin 総体を指す横展開候補ラベルは『Harness Creator 基盤』(L134/L333) へ更新し、既存 harness 語 (ハーネス・カバレッジ仕様/doc/harness-coverage-spec.md) は同系譜として保持しており、部品=skill・総体=harness の境界が破綻なく共存する。",
+      "SSOT 徹底が改名後も保たれている: max_iterations/inner-outer/hook queue の詳細を content-review-protocol.md へ、必須集合を capability-manifest.schema.json へ、lint 集合を lint-matrix.json へ委譲し本文再掲せず、criteria の derived_from が CL-1..CL-11 を重複欠落なく全被覆する provenance を維持している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "skill-creator → harness-creator 改名後の現 SKILL.md (sha256=2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7、shasum 実測) を独立 context で全文精読し frontmatter feedback_contract の全 criteria (IN1/IN2/OUT1/OUT2) を C1-C4 で genuine 再評価。旧固有名 skill-creator/skill_creator/スキルクリエイター の残存 0 件 (grep 実測)。C1 矛盾 (IN1 系): max_iterations=3 が frontmatter/goal-seek/Step6/Step12 で同値、本文が P0-2 上限内、Purpose/Key Rules/完了チェックリストが整合。C2 漏れ (IN2 系): CL-1..CL-11 全アンカー実在、criteria derived_from 和集合 = CL-1..CL-11 全件被覆 (IN1=[CL-1,2,3,4,7,9,10,11]/IN2=[CL-6]/OUT1=[CL-5]/OUT2=[CL-8])。C3 不整合 (OUT1 系): Step5/Step6 の fork 評価 score>=80/high=0 と feedback_contract OUT1 が一致、content-review-protocol.md 委譲が Step12 と三者整合。C4 依存断 (OUT2 系): $PLUGIN_ROOT 基点 (=plugins/harness-creator) で orchestrate-gate-pattern.md/lint-matrix.json 実在、$SKILL_DIR 基点で build-steps.md/goal-seek-paradigm.md/content-review-protocol.md/build-flags.schema.json/capability-manifest.schema.json 全実在 (実測)、knowledge-skeleton/search_knowledge.py 参照パスも harness-creator 配下で解決。改名追従漏れ(参照先パス断線)なし。意味論境界違反なし: 部品 build 概念に skill 語を維持し、plugin 総体・カバレッジ装具に harness 語を適用。fail_counts 全 0 につき PASS。"
+}

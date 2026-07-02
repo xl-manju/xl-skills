@@ -5,7 +5,7 @@
 前後に cwd を保存・復元し、cwd 汚染由来の順序依存failureを構造的に排除する。
 
 加えて、複数 plugin が同名の bare-import モジュール (例: notion_config.py が
-skill-creator / company-master / skill-intake に各1) を持つため、repo-root の
+harness-creator / company-master / skill-intake に各1) を持つため、repo-root の
 `pytest tests/` が全テストを単一プロセスで回すと最初に import された別 plugin の版が
 sys.modules を占有し、後続 plugin のテストが AttributeError 等で落ちる (本番は各 plugin
 単独実行なので無害な、テスト harness 限定の分離不全)。pytest_collectstart で各テスト

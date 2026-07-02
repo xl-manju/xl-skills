@@ -7,7 +7,7 @@
 # Reads .claude-plugin/bundles.json and runs `claude plugin install <name>@xl-skills`
 # for each plugin in the bundle. Idempotent — already-installed plugins skip silently.
 #
-# CLI fallback for users who prefer terminal over /skill-creator:install-bundle slash command.
+# CLI fallback for users who prefer terminal over /harness-creator:install-bundle slash command.
 
 set -euo pipefail
 

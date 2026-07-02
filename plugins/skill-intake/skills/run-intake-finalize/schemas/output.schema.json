@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/run-intake-finalize/intake.schema.json",
   "title": "intake.json",
-  "description": "Phase 9 出力。skill-creator への引き渡し JSON。validation field は quality_gate / cross_check の結果を保持する。",
+  "description": "Phase 9 出力。harness-creator への引き渡し JSON。validation field は quality_gate / cross_check の結果を保持する。",
   "type": "object",
   "additionalProperties": false,
   "required": ["skill_name_hint", "pattern", "sections", "validation"],

@@ -5,7 +5,7 @@ elegant-review finding (2026-06-30, 3 analyst 収束 LS-F1 / SS-02 / SS-05):
   以外 (scripts/・doc/・repo-root 直下) に置いた test が無言で未実行になりうる。
   その再発防止器 (orphan を fail-closed 検出する lint) 自体が腐らないよう、探索 /
   到達判定 / orphan 検出 / CI 実行証跡 / allowlist の分岐を pytest で機械保証する。
-  CI の `python3 -m pytest tests/ -q` (creator-kit-ci.yml 機構A) が本ファイルを自動収集する。
+  CI の `python3 -m pytest tests/ -q` (harness-creator-kit-ci.yml 機構A) が本ファイルを自動収集する。
 
 検証する不変条件:
   - discover_test_files: test_*.py / *_test.py を収集し除外 dir (.git/vendor 等) を剪定
@@ -45,13 +45,13 @@ def make_repo(tmp_path: Path, files: list[str], ci_yml: str | None = None) -> Pa
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("def test_x():\n    assert True\n", encoding="utf-8")
     if ci_yml is not None:
-        wf = root / ".github" / "workflows" / "creator-kit-ci.yml"
+        wf = root / ".github" / "workflows" / "harness-creator-kit-ci.yml"
         wf.parent.mkdir(parents=True, exist_ok=True)
         wf.write_text(ci_yml, encoding="utf-8")
     return root
 
 
-# creator-kit-ci.yml の到達 root 実行証跡 (機構A + 機構B) を満たす最小 yml。
+# harness-creator-kit-ci.yml の到達 root 実行証跡 (機構A + 機構B) を満たす最小 yml。
 GOOD_CI = """jobs:
   verify:
     steps:

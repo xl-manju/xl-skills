@@ -352,7 +352,7 @@
     {
       "section_key": "8_open_questions",
       "user_canonical_section": "§8",
-      "title": "8. 未解決事項（skill-creator 引き継ぎ）",
+      "title": "8. 未解決事項（harness-creator 引き継ぎ）",
       "required_fields": [
         {
           "key": "questions",
@@ -386,7 +386,7 @@
     {
       "section_key": "9_handoff_contract",
       "user_canonical_section": "§9",
-      "title": "9. skill-creator への申し送り（handoff-contract）",
+      "title": "9. harness-creator への申し送り（handoff-contract）",
       "required_fields": [
         {
           "key": "recommended_next",

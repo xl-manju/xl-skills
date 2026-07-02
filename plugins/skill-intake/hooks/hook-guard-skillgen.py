@@ -18,7 +18,7 @@
 
 設計 (elegant-review 3 analyst 収束結論):
   プロンプト/SKILL.md の禁止文 (PR #28) は LLM の確率的遵守 (<100%) でしか効かない。
-  「100 人中 100 人が intake を実行しても skill-creator が 100% 起動しない」を満たすのは、
+  「100 人中 100 人が intake を実行しても harness-creator が 100% 起動しない」を満たすのは、
   tool 呼び出しを必ず仲介する PreToolUse hook で exit 2 する **ハーネス強制層** のみ
   (制御反転: 信頼するな、仲介点で塞げ)。
 
@@ -92,7 +92,7 @@ LOCK_TAMPER_MESSAGE = (
 
 
 def _suffix(name: str) -> str:
-    """'skill-creator:run-skill-create' / 'run-skill-create' いずれも 'run-skill-create' に正規化。"""
+    """'harness-creator:run-skill-create' / 'run-skill-create' いずれも 'run-skill-create' に正規化。"""
     if not isinstance(name, str):
         return ""
     return name.split(":", 1)[1] if ":" in name else name

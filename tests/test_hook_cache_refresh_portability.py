@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (
     ROOT
     / "plugins"
-    / "skill-creator"
+    / "harness-creator"
     / "skills"
     / "run-skill-update-notifier"
     / "scripts"
@@ -42,8 +42,8 @@ def test_plugins_root_points_to_plugins_dir(monkeypatch):
     monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
     root = MOD._plugins_root()
     assert root.name == "plugins"
-    # 実際に skill-creator サブディレクトリを含む = notifier-check の走査対象として妥当
-    assert (root / "skill-creator").is_dir()
+    # 実際に harness-creator サブディレクトリを含む = notifier-check の走査対象として妥当
+    assert (root / "harness-creator").is_dir()
 
 
 def test_plugins_root_is_cwd_independent(monkeypatch, tmp_path):
@@ -52,14 +52,14 @@ def test_plugins_root_is_cwd_independent(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)  # repo 外 cwd を模す
     root = MOD._plugins_root()
     assert root.name == "plugins"
-    assert (root / "skill-creator").is_dir()
+    assert (root / "harness-creator").is_dir()
     # 裸の相対 "plugins" だったら tmp_path/plugins になり不在になる、を反証
     assert root != Path("plugins").resolve()
 
 
 def test_env_plugin_root_takes_precedence(monkeypatch, tmp_path):
     """CLAUDE_PLUGIN_ROOT (単一 plugin ルート) があればその親 = plugins/ を返す。"""
-    plugin = tmp_path / "myplugins" / "skill-creator"
+    plugin = tmp_path / "myplugins" / "harness-creator"
     plugin.mkdir(parents=True)
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(plugin))
     root = MOD._plugins_root()
@@ -92,7 +92,7 @@ def test_main_passes_absolute_plugins_root(monkeypatch, tmp_path):
 
 
 def test_main_passes_current_plugin_root(monkeypatch, tmp_path):
-    plugin = tmp_path / "marketplace-cache" / "skill-creator"
+    plugin = tmp_path / "marketplace-cache" / "harness-creator"
     plugin.mkdir(parents=True)
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(plugin))
     captured = {}

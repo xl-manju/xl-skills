@@ -23,7 +23,7 @@ UBM (北原さん式ゴールセッティング) は現状 `~/dev/dev/ObsidianMe
 
 ## 前提条件
 - プラグイン構想 1 件 (「北原さん式ゴールセッティングの目標設定・振り返り対話とナレッジ差分同期を1 pluginへ移植する」) が入力として与えられている。
-- 汎用の `run-goal-elicit` (skill-creator) が利用可能で、purpose/background/goal/checklist を `goal-spec.schema.json` で抽出できる (再実装しない)。
+- 汎用の `run-goal-elicit` (harness-creator) が利用可能で、purpose/background/goal/checklist を `goal-spec.schema.json` で抽出できる (再実装しない)。
 - 移植元 (`~/dev/dev/ObsidianMemo/.claude/` 配下) が読み取り専用ソースとして参照可能であり、フォーク・複製禁止の制約を共有している。
 
 ## ドメイン知識

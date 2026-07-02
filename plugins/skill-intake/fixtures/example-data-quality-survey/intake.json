@@ -384,22 +384,22 @@
         {
           "q": "クライアント実名・契約金額の除外範囲・粒度",
           "blocking": false,
-          "defer_to": "skill-creator"
+          "defer_to": "harness-creator"
         },
         {
           "q": "情報源の絞り込み(X TLアカウント数・arXivカテゴリ範囲)",
           "blocking": false,
-          "defer_to": "skill-creator"
+          "defer_to": "harness-creator"
         },
         {
           "q": "Discord/Slack のどちらをメイン通知先にするか",
           "blocking": false,
-          "defer_to": "skill-creator"
+          "defer_to": "harness-creator"
         },
         {
           "q": "テーマ集合ファイルのスキーマと更新ジョブ実装",
           "blocking": false,
-          "defer_to": "skill-creator"
+          "defer_to": "harness-creator"
         }
       ],
       "blocking_count": 0,
@@ -428,7 +428,7 @@
           "points": -7
         },
         {
-          "reason": "テーマ集合スキーマが skill-creator 委譲で残った",
+          "reason": "テーマ集合スキーマが harness-creator 委譲で残った",
           "points": -5
         }
       ],

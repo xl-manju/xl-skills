@@ -1,6 +1,6 @@
 """マトリクス散文と引用実体の整合 (A6 型誤帰属の再発防止)。
 
-2026-06-30 elegant-review (finding L1) で、skill-creator-spec-reflection.md の A6 行が
+2026-06-30 elegant-review (finding L1) で、harness-creator-spec-reflection.md の A6 行が
 L2 評価器固有 rule (PG-001/PG-002/BND-001/REG-001) を L0 rubric 正本に**誤帰属**していた
 事実誤りを検出した。根本原因 (L10) は `check-spec-matrix-coverage.py --self-test` が
 ROW-ID 集合の drift しか検査せず、散文「何を強制」列と引用パスの**実体一致を未検証**だった
@@ -9,7 +9,7 @@ ROW-ID 集合の drift しか検査せず、散文「何を強制」列と引用
 本テストは reflection.md の各行について『絶対パス列が rubric.json を指す場合、その行が
 「何を強制」列で挙げる rule-ID が当該 rubric に実在するか』を機械突合する。rubric.json は
 rule-ID 構造が明確で false-positive を生まないため検査対象をこれに絞る (パスがディレクトリや
-brace 展開の行は対象外)。standalone 配布で skill-creator が不在なら skip (repo 文脈で機能)。
+brace 展開の行は対象外)。standalone 配布で harness-creator が不在なら skip (repo 文脈で機能)。
 
 射程の限界 (機械層 vs LLM 層の境界・正直開示): 本ガードは『非実在 rule-ID の引用』
 (A6 の旧 PG/BND/REG=L0 に存在しない ID の誤帰属) を捕捉するが、『実在 rule-ID の**意味
@@ -30,9 +30,9 @@ import pytest
 # tests/ -> run-plugin-dev-plan -> skills -> plugin-dev-planner -> plugins -> repo root
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 _REFLECTION = (
-    Path(__file__).resolve().parents[1] / "references" / "skill-creator-spec-reflection.md"
+    Path(__file__).resolve().parents[1] / "references" / "harness-creator-spec-reflection.md"
 )
-_SKILL_CREATOR_SKILLS = _REPO_ROOT / "plugins" / "skill-creator" / "skills"
+_HARNESS_CREATOR_SKILLS = _REPO_ROOT / "plugins" / "harness-creator" / "skills"
 _ROW_RE = re.compile(r"^\|\s*[A-G]\d{1,2}\s*\|")
 _RUBRIC_PATH_RE = re.compile(r"`([^`]*rubric\.json)`")
 _BACKTICK_PATH_RE = re.compile(r"`([^`]+)`")
@@ -92,7 +92,7 @@ def _row_cells(line: str) -> list[str]:
 def _cited_plugin_paths(md_text: str) -> list[tuple[str, str]]:
     """マトリクス『絶対パス』列から plugins/ 接頭の引用パスを (row-id, path) で抽出する。
 
-    cross-plugin upstream 結合 (skill-creator / skill-governance-lint / prompt-creator) のみ
+    cross-plugin upstream 結合 (harness-creator / skill-governance-lint / prompt-creator) のみ
     対象とし、brace 展開 ({a,b}) / glob (*) を含むトークン (複数実体を畳む) と、bare ファイル名
     や tests/ 配下の注記トークン (絶対パス列の実引用でなく説明) は除外する。
     """
@@ -170,15 +170,15 @@ def test_matrix_rows_cite_existing_plugin_paths():
     """マトリクス『絶対パス』列が引用する plugins/ 配下の実体が存在する (上流改名の無音 stale 化封止)。
 
     rule-ID 整合 (test_matrix_rows_cite_real_rubric_rule_ids) + skill 列挙
-    (test_completeness_proof_enumerates_all_skill_creator_skills) に続く、上流結合の最後の辺
-    = cross-plugin パス存在を機械保証する (2026-06-30 elegant-review DEF-1)。skill-creator が
+    (test_completeness_proof_enumerates_all_harness_creator_skills) に続く、上流結合の最後の辺
+    = cross-plugin パス存在を機械保証する (2026-06-30 elegant-review DEF-1)。harness-creator が
     ファイルを改名/移動すると reflection.md のパス列が無音で stale 化し、生成 spec が dead path
     を焼いて後段 build 時に初めて発覚する因果連鎖を、plan/CI 時点へ前倒しして断つ。
     閾値値や gloss の faithfulness は機械化しない (意図的に LLM 二段確認へ残す=Goodhart 回避)。"""
     if not _REFLECTION.is_file():
         pytest.skip(f"reflection.md 不在: {_REFLECTION}")
-    if not _SKILL_CREATOR_SKILLS.is_dir():
-        pytest.skip(f"skill-creator/skills 不在 (standalone 配布?): {_SKILL_CREATOR_SKILLS}")
+    if not _HARNESS_CREATOR_SKILLS.is_dir():
+        pytest.skip(f"harness-creator/skills 不在 (standalone 配布?): {_HARNESS_CREATOR_SKILLS}")
     cited = _cited_plugin_paths(_REFLECTION.read_text(encoding="utf-8"))
     if not cited:
         pytest.skip("検査可能な plugins/ 引用パスが無い")
@@ -195,32 +195,32 @@ def test_matrix_rows_cite_existing_plugin_paths():
 def test_path_canary_helper_filters_and_extracts():
     """_cited_plugin_paths が plugins/ 接頭のみ抽出し brace/glob・非 plugins/ を除外する回帰固定。"""
     sample = (
-        "| A1 | x | `plugins/skill-creator/skills/run-elegant-review/SKILL.md` | y | z |\n"
+        "| A1 | x | `plugins/harness-creator/skills/run-elegant-review/SKILL.md` | y | z |\n"
         "| F1 | x | `plugins/skill-governance-lint/scripts/{a,b}.py` | y | z |\n"  # brace 除外
         "| C3 | x | `sitecustomize.py` / `tests/test_scripts_smoke.py` | y | z |\n"  # 非 plugins/ 除外
         "| ZZ | not a row |\n"  # ID 形状でなく対象外
     )
     paths = {p for _, p in _cited_plugin_paths(sample)}
-    assert paths == {"plugins/skill-creator/skills/run-elegant-review/SKILL.md"}
+    assert paths == {"plugins/harness-creator/skills/run-elegant-review/SKILL.md"}
 
 
-def test_completeness_proof_enumerates_all_skill_creator_skills():
+def test_completeness_proof_enumerates_all_harness_creator_skills():
     """循環論法 (分母自己定義) 解消の核 =「完全性の証明」のサーフェス全列挙が
-    skill-creator/skills の実体と一致する。skill-creator が skill を増減したら
+    harness-creator/skills の実体と一致する。harness-creator が skill を増減したら
     本表の追記/削除漏れを機械検出し、『未分類の漏れ 0』証明の無音陳腐化を防ぐ
     (--self-test の行 ID 集合 drift 検査 + 本テストのサーフェス被覆 = 二層機械保証)。"""
-    if not _SKILL_CREATOR_SKILLS.is_dir():
-        pytest.skip(f"skill-creator/skills 不在 (standalone 配布?): {_SKILL_CREATOR_SKILLS}")
+    if not _HARNESS_CREATOR_SKILLS.is_dir():
+        pytest.skip(f"harness-creator/skills 不在 (standalone 配布?): {_HARNESS_CREATOR_SKILLS}")
     if not _REFLECTION.is_file():
         pytest.skip(f"reflection.md 不在: {_REFLECTION}")
     actual = {
-        p.name for p in _SKILL_CREATOR_SKILLS.iterdir() if _SKILL_NAME_RE.fullmatch(p.name)
+        p.name for p in _HARNESS_CREATOR_SKILLS.iterdir() if _SKILL_NAME_RE.fullmatch(p.name)
     }
     enumerated = _completeness_proof_skill_names(_REFLECTION.read_text(encoding="utf-8"))
     missing = sorted(actual - enumerated)  # 実体にあるが表に無い (追記漏れ)
     extra = sorted(enumerated - actual)    # 表にあるが実体に無い (削除漏れ)
     assert not missing and not extra, (
-        "完全性の証明サーフェス列挙が skill-creator/skills と drift: "
+        "完全性の証明サーフェス列挙が harness-creator/skills と drift: "
         f"表に未登録の実体={missing} / 実体に無い表エントリ={extra}"
     )
 
@@ -230,12 +230,12 @@ def test_completeness_proof_enumerates_all_skill_creator_skills():
 # 数値層。マトリクス散文と specfm が複製保持する数値を、引用先の機械可読値と突合する
 # (sha256 pin (check-upstream-pins) は「変わったこと」しか言えない — どの数値が正か迄縛る)。
 
-_ELEGANT_REFS = _REPO_ROOT / "plugins" / "skill-creator" / "skills" / "run-elegant-review" / "references"
+_ELEGANT_REFS = _REPO_ROOT / "plugins" / "harness-creator" / "skills" / "run-elegant-review" / "references"
 _CONVERGENCE = _ELEGANT_REFS / "convergence-policy.json"
 _FOUR_CONDITIONS = _ELEGANT_REFS / "4-conditions.json"
 _HARNESS_SPEC = _REPO_ROOT / "doc" / "harness-coverage-spec.md"
 _EVALUATOR_SKILL = (
-    _REPO_ROOT / "plugins" / "skill-creator" / "skills" / "assign-skill-design-evaluator" / "SKILL.md"
+    _REPO_ROOT / "plugins" / "harness-creator" / "skills" / "assign-skill-design-evaluator" / "SKILL.md"
 )
 
 
@@ -411,8 +411,8 @@ def test_matrix_row_count_prose_parity():
                 n = int(m.group(1))
                 # マトリクス行数を指す文脈のみ突合 (「13 フェーズ」「43 行 (指示インベントリ)」等の
                 # 他数値と区別するため、同一行に reflection/マトリクス/仕様 の語がある場合に限る)
-                context = ("マトリクス" in line or "skill-creator 仕様" in line
-                           or "skill-creator-spec-reflection" in line or "46行" in line)
+                context = ("マトリクス" in line or "harness-creator 仕様" in line
+                           or "harness-creator-spec-reflection" in line or "46行" in line)
                 if not context or n in {43, 13}:  # 43=指示インベントリの歴史的内訳・13=フェーズ数
                     continue
                 if 40 <= n <= 60:  # マトリクス行数域の数値のみ検査

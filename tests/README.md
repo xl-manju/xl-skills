@@ -1,7 +1,7 @@
 # tests/ 配置と命名規則
 
 中央 pytest (`python3 -m pytest tests/ -q`) が一括収集する回帰テスト群。CI は
-`creator-kit-ci.yml` 機構A がこのディレクトリを丸ごと実行する (plugin 同梱テストは
+`harness-creator-kit-ci.yml` 機構A がこのディレクトリを丸ごと実行する (plugin 同梱テストは
 機構B の per-plugin 実行)。
 
 ## ディレクトリ (対象ドメイン別)

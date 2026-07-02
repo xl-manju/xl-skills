@@ -74,12 +74,12 @@ def test_load_bundle_members_collects_all_plugins(tmp_path, monkeypatch):
     bj = tmp_path / "bundles.json"
     bj.write_text(json.dumps({
         "bundles": [
-            {"name": "core", "plugins": ["skill-creator", "skill-intake"]},
+            {"name": "core", "plugins": ["harness-creator", "skill-intake"]},
             {"name": "extra", "plugins": ["skill-intake", "another"]},
         ]
     }), encoding="utf-8")
     monkeypatch.setattr(MOD, "BUNDLES_JSON", bj)
-    assert MOD.load_bundle_members() == {"skill-creator", "skill-intake", "another"}
+    assert MOD.load_bundle_members() == {"harness-creator", "skill-intake", "another"}
 
 
 def test_load_bundle_members_empty_bundles_key(tmp_path, monkeypatch):
@@ -587,7 +587,7 @@ def test_subprocess_runs_on_real_repo():
 def test_real_internal_creator_plugins_are_not_distributed():
     marketplace = MOD.load_marketplace_entries()
     bundle_members = MOD.load_bundle_members()
-    for name in ("skill-creator", "prompt-creator"):
+    for name in ("harness-creator", "prompt-creator"):
         manifest_path = ROOT / "plugins" / name / ".claude-plugin" / "plugin.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["distributable"] is False
@@ -599,19 +599,30 @@ def test_real_internal_creator_plugins_are_not_distributed():
 
 def test_never_distribute_contains_creator_plugins():
     # 恒久非配布の固有名が denylist に焼き込まれていること。
-    assert "skill-creator" in MOD.NEVER_DISTRIBUTE
+    assert "harness-creator" in MOD.NEVER_DISTRIBUTE
     assert "prompt-creator" in MOD.NEVER_DISTRIBUTE
+
+
+def test_never_distribute_members_exist_on_disk():
+    # denylist の各固有名が plugins/ 直下に実在すること。plugin 改名で旧名が denylist に
+    # 残ると新名 plugin が denylist 外の通常 plugin として素通りし、二重ロックが無音失効
+    # する — 存在しない名前の残置自体を FAIL にして改名時の更新漏れを fail-closed 化する。
+    for name in MOD.NEVER_DISTRIBUTE:
+        assert (ROOT / "plugins" / name).is_dir(), (
+            f"NEVER_DISTRIBUTE の {name!r} が plugins/ に存在しない: "
+            "plugin 改名時は denylist を同一 commit で更新すること"
+        )
 
 
 def test_never_distribute_true_flag_drift_emits_violation():
     # NEVER_DISTRIBUTE plugin が distributable:true へ漂流したら、フラグ駆動の逆ガードが
     # 無効化されても固有名検査が NEVER-DISTRIBUTE 違反を出す (fail-closed)。
     data = _data(
-        {"name": "skill-creator", "version": "1", "description": "d",
+        {"name": "harness-creator", "version": "1", "description": "d",
          "distributable": True},
         skills=["run-a"],
     )
-    errs = MOD.validate("skill-creator", data, set(), {})
+    errs = MOD.validate("harness-creator", data, set(), {})
     assert any("(NEVER-DISTRIBUTE)" in e for e in errs)
 
 
@@ -628,11 +639,11 @@ def test_never_distribute_missing_flag_emits_violation():
 def test_never_distribute_false_flag_no_violation():
     # 正常系: distributable:false を明示宣言していれば NEVER-DISTRIBUTE 違反は出ない。
     data = _data(
-        {"name": "skill-creator", "version": "1", "description": "d",
+        {"name": "harness-creator", "version": "1", "description": "d",
          "distributable": False},
         skills=["run-a"],
     )
-    errs = MOD.validate("skill-creator", data, set(), {})
+    errs = MOD.validate("harness-creator", data, set(), {})
     assert not any("(NEVER-DISTRIBUTE)" in e for e in errs)
 
 
@@ -641,7 +652,7 @@ def test_fix_does_not_register_never_distribute_on_flag_drift(tmp_path, monkeypa
     # marketplace.json へ自動登録せず、固有名検査の残違反で returncode 1 を返す。
     mj, bj = _setup_repo(
         tmp_path, monkeypatch,
-        plugins={"skill-creator": {"name": "skill-creator", "version": "0.1.0",
+        plugins={"harness-creator": {"name": "harness-creator", "version": "0.1.0",
                                    "description": "d", "distributable": True,
                                    "bundle_targets": ["full"]}},
         marketplace={"plugins": []},
@@ -653,6 +664,6 @@ def test_fix_does_not_register_never_distribute_on_flag_drift(tmp_path, monkeypa
     assert any("(NEVER-DISTRIBUTE)" in line for line in err.splitlines())
     # marketplace/bundle へは自動登録されていない (--fix が固有名を skip)
     mk = json.loads(mj.read_text())
-    assert all(p["name"] != "skill-creator" for p in mk["plugins"])
+    assert all(p["name"] != "harness-creator" for p in mk["plugins"])
     bd = json.loads(bj.read_text())
-    assert "skill-creator" not in bd["bundles"][0]["plugins"]
+    assert "harness-creator" not in bd["bundles"][0]["plugins"]

@@ -141,7 +141,7 @@ rubric の正本は段階で変わる。
 
 ### creator-kit登録判定
 
-自然言語で「Skill Creator を改善して」「この補助Skillも横展開して」と依頼された場合、Claude Code は次の順で扱う。
+自然言語で「Harness Creator を改善して」「この補助Skillも横展開して」と依頼された場合、Claude Code は次の順で扱う。
 
 1. 追加物が複数プロジェクトで再利用される共通基盤か判定する。
 2. 共通基盤なら `creator-kit/skills/`、`creator-kit/scripts/`、`creator-kit/config/` のいずれかへ配置する。
@@ -403,7 +403,7 @@ Step / Gate / handoff の正本は `workflow-manifest.json` + `schemas/` + `prom
 
 ## Capability 抽象への拡張 (2026-05-22)
 
-本章は当初「Skill を Skill で作るためのアーキテクチャ」として書かれたが、2026-05 の skill-creator プラグイン整備の過程で、Claude Code 拡張資産は Skill だけではなく **Agent / Hook / Command / Plugin-Composition / Prompt / Workflow** を含む 7 種に分岐していることが明らかになった。本節はその知見を取り込み、これら全種を **Capability** という統一抽象で扱う設計判断を明文化する。
+本章は当初「Skill を Skill で作るためのアーキテクチャ」として書かれたが、2026-05 の harness-creator プラグイン整備の過程で、Claude Code 拡張資産は Skill だけではなく **Agent / Hook / Command / Plugin-Composition / Prompt / Workflow** を含む 7 種に分岐していることが明らかになった。本節はその知見を取り込み、これら全種を **Capability** という統一抽象で扱う設計判断を明文化する。
 
 ### 動機 (なぜ Skill 中心の枠組みでは破綻するか)
 
@@ -418,8 +418,8 @@ Step / Gate / handoff の正本は `workflow-manifest.json` + `schemas/` + `prom
 
 | 抽象 | 役割 | 正本パス |
 |---|---|---|
-| **Capability** | Claude Code 拡張資産の最小単位。`kind ∈ {skill, agent, hook, command, plugin-composition, prompt, workflow}` のいずれかを宣言する | `plugins/skill-creator/skills/ref-skill-glossary/references/terms.md` |
-| **CapabilityManifest** | 各 Capability の宣言ファイル。共通核 (`name / description / kind / version / owner / tags / since`) + kind 固有スキーマ (注入) の二層構造 | `plugins/skill-creator/skills/run-build-skill/references/capability-manifest.schema.json` |
+| **Capability** | Claude Code 拡張資産の最小単位。`kind ∈ {skill, agent, hook, command, plugin-composition, prompt, workflow}` のいずれかを宣言する | `plugins/harness-creator/skills/ref-skill-glossary/references/terms.md` |
+| **CapabilityManifest** | 各 Capability の宣言ファイル。共通核 (`name / description / kind / version / owner / tags / since`) + kind 固有スキーマ (注入) の二層構造 | `plugins/harness-creator/skills/run-build-skill/references/capability-manifest.schema.json` |
 | **CapabilityBundle** | 複数 Capability の集合 ≒ plugin。`plugin-composition.yaml` (別名 `capability-bundle.yaml`) で `capabilities[] / dependencies / eval-sinks / governance.rubric_refs / observability.hooks` を宣言 | plugin 直下 `plugin-composition.yaml` |
 | **CapabilityContract** | 三層 contract: **intent**(なぜ存在するか) / **interface**(入出力・呼出規約) / **invariant**(変更してはならない不変条件)。23a章の三層 contract モデルを Capability 全 kind に拡張 | 各 Capability の `workflow-manifest.json` / `schemas/` / `prompts/<R-id>.md` |
 

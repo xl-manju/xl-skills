@@ -4,7 +4,7 @@
 
 ## 目的
 
-Skill Creator が量産する成果物は単独 Skill ではなく **plugin package**（`plugins/<plugin-name>/` 一式）である。本章は、その plugin package を「`/plugin install <plugin>` 一発で、必要な Skill / Agent / Hook / script / settings / config が齟齬なく揃って動く」状態に到達させるための **同梱契約（harness contract）** を正本として定義する。
+Harness Creator が量産する成果物は単独 Skill ではなく **plugin package**（`plugins/<plugin-name>/` 一式）である。本章は、その plugin package を「`/plugin install <plugin>` 一発で、必要な Skill / Agent / Hook / script / settings / config が齟齬なく揃って動く」状態に到達させるための **同梱契約（harness contract）** を正本として定義する。
 
 具体的には次の 3 つを正本として固定する。
 
