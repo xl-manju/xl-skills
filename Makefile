@@ -89,6 +89,7 @@ feedback-contract:
 ## content-review: 全スキルの content-review verdict 存在・PASS・sha一致・criteria突合を repo 全体検査
 content-review:
 	python3 scripts/lint-content-review.py --all
+	python3 scripts/lint-live-trial-verdict.py --all
 
 ## pytest: tests/ 配下の振る舞いテストを実行する (hook-guard-skillgen 等の機械保証を回帰検証)
 pytest:

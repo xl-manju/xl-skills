@@ -92,6 +92,99 @@ def test_detect_score_drop():
     assert any(a["kind"] == "score_drop" and a["rubric_id"] == "run-y" for a in anomalies)
 
 
+# --- 苦戦密度 (friction_density): PASS-only commit 制約下の第 3 発火条件 ---
+
+def _pass_record(skill: str, date: str, iterations=1, negative=0, findings=None):
+    return {
+        "skill": skill,
+        "date": date,
+        "verdict": "PASS",
+        "findings": findings or [],
+        "iterations": iterations,
+        "negative_feedback_count": negative,
+    }
+
+
+def test_normalize_verdict_record_carries_friction_fields():
+    rec = {
+        "target": {"plugin": "p", "skill": "run-z"},
+        "verdict": "PASS",
+        "reviewed_at": "2026-06-11T09:00:00+0900",
+        "iterations": 3,
+        "feedback_loop": {"negative_feedback": ["a", "b"]},
+    }
+    n = MOD._normalize_verdict_record(rec)
+    assert n["iterations"] == 3
+    assert n["negative_feedback_count"] == 2
+
+
+def test_friction_density_fires_on_corroborated_iterations():
+    # elegance + rubric の両 verdict が再評価ループ (iterations>=2) を要した skill。
+    evals = [
+        _pass_record("run-x", "2026-06-01", iterations=3),
+        _pass_record("run-x", "2026-06-01", iterations=3),
+    ]
+    anomalies = MOD._detect_anomalies(evals)
+    hit = [a for a in anomalies if a["kind"] == "friction_density"]
+    assert hit and hit[0]["rubric_id"] == "run-x"
+    assert hit[0]["friction_records"] == 2
+
+
+def test_friction_density_fires_on_repeated_negative_feedback():
+    evals = [
+        _pass_record("run-y", "2026-06-01", negative=2),
+        _pass_record("run-y", "2026-06-02", negative=2),
+    ]
+    assert any(a["kind"] == "friction_density" for a in MOD._detect_anomalies(evals))
+
+
+def test_friction_density_counts_findings_volume():
+    evals = [
+        _pass_record("run-w", "2026-06-01", findings=["f1", "f2", "f3"]),
+        _pass_record("run-w", "2026-06-02", iterations=2),
+    ]
+    assert any(a["kind"] == "friction_density" for a in MOD._detect_anomalies(evals))
+
+
+def test_single_friction_record_does_not_fire():
+    # 単独レビューアの摩擦のみでは発火しない (相互裏付け _FRICTION_MIN_RECORDS=2)。
+    evals = [
+        _pass_record("run-x", "2026-06-01", iterations=3),
+        _pass_record("run-x", "2026-06-01"),
+    ]
+    assert not any(a["kind"] == "friction_density" for a in MOD._detect_anomalies(evals))
+
+
+def test_light_negative_feedback_does_not_fire():
+    # negative_feedback 1 件 (iterations=1) は正常な指摘量であり摩擦扱いしない。
+    evals = [
+        _pass_record("run-x", "2026-06-01", negative=1),
+        _pass_record("run-x", "2026-06-01", negative=1),
+    ]
+    assert not any(a["kind"] == "friction_density" for a in MOD._detect_anomalies(evals))
+
+
+def test_legacy_evals_records_without_friction_fields_do_not_fire():
+    # EVALS.json 旧形式 (iterations/negative_feedback_count 欠落) は非該当。
+    evals = [
+        {"skill": "run-x", "date": "2026-05-22", "verdict": "baseline", "findings": []},
+        {"skill": "run-x", "date": "2026-05-23", "verdict": "baseline", "findings": []},
+    ]
+    assert not any(a["kind"] == "friction_density" for a in MOD._detect_anomalies(evals))
+
+
+def test_friction_outside_recent_window_does_not_fire():
+    # 古い摩擦 2 件が直近窓 (6件) の外へ押し出されれば発火しない。
+    old = [
+        _pass_record("run-x", "2026-05-01", iterations=3),
+        _pass_record("run-x", "2026-05-02", iterations=3),
+    ]
+    clean = [_pass_record("run-x", f"2026-06-{i:02d}") for i in range(1, 7)]
+    assert not any(
+        a["kind"] == "friction_density" for a in MOD._detect_anomalies(old + clean)
+    )
+
+
 # --- 3 ソース合流 (sink 断線解消) ---
 
 def test_load_evals_merges_score_jsonl_and_verdict(monkeypatch, tmp_path):

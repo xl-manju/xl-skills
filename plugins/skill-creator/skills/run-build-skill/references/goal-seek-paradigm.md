@@ -132,6 +132,13 @@ source-tier: internal
 
 中間成果物がアンカーになる限り、上記の集約化は周回ごとに `delta_from_original` として可視化され、`merged_directive_for_next` で押し戻される。
 
+## 達成判定 (GOAL VERIFICATION)
+
+`drift_signal` (軌道監視) とは別軸の**達成判定**。収束停止 (全 `[x]` 宣言・ループ終了) の前に、fresh agent 1 体 — 改善履歴・score を共有しない別個体 (score 急変の独立判定 agent とも別個体) — が `original_goal` (正本 `goal-spec.json.goal`) に対し **PASS | FAIL + blocker 列挙のみ**を返す。点数出力は禁止 (score が proxy 化し Goodhart 罠へ戻るため)。
+
+- blocker が 1 件でも残存すれば FAIL。score gate 通過でも FAIL なら **PASS 詐欺疑い**として blocker を次周回の対象に積む。
+- goal アンカーの正本は `goal-spec.json.goal` / `original_goal` の単一系であり、別系の goal 宣言 (`--goal` 等) は本正本への読取 / 初期化エイリアスに限る (二重宣言禁止)。
+
 ## チェックリストの良し悪し
 
 - **良い**: 「`eval-log/result.json` が schema 検証を通過する」「テストが全て green」「成果物が後続 skill の入力契約を満たす」— 観測可能・二値判定。

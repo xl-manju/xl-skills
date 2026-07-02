@@ -137,7 +137,7 @@
               "id": {"type": "string", "pattern": "^(IN|OUT|C)[0-9]+$"},
               "loop_scope": {"type": "string", "enum": ["inner", "outer"]},
               "text": {"type": "string", "minLength": 1},
-              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "human"]},
+              "verify_by": {"type": "string", "enum": ["lint", "test", "script", "evaluator", "elegant-review", "live-trial", "human"]},
               "threshold": {"type": "string"},
               "weight": {"type": "number", "minimum": 0}
             }
@@ -164,6 +164,29 @@
           "required": {"type": "boolean"},
           "not_applicable_when": {"type": "string"},
           "source_trace": {"type": "string"}
+        }
+      }
+    },
+    "brief_path": {
+      "type": "string",
+      "description": "本 build が参照した skill-brief.json のパス (cwd または trace 隣接からの相対)。未指定時は source_docs 内の skill-brief*.json 項目から推定される。requirement_coverage の突合先。"
+    },
+    "requirement_coverage": {
+      "type": "array",
+      "description": "要求トレーサビリティ・マトリクス (RTM)。doc_coverage(参照知識の被覆)と対になる「ユーザー要望の被覆」証跡。brief の非空要求フィールド全てを mapped か not_applicable+reason で被覆する (最小粒度は brief フィールド単位。文分解の水増しはしない)。被覆完全性と requirement_id の brief 上の実在は validate-build-trace.py が機械検査し、写像の意味的正しさは content-review (LLM 層) が判定する (二層分離)。旧 trace / brief 非経由 build では省略可 (brief 参照があるのに省略時は WARN)。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "disposition"],
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\[[0-9]+\\])*(\\.[A-Za-z_][A-Za-z0-9_]*(\\[[0-9]+\\])*)*$",
+            "description": "brief フィールドパス (例: key_constraints[2] / boundary / knowledge_loop.pattern)"
+          },
+          "disposition": {"type": "string", "enum": ["mapped", "not_applicable"]},
+          "mapped_to": {"type": "string", "description": "disposition=mapped 時必須。反映先 (feedback_contract.criteria の id / SKILL.md 節 / 生成物パス等)"},
+          "reason": {"type": "string", "description": "disposition=not_applicable 時必須。対象外の根拠"}
         }
       }
     }

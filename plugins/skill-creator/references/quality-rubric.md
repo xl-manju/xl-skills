@@ -6,9 +6,9 @@ type: reference
 
 # 共通 5 次元ルブリック
 
-> **正本注記**: 本ファイルが skill-creator 系 (生成 agent 含む) の正本。判定基準のうち `intake.json` 等 skill-intake ドメイン固有の例は対象ドメインの成果物に読み替え可。
+> **正本注記**: 本ファイルが skill-creator 系 (生成 agent 含む) の正本。判定基準の例は skill-creator ドメインの成果物 (SKILL.md / workflow-manifest / build-trace / findings) で書く。派生 plugin は自ドメインへ読み替えた独自コピー (例: `plugins/skill-intake/references/quality-rubric.md`) を持つ。
 
-各 SubAgent は出力前に必ずこのルブリックで自己採点する。`scripts/quality_gate.py` も同基準で機械検証する。
+各 SubAgent は出力前に必ずこのルブリックで自己採点する。機械検証可能な項目は既存 lint 群 (`plugins/skill-governance-lint/scripts/validate-frontmatter.py` / `lint-skill-completeness.py` / `lint-manifest-contents.py`、`scripts/lint-content-review.py`) が担い、採点そのものは SubAgent の自己採点と独立 approver (context:fork) が行う。
 
 ## 5 次元
 
@@ -41,11 +41,11 @@ type: reference
 
 **判定基準**
 
-- intake.json の必須キーが揃っているか
-- 5 軸が全 verified か（knowledge_assets 含む）
-- 図解 1〜3 図が各セクションに配置されているか
+- SKILL.md frontmatter の commonCore 必須キーが揃っているか（`validate-frontmatter.py`）
+- kind 別必須サポート資産（references/ scripts/ 等）が配置されているか（`lint-skill-completeness.py`）
+- build-trace の章 coverage が空欄なく PASS/N/A/skip 理由付きで埋まっているか（`validate-build-trace.py`）
 
-**閾値**: 2 以上で PASS。1 以下は再ヒアリング。
+**閾値**: 2 以上で PASS。1 以下は不足項目の再収集。
 
 ## 2. 一貫性（Consistency）
 
@@ -58,11 +58,11 @@ type: reference
 
 **判定基準**
 
-- フィールド間の整合（jtbd と purpose.excavated）
-- 用語統一（例: 「フォーム」と「申込書」の混在）
-- 図解と本文の一致
+- フィールド間の整合（brief.goal と SKILL.md ゴールシークの Goal）
+- 用語統一（`ref-skill-glossary` 準拠。例: 「ゲート」と「Gate」の混在なし）
+- workflow-manifest.json と SKILL.md 本文の一致（二重管理 drift なし）
 
-**閾値**: 2 以上 PASS。`scripts/cross_check.py` が SubAgent 間整合を検証。
+**閾値**: 2 以上 PASS。manifest↔本文の整合は `lint-manifest-contents.py`、SubAgent 間整合は独立 approver（context:fork、proposer≠approver）が検証。
 
 ## 3. 深度（Depth）
 
@@ -71,13 +71,13 @@ type: reference
 | 0 | 表層要望のまま |
 | 1 | 1 段下まで掘った |
 | 2 | 5 Whys 3 段以上 |
-| 3 | 5 Whys 完走 + Magic Wand + Pain Story |
+| 3 | 5 Whys 完走 + 代替案の trade-off 比較 + 既知失敗パターン参照 |
 
 **判定基準**
 
-- purpose.excavated が stated と十分異なる
-- five_axes.true_problem.depth = "deep"
-- pain_stories が 1 件以上で時刻・感情含む
+- brief.purpose_background が表層要望の言い換えに留まらず真の課題まで掘れている
+- kind 選定・placement 判断に判断表（01a Step2）由来の根拠が伴う
+- lessons-learned の既知の失敗パターンを参照・反映している
 
 **閾値**: 2 以上 PASS。
 
@@ -92,9 +92,9 @@ type: reference
 
 **判定基準**
 
-- 価値 KPI に数値が含まれる（時間／件数／率）
-- pain_stories に具体時刻・場所
-- jtbd.when が具体的契機
+- 完了チェックリストが二値判定可能（lint exit 0／件数一致 等の数値・コマンド）
+- findings に file:line 等の具体位置と再現コマンドが含まれる
+- trigger_conditions が観測可能な具体的契機になっている
 
 **閾値**: 2 以上 PASS。
 
@@ -111,7 +111,7 @@ type: reference
 
 - 同義語反復が 3 回以下
 - セクション当たりの説明文が 200 字以内
-- 図解のラベルが 10 字以内
+- SKILL.md 本文が行数上限（lint-skill-tree P0-2）に収まり詳細は references/ へ委譲
 
 **閾値**: 2 以上 PASS。
 
@@ -128,26 +128,26 @@ type: reference
    - 3 回後も未達 → エスカレーション
 ```
 
-## サンプル: interviewer の自己採点（google-forms-generator 中盤）
+## サンプル: run-build-skill-subagent の自己採点（新規 skill 生成中盤）
 
 | 次元 | 点 | 根拠 |
 |------|----|------|
-| 完全性 | 2 | 5 軸 3/5 充足、share_target 未確定 |
-| 一貫性 | 3 | 矛盾なし |
-| 深度 | 2 | 5 Whys 3 段達成 |
-| 検証可能性 | 3 | 90 分／月 4 回の数値あり |
+| 完全性 | 2 | 章 coverage 14/16 充足、2 章が skip 理由未記入 |
+| 一貫性 | 3 | manifest↔本文の矛盾なし |
+| 深度 | 2 | kind 選定に判断表根拠あり、代替案比較は未記録 |
+| 検証可能性 | 3 | lint exit 0、findings 5 件に file:line あり |
 | 簡潔性 | 2 | 適切 |
 
-合計 12/15 → 完全性のみ閾値ギリギリ → share_target を 1 問だけ追加質問。
+合計 12/15 → 完全性のみ閾値ギリギリ → skip 理由 2 件を build-trace に追記。
 
 ## 自己修正手順
 
 | 不足次元 | 修正手順 |
 |----------|----------|
-| 完全性 | 不足キーを特定 → question-bank から 1 問抽出 |
-| 一貫性 | 矛盾箇所を特定 → Reverse Brief で確認 |
+| 完全性 | 不足項目を特定 → 正本 schema／設計書該当章を再読して補完 |
+| 一貫性 | 矛盾箇所を特定 → 正本（workflow-manifest／schema）と突合し従属側を修正 |
 | 深度 | 5 Whys 1 サイクル追加 |
-| 検証可能性 | Pain Story / Current Workaround で数値要求 |
+| 検証可能性 | 検証コマンド・file:line・数値根拠を追記 |
 | 簡潔性 | 重複文を統合・削除 |
 
 ## エスカレーション

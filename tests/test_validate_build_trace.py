@@ -61,10 +61,22 @@ def test_ref_kind_without_contract_is_na_escape():
     assert MOD._validate_feedback_contract({"skill_kind": "ref"}) == []
 
 
-def test_run_kind_skip_reason_escapes_empty_criteria():
+def test_loop_kind_skip_reason_does_not_escape_empty_criteria():
+    # loop 実行系の skip_reason escape は封鎖 (FEEDBACK_SKIP_KINDS=ref/assign 限定。
+    # lint-feedback-contract.py と対称)。
     data = {
         "skill_kind": "wrap",
         "feedback_contract": {"skip_reason": "委譲先で評価するため本体は N/A", "criteria": []},
+    }
+    errs = MOD._validate_feedback_contract(data)
+    assert errs and any("skip_reason escape は" in e for e in errs)
+
+
+def test_assign_kind_skip_reason_with_empty_criteria_is_na_escape():
+    # ref/assign は kind 自体が escape 対象: skip_reason + 空 criteria でもエラーなし。
+    data = {
+        "skill_kind": "assign",
+        "feedback_contract": {"skip_reason": "read-only 評価器のため N/A", "criteria": []},
     }
     assert MOD._validate_feedback_contract(data) == []
 
@@ -116,6 +128,166 @@ def test_ref_kind_non_list_criteria_is_error():
     data = {"skill_kind": "ref", "feedback_contract": {"criteria": "oops"}}
     errs = MOD._validate_feedback_contract(data)
     assert any("must be array" in e for e in errs)
+
+
+# --- requirement_coverage (RTM): 要望被覆の機械検査 ---
+#
+# doc_coverage(参照知識)と対になる「ユーザー要望の被覆」。brief の非空要求フィールド
+# 全てが mapped / not_applicable+reason で被覆されることを exit 1 検査する。
+# 旧 trace は skip、brief 参照があるのに coverage 無しは WARN (段階導入)。
+
+import json
+
+
+def _brief_dict():
+    """最小・現実的な brief。被覆対象は trigger_conditions / output_contract /
+    key_constraints / goal / boundary の5フィールド (識別系は除外セット)。"""
+    return {
+        "skill_name": "run-x",
+        "prefix": "run",
+        "kind": "run",
+        "hierarchy_level": "L1",
+        "trigger_conditions": ["契約書を作りたいとき", "台帳から量産したいとき"],
+        "output_contract": "生成物が黄色二系統で出力される",
+        "key_constraints": ["トークンは Keychain のみ", "誤値より空欄優先"],
+        "goal": "G を達成する",
+        "boundary": "同定と補完のみ。与信判断は対象外",
+    }
+
+
+def _full_coverage():
+    return [
+        {"requirement_id": "trigger_conditions", "disposition": "mapped",
+         "mapped_to": "SKILL.md description trigger句"},
+        {"requirement_id": "output_contract", "disposition": "mapped",
+         "mapped_to": "OUT1"},
+        {"requirement_id": "key_constraints[0]", "disposition": "mapped",
+         "mapped_to": "IN1"},
+        {"requirement_id": "key_constraints[1]", "disposition": "not_applicable",
+         "reason": "本 build では Notion 書込を行わないため対象外"},
+        {"requirement_id": "goal", "disposition": "mapped",
+         "mapped_to": "SKILL.md ゴールシーク実行節"},
+        {"requirement_id": "boundary", "disposition": "mapped",
+         "mapped_to": "SKILL.md 境界節"},
+    ]
+
+
+def _rtm_trace(tmp_path, coverage):
+    """brief を tmp に書き、それを参照する trace dict と trace_path を返す。"""
+    brief_p = tmp_path / "skill-brief.json"
+    brief_p.write_text(json.dumps(_brief_dict()), encoding="utf-8")
+    trace = {"brief_path": "skill-brief.json"}
+    if coverage is not None:
+        trace["requirement_coverage"] = coverage
+    return trace, tmp_path / "skill-build-trace.json"
+
+
+def test_requirement_coverage_full_passes(tmp_path):
+    trace, tp = _rtm_trace(tmp_path, _full_coverage())
+    assert MOD._validate_requirement_coverage(trace, tp) == []
+
+
+def test_requirement_coverage_missing_field_fails(tmp_path):
+    # boundary の被覆を落とす → 欠落フィールドとして検出すべき。
+    cov = [c for c in _full_coverage() if c["requirement_id"] != "boundary"]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert errs and any("missing=['boundary']" in e for e in errs)
+
+
+def test_requirement_coverage_absent_old_trace_skips(tmp_path, capsys):
+    # brief 参照も coverage も無い旧 trace: 検査せず WARN も出さない。
+    errs = MOD._validate_requirement_coverage({}, tmp_path / "t.json")
+    assert errs == []
+    assert "WARN" not in capsys.readouterr().err
+
+
+def test_requirement_coverage_absent_with_brief_ref_warns(tmp_path, capsys):
+    # brief 情報 (source_docs) があるのに coverage 無し → WARN のみ (FAIL しない)。
+    trace = {"source_docs": ["eval-log/skill-brief.json"]}
+    errs = MOD._validate_requirement_coverage(trace, tmp_path / "t.json")
+    assert errs == []
+    assert "requirement_coverage" in capsys.readouterr().err
+
+
+def test_requirement_coverage_unknown_field_fails(tmp_path):
+    cov = _full_coverage() + [
+        {"requirement_id": "nonexistent_field", "disposition": "mapped",
+         "mapped_to": "x"}
+    ]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("not found in brief" in e and "nonexistent_field" in e for e in errs)
+
+
+def test_requirement_coverage_index_out_of_range_fails(tmp_path):
+    cov = _full_coverage() + [
+        {"requirement_id": "key_constraints[9]", "disposition": "mapped",
+         "mapped_to": "x"}
+    ]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("key_constraints[9]" in e and "not found" in e for e in errs)
+
+
+def test_requirement_coverage_mapped_requires_mapped_to(tmp_path):
+    cov = _full_coverage()
+    del cov[1]["mapped_to"]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("mapped_to is required" in e for e in errs)
+
+
+def test_requirement_coverage_na_requires_reason(tmp_path):
+    cov = _full_coverage()
+    del cov[3]["reason"]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("reason is required" in e for e in errs)
+
+
+def test_requirement_coverage_bad_disposition_fails(tmp_path):
+    cov = _full_coverage()
+    cov[0]["disposition"] = "deferred"
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("disposition='deferred'" in e for e in errs)
+
+
+def test_requirement_coverage_duplicate_id_fails(tmp_path):
+    cov = _full_coverage() + [_full_coverage()[0]]
+    trace, tp = _rtm_trace(tmp_path, cov)
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert any("duplicated" in e for e in errs)
+
+
+def test_requirement_coverage_unresolvable_brief_warns_structural_only(tmp_path, capsys):
+    # brief ファイルが無い場合は構造検査のみ (WARN)。cwd 依存で trace 資産を壊さない。
+    trace = {
+        "brief_path": "no-such-brief.json",
+        "requirement_coverage": _full_coverage(),
+    }
+    errs = MOD._validate_requirement_coverage(trace, tmp_path / "t.json")
+    assert errs == []
+    assert "brief を解決できない" in capsys.readouterr().err
+
+
+def test_requirement_coverage_brief_detected_from_source_docs(tmp_path):
+    # brief_path 無しでも source_docs の skill-brief*.json から突合先を推定する。
+    brief_p = tmp_path / "skill-brief.json"
+    brief_p.write_text(json.dumps(_brief_dict()), encoding="utf-8")
+    trace = {
+        "source_docs": ["skill-brief.json"],
+        "requirement_coverage": _full_coverage(),
+    }
+    assert MOD._validate_requirement_coverage(trace, tmp_path / "t.json") == []
+
+
+def test_requirement_coverage_non_array_fails(tmp_path):
+    trace, tp = _rtm_trace(tmp_path, None)
+    trace["requirement_coverage"] = {"oops": True}
+    errs = MOD._validate_requirement_coverage(trace, tp)
+    assert errs == ["requirement_coverage must be array"]
 
 
 # --- manifest 検証経路 (--self-test) が緑であること ---

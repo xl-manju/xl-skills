@@ -29,7 +29,7 @@ import re
 
 # --- criteria 単一正本 (この4定数が唯一の真実) ---
 CRITERIA_ID_RE = re.compile(r"^(IN|OUT|C)[0-9]+$")
-CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "human"}
+CRITERIA_VERIFY_BY = {"lint", "test", "script", "evaluator", "elegant-review", "live-trial", "human"}
 LOOP_SCOPES = {"inner", "outer"}
 REQUIRED_CRITERION_KEYS = ("id", "loop_scope", "text", "verify_by")
 
@@ -145,7 +145,16 @@ def validate_criteria(
 #   | Stop hook decision:block      | 除外 (True)   | 自己編集セッションの自己ブロック=評価不能(無限ループ)を回避 |
 #   | feedback-loop 配備/周知 (symlink/R6/R7) | 除外 (True) | 生成器自身=run-skill-feedback の正本。自分への symlink は循環 |
 #   | content-review verdict (CI/pre-push)    | 非除外 (False) | dogfooding 対象。自己改善の品質も CI で機械強制する |
+#   | iter-improve 被験体コピー (INV7)        | 交差時 True   | エンジン閉包 skill を被験体にすると編集エンジン=被験体の自己言及。隔離コピー強制 |
 SELF_DOGFOODING_PLUGIN = "skill-creator"
+
+# 収束ポリシー / 評価経路を構成するエンジン閉包 (INVARIANT 7)。iter-improve が
+# この閉包の skill 自体を被験体にすると、編集エンジンと被験体が同一実体になり
+# 評価が自己言及で壊れる。閉包の列挙はこの frozenset のみ (consumer への
+# ハードコード散在禁止 = 上記 ADR と同じ規律)。閉包を広げる時はここだけを編集する。
+ENGINE_SKILLS = frozenset(
+    {"run-elegant-review", "run-skill-iter-improve", "run-skill-live-trial"}
+)
 
 
 def is_stop_block_exempt(plugin: str) -> bool:
@@ -180,6 +189,16 @@ def is_content_review_exempt(plugin: str) -> bool:
     除外されるプラグインは存在しないため常に False を返す (空集合 EXEMPT_PLUGINS の置換)。
     """
     return False
+
+
+def requires_subject_copy(plugin_name: str, target_skill: str) -> bool:
+    """iter-improve が被験体を隔離コピーしてから編集すべきか (INVARIANT 7)。
+
+    skill-creator 自身のエンジン閉包 (ENGINE_SKILLS = 収束ポリシー/評価経路を構成する
+    skill) を被験体にする交差時のみ True。編集エンジンと被験体の同一実体化 (自己言及で
+    評価が壊れる) を防ぐ。通常 skill は直接編集を維持する (コピー強制は閉包交差時のみ)。
+    """
+    return plugin_name == SELF_DOGFOODING_PLUGIN and target_skill in ENGINE_SKILLS
 
 
 def criteria_ids(criteria: object) -> set[str]:

@@ -119,6 +119,21 @@ def test_skill_creator_self_is_excluded(tmp_path):
     assert MOD._unevaluated_or_stale(str(tmp_path), [rel]) == []
 
 
+def test_pending_review_targets_exempt_true_returns_self_only(tmp_path):
+    self_rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
+    other_rel = _make_skill(tmp_path, "demo", "run-x")
+    got = MOD._pending_review_targets(str(tmp_path), [self_rel, other_rel], exempt=True)
+    assert got == [f"{MOD.SELF_EXCLUDED_PLUGIN}/run-build-skill"]
+
+
+def test_pending_review_targets_exempt_true_empty_when_verdict_fresh(tmp_path):
+    body = "# fresh\n"
+    self_rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill", body=body)
+    sha = hashlib.sha256(body.encode()).hexdigest()
+    _write_verdicts(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill", sha)
+    assert MOD._pending_review_targets(str(tmp_path), [self_rel], exempt=True) == []
+
+
 # --- main(): decision:block と安全弁 ---
 
 def _run_main(monkeypatch, root: Path, changed_rel: list[str], stdin_obj: dict):
@@ -158,3 +173,38 @@ def test_main_opt_out_env_disables_block(monkeypatch, tmp_path):
     rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "Stop"})
     assert rc == 0
     assert "block" not in out
+
+
+# --- self-plugin 通知 (block しない・完全無音の解消) ---
+
+def test_main_notifies_self_pending_without_block(monkeypatch, tmp_path):
+    rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
+    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "Stop"})
+    assert rc == 0
+    payload = json.loads(out)
+    assert "decision" not in payload  # block はしない
+    assert payload["notice"] == "self-plugin content-review pending"
+    assert f"{MOD.SELF_EXCLUDED_PLUGIN}/run-build-skill" in payload["pending_skills"]
+    assert "lint-content-review" in payload["reason"]
+
+
+def test_main_block_takes_precedence_over_self_notice(monkeypatch, tmp_path):
+    # 他プラグイン pending が残る場合は decision:block を単独 JSON で出す
+    # (self 通知が混ざると decision JSON の parse を壊すため、block が先に return)。
+    self_rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
+    other_rel = _make_skill(tmp_path, "demo", "run-x")
+    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    rc, out = _run_main(monkeypatch, tmp_path, [self_rel, other_rel], {"hook_event_name": "Stop"})
+    assert rc == 0
+    payload = json.loads(out)  # 単独で parse 可能な decision JSON
+    assert payload["decision"] == "block"
+    assert "notice" not in payload
+
+
+def test_main_self_notice_not_emitted_on_non_stop_event(monkeypatch, tmp_path):
+    rel = _make_skill(tmp_path, MOD.SELF_EXCLUDED_PLUGIN, "run-build-skill")
+    monkeypatch.delenv("SKILL_CREATOR_NO_REVIEW_BLOCK", raising=False)
+    rc, out = _run_main(monkeypatch, tmp_path, [rel], {"hook_event_name": "PostToolUse"})
+    assert rc == 0
+    assert "notice" not in out

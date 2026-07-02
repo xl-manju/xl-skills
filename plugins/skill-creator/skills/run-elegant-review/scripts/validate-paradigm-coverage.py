@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # /// script
 # name: validate-paradigm-coverage
-# purpose: Validate that elegant-review outputs cover all 30 paradigms with structured findings.
+# purpose: Validate that elegant-review outputs cover all 30 paradigms with structured findings, and that run dirs follow Phase1->2->3 order.
 # inputs:
-#   - argv: review.md or findings.json
+#   - argv: review.md or findings.json, or --phase-order <run-dir-or-tree>
 # outputs:
 #   - stdout: OK message
-#   - stderr: missing paradigm or schema errors
-#   - exit: 0=OK / 1=coverage failure / 2=usage error
+#   - stderr: missing paradigm / schema / phase-order errors
+#   - exit: 0=OK / 1=coverage or phase-order failure / 2=usage error
 # contexts: [A, B, C, E]
 # network: false
 # write-scope: none
@@ -17,10 +17,18 @@
 
 Usage:
   validate-paradigm-coverage.py <review.md | findings.json>
+  validate-paradigm-coverage.py --phase-order <run-dir | tree-root>
+
+--phase-order は elegant-review run ディレクトリ
+(eval-log/**/elegant-review/<run-id>/) の Phase1→2→3 成果物の存在+順序を検査する
+(enforcement 名: run-elegant-review/scripts/validate-paradigm-coverage.py (phase order check))。
+tolerant 契約: 3 phase の成果物 (shared_state.md / findings-phase2-*.json /
+findings.json 等) が全て揃う run のみ順序検査し、どれかを欠く旧 run は skip する
+(遡及 fail させない)。順序は mtime 比較で同時刻を許容する (fresh checkout 耐性)。
 
 Exit codes:
-  0 -> all 30 covered with structured findings or markdown mentions
-  1 -> missing paradigms detected
+  0 -> all 30 covered with structured findings or markdown mentions / phase order OK
+  1 -> missing paradigms or phase-order violation detected
   2 -> usage error
 """
 from __future__ import annotations
@@ -223,10 +231,92 @@ def extract_text(path: Path) -> str:
     return path.read_text(encoding="utf-8").lower()
 
 
+# --- Phase 順序検査 (enforcement: phase order check) ---
+
+_PHASE1_NAME = "shared_state.md"
+_PHASE2_GLOB = "findings-phase2-*.json"
+# Phase3 成果物は findings.json (集約) または phase3-*.json (batch 実行結果)。
+_PHASE3_NAME = "findings.json"
+_PHASE3_GLOB = "phase3-*.json"
+
+
+def check_phase_order(run_dir: Path) -> tuple[str, list[str]]:
+    """1 つの run dir の Phase1→2→3 成果物の存在+順序を検査する。
+
+    returns (status, errors)  status: "ok" | "skipped" | "violation"
+    3 phase の成果物が全て揃う run のみ順序検査する (揃わない旧 run は skipped)。
+    順序は mtime で判定し、同時刻 (checkout で mtime が揃う) は許容する。
+
+    Phase1 (shared_state.md) は存在のみ検査する: shared_state.md は Phase3 以降も
+    申し送りとして更新される living document であり、mtime は run 終端を指すのが
+    正常のため順序判定に使えない (実 run 4 件で実測)。mtime 順序が機械的に意味を
+    持つのは「Phase2 findings → Phase3 成果物」の一辺のみ。
+    """
+    phase1 = run_dir / _PHASE1_NAME
+    phase2 = sorted(run_dir.glob(_PHASE2_GLOB))
+    phase3 = [p for p in [run_dir / _PHASE3_NAME] if p.is_file()]
+    phase3 += sorted(run_dir.glob(_PHASE3_GLOB))
+    if not (phase1.is_file() and phase2 and phase3):
+        return "skipped", []
+    try:
+        t2_max = max(p.stat().st_mtime for p in phase2)
+        t3 = max(p.stat().st_mtime for p in phase3)
+    except OSError as exc:
+        return "skipped", [f"{run_dir}: stat failed, skipped: {exc}"]
+    errors: list[str] = []
+    if t2_max > t3:
+        errors.append(
+            f"{run_dir}: phase order violation: {_PHASE2_GLOB} (Phase2) is newer "
+            "than Phase3 artifacts (findings.json / phase3-*.json)"
+        )
+    return ("violation", errors) if errors else ("ok", [])
+
+
+def iter_run_dirs(base: Path):
+    """base が run dir ならそれ自身、tree なら **/elegant-review/<run-id>/ を列挙する。"""
+    if (base / _PHASE1_NAME).is_file() or any(base.glob(_PHASE2_GLOB)):
+        yield base
+        return
+    for child in sorted(base.glob("**/elegant-review/*")):
+        if child.is_dir():
+            yield child
+
+
+def check_phase_order_tree(base: Path) -> int:
+    ok = skipped = 0
+    all_errors: list[str] = []
+    for run_dir in iter_run_dirs(base):
+        status, errors = check_phase_order(run_dir)
+        if status == "skipped":
+            skipped += 1
+        elif status == "ok":
+            ok += 1
+        else:
+            all_errors.extend(errors)
+    if all_errors:
+        for err in all_errors:
+            print(err, file=sys.stderr)
+        return 1
+    print(f"OK: phase order verified for {ok} run(s), skipped {skipped} incomplete run(s)")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: validate-paradigm-coverage.py <file>", file=sys.stderr)
+        print(
+            "usage: validate-paradigm-coverage.py <file> | --phase-order <dir>",
+            file=sys.stderr,
+        )
         return 2
+    if argv[1] == "--phase-order":
+        if len(argv) < 3:
+            print("usage: validate-paradigm-coverage.py --phase-order <dir>", file=sys.stderr)
+            return 2
+        base = Path(argv[2])
+        if not base.is_dir():
+            print(f"not a directory: {base}", file=sys.stderr)
+            return 2
+        return check_phase_order_tree(base)
     path = Path(argv[1])
     if path.suffix == ".json":
         ok, errors = validate_structured_json(path)

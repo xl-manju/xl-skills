@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xl-skills/run-build-skill/schemas/build-plan.schema.json",
+  "title": "Build Plan",
+  "description": "validate-build-plan.py (--check なし実行、--out でファイル保存) が skill-brief から決定論導出する必須成果物集合。フラグ・必須セクション・必須資産の要否をモデル判断から機械層へ移すための作業リスト正本。セクション集合の導出元は templates/<kind>.md と combinators/*.patch の見出し (別正本を持たない)。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["skill_name", "kind", "flags", "required_sections", "required_deliverables"],
+  "properties": {
+    "schema": { "type": "string" },
+    "skill_name": { "type": "string" },
+    "kind": { "type": "string", "enum": ["run", "ref", "wrap", "assign", "delegate", ""] },
+    "role_suffix": { "type": "string" },
+    "template": { "type": "string", "description": "セクション導出に使った templates/ 配下のファイル名" },
+    "acceptance_tier": {
+      "type": "string",
+      "enum": ["static", "fork", "live"],
+      "description": "受入検証の最低段 (順序 static<fork<live)。derive_acceptance_tier() が静的信号 (hooks配線 / allowed-tools の Skill・Agent・AskUserQuestion / kind) から決定論導出する。SKILL.md frontmatter の宣言値 < 導出値 (緩め方向) は --check violation。required にはしない (旧 plan 後方互換)。"
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "with_prompts", "with_evaluator", "with_hooks", "with_subagent",
+        "with_knowledge", "with_goal_seek", "feedback_contract_required",
+        "feedback_loop_deploy", "content_review"
+      ],
+      "properties": {
+        "with_prompts": { "type": "boolean", "description": "brief.responsibilities 非空 かつ prompt_creator_policy != skip" },
+        "with_evaluator": { "type": "boolean", "description": "brief.generate_pair_evaluator == true" },
+        "with_hooks": { "type": "boolean", "description": "brief.hook_events 非空 または brief.with_hooks == true" },
+        "with_subagent": { "type": "boolean", "description": "brief.with_subagent_hint == true" },
+        "with_knowledge": { "type": "boolean", "description": "brief.knowledge_loop 非空" },
+        "with_goal_seek": { "type": "boolean", "description": "kind ∈ {run,wrap,delegate} (opt-out は CLI --flags のみ)" },
+        "feedback_contract_required": { "type": "boolean", "description": "kind ∈ {run,wrap,delegate}" },
+        "feedback_loop_deploy": { "type": "boolean", "description": "default-ON (Step 11.5)" },
+        "content_review": { "type": "boolean", "description": "default-ON (Step 12)" }
+      }
+    },
+    "required_sections": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "生成 SKILL.md に必須の ## 見出し (正規化済み)。テンプレート正本からのパース結果"
+    },
+    "required_deliverables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "path", "source"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["file", "dir", "glob", "frontmatter-key", "pair-skill", "agent-file"] },
+          "path": { "type": "string" },
+          "must_contain": { "type": "string" },
+          "source": { "type": "string", "description": "この成果物を要求した brief フィールド" },
+          "verified_by": { "type": "string", "description": "内容規則を担う既存 lint (presence 以上の検査の委譲先)" }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "機械強制まではしないが trace への理由記録を要する注意 (needs_independent_context / external_systems 等)"
+    }
+  }
+}

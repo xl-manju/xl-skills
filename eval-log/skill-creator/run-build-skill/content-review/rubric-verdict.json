@@ -2,7 +2,7 @@
   "target": {
     "plugin": "skill-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "71fced17cbd2c924815363142020c8b6351ce39b33b9da6a916d8ee028e802ac"
+    "skill_md_sha256": "d244fbf062814bab3ac9d8d840f579694ae39741423e31d6faa9e4cb9af236b6"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -14,26 +14,21 @@
     "smell": 0
   },
   "reviewer": "assign-skill-design-evaluator-subagent",
-  "reviewed_at": "2026-07-01T00:00:00Z",
+  "reviewed_at": "2026-07-02T13:12:00Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": [
-      "IN1",
-      "IN2",
-      "OUT1",
-      "OUT2"
-    ],
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "今回追加の 2 変更 (kind=plugin ポータビリティ完了項目 + Step4 lint の install 位置非依存化) が Key Rule #6『marketplace install 配置非依存』を本文と完了チェックリストの両輪で強化する良い設計判断。GOV_LINT_DIR を $PLUGIN_ROOT 相対で導出し、正本は ref-cross-platform-runtime/references/runtime-portability.md 層2 を SSOT ポインタ参照 (本文へ再掲しない) するため、rubric が嫌う重複定義・正本曖昧化を新規に生んでいない (PD/SSOT 観点)。",
-      "BD-003 (本文 <=300 行) を今回変更後も維持 (本文実測 218 行)。FM-002/003 (description が発動条件のみ・〜とき trigger 2 個・内部動作語なし)、BD-001『## Purpose & Output Contract』/ BD-002『## Gotchas』heading も存続しており、契約節と冒頭集約 (PD-002) の直交要件を満たす。"
+      "検証可能性が高い: 完了チェックリスト CL-1..CL-11 が全て二値判定 (lint exit0 / score>=80 / high=0 / 本文行数<=300) で、数値根拠 (7 kind / 300 行 / score 80 / max_iter 3) が随所に具体化されている。",
+      "簡潔性が SSOT 原則で担保: 必須集合・lint 集合・kind→skeleton 対応・content-review 詳細を各正本 (capability-manifest.schema.json / lint-matrix.json / build-steps.md / content-review-protocol.md) へ委譲し本文再掲せず、本文241行に収める。"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "pre-push",
+    "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "ref-skill-design-rubric/references/rubric.json (v1.3.0) で kind=skill の FM/BD/NM/PD/KL 系を現 SKILL.md (sha256=71fced17..., 実測一致) に対し genuine 再採点。本文実測=218 行 (frontmatter は 1-100 行、body=101-318 行)。FM-001(name=run-build-skill/run- prefix/kebab/len15)・FM-002(description が『〜とき…に使う』で trigger 形式・句点終端)・FM-003(〜とき=2 個で 2-3 範囲内)・FM-004(採点する/sha256/exit code 等の内部動作語なし)・FM-005(『新規作成・更新するとき』動詞起点) 全 PASS。BD-001(『## Purpose & Output Contract』厳格一致 heading=106 行)・BD-002(『## Gotchas』=311 行)・BD-003(本文 218<=300, P0-2 順守)・BD-004(description の 2 発動条件=Capability 作成/更新・Manifest/composition 整備 が Step0/Step3.5 等の本文手順に 1:1 対応) 全 PASS。NM-001(dir名==name)・NM-002・NM-003 PASS。PD-001(references/ 実在)・PD-002(冒頭 30 行内に『## Purpose & Output Contract』+ Key Rule『禁止』=120/122/123 行) PASS。KL-001..005 は knowledge/ ディレクトリ・frontmatter.knowledge_loop が不在のため存在ゲートで無条件 PASS (skip, 誤減点なし)。今回 diff の依存確認: 追加参照 scripts/lint-readme-plugin-root-portability.py は repo-root ./scripts/ に実在 (既存 scripts/lint-feedback-contract.py と同一 base=repo-root cwd 前提、行 104 注記と整合)、GOV_LINT_DIR=$(dirname $PLUGIN_ROOT)/skill-governance-lint は plugins/skill-governance-lint/scripts/ の実在スクリプトへ解決し dangling 無し、正本 doc も実在。dependency_break/contradiction/inconsistency/omission/smell いずれも 0、high severity 0 件で総合合格。PASS 維持。"
+  "notes": "quality-rubric.md (skill-creator 正本) 5 次元 (完全性0.25/一貫性0.20/深度0.25/検証可能性0.15/簡潔性0.15) で現 SKILL.md (sha256=d244fbf062814bab3ac9d8d840f579694ae39741423e31d6faa9e4cb9af236b6、python3 hashlib 実測) を独立採点。本文実測 241 行 (<=300)。[完全性 3/3] commonCore 必須 5 キー (name/description/kind/version/owner) 完備、7 kind サポート資産を manifest/responsibility/template/schema/script/reference_refs で全参照、CL-6 で build-trace 章 coverage を空欄なく要求。[一貫性 3/3] 出力先2箇所・max_iterations=3・本文行数上限が全所で同値、Gate 呼称は orchestrate-gate-pattern.md 準拠で統一、今回の Step12 改称は Gate 分類との整合を強化 (manifest↔本文 drift なし)。[深度 3/3] design claim/behavioral claim の証拠主張型直交、Gate A-D 分離、実行レイヤー判断表根拠 (KeyRule9/01a) を反映。[検証可能性 3/3] CL 全項目が二値 lint コマンド、数値 3 個以上 (7/300/80/3)。[簡潔性 3/3] SSOT 委譲徹底で本文241行、同義反復なし。合計 15/15、全次元 >=2 につき PASS。findings 全 0。"
 }

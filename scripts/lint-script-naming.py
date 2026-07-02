@@ -258,6 +258,18 @@ PENDING_RENAME_PATHS = {
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・
     # feedback_contract_ssot.py / discover_repo_tests.py と同列)。
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/specfm.py",
+    # run-skill-live-trial 初回投入 (anti-goodhart D2/D12): §4.3 (kebab-case) は満たすが
+    # 接頭辞が <feature>-<role> 形 (live-trial-*) で verb が ALLOWED_VERBS 外。boot/send/
+    # poll/status/verdict は trial セッションのライフサイクル語で許可動詞に対応語が無く、
+    # backend は tmux 輸送層の版依存モジュール境界 (唯一の tmux 呼出点) の固有名。許可動詞化
+    # は SKILL.md(script_refs)/references/tests 参照と同時に実施する後続 Change Governance PR
+    # まで PENDING (notion-gmail-send / plugin-dev-planner と同種の「初回投入時の verb pending」扱い)。
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-backend.py",
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-boot.py",
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-send.py",
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
+    "plugins/skill-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

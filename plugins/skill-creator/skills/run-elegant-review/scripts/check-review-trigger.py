@@ -4,10 +4,13 @@
 #            (Stop の継続/停止判断は stdout の {"decision":"block"} JSON で行い exit code では行わない)。
 # 想定 input: {"session_id": ..., "stop_hook_active": bool, ...} 形式 JSON(stdin 空でも落ちない)。
 # 出力1 (推奨): 変更ファイル合計が 20 件以上なら run-elegant-review 起動を stdout 推奨。
-# 出力2 (queue): 評価要求を eval-log/review-queue.jsonl へ 1 行 append (content-review-protocol.md:88 の queue を実体化)。
+# 出力2 (queue): 評価要求を eval-log/review-queue.jsonl へ 1 行 append
+#         (content-review-protocol.md「hook 発火と queue」の queue を実体化。診断ログであり自動 consumer は無い)。
 # 出力3 (確実起動 / decision:block): 他プラグインに未評価 or stale な変更 skill が残る場合、
 #         Stop を block し Claude 本体へ「run-elegant-review + assign-skill-design-evaluator を実行せよ」と差し戻す。
 #         フック自身は重い LLM を実行しない(=protocol の原則を維持)。トリガのみ行い、実行は Claude 本体。
+# 出力4 (self 通知): 自プラグイン (dogfooding) の pending は block 除外のため完全無音だった。
+#         Stop 時に stdout 通知のみ出す (block はしない)。強制は CI/pre-push の lint-content-review.py。
 #
 # 三層防御 (確実性の担保):
 #   1) 通知層: 変更件数に応じ run-elegant-review を stdout 推奨 (情報提供)。
@@ -268,16 +271,20 @@ def _verdict_recorded_sha(root: str, plugin: str, skill: str, fname: str) -> tup
         return None, False
 
 
-def _unevaluated_or_stale(root: str, semantic_paths: list[str]) -> list[str]:
+def _pending_review_targets(root: str, semantic_paths: list[str], exempt: bool) -> list[str]:
     """変更 SKILL.md のうち、verdict が欠落 or SHA 不一致 (stale) の skill を返す。
-    生成器自身は Stop block では除外 (自己ブロック回避)。CI/pre-push では対象。
+
+    exempt=False: Stop block 対象 (自プラグイン dogfooding は除外済)。
+    exempt=True: 自プラグインのみ (block はせず stdout 通知にのみ使う)。
     """
     pending: list[str] = []
     for path in semantic_paths:
         if not _is_skill_md(path):
             continue
         plugin, skill = _parse_plugin_skill(path)
-        if not plugin or not skill or _FC.is_stop_block_exempt(plugin):
+        if not plugin or not skill:
+            continue
+        if bool(_FC.is_stop_block_exempt(plugin)) != exempt:
             continue
         current = _sha256_file(os.path.join(root, path))
         for fname in REQUIRED_VERDICTS:
@@ -286,6 +293,13 @@ def _unevaluated_or_stale(root: str, semantic_paths: list[str]) -> list[str]:
                 pending.append(f"{plugin}/{skill}")
                 break
     return sorted(set(pending))
+
+
+def _unevaluated_or_stale(root: str, semantic_paths: list[str]) -> list[str]:
+    """Stop block 対象の pending (自プラグインは除外)。既存契約を維持する薄い wrapper。
+    生成器自身は Stop block では除外 (自己ブロック回避)。CI/pre-push では対象。
+    """
+    return _pending_review_targets(root, semantic_paths, exempt=False)
 
 
 def main() -> int:
@@ -350,6 +364,32 @@ def main() -> int:
                     )
                 )
                 return 0
+
+        # --- 出力4: self-plugin 通知 (block はしない・1 分岐) ---
+        # 自プラグイン (dogfooding) の pending は Stop block から除外され (自己ブロック回避)、
+        # 従来はセッション内で完全無音のまま pre-push/CI で一括顕在化していた。
+        # block 分岐が return した後にのみ到達するため decision JSON と混ざらない。
+        if root and is_stop_event:
+            self_pending = _pending_review_targets(root, semantic, exempt=True)
+            if self_pending:
+                shown = ", ".join(self_pending[:8]) + (" …" if len(self_pending) > 8 else "")
+                sys.stdout.write(
+                    json.dumps(
+                        {
+                            "hook": "check-review-trigger",
+                            "notice": "self-plugin content-review pending",
+                            "pending_skills": self_pending,
+                            "reason": (
+                                f"{_FC.SELF_DOGFOODING_PLUGIN} 自身の変更 skill が未評価 or stale です"
+                                f" ({len(self_pending)} 件): {shown}。Stop は妨げませんが、push 前に"
+                                " content-review verdict を再生成してください"
+                                " (pre-push/CI の lint-content-review.py が強制します)。"
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
 
         # --- 出力1: stdout 推奨 (block しない場合のみ・既存挙動を維持) ---
         if count >= THRESHOLD:

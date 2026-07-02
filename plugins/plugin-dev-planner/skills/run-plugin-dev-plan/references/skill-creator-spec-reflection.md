@@ -99,13 +99,13 @@ A1-A11(11) + B1-B5(5) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = *
 ## 完全性の証明 (§14.1 / 全サーフェス列挙 → ラベル付け)
 
 > 上記 46 行のうち 43 行は「指示インベントリ」と 1 対 1 (F8 install-portability は per-phase 転換で追加した配布携帯性規律、B4/B5 は feedback-Notion 連携で追加した宣言スロット規律) だが、それだけでは *分母が自己定義* で完全性を証明しない。
-> ここでは **skill-creator の全サーフェス (skills 31 本 + 設計書の関連章) を独立列挙**し、各々を
+> ここでは **skill-creator の全サーフェス (skills 33 本 + 設計書の関連章) を独立列挙**し、各々を
 > `反映済(行ID)` / `含意済(行IDに包含)` / `意図的除外(理由)` でラベル付けする。これにより「漏れていない」が
 > 監査可能になる (循環論法の解消)。新規 skill/章が skill-creator に増えたら本表へ追記する運用とする。
 
-### skills/ 全 31 本 (実体所有 28 本 + contract-generator への symlink 3 本)
+### skills/ 全 33 本 (実体所有 30 本 + contract-generator への symlink 3 本)
 
-> 注: `plugins/skill-creator/skills/` を `ls` すると 31 エントリだが、実体 `SKILL.md` (`-type f`) は **28 本**。残 3 件 (`run-contract-finalize`/`run-contract-generate`/`run-template-sync`) は `../../contract-generator/skills/` への **symlink** で、skill-creator が所有するのでなく共有参照する (下表で各々注記)。完全性証明の本質 (skill-creator サーフェスの欠落 0) は維持されるが、分母 31 は「所有 28 + symlink 3」の合算である。
+> 注: `plugins/skill-creator/skills/` を `ls` すると 33 エントリだが、実体 `SKILL.md` (`-type f`) は **30 本**。残 3 件 (`run-contract-finalize`/`run-contract-generate`/`run-template-sync`) は `../../contract-generator/skills/` への **symlink** で、skill-creator が所有するのでなく共有参照する (下表で各々注記)。完全性証明の本質 (skill-creator サーフェスの欠落 0) は維持されるが、分母 33 は「所有 30 + symlink 3」の合算である。
 
 | skill | ラベル | 根拠 |
 |---|---|---|
@@ -135,6 +135,8 @@ A1-A11(11) + B1-B5(5) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = *
 | run-skill-create | 反映済 E4 | 7Step+4Gate (後段投入先) |
 | run-skill-elicit | 含意済 E3/E4 | brief ヒアリング (run-skill-create Step1) |
 | run-skill-feedback | 反映済 D6 | feedback 配備 |
+| run-skill-iter-improve | 意図的除外 (部分含意 D4/D6) | 実走 eval 駆動の反復改善ループ。goal-seek(D4)/feedback 配備(D6) の改善思想に連なるが、skill-creator 自身の品質改善運用機構であり生成タスク仕様書へ焼く計画規律でない |
+| run-skill-live-trial | 意図的除外 | 対象 skill を本物の claude セッション(tmux)で実走させる受け入れ評価機構。skill-creator の実走品質検証運用で、計画生成段階の規律でない |
 | run-skill-rename | 意図的除外 (update で別扱い) | 改名は `--mode update` の運用で、計画生成段階の規律でない |
 | run-skill-rubric-governance | 反映済 A10 | rubric governance runbook |
 | run-skill-update-notifier | 意図的除外 | 更新通知の運用 skill。生成規律でない |
