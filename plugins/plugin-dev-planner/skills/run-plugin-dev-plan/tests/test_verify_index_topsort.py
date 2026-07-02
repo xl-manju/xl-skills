@@ -70,6 +70,41 @@ def test_verify_phase_enumeration_no_section(topsort):
     assert any("section が無い" in e for e in errs)
 
 
+# ─────────────────── index section 床 (層0) ───────────────────
+def test_index_section_floor_clean(topsort, specfm_mod):
+    body = "".join(f"{sec}\n中身\n" for sec in specfm_mod.INDEX_REQUIRED_SECTIONS)
+    assert topsort.index_section_floor_errors(body) == []
+
+
+def test_index_section_floor_detects_missing(topsort, specfm_mod):
+    secs = specfm_mod.INDEX_REQUIRED_SECTIONS
+    body = "".join(f"{sec}\n中身\n" for sec in secs[1:])  # 先頭節を欠落させる
+    errs = topsort.index_section_floor_errors(body)
+    assert any(secs[0] in e and "欠落" in e for e in errs)
+
+
+def test_index_section_floor_detects_empty_body(topsort, specfm_mod):
+    secs = specfm_mod.INDEX_REQUIRED_SECTIONS
+    parts = [f"{secs[0]}\n"]  # 先頭: 空本文 (直後に次見出し)
+    for sec in secs[1:]:
+        parts.append(f"{sec}\n中身\n")
+    errs = topsort.index_section_floor_errors("".join(parts))
+    assert any(secs[0] in e and "本文が空" in e for e in errs)
+
+
+def test_run_index_missing_floor_section_fails(tmp_path, topsort):
+    # フェーズ一覧だけの旧式 index → 基盤層 (基本定義 等) section 床欠落で違反
+    ids = topsort.expected_phase_ids()
+    enum = "".join(f"{i + 1}. {pid} — phase / 未実施\n" for i, pid in enumerate(ids))
+    (tmp_path / "index.md").write_text(
+        "---\nid: IDX0\ntitle: t\n---\n# index\n## フェーズ一覧\n\n" + enum, encoding="utf-8"
+    )
+    write_inventory(tmp_path, [component_entry("C01", "skill")])
+    code, errs = topsort.run(tmp_path, "index.md", None)
+    assert code == 1
+    assert any("必須 section 欠落" in e for e in errs)
+
+
 def test_detect_cycle_finds_loop(topsort):
     cyc = topsort.detect_cycle({"C1", "C2"}, [("C1", "C2"), ("C2", "C1")])
     assert cyc and cyc[0] == cyc[-1]

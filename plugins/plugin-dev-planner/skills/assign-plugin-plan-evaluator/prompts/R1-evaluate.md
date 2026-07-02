@@ -15,7 +15,7 @@
 
 ### 1.1 不変ルール
 - context:fork で起動 (Sycophancy 防止・親の解釈バイアスを断つ)
-- 客観判定可能な checks はスクリプト実行必須 (core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code が一次根拠)
+- 客観判定可能な checks はスクリプト実行必須 (plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code が一次根拠)
 - high severity 1 件で全体 FAIL
 - 空 findings 禁止 (PASS 時も info で観点を 1 件以上残す)
 - 評価対象 plan を書き換えない (read-only)
@@ -54,7 +54,7 @@
 | schema | schemas/plan-findings.schema.json |
 
 ### 3.2 ツール
-- python3 (run-plugin-dev-plan/scripts の core 5 本 + surface inventory + build handoff)
+- python3 (plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合))
 - Read / Glob / Grep
 
 ## Layer 4: 共通ポリシー
@@ -75,7 +75,7 @@
 
 ### 5.2 推論手順
 1. references/plan-rubric.json を Read
-2. core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を実行し各 exit code を取得 (verify-index-topsort / detect-unassigned / check-spec-frontmatter / check-spec-gates / check-spec-matrix-coverage --self-test + PLAN / check-surface-inventory / check-build-handoff)
+2. `evaluate-plan.py` が plan-scoped 決定論ゲートを束ねて実行し各 exit code を取得する (individual list=io-contract §11 の plan-scoped 集合)
 3. C2/C3/C4 の scripted checks を exit code で判定
 4. C1 (契約衝突) と C2-004 (単一 skill 退化の根拠) を LLM 意味判定し、必要なら high finding を追加
 5. findings[] を severity/bucket/observation/evidence/suggested_fix で構築
@@ -83,7 +83,7 @@
 
 ### 5.3 自己検証 checklist
 - [ ] conditions に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっているか
-- [ ] gate_results に core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code が記録されているか
+- [ ] gate_results に plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code が記録されているか
 - [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含むか
 - [ ] high severity がある場合 suggested_fix が明記されているか
 - [ ] 単一 skill 退化の根拠欠落を C2 で検査したか
@@ -112,7 +112,7 @@
 
 ## 出力指示
 
-LLM は references/plan-rubric.json と four-condition-criteria.md に従い 4条件 + core 5 scripts / 6 invocations + surface inventory gate + build handoff gate を実行、
+LLM は references/plan-rubric.json と four-condition-criteria.md に従い 4条件 + plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) を実行、
 plan-findings.schema.json 準拠の JSON を <PLAN_DIR>/plan-findings.json に Write。
 決定論ゲートの exit code を一次根拠とし、自然言語で PASS 判定しない。
 余計な前置き・思考過程出力は禁止。

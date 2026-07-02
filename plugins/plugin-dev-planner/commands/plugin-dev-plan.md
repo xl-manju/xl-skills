@@ -68,13 +68,13 @@ python3 "$SKILL_DIR/scripts/check-plugin-goal-spec.py" "$PLAN_DIR/goal-spec.json
 python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"  # unassigned 0
 python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"                     # kind 別構造 + core 規律
 python3 "$SKILL_DIR/scripts/check-spec-gates.py" --specs-dir "$PLAN_DIR"                           # quality_gates + harness
-python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test                             # 44 行 table drift
+python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" --self-test                             # マトリクス table drift 検出
 python3 "$SKILL_DIR/scripts/check-spec-matrix-coverage.py" "$PLAN_DIR"                             # 焼き先反映
 python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inventory.json"       # 5種検討証跡 + surface 採否
 python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json"   # L3→L4 routing
 ```
 
-成功条件: 上記 9 コマンド全 exit0 + elegant-review C1-C4 全 PASS の設計が記述されている。形状と handoff の生きた手本は `skills/run-plugin-dev-plan/examples/sample-plan/`。
+成功条件: 上記は代表サブセット。完全な PASS 条件 (検証 11 本 = core + 拡張ゲート) の総数と一覧の単一正本は `skills/run-plugin-dev-plan/references/io-contract.md` §11 表 (実行可能正本=`specfm.GATE_SCRIPTS`)。加えて elegant-review C1-C4 全 PASS の設計が記述されていること。形状と handoff の生きた手本は `skills/run-plugin-dev-plan/examples/sample-plan/`。
 
 ## 失敗時
 

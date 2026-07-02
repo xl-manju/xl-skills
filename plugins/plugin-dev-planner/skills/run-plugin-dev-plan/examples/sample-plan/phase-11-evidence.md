@@ -18,16 +18,30 @@ applicability:
 ## 目的
 UBM のスクショ検証を DROP し、Markdown による evidence 5 要素へ写像する evidence gate。プラグインが受入を満たしたことを再現可能な形で記録する。
 
-## 実行タスク
-Markdown evidence として以下 5 要素を残す:
-1. P0 lint が exit0 になったログ。
-2. schema parity テストの結果。
-3. build-trace coverage の結果。
-4. content-review verdict (PASS・sha 一致)。
-5. harness coverage の JSON (kind 別 ≥80%)。
+## 背景
+UBM 固有の GUI スクリーンショット検証は本ドメイン (CLI/プラグイン) に写像できないため DROP し、再現可能な Markdown evidence 5 要素へ写像する。第三者が受入充足を再現・確認できる形で記録することが evidence gate の目的で、DROP 読替の正本は phase-lifecycle.md §7。
+
+## 前提条件
+- P10 の final-gate を通過している。
+- P0 lint / schema parity / build-trace / content-review / harness の各結果が取得可能。
+- evidence は Markdown で残す (GUI スクショに依存しない)。
+
+## ドメイン知識
+- 再現可能性の要件: 第三者が evidence 記載のコマンド/入力を再実行して同じ合否へ到達できること (ログ貼付だけでは不足)。
+- DROP 読替の正本は `phase-lifecycle.md` §7 (UBM スクショ→Markdown evidence 5 要素)。他の plan 全体用語は index `## ドメイン知識` 参照。
 
 ## 成果物
-- evidence 5 要素を集約した Markdown 検証記録。
+- evidence 5 要素 (P0 lint ログ / schema parity / build-trace coverage / content-review verdict / harness coverage JSON) を集約した Markdown 検証記録。
 
-## 完了条件
-- evidence 5 要素が全て Markdown に記録され、第三者が再現・確認できる状態になっている。
+## スコープ外
+- 新規の検証実施 (P06-P10 の結果を集約するのみ・ここで再テストしない)。
+- 利用者向け文書化 (P12)。
+
+## 完了チェックリスト
+- [ ] evidence 5 要素が全て Markdown に記録されている。
+- [ ] 第三者が記録から受入充足を再現・確認できる状態になっている。
+
+## 参照情報
+- `references/phase-lifecycle.md` §7 (UBM スクショ→Markdown evidence の DROP 読替表)。
+- evidence 5 要素 (lint/schema/build-trace/content-review/harness)。
+- 後続 P12 (documentation)。

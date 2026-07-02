@@ -12,6 +12,8 @@
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-surface-inventory.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan/component-inventory.json",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan/handoff-run-plugin-dev-plan.json",
+      "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-requirements-coverage.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
+      "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner"
     ],
     "llm_eval": [
@@ -41,7 +43,7 @@
     "scripts": "tests/ 機能テスト (行カバレッジ≥80) + check-spec-matrix-coverage --self-test",
     "references": "references/resource-map.yaml + tests/test_matrix_doc_integrity.py が正本参照の実在性と drift を検査",
     "examples": "tests/test_examples_golden.py が sample-plan を core gates + surface inventory + handoff で検査",
-    "harness-evals": "declarative (本 EVALS.json 自体が harness ゆえ自己 gate せず・mechanical 10 invocations が一次)",
+    "harness-evals": "declarative (本 EVALS.json 自体が harness ゆえ自己 gate せず・mechanical[] の全 invocation が一次。個数は test_gate_parity.py が _gate_defs と機械照合し drift 封止)",
     "plugin-manifest": "scripts/validate-plugin-completeness.py (manifest name↔folder 一致 / distributable 整合 / TODO placeholder 禁止) + check-plugin-surface-audit.py が plugins/ 配下の現物 surface を横断棚卸し"
   }
 }

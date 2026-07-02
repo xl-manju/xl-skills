@@ -47,6 +47,7 @@ REQUIRED_PLUGIN_SURFACES = (
     "schemas",
     "vendor",
     "mcp_app_connector",
+    "notion_config",
 )
 
 
@@ -167,6 +168,21 @@ def _gate_defs(run_skill: Path, plan_dir: Path) -> list[dict]:
             "name": "check-build-handoff",
             "conditions": ["C1", "C4"],
             "command": [py, str(scripts / "check-build-handoff.py"), str(handoff)],
+        },
+        {
+            "id": "G9",
+            "name": "check-requirements-coverage",
+            "conditions": ["C2"],
+            "command": [py, str(scripts / "check-requirements-coverage.py"), str(plan_dir)],
+        },
+        {
+            # install 携帯性 (F8): 共有 script の plugin-root hoist + build_target の plugin 内自己完結。
+            # plan の依存整合 (C4) に直結する plan-scoped ゲート。build-handoff(G8) と同型で、
+            # 評価器が回さないと携帯性の壊れた plan が独立評価を PASS しうる (S2 Goodhart 穴)。
+            "id": "G10",
+            "name": "check-runtime-portability",
+            "conditions": ["C4"],
+            "command": [py, str(scripts / "check-runtime-portability.py"), str(plan_dir)],
         },
     ]
 

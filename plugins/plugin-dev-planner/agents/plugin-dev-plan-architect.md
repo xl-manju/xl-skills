@@ -27,7 +27,7 @@ goal-spec を入力に、構想を単一スキルへ押し込まず plugin 全�
 - `skills/run-plugin-dev-plan/references/component-domain.md` (2 軸直交 + 5 種 component_kind × N 実体定義 + script 畳み込み + 4 層分離)
 - `skills/run-plugin-dev-plan/references/phase-lifecycle.md` (機能開発13フェーズ→プラグイン開発 読替表 + 13 フェーズ P01..P13 定義)
 - `skills/run-plugin-dev-plan/references/io-contract.md` (frontmatter キー契約)
-- `skills/run-plugin-dev-plan/references/skill-creator-spec-reflection.md` (44 行 operationalize マトリクス = 焼き先正本)
+- `skills/run-plugin-dev-plan/references/skill-creator-spec-reflection.md` (46 行 operationalize マトリクス = 焼き先正本)
 - `skills/run-plugin-dev-plan/references/plugin-creator-contract.md` (index plugin_meta 物理契約)
 
 ## Outputs

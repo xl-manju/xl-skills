@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-spec-matrix-coverage
-# purpose: skill-creator-spec-reflection.md の44行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
+# purpose: skill-creator-spec-reflection.md の46行を読み、各行に scope(phase|inventory|plugin)/klass 別の適用述語と焼き先アンカーを持たせ、適用される行のアンカーが該当 inventory component(component-level)か index plugin_meta(plugin-level)に反映されているか検査する決定論ゲート。
 # inputs:
 #   - argv: <plan-dir> [--matrix PATH] [--index NAME] [--inventory FILE] | --self-test
 # outputs:
@@ -14,7 +14,7 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""44行マトリクスの operationalize 被覆検査 (R4 自然言語突合の機械化)。
+"""46行マトリクスの operationalize 被覆検査 (R4 自然言語突合の機械化)。
 
 per-phase 転換 (凍結契約 §4/§11): 焼き先は 3 scope へ写像される。
 - `inventory` scope: 焼き先アンカーは component-inventory.json の component エントリのキー
@@ -23,7 +23,9 @@ per-phase 転換 (凍結契約 §4/§11): 焼き先は 3 scope へ写像され�
 - `phase` scope: 焼き先が phase ファイルの物語 (完了条件等) で機械アンカーを持たない process/reference 行
   (旧 component-scope N-A)。計数のみ (機械検査対象外・意味は content-review/人間トラスト)。
 
---self-test は reflection.md の行 id 集合と本 table の id 集合の drift を検出する (44 行・集合完全一致)。
+--self-test は (a) reflection.md の行 id 集合と本 table の id 集合の drift (46 行・集合完全一致) と
+(b) reflection.md 焼き先列の粗トークン (inventory / plugin_meta) と ROWS scope の矛盾を検出する
+(md が機械アンカーを謳うのに table が別 scope に登録される片肺 drift を塞ぐ)。
 skill-creator-spec-reflection.md の焼き先列と同期する。
 """
 from __future__ import annotations
@@ -67,7 +69,7 @@ def _is_script(c: dict) -> bool:
     return c["component_kind"] == "script"
 
 
-# --- 44行 operationalization テーブル (scope, klass, applies, anchor) ---
+# --- 46行 operationalization テーブル (scope, klass, applies, anchor) ---
 # scope: inventory=component-inventory.json の component エントリ / plugin=index.plugin_meta /
 #        phase=phase ファイル物語 (機械アンカー無し・N-A)。anchor は dotted path。
 ROWS: dict[str, tuple[str, str, object, str | None]] = {
@@ -89,6 +91,12 @@ ROWS: dict[str, tuple[str, str, object, str | None]] = {
     "B1": ("inventory", "conditional", _skill_loop, "feedback_contract.criteria"),
     "B2": ("phase", "N-A", _always, None),
     "B3": ("phase", "N-A", _always, None),
+    # B4/B5: feedback+Notion 連携 (B4=notion_config per-project DB 解決 SSOT / B5=improvement-request
+    # schema 受け皿 DB)。両行は D6 と同一 anchor `feedback_deploy` を意図的共有する (A7/F5 と同型:
+    # matrix はスロット存在のみ・notion_sink/portability の値域は check-spec-gates、inventory 側
+    # notion_config surface の採否は specfm.validate_surface_inventory の責務)。
+    "B4": ("plugin", "conditional", _always, "feedback_deploy"),
+    "B5": ("plugin", "conditional", _always, "feedback_deploy"),
     "C1": ("inventory", "OP", _always, "harness_coverage"),
     "C2": ("inventory", "OP", _always, "harness_coverage.min"),
     "C3": ("phase", "N-A", _always, None),
@@ -128,7 +136,7 @@ ROWS: dict[str, tuple[str, str, object, str | None]] = {
 # --- 分類の行 ID 集合を固定 (件数 drift でなく集合入替も検出する) ---
 EXPECTED_OP = {"A1", "A5", "A8", "C1", "C2", "F1", "F2", "F3", "F4", "F6"}
 EXPECTED_CONDITIONAL = {
-    "A7", "A10", "F5", "F7", "F8", "D6", "B1", "D1", "D2", "D5",
+    "A7", "A10", "F5", "F7", "F8", "D6", "B1", "B4", "B5", "D1", "D2", "D5",
     "A11", "E5", "E6", "E1", "E2", "G1", "G2",
 }
 EXPECTED_NA = {
@@ -169,6 +177,48 @@ def membership_drift(classification: dict[str, str] | None = None) -> list[str]:
 def parse_matrix_ids(md_text: str) -> list[str]:
     """reflection.md のテーブル行から行 id を抽出する。"""
     return [m.group(1) for line in md_text.splitlines() if (m := _ROW_ID_RE.match(line))]
+
+
+def parse_matrix_burn_targets(md_text: str) -> dict[str, str]:
+    """reflection.md のテーブル行から 行 id -> 焼き先列 (最終セル) を抽出する。
+
+    セル内のエスケープ pipe (`\\|`) を退避してから分割する (`PASS\\|FAIL` 等を跨がない)。
+    """
+    out: dict[str, str] = {}
+    for line in md_text.splitlines():
+        m = _ROW_ID_RE.match(line)
+        if not m:
+            continue
+        sanitized = line.replace("\\|", "\x00")
+        cells = [c.replace("\x00", "\\|").strip() for c in sanitized.strip().strip("|").split("|")]
+        if len(cells) >= 5:
+            out[m.group(1)] = cells[-1]
+    return out
+
+
+def burn_target_scope_drift(md_text: str) -> list[str]:
+    """reflection.md 焼き先列の粗トークンと ROWS scope の矛盾を返す (MD-02 の機械化)。
+
+    焼き先列が機械アンカー粗トークン (`inventory` / `plugin_meta`) を謳う行は、ROWS の scope が
+    その集合に含まれること。P 段階名のみ (粗トークン無し) の行は無拘束 (phase scope の物語焼き先)。
+    N-A/phase 行が機械アンカーを謳う・md と table で焼き先層が食い違う、の両 drift を検出する。
+    """
+    errs: list[str] = []
+    for rid, cell in parse_matrix_burn_targets(md_text).items():
+        if rid not in ROWS:
+            continue  # id 集合 drift は self_test の集合検査が担う
+        scope = ROWS[rid][0]
+        tokens: set[str] = set()
+        if "inventory" in cell:
+            tokens.add("inventory")
+        if "plugin_meta" in cell:
+            tokens.add("plugin")
+        if tokens and scope not in tokens:
+            errs.append(
+                f"行 {rid}: reflection.md 焼き先列の粗トークン {sorted(tokens)} と "
+                f"ROWS scope={scope!r} が不一致 (md↔table の焼き先層 drift)"
+            )
+    return errs
 
 
 def _has(d: object, dotted: str) -> bool:
@@ -257,21 +307,23 @@ def run(plan_dir: Path, index_name: str, inventory_path: Path | None) -> tuple[i
 def self_test(matrix_path: Path) -> tuple[int, list[str]]:
     if not matrix_path.is_file():
         return 2, [f"matrix not found: {matrix_path}"]
-    ids = set(parse_matrix_ids(matrix_path.read_text(encoding="utf-8")))
+    md_text = matrix_path.read_text(encoding="utf-8")
+    ids = set(parse_matrix_ids(md_text))
     table = set(ROWS)
     msgs: list[str] = []
     if ids - table:
         msgs.append(f"reflection.md に table 未登録の行: {sorted(ids - table)}")
     if table - ids:
         msgs.append(f"table にあるが reflection.md に無い行: {sorted(table - ids)}")
-    if len(table) != 44:
-        msgs.append(f"table 行数 {len(table)} != 44")
+    if len(table) != 46:
+        msgs.append(f"table 行数 {len(table)} != 46")
     msgs.extend(membership_drift())  # 件数不変の OP↔N-A 入替も検出 (集合完全一致ガード)
+    msgs.extend(burn_target_scope_drift(md_text))  # md 焼き先列 ↔ ROWS scope の層 drift (MD-02)
     return (1 if msgs else 0), msgs
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="44行マトリクスの operationalize 被覆を検証する")
+    ap = argparse.ArgumentParser(description="46行マトリクスの operationalize 被覆を検証する")
     ap.add_argument("plan_dir", nargs="?", help="plan ディレクトリ")
     ap.add_argument("--matrix", default=str(_DEFAULT_MATRIX), help="reflection.md パス")
     ap.add_argument("--index", default="index.md", help="index ファイル名")
@@ -282,7 +334,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.self_test:
         code, msgs = self_test(Path(args.matrix))
         if code == 0:
-            sys.stdout.write("OK: 44行 table と reflection.md が一致 (drift なし)\n")
+            sys.stdout.write("OK: 46行 table と reflection.md が一致 (id 集合/分類/焼き先層 drift なし)\n")
             return 0
         for m in msgs:
             sys.stderr.write(m + "\n")

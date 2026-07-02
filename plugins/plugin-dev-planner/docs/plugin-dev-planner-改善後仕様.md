@@ -52,7 +52,7 @@ plan は**直交する 2 軸**を、二重に持たず (正規化) 保持する:
 
 | 軸 | 意味 | 本数 | SSOT |
 |---|---|---|---|
-| **ライフサイクル軸(人間)** | 13 フェーズ。各フェーズ = 1 Markdown `phase-NN-<kebab>.md`。上から順に読める実行可能タスク仕様=**primary deliverable** | **13 固定**(フェーズ数) | `index.md` + phase ファイル |
+| **ライフサイクル軸(人間)** | 13 フェーズ。各フェーズ = 1 Markdown `phase-NN-<kebab>.md`。上から順に読める宣言型タスク仕様(8 節)=**primary deliverable** | **13 固定**(フェーズ数) | `index.md` + phase ファイル |
 | **成果物実体軸(機械)** | N 個の buildable component (skill/sub-agent/slash-command/hook/script)。build routing・1 実体=1 `build_target`・依存 DAG・品質機構を保持 | **N**(実体数の射影・input でなく output) | `component-inventory.json` |
 
 - **正規化**: build_target / depends_on は inventory のみが持ち、phase ファイルは再記述しない。component は `entities_covered: [C01, ...]` の **id 参照だけ**でフェーズに紐づく。
@@ -107,8 +107,8 @@ applicability:
 ```
 build_target / quality_gates / harness_coverage / feedback_contract は phase frontmatter に**置かない**(inventory の component エントリが持つ=正規化)。
 
-### phase ファイル本文 section(§5・`detect-unassigned.py` の床)
-`## 目的` / `## 実行タスク`(該当 `entities_covered` があれば component id 併記)/ `## 成果物` / `## 完了条件` を持ち、各見出し直後に非空本文(床のみ機械強制・意味は下流トラスト)。
+### phase ファイル本文 section(§5・宣言型 8 節)
+節集合の正本は `specfm.PHASE_BODY_SECTIONS`(宣言型 8 節)、人間可読表は `references/io-contract.md` §5(本書は節名を再列挙しない=引用形一本化)。`detect-unassigned.py` が同定数を import し、各見出し直後の非空本文を床として機械強制する(床のみ機械強制・意味は下流トラスト。該当 `entities_covered` があれば component id を併記)。
 
 ---
 
@@ -133,9 +133,10 @@ build_target / quality_gates / harness_coverage / feedback_contract は phase fr
     }
     // ... N 実体
   ],
-  "plugin_level_surfaces": {               // manifest/composition/harness_eval/references_config_assets/mcp_app_connector
+  "plugin_level_surfaces": {               // manifest/composition/harness_eval/references_config_assets/schemas/vendor/mcp_app_connector/notion_config
     "manifest": {"required": true},
-    "mcp_app_connector": {"required": false, "omitted_reason": "..."}
+    "mcp_app_connector": {"required": false, "omitted_reason": "..."},
+    "notion_config": {"required": true, "resolution": "notion_config", "databases": [{"key": "...", "used_by": "C01", "direction": "write"}], "token": "keychain"}
   }
 }
 ```
@@ -169,7 +170,7 @@ quality_gates:
 harness_coverage: {min: 80, kind_pass: <kind別>}
 ```
 
-index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_plugin + distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy)を携帯。
+index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_plugin + distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy)を携帯。feedback_deploy はコア(常時・opt-out は `{enabled:false, reason}`)で、Notion 受け皿は `notion_sink{config_key, schema_ref, resolution}` を宣言し DB ID は設置先 `.notion-config.json` が供給する(契約は `references/io-contract.md` §9)。
 
 ---
 
@@ -178,14 +179,18 @@ index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_pl
 | スクリプト | 検査 |
 |---|---|
 | `check-plugin-goal-spec.py` | goal-spec + plugin 固有アンカー(target_plugin_slug/plan_dir。requested_count は任意) |
+| `check-requirements-coverage.py` | (SDD・RTM) goal-spec checklist の各要件 id が index の `## 完了チェックリスト` / `## 受入確認` へ被覆されることを fail-closed 検査(要件 orphan=silent drop 防止・detect-unassigned の component orphan と鏡像) |
 | `verify-index-topsort.py` | (二層) index が P01..P13 を phase_number 昇順で全列挙 + inventory component DAG 非循環 |
 | `detect-unassigned.py` | 13 phase ファイル全存在 + §5 section 床 + 各 component が ≥1 phase の entities_covered に出現(orphan 防止)+ build_target 非空 |
 | `check-spec-frontmatter.py` | phase frontmatter(PHASE_REQUIRED)+ inventory component_kind 別構造 + criteria の purpose-traceability |
 | `check-spec-gates.py` | inventory component の quality_gates / harness_coverage 値域 + index.plugin_meta 値域 |
-| `check-spec-matrix-coverage.py` | 44 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
+| `check-spec-matrix-coverage.py` | 46 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
 | `check-surface-inventory.py` | 5 種検討証跡 + plugin-level surface 採否 |
 | `check-build-handoff.py` | L3→L4 routing(inventory 由来)/ builder / build_kind / manifest draft |
+| `check-runtime-portability.py` | install 携帯性: 共有 script の plugin-root hoist(P)+ build_target の plugin 内自己完結(Q) |
 | `check-plugin-surface-audit.py` | plugins/ 配下の現物 surface 横断棚卸し(dogfood) |
+
+呼称は 2 層(core 5 scripts / 6 invocations + 拡張ゲート 6 本)。一覧と総数(検証 11 本)の単一正本 = `references/io-contract.md` §11 表 + `specfm.GATE_SCRIPTS`(本表はその要約 projection)。
 
 per-phase の恒久ロック(pytest): `test_examples_golden`(13 phase + index = 14 Markdown / 全 P01-P13 存在)+ inventory の 5-kind 網羅(≥1 kind が ≥2 実体)+ `test_detect_unassigned`(phase 完全性 + component orphan)。
 

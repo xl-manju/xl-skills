@@ -15,7 +15,7 @@ source-tier: internal
 
 per-phase 転換の中核 SSOT。plan は**直交する 2 軸**を単一 SSOT + 複数 projection で持つ:
 
-- **ファイル軸 (人間・ライフサイクル)** = 13 フェーズ。各フェーズ = 1 Markdown `phase-NN-<kebab>.md` (上から順に読める実行可能タスク仕様=primary deliverable)。本数は **13 固定** (フェーズ数)。
+- **ファイル軸 (人間・ライフサイクル)** = 13 フェーズ。各フェーズ = 1 Markdown `phase-NN-<kebab>.md` (上から順に読める宣言型タスク仕様 (8 節)=primary deliverable)。本数は **13 固定** (フェーズ数)。
 - **build 軸 (機械・成果物実体)** = N 個の buildable component (skill / sub-agent / slash-command / hook / script)。**`component-inventory.json` が唯一の SSOT** (build routing・1 実体=1 `build_target`・依存 DAG・品質機構=旧 C*.md frontmatter の載せ替え先を保持)。
 
 両軸は build_target/depends_on を二重に持たない (正規化): build 情報は inventory のみが持ち、phase ファイルは `entities_covered: [C01, ...]` の id 参照だけで component に紐づく。
@@ -71,6 +71,7 @@ plugin が生成し得る**buildable な capability 種別**。`skill-brief.sche
 | **schemas** | `schemas/**` (JSON Schema 契約) | component の schemas または `plugin_meta.ssot_dedup` |
 | **vendor** | `vendor/**` = cross-plugin SSOT の byte 同一複製 (携帯性のための vendoring) | `plugin_meta.ssot_dedup` |
 | **MCP/app connector** | `.mcp.json`, `.app.json` | `plugin_meta.manifest` と `component-inventory.json` |
+| **notion_config** | 設置先 repo-root `.notion-config.json` (DB ID 供給・gitignore)。plan は DB キーのみ宣言し解決は `notion_config.py` の名前参照 | `plugin_level_surfaces.notion_config` + `plugin_meta.feedback_deploy.notion_sink` (契約は `io-contract.md` §9) |
 
 これらは component エントリの `component_kind` ではない。欠落すると plugin として不完全になるため、R2/R3 で要否を判定し、不要なら `plugin_level_surfaces.<surface>.omitted_reason` に理由を残す。省略理由のキーは `omitted_reason` 一本のみ (評価器が読むのもこのキーのみ)。
 
@@ -100,7 +101,7 @@ component は `component_kind` (分類軸 5 種) と直交する属性 `placemen
 | slash-command | `commands/*.md` |
 | hook | `plugin.json`/`settings.json` 配線スクリプト |
 | script | `scripts/*.py`・決定論処理 |
-| phase ファイル | 本スキル(L2)が出力する 1 フェーズ=1 Markdown (`phase-NN-<kebab>.md`)・上から順に読める実行可能タスク仕様 (L3 ファイル軸) |
+| phase ファイル | 本スキル(L2)が出力する 1 フェーズ=1 Markdown (`phase-NN-<kebab>.md`)・上から順に読める宣言型タスク仕様 (8 節・L3 ファイル軸) |
 | component | `component-inventory.json` の `components[]` 1 エントリ (L3 build 軸)・`run-skill-create`/`run-build-skill` 投入可能粒度・1 実体=1 `build_target` |
 | フェーズ | プラグイン開発ライフサイクルの 1 段階 (§8 P01-P13)。従来 Phase 1-13 を写像した 13 フェーズ |
 | name(slug) | 機械識別子 (例 `run-plugin-dev-plan`)・lint で形式検証 |

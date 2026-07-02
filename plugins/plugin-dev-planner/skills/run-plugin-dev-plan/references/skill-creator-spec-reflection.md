@@ -1,6 +1,6 @@
 ---
 name: skill-creator-spec-reflection
-description: skill-creator 仕様の反映トレーサビリティ・マトリクス全44行(ID/仕様/絶対パス/何を強制/焼き先)を読む。R3 携帯基準と R4 検証(完全性証明)の正本。
+description: skill-creator 仕様の反映トレーサビリティ・マトリクス全46行(ID/仕様/絶対パス/何を強制/焼き先)を読む。R3 携帯基準と R4 検証(完全性証明)の正本。
 kind: reference
 owner: team-platform
 since: 2026-06-29
@@ -9,7 +9,7 @@ source-tier: internal
 
 # skill-creator 仕様 反映トレーサビリティ・マトリクス (§14 / 完全性の証明)
 
-> 下記インベントリの**全 44 行** (指示インベントリ 43 行 + F8 install-portability の追加 1 行) を収録 (漏れ 0)。`焼き先` = どのフェーズ / **inventory component エントリ** (旧 component frontmatter) / **index plugin_meta** (plugin 階層) に焼くか。パスは xl-skills repo root 相対 (= 絶対)。位置/閾値を確認できない箇所は `未確認` を明示 (省略しない)。焼き先の P4/P6/P8 等は開発ライフサイクルの粗い段階名で、phase-lifecycle.md §8 の 13 フェーズ (P01-P13) へ写像される。
+> 下記インベントリの**全 46 行** (指示インベントリ 43 行 + F8 install-portability + B4/B5 feedback-Notion 連携の追加 3 行) を収録 (漏れ 0)。`焼き先` = どのフェーズ / **inventory component エントリ** (旧 component frontmatter) / **index plugin_meta** (plugin 階層) に焼くか。パスは xl-skills repo root 相対 (= 絶対)。位置/閾値を確認できない箇所は `未確認` を明示 (省略しない)。焼き先の P4/P6/P8 等は開発ライフサイクルの粗い段階名で、phase-lifecycle.md §8 の 13 フェーズ (P01-P13) へ写像される。
 
 ## カテゴリ1: 評価基準
 
@@ -34,6 +34,8 @@ source-tier: internal
 | B1 | feedback_contract_ssot.py(+vendoring) | `plugins/skill-creator/scripts/feedback_contract_ssot.py` | CRITERIA_ID_RE=`^(IN\|OUT\|C)[0-9]+$`・verify_by∈{lint,test,script,evaluator,elegant-review,human}・loop_scope∈{inner,outer}各≥1・必須キー(id,loop_scope,text,verify_by)・FEEDBACK_LOOP_KINDS={run,wrap,delegate}・3 者ミラー解消 | P6 + inventory component エントリ |
 | B2 | lint-feedback-contract.py | `scripts/lint-feedback-contract.py` | kind∈{run,wrap,delegate} の frontmatter に criteria 必須・SSOT 制約満たす・CI/pre-push fail-closed・skip_reason で N/A・フォールバック既定残存 WARN | P6 完了条件(verify) |
 | B3 | run-build-skill Step1/3.5 | `plugins/skill-creator/skills/run-build-skill/` (+`templates/combinators/with-feedback-contract.patch`) | loop 系は Step1 で brief.goal/checklist から criteria を test-first 導出 → Step3.5 で SKILL.md frontmatter と build-trace 両方に固定・patch 注入 | P4/P6 |
+| B4 | notion_config.py (per-project Notion DB 解決 SSOT) | `plugins/skill-creator/scripts/notion_config.py` | DB キー (論理名)=plan 宣言 / DB ID (具体値)=設置先 repo-root `.notion-config.json` (gitignore) 供給の二層分離・require_or_skip fail-closed・解決ロジックは名前参照のみ (planner 側で再実装/複製禁止) | inventory `plugin_level_surfaces.notion_config` + index `plugin_meta.feedback_deploy.notion_sink.resolution` |
+| B5 | improvement-request.schema.json (改善要望 受け皿DB) | `doc/notion-schema/improvement-request.schema.json` | 量産先 feedback (run-skill-feedback→`notion-submit-improvement.py`) の Notion 受け皿 DB スキーマ・schema はパス参照で複製しない・feedback_deploy enabled 時に schema_ref 必須 | index `plugin_meta.feedback_deploy.notion_sink.schema_ref` |
 
 ## カテゴリ3: テスト / TDD / カバレッジ
 
@@ -72,7 +74,7 @@ source-tier: internal
 |---|---|---|---|---|
 | F1 | P0 lint 8 本 | `plugins/skill-governance-lint/scripts/{lint-skill-name,lint-skill-description,lint-skill-tree,validate-frontmatter,lint-dependency-direction,lint-skill-dep-step7,lint-forbidden-deps,lint-manifest-contents}.py` | 全 exit0・TODO/未展開{{}}/英語仮文なし | P5 |
 | F2 | validate-build-trace.py | `plugins/skill-creator/skills/run-build-skill/scripts/validate-build-trace.py` | source_docs/build_flow_coverage/doc_coverage/layer_decisions/reproducibility_gates の空欄拒否・prompt 配置 regex 照合・responsibility.id 集合==prompts ファイル名集合・--self-test | P5/P6 |
-| F3 | validate-plugin-completeness.py | `scripts/validate-plugin-completeness.py` | MK-001..004(marketplace 登録/source 実在/basename 一致/distributable:false 登録残存) BD-001/002(bundle 登録)・distributable:false=実体保持非登録(未宣言 True)・NEVER_DISTRIBUTE=frozenset({skill-creator,prompt-creator}) denylist fail-closed・--fix append-only | P7 |
+| F3 | validate-plugin-completeness.py | `scripts/validate-plugin-completeness.py` | MK-001..004(marketplace 登録/source 実在/basename 一致/distributable:false 登録残存) BD-001/002(bundle 登録)・distributable:false=実体保持非登録(未宣言 True)・NEVER_DISTRIBUTE=frozenset({skill-creator,prompt-creator,plugin-dev-planner}) denylist fail-closed・--fix append-only | P7 |
 | F4 | bundles.json + marketplace.json | `.claude-plugin/bundles.json` / `.claude-plugin/marketplace.json` | bundles=xl-skills-full(12 plugin)/xl-skills-intake・marketplace plugins[]・skill-creator/prompt-creator 両方未掲載・install-bundle が cross-plugin 一括 install | P7 |
 | F5 | PKG 契約(ref-pkg-contract) | `plugins/skill-creator/skills/ref-pkg-contract/` / `plugins/skill-creator/skills/run-plugin-package-check/scripts/validate-plugin-permissions.py` | PKG-001(公式 CLI ラッパー) 002-008(静的検査 7) 009(外部参照) 010-015(smoke/permission/runtime)・run-plugin-package-check に smoke-install/uninstall/upgrade+permissions | P7 |
 | F6 | governance-check.yml(CI strict) | `.github/workflows/governance-check.yml` / `scripts/run-ci-checks.sh` | lint-script-naming/skill-description/dependency-direction/feedback-protocol --strict/content-review --all/feedback-contract --all/notion-relations/external-refs/plugin-completeness/ssot-duplication --strict/goal-seek --self-test/skill-completeness/frontmatter/plugin-lint-coverage/knowledge-loop・ローカル run-ci-checks.sh は **pytest 非包含**(push 前 pytest 直接実行要) | P5/P7 |
@@ -92,11 +94,11 @@ source-tier: internal
 
 ## 完全性自己点検
 
-A1-A11(11) + B1-B3(3) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = **44 行**。指示インベントリ全項目と 1 対 1 (F8 install-portability は per-phase 転換で配布携帯性軸を追加)。**未確認** (= ファイルは実在するが内容深掘り未了) = `.coveragerc` 正確位置 / lint-skill-completeness 判定詳細 / compose-rubrics rule 閾値 / L0 rubric per-rule severity 重み (行内に明示・省略なし)。G5 quality-rubric は二段確認で実在＋内容確認済みのため未確認から除外。**L0 rubric の rule ID/family は 2026-06-30 elegant-review で実体照合済 (FM/BD/NM/PD/RG + 横断 AG/HK/CM/PC/PR/WF/KL)・旧 A6 の PG/BND/REG 記載は L2 評価器 delta の誤帰属だったため是正済 (tests/test_matrix_doc_integrity.py が再発を機械検出)**。
+A1-A11(11) + B1-B5(5) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = **46 行**。指示インベントリ全項目と 1 対 1 (F8 install-portability は per-phase 転換で配布携帯性軸を、B4/B5 は feedback-Notion 連携の宣言スロットを追加)。**未確認** (= ファイルは実在するが内容深掘り未了) = `.coveragerc` 正確位置 / lint-skill-completeness 判定詳細 / compose-rubrics rule 閾値 / L0 rubric per-rule severity 重み (行内に明示・省略なし)。G5 quality-rubric は二段確認で実在＋内容確認済みのため未確認から除外。**L0 rubric の rule ID/family は 2026-06-30 elegant-review で実体照合済 (FM/BD/NM/PD/RG + 横断 AG/HK/CM/PC/PR/WF/KL)・旧 A6 の PG/BND/REG 記載は L2 評価器 delta の誤帰属だったため是正済 (tests/test_matrix_doc_integrity.py が再発を機械検出)**。
 
 ## 完全性の証明 (§14.1 / 全サーフェス列挙 → ラベル付け)
 
-> 上記 44 行のうち 43 行は「指示インベントリ」と 1 対 1 (F8 install-portability は per-phase 転換で追加した配布携帯性規律) だが、それだけでは *分母が自己定義* で完全性を証明しない。
+> 上記 46 行のうち 43 行は「指示インベントリ」と 1 対 1 (F8 install-portability は per-phase 転換で追加した配布携帯性規律、B4/B5 は feedback-Notion 連携で追加した宣言スロット規律) だが、それだけでは *分母が自己定義* で完全性を証明しない。
 > ここでは **skill-creator の全サーフェス (skills 31 本 + 設計書の関連章) を独立列挙**し、各々を
 > `反映済(行ID)` / `含意済(行IDに包含)` / `意図的除外(理由)` でラベル付けする。これにより「漏れていない」が
 > 監査可能になる (循環論法の解消)。新規 skill/章が skill-creator に増えたら本表へ追記する運用とする。
@@ -139,7 +141,7 @@ A1-A11(11) + B1-B3(3) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = *
 | run-template-sync | 意図的除外 (symlink→contract-generator) | テンプレ同期の運用。生成規律でない。実体は contract-generator 所有 |
 | wrap-git-commit-safe | 意図的除外 | git commit ラッパー。生成規律でない (PR/commit は最終仕様書が言及・本スキル責務外) |
 
-### 設計書 関連章 (44 行が直接引用しないが関連)
+### 設計書 関連章 (46 行が直接引用しないが関連)
 
 | 章 | ラベル | 根拠 |
 |---|---|---|
@@ -151,13 +153,14 @@ A1-A11(11) + B1-B3(3) + C1-C4(4) + D1-D6(6) + E1-E6(6) + F1-F8(8) + G1-G6(6) = *
 
 **結論**: skill-creator の全 skill/関連章は {反映済 / 含意済 / 意図的除外+理由} のいずれかに分類済み = **未分類の漏れ 0 を列挙で証明**。意図的除外は理由付きで監査可能。
 
-**機械保証の射程 (粒度の正直開示・over-claim 回避)**: 「完全性の証明」は *機械保証できる粒度* と *人手監査に委ねる粒度* の二層から成り、本表はその両方を 1 箇所に書くため射程を明示する:
+**機械保証の射程 (粒度の正直開示・over-claim 回避)**: 「完全性の証明」の担保は、マトリクスが上流を参照する **3 つの様式 (引用 / 数値 / 意味 gloss)** ごとに機構を分ける三層方式 + 分母ゲートから成る:
 
 | 粒度 | 何を保証 | 機械ゲート |
 |---|---|---|
 | **skill 列挙 (= 分母)** | skill-creator の skill 増減で本表の追記/削除漏れを検出 | `tests/test_matrix_doc_integrity.py::test_completeness_proof_enumerates_all_skill_creator_skills` |
-| **44 行 ID 集合** | 44 行 table と本文行 ID の drift・OP/conditional/N-A 入替 | `check-spec-matrix-coverage.py --self-test` |
-| **引用 rule-ID / パス存在** | rubric.json 引用 rule-ID の実在 + `plugins/` 引用パスの実在 (上流改名の無音 stale 化) | `test_matrix_rows_cite_real_rubric_rule_ids` / `test_matrix_rows_cite_existing_plugin_paths` |
-| **意味ラベル真正性・閾値値・既存 skill 内部の規律変化** | (機械化しない=Goodhart 回避) | **`audit-trigger: quarterly` の人手再監査 + 独立 SubAgent の二段確認** |
+| **46 行 ID 集合** | 46 行 table と本文行 ID の drift・OP/conditional/N-A 入替 | `check-spec-matrix-coverage.py --self-test` |
+| **層1: 引用 (path / rule-ID)** | 引用先の実在 (上流改名/移動/削除の無音 stale 化)。原則はこの引用形=コピー焼込禁止 | `test_matrix_rows_cite_real_rubric_rule_ids` / `test_matrix_rows_cite_existing_plugin_paths` |
+| **層2: 数値 (表示用複製)** | 可読性のため複製した閾値・lint 集合が上流実体と値一致 (SKILL_P0_LINTS↔`plugins/skill-governance-lint/scripts/` 実体 glob、A1/A4 行数値↔引用先 JSON 値)。複製は specfm 冒頭の二重保持台帳 + parity test 同時追加が条件 | `tests/test_schema_parity.py` / `tests/test_matrix_doc_integrity.py` |
+| **層3: 意味 gloss (ラベル faithfulness)** | 意味の正否そのものは機械化しない (Goodhart 回避)。代わりに上流契約ファイルを hash pin し、**不一致時に event-driven 再監査を発火** (カレンダー time-bomb でなく実変更駆動) | `references/upstream-pins.json` + `scripts/check-upstream-pins.py` (in-repo=hash 再計算 fail-closed) + 不一致時の人手再監査・独立 SubAgent 二段確認 (`audit-trigger: quarterly` は補助) |
 
-つまり「列挙・ID・参照先存在」までは機械保証し、「意味ラベルの faithfulness / しきい値値 / 既存 skill 内部で規律が変わった場合」は四半期監査と二段確認で担保する (claim はこの射程を超えて言い切らない)。新規 skill/章が skill-creator に増えたら本表へ追記する運用は、上記 skill 列挙ゲートが追記漏れを機械検出して補強する。
+つまり「列挙・ID・参照先存在・複製数値の値 parity」までは機械保証し、「意味ラベルの faithfulness」は upstream-pins の hash 不一致を発火点とする event-driven 再監査 + 四半期監査と二段確認で担保する (claim はこの射程を超えて言い切らない)。新規 skill/章が skill-creator に増えたら本表へ追記する運用は、上記 skill 列挙ゲートが追記漏れを機械検出して補強する。

@@ -61,7 +61,7 @@ MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
 # フラグの値に関わらず marketplace/bundle へ出てはならない。フラグが誤って true 化/
 # 削除されても (= フラグ駆動の MK-004 逆ガードが無効化されても) この固有名検査が
 # fail-closed で再配布を阻止する多層防御。配布化する正当な決定が出た場合のみ本集合から外す。
-NEVER_DISTRIBUTE = frozenset({"skill-creator", "prompt-creator"})
+NEVER_DISTRIBUTE = frozenset({"skill-creator", "prompt-creator", "plugin-dev-planner"})
 
 
 def load_bundle_members() -> set[str]:

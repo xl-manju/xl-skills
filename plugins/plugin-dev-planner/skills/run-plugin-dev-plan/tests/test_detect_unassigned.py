@@ -27,22 +27,31 @@ def test_load_inventory_components_non_object_forms(unassigned):
     assert unassigned.load_inventory_components("   ") == []
 
 
-def test_missing_sections(unassigned):
-    full = "## 目的\n## 実行タスク\n## 成果物\n## 完了条件"
+def test_missing_sections(unassigned, specfm_mod):
+    # 節集合は specfm.PHASE_BODY_SECTIONS を単一正本にする (SSOT 追従)。
+    full = "".join(f"{sec}\n" for sec in specfm_mod.PHASE_BODY_SECTIONS)
     assert unassigned.missing_sections(full) == []
-    miss = unassigned.missing_sections("## 目的 only")
-    assert "## 実行タスク" in miss and "## 成果物" in miss and "## 完了条件" in miss
+    # 先頭節のみを残す → それ以外は全欠落として報告される
+    miss = unassigned.missing_sections(specfm_mod.PHASE_BODY_SECTIONS[0] + " only")
+    for sec in specfm_mod.PHASE_BODY_SECTIONS[1:]:
+        assert sec in miss
 
 
-def test_empty_body_sections_all_nonempty(unassigned):
-    text = "## 目的\n中身\n## 実行タスク\n- t\n## 成果物\n- a\n## 完了条件\nok\n"
+def test_empty_body_sections_all_nonempty(unassigned, specfm_mod):
+    text = "".join(f"{sec}\n中身\n" for sec in specfm_mod.PHASE_BODY_SECTIONS)
     assert unassigned.empty_body_sections(text) == []
 
 
-def test_empty_body_sections_detects_empty(unassigned):
-    text = "## 目的\n## 実行タスク\n- t\n## 成果物\n- a\n## 完了条件\n   \n"
-    miss = unassigned.empty_body_sections(text)
-    assert "## 目的" in miss and "## 完了条件" in miss and "## 実行タスク" not in miss
+def test_empty_body_sections_detects_empty(unassigned, specfm_mod):
+    secs = specfm_mod.PHASE_BODY_SECTIONS
+    # 先頭節=空本文 (直後に次見出し)・末尾節=whitespace のみ=空・中間節=非空
+    parts = [f"{secs[0]}\n"]
+    for sec in secs[1:-1]:
+        parts.append(f"{sec}\n中身\n")
+    parts.append(f"{secs[-1]}\n   \n")
+    miss = unassigned.empty_body_sections("".join(parts))
+    assert secs[0] in miss and secs[-1] in miss
+    assert secs[1] not in miss
 
 
 def test_empty_body_sections_ignores_missing_heading(unassigned):

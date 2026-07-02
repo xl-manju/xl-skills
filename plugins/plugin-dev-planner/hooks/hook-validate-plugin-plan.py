@@ -97,6 +97,8 @@ def main() -> int:
         [sys.executable, str(skill_dir / "scripts" / "check-spec-matrix-coverage.py"), str(plan_dir)],
         [sys.executable, str(skill_dir / "scripts" / "check-surface-inventory.py"), str(inventory)],
         [sys.executable, str(skill_dir / "scripts" / "check-build-handoff.py"), str(handoff)],
+        [sys.executable, str(skill_dir / "scripts" / "check-requirements-coverage.py"), str(plan_dir)],
+        [sys.executable, str(skill_dir / "scripts" / "check-runtime-portability.py"), str(plan_dir)],
         [sys.executable, str(skill_dir / "scripts" / "check-plugin-surface-audit.py"), "--plugins-dir", str(plugins_dir), "--strict-manifest", "--expect-plan-ready", "plugin-dev-planner"],
     ]
 

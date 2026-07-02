@@ -1,7 +1,7 @@
 {
   "purpose": "タスク台帳を Notion DB へ冪等同期する plugin の開発計画を作る",
   "background": "同期実行、独立検証、手動起動、破壊的操作防止、形式検査を単一 skill に押し込むと責務が混ざるため、plugin surface ごとに仕様書へ分解する。",
-  "goal": "notion-task-sync の N 本の component spec と index/handoff/inventory が決定論ゲートで検証可能な状態になっている",
+  "goal": "notion-task-sync の 13 phase ファイル + index + component-inventory + handoff が決定論ゲートで検証可能な状態になっている",
   "artifact_class": "plugin-plan",
   "target_plugin_slug": "notion-task-sync",
   "plan_dir": "plugin-plans/notion-task-sync",

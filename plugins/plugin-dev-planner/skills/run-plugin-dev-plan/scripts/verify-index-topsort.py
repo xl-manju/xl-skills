@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: verify-index-topsort
-# purpose: 生成 plan の index(main) が 13 フェーズ(P01..P13)を phase_number 昇順で全列挙し、かつ component-inventory.json の component 依存 DAG が非循環(top-sort 可能)であることを検証する二層決定論ゲート。
+# purpose: 生成 plan の index(main) が §9 基盤層+全体制御 section 床(specfm.INDEX_REQUIRED_SECTIONS=基本定義/ドメイン知識/インフラ/環境ポリシー/フェーズ一覧/完了チェックリスト/受入確認)を満たし、13 フェーズ(P01..P13)を phase_number 昇順で全列挙し、かつ component-inventory.json の component 依存 DAG が非循環(top-sort 可能)であることを検証する三層決定論ゲート。
 # inputs:
 #   - argv: <plan-dir> [--index NAME] [--inventory PATH]
 # outputs:
@@ -14,9 +14,12 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""index.md(main) の phase 完全性と component 依存 DAG の非循環を二層で機械検証する。
+"""index.md(main) の宣言型 section 床・phase 完全性・component 依存 DAG の非循環を三層で機械検証する。
 
-per-phase 転換 (凍結契約 §3/§4/§8/§13-C4) の C4 依存整合:
+per-phase 転換 (凍結契約 §3/§4/§8/§9/§13-C4):
+  - 層0 (index section 床): index が specfm.INDEX_REQUIRED_SECTIONS の各見出し + 非空本文を備える
+    (基盤層 = 基本定義/ドメイン知識/インフラ/環境ポリシー + 全体制御 = フェーズ一覧/完了チェック
+    リスト/受入確認)。計画全体の宣言型コンテキスト (elegant-review 7 層の Layer1-4) を毎回再現性で焼く。
   - 層1 (phase 完全性): index の `## フェーズ一覧` が P01..P13 を **phase_number 昇順** で
     全 13 列挙する (漏れ 0 / 重複 0 / 昇順)。id 体系は specfm.PHASE_ID_RE。
   - 層2 (component DAG): component-inventory.json の components[] の `depends_on` 有向グラフが
@@ -53,6 +56,37 @@ def body_after_frontmatter(text: str) -> str:
 def expected_phase_ids() -> list[str]:
     """canonical な P01..P13 (phase_number 昇順) を返す。"""
     return [specfm.phase_id(n) for n in range(1, 14)]
+
+
+def index_section_floor_errors(index_body: str) -> list[str]:
+    """index が specfm.INDEX_REQUIRED_SECTIONS の各見出し + 非空本文を備えるか検査する (層0 床)。
+
+    基盤層 (基本定義/ドメイン知識/インフラ/環境ポリシー) + 全体制御 (フェーズ一覧/完了チェック
+    リスト/受入確認) を計画全体の宣言型コンテキストとして毎回再現性で強制する。見出し欠落と空本文の
+    双方を弾く。本文収集は次の `## ` (level-2) 見出しまでで、`### ` サブ見出しは本文とみなす
+    (detect-unassigned.empty_body_sections と同一挙動)。意味の正否は下流トラスト (床のみ機械強制)。
+    """
+    lines = index_body.splitlines()
+    errors: list[str] = []
+    for sec in specfm.INDEX_REQUIRED_SECTIONS:
+        if sec not in index_body:
+            errors.append(f"index に必須 section 欠落 '{sec}' (基盤層+全体制御を宣言的に備えること・§9)")
+            continue
+        idx = next(
+            (i for i, ln in enumerate(lines)
+             if ln.strip() == sec or ln.strip().startswith(sec + " ")),
+            None,
+        )
+        if idx is None:
+            continue  # 見出しは substring で在るがブロック見出しとして独立行に無い→床の対象外
+        body: list[str] = []
+        for ln in lines[idx + 1:]:
+            if ln.startswith("## "):
+                break
+            body.append(ln)
+        if not "".join(body).strip():
+            errors.append(f"index の必須 section '{sec}' の本文が空 (見出し直後に非空本文を要求・§9 index 床)")
+    return errors
 
 
 def extract_phase_list_ids(index_body: str) -> tuple[list[str], bool]:
@@ -183,9 +217,9 @@ def run(plan_dir: Path, index_name: str, inventory_path: Path | None) -> tuple[i
         return 2, [f"component-inventory.json が見つからない: {inventory_path}"]
 
     errors: list[str] = []
-    ordered, has_section = extract_phase_list_ids(
-        body_after_frontmatter(index_path.read_text(encoding="utf-8"))
-    )
+    index_body = body_after_frontmatter(index_path.read_text(encoding="utf-8"))
+    errors.extend(index_section_floor_errors(index_body))  # 層0: 基盤層+全体制御 section 床
+    ordered, has_section = extract_phase_list_ids(index_body)
     errors.extend(verify_phase_enumeration(ordered, has_section))
 
     components, msg = load_components(inventory_path)
@@ -209,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     inventory_path = Path(args.inventory) if args.inventory else None
     code, msgs = run(plan_dir, args.index, inventory_path)
     if code == 0:
-        sys.stdout.write("OK: index が P01..P13 を昇順全列挙し component 依存 DAG が非循環\n")
+        sys.stdout.write("OK: index が §9 section 床を満たし P01..P13 を昇順全列挙し component 依存 DAG が非循環\n")
         return 0
     for m in msgs:
         sys.stderr.write(m + "\n")

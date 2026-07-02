@@ -26,7 +26,11 @@ def test_schema_and_rubric_exist_and_cover_four_conditions():
 
     assert set(schema["properties"]["conditions"]["required"]) == {"C1", "C2", "C3", "C4"}
     assert set(rubric["conditions"]) == {"C1", "C2", "C3", "C4"}
-    assert len(rubric["deterministic_gates"]) == 8
+    # ゲート数は evaluate-plan.py._gate_defs から導出し数値ハードコードの drift を避ける
+    # (id/name/conditions の完全一致は test_gate_parity.py が別途縛る)
+    evaluator = _load_evaluator()
+    expected_gates = len(evaluator._gate_defs(PLUGIN_ROOT / "skills" / "run-plugin-dev-plan", Path("/tmp/plan")))
+    assert len(rubric["deterministic_gates"]) == expected_gates
 
 
 def test_golden_plan_evaluates_pass(tmp_path):

@@ -11,7 +11,7 @@ source-tier: internal
 
 # 4条件 詳細基準 (plan 評価)
 
-`plan-rubric.json` の機械判定を補う人間向け基準。決定論ゲート (core 5 scripts / 6 invocations + surface inventory gate + build handoff gate の exit code) を一次根拠とし、意味判定は最小限に留める。
+`plan-rubric.json` の機械判定を補う人間向け基準。plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) の exit code を一次根拠とし、意味判定は最小限に留める。
 
 ## C1 矛盾なし (no_contradiction)
 
@@ -39,7 +39,7 @@ plan 内の契約が相互に衝突しないこと。`check-build-handoff.py` ex
 
 用語・フォーマット・データ構造が統一されていること。
 
-- `check-spec-matrix-coverage.py --self-test` exit0: 44 行マトリクスの行 ID 集合に drift がない。
+- `check-spec-matrix-coverage.py --self-test` exit0: マトリクス (skill-creator-spec-reflection.md) の行 ID 集合に drift がない (行数の正本は同 md)。
 - `check-spec-matrix-coverage.py PLAN` exit0: 適用行の焼き先が反映され OP/conditional/N-A 内訳が整合。
 - 用語 (component_kind / plugin_meta / quality_gates) が inventory component 間・phase ファイル間・index 間で同一語彙。
 
@@ -52,6 +52,7 @@ plan 内の契約が相互に衝突しないこと。`check-build-handoff.py` ex
 - `verify-index-topsort.py` exit0: 層1 = index の `## フェーズ一覧` が P01..P13 を phase_number 昇順で全 13 列挙 (漏れ 0 / 重複 0)、層2 = inventory component 依存 DAG が非循環 (top-sort 可能)。
 - `detect-unassigned.py` exit0: inventory の各 component が ≥1 phase の `entities_covered` に出現 (orphan 0) し `build_target` が非空。
 - `check-build-handoff.py` exit0: handoff routes が inventory 由来で builder↔component_kind 整合・DAG top-sort 成立・envelope gap reason を満たす。
+- `check-runtime-portability.py` exit0: 共有 script の plugin-root hoist + build_target の plugin 内自己完結 (install 携帯性)。
 - 依存 DAG が inventory component (`depends_on`) 側で非循環、index は phase 軸で昇順。
 
 **FAIL 例**: inventory の C02 が C03 に依存し C03 が C02 に依存する (component DAG 循環)。あるいは index の `## フェーズ一覧` が P04 を P03 より先に並べる (phase_number 昇順違反)。
@@ -61,8 +62,8 @@ plan 内の契約が相互に衝突しないこと。`check-build-handoff.py` ex
 | 条件 | PASS 条件 (gate は `plan-rubric.json` deterministic_gates が正本) |
 |---|---|
 | C1 | `check-build-handoff` exit0 かつ契約衝突 0 |
-| C2 | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` 全 exit0 かつ単一 skill 退化なし |
+| C2 | `detect-unassigned` / `check-spec-frontmatter` / `check-spec-gates` / `check-surface-inventory` / `check-requirements-coverage` (goal-spec 要件→index の RTM 被覆) 全 exit0 かつ単一 skill 退化なし |
 | C3 | `check-spec-frontmatter` / `check-spec-gates` / `check-spec-matrix-coverage --self-test` / `check-spec-matrix-coverage PLAN` 全 exit0 かつ語彙統一 |
-| C4 | `verify-index-topsort` / `detect-unassigned` / `check-build-handoff` 全 exit0 |
+| C4 | `verify-index-topsort` / `detect-unassigned` / `check-build-handoff` / `check-runtime-portability` 全 exit0 |
 
 `global_thresholds`: high == 0 かつ medium <= 2 かつ all_gates_exit0 == true で全体 PASS。1 つでも high があれば全体 FAIL。
