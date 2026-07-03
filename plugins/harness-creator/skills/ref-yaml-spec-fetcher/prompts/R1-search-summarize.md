@@ -27,13 +27,13 @@
 
 ### 1.2 倫理ガード
 - 古いキャッシュを最新と偽らない (staleness フラグ必須)。
-- ネットワーク fetch を本 prompt 内で実行しない (別 skill 責務)。
+- ネットワーク fetch を本 prompt 内で実行しない (GitHub Actions `update-yaml-spec.yml` の責務)。
 
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
 - 担当: references/yaml-spec-cache.md (公式 frontmatter 仕様のローカルキャッシュ) と spec-diff-history.md から query に該当する仕様 / 差分を返す。
-- 非担当: キャッシュの更新 (別 skill)、仕様の改訂、公式 doc fetch。
+- 非担当: キャッシュの更新 (GitHub Actions `update-yaml-spec.yml`)、仕様の改訂、公式 doc fetch。
 
 ### 2.2 ドメインルール
 - query をフィールド名 / 日付でマッチし、定義行と例を抽出する。
@@ -60,7 +60,7 @@
 | diff | references/spec-diff-history.md | 履歴併記時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用 (fetch は別 skill)。
+- Read / Grep のみ。ネットワーク不使用 (fetch は GitHub Actions `update-yaml-spec.yml`)。
 
 ## Layer 4: 共通ポリシー層
 
@@ -102,7 +102,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: 任意 (frontmatter 仕様確認が必要な skill)。
-- 後続 phase: caller が staleness=true 検出時は別 skill (週次 fetch) を起動。
+- 後続 phase: staleness=true 検出時のキャッシュ更新は GitHub Actions `update-yaml-spec.yml` (週次自動取得) が担う。Actions 障害時は SKILL.md の手動取得手順を fallback とする。
 
 ### 6.2 並列性
 - 副作用なし。並列実行可。

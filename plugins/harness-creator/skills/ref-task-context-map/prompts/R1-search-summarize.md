@@ -17,12 +17,12 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- **CONST_001 (実在チェック)**: `chapter_refs` のパスは `doc/ClaudeCodeスキルの設計書/` 配下で実在を確認する。
+- **CONST_001 (実在チェック)**: `chapters` の各値 (章番号 / 設計書パス) が設計書側に実在することを確認する。
   - 目的: caller が動的ロード時に「ファイル無し」エラーで止まらないようにする。
   - 背景: yaml だけ更新して設計書側を rename すると参照崩れが起きやすい。
-- **CONST_002 (安定 sort)**: 同 priority 内の順序は安定 sort で再現性確保する。
+- **CONST_002 (安定 sort)**: entries の yaml ファイル出現順を安定 sort で保持し再現性確保する。
   - 目的: 同 query で順序がブレない (snapshot test に必要)。
-- **CONST_003 (上限 5 件)**: 複数ヒットなら priority 降順、最大 5 件。
+- **CONST_003 (上限 5 件)**: 複数ヒットなら yaml のファイル出現順で最大 5 件。
   - 目的: caller の context 圧迫を防ぐ。
 
 ### 1.2 倫理ガード
@@ -36,9 +36,9 @@
 - 非担当: 設計書本体の改訂、動的ロード実行、章本文の取得。
 
 ### 2.2 ドメインルール
-- query を `trigger_keywords / verbs / domains` にマッチする。
-- `chapter_refs[]` (章番号 + パス) を抽出する。
-- 上限 5 件、超過は切り捨て (priority 同値時は安定 sort)。
+- query を entries[].`keywords` にマッチする。
+- マッチした entry の `chapters` (章番号リスト) と `note` を抽出する。
+- 上限 5 件、超過は切り捨て (yaml のファイル出現順で安定 sort)。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -80,16 +80,16 @@
 - ref-task-context-map 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
 ### 5.2 ゴール定義
-- **目的**: 呼出元 query に対し task-context-map.yaml の該当 entry と chapter_refs を priority 順で返す。
-- **背景**: caller は task 文脈別の参照章特定のみを必要とし、map 改訂は ref-* の責務外。priority 順の崩れや実在しないパス返却は caller を誤誘導するため厳守する。
-- **達成ゴール**: query に該当する entry の chapter_refs[] が priority 降順 (安定 sort) で最大 5 件、実在パスで引用され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が文脈遷移にそのまま使える状態。
+- **目的**: 呼出元 query に対し task-context-map.yaml の該当 entry の `chapters` / `note` を yaml のファイル出現順で返す。
+- **背景**: caller は task 文脈別の参照章特定のみを必要とし、map 改訂は ref-* の責務外。yaml 出現順の崩れや実在しない章/パス返却は caller を誤誘導するため厳守する。
+- **達成ゴール**: query に該当する entry の `chapters` が yaml のファイル出現順 (安定 sort) で最大 5 件、実在する章/パスで引用され、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が文脈遷移にそのまま使える状態。
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] 全 matches[] が task-context-map.yaml の実在 entry から引用されている
 - [ ] 呼出元責務外の情報 (map 改訂 / 新規 entry 追加) を含まない
 - [ ] 出力が 50 行 / 2KB 目安以内に収まる
-- [ ] chapter_refs のパスが `doc/ClaudeCodeスキルの設計書/` 配下で実在している
-- [ ] 同 priority 内の順序を安定 sort で再現性確保している
+- [ ] `chapters` の各値 (章番号 / パス) が設計書側に実在している
+- [ ] entries の yaml ファイル出現順を安定 sort で再現性確保している
 - [ ] 上限 5 件を超えていない
 - [ ] 該当ゼロ時は近傍 trigger を `suggestions` に入れる (exit 0)
 
@@ -118,11 +118,11 @@
 ## 正規化方針 (auto-applied)
 
 - 語幹化: NFKC + lowercase 後、英語は末尾 `-ing/-ed/-s` を剥がす、日本語は活用語尾 (する/した/しない) を剥がす。
-- 日英 alias: references/task-context-map.yaml の `aliases:` ブロックのみ採用、新規対応は作らない。
+- 日英対応: references/task-context-map.yaml の entries[].`keywords` に列挙された語 (日英混在) のみをマッチ対象とし、新規の類義語対応は作らない。
 - 未マッチ keyword は `suggestions` に NFKC 後の元語を返し、推定で類義語に置換しない。
 
 ## 出力指示 (LLM 実行時に読む箇所)
 
-LLM は task-context-map.yaml を `{{query}}` で検索し、priority 降順最大 5 件の
-`chapter_refs` を JSON で返す。該当ゼロは `matches: []` + `suggestions`。
+LLM は task-context-map.yaml の entries を `{{query}}` で検索し、yaml のファイル出現順で
+最大 5 件の該当 entry を `matches[]` (各 entry の `chapters` を `chapter_refs` として含む) で JSON 返却する。該当ゼロは `matches: []` + `suggestions`。
 余計な前置き・後書き・思考過程出力は禁止。

@@ -22,8 +22,8 @@
 - **CONST_002 (warn 必須)**: security-model.md の禁止項目に抵触する箇所は `warn` フラグを付与する。
   - 目的: 禁止 sink への誘導を caller が確実に拒否できるようにする。
   - 背景: 禁止条項を本文に埋めて返すと caller LLM が読み飛ばす事故があった。
-- **CONST_003 (effect 列保持)**: effect 列 (`none / write / network`) を欠落させない。
-  - 目的: caller が副作用を即座に判断できるようにする。
+- **CONST_003 (契約要素保持)**: sink-contract.md の payload/result schema フィールドと exit code (0-4) の意味を欠落・改変させない。
+  - 目的: caller が adapter の input/output 契約と失敗コードを即座に判断できるようにする。
 
 ### 1.2 倫理ガード
 - 禁止 sink を黙認しない (必ず warn)。
@@ -36,7 +36,7 @@
 - 非担当: sink への実書き込み、契約変更、security model 改訂。
 
 ### 2.2 ドメインルール
-- effect 列 (`none / write / network`) を欠落させない。
+- sink-contract.md の payload/result schema フィールドと exit code (0-4) の意味を欠落させない。
 - warn フラグの付与基準は security-model.md の明示行に紐付ける (推定禁止)。
 
 ### 2.3 入力契約
@@ -47,7 +47,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/query-result.schema.json` (任意)。
-- 必須フィールド: `matches[]` (input/output/effect/warn 列含む)、該当ゼロ時 `suggestions[]`。
+- 必須フィールド: `matches[]` (逐語引用 + `warn` 列。sink 契約は payload/result schema・exit code を保持)、該当ゼロ時 `suggestions[]`。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -82,14 +82,14 @@
 
 ### 5.2 ゴール定義
 - **目的**: 呼出元 query に対し sink-contract / security-model から最小十分な根拠抽出を返す。
-- **背景**: caller は sink 種別・effect・禁止条項のみを必要とし、実書き込みや security model 改訂は ref-* の責務外。本文埋め込みでは caller LLM が禁止条項を読み飛ばす事故が発生したため、warn フラグで明示する。
-- **達成ゴール**: query に該当する sink 行と security 条項が references から逐語引用され、effect 列と warn フラグを保持し、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま判定に使える状態。
+- **背景**: caller は sink 契約 (payload/result schema・exit code)・禁止条項のみを必要とし、実書き込みや security model 改訂は ref-* の責務外。本文埋め込みでは caller LLM が禁止条項を読み飛ばす事故が発生したため、warn フラグで明示する。
+- **達成ゴール**: query に該当する sink 契約と security 条項が references から逐語引用され、sink 契約は payload/result schema・exit code を保持しつつ warn フラグを添付し、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller がそのまま判定に使える状態。
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] 全 matches[] が sink-contract.md / security-model.md の実在行から逐語引用されている (捏造ゼロ)
 - [ ] 呼出元責務外の情報 (実書き込み / 契約変更 / security model 改訂) を含まない
 - [ ] 出力が 50 行 / 2KB 目安以内に収まる
-- [ ] effect 列 (none/write/network) を欠落させていない
+- [ ] sink 契約の payload/result schema フィールドと exit code (0-4) を欠落させていない
 - [ ] warn フラグの付与基準が security-model.md の明示行に紐付いている
 - [ ] sink-contract と security-model の整合 (禁止対象でないか) を検証済み
 - [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)

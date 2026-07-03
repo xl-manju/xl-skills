@@ -23,7 +23,7 @@
   - **背景**: 09 章評価フローの第三者性要求
 - **CONST_002 (Sycophancy 再要求必須)**: codex 応答が肯定所見のみなら最大 N 回再要求する
   - **目的**: 形式的 PASS を許容しないため
-  - **背景**: critical axis 全 >=1 の閾値を実効化するには再要求が必要
+  - **背景**: critical rule (rubric `rules[].severity=high` 群) を実効評価するには再要求が必要
 - **CONST_003 (version pin)**: codex CLI の version は応答 metadata に記録し、未知 version は escalation
   - **目的**: 採点ロジック drift を観測可能にするため
   - **背景**: version 差で rubric 解釈が変動する
@@ -31,7 +31,7 @@
 ### 1.2 倫理ガード
 
 - proposer ≠ approver: 採点結果に対する自己修正禁止、修正は別 skill (run-skill-rubric-governance) 経由
-- force_pass 禁止: critical axis に 1 件でも 0 があれば pass にしない
+- force_pass 禁止: critical rule (rubric `rules[].severity=high`) に 1 件でも FAIL があれば `verdict: pass` にしない
 
 ## Layer 2: ドメイン層 (本質ロジック)
 
@@ -42,10 +42,10 @@
 
 ### 2.2 ドメインルール
 
-- 全 critical axis で score >=1 のとき `pass_status: pass`、1 件でも 0 で `fail`
-- 応答に observation / rationale / suggested_fix のいずれかが欠落する finding は incomplete として再要求
-- Sycophancy 検出基準: findings 配列で severity が全て info / praise のみ → retry
-- 再要求は `sycophancy_retry_count` でカウント、上限 3
+- critical rule (rubric `rules[].severity=high`) が全 PASS のとき `verdict: pass`、1 件でも FAIL で `verdict: fail`、high 以外 (medium/low) のみ指摘なら `verdict: warn`
+- `findings[i]` は `message` 必須（`severity` と任意 `axis` を伴う）。`message` 欠落の finding は incomplete として再要求
+- Sycophancy 検出基準: `findings` が全て `severity: info`（指摘実体ゼロ）→ retry
+- 再要求は内部カウンタで上限 3（output には出さない）
 
 ### 2.3 入力契約
 
@@ -58,8 +58,8 @@
 ### 2.4 出力契約
 
 - schema: `schemas/io-contract.schema.json` の output ブロック準拠
-- 必須フィールド: `pass_status` (`pass|fail|skipped`), `critical_axis_scores[]`, `findings[]`, `sycophancy_retry_count`, `codex_version`
-- 各 `findings[i]` は `observation`, `rationale`, `suggested_fix`, `severity`, `axis_ref` を含む
+- 必須フィールド: `verdict` (`pass|fail|warn|skipped`), `findings[]`。任意: `codex_version`
+- 各 `findings[i]` は `severity` (`info|warn|fail`) と `message` を必須とし、`axis` (判定に用いた rule id / area) を任意で付す
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -69,7 +69,7 @@
 |---|---|---|
 | schema | `schemas/io-contract.schema.json` | output validation |
 | request | `eval-log/delegate-codex-request.json` | metadata 突合 |
-| rubric | `../ref-skill-design-rubric/references/rubric.json` | critical axis 一覧 |
+| rubric | `../ref-skill-design-rubric/references/rubric.json` | critical = `rules[].severity=high` 群 (pass/fail 判定基準)。SKILL.md 規約どおり本 prompt 本文へ焼き込み済みとし、codex 実行時は再読込しない (authoring 時のみ参照) |
 
 ### 3.2 外部ツール / API
 
@@ -82,13 +82,13 @@
 
 - schema validation FAIL → 最大 3 回自己修正、超過で escalation `schema-invalid`
 - Sycophancy 上限超過 → escalation `sycophancy-unrecoverable`
-- codex CLI 不在（request の status=skipped）→ output も `pass_status: skipped` 透過
+- codex CLI 不在（request の status=skipped）→ output も `verdict: skipped` 透過
 - structural error → exit 3
 
 ### 4.2 観測 / ロギング
 
 - 出力: `eval-log/delegate-codex-response.json`（27 章 §3.1 規約準拠）
-- 35 章 observable: pass_status=fail で `delegate_review_failed` を emit（aggregator 経由）
+- 35 章 observable: verdict=fail で `delegate_review_failed` を emit（aggregator 経由）
 - escalation は `log/escalation.jsonl` に追記
 
 ### 4.3 セキュリティ
@@ -106,16 +106,16 @@
 
 - **目的**: codex 応答を schema 準拠の response JSON へ整形し、sycophancy 検出・再要求制御を経て pass/fail 判定を確定する
 - **背景**: 自セッション採点禁止 (09章)。codex 側にも肯定バイアスが残るため、severity 構成で sycophancy を検出し最大 N 回まで再要求してから判定する必要がある
-- **達成ゴール**: `eval-log/delegate-codex-response.json` が §2.4 schema を満たし、`pass_status` / `critical_axis_scores` / `findings` / `sycophancy_retry_count` / `codex_version` が矛盾なく整合した状態
+- **達成ゴール**: `eval-log/delegate-codex-response.json` が §2.4 schema を満たし、`verdict` / `findings`（各 `severity`+`message`）/ 任意 `codex_version` が矛盾なく整合した状態
 
 ### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
-- [ ] `findings[]` 各要素に `observation` / `rationale` / `suggested_fix` / `severity` / `axis_ref` が揃う
-- [ ] critical axis 全 score >=1 のときのみ `pass_status: pass`、1 件でも 0 で `fail`（force_pass 禁止）
-- [ ] sycophancy 検出時（findings 全件 severity ∈ {info, praise}）`sycophancy_retry_count++` し再要求要求を出した
-- [ ] `sycophancy_retry_count` が上限（既定 3）以内、超過時は escalation `sycophancy-unrecoverable`
-- [ ] `codex_version` が request metadata と一致
-- [ ] request の `status: skipped` 透過時は output も `pass_status: skipped`
+- [ ] `findings[]` 各要素に `severity` (`info|warn|fail`) と `message` が揃う（任意 `axis`）
+- [ ] critical rule (rubric `rules[].severity=high`) 全 PASS のときのみ `verdict: pass`、1 件でも FAIL で `verdict: fail`（force_pass 禁止）
+- [ ] sycophancy 検出時（`findings` 全件 `severity: info` で指摘実体ゼロ）内部 retry カウンタを増やし再要求を出した
+- [ ] 内部 sycophancy retry が上限（既定 3）以内、超過時は escalation `sycophancy-unrecoverable`
+- [ ] `codex_version` を付す場合は request metadata と一致
+- [ ] request の `status: skipped` 透過時は output も `verdict: skipped`
 - [ ] `schemas/io-contract.schema.json` output ブロック validation を通過
 - [ ] SKILL.md / rubric.json / 他 skill への書込みゼロ（fork context 維持）
 
@@ -124,7 +124,7 @@
 - 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、codex_raw_response の形状（正常 / 肯定のみ / schema 不一致 / skipped）に応じて整形・突合・再要求手順を都度設計する
 - ループ:
   1. §5.3 の未充足項目を特定する
-  2. 未充足を解消する手順を立案（request metadata 取得 / findings 正規化 / sycophancy 検出 / rubric 突合 / pass_status 確定 / schema 自己修正 / eval-log 保存 等から必要なものを選択）
+  2. 未充足を解消する手順を立案（request metadata 取得 / findings 正規化 / sycophancy 検出 / rubric 突合 / verdict 確定 / schema 自己修正 / eval-log 保存 等から必要なものを選択）
   3. response JSON を更新
   4. §5.3 で自己評価し全項目充足まで反復（schema 自己修正最大 3 回、sycophancy 再要求最大 3 回）
 - 逸脱時: schema 再試行超過は escalation `schema-invalid`、structural error は §4.1 に従い exit 3 で停止
@@ -150,7 +150,7 @@
 
 ### 7.2 言語
 
-- 本文: 日本語、`pass_status` enum / axis 名 / key は英語
+- 本文: 日本語、`verdict` enum / `severity` enum / key は英語
 
 ---
 

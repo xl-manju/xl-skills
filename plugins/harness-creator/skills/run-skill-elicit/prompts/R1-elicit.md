@@ -1,7 +1,7 @@
 # Prompt: R1-elicit
 
 > 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の seven-layer-format.md を正本とする。
-> 出力フィールドの正本は `../run-skill-create/schemas/skill-brief.schema.json` (13 必須フィールド + ゴールシーク用 goal/purpose_background/checklist 等)。
+> 出力フィールドの正本は `../run-skill-create/schemas/skill-brief.schema.json` (14 必須フィールド。加えて実行系 (prefix∈{run,wrap,assign,delegate}) は goal/purpose_background/checklist、kind∈{run,assign} は responsibilities も allOf で追加 schema 必須 — 詳細は Layer 2)。
 > 聞き取りフロー (5 prefix / hierarchy / boundary / goal-checklist 抽出) の正本は SKILL.md `## ゴールシーク実行` の局面カタログ。
 > 本プロンプトは Wiegers 流要件抽出の推論リファレンスであり契約 (schema) を再定義しない。
 
@@ -37,7 +37,7 @@
 |---|---|
 | brief | Skill 化の最小設計書 (schema 正本フィールド準拠の JSON) |
 | trigger_conditions | Skill 発動を意図する動詞ベース条件 (2〜3 件) |
-| 必須フィールド | skill_name / prefix / hierarchy_level / trigger_conditions / output_contract / boundary ほか schema required |
+| 必須フィールド | skill_name / prefix / kind / hierarchy_level / trigger_conditions / output_contract / boundary ほか schema required。実行系 (prefix∈{run,wrap,assign,delegate}) は goal / purpose_background / checklist、kind∈{run,assign} は responsibilities (prompt_required:true 1 件以上) も allOf 必須 |
 
 ### 2.2 ビジネスルール
 - CONST_001: 対話は最小回数 (目安 5 ターン以内)。
@@ -78,6 +78,7 @@
 
 ### 5.4 完了チェックリスト (停止条件)
 - [ ] 正本スキーマ PASS (skill-brief.schema.json validator exit 0)
+- [ ] 実行系 (prefix∈{run,wrap,assign,delegate}) は goal / purpose_background / checklist を brief に埋め、kind∈{run,assign} は responsibilities に prompt_required:true を 1 件以上含む (欠くと validator exit≠0 で上の PASS に到達不能)
 - [ ] `trigger_conditions 2〜3` 件
 - [ ] 対話 5 ターン以内
 - [ ] 既存 brief 衝突時は diff 提示と user 確認の記録あり

@@ -43,7 +43,7 @@
 ### 2.2 ドメインルール
 
 - codex 未導入時 (`check-codex-installed.py` exit 2) は status=skipped で安全停止
-- target 周辺の `prompts/` / `schemas/` / `references/` を全 Read。欠落は `missing_refs[]` に記録し継続
+- target 周辺の `prompts/` / `schemas/` / `references/`（+ `extra_refs`）を全 Read し、存在ファイルの絶対パスを request の `attachments[]` に集約。欠落は request に持たせず（schema は追加フィールド不可）stdout 案内に明記して継続
 - request の `system_prompt` には sycophancy 抑制キーワード (`critical axis`, `not sycophantic`, `evidence required` 等) を 1 件以上含める
 
 ### 2.3 入力契約
@@ -54,10 +54,14 @@
 | `extra_refs` | path[] | no | 追加で含める参照ファイル |
 | `options.skip_if_no_codex` | bool | no | default true |
 
+- 上記は R1 起動パラメータ。request JSON へは `target_skill_path` を透過し、`extra_refs` を周辺資源とともに `attachments[]` へ射影する（§2.4）
+
 ### 2.4 出力契約
 
-- schema: `schemas/io-contract.schema.json` の input ブロック準拠
-- 必須フィールド: `system_prompt`, `files[]`, `metadata{target_skill, codex_version, sycophancy_guard}`
+- schema: `schemas/io-contract.schema.json` の input ブロック準拠（`additionalProperties: false`）
+- 必須フィールド: `target_skill_path`（対象 SKILL.md 絶対パス）, `system_prompt`（sycophancy 抑制キーワードを含むレビュー指示）, `user_prompt`（レビュー依頼本文）
+- 任意フィールド: `attachments[]`（target 周辺 prompts/schemas/references・rubric・`extra_refs` の絶対パス配列）
+- 上記以外は schema 非許容。`metadata` / `files` / `missing_refs` 等を足すと validation FAIL → §4.1 exit 3（`codex_version` は output ブロック側で R2 が記録）
 - 副次出力: stdout に codex 実行コマンド 1 行を案内
 
 ## Layer 3: インフラ層 (外部依存)
@@ -68,7 +72,7 @@
 |---|---|---|
 | schema | `schemas/io-contract.schema.json` | request 構築前にバリデーション基準として読込 |
 | codex-conn | `references/codex-connection.md` | CLI subcommand 体系の確認 |
-| target | `<target_skill_path>` および同階層 prompts/schemas/references | files[] 集約時 |
+| target | `<target_skill_path>` および同階層 prompts/schemas/references | attachments[] 集約時 |
 
 ### 3.2 外部ツール / API
 
@@ -107,15 +111,15 @@
 
 - **目的**: target Skill の周辺資源を集約し、sycophancy 抑制 system_prompt 付きの codex 委譲 request JSON を schema 準拠で生成する
 - **背景**: 自セッション採点は肯定バイアスが強く critical axis 検出率が低い（09章）。codex への第三者委譲で評価独立性を確保するが、本 prompt は送信前で停止し request 生成までを担う
-- **達成ゴール**: `eval-log/delegate-codex-request.json` が §2.4 schema を満たし、sycophancy 抑制キーワードを含む system_prompt と target の prompts/schemas/references を集約した files[] が揃い、stdout に codex 実行コマンド 1 行のみ案内された状態
+- **達成ゴール**: `eval-log/delegate-codex-request.json` が §2.4 schema を満たし、sycophancy 抑制キーワードを含む system_prompt と target の prompts/schemas/references を集約した `attachments[]`（と `target_skill_path` / `user_prompt`）が揃い、stdout に codex 実行コマンド 1 行のみ案内された状態
 
 ### 5.3 完了チェックリスト (ゴール到達の唯一の停止条件)
 
 - [ ] codex 未導入時 `status: skipped` + `reason: codex_not_installed` で安全停止
 - [ ] `target_skill_path` が絶対 path の SKILL.md
-- [ ] target 同階層 prompts/schemas/references が files[] に集約、欠落は `missing_refs[]` に記録
+- [ ] target 同階層 prompts/schemas/references（+ `extra_refs` / rubric）の絶対パスが `attachments[]` に集約、欠落は request に持たせず stdout 案内に明記
 - [ ] `system_prompt` に sycophancy 抑制キーワード（`critical axis` / `not sycophantic` / `evidence required` 等）が 1 件以上
-- [ ] `metadata.codex_version` が CLI 実出力または `skipped` のいずれか
+- [ ] request JSON に必須 `target_skill_path` / `system_prompt` / `user_prompt` が揃い、schema 外フィールド（`metadata` / `files` 等）を含まない
 - [ ] `schemas/io-contract.schema.json` input ブロック validation を通過
 - [ ] target 配下に書込み副作用が発生していない
 - [ ] eval-log path が 27章 §3.1 規約準拠

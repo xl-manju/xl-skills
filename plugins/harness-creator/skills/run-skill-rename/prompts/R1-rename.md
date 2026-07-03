@@ -95,7 +95,7 @@
   - `old_name`: prefix 規約合致 + 既存 Skill であること。欠損で fatal_exit_code=2。
   - `new_name`: prefix 規約合致 + 未存在であること。欠損で fatal_exit_code=2。
 - 出力: `rename-verify.json` → `wrap-git-commit-safe / run-skill-rubric-governance`
-  - 形式: `{ "old_name", "new_name", "residual_refs", "lint_status" }`
+  - 形式 (schemas/output.schema.json 準拠): `{ "old_name", "new_name", "moved_paths", "updated_refs" }` + 任意 `residual_refs`
 
 ### 5.8 依存関係
 - 前提: なし
