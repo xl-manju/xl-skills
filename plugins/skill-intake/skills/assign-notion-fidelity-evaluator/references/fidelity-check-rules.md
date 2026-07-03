@@ -14,7 +14,7 @@
 
 ## エスカレーション規約
 
-- `verdict=fail` のとき: `fidelity-report.md` を `eval-log/` に append し、`skill-intake-handoff` に差し戻す。
+- `verdict=fail` のとき: `fidelity-report.{json,md}` を out_dir (context.json と同階層) に書き出し (exit 2)、`skill-intake-handoff` に差し戻す。
 - `verdict=warn` が同一 hint で連続 3 回発生: canonical-page-snapshot.json の更新検討 (template-change trigger 発火)。
 
 ## 必須セクション欠落の即時 fail

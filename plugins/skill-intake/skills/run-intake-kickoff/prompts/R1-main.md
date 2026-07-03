@@ -69,16 +69,16 @@
 ### 4.2 観測 / ロギング
 - 質問・回答ペアを kickoff.json の `qa_log[]` に時系列で保存。
 
-### 4.4 最大反復回数
-- AskUserQuestion 反復上限: **10 問** (Q1 pattern / Q2 depth / Q3-N pain_ranking 合算)。上限到達で未確定軸がある場合は exit 2 で中断。
-
 ### 4.3 セキュリティ
 - 個人名は kickoff.json に直書きせず変数化 (variable_abstraction)。
+
+### 4.4 最大反復回数
+- AskUserQuestion 反復上限: **10 問** (Q1 pattern / Q2 depth / Q3-N pain_ranking 合算)。上限到達で未確定軸がある場合は exit 2 で中断。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `@intake-kickoff` (対話、AskUserQuestion 駆動、1 問ずつ)
+- `@intake-kickoff` (主スレッド Skill 実行ペルソナ。`workflow-manifest.json` P1 は `delegateType=skill` であり専用 agent ファイルは持たない。対話・AskUserQuestion 駆動、1 問ずつ)
 
 ### 5.2 ゴール定義
 - 目的: 初期発話から pattern / depth / pain_ranking の 3 軸を確定し、後続 interview/visualize phase の起点となる kickoff.json を提供すること。

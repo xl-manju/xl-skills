@@ -44,6 +44,7 @@
 ### 2.4 出力契約
 - 契約: JSON schema は持たない (SKILL.md `schema_refs: []`)。形式検証は IN1/IN2 lint。
 - 必須フィールド: `selected_integrations[{id, name, tier}]`, `rejected[{id, reason}]`
+- 任意フィールド (mode P 判定入力、Phase 11 `run-intake-next-action` の `decide-mode.py` が読む): ヒアリングで plugin 規模構想 (hook/command 等の複数コンポーネント) が明示された場合のみ `plugin_scale` (boolean) / `component_requests[]` (string[]: skill/hook/command/agent/mcp 等) を options.json に転記する。明示がなければ出力しない (無指定は非 plugin 規模とみなす)。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -89,6 +90,7 @@
 - [ ] AskUserQuestion でユーザー提示 → selected / rejected の判断を取得済み
 - [ ] rejected 全項目に空でない reason が記録済み (tier=required を除外する場合も必須)
 - [ ] `output/<hint>/options.json` を SKILL.md 出力契約 (selected_integrations[]/rejected[], IN1 lint) 準拠で書き出し済み
+- [ ] plugin 規模構想 (hook/command 等) がヒアリングで明示された場合のみ `plugin_scale` / `component_requests[]` を options.json に転記済み (未明示なら未出力)
 - [ ] カタログ外の連携を追加していないことを自己確認済み (Read-only 遵守)
 
 ### 5.4 実行方式
@@ -111,7 +113,7 @@
 - options.json (SKILL.md 出力契約 / IN1 lint 準拠)
 
 ### 7.2 言語
-- 本文: 日本語 (integration_id / tier 値は英語)
+- 本文: 日本語 (id / tier 値は英語)
 
 ---
 

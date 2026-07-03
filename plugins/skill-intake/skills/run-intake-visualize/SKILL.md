@@ -78,7 +78,7 @@ intake aggregator は最終 Notion 公開前に「全セクション 1 図以上
 - [ ] 全 12 セクション (§0〜§11) に 1〜3 図が配置 (4 図以上ゼロ、ゼロ図ゼロ)
 - [ ] `visuals.json` の全 `figure_id` が Mermaid 12 + SVG 8 カタログ id 集合に包含 (カタログ外創作ゼロ)
 - [ ] `type=svg` の全エントリが対応 PNG (`output/<hint>/visuals/*.png`) を保有し、`png_path` は workspace 相対
-- [ ] `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-intake-visualize/scripts/verify-visuals.py` が exit 0 (網羅性・整合性 PASS)
+- [ ] `python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/skills/run-intake-visualize/scripts/verify-visuals.py output/<hint>/visuals.json output/<hint>/visuals/` が exit 0 (網羅性・整合性 PASS。第 1 引数=visuals.json、第 2 引数=PNG 出力 dir、両方必須)
 - [ ] 同 `sheet.md` + `purpose.json` で 2 回連続実行し `(section → figure_id)` が完全一致 (determinism)
 - [ ] `sheet.md` にない事実が図へ注入されていない (倫理ガード、Layer 1.2)
 - [ ] `references/section-figure-mapping.md` の §×図種対応表に基づく配置で、逸脱は理由付き
