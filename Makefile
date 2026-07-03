@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (harness-creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage harness-ratchet test help
 
 # LLM_COV_SINCE: 新規スキルの coverage gate 境界日。これ以降に since された loop-kind スキルは
 # coverage-gate で <80% なら fail-closed。既存スキルは ratchet で段階的に底上げ。
@@ -123,6 +123,11 @@ coverage-gate:
 ##   先に make coverage / llm-coverage を走らせ eval-log の *-coverage.json を生成しておくこと。
 harness-coverage:
 	python3 scripts/validate-harness-coverage.py --threshold $(COV_THRESHOLD)
+
+## harness-ratchet: ハーネス仕様カバレッジが floor(現状値=eval-log/harness-coverage-floor.json) を下回ったら fail-closed (回帰ガード)
+##   80% 絶対 gate (harness-coverage) は WARN のまま漸進を許すが、現状より悪化 (verdict/test 未添付の新規 artifact 追加) は blocking で止める。改善時は --update-floor で floor を引き上げる。
+harness-ratchet:
+	python3 scripts/validate-harness-coverage.py --ratchet
 
 ## test: sync-check + lint + plugin-package-check + feedback-contract + content-review + pytest + gate-phase0 を順に実行する
 ##   (coverage / llm-coverage は WARN のため test には含めず、coverage-gate を CI で別途実行する)

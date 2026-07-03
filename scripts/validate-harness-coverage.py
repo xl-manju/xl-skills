@@ -297,12 +297,111 @@ def build_report(threshold: float) -> dict:
     }
 
 
+# --- ratchet-floor: spec(80%)↔enforcement 乖離を埋める回帰ガード -----------------
+# 80% 絶対 gate (--gate) は現状 4 軸未達で即赤になるため CI では non-blocking WARN に
+# 留まっていた (spec と enforcement の二枚舌)。--ratchet は「現値が floor を下回ったら
+# fail」に変換し、80% への漸進を妨げず回帰 (verdict/test 未添付の新規 artifact 追加に
+# よる率低下) だけを blocking で止める。floor は改善時に --update-floor で引き上げる
+# (ratchet up・回帰は焼かない)。
+FLOOR_JSON = EVAL_LOG / "harness-coverage-floor.json"
+RATCHET_TOLERANCE = 0.1  # 丸め誤差のみ吸収。1 artifact 追加 (≈0.4pt) の率低下は検出する。
+
+
+def build_floor_from_report(report: dict) -> dict:
+    floors = {}
+    for sec in report["sections"]:
+        floors[sec["type"]] = {
+            "mechanical": sec["mechanical"].get("coverage_pct"),
+            "llm_eval": sec["llm_eval"].get("coverage_pct"),
+        }
+    return {
+        "threshold": report.get("threshold"),
+        "floors": floors,
+        "note": "各軸カバレッジの下限 floor。現値がこれを下回ると --ratchet が exit1。"
+                "改善時は --update-floor で floor を引き上げる (ratchet up・回帰は焼かない)。",
+    }
+
+
+def compare_to_floor(report: dict, floor: dict, tolerance: float = RATCHET_TOLERANCE) -> list[str]:
+    """report の各軸 coverage_pct が floor を tolerance 超で下回る軸を violation 文字列で返す。"""
+    violations: list[str] = []
+    floors = floor.get("floors", {})
+    for sec in report["sections"]:
+        t = sec["type"]
+        fl = floors.get(t, {})
+        for axis in ("mechanical", "llm_eval"):
+            cur = sec[axis].get("coverage_pct")
+            floor_v = fl.get(axis)
+            if cur is None or floor_v is None:
+                continue
+            if cur < floor_v - tolerance:
+                violations.append(
+                    f"{t}/{axis}: {cur}% < floor {floor_v}% "
+                    "(回帰: test/verdict 未添付の新規 artifact の疑い)"
+                )
+    return violations
+
+
+def merge_floor_up(old_floor: dict, report: dict) -> tuple[dict, list[str]]:
+    """floor を max(old, 現値) へ引き上げる。現値が旧 floor 未満の軸は据え置き (回帰を焼かない)。"""
+    new = build_floor_from_report(report)
+    warns: list[str] = []
+    old_floors = old_floor.get("floors", {})
+    for t, axes in new["floors"].items():
+        for axis, cur in list(axes.items()):
+            old_v = old_floors.get(t, {}).get(axis)
+            if old_v is not None and cur is not None and cur < old_v:
+                new["floors"][t][axis] = old_v
+                warns.append(
+                    f"{t}/{axis}: 現値 {cur}% < 既存 floor {old_v}% のため据え置き "
+                    "(回帰は --ratchet が検出)"
+                )
+    return new, warns
+
+
+def _self_test() -> int:
+    rep = {"threshold": 80.0, "sections": [
+        {"type": "scripts", "mechanical": {"coverage_pct": 85.6}, "llm_eval": {"coverage_pct": 62.7}},
+        {"type": "agents", "mechanical": {"coverage_pct": 68.0}, "llm_eval": {"coverage_pct": 56.0}},
+    ]}
+    floor = build_floor_from_report(rep)
+    assert floor["floors"]["scripts"]["llm_eval"] == 62.7
+    assert compare_to_floor(rep, floor) == []  # 同値 → 違反なし
+    lowered = json.loads(json.dumps(rep))
+    lowered["sections"][0]["llm_eval"]["coverage_pct"] = 62.0  # 0.7 低下
+    assert any("scripts/llm_eval" in v for v in compare_to_floor(lowered, floor))
+    rounding = json.loads(json.dumps(rep))
+    rounding["sections"][0]["llm_eval"]["coverage_pct"] = 62.65  # 丸め誤差は許容
+    assert compare_to_floor(rounding, floor) == []
+    raised = json.loads(json.dumps(rep))
+    raised["sections"][0]["llm_eval"]["coverage_pct"] = 90.0
+    assert compare_to_floor(raised, floor) == []  # 上昇 → 違反なし
+    up, _ = merge_floor_up(floor, raised)
+    assert up["floors"]["scripts"]["llm_eval"] == 90.0  # ratchet up
+    down = json.loads(json.dumps(rep))
+    down["sections"][0]["llm_eval"]["coverage_pct"] = 50.0
+    held, warns = merge_floor_up(floor, down)
+    assert held["floors"]["scripts"]["llm_eval"] == 62.7  # 据え置き (回帰は焼かない)
+    assert any("scripts/llm_eval" in w for w in warns)
+    print("OK: validate-harness-coverage ratchet self-test (6 checks)")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--threshold", type=float, default=80.0)
     ap.add_argument("--json", default=str(EVAL_LOG / "harness-coverage.json"))
     ap.add_argument("--gate", action="store_true", help="仕様未達(spec_met=false)で exit1")
+    ap.add_argument("--ratchet", action="store_true",
+                    help="floor ledger を下回る軸があれば exit1 (回帰ガード)")
+    ap.add_argument("--update-floor", action="store_true",
+                    help="floor を現値へ ratchet up (下げない)")
+    ap.add_argument("--floor", default=str(FLOOR_JSON))
+    ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
+
+    if args.self_test:
+        return _self_test()
 
     rep = build_report(args.threshold)
     out = Path(args.json)
@@ -319,6 +418,39 @@ def main() -> int:
             print(f"  [{mark}] {sec['type']:<9} {axis:<10} {pct}")
     verdict = "PASS (ハーネス仕様 充足)" if rep["spec_met"] else "FAIL (ハーネス仕様 未達)"
     print(f"[harness-coverage] 総合: {verdict}")
+    if args.update_floor:
+        floor_path = Path(args.floor)
+        old_floor = _load_json(floor_path)
+        if old_floor is None:
+            new_floor, warns = build_floor_from_report(rep), []
+        else:
+            new_floor, warns = merge_floor_up(old_floor, rep)
+        floor_path.parent.mkdir(parents=True, exist_ok=True)
+        floor_path.write_text(json.dumps(new_floor, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        for w in warns:
+            print(f"  [floor据置] {w}")
+        print(f"[harness-coverage] floor を {floor_path} に更新 (ratchet up)")
+        return 0
+
+    if args.ratchet:
+        floor_path = Path(args.floor)
+        old_floor = _load_json(floor_path)
+        if old_floor is None:
+            print(f"[harness-coverage] floor ledger 不在 ({floor_path})。"
+                  "初回は --update-floor で初期化する。", file=sys.stderr)
+            return 2
+        violations = compare_to_floor(rep, old_floor)
+        if violations:
+            print(f"[harness-coverage] RATCHET FAIL: {len(violations)} 軸が floor を下回った (回帰)",
+                  file=sys.stderr)
+            for v in violations:
+                print(f"  - {v}", file=sys.stderr)
+            print("  → 新規 artifact に test/verdict を添付するか、"
+                  "意図した floor 変更なら --update-floor で更新する。", file=sys.stderr)
+            return 1
+        print("[harness-coverage] RATCHET OK: 全軸が floor 以上 (回帰なし)")
+        return 0
+
     if args.gate and not rep["spec_met"]:
         return 1
     return 0
