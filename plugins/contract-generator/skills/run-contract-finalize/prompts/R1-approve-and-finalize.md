@@ -137,14 +137,14 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 - 本文: 日本語(列名・status・CLI・schema key は原文)。
 
 ### 7.3 起動テンプレート
-> 「`--type {individual|corporate|all}` で poll(承認検知)→finalize(PDF生成・Slack再共有)を実行。承認は draft 通知スレッド(Slack_メッセージTS)の ✅/OK のみ。未承認は waiting で持ち越し」。
+> 「`--type {individual|corporate|all}`(任意 `--row N`)で finalize(実行された draft 行の PDF生成・Slack再共有・completed 化)を実行。発火はこの Claude Code 実行のみで、未実行行は draft のまま持ち越し。任意で Slack ✅/OK を承認記録にする場合のみ先に poll(draft 通知スレッド=Slack_メッセージTS の ✅/OK 検知→approved)を挟み、その未承認行は waiting で持ち越す」。
 
 ## 出力指示 (LLM 実行時に読む箇所)
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-入力 `--type {{type}}`(任意 `--row {{row}}` で特定行のみ)で承認確定フローを実行する。Layer 5 の達成ゴール(承認済み案件のみ PDF として該当フォルダ保存・Slack 再共有・台帳 completed の状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
+入力 `--type {{type}}`(任意 `--row {{row}}` で特定行のみ)で finalize(確定)フローを実行する。Layer 5 の達成ゴール(実行された draft 案件が PDF として該当フォルダに保存・Slack 再共有され、台帳が completed になっている状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
 
-利用可能な手段: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type {{type}} [--row N] [--dry-run]`(poll→finalize を engine へ委譲) / Slack API `reactions.get`・`conversations.replies`(承認検知) / `chat.postMessage`(PDF URL 再共有)。承認検知は draft 通知メッセージ(台帳 Slack_メッセージTS)スレッドに限定。未承認行は waiting で持ち越し、確定しない。承認者IDは記録可、機微情報(乙住所・乙代表者・銀行口座)は Slack 本文・ログに復唱しない。
+利用可能な手段: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type {{type}} [--row N] [--dry-run]`(poll→finalize を engine へ委譲) / Slack API `reactions.get`・`conversations.replies`(任意 poll の承認検知) / `chat.postMessage`(PDF URL 再共有)。既定は実行された draft 行を直接確定し、未実行行は draft のまま持ち越す(確定しない)。任意 poll を使う場合のみ承認検知を draft 通知メッセージ(台帳 Slack_メッセージTS)スレッドに限定し、その未承認行は waiting で持ち越す。承認者IDは記録可、機微情報(乙住所・乙代表者・銀行口座)は Slack 本文・ログに復唱しない。
 
 出力は完了レポート(Markdown)のみ。approved/waiting/completed 件数と PDF リンクを列挙。前置き・思考過程の出力は禁止。
