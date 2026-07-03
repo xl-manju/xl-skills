@@ -38,6 +38,7 @@ script_refs:
   - ../run-plugin-dev-plan/scripts/check-surface-inventory.py
   - ../run-plugin-dev-plan/scripts/check-build-handoff.py
   - ../run-plugin-dev-plan/scripts/check-requirements-coverage.py
+  - ../run-plugin-dev-plan/scripts/check-runtime-portability.py
   - scripts/evaluate-plan.py
 rubric_refs:
   - ref-skill-design-rubric              # L0: 共通設計 rubric (harness-creator 正本, 固定)
