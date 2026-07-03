@@ -2,21 +2,20 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-next-action",
-    "skill_md_sha256": "c8dc50e165cb6dc5ae63d1e2a452b24fd5c461b32b907a458ec3de7febd136de"
+    "skill_md_sha256": "e94f3dc134bd17c4eaf220988777a567dd1f1f7b90e63473288e884f451372a4"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "independent-rename-review-subagent-g",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:27Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "完全性/一貫性 (改名) — name==dirname==run-intake-next-action・kind=run・allowed-tools に Skill/Task 非搭載 (OUT1 構造担保)・description が 6 値 A-E/P と handoff 先 2 系統 (harness-creator/plugin-dev-planner) を宣言。改名で引き渡し先呼称が harness-creator へ統一され、SKILL.md 出力例・schema enum+allOf・mode-catalog 右列で用語ゆれ 0。5次元 rubric の一貫性基準 (点2以上) を満たす。",
-      "検証可能性 — handoff 表 6 行 (A 'Step 1 (elicit)' 〜 P 'R1 (elicit-goal)') が references/mode-catalog.md 右列・decide-mode.py handoff dict・schema allOf (mode P → plugin-dev-planner / else harness-creator) で逐語一致し二値検証可能。Notion 公開完了 precondition (notion-publish-result.json 存在 + status=='published' + page_id) を exit2 で assert する数値的ゲートを持つ。",
-      "深度/簡潔性 — mode P を pattern 軸 (A-E enum) の外として常に不一致→追認 1 問必発とする設計を Rule 2/4b で明文化し、E 格下げ規則と P の非格下げを判別。責務を mode 判定と next-action.json 生成のみへ絞り本文冗長 0。"
+      "完全性 3/3: FM に name/description(トリガ2件)/kind/feedback_contract、本文に Purpose & Output Contract・出力JSON・precondition gate・完了レポート degrade 文言・Key Rules8・11項目 checklist・Gotchas を網羅。深度 3/3: 目的・背景 が判定属人化の破綻リスクと mode P 分岐(plugin-dev-planner 行き)の根拠を説明",
+      "一貫性 3/3: 今回訂正で exit 2/exit 3 の意味が IN2・Rule 8・precondition gate・ゴールシークループ・Gotcha 1 (SKILL.md:37,82,110,114) 間で完全統一。検証可能性 3/3: schema exit 0+2回連続 (mode,reason) 一致+precondition assert が機械判定可能。簡潔性 2/3: 132 行と密度は高いが precondition 記述が複数箇所に反復しやや冗長。合計 14/15"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -24,5 +23,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2、FM/NM/PD 系規範も違反 0。現 sha256=c8dc50e 実測 (旧 sha=883b1455 は改名前で 'else skill-creator'/skill_creator_handoff_phase を残し stale)。改名観点: (1) 旧名 skill-creator/skill_creator 残存 0 (grep)。(2) handoff_target=harness-creator が SKILL.md/output.schema.json/mode-catalog で三者一致。(3) 意味論境界: A-E の引き渡し先=ハーネス総体 (harness-creator)・P=plugin-dev-planner が正しい。criteria IN1 (決定論導出)/IN2 (precondition gate lint)/OUT1 (Skill/Task 非搭載) はスキル実目的に即した固有観点で充足。ブロッキング欠陥 0 で PASS。"
+  "notes": "現 SHA (e94f3dc1...) の SKILL.md を実読した 5次元 genuine 採点。完全性3/一貫性3/深度3/検証可能性3/簡潔性2=14/15。変更点=exit code 規約の実装整合訂正 (SKILL.md:110,114) は一貫性次元を実質的に押し上げ(doc↔decide-mode.py 実挙動の乖離解消)。簡潔性は precondition 記述の多層反復で 2 点に留めるが意図的多層明示で blocking ではない。name=dirname 一致・run- prefix・依存正方向は健全。verdict=PASS。"
 }

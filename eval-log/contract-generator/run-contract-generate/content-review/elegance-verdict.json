@@ -1,21 +1,21 @@
 {
-  "target": {"plugin":"contract-generator","skill":"run-contract-generate","skill_md_sha256":"94b06993cc06414beaae830c9914fac9983b1221b08a43696d6575a749cba2f1"},
+  "target": {"plugin":"contract-generator","skill":"run-contract-generate","skill_md_sha256":"6c4b8eb3549ef9c7f32c1ffeedec7d2468d8d33d758af3ef738b01c10516f754"},
   "review_kind": "elegance",
   "verdict": "PASS",
   "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
-  "reviewer": "independent-rename-review-subagent-e",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:13:52Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1","IN2","OUT1"],
-    "positive_feedback": ["draft/finalize/sync の3責務分離が境界節とゴールの停止条件で明示され、本スキルの draft 停止条件が『Docs黄色版+Slack通知+台帳draft化』まで厳密限定(OUT1 充足)。legacy 1パスは明示注記で分岐され混線しない。", "甲はSSOTを config_auth に一本化、ひな形不改変・黄色二系統・冪等性を主要ルールと検証節で機械検証手段(validate.py 差込前+docx_fill.py 末尾残存チェック)付きに担保し IN1/IN2 が具体コマンドへ紐づく。"],
+    "positive_feedback": ["draft 停止条件を『Docs黄色版+Slack通知+台帳draft化』へ限定し PDF確定/completed を run-contract-finalize、ひな形追従を run-template-sync へ責務分離する設計が Purpose(L45)/境界(L48)/ゴール(L63)/チェックリスト(L78-79)まで一貫し OUT1 を裏付け。今回の diff(L71 の行抽出条件を『ステータス≠completed』→『∈{空,未作成}(draft phase の _PHASE_STATUS_FILTER)+後方互換 legacy 1パスのみ ≠completed』へ精緻化)が Purpose L45『未作成』および phase 設計(L48/L63)と整合を高精度化。", "ひな形不改変(L51)+黄色 run(highlight YELLOW)のみ差込(IN2)+docx_fill.py 末尾の残存チェック(IN1)で法務承認済条文の非改変を validate.py/docx_fill.py の実コマンドへ紐づけ機械担保。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名に伴う SKILL.md 再評価(SHA=94b06993…)。全文精読で (a) 旧名 skill-creator/skill_creator/スキルクリエイター の残存ゼロ、(b) rubric_refs L14 の harness-creator/run-elegant-review パスが実在解決、(c) 本文 L60 の run-build-skill は単体スキル生成 skill 名として skill 表現維持で意味論境界に整合、を確認。C1-C4 いずれも実害なし。IN1(未置換プレースホルダ残存なし)/IN2(黄色run限定差込で条文非改変)/OUT1(責務分離が負荷削減目的を最適反映)を Purpose/主要ルール/ゴール/完了チェックリスト/検証で裏付け PASS。"
+  "notes": "現 SHA (6c4b8eb3…) の SKILL.md を read-only 逐一照合した genuine 再評価。変更点=完了チェックリスト L71 の行抽出条件を『作成指示◯かつステータス≠completed』→『作成指示◯かつステータス∈{空,未作成}(既定 draft phase の _PHASE_STATUS_FILTER。後方互換 legacy 1パスのみ ≠completed)』へ分離明記。Purpose L45『作成指示◯ かつ 未作成』・phase 設計(L48/L63)と整合し曖昧さが解消され精度向上。C1(矛盾)/C2(漏れ)/C3(整合)/C4(依存)いずれも実害なし。IN1(未置換プレースホルダ残存なし)/IN2(黄色run限定差込で条文非改変)/OUT1(責務分離が負荷削減目的を最適反映)を裏付け PASS。"
 }

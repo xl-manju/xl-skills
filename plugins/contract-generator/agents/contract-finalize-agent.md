@@ -1,6 +1,6 @@
 ---
 name: contract-finalize-agent
-description: ユーザーがClaude Codeで確定を指示した契約書を提出用PDF(黄色除去)として発行・Slack再共有し台帳completedにしたいときに使う。発火はこのfinalize実行のみ(pull型)で、Slack✅/OKは任意の承認記録・発火条件ではない。
+description: 発火をこのfinalize実行のみ(pull型)に限定しSlack✅/OKは任意の承認記録で発火条件ではない前提で、ユーザーがClaude Codeで確定を指示した契約書を提出用PDF(黄色除去)として発行・Slack再共有し台帳completedにしたいときに使う。
 kind: agent
 tools: Read, Bash
 model: sonnet

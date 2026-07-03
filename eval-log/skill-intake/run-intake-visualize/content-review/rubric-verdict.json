@@ -2,30 +2,26 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-visualize",
-    "skill_md_sha256": "a816bcce9bc230ae6da0d5016fd852765e5bed73f196b8f761fa5c408cfc71c7"
+    "skill_md_sha256": "a047d2a0f0687a43742b3102af135e19ec572297d444fe675a1f16838872081a"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-02T00:00:00Z",
-  "iterations": 2,
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:27Z",
+  "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "PD/依存契約 (iteration 1 主因) 解消: Key Rule 2 とゴールシーク手順 2/3 が指定する render_to_image.py は .svg 入力を render_svg() で処理し (同梱 assets/cvis-*.png コピー → cairosvg fallback → 両不可 exit 3)、cvis-*.svg 8 図の PNG 配置が文書指定経路で実行可能になった。cvis-*.png 8 種の実在 (全 >1KB) と tests/scripts3/test_skill_intake__render_mmdc_gate.py の 4 経路テスト (bundled-copy / exit 3 / cairosvg fallback / 8 種 parity) を pytest 実行 10 passed で確認。description の『Mermaid 12 と独自 SVG 8』とカタログ実数 (mtmpl-*.mmd=12, cvis-*.svg=8) も一致",
-      "PD/responsibility_refs 追従 (iteration 1 指摘 2 件目) 解消: prompts/R1-main.md L6.1 が『後続 phase: Phase 8 (P8-summary, skill-intake-summarizer)』へ更新され、SKILL.md L117 および親 run-skill-intake/workflow-manifest.json (P7-visualize→P8-summary→P9-finalize) と三点一致。L3.2/L138 の render_to_image.py 記述も実行可能な実態 (Mermaid→PNG + SVG 同梱 PNG 配置) に是正され、skill と 1:1 責務プロンプトのオーケストレーション記述の二経路化が解消",
-      "PD/schema drift (iteration 1 指摘 3 件目) 解消: prompts/R1-main.md L2.4 出力契約が『必須フィールド: sections (section → [{figure_id, type, png_path}]), catalog_version』となり、schemas/output.schema.json required [\"sections\",\"catalog_version\"] および verify-visuals.py の sections 形状前提と完全一致。実行 agent への矛盾した出力契約提示が解消。FM (frontmatter⇔本文整合・実在参照・${CLAUDE_PLUGIN_ROOT:-...} fallback 可搬形) と責務単一 (カタログ既存図の決定論的配置と PNG 配置に限定、新規図種は exit 2 差し戻し=OUT1) は iteration 1 から維持"
+      "完全性 3/3: FM に name/description(トリガ2件)/kind/feedback_contract、本文に Purpose & Output Contract・6 Key Rules・8項目 checklist・5段ゴールシークループ・Gotchas を網羅。深度 3/3: 目的・背景 が『図解創作=誤情報注入リスク』『Notion は SVG 非対応で PNG 化必須』を根拠に責務境界を説明",
+      "一貫性 3/3: 今回追加の verify-visuals.py 引数 (SKILL.md:81) が script 必須シグネチャと一致しコピペ実行可能に。検証可能性 3/3: schema validate+verify-visuals.py exit 0+2回連続 determinism が機械判定可能。簡潔性 3/3: 本文 117 行で 300 行上限を大きく下回り高密度。合計 15/15"
     ],
-    "negative_feedback": [
-      "[NM/軽微・残存] IN1 (verify_by:script) が束ねる『schema 準拠』『png_path の workspace 相対性』は verify-visuals.py の検証範囲外 (同 script は §0-§11 網羅と type=svg PNG basename 実在のみ)。checklist とゴールシーク手順 4 の schema validate 併記で運用補完されるため blocking ではないが、script への取り込みか criteria の verify_by 分割が望ましい",
-      "[NM/軽微・新規] verify-visuals.py は type=mermaid エントリの png_path 実在を検証しない (svg のみ)。Gotcha 1 の『本スキル内で全 PNG 生成を保証』は P3-render の exitHook render-to-image + fatal_exit_codes [2,3] の fail-fast で多層的に捕捉されるため実行上の穴ではないが、verify-visuals.py を全 type の PNG 実在検証に拡張すると単一 script で完了条件を閉じられる"
-    ],
-    "iteration": 2,
+    "negative_feedback": [],
+    "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "iteration 2 genuine 再レビュー (proposer≠approver、SHA 手書換なし・現物再計算)。SKILL.md 実読 + rubric 観点 (FM 整合 / PD 依存契約 / NM 機械検証点 / 責務単一) で iteration 1 FAIL の PD 3 件を個別に裏取りした。(1) render_to_image.py の SVG 入力対応は実装済で、mmdc 非依存の bundled-copy が第一経路 (外部依存ゼロ)、cairosvg が fallback、両不可のみ exit 3。execution-contract.md L55 に SVG 経路の終了コード規約も明記され、自 workflow-manifest P3-render fatal_exit_codes [2,3] と整合。(2) R1-main.md の後続 phase・(3) 出力契約フィールドは親 manifest / 正本 schema と突合して一致確認。文書層 (scripts/README.md L56 / notion-integration.md L121 / mermaid-visualization-guide.md L161) の SVG 変換誤記も grep 横断で残存ゼロ。Key Rule 2 に cvis 固定資産の catalog_version 同期注記 (stale parity 防止) が追加され、テスト側の 8 種 parity assert と併せて資産改版ドリフトのガードが二重化されている。残存指摘は verify-visuals.py の検証範囲に関する非 blocking 2 件のみで、依存ファイルの実在と内容契約の整合が全参照で成立し、手順に従う実行が exit 3 で停止する構造は解消されたため PASS とする。"
+  "notes": "現 SHA (a047d2a0...) の SKILL.md を実読した 5次元 genuine 採点。完全性3/一貫性3/深度3/検証可能性3/簡潔性3=15/15。変更点=checklist の verify-visuals.py 呼び出しに必須2引数を明記した点のみで、一貫性次元を微増(doc コマンド↔script シグネチャ一致でコピペ実行可能化)。name=dirname 一致・run- prefix・description のカタログ実数(Mermaid12+SVG8)整合・render_to_image.py 正本パス註記(Gotcha5)は健全。high-tier blocking 指摘なし。verdict=PASS。"
 }

@@ -2,30 +2,28 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-visualize",
-    "skill_md_sha256": "a816bcce9bc230ae6da0d5016fd852765e5bed73f196b8f761fa5c408cfc71c7"
+    "skill_md_sha256": "a047d2a0f0687a43742b3102af135e19ec572297d444fe675a1f16838872081a"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "run-elegant-review-subagent-team",
-  "reviewed_at": "2026-07-02T00:00:00Z",
-  "iterations": 2,
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:27Z",
+  "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "iteration 1 主因 (SVG→PNG 経路不成立) の是正を実装レベルで確認: plugins/skill-intake/scripts/render_to_image.py に .svg suffix 分岐 (render(): L102-104) と render_svg() が実装され、同梱 PNG コピー (bundled-copy, 外部依存ゼロ) → cairosvg fallback (svg_bytes_for_cairosvg で -apple-system 除去し CJK 豆腐化を防止) → 両不可時 exit 3 (DEPENDENCY_ERROR + SVG_DEPENDENCY_GUIDE 復旧手順を stderr 提示) の三段経路が fail-open なしで成立。assets/cvis-*.png 8 種は全て実在かつ 26KB-56KB (>1KB) で SVG 8 種と 1:1 parity。tests/scripts3/test_skill_intake__render_mmdc_gate.py が bundled-copy 成功 / 同梱 PNG 不在+cairosvg 不在 exit 3 / cairosvg fallback / カタログ 8 種 PNG parity の 4 経路を環境非依存 (monkeypatch load_cairosvg seam) で固定し、実行で 10 passed を確認",
-      "SKILL.md Key Rule 2 が実装の実態 (『SVG は同梱済み PNG を配置』, bundled-copy 経由, Mermaid は同スクリプトが mmdc で PNG 化) へ是正され、さらに『cvis SVG/PNG は固定資産であり、改版時は catalog_version と同期して SVG/PNG を両方更新する (stale parity 防止)』の同期注記が追加された。schemas/output.schema.json required [\"sections\",\"catalog_version\"] と対応し、固定資産の改版ドリフトに対する運用ガードとして機能する",
-      "文書層の系統的 SVG→PNG 誤記が横断的に解消: scripts/README.md L56 / references/execution-contract.md L55 (静的 SVG 経路は mmdc 非依存・両手段不可のみ exit 3 と終了コード規約側にも明記) / references/notion-integration.md L121 / references/mermaid-visualization-guide.md L161 が全て『Mermaid は mmdc 変換、独自 SVG は同梱 PNG コピー配置』の実態記述に統一され、grep 横断で変換誤記の残存ゼロ。自 workflow-manifest P3-render fatal_exit_codes [2,3] と exit 3 経路も整合"
+      "今回の変更で checklist の verify-visuals.py 起動コマンド (SKILL.md:81) が必須位置引数 (第1=visuals.json、第2=PNG 出力 dir) を明記し引数説明を付記。従来は引数省略でコピペ実行が IndexError で落ちる CLI 契約の穴(前 iteration の軽微指摘)を解消し、IN1 の script 検証点をコピペ実行可能形へ是正した",
+      "Key Rule 1 (SKILL.md:58) のカタログ外創作禁止と Rule 4 (SKILL.md:61) の倫理ガード(sheet.md にない事実を注入しない)が OUT1 の『創作せず差し戻す』責務を明文化し、Gotcha 2 (SKILL.md:99) の新規図種は TODO 起票し差し戻しと整合",
+      "決定論性(同一 sheet.md+purpose.json 2回連続で section→figure_id 完全一致、checklist SKILL.md:82)と Mermaid12+SVG8 カタログ包含が IN2 を機械検証可能形で固定"
     ],
-    "negative_feedback": [
-      "[深度/軽微・残存] IN1 の verify_by:script は『schema 準拠 + workspace 相対 png_path の実在 PNG』まで束ねるが、scripts/verify-visuals.py の機械検証は §0-§11 網羅性 (1-3 図) と type=svg の PNG basename 実在 (out_dir / Path(p).name) のみで、schema validate と png_path の workspace 相対性検査は script 外のまま (iteration 1 指摘の残存)。ゴールシーク手順 4 の『verify-visuals.py 起動 + schema validate + 2 回連続実行 diff』と checklist 独立項目で運用補完されており blocking ではないが、verify-visuals.py へ schema validate と相対パス検査を取り込むか IN1 の verify_by 記述粒度を分割することを推奨",
-      "[簡潔性/軽微・新規] checklist の verify-visuals.py 起動コマンド (SKILL.md L81) が位置引数 <visuals.json> <out_dir> を省略しており、そのまま実行すると IndexError で落ちる。script docstring の usage で補完可能だが、`... verify-visuals.py output/<hint>/visuals.json output/<hint>/visuals` の形で引数まで記載するとコピペ実行可能になる"
-    ],
-    "iteration": 2,
+    "negative_feedback": [],
+    "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "iteration 2 genuine 再レビュー (proposer≠approver)。SKILL.md 全文を fresh read し、是正主張 3 点を実装・資産・テスト・文書の四面で裏取りした: (1) render_to_image.py の SVG 分岐 (bundled-copy→cairosvg→exit 3) を実コード読解で確認、assets/cvis-*.png 8 種の実在とサイズ (全 >1KB) を ls 実測、テスト 4 ケースを pytest 実行 (10 passed) で確認。iteration 1 で『経由のみ制約下で実行可能経路が存在しない』とした一貫性・完全性違反は解消。(2) prompts/R1-main.md は後続 phase (L6.1: Phase 8 P8-summary, skill-intake-summarizer) が親 run-skill-intake/workflow-manifest.json の P7-visualize→P8-summary 宣言と一致し、出力契約 (L2.4: sections/catalog_version) も schema required と一致。L3.2/L138 の SVG 記述も実行可能な実態記述に是正済。(3) 文書層 (scripts/README L56, execution-contract L55, notion-integration L121, mermaid-visualization-guide L161) の是正を grep 横断で確認し変換誤記残存ゼロ。タスクで例示された bundled-copy と catalog_version の同期注記は Key Rule 2 に存在する。残存は IN1 verify_by 粒度 (iteration 1 でも軽微等級) と checklist コマンドの引数省略の非 blocking 2 件のみで、実行不能・依存契約齟齬・drift はすべて解消されたため PASS とする。"
+  "notes": "現 SHA (a047d2a0...) の SKILL.md を read-only で逐一照合した genuine 再評価。変更点=完了チェックリストの verify-visuals.py 呼び出し (SKILL.md:81) に必須位置引数 `output/<hint>/visuals.json output/<hint>/visuals/` を追加し『第1引数=visuals.json、第2引数=PNG 出力 dir、両方必須』と註記。これは script の必須シグネチャと doc コマンドを整合させる依存整合の微修正で、前 verdict が軽微 negative として挙げた引数省略(IndexError)を閉じる方向。Purpose/Key Rules/Goal/Checklist/Gotchas は相互整合し矛盾・漏れ・不整合・依存断なし。4条件全PASS。"
 }
