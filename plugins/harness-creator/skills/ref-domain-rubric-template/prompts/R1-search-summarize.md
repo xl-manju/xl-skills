@@ -11,7 +11,7 @@
 | skill | ref-domain-rubric-template |
 | responsibility | R1-search-summarize (rubric.json 部分集合の検索/要約) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
-| output_schema | inline (object: summary / matches / references) |
+| output_schema | inline (object: summary / matches / references / suggestions?) |
 | reproducible | true (同 query + 同 rubric.json → 同 matches[]) |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -52,6 +52,7 @@
   - `summary`: string (50-800 字)
   - `matches`: array<{path: string, value: any}>
   - `references`: array<string> (rubric.json 内の参照 path)
+  - `suggestions`: array<string> (optional。該当ゼロ時に近傍 rule id / メタキーを返す。§5.3 停止条件で使用)
 
 ## Layer 3: インフラ層 (外部依存)
 

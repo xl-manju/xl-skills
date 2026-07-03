@@ -58,7 +58,7 @@
 - 信頼度閾値: 0.7 / 最大リトライ: 1 / 最大改善回数: 2
 - 許可: Read / schema 検証 / JSON 書出
 - 禁止: target 書換 / 外部ネットワーク / git 操作
-- 入力検証拒否: `target_skill_path` 欠落 / 存在しない path / 非 SKILL.md
+- 入力検証拒否: `target_skill_path` 欠落 / 存在しない path (SKILL.md ファイル・スキルディレクトリの双方を受容。render-findings-score.py が `--target` を `is_dir()` 分岐で解決)
 - 事実確認: findings には必ず loc (行番号 or 該当文字列) を残す。判断材料不足の rule は誤検出回避のため finding を上げず、確信の持てない所見は message に限定詞 (おそらく / 推定 / 可能性がある) を付す。
 - 出力評価優先度: `schema_conformance` → `sycophancy_absence`
   - schema_conformance: validator PASS / 不合格時 emit 再実行
@@ -105,7 +105,7 @@
 
 ### 5.7 インターフェース
 - 入力
-  - `target_skill_path`: 絶対パスかつ既存 SKILL.md。相対 / 非 .md / ディレクトリは拒否。欠損で `fatal_exit_code=2`。
+  - `target_skill_path` (SKILL.md では `target`): 既存の SKILL.md パス **または** スキルディレクトリ。相対パスも可 (`render-findings-score.py` が `Path(...).resolve()` で正規化、`is_dir()` でディレクトリ受容)。存在しない path / 欠損で `fatal_exit_code=2`。
   - `rubric_refs`: 配列、各要素が既存ファイル path。非配列 / 不存在は拒否。欠損時は空配列で続行。
 - 出力: STDOUT JSON 1 オブジェクト → `write-eval-log.py` 経由で `eval-log/<plugin>/<date>-score.jsonl`
   - テンプレート: `{ "rubric_id", "rubric_version", "rubric_hash", "composition_hash", "rubric_refs", "target", "score", "threshold", "passed", "machine_checks", "findings": [{id, severity, area, message, loc}], "required_fixes", "pending_human": [{id, reason}] }`

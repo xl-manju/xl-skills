@@ -127,7 +127,7 @@ next_action: |
 - [ ] manifest の `completion_signals.phase_{phase}` を直接参照（判定基準を本 prompt 内で再定義していない）
 - [ ] `package_mode=skill-only` で required_pkg を PKG-002/004 のみに絞込
 - [ ] PKG-013 は集約済単一キーとして status を参照し（a/b/c/d 全 pass は上流 `validate-plugin-permissions.py` が status に反映済）、manifest の PKG-013a/b/c/d 要求を run_report の単一 `PKG-013` キーへ対応づけて判定した
-- [ ] PKG-001 が `status: skip` + `skip_reason: claude_cli_unavailable` のとき Phase 0 で `exemptions[]` に明示
+- [ ] PKG-001 が `status: skip` + `skip_reason` に `"claude CLI not found in PATH"` (claude CLI 不在。`run-plugin-validate-strict.sh` の出力値が正本) を持つとき Phase 0 で `exemptions[]` に明示
 - [ ] `failed_pkg_ids.length <= fail_count_max` かつ全 required_pkg が `pkg_checks` に存在のとき `verdict: PASS`
 - [ ] FAIL 時 `next_action` が空でなく、修正対象 PKG ID と次に取るべきコマンドを含む
 - [ ] `verdict` が `PASS` / `FAIL` のいずれか（force_pass 禁止）

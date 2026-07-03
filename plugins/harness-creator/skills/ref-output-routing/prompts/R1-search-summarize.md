@@ -59,7 +59,7 @@
 | security_model | references/security-model.md | warn 判定時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用。
+- Read のみ (全文読取・文中検索を含む)。ネットワーク不使用。
 
 ## Layer 4: 共通ポリシー層
 
@@ -118,7 +118,7 @@
 
 ## 正規化方針 (auto-applied)
 
-- task_kind: NFKC + lowercase + `-` を区切として最終トークン抽出 (例 `notion-page` → `notion`、`file-write` → `file`)。
+- task_kind: NFKC + lowercase + `-` を区切として先頭トークン抽出 (例 `notion-page` → `notion`、`file-write` → `file`。sink 種別は先頭トークン = `file/stdout/notion`)。
 - sink alias: references/sink-contract.md の `aliases:` 表に明示されたペアのみ採用。
 - 未定義 sink は `warn` フラグ + `suggestions` で返し、自動補完しない。
 

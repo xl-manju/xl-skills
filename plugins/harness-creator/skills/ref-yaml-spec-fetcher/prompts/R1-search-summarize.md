@@ -60,7 +60,7 @@
 | diff | references/spec-diff-history.md | 履歴併記時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用 (fetch は GitHub Actions `update-yaml-spec.yml`)。
+- Read のみ (全文読取・文中検索を含む)。ネットワーク不使用 (fetch は GitHub Actions `update-yaml-spec.yml`)。
 
 ## Layer 4: 共通ポリシー層
 

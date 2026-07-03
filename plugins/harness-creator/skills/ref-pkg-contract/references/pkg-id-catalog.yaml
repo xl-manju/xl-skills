@@ -76,7 +76,7 @@ pkg_ids:
     phase: 0
     package_modes: [bundle]
     severity: P0
-    script: "scripts/lint-external-refs.py --plugin <name>"
+    script: "scripts/lint-external-refs.py --skills-dir plugins/<plugin>/skills --fail-on-external"
     description: "plugin 内ファイルが plugin root 外を参照しない（34章公式制約e）"
 
   PKG-010:
@@ -108,7 +108,7 @@ pkg_ids:
     phase: 2
     package_modes: [bundle]
     severity: P0
-    script: "scripts/validate-plugin-permissions.py --check 013a"
+    script: "scripts/validate-plugin-permissions.py --plugin <name> --check 013a"
     description: "Bash 等の許可コマンド範囲が plugin スコープ宣言内"
 
   PKG-013b:
@@ -116,7 +116,7 @@ pkg_ids:
     phase: 2
     package_modes: [bundle]
     severity: P0
-    script: "scripts/validate-plugin-permissions.py --check 013b"
+    script: "scripts/validate-plugin-permissions.py --plugin <name> --check 013b"
     description: "読み書き対象が plugin root 配下に閉じる"
 
   PKG-013c:
@@ -124,7 +124,7 @@ pkg_ids:
     phase: 2
     package_modes: [bundle]
     severity: P0
-    script: "scripts/validate-plugin-permissions.py --check 013c"
+    script: "scripts/validate-plugin-permissions.py --plugin <name> --check 013c"
     description: "外部通信先 allowlist が manifest 宣言と一致"
 
   PKG-013d:
@@ -132,7 +132,7 @@ pkg_ids:
     phase: 2
     package_modes: [bundle]
     severity: P0
-    script: "scripts/validate-plugin-permissions.py --check 013d"
+    script: "scripts/validate-plugin-permissions.py --plugin <name> --check 013d"
     description: "Notion/Drive/Gmail 等の MCP scope が manifest と一致"
 
   PKG-014:
@@ -148,7 +148,7 @@ pkg_ids:
     phase: 2
     package_modes: [bundle]
     severity: P1
-    script: "scripts/lint-rubric-violation.py --plugin <name>"
+    script: "scripts/lint-rubric-violation.py --logs <log-dir>"
     description: "直近 release で 27章 rubric 違反率が governance 設定値未満"
 
   PKG-016:

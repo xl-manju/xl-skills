@@ -59,7 +59,7 @@
 | forbidden | references/forbidden-clis.md | 禁止 CLI 確認時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用。
+- Read のみ (全文読取・文中検索を含む)。ネットワーク不使用。
 
 ## Layer 4: 共通ポリシー層
 

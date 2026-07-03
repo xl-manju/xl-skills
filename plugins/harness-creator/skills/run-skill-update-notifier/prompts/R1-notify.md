@@ -8,7 +8,7 @@
 |---|---|
 | name | notify |
 | skill | run-skill-update-notifier |
-| responsibility | R1 |
+| responsibility | R1+R2+R3 (単一 prompt が cache-check / formatting / graceful-guard を統括) |
 | layers_covered | [L2, L4, L5, L6] |
 | inputs | mode (subcommand: cache-status\|refresh\|notify, required。`--mode <name>` 前置も互換受理) |
 | outputs | stdout 1 行 or 空 (schemas/output.schema.json) |
@@ -74,7 +74,7 @@
 - [ ] 出力は 0 行 or 1 行
 - [ ] `up-to-date / offline / unknown` で無出力
 - [ ] `status / installed / latest` を内部保持
-- [ ] cache mtime が refresh 条件と整合 (mode/age と mtime 照合)
+- [ ] cache の `last_refreshed_at` が TTL(24h) と整合 (欠落時は stale 扱いで refresh)
 - [ ] 推測を事実として述べていない (unknown 時は unknown 明記)
 
 ### 5.5 実行方式 (動的生成ループ)
@@ -86,7 +86,7 @@
 6. 上限到達 / cache 破損時は無出力で安全停止 → escalation。
 
 ### 5.6 ビジネスルール
-- CONST_001: cache 失効時間は `references/config` から読込 (既定 24h)。
+- CONST_001: cache 失効時間は notifier-check.py 内定数 TTL_HOURS (既定 24h) で固定。
 - CONST_002: 通知は 1 行のみ。
 
 ### 5.7 インターフェース

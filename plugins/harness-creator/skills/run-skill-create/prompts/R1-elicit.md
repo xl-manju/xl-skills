@@ -74,7 +74,7 @@
 |---|---|---|
 | manifest | workflow-manifest.json | phase=elicit context 取得時 |
 | schema | schemas/skill-brief.schema.json | brief 構造検証時 |
-| naming-rule | references/skill-naming-rule.md | skill_name 検証時 |
+| naming-rule | $CLAUDE_PLUGIN_ROOT/skills/ref-skill-naming-convention/references/decision-table.md | skill_name 検証時 |
 
 ### 3.2 外部ツール / API
 

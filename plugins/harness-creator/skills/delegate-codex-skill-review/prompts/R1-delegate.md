@@ -92,7 +92,7 @@
 ### 4.2 観測 / ロギング
 
 - stdout: 案内文と codex 実行コマンド 1 行
-- file: `eval-log/delegate-codex-request.json` を 27 章 §3.1 規約準拠で保存
+- file: `eval-log/delegate-codex-request.json` に保存 (codex 委譲 I/O 成果物。SKILL.md / codex-connection.md と同一の固定パス。27章 §3.1 の score.jsonl / pkg-<id> 規約の対象外)
 - 35 章 observable: 本 prompt は emit しない（R2 配下の codex 応答処理で扱う）
 
 ### 4.3 セキュリティ
@@ -122,7 +122,7 @@
 - [ ] request JSON に必須 `target_skill_path` / `system_prompt` / `user_prompt` が揃い、schema 外フィールド（`metadata` / `files` 等）を含まない
 - [ ] `schemas/io-contract.schema.json` input ブロック validation を通過
 - [ ] target 配下に書込み副作用が発生していない
-- [ ] eval-log path が 27章 §3.1 規約準拠
+- [ ] `eval-log/delegate-codex-request.json` に保存されている (SKILL.md / codex-connection.md と同一パス)
 - [ ] codex CLI は本 prompt 内で実行していない（送信前停止）
 
 ### 5.4 実行方式 (固定手順を持たないゴールシークループ)

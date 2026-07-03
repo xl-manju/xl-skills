@@ -12,7 +12,7 @@
 | layers_covered | [L2, L4, L5, L6] |
 | inputs | target_paths (array) |
 | outputs | .claude/handoff/migrate-audit-&lt;session&gt;.json (schemas/output.schema.json: input_file/origin/sections/summary) |
-| notes | rubric 接続は次イテレーション |
+| notes | 評価器接続は現行契約 (`pair: assign-skill-design-evaluator` / `rubric_refs: ref-skill-design-rubric`)。設計評価の採点は下流 run-build-skill 内蔵ゲートが実施し、本 skill は brief 確定で完了 (verdict を待たない) |
 
 ## Layer 1: 基本定義層
 

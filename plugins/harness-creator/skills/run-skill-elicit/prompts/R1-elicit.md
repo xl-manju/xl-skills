@@ -54,7 +54,7 @@
 
 ## Layer 4: 共通ポリシー層
 
-- 信頼度閾値: 0.6 / 最大リトライ: 2 / 最大改善回数: 2
+- 信頼度閾値: 0.6 / 最大リトライ: 2 (内側の手順単位再試行) / 最大改善回数: 3 (ゴールシーク外側ループ上限。正本 = SKILL.md `feedback_contract.max_iterations`)
 - 許可: 対話 / Read (既存 brief) / JSON 書出
 - 禁止: 既存 brief の無確認上書き / 他 Skill 改変
 - 入力検証拒否: 明らかな PII / 未検証 API key

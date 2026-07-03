@@ -57,7 +57,7 @@ prefix を含む合計 60 文字以下。
 `templates/sub/foo.md` のような2階層深いネストは原則禁止。深くする場合は別Skillに分割。
 
 ## 第14条（多言語）
-description は英語。本文 は日本語可。frontmatter キーは英語固定。
+description は日本語推奨。動詞ベースの 2〜3 個のトリガー条件を含む（例「〜するとき、〜するときに使う」）。本文 は日本語可。frontmatter キーは英語固定。
 
 ## 第15条（改名）
 破壊的変更。旧名は `aliases: [old-name]` で猶予期間最低14日。

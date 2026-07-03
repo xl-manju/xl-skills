@@ -54,6 +54,7 @@
 | `pkg_ids` | string[] | no | 省略時は中核 7 件 |
 | `options.fail_fast` | bool | no | default false |
 | `options.output_path` | path | no | eval-log 保存先（指定なしなら stdout のみ） |
+| `options.render` | enum | no | `markdown` 指定時のみ `render-pkg-findings.py` 経由で markdown サマリも出力（§3.1 renderer / §7.1）。未指定は JSON のみ |
 
 ### 2.4 出力契約
 
@@ -93,7 +94,7 @@
 
 - stdout: findings JSON（§2.4 schema 準拠）
 - stderr: 進捗ログ（`PKG-NNN start/end <duration>`）
-- `options.output_path` 指定時は eval-log に保存（27章 §3.1 規約: `eval-log/<plugin>/pkg-batch/<YYYY-MM-DD>-<run>.json`）
+- `options.output_path` 指定時は eval-log に保存。27章 §3.1 の規約は **pkg-<id> 単位** (`eval-log/<plugin>/pkg-<id>/...`)。本 worker は 7 件を 1 回で束ねる batch 出力のため、呼出元 manifest 固有の集約パス `eval-log/<plugin>/pkg-batch/<YYYY-MM-DD>-<run>.json` (run-plugin-package-check/workflow-manifest.json の pkg phase output) を用いる
 - 35章 observable は呼出元（run-plugin-package-check の aggregate-pkg-findings.py）が emit
 
 ### 4.3 セキュリティ
@@ -120,7 +121,7 @@
 - [ ] `fail_fast=true` 発火後の残 PKG ID が `status: skip` + `skip_reason: "fail_fast_triggered"`
 - [ ] `verdict.{total,pass,fail,skip,not_applicable}` が `pkg_checks` と一致
 - [ ] `schemas/findings.schema.json` の validation を通過
-- [ ] `options.output_path` 指定時、eval-log path が 27章 §3.1 規約準拠
+- [ ] `options.output_path` 指定時、eval-log path が呼出元 manifest の batch 集約規約 (§3.1 pkg-<id> 派生の `pkg-batch/` 集約) に準拠
 - [ ] `unsupported_pkg_id` を受理せず exit 2 を返している
 - [ ] target 配下に書込み副作用が発生していない
 

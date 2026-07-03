@@ -38,13 +38,22 @@ Skill 設計の評価基準の **正本（upstream rubric）**。
 
 ## 評価軸サマリ
 
-- **FM (Frontmatter)**: name kebab+prefix / description="Use when" / trigger 2-3 / 動作詳細混入なし / 動詞ベース
-- **BD (Body)**: Output contract / Gotchas 節 / <=300行 / BD-004=description↔body 整合 (LLM judge)
-- **NM (Naming)**: ディレクトリ名一致 / 第1〜5条 / 第8〜13条
-- **PD (Progressive Disclosure)**: 本文 <=100 or references/ 存在
-- **RG (Governance)**: rubric_hash 埋込
+kind 別ディスパッチ (rubric.json `supported_kinds` = skill/agent/hook/command/plugin-composition/prompt/workflow)。共通核 (kind=skill) の FM/BD/NM/PD/RG に加え、1.2.0 で kind 別 area、1.3.0 で KL を追加した全 41 rule。
 
-各ルールの check 式と rationale は `references/rubric.json` を参照。
+- **FM (Frontmatter, kind=skill)**: name kebab+prefix / description="Use when" / trigger 2-3 / 動作詳細混入なし / 動詞ベース
+- **BD (Body, kind=skill)**: Output contract / Gotchas 節 / <=300行 / BD-004=description↔body 整合 (LLM judge)
+- **NM (Naming, kind=skill)**: ディレクトリ名一致 / 第1〜5条 / 第8〜13条
+- **PD (Progressive Disclosure, kind=skill)**: 本文 <=100 or references/ 存在
+- **RG (Governance, kind=skill)**: rubric_hash 埋込
+- **AG (Agent, kind=agent)**: tools 明示 allowlist / Isolation・Context Boundary 節 / phase 一意 id / Handoff・Output Contract 節
+- **HK (Hook, kind=hook)**: event enum / matcher 具体 (wildcard 不可) / timeout bound / 副作用明記
+- **CM (Command, kind=command)**: argument-hint / allowed-tools 最小 allowlist / entrypoint skill 実在
+- **PC (Plugin Composition, kind=plugin-composition)**: capabilities[] 列挙 / 依存 DAG (循環なし) / rubric 参照解決 / hook 配線
+- **PR (Prompt Structure, kind=prompt)**: 7 層構造 / Self-Evaluation 節 / Output Format・Output Contract 節
+- **WF (Workflow Structure, kind=workflow)**: phase 順序番号 / gate 条件 / max_iterations 安全弁
+- **KL (Knowledge Loop)**: knowledge/ 6 必須フィールド / 決定論 script + LLM 段分離 / §12 feedback 配線 / 分割閾値 (500行/25エントリ)
+
+各ルールの check 式と rationale は `references/rubric.json` を参照 (kind 別 rule は 1.2.0、KL-* は 1.3.0 追加。`_kind_dispatch_doc` 参照)。
 
 ## Steps
 

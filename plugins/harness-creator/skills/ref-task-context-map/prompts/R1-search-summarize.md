@@ -17,8 +17,10 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- **CONST_001 (実在チェック)**: `chapters` の各値 (章番号 / 設計書パス) が設計書側に実在することを確認する。
-  - 目的: caller が動的ロード時に「ファイル無し」エラーで止まらないようにする。
+- **CONST_001 (実在チェック)**: `chapters` の各値を実在確認する。値は 2 区分で扱う:
+  - 設計書章番号 (例 `07` / `16§12` / `§14`): 先頭の章番号を `doc/ClaudeCodeスキルの設計書/<NN>-*.md` に glob 解決して対応章 md の実在を確認する (`§NN` の節接尾辞・節単独参照は章ファイル解決には使わず、対応章の存在のみを見る)。
+  - 非設計書参照 (skill 名 例 `ref-claude-code-skill-spec` / plugin manifest パス 例 `plugins/harness-creator/.claude-plugin/plugin.json`): 設計書配下として解決せず、当該 skill ディレクトリ / ファイルの実在で検証する。
+  - 目的: caller が動的ロード時に「ファイル無し」エラーで止まらないようにする。設計書配下でない値を設計書パスとして解決しようとしない。
   - 背景: yaml だけ更新して設計書側を rename すると参照崩れが起きやすい。
 - **CONST_002 (安定 sort)**: entries の yaml ファイル出現順を安定 sort で保持し再現性確保する。
   - 目的: 同 query で順序がブレない (snapshot test に必要)。
@@ -88,7 +90,7 @@
 - [ ] 全 matches[] が task-context-map.yaml の実在 entry から引用されている
 - [ ] 呼出元責務外の情報 (map 改訂 / 新規 entry 追加) を含まない
 - [ ] 出力が 50 行 / 2KB 目安以内に収まる
-- [ ] `chapters` の各値 (章番号 / パス) が設計書側に実在している
+- [ ] `chapters` の各値が実在する (設計書章番号 → 対応 `doc/ClaudeCodeスキルの設計書/NN-*.md`、非設計書参照 (skill 名 / plugin manifest パス) → 当該 skill/ファイル)
 - [ ] entries の yaml ファイル出現順を安定 sort で再現性確保している
 - [ ] 上限 5 件を超えていない
 - [ ] 該当ゼロ時は近傍 trigger を `suggestions` に入れる (exit 0)

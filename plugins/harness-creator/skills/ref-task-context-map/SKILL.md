@@ -45,7 +45,7 @@ responsibility_refs: [prompts/R1-search-summarize.md]
 ## Gotchas
 
 - **全章一括ロード禁止**: このスキルを使わずに設計書を全部読むのは CD-005 違反。
-- **索引の網羅性**: キーワードが見つからない場合は `open_questions` に積む。
+- **索引の網羅性**: キーワードが見つからない場合は近傍 trigger 候補を `suggestions[]` に返す (exit 0)。sink は schema (`schemas/query-result.schema.json`) が定義する `suggestions` のみ。
 
 ## Additional Resources
 

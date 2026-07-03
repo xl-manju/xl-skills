@@ -11,7 +11,7 @@
 | skill | ref-domain-task-spec-rubric |
 | responsibility | R1-search-summarize (task-spec rubric の検索/要約) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
-| output_schema | inline (object: summary / matches / rule_ids) |
+| output_schema | inline (object: rubric_version / summary / matches / rule_ids) |
 | reproducible | true (同 query + 同 rubric.json → 同 matches[]) |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -50,7 +50,8 @@
 | scope | enum | no | rules_only / severity_only / full (既定 full) |
 
 ### 2.4 出力契約
-- inline schema (object, required: [summary, matches, rule_ids])
+- inline schema (object, required: [rubric_version, summary, matches, rule_ids])
+  - `rubric_version`: string (rubric.json の `rubric_version`。CONST_001 が応答必須と規定する改訂追跡キー)
   - `summary`: string (50-800 字)
   - `matches`: array<{path: string, value: any}> (JSON path 付き逐語引用)
   - `rule_ids`: array<string> (返却した rule の id 一覧、例 ["TS-001","TS-004"])

@@ -18,7 +18,7 @@
 - 最上位目的: 既存 Skill を安全に改名し、参照 / frontmatter / CHANGELOG を整合させる。
 - 背景: Skill 名は trigger / 参照 / CI で多用される。手動置換は漏れと整合性破壊を招く。
 - 期待成果: 改名済 Skill ツリー + `rename-verify.json` + CHANGELOG 追記。
-- 成功基準: `lint-skill-tree / validate-frontmatter` が PASS、残留参照ゼロ、衝突なし。
+- 成功基準: `lint-skill-name / lint-skill-tree / validate-frontmatter` が PASS、残留参照ゼロ、衝突なし。
 - スコープ
   - 含む: preflight / 参照スキャン / `git mv` / frontmatter 更新 / lint / CHANGELOG
   - 含まない: 他 Skill 改変 / destructive git 操作
@@ -42,9 +42,10 @@
 
 | tool | 説明 | 主パラメータ |
 |---|---|---|
+| resolve-skill-dirs.py | `$OUT_BASE` (eval-log/skill-dirs.json) を解決し入出力パスを確定 | - |
 | ripgrep | old_name の全文検索 | pattern |
 | git mv | Skill ディレクトリ移動 | src, dst |
-| lint-skill-tree / validate-frontmatter | 改名後整合性検査 | - |
+| lint-skill-name / lint-skill-tree / validate-frontmatter | 改名後整合性検査 (命名規約 + ツリー + frontmatter) | - |
 
 ## Layer 4: 共通ポリシー層
 
@@ -71,9 +72,10 @@
 - 達成ゴール: lint PASS + `residual_refs=0` + 衝突なし + CHANGELOG 追記済み。
 
 ### 5.4 完了チェックリスト
+- [ ] `resolve-skill-dirs.py` で `$OUT_BASE` を解決済み
 - [ ] prefix 規約に合致 (`run-/assign-/delegate-/wrap-/ref-` で始まる)
 - [ ] 新 path が衝突しない (事前未存在)
-- [ ] `lint-skill-tree / validate-frontmatter` の両者 exit 0
+- [ ] `lint-skill-name / lint-skill-tree / validate-frontmatter` が全て exit 0
 - [ ] old_name の残留参照ゼロ (ripgrep 0 件、`renamed-from` 除く)
 - [ ] `CHANGELOG.md` に新エントリ
 - [ ] 曖昧マッチは `review_required` (推測を事実として述べない)
