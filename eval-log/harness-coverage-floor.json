@@ -3,7 +3,7 @@
   "floors": {
     "scripts": {
       "mechanical": 85.6,
-      "llm_eval": 62.7
+      "llm_eval": 63.5
     },
     "skills": {
       "mechanical": 100.0,
