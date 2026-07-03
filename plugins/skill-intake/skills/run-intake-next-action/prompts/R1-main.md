@@ -65,8 +65,9 @@
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
-- 判定表に該当行がない → exit 2 (mode 未確定)、stderr に欠落条件を出す。
-- 入力 JSON 不在 → exit 3。
+- Notion 公開 precondition 未充足 (notion-publish-result.json 不在 / notion-log.json.status≠"published" / page_id 無し) → exit 2 (stderr に BLOCK 理由)。CI/dry-run のみ `--allow-skip` + `INTAKE_ALLOW_SKIP_PUBLISH_GATE=1` で緩和。
+- 入力 JSON 不在・不正 → exit 3。
+- mode 判定は該当行なしでも停止しない (decide-mode.py 実挙動): `kickoff.pattern` を既定採用し (verb_object 空→E / 連結語→D / plugin 徴候→P で上書き)、A-E/P 以外の未知 pattern は handoff 表引きの KeyError で異常終了する。「該当行なし→exit 2 / stderr 欠落条件」のフォールバックは未実装。
 
 ### 4.2 観測 / ロギング
 - next-action.json に `reason` (判定表のどの行を引いたか) を必ず残す。
@@ -100,7 +101,7 @@
 
 ### 5.4 実行方式
 - 固定手順を持たない。未充足チェック項目を特定→解消手順を都度立案→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
-- 逸脱時: ループ上限到達または判定表に該当行なしの場合は Layer 4.1 の exit code 規約に従いエスカレーション。
+- 逸脱時: ループ上限到達、または Notion 公開 precondition 未充足・入力欠落の場合は Layer 4.1 の exit code 規約 (exit 2 / exit 3) に従いエスカレーション。
 
 ## Layer 6: オーケストレーション層
 

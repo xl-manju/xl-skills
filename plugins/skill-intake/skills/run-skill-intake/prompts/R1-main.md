@@ -44,7 +44,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json`
-- 必須フィールド: `orchestrator_trace`, `artifacts.intake_md`, `artifacts.intake_json`, `artifacts.notion_url`
+- 必須フィールド: `session_id`, `phases` (11 要素), `artifacts.intake_md`, `artifacts.intake_json`。`notion_url` は required ではなく Notion 公開成功時のみ `artifacts.notion_url` に設定する。
 - Notion 指定ありの場合は `artifacts.intake_json.notion_target` と `notion-publish-result.json.page_id` の一致を必須とする。
 
 ## Layer 3: インフラ層 (外部依存)
