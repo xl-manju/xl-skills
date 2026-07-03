@@ -65,7 +65,15 @@ def emit_item(rule_id, severity, message, location=None, suggestion=None):
     return item
 
 
+def _normalize_target(path: pathlib.Path) -> pathlib.Path:
+    if not path.is_absolute():
+        repo_relative = REPO / path
+        path = repo_relative if repo_relative.exists() else path.resolve()
+    return path
+
+
 def lint_file(path: pathlib.Path) -> list[dict]:
+    path = _normalize_target(path)
     text = path.read_text(encoding="utf-8")
     items: list[dict] = []
     loc = str(path.relative_to(REPO))
@@ -160,6 +168,7 @@ def main(argv: list[str]) -> int:
     all_items: list[dict] = []
     per_file = {}
     for p in targets:
+        p = _normalize_target(p)
         items = lint_file(p)
         per_file[str(p.relative_to(REPO))] = items
         all_items.extend(items)

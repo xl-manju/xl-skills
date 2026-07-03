@@ -369,7 +369,7 @@ def valid_plugin_meta(distributable: bool = False) -> dict:
             "required": True,
             "path": ".claude-plugin/plugin.json",
             "name_matches_folder": True,
-            "no_todo_placeholders": True,
+            "no_unresolved_placeholders": True,
             "validate_plugin": True,
         },
         "marketplace": {

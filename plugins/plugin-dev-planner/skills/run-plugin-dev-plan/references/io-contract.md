@@ -113,7 +113,7 @@ frontmatter は specfm が厳格に operationalize する一方、本文 (prose)
 | `routes[].gap_ref` | contract-only route が参照する `open_issues[].id` (既知 capability-gap の構造化参照。executor gap の無音隠蔽を防ぐ) |
 | `routes[].requires_parent_scaffold` | (placement=skill script のみ) `build_target` が親 skill の `build_target` ディレクトリ配下にある script は、二相 build (scaffold→fill) の順序逆転を後段 consumer が routes 配列順でなく守れるよう、自身を内包する親 skill の id を機械可読に宣言する。`check-build-handoff.py` が `build_target` 包含から親を特定し一致を fail-closed 検査する (散文 `build_sequencing_notes` 依存の機械可読化・M2)。plugin-root へ hoist した共有 script は親 skill 配下でないため不要 |
 | `envelope` | manifest/marketplace 等 plugin-level surface の owner/status/build_target。`external_gap` / `manual-user-gated` は gap/approval reason 必須。**`envelope.manifest.draft_path` = `<PLAN_DIR>/envelope-draft/plugin.json`** (Phase02=設計 が owner) |
-| `envelope.manifest.draft_path` | `<PLAN_DIR>` 相対の manifest draft。存在・JSON parse・`name == target_plugin_slug`・TODO placeholder 不在を検査する |
+| `envelope.manifest.draft_path` | `<PLAN_DIR>` 相対の manifest draft。存在・JSON parse・`name == target_plugin_slug`・未解決 placeholder 不在を検査する |
 
 **builder → 実行手段の解決表** (SSOT=`specfm.BUILDER_STATUS`・消費側が routes を dispatch する際の唯一の対応表):
 
@@ -167,7 +167,7 @@ plugin_meta:
     required: true
     path: .claude-plugin/plugin.json
     name_matches_folder: true
-    no_todo_placeholders: true
+    no_unresolved_placeholders: true
     validate_plugin: true
   marketplace:
     default_personal: true

@@ -384,3 +384,18 @@ def test_main_subprocess_real_agents_pass(tmp_path):
     assert r.returncode == 0, r.stdout
     assert payload["verdict"] == "pass"
     assert payload["summary"]["errors"] == 0
+
+
+def test_main_subprocess_accepts_repo_relative_path():
+    target = "plugins/skill-intake/agents/skill-intake-assumption-challenger.md"
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT), target],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        env=dict(os.environ),
+    )
+    payload = json.loads(r.stdout)
+    assert r.returncode == 0, r.stderr
+    assert payload["verdict"] == "pass"
+    assert payload["summary"]["per_file_counts"][target] == 0

@@ -55,7 +55,7 @@
 - **script**: `script_name`/`purpose`/`inputs`/`outputs`/`exit_codes`/`network`/`write_scope` + `stdlib_only: true` + `tests_min: 80` + core 規律。
 
 **(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6/B4/B5 を焼く。feedback_deploy はコア=常時・notion_sink 契約は io-contract §9) を保持する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
-- `plugin_meta.manifest`: `required:true`、`path:.claude-plugin/plugin.json`、`name_matches_folder:true`、`no_todo_placeholders:true`、`validate_plugin:true` を必須にする。
+- `plugin_meta.manifest`: `required:true`、`path:.claude-plugin/plugin.json`、`name_matches_folder:true`、`no_unresolved_placeholders:true`、`validate_plugin:true` を必須にする。
 - `plugin_meta.marketplace`: `default_personal` は bool、`policy.installation` は `AVAILABLE` 既定、`policy.authentication` は `ON_INSTALL` 既定、`policy.category` は非空、`cachebuster_for_update:true` を必須にする。
 - 焼き先の正本キーは io-contract.md の表 (「焼き先はマトリクスに従う」総称ポインタでなく具体キー)。条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) は kind/feature/階層ゲートに従い盲目的に全 component へ焼かない。
 
@@ -69,7 +69,7 @@
 ### 2.4 出力契約
 - 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + handoff-run-plugin-dev-plan.json
 - 出力先: 構想専用 plan ディレクトリ (既定 `plugin-plans/<plugin-slug>/`・可視/永続の tracked deliverable。実プラグインディレクトリは作らない)
-- **envelope ドラフト (artifact_class=plugin-plan 時のみ)**: 唯一 builder を持たない plugin envelope について、`<PLAN_DIR>/envelope-draft/plugin.json` に**具体値入りの「貼れる」 manifest ドラフト** (`name`↔folder 一致・TODO placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する。これは契約(値域宣言=`plugin_meta`)とは別の「実体ドラフト」で、利用者が build 境界 (実 `plugins/` への書込) を侵さず最後の手動ステップを完了するためのもの。実 `plugins/` には書かない
+- **envelope ドラフト (artifact_class=plugin-plan 時のみ)**: 唯一 builder を持たない plugin envelope について、`<PLAN_DIR>/envelope-draft/plugin.json` に**具体値入りの「貼れる」 manifest ドラフト** (`name`↔folder 一致・未展開 placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する。これは契約(値域宣言=`plugin_meta`)とは別の「実体ドラフト」で、利用者が build 境界 (実 `plugins/` への書込) を侵さず最後の手動ステップを完了するためのもの。実 `plugins/` には書かない
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -150,7 +150,7 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
-動的に手順を生成・実行・自己評価する。入力 `{{component_inventory}}` と `{{goal_spec}}`
+動的に手順を生成・実行・自己評価する。入力 `component_inventory` と `goal_spec`
 を Read し、13 phase ファイルと、評価基準を焼いた inventory component と、P01..P13 昇順 index を生成する。出力は次の
 とおり (4 は `artifact_class=plugin-plan` 時のみ):
 

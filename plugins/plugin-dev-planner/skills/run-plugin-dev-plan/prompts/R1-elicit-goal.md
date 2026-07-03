@@ -84,7 +84,7 @@
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `agents/plugin-dev-plan-elicitor.md` (本ファイルを SSOT とする薄いアダプタ)。`isolation: inherit` で起動する。R1 は会話履歴・構想文から最尤ゴールを推定するため親 context を必要とし、fork すると推定材料を失う (context-fork しない)
+- `agents/plugin-dev-plan-elicitor.md` (本ファイルを authoring source とする自己完結型 7 層 SubAgent)。`isolation: inherit` で起動する。R1 は会話履歴・構想文から最尤ゴールを推定するため親 context を必要とし、fork すると推定材料を失う (context-fork しない)
 
 ### 5.2 ゴール定義
 - **目的**: 曖昧なプラグイン構想を、後段が消費できる goal-spec に固める

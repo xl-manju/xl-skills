@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d"
+    "skill_md_sha256": "ecf74e4e63704648b10229acdd1e96d031501001a95c6fa6f2e0036cd83f6b20"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -11,19 +11,21 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 0
+    "smell": 1
   },
-  "reviewer": "independent-rename-review-subagent-g",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-7layer-subagent-rubric",
+  "reviewed_at": "2026-07-03T09:32:06+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "完全性 — SRP が範例的。責務=『プラグイン構想 1 件 → 13 phase ファイル + index + component-inventory.json への目的ドリブン分解』に限定し、境界節で実 build (run-skill-create/run-build-skill)・配布登録・実コード生成・PR 操作を明示除外。frontmatter は responsibility_refs/script_refs(15)/reference_refs/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2)/goal_seek/feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer) を rationale 付きで宣言し全 refs dangling 0。",
-      "一貫性 (改名) — 量産規律の伝播元呼称が harness-creator へ一貫追従。harness-creator-spec-reflection.md が全 46 行を 1:1 収録し、DROP (UBM固有=IPC/Cloudflare/スクショ/PR) と transform (TDD/カバレッジ精神) を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。upstream-pins.json/CI workflow/参照ファイル名まで harness-creator で三者一致し用語ゆれ 0。単一 skill 概念 (run-skill-create/skill-brief) は skill 維持の意味論境界も適合。",
-      "検証可能性/深度 — 検証 11 本 (core 5 scripts / 6 invocations + 拡張ゲート 6) の決定論ゲートを io-contract §11 表へ単一正本集約し二値判定可能。上流ドリフトをカレンダー期限でなく 3 機械辺 (skill 増減/rule-ID 実在/plugin パス存在) + upstream-pins hash で event-driven 監査する三層方式が over-claim (time-bomb) を回避。install 携帯性 (F8) を placement_scope + check-runtime-portability.py で fail-closed operationalize し、唯一 builder を持たない plugin envelope も契約 spec + 貼れる envelope-draft/plugin.json + capability-gap 起票の三段で layperson-complete を達成。"
+      "完全性=3: frontmatter の responsibility_refs/script_refs(15)/reference_refs(7)/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs を stat で全数検査し dangling 0 件を実測 (34/34 OK)。core 5+拡張ゲート 6 の 11 script・schemas・prompts・references が全て実在。kind=run 必須サポート資産 (scripts/tests/references/examples/sample-plan) 完備。",
+      "一貫性=3: 主要変更点『3 agent を自己完結型 7 層 SubAgent へ位置づけ』が SKILL.md L193・plugin-composition.yaml L14・commands/plugin-dev-plan.md L44・agents/*.md L17 の 4 面で用語も含め一致 (grep 実測)。SKILL.md 内に旧『薄いアダプタ』表記の残置 0 件。isolation 記述 (elicitor=inherit / architect=fork / evaluator=fork) が 3 agent の frontmatter 実値と完全一致 (grep 実測)。pipeline 単方向 handoff・proposer≠approver の skill 分離も矛盾なし。",
+      "深度=3: goal-seek と固定出力形状の直交・緑のパラドクス (全ゲート PASS だが purpose 未達の空プラグイン) を purpose-traceability fail-closed で弾く設計・Goodhart 回避 (現状数値非焼込)・カレンダー freshness を time-bomb アンチパターンとして敢えて排し実ドリフト検知 3 辺へ委ねる判断など、表層でなく trade-off と既知失敗パターンまで掘り下げた根拠が随所にある。",
+      "検証可能性=3: 『7 層準拠は verify-completeness.py で機械検査する』の裏取りとして正準 validator plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py の実在を確認し、3 agent 全てに対し --input 実行で exit0 (l5-contract v2.0.0 PASS) を実測。CI wiring も tests/test_plugin_surfaces.py::test_agents_pass_canonical_seven_layer_verify (L58-74) が subprocess で同 validator を回し returncode==0 を assert、test_agents_are_self_contained_seven_layer_subagents が owner_skill/responsibility_id/isolation/source と『薄いアダプタ』非在を機械固定。数値・コマンド・二値判定 (core 5/6 invocations・≥80%・13 phase・46 行) 豊富。",
+      "簡潔性=2: 本文 215 行で lint-skill-tree P0-2 の 300 行上限内。詳細は references/*.md へ委譲し二重管理を回避。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -31,5 +33,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2、FM/BD/NM/PD 系規範も違反 0。現 sha256=a5bc767 実測 (旧 sha=8611303 は改名前で本文に旧名 skill-creator-spec-reflection.md / skill-creator 量産規律 / skill-creator 全 31 skill を残存し stale)。改名観点: (1) 旧名 skill-creator/skill_creator/スキルクリエイター 残存 0 (grep)。(2) harness-creator 参照 (reference_refs/cross-plugin ref/feedback SSOT path/slash namespace/CI workflow) 全実在・dangling 0。(3) 意味論境界: 単一 skill 生成/委譲は skill 維持・ハーネス総体 native 規律は harness-creator 化の二分が正しい。(4) description は trigger 2 個 + 発動条件のみで動作詳細非露出、name/dir 一致。criteria: IN1/IN2 (topsort/frontmatter/gates 契約が改名後も健全)・OUT1 (harness-creator ネイティブ規律の DROP/transform 分離設計)・OUT2 (skill-brief 主要フィールド写像設計) 充足。ブロッキング severity 0 で PASS。"
+  "notes": "現 SKILL.md sha256=ecf74e4e63704648b10229acdd1e96d031501001a95c6fa6f2e0036cd83f6b20 を shasum -a 256 で実測。旧 verdict は sha=a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d (reviewed_at 2026-07-02T22:00:00) を pin しており、その後 3 agent を『薄いアダプタ』から『自己完結型 7 層 SubAgent (7 層本文自持・verify-completeness.py 機械検査)』へ位置づけ変更する SKILL.md 編集 (特に L193) で本文が変わり sha が乖離→stale 化していた。5 次元 genuine 採点=完全性3/一貫性3/深度3/検証可能性3/簡潔性2、全次元>=2 かつ FM/BD/NM/PD 系ブロッキング規範違反 0 (contradiction/omission/inconsistency/dependency_break=0)。裏取り実測: (a) frontmatter 参照 34/34 が stat で解決 dangling 0、(b) 『自己完結型 7 層 SubAgent』が composition/command/agents で用語一致・SKILL.md 内『薄いアダプタ』残置 0、(c) verify-completeness.py 実在かつ 3 agent 全て exit0、(d) test_plugin_surfaces.py が同 validator を CI ゲートとして配線・isolation 3 値も frontmatter 実値と一致。smell=1 は L193 の agent 配線記述が単一の高密度長段落に pipeline/isolation/Bash 依存検証まで詰め込まれ可読性がやや低い点 (非ブロッキング・簡潔性2 の要因) を記録したもの。criteria_evaluated は frontmatter feedback_contract.criteria の id (IN1/IN2/OUT1/OUT2) に一致。"
 }
