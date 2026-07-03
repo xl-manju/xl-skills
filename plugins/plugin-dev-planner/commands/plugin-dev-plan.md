@@ -41,7 +41,7 @@ since: 2026-06-30
 
 ## 実行手順 (決定論的・再現可能)
 
-ゴールシークループ本体は `Agent` ツールで SubAgent に fork し、R 責務を 3 agent へ 1:1 dispatch する (prompt-creator 仕様準拠の薄いアダプタ)。
+ゴールシークループ本体は `Agent` ツールで SubAgent に fork し、R 責務を 3 agent へ 1:1 dispatch する (自己完結型 7 層 SubAgent。source を authoring 正本とする)。
 
 1. **R1 (elicitor / `isolation:inherit`)**: 構想文 + 会話履歴から目的ドリブンに `plugin-plans/<plugin-slug>/goal-spec.json` (purpose/background/goal/二値 checklist + target_plugin_slug + plan_dir) を確定する。追加質問しない。goal-spec 生成本体は `run-goal-elicit` へ委譲。
 2. **R2/R3 (architect / `isolation:fork`)**: capability の各実体を 5 種の component_kind へ単一責務分解 (同一 kind 複数実体可) → 依存 DAG + envelope(plugin.json)設計 (Phase02 owner) を `component-inventory.json` に記録 → 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) を §2 frontmatter + §5 本文床で生成し、各 inventory component へ core 規律 (`quality_gates` + `harness_coverage`) を焼く → `index.md` に P01..P13 phase_number 昇順の目次 + `plugin_meta` (manifest/marketplace/cachebuster/validate_plugin) + 受入確認章を焼く。

@@ -11,7 +11,7 @@ capabilities:
   - kind: skill
     path: skills/assign-plugin-plan-evaluator/SKILL.md
     responsibility: R4 を独立 skill へ昇格。生成 plan を4条件+決定論ゲートで context:fork 独立評価し plan-findings を返す (proposer≠approver)
-  # === Agents (prompt-creator 仕様準拠の薄いアダプタ。R1→R2/R3→R4 を 1:1 写像。plugin.json entry_points と対応) ===
+  # === Agents (自己完結型 7 層 SubAgent。source を authoring 正本とし R1→R2/R3→R4 を 1:1 写像。plugin.json entry_points と対応) ===
   - kind: agent
     path: agents/plugin-dev-plan-elicitor.md
     responsibility: R1 目的ドリブン goal-spec 確定 (isolation:inherit / 会話履歴を保持)

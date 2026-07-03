@@ -4,8 +4,10 @@
   plugins/skill-intake/scripts/lint_subagent_seven_layer.py
 
 lint_file の各ルール (SE-FM-required / SE-L1-L7-ordered / SE-L5-rubric-min5 /
-SE-meta-r-id / SE-L2-io-schema / SE-no-todo[TODO/placeholder]) と main の
-verdict 決定・findings JSON 構造・exit code 契約をゼロから被覆する。
+SE-L5-goalseek / SE-meta-r-id / SE-L2-io-schema / SE-no-todo[TODO/placeholder]) と
+main の verdict 決定・findings JSON 構造・exit code 契約をゼロから被覆する。
+Layer 5 は l5-contract v2.0.0 (宣言型): 完了チェックリストは本文末尾 `## Self-Evaluation`、
+{{var}} は `## Prompt Templates` 節内のみ許容 (フェンス内の見出し風行は節境界と見なさない)。
 
 純ローカル lint (network=false, write-scope=none) のため stub 不要。
 REPO は module load 時に __file__ から固定されるため in-process は monkeypatch.setattr(MOD,'REPO',tmp_path)
@@ -37,10 +39,21 @@ def MOD():
     return _load()
 
 
+def _layer_body(i: int, h: str) -> str:
+    if i == 4:  # Layer 5 は l5-contract v2.0.0 の宣言型骨格 (5.2/5.3 必須)
+        return (
+            f"{h}\n\n"
+            "### 5.1 context_fork 要否\n- false (理由: 親 context 不要)\n\n"
+            "### 5.2 ゴール定義 (固定手順を持たない)\n- 達成ゴール: 出力 schema validate PASS。\n\n"
+            "### 5.3 実行方式\n固定手順を持たない。チェックリスト充足まで反復。"
+        )
+    return f"{h}\n\n本文 for layer {i+1}."
+
+
 def _good_doc(extra_meta: str = "", io_schema_line: str = "(なし)") -> str:
     """SE-* 全ルールを満たす最小合格 SubAgent 本文を組み立てる。"""
     layers = "\n\n".join(
-        f"{h}\n\n本文 for layer {i+1}." for i, h in enumerate(
+        _layer_body(i, h) for i, h in enumerate(
             [
                 "## Layer 1: 基本定義層",
                 "## Layer 2: ドメイン層",
@@ -53,7 +66,7 @@ def _good_doc(extra_meta: str = "", io_schema_line: str = "(なし)") -> str:
         )
     )
     rubric = (
-        "\n\n### 5.3 Self-Evaluation rubric\n"
+        "\n\n## Self-Evaluation\n\n"
         "- [ ] item 1\n- [ ] item 2\n- [ ] item 3\n- [ ] item 4\n- [ ] item 5\n"
     )
     meta = (
@@ -135,7 +148,7 @@ def test_lint_file_layers_out_of_order(MOD, tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 def test_lint_file_rubric_section_absent(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "REPO", tmp_path)
-    doc = _good_doc().replace("### 5.3 Self-Evaluation rubric", "### 5.3 別物")
+    doc = _good_doc().replace("## Self-Evaluation", "## 別物")
     p = _write(tmp_path, "skill-intake-x.md", doc)
     item = next(i for i in MOD.lint_file(p) if i["rule_id"] == "SE-L5-rubric-min5")
     assert "欠落" in item["message"]
@@ -145,10 +158,10 @@ def test_lint_file_rubric_too_few_items(MOD, tmp_path, monkeypatch):
     monkeypatch.setattr(MOD, "REPO", tmp_path)
     # checklist を 3 件に減らす (min5 未満)
     full = (
-        "### 5.3 Self-Evaluation rubric\n"
+        "## Self-Evaluation\n\n"
         "- [ ] item 1\n- [ ] item 2\n- [ ] item 3\n- [ ] item 4\n- [ ] item 5\n"
     )
-    few = "### 5.3 Self-Evaluation rubric\n- [ ] a\n- [ ] b\n- [ ] c\n"
+    few = "## Self-Evaluation\n\n- [ ] a\n- [ ] b\n- [ ] c\n"
     doc = _good_doc().replace(full, few)
     p = _write(tmp_path, "skill-intake-x.md", doc)
     item = next(i for i in MOD.lint_file(p) if i["rule_id"] == "SE-L5-rubric-min5")
@@ -165,6 +178,39 @@ def test_lint_file_rubric_section_followed_by_next_heading(MOD, tmp_path, monkey
     # rubric 本体は 5 件のままなので min5 違反は出ない
     rules = {i["rule_id"] for i in MOD.lint_file(p)}
     assert "SE-L5-rubric-min5" not in rules
+
+
+# ---------------------------------------------------------------------------
+# lint_file — SE-L5-goalseek (l5-contract v2.0.0)
+# ---------------------------------------------------------------------------
+def test_lint_file_goalseek_missing_goal_heading(MOD, tmp_path, monkeypatch):
+    monkeypatch.setattr(MOD, "REPO", tmp_path)
+    doc = _good_doc().replace("### 5.2 ゴール定義 (固定手順を持たない)", "### 5.2 別物")
+    p = _write(tmp_path, "skill-intake-x.md", doc)
+    items = [i for i in MOD.lint_file(p) if i["rule_id"] == "SE-L5-goalseek"]
+    assert any("ゴール定義" in i["message"] for i in items)
+
+
+def test_lint_file_goalseek_missing_exec_heading(MOD, tmp_path, monkeypatch):
+    monkeypatch.setattr(MOD, "REPO", tmp_path)
+    doc = _good_doc().replace("### 5.3 実行方式", "### 5.3 別物")
+    p = _write(tmp_path, "skill-intake-x.md", doc)
+    items = [i for i in MOD.lint_file(p) if i["rule_id"] == "SE-L5-goalseek"]
+    assert any("実行方式" in i["message"] for i in items)
+
+
+def test_lint_file_goalseek_fixed_steps_flagged(MOD, tmp_path, monkeypatch):
+    monkeypatch.setattr(MOD, "REPO", tmp_path)
+    doc = _good_doc().replace(
+        "### 5.3 実行方式\n固定手順を持たない。チェックリスト充足まで反復。",
+        "### 5.3 実行方式\n固定手順を持たない。チェックリスト充足まで反復。\n\n"
+        "### 5.4 推論手順 (再現可能, 番号付き)\n1. step",
+    )
+    p = _write(tmp_path, "skill-intake-x.md", doc)
+    items = [i for i in MOD.lint_file(p) if i["rule_id"] == "SE-L5-goalseek"]
+    assert any("固定手順" in i["message"] for i in items)
+    # 固定手順見出しは行番号付き location を持つ
+    assert any(":" in i.get("location", "") for i in items)
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +289,34 @@ def test_lint_file_placeholder_flagged(MOD, tmp_path, monkeypatch):
     assert any("{{unexpanded}}" in i["message"] for i in items)
 
 
+def test_lint_file_placeholder_in_prompt_templates_allowed(MOD, tmp_path, monkeypatch):
+    # Prompt Templates 節内の {{var}} は置換変数として許容。フェンス内の見出し風行
+    # (## ...) を節境界と誤認せず、フェンス内 {{var}} も許容されることを併せて確認。
+    monkeypatch.setattr(MOD, "REPO", tmp_path)
+    doc = _good_doc() + (
+        "\n## Prompt Templates\n\n"
+        "> 「{{user_input}} ですか?」\n\n"
+        "```markdown\n## 見出し風\n{{fenced_var}}\n```\n\n"
+        "## 付録\n本文のみ\n"
+    )
+    p = _write(tmp_path, "skill-intake-x.md", doc)
+    rules = {i["rule_id"] for i in MOD.lint_file(p)}
+    assert "SE-no-todo" not in rules
+
+
+def test_lint_file_placeholder_after_prompt_templates_flagged(MOD, tmp_path, monkeypatch):
+    # Prompt Templates 節が終わった後 (次の ## 節) の {{var}} は許容されない
+    monkeypatch.setattr(MOD, "REPO", tmp_path)
+    doc = _good_doc() + (
+        "\n## Prompt Templates\n\n> 「{{ok_var}}」\n\n"
+        "## Handoff\n{{leaked_var}}\n"
+    )
+    p = _write(tmp_path, "skill-intake-x.md", doc)
+    items = [i for i in MOD.lint_file(p) if i["rule_id"] == "SE-no-todo"]
+    assert any("{{leaked_var}}" in i["message"] for i in items)
+    assert not any("{{ok_var}}" in i["message"] for i in items)
+
+
 # ---------------------------------------------------------------------------
 # emit_item
 # ---------------------------------------------------------------------------
@@ -296,21 +370,32 @@ def test_main_inproc_default_glob(MOD, tmp_path, monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 # main (subprocess) — __main__ ガード + exit code 契約
 # ---------------------------------------------------------------------------
-def test_main_subprocess_pass(tmp_path):
-    # subprocess は REPO 差し替え不可なので REPO 直下に置けない。実 REPO 配下の合格 fixture を
-    # tmp に作り REPO 相対化失敗を避けるため、実在の agents を default で走らせて exit code を確認する。
-    # ここでは実 agents (リポジトリ同梱) を走らせ JSON 構造と exit code の整合のみ検証する。
+def test_main_subprocess_real_agents_pass(tmp_path):
+    # 実 agents (リポジトリ同梱) を default glob で走らせ、7-layer 準拠が保たれていることを
+    # fail-closed で強制する (agents / lint / template のドリフトを CI で検出するゲート)。
     r = subprocess.run(
         [sys.executable, str(SCRIPT)],
         capture_output=True,
         text=True,
         env=dict(os.environ),
     )
-    assert r.returncode in (0, 1)
     payload = json.loads(r.stdout)
     assert payload["produced_by"] == "lint_subagent_seven_layer.py"
-    # verdict と exit code が整合する
-    if payload["summary"]["errors"]:
-        assert r.returncode == 1 and payload["verdict"] == "fail"
-    else:
-        assert r.returncode == 0
+    assert r.returncode == 0, r.stdout
+    assert payload["verdict"] == "pass"
+    assert payload["summary"]["errors"] == 0
+
+
+def test_main_subprocess_accepts_repo_relative_path():
+    target = "plugins/skill-intake/agents/skill-intake-assumption-challenger.md"
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT), target],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        env=dict(os.environ),
+    )
+    payload = json.loads(r.stdout)
+    assert r.returncode == 0, r.stderr
+    assert payload["verdict"] == "pass"
+    assert payload["summary"]["per_file_counts"][target] == 0

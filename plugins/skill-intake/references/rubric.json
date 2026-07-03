@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "skill-intake-rubric",
-  "version": "1.0.0",
-  "description": "skill-intake plugin 全 SubAgent / skill / phase 出力に対する機械検証 rubric。lint-subagent-seven-layer.py が評価し findings.schema.json 準拠で結果を返す。",
+  "version": "1.1.0",
+  "description": "skill-intake plugin 全 SubAgent / skill / phase 出力に対する機械検証 rubric。lint_subagent_seven_layer.py が評価し findings.schema.json 準拠で結果を返す。Layer 5 は l5-contract v2.0.0 (宣言型ゴールシーク) 準拠。",
   "scope": {
     "subagents_glob": "plugins/skill-intake/agents/skill-intake-*.md",
     "skills_glob": "plugins/skill-intake/skills/*/SKILL.md",
@@ -40,10 +40,20 @@
       "category": "self_evaluation",
       "severity": "error",
       "applies_to": "subagent",
-      "description": "Layer 5.3 Self-Evaluation rubric に checklist が 5 項目以上",
+      "description": "本文末尾の Self-Evaluation セクション (Layer 5 goal-seek 完了チェックリスト) に checklist が 5 項目以上",
       "verifier": "checklist_count_gte",
-      "section": "### 5.3 Self-Evaluation rubric",
+      "section": "## Self-Evaluation",
       "min": 5
+    },
+    {
+      "rule_id": "SE-L5-goalseek",
+      "category": "structure",
+      "severity": "error",
+      "applies_to": "subagent",
+      "description": "Layer 5 が宣言型 (### 5.2 ゴール定義 + ### 5.3 実行方式) で、固定手順見出し (推論手順/思考プロセス) を含まない (l5-contract v2.0.0)",
+      "verifier": "goalseek_layer5",
+      "required_headings": ["### 5.2 ゴール定義", "### 5.3 実行方式"],
+      "forbidden_heading_pattern": "推論手順|思考プロセス"
     },
     {
       "rule_id": "SE-L2-io-schema",
@@ -75,9 +85,10 @@
       "category": "cleanliness",
       "severity": "error",
       "applies_to": ["subagent", "skill"],
-      "description": "未展開 {{...}} / 残置 TODO (TODO(human) 除く) が無い",
+      "description": "未展開 {{...}} / 残置 TODO (TODO(human) 除く) が無い。{{...}} は Prompt Templates 節内のみ置換変数として許容",
       "verifier": "regex_absent",
-      "patterns": ["\\{\\{[^}]+\\}\\}", "\\bTODO\\b(?!\\(human\\))"]
+      "patterns": ["\\{\\{[^}]+\\}\\}", "\\bTODO\\b(?!\\(human\\))"],
+      "exempt_sections": {"\\{\\{[^}]+\\}\\}": ["## Prompt Templates"]}
     },
     {
       "rule_id": "SE-handoff-schema",

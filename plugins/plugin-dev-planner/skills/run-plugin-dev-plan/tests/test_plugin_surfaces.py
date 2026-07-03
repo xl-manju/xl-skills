@@ -25,10 +25,10 @@ def test_plugin_level_surfaces_exist():
     assert missing == []
 
 
-def test_agents_follow_prompt_creator_adapter_spec():
-    """3 agent が prompt-creator 仕様準拠の薄いアダプタ frontmatter を携帯する。
-    elicitor/architect は orchestrator (run-plugin-dev-plan) 配下、evaluator は独立 skill
-    (assign-plugin-plan-evaluator) 配下へ re-home され、responsibility は各 owner_skill と 1:1。"""
+def test_agents_are_self_contained_seven_layer_subagents():
+    """3 agent が自己完結型 7 層 SubAgent として 7 層本文を保持し、authoring source を
+    frontmatter で指す。elicitor/architect は orchestrator (run-plugin-dev-plan) 配下、
+    evaluator は独立 skill (assign-plugin-plan-evaluator) 配下で responsibility と 1:1。"""
     import re
 
     agents_dir = PLUGIN_ROOT / "agents"
@@ -40,12 +40,38 @@ def test_agents_follow_prompt_creator_adapter_spec():
     for name, want in expected.items():
         text = (agents_dir / f"{name}.md").read_text(encoding="utf-8")
         fm = text.split("---", 2)[1]
-        # prompt-creator 仕様: 薄いアダプタは owner_skill + responsibility_id + isolation を持つ
+        # 7 層 SubAgent は owner_skill + responsibility_id + isolation + source anchor を携帯する
         assert f"owner_skill: {want['owner_skill']}" in fm, f"{name}: owner_skill 不一致"
         assert re.search(rf"responsibility_id:\s*{re.escape(want['responsibility_id'])}\b", fm), f"{name}: responsibility_id 不一致"
         assert re.search(rf"isolation:\s*{want['isolation']}\b", fm), f"{name}: isolation 不一致"
-        # SSOT 重複定義しない (本文に「薄いアダプタ」宣言がある)
-        assert "薄いアダプタ" in text, f"{name}: 薄いアダプタ宣言が無い (SSOT 重複定義の疑い)"
+        assert re.search(r"^source:\s*\S+", fm, re.MULTILINE), f"{name}: source anchor が無い (authoring 正本への backlink)"
+        # 自己完結型 7 層 SubAgent を明示宣言し、旧「薄いアダプタ」表記 (実体は full 7 層で矛盾) は撤回済み
+        assert "自己完結型 7 層 SubAgent" in text, f"{name}: 自己完結型 7 層 SubAgent 宣言が無い"
+        assert "薄いアダプタ" not in text, f"{name}: 旧「薄いアダプタ」表記が残置 (自己完結宣言と矛盾)"
+        positions = [text.find(f"## Layer {i}") for i in range(1, 8)]
+        assert all(p >= 0 for p in positions), f"{name}: Layer 1-7 が不足"
+        assert positions == sorted(positions), f"{name}: Layer 1-7 が順序通りでない"
+        for heading in ("### 5.1 担当 agent", "### 5.2 ゴール定義", "### 5.3 完了チェックリスト", "### 5.4 実行方式"):
+            assert heading in text, f"{name}: l5-contract v2.0.0 見出し不足: {heading}"
+
+
+def test_agents_pass_canonical_seven_layer_verify():
+    """自己完結型 7 層 agent が正準 validator verify-completeness.py (l5-contract v2.0.0) を
+    通ることを CI ゲートとして固定する (skill-intake 固有 lint でなく prompt-creator 正本で
+    検査し、7 層反映を機械保証する)。"""
+    import subprocess
+    import sys
+
+    repo_root = PLUGIN_ROOT.parents[1]
+    vc = repo_root / "plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py"
+    assert vc.is_file(), f"正準 validator が見つからない: {vc}"
+    for name in ("plugin-dev-plan-elicitor", "plugin-dev-plan-architect", "plugin-dev-plan-evaluator"):
+        agent = PLUGIN_ROOT / "agents" / f"{name}.md"
+        result = subprocess.run(
+            [sys.executable, str(vc), "--input", str(agent)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, f"{name}: verify-completeness FAIL\n{result.stdout}\n{result.stderr}"
 
 
 def test_evaluator_skill_is_assign_kind_with_fork():

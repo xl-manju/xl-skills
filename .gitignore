@@ -125,3 +125,6 @@ plugins/prompt-creator/LOGS.md
 
 # GitHub 100MB file-size limit: this local tarball cannot be pushed
 google-cloud-cli-darwin-arm.tar.gz
+
+# ローカル作業資料 (監査台帳等・コミット対象外)
+scratchpad/

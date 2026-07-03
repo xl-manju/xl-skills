@@ -37,11 +37,13 @@ reproducible: true (同一ひな形・同一マッピング→同一 diff 判定
 - 差分が exit 0(整合)になるまでマッピング/台帳を更新してから再生成する。
 
 ### 2.3 入力契約
-| field | type | required | 説明 |
-|---|---|---|---|
-| --type | enum(individual/corporate/all) | yes | 対象ひな形/シート |
-| --apply | flag | no | 診断後に再生成フラグを付与 |
-| --docx | path | no | ローカル .docx を診断(未指定は Drive 最新版) |
+CLI は責務ごとに 2 本に分かれる(診断=`scan_template.py` / 一括+付与=`sync.py`)。`--type all` と `--apply` は `sync.py` のみ、`--docx` は `scan_template.py` のみ。
+
+| field | type | required | 対応 CLI | 説明 |
+|---|---|---|---|---|
+| --type | enum | yes | 両方 | 対象ひな形/シート。scan_template=individual/corporate、sync=individual/corporate/all(既定 all) |
+| --docx | path | no | scan_template のみ | ローカル .docx を診断(未指定は Drive 最新版) |
+| --apply | flag | no | sync のみ | 診断後に影響 completed 行へ再生成フラグを付与 |
 
 ### 2.4 出力契約
 - 診断レポート(Markdown): 黄色 run 一覧 / MISSING / UNMAPPED。
@@ -131,14 +133,14 @@ reproducible: true (同一ひな形・同一マッピング→同一 diff 判定
 
 ## 起動テンプレ
 
-> 「ユーザーが『ひな形が変わった/テンプレ更新された』と述べたとき `--type {individual|corporate|all}`(任意 `--docx PATH`)で差分診断(MISSING/UNMAPPED)→マッピング/台帳更新→再診断 exit 0 →`--apply` で再生成フラグ付与」。
+> 「ユーザーが『ひな形が変わった/テンプレ更新された』と述べたとき、診断=`scan_template.py --type {individual|corporate}`(任意 `--docx PATH`)で差分診断(MISSING/UNMAPPED)→マッピング/台帳更新→再診断 exit 0 →付与=`sync.py --type {individual|corporate|all} --apply` で再生成フラグ付与」。
 
 ## 出力指示 (LLM 実行時に読む箇所)
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-ユーザーが「ひな形が変わった/テンプレ更新された」と明示したときのみ `--type {{type}}`(任意 `--docx {{path}}`)で実行する。作成意図の入力では発火しない。Layer 5 の達成ゴール(ひな形と `template-mapping.json` の差分が解消され、影響 completed 行が 未作成+再生成フラグ◯ になっている状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
+ユーザーが「ひな形が変わった/テンプレ更新された」と明示したときのみ実行する。作成意図の入力では発火しない。Layer 5 の達成ゴール(ひな形と `template-mapping.json` の差分が解消され、影響 completed 行が 未作成+再生成フラグ◯ になっている状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
 
-利用可能な手段: `python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type {{type}} [--docx PATH]`(MISSING/UNMAPPED 差分診断、exit 0=整合 / 5=drift) / `--apply` 付与で影響 completed 行へ再生成フラグを書込(draft/approved は巻き戻さない) / `template-mapping.json` と `lib/ledger.py:HEADERS` の手編集(条文本文は改変禁止、anchor 定義と台帳列のみ更新)。大改訂(条の追加削除・章立て再編)は `template-change-runbook.md` の手順へ誘導。
+利用可能な手段: 診断=`python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type {individual|corporate} [--docx PATH]`(MISSING/UNMAPPED 差分診断、exit 0=整合 / 5=drift。`--apply`/`--type all` 非対応) / 一括診断+フラグ付与=`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-template-sync/scripts/sync.py" --type {individual|corporate|all} [--apply] [--dry-run]`(影響 completed 行へ再生成フラグを書込、draft/approved は巻き戻さない。`--docx` 非対応) / `template-mapping.json` と `lib/ledger.py:HEADERS` の手編集(条文本文は改変禁止、anchor 定義と台帳列のみ更新)。大改訂(条の追加削除・章立て再編)は `template-change-runbook.md` の手順へ誘導。
 
 出力は診断レポート(Markdown)のみ。MISSING/UNMAPPED の文脈・推奨アクション・再診断結果を列挙、機微情報は展開しない。前置き・思考過程の出力は禁止。
