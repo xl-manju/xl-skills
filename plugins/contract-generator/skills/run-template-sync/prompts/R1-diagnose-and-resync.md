@@ -48,7 +48,7 @@ CLI は責務ごとに 2 本に分かれる(診断=`scan_template.py` / 一括+�
 ### 2.4 出力契約
 - 診断レポート(Markdown): 黄色 run 一覧 / MISSING / UNMAPPED。
 - `--apply` 時: 該当 completed 行を ステータス=未作成 + 再生成フラグ◯ に書込。
-- exit: 0=整合 / 5=drift 検出。
+- exit: 診断 `scan_template.py` 直接実行時のみ 0=整合 / 5=drift 検出。`sync.py` は scan を集約実行するため drift もメッセージ出力のみで常に exit 0(exit code をゲートに使うなら scan_template.py を直接叩く)。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -62,7 +62,8 @@ CLI は責務ごとに 2 本に分かれる(診断=`scan_template.py` / 一括+�
 | docx | `../../../lib/docx_lib.py` | docx 構造アクセス |
 
 ### 3.2 外部ツール / API
-- `python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type <t> [--apply] [--docx <path>]`(診断・再生成フラグ付与。実体は `lib/scan_template.py`、等価 shim: `scripts/sync.py`)。
+- 診断: `python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type <t> [--docx <path>]`(MISSING/UNMAPPED 検知、exit 0=整合 / 5=drift。`--apply`/`--type all` 非対応)。
+- 一括診断+付与: `python3 "$CLAUDE_PLUGIN_ROOT/skills/run-template-sync/scripts/sync.py" --type {individual|corporate|all} [--apply] [--dry-run]`(scan_template を集約呼出し。`--apply` で該当 completed 行へ再生成フラグ書込。`--docx` 非対応・drift 時も exit 0)。scan_template の等価 shim ではない(フラグ・exit 挙動が異なる)。
 - Drive API: ひな形 .docx 最新版取得。Sheets API: 再生成フラグ書込。
 
 ## Layer 4: 共通ポリシー層
@@ -104,7 +105,7 @@ CLI は責務ごとに 2 本に分かれる(診断=`scan_template.py` / 一括+�
 返す前に自問する(全て YES で完了)。**完全性**と**一貫性**を停止条件とする。
 - [ ] **完全性**: `scan_template`(個人/法人)で MISSING/UNMAPPED を診断した
 - [ ] MISSING アンカーを新しい安定テキストに更新した
-- [ ] UNMAPPED プレースホルダに対応する台帳列を追加した(`lib/ledger.py` の `HEADERS` はコード内 SSOT=手編集)
+- [ ] UNMAPPED プレースホルダに対応する台帳列を追加した(`lib/ledger.py` の `HEADERS` はコード内 SSOT=手編集。scan_template は HEADERS しか見ないため、HEADERS 追加後 `ledger.py --ensure-schema` で実シートへも非破壊反映する)
 - [ ] **検証可能性**: 再診断で `scan_template` が exit 0(整合)になった
 - [ ] **一貫性**: `--apply` で影響 completed 行のみ 未作成+再生成フラグ◯ にした(draft/approved を巻き戻していない)
 - [ ] **一貫性**: 条文本文を改変していない(更新はアンカー定義と台帳列のみ)
@@ -141,6 +142,6 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 ユーザーが「ひな形が変わった/テンプレ更新された」と明示したときのみ実行する。作成意図の入力では発火しない。Layer 5 の達成ゴール(ひな形と `template-mapping.json` の差分が解消され、影響 completed 行が 未作成+再生成フラグ◯ になっている状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
 
-利用可能な手段: 診断=`python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type {individual|corporate} [--docx PATH]`(MISSING/UNMAPPED 差分診断、exit 0=整合 / 5=drift。`--apply`/`--type all` 非対応) / 一括診断+フラグ付与=`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-template-sync/scripts/sync.py" --type {individual|corporate|all} [--apply] [--dry-run]`(影響 completed 行へ再生成フラグを書込、draft/approved は巻き戻さない。`--docx` 非対応) / `template-mapping.json` と `lib/ledger.py:HEADERS` の手編集(条文本文は改変禁止、anchor 定義と台帳列のみ更新)。大改訂(条の追加削除・章立て再編)は `template-change-runbook.md` の手順へ誘導。
+利用可能な手段: 診断=`python3 "$CLAUDE_PLUGIN_ROOT/lib/scan_template.py" --type {individual|corporate} [--docx PATH]`(MISSING/UNMAPPED 差分診断、exit 0=整合 / 5=drift。`--apply`/`--type all` 非対応) / 一括診断+フラグ付与=`python3 "$CLAUDE_PLUGIN_ROOT/skills/run-template-sync/scripts/sync.py" --type {individual|corporate|all} [--apply] [--dry-run]`(影響 completed 行へ再生成フラグを書込、draft/approved は巻き戻さない。`--docx` 非対応) / `template-mapping.json` と `lib/ledger.py:HEADERS` の手編集(条文本文は改変禁止、anchor 定義と台帳列のみ更新。HEADERS へ列追加した場合は `python3 "$CLAUDE_PLUGIN_ROOT/lib/ledger.py" --ensure-schema` で実シートへ非破壊反映)。大改訂(条の追加削除・章立て再編)は `template-change-runbook.md` の手順へ誘導。
 
 出力は診断レポート(Markdown)のみ。MISSING/UNMAPPED の文脈・推奨アクション・再診断結果を列挙、機微情報は展開しない。前置き・思考過程の出力は禁止。

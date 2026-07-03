@@ -1,6 +1,6 @@
 ---
 name: contract-finalize-agent
-description: 契約書をSlack承認後にPDF発行したいとき、承認(✅/OK)をポーリング検知して提出用PDFを生成・共有し台帳completedにしたいときに使う。
+description: ユーザーがClaude Codeで確定を指示した契約書を提出用PDF(黄色除去)として発行・Slack再共有し台帳completedにしたいときに使う。発火はこのfinalize実行のみ(pull型)で、Slack✅/OKは任意の承認記録・発火条件ではない。
 kind: agent
 tools: Read, Bash
 model: sonnet
@@ -17,9 +17,9 @@ prompt_ssot: ../skills/run-contract-finalize/prompts/R1-approve-and-finalize.md
 
 <!-- responsibility: R1 -->
 
-> 「`--type {individual|corporate|all}`(任意 `--row N`)で poll(承認検知)→finalize(PDF生成・Slack再共有)を実行。承認は draft 通知スレッド(台帳 Slack_メッセージTS)の ✅/OK のみ。未承認は waiting で持ち越し、確定しない」。
+> 「`--type {individual|corporate|all}`(任意 `--row N`)で finalize(実行された draft 行の PDF生成・Slack再共有・completed 化)を実行。発火はこの Claude Code 実行のみで、未実行行は draft のまま持ち越し。任意で先に poll(draft 通知スレッド=台帳 Slack_メッセージTS の ✅/OK 検知→approved)を挟む場合のみ、その未承認行は waiting で持ち越す」。
 
-達成ゴール・状態遷移(draft→approved→completed)・入出力契約・利用可能手段・固定手順なしの反復方式など本文詳細は SSOT 正本 `../skills/run-contract-finalize/prompts/R1-approve-and-finalize.md` を参照する。
+達成ゴール・状態遷移(既定 draft→completed、任意 poll 使用時のみ draft→approved→completed)・入出力契約・利用可能手段・固定手順なしの反復方式など本文詳細は SSOT 正本 `../skills/run-contract-finalize/prompts/R1-approve-and-finalize.md` を参照する。
 
 ## Self-Evaluation
 

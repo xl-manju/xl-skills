@@ -28,7 +28,7 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 
 ### 2.1 用語・状態遷移
 - 状態: 既定は `draft` → `completed`(finalize がユーザー実行行を直接確定)。任意の Slack 承認記録を使う場合のみ `draft` → `approved` → `completed`(この経路では順序厳守、飛ばし禁止)。未実行/未承認は持ち越し(確定しない)。
-- 承認シグナル(任意の poll 使用時) = ✅リアクション(white_check_mark/+1/ok/heavy_check_mark) または 返信本文に「OK/承認/approve/了解」。
+- 承認シグナル(任意の poll 使用時) = ✅リアクション(white_check_mark/+1/ok/heavy_check_mark) または 返信本文が「OK/approve/承認/承諾/yes」のいずれかに完全一致(APPROVE_TEXTS。否定語が先行する場合は非承認)。
 - finalize 対象 = ステータス=draft(既定)および後方互換の approved。poll(任意)対象 = ステータス=draft。
 
 ### 2.2 責務 (Single Responsibility)
@@ -38,7 +38,7 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 ### 2.3 入力契約
 | field | type | required | 説明 |
 |---|---|---|---|
-| --type | enum(individual/corporate/all) | yes | 対象シート |
+| --type | enum(individual/corporate/all) | no | 対象シート(argparse default=all。省略時は個人/法人両方) |
 | --row | int | no | 特定台帳行のみ確定 |
 | 台帳行 | dict | yes | draft 行は Slack_メッセージTS を持つ |
 
@@ -53,12 +53,12 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| engine | `../../../lib/engine.py` | poll/finalize の実体 (`--phase finalize` がpoll→finalize順次委譲) |
+| engine | `../../../lib/engine.py` | poll/finalize の実体 (`--phase finalize` は finalize のみ実行。poll は `--phase poll`、draft→poll→finalize 一括は `--phase all`) |
 | slack_poll | `../../../lib/slack_poll.py` | 承認検知ロジック |
 | skill | `../SKILL.md` | 2フェーズ承認の責務・境界 |
 
 ### 3.2 外部ツール / API
-- エントリ: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type <t> [--row N] [--dry-run]`(実体は `lib/engine.py`。等価 shim: `scripts/finalize.py`。poll→finalize を順に engine へ委譲)。
+- エントリ: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type <t> [--row N] [--dry-run]`(実体は `lib/engine.py`。等価 shim: `scripts/finalize.py` は `--phase` を finalize に固定して委譲=finalize 単独実行。poll は回さない。承認記録が要る場合のみ `--phase poll` を別途)。
 - Slack API: `reactions.get` / `conversations.replies`(承認検知) / `chat.postMessage`(PDF URL 再共有)。
 - 台帳列: ステータス / Slack_メッセージTS / 承認者 / 承認日時 / PDF_URL / 更新日時。
 
@@ -126,7 +126,7 @@ reproducible: true (同一承認状態→同一PDF。日付のみ実行日)
 ### 6.2 ハンドオフ / 並列性
 - 既定: finalize(draft→completed)を直接実行(Claude Code 実行=発火)。任意で先に poll(draft→approved)を挟める。
 - 並列: 行単位は独立。PDF化は副作用大だがユーザー実行行のみ対象。
-- 既定起動: ユーザーの明示指示ごとに 1 回 poll→finalize。任意の定期起動は純Python `scripts/finalize.py` を cron(LLMを回す/loopはトークン費用が嵩むため非推奨)。常駐デプロイ不要。
+- 既定起動: ユーザーの明示指示ごとに 1 回 finalize(draft→completed を直接確定。poll は回さない)。承認記録が要る場合のみ先に `--phase poll` を挟む。任意の定期起動は純Python `scripts/finalize.py` を cron(LLMを回す/loopはトークン費用が嵩むため非推奨)。常駐デプロイ不要。
 
 ## Layer 7: UI / 提示層
 
@@ -145,6 +145,6 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 入力 `--type {{type}}`(任意 `--row {{row}}` で特定行のみ)で finalize(確定)フローを実行する。Layer 5 の達成ゴール(実行された draft 案件が PDF として該当フォルダに保存・Slack 再共有され、台帳が completed になっている状態)と完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する(固定手順なし、上限: L4 最大反復回数)。
 
-利用可能な手段: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type {{type}} [--row N] [--dry-run]`(poll→finalize を engine へ委譲) / Slack API `reactions.get`・`conversations.replies`(任意 poll の承認検知) / `chat.postMessage`(PDF URL 再共有)。既定は実行された draft 行を直接確定し、未実行行は draft のまま持ち越す(確定しない)。任意 poll を使う場合のみ承認検知を draft 通知メッセージ(台帳 Slack_メッセージTS)スレッドに限定し、その未承認行は waiting で持ち越す。承認者IDは記録可、機微情報(乙住所・乙代表者・銀行口座)は Slack 本文・ログに復唱しない。
+利用可能な手段: `python3 "$CLAUDE_PLUGIN_ROOT/lib/engine.py" --phase finalize --type {{type}} [--row N] [--dry-run]`(finalize 単独を engine へ委譲。poll は回さない。任意 poll は `--phase poll` を別途) / Slack API `reactions.get`・`conversations.replies`(任意 poll の承認検知) / `chat.postMessage`(PDF URL 再共有)。既定は実行された draft 行を直接確定し、未実行行は draft のまま持ち越す(確定しない)。任意 poll を使う場合のみ承認検知を draft 通知メッセージ(台帳 Slack_メッセージTS)スレッドに限定し、その未承認行は waiting で持ち越す。承認者IDは記録可、機微情報(乙住所・乙代表者・銀行口座)は Slack 本文・ログに復唱しない。
 
 出力は完了レポート(Markdown)のみ。approved/waiting/completed 件数と PDF リンクを列挙。前置き・思考過程の出力は禁止。

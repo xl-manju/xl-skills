@@ -57,7 +57,7 @@ reproducible: true (同一台帳行・同一ひな形→同一Docs。日付の�
 |---|---|---|
 | mapping | `../references/template-mapping.json` | 差込アンカー/条件分岐の確認時 |
 | runbook | `../references/template-change-runbook.md` | drift 検出時の対処 |
-| engine | `../../../lib/engine.py` | 差込・出力・書戻しの実体(直接起動せず draft.py 経由) |
+| engine | `../../../lib/engine.py` | 差込・出力・書戻しの実体(エントリは `--phase draft` 直接起動。`scripts/draft.py` は `--phase draft` を自動付与する等価 shim) |
 | scan | `../../../lib/scan_template.py` | drift 診断(run-template-sync が使用) |
 
 ### 3.2 外部ツール / API

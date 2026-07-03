@@ -125,7 +125,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-contract-finalize
 ## 運用(既定=明示指示駆動 / 常駐デプロイ不要)
 ```bash
 # 既定: ユーザーが Claude Code で確定を指示したときに 1 回実行(承認済み行のみPDF化)
-python3 scripts/finalize.py --type all          # poll→finalize 一括(費用¥0)
+python3 scripts/finalize.py --type all          # finalize 単独(draft→completed 直接確定・poll は回さない・費用¥0)
 python3 scripts/finalize.py --type all --dry-run # 副作用なしで承認状態を確認
 
 # 任意の自動化(費用に注意): 自動ポーリングは純Pythonをcronで。LLMを回す/loopは非推奨
