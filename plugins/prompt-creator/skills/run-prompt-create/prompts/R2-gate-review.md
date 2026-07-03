@@ -34,8 +34,8 @@
 
 ### 2.2 ドメインルール
 - Gate 1: prompt-brief 確認 (prompt-brief.json + open_questions)
-- Gate 2: P0 lint / diff / prompt-build-trace.json の自動判定
-- Gate 3: findings.json + C1-C4 + severity の自動判定
+- Gate 2: P0 lint / prompt-build-trace.json (trace schema) の自動判定
+- Gate 3: findings.json + C1-C4 + severity の自動判定 (実行条件 new_prompt or diff_lines > 30 は evaluate-create-gates.py が判定)
 - Gate 4: workflow-manifest.json auto_approve_conditions の自動判定
 
 ### 2.3 入力契約
