@@ -2,28 +2,22 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d"
+    "skill_md_sha256": "da0ffdccbfd3d919dfe5cbaace6b44a3f319ef4c2402db1a0c8e687758b4c4dc"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
-  "reviewer": "independent-rename-review-subagent-g",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent-devplan",
+  "reviewed_at": "2026-07-03T10:58:09+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "完全性 — SRP が範例的。責務=『プラグイン構想 1 件 → 13 phase ファイル + index + component-inventory.json への目的ドリブン分解』に限定し、境界節で実 build (run-skill-create/run-build-skill)・配布登録・実コード生成・PR 操作を明示除外。frontmatter は responsibility_refs/script_refs(15)/reference_refs/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2)/goal_seek/feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer) を rationale 付きで宣言し全 refs dangling 0。",
-      "一貫性 (改名) — 量産規律の伝播元呼称が harness-creator へ一貫追従。harness-creator-spec-reflection.md が全 46 行を 1:1 収録し、DROP (UBM固有=IPC/Cloudflare/スクショ/PR) と transform (TDD/カバレッジ精神) を phase-lifecycle §7 で正本化して『単語置換でない目的ドリブン』を担保。upstream-pins.json/CI workflow/参照ファイル名まで harness-creator で三者一致し用語ゆれ 0。単一 skill 概念 (run-skill-create/skill-brief) は skill 維持の意味論境界も適合。",
-      "検証可能性/深度 — 検証 11 本 (core 5 scripts / 6 invocations + 拡張ゲート 6) の決定論ゲートを io-contract §11 表へ単一正本集約し二値判定可能。上流ドリフトをカレンダー期限でなく 3 機械辺 (skill 増減/rule-ID 実在/plugin パス存在) + upstream-pins hash で event-driven 監査する三層方式が over-claim (time-bomb) を回避。install 携帯性 (F8) を placement_scope + check-runtime-portability.py で fail-closed operationalize し、唯一 builder を持たない plugin envelope も契約 spec + 貼れる envelope-draft/plugin.json + capability-gap 起票の三段で layperson-complete を達成。"
+      "完全性 3/3 — SRP が範例的で境界節が実 build/配布登録/実コード生成/PR を明示除外。frontmatter は responsibility_refs/script_refs(15)/reference_refs/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs(2)/goal_seek/feedback_contract(IN1/IN2 inner + OUT1/OUT2 outer) を rationale 付きで宣言。本 diff (slash 呼称 prefix 除去) は refs を一切変えず dangling 0 を維持。",
+      "一貫性 3/3 — 改名 churn 追従で `/plugin-compose` が unprefixed 化され、CONVENTIONS.md L14 のプロジェクト内入口呼称と三者一致 (SKILL 本文 / commands 実体 / CONVENTIONS)。旧 namespaced `harness-creator:plugin-compose` 残存 0 で用語ゆれ解消。追加注記『clone 専用基盤ゆえ unprefixed が正本』が envelope owner 契約 (run-build-skill kind=plugin-composition と /plugin-compose の二経路) と矛盾なく整合。",
+      "深度 3/3・検証可能性 3/3 — L0-L4 の 4 層分離と 5 種 component_kind × N 実体分解が表層の単語置換でなく目的ドリブンで設計され、UBM 固有物 DROP と native 規律 transform を phase-lifecycle §7 で正本化。検証 11 本 (core 5 scripts / 6 invocations + 拡張ゲート 6) を io-contract §11 表へ単一正本集約し二値判定可能。上流ドリフトをカレンダー期限でなく 3 機械辺 + upstream-pins hash で event-driven 監査する三層方式で time-bomb を回避。install 携帯性 (F8) を placement_scope + check-runtime-portability.py で fail-closed operationalize。",
+      "簡潔性 2/3 — 本文密度は高いが各内部語彙は多層 orchestrator ゆえ load-bearing で詳細は references へ委譲済み。本 diff の注記追記は clone-only 理由の必要開示。全次元 >=2 で PASS 閾値を満たす。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -31,5 +25,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名に伴う SKILL.md 変更への rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) で採点し全次元 >=2、FM/BD/NM/PD 系規範も違反 0。現 sha256=a5bc767 実測 (旧 sha=8611303 は改名前で本文に旧名 skill-creator-spec-reflection.md / skill-creator 量産規律 / skill-creator 全 31 skill を残存し stale)。改名観点: (1) 旧名 skill-creator/skill_creator/スキルクリエイター 残存 0 (grep)。(2) harness-creator 参照 (reference_refs/cross-plugin ref/feedback SSOT path/slash namespace/CI workflow) 全実在・dangling 0。(3) 意味論境界: 単一 skill 生成/委譲は skill 維持・ハーネス総体 native 規律は harness-creator 化の二分が正しい。(4) description は trigger 2 個 + 発動条件のみで動作詳細非露出、name/dir 一致。criteria: IN1/IN2 (topsort/frontmatter/gates 契約が改名後も健全)・OUT1 (harness-creator ネイティブ規律の DROP/transform 分離設計)・OUT2 (skill-brief 主要フィールド写像設計) 充足。ブロッキング severity 0 で PASS。"
+  "notes": "改名 churn (namespaced prefix 除去) 後の現 sha256=da0ffdcc に対する rubric 独立再評価。plugins/harness-creator/references/quality-rubric.md の 5 次元で採点: 完全性3/一貫性3/深度3/検証可能性3/簡潔性2 = 14/15、全次元 >=2 で PASS。旧 verdict sha=a5bc767 は prefix 除去前で stale。改名観点: (1) 旧固有名 skill-creator/skill_creator/スキルクリエイター/harness-creator:plugin-compose 残存 0 (SKILL.md 全文 grep 実測)。(2) 変更後の unprefixed `/plugin-compose` は実体 commands/plugin-compose.md 実在・CONVENTIONS.md L14 と整合・dangling 0。(3) description は trigger + 発動条件のみで name/dir 一致。criteria: IN1/IN2 (topsort/frontmatter/gates 契約が本 diff で不変・健全)・OUT1 (native 規律 DROP/transform 分離設計)・OUT2 (skill-brief 主要フィールド写像設計) 充足。ブロッキング severity 0 で PASS。"
 }

@@ -81,6 +81,9 @@ jobs:
       - name: validate plugin completeness (marketplace + bundles registration)
         run: python3 scripts/validate-plugin-completeness.py
         continue-on-error: false
+      - name: verify-plan-coverage self-test (計画↔実体 completeness 照合器の分岐検査)
+        run: python3 plugins/harness-creator/scripts/verify-plan-coverage.py --self-test
+        continue-on-error: false
       - name: lint SSOT duplication (harness-creator 一本化強制)
         run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/harness-creator --strict
         continue-on-error: false

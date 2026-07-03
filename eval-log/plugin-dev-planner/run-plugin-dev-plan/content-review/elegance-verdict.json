@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d"
+    "skill_md_sha256": "da0ffdccbfd3d919dfe5cbaace6b44a3f319ef4c2402db1a0c8e687758b4c4dc"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,26 +13,26 @@
     "dependency_break": 0,
     "smell": 1
   },
-  "reviewer": "independent-rename-review-subagent-g",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent-devplan",
+  "reviewed_at": "2026-07-03T10:58:09+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "改名追従が全レイヤで完全 (C2/C4) — 総体ハーネスを指す呼称が harness-creator へ一貫更新されている。reference_refs L54 の references/harness-creator-spec-reflection.md、cross-plugin ref L55/L155 の ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md、feedback_contract SSOT L80 の plugins/harness-creator/scripts/feedback_contract_ssot.py、slash L271 の /harness-creator:plugin-compose、CI L291 の harness-creator-kit-ci.yml が全て実在 (dangling 0 を stat 実測)。旧名 skill-creator/skill_creator/スキルクリエイター の残存 0 件。上流ドリフト検知 3 機械辺 (L288) も test_completeness_proof_enumerates_all_harness_creator_skills 等へ改名済み。",
-      "意味論境界が正しく適用されている (C1) — 機械一括置換でなく概念境界で切り分けている。単一 skill 生成/委譲を指す run-skill-create・run-build-skill・run-goal-elicit・run-elegant-review・assign-skill-design-evaluator・skill component・skill-brief・単一 skill 退化・SKILL.md は skill 表現を維持し、ハーネス総体の native 規律 (OUT1『harness-creator ネイティブ規律』L93)・評価基準 (L161)・46 行反映マトリクス・harness_coverage・harness-creator-kit-ci.yml は harness 化。意味論境界違反 0。",
-      "2 軸直交の正規化 (C1/C3) — ライフサイクル軸=13 phase ファイル (人間向け primary deliverable)・成果物実体軸=component-inventory.json (機械 SSOT・build routing/DAG) に分け、build_target/depends_on は inventory のみ保持・phase は entities_covered id 参照で紐づく。『本数 13 固定 (フェーズ数)・buildable N は inventory の射影』の別軸性が SKILL/io-contract/phase-lifecycle で一貫し二重管理を排除。",
-      "proposer≠approver を skill 分離で構造保証 (C1/C4) — R4 評価ロジックを独立 skill assign-plugin-plan-evaluator (kind=assign・context:fork) へ昇格し評価器は plan を書き換えず plan-findings.json のみ返す。改名後も委譲先 prompts/R1-evaluate.md 実在。distributable:false + NEVER_DISTRIBUTE denylist の二重ロックで非配布を fail-closed 担保する設計が保たれている。"
+      "改名 churn 追従が正しく完結している (C4) — L271 の slash 呼称が `/harness-creator:plugin-compose` から unprefixed `/plugin-compose` へ更新され、実体 `plugins/harness-creator/commands/plugin-compose.md` が実在。repo 全体で `harness-creator:plugin-compose` 形式の namespaced 残存 0 件 (plugins/CONVENTIONS.md/README.md を grep 実測)。追加された注記『clone 専用基盤ゆえ project-local unprefixed が正本。<plugin>: 形式の namespaced prefix は付けない』は CONVENTIONS.md L14『ハーネスを組む入口は clone した本プロジェクト内では /plugin-compose <plugin-name>』と一字一句整合し、参照 break/dangling 0。",
+      "一貫性が保たれている (C3) — 変更後の unprefixed `/plugin-compose` は CONVENTIONS.md のプロジェクト内入口呼称と同一表現になり、旧 namespaced 形式との用語ゆれが解消。同 L271 の代替経路 `run-build-skill kind=plugin-composition` は不変で、envelope owner (plugin-composition.yaml の生成 owner 明示) の二経路契約が矛盾なく維持されている。",
+      "単一責務が不変 (C1) — 本 diff は slash 呼称の prefix 除去 + 注記追記のみで、skill の責務境界 (プラグイン構想 1 件 → 13 phase + index + component-inventory.json の計画分解・実 build は run-skill-create/run-build-skill へ委譲) を一切変えていない。意味論境界 (単一 skill 生成/委譲=skill 語維持、ハーネス総体 native 規律=harness-creator 化) も保持。",
+      "完全性が保たれている (C2) — frontmatter の全 refs (reference_refs/script_refs 15/agent_refs 3/harness_refs/schema_refs 2/cross-plugin ../../../harness-creator/... 依存) は本 diff で不変であり dangling を生まない。feedback_contract criteria IN1/IN2/OUT1/OUT2 の inner+outer 契約、13 phase 固定・N 実体射影の 2 軸直交、proposer≠approver の skill 分離 (assign-plugin-plan-evaluator) がいずれも健全に保たれている。"
     ],
     "negative_feedback": [
-      "[smell/low, 非ブロッキング, 改名と無関係] 本文密度が高く初見ユーザーへの読解負荷が大きい (呼称『core 5 scripts / 6 invocations』『拡張ゲート 6 本』『46 行』等の内部語彙が前提知識を要求)。ただし本 skill は多層 (L0-L4)・検証 11 本の orchestrator で各表記は load-bearing、io-contract §11 表という単一正本へ集約されておりプロンプト圧縮方針とも整合。C1-C4 ハードカテゴリを 0 に保ち PASS を妨げない。"
+      "[smell/low, 非ブロッキング, 既存・改名と無関係] 本文密度が高く初見ユーザーへの読解負荷が大きい (『core 5 scripts / 6 invocations』『拡張ゲート 6 本』『46 行』等の内部語彙が前提知識を要求)。本 diff の注記追記は clone-only の理由開示で必要な情報だが密度をわずかに増す。ただし本 skill は L0-L4 多層・検証 11 本の orchestrator で各表記は load-bearing、詳細は io-contract §11 表という単一正本へ集約されておりプロンプト圧縮方針とも整合。C1-C4 ハードカテゴリを 0 に保ち PASS を妨げない。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名 (skill-creator → harness-creator) に伴う SKILL.md 変更への独立 genuine 再評価。現 sha256=a5bc767 を shasum -a 256 で実測 (旧 verdict sha=8611303 は改名前・本文に旧名 skill-creator-spec-reflection.md / skill-creator ネイティブ規律 等を複数残存し stale)。30思考法×4条件で検証: C1 矛盾0 (意味論境界の skill/harness 二分が一貫・max_loops:5/『最大3周』/max_iterations:3 は別ループで整合)。C2 漏れ0 (frontmatter 全 refs を stat し dangling 0・reference_refs/script_refs/agent_refs/harness_refs 全実在・旧名 grep 0)。C3 整合0 (harness-creator 呼称が SKILL/upstream-pins.json/CI workflow/参照ファイル名で三者一致・golden 例の 5 kind 内訳記述が live 出力と一致)。C4 依存0 (cross-plugin harness-creator 依存パス 6 本 + 同梱 references 7 本 + check-upstream-pins.py/upstream-pins.json 全実在)。criteria: IN1/IN2 (index topsort + phase frontmatter/gates ゲート契約が改名後も不変で健全)・OUT1 (UBM固有=IPC/Cloudflare/スクショ/PR のみ DROP・harness-creator ネイティブ規律伝播設計)・OUT2 (skill-brief 主要フィールド写像設計) で充足。smell 1 (本文密度・改名無関係の既存 low) は非ブロッキング。C1-C4 ハードカテゴリ全 0 で PASS。"
+  "notes": "改名 churn (namespaced prefix 除去) 後の現 sha256=da0ffdcc に対する独立 genuine 再評価。旧 verdict sha=a5bc767 は prefix 除去前で stale。今回の変更は git diff で 1 箇所のみ = SKILL.md L271『/harness-creator:plugin-compose → /plugin-compose』+ clone 専用 unprefixed 注記追記。4 条件で検証: C1 責務不変 (slash 呼称 prefix 除去のみで境界無変更)。C2 漏れ0 (frontmatter refs は本 diff 不変で dangling 生じず)。C3 整合0 (unprefixed 形式が CONVENTIONS.md L14 と一致し用語ゆれ解消)。C4 依存0・改名追従完全 (commands/plugin-compose.md 実在・namespaced 残存 grep 0・注記が CONVENTIONS と整合)。旧固有名 skill-creator/skill_creator/スキルクリエイター/harness-creator:plugin-compose の残存を SKILL.md 全文 grep で 0 実測。smell 1 (本文密度・既存の改名無関係 low) は非ブロッキングで C1-C4 ハードカテゴリ全 0 ゆえ PASS。"
 }
