@@ -10,7 +10,9 @@ tmp_path で網羅する。network/keychain/実 repo 書換なし (全 tmp_path)
           required surface 欠落 / path 無し required surface skip / 複数 plugin 跨ぎ /
           空 components
 - main: --self-test / usage(引数なし) / inventory 不在 / JSON parse error /
-        non-dict root / 正常 OK(exit0) / FAIL(exit1) / --json(ok=false)
+        non-dict root / 正常 OK(exit0) / FAIL(exit1) / --json(ok=false) / --all(exit0/1)
+- verify_all (--all sweep): 実体化済み plan の pass / 漏れ fail-closed / 未 build plan skip /
+        plugin-plans 不在。実体化前の計画を誤 FAIL しない自動スコープ限定を回帰固定。
 """
 import importlib.util
 import json
@@ -177,3 +179,72 @@ def test_main_json_flag(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert rc == 1 and out["ok"] is False
     assert any("C04" in e for e in out["missing_components"])
+
+
+# ── verify_all / --all sweep (CI 常設 fail-closed ガード) ─────────────────────
+def _write_plan(root, slug, inv):
+    d = root / "plugin-plans" / slug
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "component-inventory.json").write_text(json.dumps(inv), encoding="utf-8")
+
+
+def test_verify_all_realized_ok(tmp_path):
+    """対象 plugin が実体化済み & 全 component build 済 → gated_ok・漏れなし。"""
+    _make_plugin(tmp_path)  # plugins/demo/... を build 実体化 + manifest/composition
+    _write_plan(tmp_path, "demo", _inv())
+    failures, ok_list, skipped = MOD.verify_all(tmp_path)
+    assert not failures
+    assert any(p.endswith("demo/component-inventory.json") for p in ok_list)
+    assert not skipped
+
+
+def test_verify_all_realized_gap_fails_closed(tmp_path):
+    """plugin root は在るが計画 component が欠落 → fail-closed で検出。"""
+    _make_plugin(tmp_path, agent=False)  # demo-verifier.md を作らない
+    _write_plan(tmp_path, "demo", _inv())
+    failures, ok_list, _ = MOD.verify_all(tmp_path)
+    assert any("C04" in e for f in failures for e in f["missing_components"])
+    assert not ok_list
+    assert MOD._run_all(tmp_path, as_json=True) == 1
+
+
+def test_verify_all_unbuilt_plan_skipped(tmp_path):
+    """対象 plugin ディレクトリが不在 (未 build 計画) → 誤 FAIL せず skip。"""
+    _write_plan(tmp_path, "demo", _inv())  # plugins/demo/ は作らない
+    failures, ok_list, skipped = MOD.verify_all(tmp_path)
+    assert not failures and not ok_list
+    assert any("demo" in s for s in skipped)
+    assert MOD._run_all(tmp_path, as_json=True) == 0
+
+
+def test_verify_all_no_plans_dir_ok(tmp_path):
+    """plugin-plans/ 自体が無い → 対象なしで OK。"""
+    assert MOD.verify_all(tmp_path) == ([], [], [])
+    assert MOD._run_all(tmp_path, as_json=True) == 0
+
+
+def test_verify_all_malformed_prefix_fails_closed(tmp_path):
+    """build_target が plugins/ 配下でない inventory は skip でなく malformed failure。"""
+    _write_plan(tmp_path, "bad", {
+        "components": [{"id": "C1", "component_kind": "script", "build_target": "scripts/toplevel.py"}],
+        "plugin_level_surfaces": {},
+    })
+    failures, ok_list, skipped = MOD.verify_all(tmp_path)
+    assert any("malformed" in e for f in failures for e in f["missing_components"])
+    assert not skipped and not ok_list
+
+
+def test_main_all_rejects_positional(tmp_path):
+    """--all と単一 inventory 位置引数の併存は排他 usage error (exit 2)。silent 優先しない。"""
+    assert MOD.main(["--all", "some-inv.json"]) == 2
+    assert MOD.main(["--all", "--repo-root", str(tmp_path)]) == 0
+
+
+def test_main_all_flag_realized_gap(tmp_path):
+    """main(--all) 経由でも実体化済み plan の漏れを exit 1 で報告する。"""
+    _make_plugin(tmp_path, agent=False)
+    _write_plan(tmp_path, "demo", _inv())
+    assert MOD.main(["--all", "--repo-root", str(tmp_path)]) == 1
+    # 未 build 計画は skip → exit 0
+    _make_plugin(tmp_path)  # 欠落を埋めて実体化完了
+    assert MOD.main(["--all", "--repo-root", str(tmp_path)]) == 0

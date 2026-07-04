@@ -11,6 +11,7 @@ plugin `harness-creator` (旧名 `skill-creator`、2026-07-02 改名) に関わ�
 3. 適用レベルはファイル名・ディレクトリ名・本文・項目内容のすべて。機械的一括置換ではなく出現箇所の概念で判定する。迷ったら**操作/生成の対象の単位**で判定 — 単一 skill なら skill、plugin 総体・Capability 横断なら harness。部品の集合名は harness 側。
 4. 既存の harness 語 (`doc/harness-coverage-spec.md` = 構築物総体の品質装具、meta-harness 系) は同系譜の概念であり、衝突ではなく統合先。修飾なしの harness 単独語の新規使用は避け、plugin を指すときは `harness-creator` と書く。
 5. 旧固有名 (`skill-creator` / `skill_creator` / `スキルクリエイター`) の能動層への再流入は `scripts/lint-legacy-plugin-name.py` が fail-closed で遮断する (凍結層 = eval-log 履歴・`doc/参考Skill/`・changelog 系は対象外)。
+6. **よくある誤解の反例 — 判定は「生成物の単位」で行う**: `run-skill-create` の産物は `skills/<name>/` 一式 = **単体スキル 1 個**であり、ハーネス (総体) ではない。内部で elicit/build/評価/governance をオーケストレーションしても、判定軸は「内部で動かす機構の広さ」ではなく**生成物の単位** (第3条) ゆえ skill 語が正。harness 語へ改名すると「総体を作る」という虚偽命名になり glossary の「ハーネス ⊃ skill」包含に反する。ハーネス (複数 Capability の総体) を組む入口は clone した本プロジェクト内では `/plugin-compose <plugin-name>` および `/capability-build plugin-composition <name>`。なお `run-build-skill` は skill/agent/hook/command/plugin-composition/prompt/workflow の全 kind を生成しうるが、命名は「1 呼出 = 単一 Capability 部品」を表す後方互換固有名として skill 語を保持する (kind 横断の中立入口はコマンド層の `capability-build` が担う。中間層語 capability は skill ⊂ capability ⊂ harness の三層のうち中間層)。`run-build-skill` の対応 kind スコープが変わる場合は命名を再点検する。
 
 ## 三層モデル
 

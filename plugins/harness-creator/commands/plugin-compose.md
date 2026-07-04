@@ -24,7 +24,7 @@ since: 2026-05-24
       <path>/component-inventory.json --repo-root .
     ```
 
-    各 component のディスク実在 (skill は SKILL.md も) と required plugin-level surface (manifest/composition/EVALS 等 `path` を持つもの) を突合し、**計画にあって未 build の component / 未生成の surface を exit 1 (fail-closed) で報告**する。Step2 の実体からの capabilities[] 再計算は「実体に対する整合」しか測れず「計画に対する漏れ」を静かに落とすため、この照合だけが総体の completeness gate になる。inventory が参照不能な場合は照合を skip した旨を明示する (skip は緑と混同しない)。`path` を持たない surface (Notion config 等) は本 gate の対象外で、宣言妥当性は plugin-dev-planner 側の `check-surface-inventory.py` が担う。
+    各 component のディスク実在 (skill は SKILL.md も) と required plugin-level surface (manifest/composition/EVALS 等 `path` を持つもの) を突合し、**計画にあって未 build の component / 未生成の surface を exit 1 (fail-closed) で報告**する。Step2 の実体からの capabilities[] 再計算は「実体に対する整合」しか測れず「計画に対する漏れ」を静かに落とすため、この照合だけが総体の completeness gate になる。inventory パスは `plugin-plans/<plugin-name>/component-inventory.json` を既定探索先とする。inventory が本当に存在しない (未計画 plugin) 場合のみ照合 skip を明示する — ただし **skip は「計画があるのに照合しない」fail-open を意味しない**。計画が commit 済みで plugin が実体化していれば、`verify-plan-coverage.py --all` が CI (`governance-check.yml`) で全 `plugin-plans/*/` を fail-closed に sweep し、build 済み plugin の計画漏れを機械強制する (実体化前の計画は自動 skip)。`path` を持たない surface (Notion config 等) は本 gate の対象外で、宣言妥当性は plugin-dev-planner 側の `check-surface-inventory.py` が担う。
 3. yaml の `capabilities[]` と差分を提示し、追加/削除/更新を確定。
 4. `dependencies` (他 plugin への参照) は `.claude-plugin/bundles.json` と整合を取る。ただし bundle 登録そのものは行わず、必要な manual 登録箇所を差分として報告する。
 5. `dependencies` の DAG を topological sort で確認し、循環があれば保存前に停止する。

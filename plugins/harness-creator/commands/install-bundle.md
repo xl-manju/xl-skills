@@ -9,7 +9,7 @@ owner: team-platform
 since: 2026-05-24
 ---
 
-# /harness-creator:install-bundle
+# /install-bundle
 
 `$ARGUMENTS` で指定された bundle 名に対応する plugin 群を `.claude-plugin/bundles.json` から解決し、それぞれを `/plugin install <name>@xl-skills` で導入する。
 

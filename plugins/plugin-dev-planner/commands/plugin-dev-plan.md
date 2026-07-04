@@ -87,4 +87,4 @@ python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugi
 
 - 実プラグイン/実コードを生成しない (成果物は計画のみ)。
 - 具体値を直書きせず `{{PROJECT_ROOT}}` / `$CLAUDE_PLUGIN_ROOT` / self-relative で表現する。
-- `--mode update` は Edit 差分のみ。capability の実 build は `/harness-creator:capability-build` 系へ委譲する。
+- `--mode update` は Edit 差分のみ。capability の実 build は `/capability-build` 系へ委譲する（harness-creator は `distributable:false` の clone 専用基盤ゆえ呼称は project-local unprefixed が正本。`<plugin>:` 形式の namespaced prefix は付けない）。

@@ -22,6 +22,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import specfm  # noqa: E402  (PLAN_DIR 解決の SSOT=plan_output_dir を再現性アンカー照合に使う)
+
 
 # per-phase 転換: 本数固定/カウント機構は 13 フェーズ固定で自然消滅したため required/allowed から削除。
 # requested_count は「任意記録可 (gate 強制しない)」として ALLOWED に残す (goal-spec に希望本数を残せるが
@@ -70,6 +73,23 @@ def validate(data: object) -> list[str]:
     slug = _nonempty_str(data, "target_plugin_slug", errors)
     if slug and not SLUG_RE.match(slug):
         errors.append("target_plugin_slug は ASCII kebab-case であること")
+
+    # 再現性アンカー: plan_dir は target_plugin_slug (+任意 out_dir) 由来の正本と一致すること。
+    # SKILL「同一構想は常に同一 PLAN_DIR」を機械強制する (従来は散文のみで slug↔plan_dir の
+    # drift が exit0 で素通りしていた)。解決 SSOT は specfm.plan_output_dir (単語置換でなく正本参照)。
+    plan_dir = data.get("plan_dir")
+    if slug and SLUG_RE.match(slug) and isinstance(plan_dir, str) and plan_dir.strip():
+        out_dir = data.get("out_dir")
+        od = out_dir.strip() if isinstance(out_dir, str) and out_dir.strip() else None
+        try:
+            expected = specfm.plan_output_dir(slug, od)
+        except ValueError:
+            expected = None
+        if expected is not None and plan_dir.strip().rstrip("/") != expected:
+            errors.append(
+                f"plan_dir={plan_dir!r} が target_plugin_slug/out_dir 由来の正本 {expected!r} と不一致 "
+                "(再現性アンカー違反: 同一構想は常に同一出力先であること)"
+            )
 
     artifact_class = data.get("artifact_class")
     if artifact_class is not None and artifact_class not in {"skill-only", "plugin-plan", "existing-plugin-update"}:

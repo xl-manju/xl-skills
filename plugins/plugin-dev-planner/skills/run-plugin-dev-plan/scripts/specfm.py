@@ -1210,6 +1210,10 @@ def render_minimal_index(*, plugin_slug: str = "sample-plugin") -> str:
             "marketplace": {"default_personal": True,
                             "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL", "category": "Productivity"},
                             "cachebuster_for_update": True},
+            # distribution は F3 (配布判定) の必須スロット。check-spec-gates.check_plugin_meta が
+            # dict 必須で要求するため、skeleton も非配布既定 (実 plan で architect が確定) で携帯する。
+            # distributable:false → bundles 空 + marketplace:false が check-spec-gates の値域と整合。
+            "distribution": {"distributable": False, "bundles": [], "marketplace": False},
             "ci": {"workflow": "governance-check"},
             "pkg_contract": {"applicable": False, "reason": "skeleton (実 plan で確定)"},
             "governance": {"applicable": False, "reason": "skeleton (実 plan で確定)"},

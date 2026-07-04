@@ -6,11 +6,13 @@
 #          する決定論 completeness gate。「同じ計画から漏れなく同じ Capability 集合が
 #          生成されたか」を機械判定し、目視・AI 照合の非再現を排除する。
 # inputs:
-#   - argv: <component-inventory.json> [--repo-root <dir>] [--json]
+#   - argv: <component-inventory.json> [--repo-root <dir>] [--json]  (単一 plan の strict 照合)
+#   - argv: --all [--repo-root <dir>] [--json]  (plugin-plans/*/ を sweep し実体化済み plan を fail-closed で gate)
+#   - argv: --self-test  (分岐検査)
 # outputs:
 #   - stdout: OK summary / JSON report (--json)
 #   - stderr: coverage violations (未 build component / 未生成 surface)
-#   - exit: 0=全 build 済 / 1=漏れあり / 2=usage error
+#   - exit: 0=全 build 済 (or 未 build plan は skip) / 1=実体化済み plan に漏れあり / 2=usage error
 # contexts: [C, E]
 # network: false
 # write-scope: none
@@ -143,6 +145,103 @@ def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict
     return missing_components, missing_surfaces, summary
 
 
+def _plugin_roots_of(inventory: dict) -> set[str]:
+    """inventory の全 build_target から plugins/<plugin> 集合を導出する。"""
+    roots: set[str] = set()
+    for comp in inventory.get("components") or []:
+        if isinstance(comp, dict):
+            pr = _plugin_root_of(comp.get("build_target", "") or "")
+            if pr:
+                roots.add(pr)
+    return roots
+
+
+def verify_all(repo_root: Path, plans_dir: str = "plugin-plans") -> tuple[list[dict], list[str], list[str]]:
+    """plugin-plans/*/component-inventory.json を sweep し実体化済み plan を fail-closed で gate する。
+
+    戻り値 (gated_failures, gated_ok, skipped):
+      gated_failures: 実体化済みだが漏れありの plan 情報 [{inventory, missing_components, missing_surfaces}]
+      gated_ok:       実体化済みで漏れなしの inventory パス
+      skipped:        未 build (実体不在) or plugins/ 外で gate 対象外の inventory パス + 理由
+    """
+    gated_failures: list[dict] = []
+    gated_ok: list[str] = []
+    skipped: list[str] = []
+    base = repo_root / plans_dir
+    if not base.is_dir():
+        return gated_failures, gated_ok, skipped
+    for inv_path in sorted(base.glob("*/component-inventory.json")):
+        try:
+            inventory = json.loads(inv_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            gated_failures.append({
+                "inventory": str(inv_path.relative_to(repo_root)),
+                "missing_components": [f"JSON/IO error: {exc}"],
+                "missing_surfaces": [],
+            })
+            continue
+        if not isinstance(inventory, dict):
+            gated_failures.append({
+                "inventory": str(inv_path.relative_to(repo_root)),
+                "missing_components": ["inventory root が object でない"],
+                "missing_surfaces": [],
+            })
+            continue
+        rel = str(inv_path.relative_to(repo_root))
+        roots = _plugin_roots_of(inventory)
+        if (inventory.get("components") or []) and not roots:
+            # component はあるが build_target が 1 つも plugins/ 配下でない = malformed。
+            # 「未 build」と区別し fail-closed 分類する (prefix 無しを silent skip すると
+            # 実在ファイルでも照合対象外になる fail-open になるため)。
+            gated_failures.append({
+                "inventory": rel,
+                "missing_components": ["build_target が 1 つも plugins/<plugin>/... 形式でない (malformed inventory)"],
+                "missing_surfaces": [],
+            })
+            continue
+        if not any((repo_root / pr).is_dir() for pr in roots):
+            skipped.append(f"{rel} — 未 build (対象 plugin 不在。build 実行時に自動 gate 化)")
+            continue
+        mc, ms, _ = verify(inventory, repo_root)
+        if mc or ms:
+            gated_failures.append({"inventory": rel, "missing_components": mc, "missing_surfaces": ms})
+        else:
+            gated_ok.append(rel)
+    return gated_failures, gated_ok, skipped
+
+
+def _run_all(repo_root: Path, as_json: bool) -> int:
+    gated_failures, gated_ok, skipped = verify_all(repo_root)
+    ok = not gated_failures
+    if as_json:
+        print(json.dumps({
+            "ok": ok,
+            "gated_ok": gated_ok,
+            "gated_failures": gated_failures,
+            "skipped": skipped,
+        }, ensure_ascii=False, indent=2))
+        return 0 if ok else 1
+    if not ok:
+        print(
+            f"FAIL: plan coverage (--all) — 実体化済み plan に漏れ ({len(gated_failures)} plan)",
+            file=sys.stderr,
+        )
+        for f in gated_failures:
+            print(f"  [{f['inventory']}]", file=sys.stderr)
+            for e in f["missing_components"]:
+                print(f"    - [component] {e}", file=sys.stderr)
+            for e in f["missing_surfaces"]:
+                print(f"    - [surface] {e}", file=sys.stderr)
+        return 1
+    print(
+        f"OK: plan coverage (--all) — 実体化済み {len(gated_ok)} plan 網羅 / "
+        f"未 build {len(skipped)} plan は gate 対象外 (build 時自動発火)"
+    )
+    for s in skipped:
+        print(f"  skip: {s}")
+    return 0
+
+
 def _self_test() -> int:
     import tempfile
 
@@ -220,7 +319,62 @@ def _self_test() -> int:
     mc, ms, _ = verify({"components": [], "plugin_level_surfaces": {}}, Path("/nonexistent"))
     assert not mc and not ms
 
-    print("OK: verify-plan-coverage self-test (7 groups)")
+    # 8. verify_all: 実体化済み plan は fail-closed で gate・未 build plan は skip
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        plans = root / "plugin-plans"
+        # (8a) realized plan (対象 plugin 実在) かつ全 build 済 → gated_ok
+        (plans / "built-ok").mkdir(parents=True)
+        (root / "plugins/built-ok/skills/run-x").mkdir(parents=True)
+        (root / "plugins/built-ok/skills/run-x/SKILL.md").write_text("x", encoding="utf-8")
+        (plans / "built-ok/component-inventory.json").write_text(json.dumps({
+            "components": [{"id": "C1", "component_kind": "skill",
+                            "build_target": "plugins/built-ok/skills/run-x/"}],
+            "plugin_level_surfaces": {},
+        }), encoding="utf-8")
+        # (8b) realized plan だが component 未 build → gated_failure
+        (plans / "built-gap").mkdir(parents=True)
+        (root / "plugins/built-gap/skills/run-y").mkdir(parents=True)  # plugin root は在るが
+        (root / "plugins/built-gap/skills/run-y/SKILL.md").write_text("x", encoding="utf-8")
+        (plans / "built-gap/component-inventory.json").write_text(json.dumps({
+            "components": [
+                {"id": "C1", "component_kind": "skill", "build_target": "plugins/built-gap/skills/run-y/"},
+                {"id": "C2", "component_kind": "sub-agent", "build_target": "plugins/built-gap/agents/z.md"},
+            ],
+            "plugin_level_surfaces": {},
+        }), encoding="utf-8")
+        # (8c) 未 build plan (対象 plugin 不在) → skipped (誤 FAIL しない)
+        (plans / "not-built").mkdir(parents=True)
+        (plans / "not-built/component-inventory.json").write_text(json.dumps({
+            "components": [{"id": "C1", "component_kind": "hook",
+                            "build_target": "plugins/not-built/hooks/g.py"}],
+            "plugin_level_surfaces": {},
+        }), encoding="utf-8")
+
+        # (8e) build_target が plugins/ 配下でない = malformed → skip でなく fail-closed
+        (plans / "malformed").mkdir(parents=True)
+        (plans / "malformed/component-inventory.json").write_text(json.dumps({
+            "components": [{"id": "C1", "component_kind": "script", "build_target": "scripts/toplevel.py"}],
+            "plugin_level_surfaces": {},
+        }), encoding="utf-8")
+
+        failures, ok_list, skipped = verify_all(root)
+        assert any(f["inventory"].endswith("built-gap/component-inventory.json") for f in failures), failures
+        assert not any(f["inventory"].endswith("built-ok/component-inventory.json") for f in failures), failures
+        assert any(p.endswith("built-ok/component-inventory.json") for p in ok_list), ok_list
+        assert any("not-built" in s for s in skipped), skipped
+        assert any("malformed" in f["inventory"] for f in failures), failures  # (8e)
+        assert not any("malformed" in s for s in skipped), skipped
+        assert _run_all(root, as_json=True) == 1  # 漏れありで fail-closed
+
+    # 8f. --all と位置引数の併存 → 排他 usage error (exit 2)
+    assert main(["--all", "some-inv.json"]) == 2
+
+    # 8d. plugin-plans 不在 → 対象なしで OK (exit 0)
+    with tempfile.TemporaryDirectory() as td:
+        assert _run_all(Path(td), as_json=True) == 0
+
+    print("OK: verify-plan-coverage self-test (8 groups)")
     return 0
 
 
@@ -236,11 +390,26 @@ def main(argv: list[str]) -> int:
         return None
 
     repo_root_val = _opt("--repo-root")
+    repo_root = Path(repo_root_val) if repo_root_val else Path.cwd()
+
     # 位置引数 = ハイフン始まりでなく、--repo-root の値でもないもの。
     positional = [
         a for a in argv
         if not a.startswith("-") and a != repo_root_val
     ]
+
+    # --all: plugin-plans/*/component-inventory.json を sweep し、実体化済み plan だけを
+    # fail-closed で gate する CI sweep モード (未 build plan は自動 skip で誤 FAIL しない)。
+    # 位置引数 (単一 inventory の strict 照合) と排他 — 併存は silent 優先せず usage error。
+    if "--all" in argv:
+        if positional:
+            print(
+                "usage error: --all は単一 inventory 位置引数と併用不可 "
+                f"(併存: {positional})。sweep か単一照合のどちらかを指定する。",
+                file=sys.stderr,
+            )
+            return 2
+        return _run_all(repo_root, as_json=("--json" in argv))
 
     if not positional:
         print(
@@ -251,7 +420,6 @@ def main(argv: list[str]) -> int:
         return 2
 
     inv_path = Path(positional[0])
-    repo_root = Path(repo_root_val) if repo_root_val else Path.cwd()
 
     if not inv_path.exists():
         print(f"component-inventory.json not found: {inv_path}", file=sys.stderr)
