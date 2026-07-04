@@ -1,4 +1,4 @@
-"""plugins/harness-creator/scripts/verify-plan-coverage.py の genuine 機能テスト。
+"""plugins/harness-creator/scripts/validate-plan-coverage.py の genuine 機能テスト。
 
 計画 (component-inventory.json) ↔ plugin 実体の completeness 照合器の全分岐を
 tmp_path で網羅する。network/keychain/実 repo 書換なし (全 tmp_path)。
@@ -19,9 +19,9 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "plugins" / "harness-creator" / "scripts" / "verify-plan-coverage.py"
+SCRIPT = ROOT / "plugins" / "harness-creator" / "scripts" / "validate-plan-coverage.py"
 
-SPEC = importlib.util.spec_from_file_location("verify_plan_coverage_uut", SCRIPT)
+SPEC = importlib.util.spec_from_file_location("validate_plan_coverage_uut", SCRIPT)
 MOD = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MOD)
 

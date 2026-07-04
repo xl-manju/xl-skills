@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# name: verify-plan-coverage
+# name: validate-plan-coverage
 # purpose: component-inventory.json (計画) と plugin のディスク実体を照合し、計画に
 #          あって未 build の component / 未生成の required plugin-level surface を検出
 #          する決定論 completeness gate。「同じ計画から漏れなく同じ Capability 集合が
@@ -374,7 +374,7 @@ def _self_test() -> int:
     with tempfile.TemporaryDirectory() as td:
         assert _run_all(Path(td), as_json=True) == 0
 
-    print("OK: verify-plan-coverage self-test (8 groups)")
+    print("OK: validate-plan-coverage self-test (8 groups)")
     return 0
 
 
@@ -413,7 +413,7 @@ def main(argv: list[str]) -> int:
 
     if not positional:
         print(
-            "usage: verify-plan-coverage.py <component-inventory.json> "
+            "usage: validate-plan-coverage.py <component-inventory.json> "
             "[--repo-root <dir>] [--json]",
             file=sys.stderr,
         )

@@ -70,7 +70,7 @@ plugin 名が `harness-creator` (総体) でも、**単体スキルを作る入�
      束ねる: 実体を走査して plugin-composition.yaml を再計算。
      併せて capabilities[] を Step1 の component-inventory.json と照合し、
      計画にあって未 build の component が無いか確認する（← 「漏れなく」を測る唯一の gate）。
-     照合は scripts/verify-plan-coverage.py が決定論実行する（build_target のディスク実在と
+     照合は scripts/validate-plan-coverage.py が決定論実行する（build_target のディスク実在と
      required surface を突合し、漏れを exit 1 で fail-closed 報告。目視・AI 判断に依存しない）。
 
 4. /run-plugin-package-check <plugin-name> --phase all
