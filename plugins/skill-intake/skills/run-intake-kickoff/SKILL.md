@@ -4,6 +4,7 @@ description: intake セッション起動直後にパターン・深度・痛点
 allowed-tools:
   - Read
   - Write
+  - Bash
   - AskUserQuestion
 kind: run
 user-invocable: true

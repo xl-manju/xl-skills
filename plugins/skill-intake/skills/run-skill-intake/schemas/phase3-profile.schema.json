@@ -6,15 +6,23 @@
   "required": ["dimensions", "vocabulary_tier"],
   "properties": {
     "dimensions": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "type": ["string", "number", "boolean", "array", "object", "null"]
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["dim", "value", "confidence"],
+        "properties": {
+          "dim": {"enum": ["expertise", "role", "context", "constraints", "motivation", "sharing_intent"]},
+          "value": {"type": "string"},
+          "confidence": {"enum": ["low", "mid", "high"]},
+          "evidence": {"type": "string"}
+        }
       }
     },
     "vocabulary_tier": {
       "type": "string",
-      "enum": ["non_technical", "mixed", "technical"]
+      "enum": ["novice", "intermediate", "expert"]
     },
     "tone_guidelines": {
       "type": "array",

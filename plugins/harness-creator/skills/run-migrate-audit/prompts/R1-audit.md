@@ -12,7 +12,7 @@
 | layers_covered | [L2, L4, L5, L6] |
 | inputs | target_paths (array) |
 | outputs | .claude/handoff/migrate-audit-&lt;session&gt;.json (schemas/output.schema.json: input_file/origin/sections/summary) |
-| notes | rubric 接続は次イテレーション |
+| notes | 評価器接続は現行契約 (`pair: assign-skill-design-evaluator` / `rubric_refs: ref-skill-design-rubric`)。設計評価の採点は下流 run-build-skill 内蔵ゲートが実施し、本 skill は brief 確定で完了 (verdict を待たない) |
 
 ## Layer 1: 基本定義層
 
@@ -91,12 +91,12 @@
 
 ### 5.7 インターフェース
 - 入力: `target_paths` (配列、各要素が既存 path。非配列 / 不存在は拒否。欠損で fatal_exit_code=2)
-- 出力: `.claude/handoff/migrate-audit-<session>.json` → `assign-skill-design-evaluator / run-build-skill`
+- 出力: `.claude/handoff/migrate-audit-<session>.json` → `run-build-skill`（brief として生成入力。SKILL.md 生成とその設計評価＝`assign-skill-design-evaluator` 採点は run-build-skill 内蔵ゲートが担い、本 R1 は評価器を直接呼ばない）
   - 形式: `{ "input_file", "origin", "sections", "summary" }` (schemas/output.schema.json 準拠)
 
 ### 5.8 依存関係
 - 前提: なし
-- 後続: `assign-skill-design-evaluator` (次イテレーションで rubric 採点接続)
+- 後続: `run-build-skill`（brief→SKILL.md 生成。生成 SKILL.md の設計評価＝`assign-skill-design-evaluator` の `target=SKILL.md` 採点は run-build-skill 内蔵の設計評価ゲートが実施する。本 skill は評価器を直接 invoke しない）
 
 ## Layer 6: オーケストレーション層
 

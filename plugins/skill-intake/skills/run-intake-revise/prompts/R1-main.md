@@ -57,9 +57,10 @@
 | revision-log-schema | schemas/output.schema.json | revision-log 追記前 |
 
 ### 3.2 外部ツール / API
+- `validate-notion-ready.py --check-api` (PATCH 前提の Notion 疎通検証。exit 0 なら API キー / トークン再質問禁止、exit 44 のみ `keychain-setup.md` を案内し停止)
 - `analyze_user_intent.py` (internal-analysis 再生成)
 - `render-intake-final.py` (正本再 render)
-- `intake_publish_pipeline.py --revise --page-id` (Notion PATCH)
+- `intake_publish_pipeline.py --intake <intake.json> --manifest <notion-manifest.json> --revise --page-id` (Notion PATCH。`--intake` 必須。欠くと exit 2 で停止)
 - AskUserQuestion (差分ヒアリング / Gate R)
 
 ## Layer 4: 共通ポリシー層
@@ -94,13 +95,14 @@
 - 達成ゴール: Gate R で apply 承認 → Notion PATCH 成功 → revision-log.jsonl に 1 行追記された状態。または cancel/上限/失敗で適切な exit code が返却された状態。
 
 ### 5.3 完了チェックリスト (停止条件)
+- [ ] `validate-notion-ready.py --check-api` が exit 0 (config / Keychain トークン / DB 疎通)。PASS 済みなら API キー / Notion トークンを再質問しない。exit 44 のみ `keychain-setup.md` を案内し停止
 - [ ] 既存 4 ファイルをロードし Notion ページ ID を抽出した
 - [ ] revision 回数が 5 以下であることを確認した
 - [ ] AskUserQuestion で対象章 / 変更内容 / 変更理由を収集した
 - [ ] analyze_user_intent.py を再実行し internal-analysis.json を更新した (非開示)
 - [ ] 差分プレビュー + 要約理解テキストを Gate R 直前に提示した
 - [ ] Gate R 判定 (apply/re-revise/cancel) を取得した
-- [ ] apply 時に render-intake-final.py → intake_publish_pipeline.py --revise --page-id で PATCH を完了した
+- [ ] apply 時に render-intake-final.py → intake_publish_pipeline.py --intake output/{{hint}}/intake.json --manifest output/{{hint}}/notion-manifest.json --revise --page-id <既存 ID> で PATCH を完了した
 - [ ] PNG/mermaid 欠落時は旧版維持し rollback JSON を保存した
 - [ ] revision-log.jsonl に schemas/output.schema.json 準拠の 1 行を追記した
 - [ ] self-updater を再起動し question-bank に「足りなかった質問」を追記した
@@ -149,4 +151,4 @@ revision-log.jsonl 追記後に以下を自己確認する。未達があれば�
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-引数 `{{hint}}` (+ optional `--dry-run`) を受け取り、`output/{{hint}}/` 配下の既存 4 ファイルをロードせよ。revision_no を確認し 5 を超えるなら exit 60。AskUserQuestion で対象章 / 変更内容 / 変更理由 (必要なら 5 軸再確認) を収集し、`analyze_user_intent.py` を再実行して `internal-analysis.json` を更新せよ (ユーザーには直接見せない)。差分プレビューと要約理解テキストを提示後、Gate R (apply / re-revise / cancel) を `AskUserQuestion` で取得。apply のとき `render-intake-final.py` → `intake_publish_pipeline.py --revise --page-id <既存 ID>` を実行し、成功したら `output/{{hint}}/revision-log.jsonl` に schemas/output.schema.json 準拠の 1 行を追記、最後に `skill-intake-self-updater` を再起動せよ。失敗時は rollback JSON を保存し、対応する exit code (2/44/51/60) を返却。出力は revision-log.jsonl の 1 行 JSON のみ、余計な前置き・後書き・思考過程出力は禁止。
+引数 `{{hint}}` (+ optional `--dry-run`) を受け取り、`output/{{hint}}/` 配下の既存 4 ファイルをロードせよ。revision_no を確認し 5 を超えるなら exit 60。AskUserQuestion で対象章 / 変更内容 / 変更理由 (必要なら 5 軸再確認) を収集し、`analyze_user_intent.py` を再実行して `internal-analysis.json` を更新せよ (ユーザーには直接見せない)。差分プレビューと要約理解テキストを提示後、Gate R (apply / re-revise / cancel) を `AskUserQuestion` で取得。apply のとき `render-intake-final.py` → `intake_publish_pipeline.py --intake output/{{hint}}/intake.json --manifest output/{{hint}}/notion-manifest.json --revise --page-id <既存 ID>` を実行し、成功したら `output/{{hint}}/revision-log.jsonl` に schemas/output.schema.json 準拠の 1 行を追記、最後に `skill-intake-self-updater` を再起動せよ。失敗時は rollback JSON を保存し、対応する exit code (2/44/51/60/61) を返却。出力は revision-log.jsonl の 1 行 JSON のみ、余計な前置き・後書き・思考過程出力は禁止。

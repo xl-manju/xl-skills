@@ -8,9 +8,9 @@
 |---|---|
 | name | notify |
 | skill | run-skill-update-notifier |
-| responsibility | R1 |
+| responsibility | R1+R2+R3 (単一 prompt が cache-check / formatting / graceful-guard を統括) |
 | layers_covered | [L2, L4, L5, L6] |
-| inputs | mode (enum: auto\|check-only\|refresh, default: auto) |
+| inputs | mode (subcommand: cache-status\|refresh\|notify, required。`--mode <name>` 前置も互換受理) |
 | outputs | stdout 1 行 or 空 (schemas/output.schema.json) |
 
 ## Layer 1: 基本定義層
@@ -31,7 +31,7 @@
 | installed | 現在インストール済み Skill バージョン |
 | latest | marketplace 等から取得した最新版 |
 | cache | `~/.cache/xl-skills/version-snapshot.json` |
-| mode | auto / check-only / refresh の動作モード |
+| mode | cache-status / refresh / notify の subcommand (位置引数・required) |
 
 ### 2.2 ビジネスルール
 - CONST_001: `plugin.json / marketplace.json / bundles.json` は読取専用。
@@ -43,7 +43,7 @@
 
 | tool | 説明 | 主パラメータ |
 |---|---|---|
-| notifier-check.py | installed と latest を比較 | mode (既定: auto) |
+| notifier-check.py | cache-status=鮮度判定 / refresh=cache 更新 / notify=差分1行通知 | mode subcommand: cache-status\|refresh\|notify (required) |
 | hook-cache-refresh.py | cache を更新 | - |
 
 ## Layer 4: 共通ポリシー層
@@ -74,7 +74,7 @@
 - [ ] 出力は 0 行 or 1 行
 - [ ] `up-to-date / offline / unknown` で無出力
 - [ ] `status / installed / latest` を内部保持
-- [ ] cache mtime が refresh 条件と整合 (mode/age と mtime 照合)
+- [ ] cache の `last_refreshed_at` が TTL(24h) と整合 (欠落時は stale 扱いで refresh)
 - [ ] 推測を事実として述べていない (unknown 時は unknown 明記)
 
 ### 5.5 実行方式 (動的生成ループ)
@@ -86,11 +86,11 @@
 6. 上限到達 / cache 破損時は無出力で安全停止 → escalation。
 
 ### 5.6 ビジネスルール
-- CONST_001: cache 失効時間は `references/config` から読込 (既定 24h)。
+- CONST_001: cache 失効時間は notifier-check.py 内定数 TTL_HOURS (既定 24h) で固定。
 - CONST_002: 通知は 1 行のみ。
 
 ### 5.7 インターフェース
-- 入力: `mode` (auto|check-only|refresh のいずれか。範囲外拒否。欠損時 auto)
+- 入力: `mode` (cache-status|refresh|notify の subcommand。required・欠損/範囲外は SystemExit(2)。`--mode <name>` 前置も互換受理)
 - 出力: `stdout_line` → 会話末尾付記。形式: `"(installed: vX.Y.Z / latest: vA.B.C — /skill-update で更新)"` (references/output-format.md 正本)。差分時のみ 1 行、silent モードは無出力。
 
 ### 5.8 依存関係
@@ -106,9 +106,10 @@
 
 ## Layer 7: UI / 提示層
 
-- 通常 hook 呼出のため無対話。手動実行時のみ mode を確認。
-  - 例: `mode: auto`
-  - 例: `mode: check-only  # cache 更新しない`
+- 通常 hook 呼出のため無対話。手動実行時のみ mode (subcommand) を確認。
+  - 例: `notifier-check.py cache-status  # cache 鮮度を absent/fresh/stale で報告`
+  - 例: `notifier-check.py refresh       # cache を更新`
+  - 例: `notifier-check.py notify --plugin NAME  # 差分があれば 1 行通知`
 
 ---
 

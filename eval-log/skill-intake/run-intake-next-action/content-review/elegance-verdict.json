@@ -2,29 +2,28 @@
   "target": {
     "plugin": "skill-intake",
     "skill": "run-intake-next-action",
-    "skill_md_sha256": "c8dc50e165cb6dc5ae63d1e2a452b24fd5c461b32b907a458ec3de7febd136de"
+    "skill_md_sha256": "e94f3dc134bd17c4eaf220988777a567dd1f1f7b90e63473288e884f451372a4"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "independent-rename-review-subagent-g",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:27Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "改名追従が SKILL.md/schema/mode-catalog の三者で一致 (C1/C3) — handoff_target の値が harness-creator へ更新され、SKILL.md L61 の出力 JSON 例 (handoff_target: 'harness-creator|plugin-dev-planner')・Rule 4b L78 (mode A-E は handoff_target='harness-creator')・チェックリスト L102・schemas/output.schema.json の enum ['harness-creator','plugin-dev-planner'] と allOf else 分岐 (const 'harness-creator')・references/mode-catalog.md 右列が全て harness-creator で逐語一致。旧名 skill-creator の残存 0 件を実測。",
-      "後方互換フィールド名の扱いが明示的 (C3) — 出力キー harness_creator_handoff_phase は schema description で『フィールド名は後方互換のため据え置き』と註記され、JSON キー (harness_creator_handoff_phase) と handoff_target 値 (harness-creator) が一貫。改名で JSON キー名を skill_creator_ から harness_creator_ へ更新済みで、旧 verdict が引用していた skill_creator_handoff_phase / 'else skill-creator' は現物では解消されている。",
-      "IN1 決定論 / OUT1 責務単一が改名後も健全 (C1/C4) — scripts/decide-mode.py が references/mode-catalog.md 判定表から mode を導出し LLM 勘を排除、allowed-tools に Skill/Task を持たず生成スキルを構造的に起動不能 (OUT1)。IN2 の Notion 公開完了 precondition gate (exit 2) も維持。mode P → plugin-dev-planner / A-E → harness-creator の意味論境界 (ハーネス総体の引き渡し先) が正しく適用されている。"
+      "Notion 公開完了 precondition gate (SKILL.md:70,82) が exit 2 で未公開横流れを封鎖し IN2 を機械検証可能形で固定。今回の変更で exit code 規約 (ゴールシークループ SKILL.md:110) と Gotcha 1 (SKILL.md:114) が decide-mode.py 実挙動(判定表ヒットなし→kickoff.pattern 既定採用で停止しない、exit 2 は Notion precondition 未充足のみ)へ整合訂正され、従来 doc の『ヒットなし=exit 2』という実装との不整合が解消された",
+      "Rule 7 (SKILL.md:81) が本スキルを mode 判定と next-action.json 生成のみに絞り、allowed-tools に Skill/Task を持たないため生成スキル起動が構造的に不可能である点を明記し OUT1 の責務単一を担保",
+      "決定論性を decide-mode.py+mode-catalog.md 判定表で機構化し、同一4入力での (mode, reason) 完全一致 (checklist SKILL.md:106) を検証条件に含めて IN1 を満たす"
     ],
-    "negative_feedback": [
-      "[minor, FAIL 非駆動, 改名と無関係の既存事項] IN2 の『mode=D で split_candidates 空なら mode=E へ格下げ』は decide-mode.py 未実装で機械検証点が LLM checklist に留まる (schema allOf: if mode==D then split_candidates minItems 1 で機械化余地)。矛盾ではなく強制力の thin さのみで、本改名 re-review のスコープ外。"
-    ],
+    "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名 (skill-creator → harness-creator) に伴う SKILL.md 変更への独立 genuine 再評価。現 sha256=c8dc50e を shasum -a 256 で実測 (旧 verdict sha=883b1455 は改名前・本文に skill_creator_handoff_phase / 'else skill-creator' を残し stale)。4条件検証: C1 矛盾0 (handoff_target 値と JSON キー名が一貫)。C2 漏れ0 (description/schema/mode-catalog/handoff-contract 参照全実在)。C3 整合0 (harness-creator が SKILL.md/output.schema.json enum+allOf/mode-catalog 右列で三者逐語一致・旧名 grep 0)。C4 依存0 (responsibility_refs/schema_refs/references 実在)。criteria: IN1 (decide-mode.py 決定論導出)・IN2 (precondition gate exit2)・OUT1 (Skill/Task 非搭載で生成起動不能) 充足。残 minor 1 (D 格下げの機械強制 gap・改名無関係の既存) は FAIL 非駆動で PASS。"
+  "notes": "現 SHA (e94f3dc1...) の SKILL.md を read-only で逐一照合した genuine 再評価。変更点=exit code 規約の実装整合訂正: (1) ゴールシークループ (SKILL.md:110) の『判定表ヒットなし=2、入力欠落=3』→『exit 2=Notion 公開 precondition 未充足、exit 3=入力欠落・不正』、(2) Gotcha 1 (SKILL.md:114) を『判定表ヒットなしは exit 2 で停止』→『decide-mode.py は該当行なしでも停止せず kickoff.pattern を既定採用、A-E/P 以外の未知 pattern は handoff 表 KeyError で異常終了、exit 2 は Notion precondition のみ』へ書換。これは spec-drift の是正で IN2/Rule 8/precondition gate 節と exit code の意味が全節で統一され C3(整合性)を強化。矛盾・漏れ・依存断なし。4条件全PASS。"
 }

@@ -31,7 +31,7 @@ schema_refs:
 
 ## Key Rules
 
-1. **正本は 36章本体**: 本 skill は参照便宜のための圧縮表現。意味の正本は `doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md` §PKG-001〜017 一覧
+1. **正本は 36章本体**: 本 skill は参照便宜のための圧縮表現。意味の正本は `doc/ClaudeCodeスキルの設計書/36-plugin-package-harness-contract.md` §PKG-001〜017 一覧。ただし**機械処理上**は二層正本で、36章本文と `references/pkg-id-catalog.yaml` に齟齬が出た場合は R1-lookup-pkg (CONST_002) が catalog 値を機械可読正本として採用し `warn: catalog_doc_drift` を併記する（doc-only 更新で CI を止めないため）
 2. **改廃は 27章 §4.1 governance 経由**: 本 skill 単独で PKG ID 表を増減しない（自己制約）
 3. **eval-log パスは 27章 §3.1 規約**: `eval-log/<plugin>/pkg-<id>/<YYYY-MM-DD>-<run>.{json,log}`。本 skill で再定義しない
 4. **schema は外部ファイル**: `schemas/package-contract.schema.json` を一次。本 skill 本文には例示のみ
@@ -50,16 +50,16 @@ schema_refs:
 | PKG-006 | Hook registration 整合 | bundle | `scripts/validate-plugin-package.py --check pkg-006` | 0 |
 | PKG-007 | script 存在 + 実行可能 | bundle | `scripts/validate-plugin-package.py --check pkg-007` | 0 |
 | PKG-008 | settings 断片 lint | bundle | `scripts/validate-plugin-package.py --check pkg-008` | 0 |
-| PKG-009 | 外部参照ゼロ | bundle | `scripts/lint-external-refs.py --plugin <name>` | 0 |
+| PKG-009 | 外部参照ゼロ | bundle | `scripts/lint-external-refs.py --skills-dir plugins/<plugin>/skills --fail-on-external` | 0 |
 | PKG-010 | install smoke | bundle | `scripts/smoke-plugin-install.sh` | 1 |
 | PKG-011 | uninstall 完全性 | bundle | `scripts/smoke-plugin-uninstall.sh` | 2 |
 | PKG-012 | upgrade 冪等性 | bundle | `scripts/smoke-plugin-upgrade.sh` | 2 |
-| PKG-013a | tool permissions scope | bundle | `scripts/validate-plugin-permissions.py --check 013a` | 2 |
-| PKG-013b | filesystem permissions scope | bundle | `scripts/validate-plugin-permissions.py --check 013b` | 2 |
-| PKG-013c | network permissions scope | bundle | `scripts/validate-plugin-permissions.py --check 013c` | 2 |
-| PKG-013d | MCP/external permissions scope | bundle | `scripts/validate-plugin-permissions.py --check 013d` | 2 |
+| PKG-013a | tool permissions scope | bundle | `scripts/validate-plugin-permissions.py --plugin <name> --check 013a` | 2 |
+| PKG-013b | filesystem permissions scope | bundle | `scripts/validate-plugin-permissions.py --plugin <name> --check 013b` | 2 |
+| PKG-013c | network permissions scope | bundle | `scripts/validate-plugin-permissions.py --plugin <name> --check 013c` | 2 |
+| PKG-013d | MCP/external permissions scope | bundle | `scripts/validate-plugin-permissions.py --plugin <name> --check 013d` | 2 |
 | PKG-014 | runtime contract 検証 | bundle | `scripts/validate-plugin-package.py --check pkg-014` | 2 |
-| PKG-015 | rubric 違反率しきい値 | bundle | `scripts/lint-rubric-violation.py --plugin <name>` | 2 |
+| PKG-015 | rubric 違反率しきい値 | bundle | `scripts/lint-rubric-violation.py --logs <log-dir>` | 2 |
 | PKG-016 | 予約（未確定） | - | - | - |
 | PKG-017 | 予約（未確定） | - | - | - |
 

@@ -25,9 +25,9 @@
   - **目的**: 品質基準の独断緩和を防ぐため
   - **背景**: proposer ≠ approver 原則 (23章)
 - **CONST_003 (予約 ID 除外)**: PKG-016/017 は予約 ID のため判定対象外
-- **CONST_004 (PKG-013 集約)**: PKG-013 は単独で評価せず、a/b/c/d 全 pass を要求
-  - **目的**: permission check の部分 pass を誤承認しないため
-  - **背景**: a/b/c/d は権限の異なる側面を検査し独立では不十分
+- **CONST_004 (PKG-013 は集約済単一キー)**: run_report 上 PKG-013 は単一キーで届く。a/b/c/d の all_must_pass 集約は上流 `validate-plugin-permissions.py`（per-log `sub_checks` に a/b/c/d 明細を保持）が実施し、`aggregate-pkg-findings.py` が単一 `PKG-013` status として surface する。本 prompt は再集約せず単一 `PKG-013` status を消費する
+  - **目的**: permission check の部分 pass を誤承認しないため（集約は上流で完了済）
+  - **背景**: a/b/c/d は権限の異なる側面を検査し独立では不十分。展開・集約責務は本 prompt でなく上記 2 script にあり、run_report は単一 `PKG-013` キーのみ持つ
 
 ### 1.2 倫理ガード
 
@@ -45,7 +45,7 @@
 
 - **Phase 0 完了**: required = [PKG-001..009]、fail_count_max = 0。PKG-001 が skip（claude CLI 不在）でも PASS 許容
 - **Phase 1 完了**: Phase 0 PASS + PKG-010 pass
-- **Phase 2 完了**: Phase 1 PASS + PKG-011/012/013a/b/c/d/014/015 全 pass / not_applicable
+- **Phase 2 完了**: Phase 1 PASS + PKG-011/012/013/014/015 が全 pass / not_applicable。`PKG-013` は a/b/c/d を all_must_pass 集約した単一キー。manifest `completion_signals.phase_2` は原子 ID として PKG-013a/b/c/d を列挙するが、run_report では単一 `PKG-013` キーへ対応づけて 1 件として判定する
 - `skill-only` plugin は PKG-002/004 のみ判定対象
 - 全 PKG ID の status が `pass` or `not_applicable` で fail = 0 が PASS の必要十分条件（PKG-001 例外あり）
 
@@ -64,15 +64,17 @@
 ```yaml
 phase: <0|1|2>
 verdict: PASS|FAIL
-failed_pkg_ids: [<PKG-NNN[a-d?]>, ...]
-skipped_pkg_ids: [<PKG-NNN[a-d?]>, ...]
-not_applicable_pkg_ids: [<PKG-NNN[a-d?]>, ...]
+failed_pkg_ids: [<PKG-NNN>, ...]
+skipped_pkg_ids: [<PKG-NNN>, ...]
+not_applicable_pkg_ids: [<PKG-NNN>, ...]
 exemptions:
   - pkg_id: <ID>
     reason: <e.g., "PKG-001 skip (claude CLI 不在), Phase 0 PASS 許容">
 next_action: |
   <FAIL 時のみ: 修正対象 PKG ID と次に取るべきコマンド>
 ```
+
+- `*_pkg_ids` は run_report `pkg_checks` の集約キー（PKG-001〜015、permission は単一 `PKG-013`）で表現し、a/b/c/d suffix は用いない。PKG-013 の a/b/c/d 明細は per-log `sub_checks` を参照（本 prompt の入力 run_report には含まれない）
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -124,8 +126,8 @@ next_action: |
 
 - [ ] manifest の `completion_signals.phase_{phase}` を直接参照（判定基準を本 prompt 内で再定義していない）
 - [ ] `package_mode=skill-only` で required_pkg を PKG-002/004 のみに絞込
-- [ ] PKG-013 が a/b/c/d 全 pass のときのみ PKG-013 全体 pass
-- [ ] PKG-001 が `status: skip` + `skip_reason: claude_cli_unavailable` のとき Phase 0 で `exemptions[]` に明示
+- [ ] PKG-013 は集約済単一キーとして status を参照し（a/b/c/d 全 pass は上流 `validate-plugin-permissions.py` が status に反映済）、manifest の PKG-013a/b/c/d 要求を run_report の単一 `PKG-013` キーへ対応づけて判定した
+- [ ] PKG-001 が `status: skip` + `skip_reason` に `"claude CLI not found in PATH"` (claude CLI 不在。`run-plugin-validate-strict.sh` の出力値が正本) を持つとき Phase 0 で `exemptions[]` に明示
 - [ ] `failed_pkg_ids.length <= fail_count_max` かつ全 required_pkg が `pkg_checks` に存在のとき `verdict: PASS`
 - [ ] FAIL 時 `next_action` が空でなく、修正対象 PKG ID と次に取るべきコマンドを含む
 - [ ] `verdict` が `PASS` / `FAIL` のいずれか（force_pass 禁止）
@@ -136,7 +138,7 @@ next_action: |
 - 方針: 固定手順を列挙しない。§5.2 ゴール定義と §5.3 完了チェックリストを唯一の指針とし、入力 `phase` / `run_report` / `package_mode` の組合せに応じて必要な照合手順を都度設計する
 - ループ:
   1. §5.3 の未充足項目を特定する
-  2. 未充足を解消する手順を立案（入力 schema 検証 / manifest 読込 / required_pkg 絞込 / PKG-013 集約 / PKG-001 例外抽出 / verdict 集計 / next_action 生成 等から必要なものを選択）
+  2. 未充足を解消する手順を立案（入力 schema 検証 / manifest 読込 / required_pkg 絞込 / PKG-013a〜d 要求の単一 `PKG-013` キー対応づけ（集約は上流 script 済） / PKG-001 例外抽出 / verdict 集計 / next_action 生成 等から必要なものを選択）
   3. 立案手順を実行し §2.4 YAML 構造体を更新
   4. §5.3 で自己評価し全項目充足まで反復（上限: Layer 4 最大反復）
 - 逸脱時: required_pkg 欠落 / structural error は §4.1 に従い exit 2 / 3 で停止

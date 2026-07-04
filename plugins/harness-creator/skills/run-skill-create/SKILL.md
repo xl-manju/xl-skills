@@ -13,6 +13,7 @@ allowed-tools:
   - Bash(git diff *)
   - Bash(git status *)
   - Skill
+  - AskUserQuestion
 model: opus
 kind: run
 prefix: run

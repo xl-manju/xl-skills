@@ -77,18 +77,18 @@
 ## Layer 4: 共通ポリシー層
 
 ### 4.1 失敗時挙動
-- validate-interview-json.py FAIL → exit 2、スキーマ不整合項目を stderr に列挙。LLM 自動補完禁止。
+- validate-interview-json.py がスキーマ不整合 / 停止ゲート違反 → exit 1、該当項目を stderr に列挙。LLM 自動補完禁止 (exit 2 は引数不正 / ファイル不在 / jsonschema 未導入の環境エラー専用)。
 - check-five-axes-coverage.py FAIL → exit 1、不足軸を stderr に列挙し再起動を促す。
 - build-intent.py が pending_probes を返す → `probe-pattern-table.json` の文面を verbatim で 1 問ずつ聞く。推測補完で filled にしない。
 
 ### 4.2 観測 / ロギング
 - 抽象的回答は `abstract_answers[]` (各要素 `{axis, answer, reason}`) に追記し `needs_excavation=true` を立てる。未解消空欄は `unresolved[]` に列挙する。
 
-### 4.4 最大反復回数
-- AskUserQuestion 反復上限: **14 問** (intent slot 最大 9 + 5 軸 × 1 問。価値深掘りは Phase 5 の責務)。上限到達で `pending_probes` が残る、または five_axes_complete=false の場合は exit 1 で中断。
-
 ### 4.3 セキュリティ
 - 個人情報は interview.json 本文に転記せず変数化。
+
+### 4.4 最大反復回数
+- AskUserQuestion 反復上限: **14 問** (intent slot 最大 9 + 5 軸 × 1 問。価値深掘りは Phase 5 の責務)。上限到達で `pending_probes` が残る、または five_axes_complete=false の場合は exit 1 で中断。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 

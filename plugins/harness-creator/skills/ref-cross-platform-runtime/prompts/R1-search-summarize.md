@@ -59,7 +59,7 @@
 | forbidden | references/forbidden-clis.md | 禁止 CLI 確認時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用。
+- Read のみ (全文読取・文中検索を含む)。ネットワーク不使用。
 
 ## Layer 4: 共通ポリシー層
 
@@ -117,7 +117,7 @@
 
 ## 正規化方針 (auto-applied)
 
-- OS 名: NFKC + lowercase 後、`{mac, macos, darwin, osx} → darwin` / `{win, windows, win32} → windows` / `{linux, ubuntu, debian, alpine} → linux` を内蔵 alias で集約。
+- OS 名: NFKC + lowercase 後、`{mac, macos, darwin, osx} → mac` / `{win, windows, win32} → windows` / `{linux, ubuntu, debian, alpine} → linux` を内蔵 alias で集約 (canonical は SKILL.md 出力契約 `os: mac|linux|windows|unknown` と per-OS カラムに一致)。
 - 上記以外の値は `suggestions` に元 keyword を返し、勝手に補完しない。
 - 表記揺れ吸収は references 明示分のみ。未定義 alias の自動拡張禁止。
 

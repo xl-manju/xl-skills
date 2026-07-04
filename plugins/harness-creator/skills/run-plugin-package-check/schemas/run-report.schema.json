@@ -10,7 +10,7 @@
     "pkg_checks": {
       "type": "object",
       "patternProperties": {
-        "^PKG-(00[1-9]|01[0-2]|013[a-d]|01[4-5])$": {
+        "^PKG-(00[1-9]|01[0-2]|013|01[4-5])$": {
           "type": "object",
           "required": ["status"],
           "properties": {

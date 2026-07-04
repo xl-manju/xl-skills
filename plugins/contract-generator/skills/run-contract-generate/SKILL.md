@@ -68,7 +68,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 ### 完了チェックリスト (Checklist)
 - [ ] `google-config.json` と Keychain 鍵を読み込み Service Account で認証できる(`python3 $CLAUDE_PLUGIN_ROOT/lib/config_auth.py --check`。セットアップ全体は `python3 $CLAUDE_PLUGIN_ROOT/lib/setup_doctor.py` で横断診断)
 - [ ] 管理台帳に `個人`/`法人` 2シートが存在し各スキーマのヘッダを持つ(無ければ整備・既存サンプル行は保持)
-- [ ] 作成指示◯かつステータス≠completed の行を冪等キー付きで抽出できる
+- [ ] 作成指示◯かつステータス∈{空,未作成} の行を冪等キー付きで抽出できる(既定の draft phase の `_PHASE_STATUS_FILTER`。後方互換の legacy 1パスのみ ステータス≠completed)
 - [ ] 契約タイプに応じ法人①/個人②の `.docx` を名前パターンで取得できる
 - [ ] 標準ライブラリ実装(docx_lib)で黄色run置換・条件分岐(業務内容方式/料金方式/個人情報処分・個人のみ成果物有無)・AI記入の黄色維持ができる
 - [ ] 黄色維持版を Google Docs 化し該当フォルダへ保存できる

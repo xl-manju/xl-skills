@@ -14,12 +14,13 @@ last-audited: 2026-05-22
 
 ## Purpose
 
-Phase 1 trace から 7 層 (L1基本定義 / L2ドメイン / L3インフラ / L4共通ポリシー / L5エージェント定義 / L6オーケストレーション / L7ユーザーインタラクション) を **Layer 単位** で個別生成→`merge-layers.py` 合算。一括生成禁止 (精度低下回避)。
+Phase 1 成果物 (`prompt-brief.json` / `hearing-result.json`) から 7 層 (L1基本定義 / L2ドメイン / L3インフラ / L4共通ポリシー / L5エージェント定義 / L6オーケストレーション / L7ユーザーインタラクション) を **Layer 単位** で個別生成→`merge-layers.py` 合算。一括生成禁止 (精度低下回避)。
 Layer 5 はゴールシーク型 (l5-contract v2.0.0): ゴール定義 (目的・背景・達成ゴール)+完了チェックリスト+実行方式を生成し、固定手順 (ステップ列挙) は書かない。手順はエージェントが実行時に自律生成する。
 
 ## Inputs
 
-- `eval-log/prompt-creator-trace.json#phase1`
+- `eval-log/prompt-brief.json` (`skills/run-prompt-create/schemas/prompt-brief.schema.json` 準拠。Phase 1 産出 brief。L5 材料 goals/checklist/purpose/background を運ぶ主入力)
+- `eval-log/hearing-result.json` (`skills/run-prompt-elicit/schemas/hearing-result.schema.json` 準拠。ヒアリング原文。brief 欠落時のフォールバック材料)
 - `references/seven-layer-format.md` / `references/writing-style-principles.md`
 - `plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py`
 
@@ -52,7 +53,7 @@ worker-local trace は owner skill の `schemas/output.schema.json` に準拠す
 固定手順は持たない。SSOT (`R1-main.md` Layer 5) のゴール定義へ向けて、完了条件の未達項目を埋める生成・修正手順を都度立案して反復する。
 
 - **ゴール**: `tmp/prompt.yaml` (7 層 merge 済み内部正規形) と `eval-log/prompt-creator-trace.json` (`schemas/output.schema.json` 準拠) が検証 PASS で存在する状態。
-- **完了条件**: Phase 1 trace の確定値 (role/context/goal/completion_checklist/constraints) を全て反映 / 7 Layer 全て非空 (Layer 単位で個別生成、`tmp/prompt-layers/L{N}.yaml` へ書出) / Layer 5 が l5-contract v2.0.0 構成 (固定手順不在) / 要素原子性 (1 値 50 文字目安) / `merge-layers.py` exit 0。
+- **完了条件**: Phase 1 brief 確定値 (`prompt_name`/`purpose`/`background`/`goals`/`checklist`/`trigger_conditions`/`boundary` 等) を全 Layer へ反映 / 7 Layer 全て非空 (Layer 単位で個別生成、`tmp/prompt-layers/L{N}.yaml` へ書出) / Layer 5 が l5-contract v2.0.0 構成 (固定手順不在) / 要素原子性 (1 値 50 文字目安) / `merge-layers.py` exit 0。
 - **自律ループ**: 未達 Layer・検証 FAIL を列挙→充填/修正手順を立案→実行→再検証。決定論処理は script (`scaffold-prompt.py` 骨格生成 / `python3 plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/merge-layers.py --layers tmp/prompt-layers/ --output tmp/prompt.yaml`) へ委譲し、LLM は意味充填のみ担う。
 
 ## Constraints
@@ -70,7 +71,7 @@ worker-local trace は owner skill の `schemas/output.schema.json` に準拠す
 
 (対話なし: 自動実行 agent)
 
-trace JSON 入力のみで進行。clarify 必要時の参考:
+brief / hearing-result JSON 入力のみで進行。clarify 必要時の参考:
 
 ### Round (例外時のみ)
 

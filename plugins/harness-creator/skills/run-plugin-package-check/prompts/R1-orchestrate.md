@@ -54,7 +54,7 @@
 | field | type | required | 説明 |
 |---|---|---|---|
 | `plugin` | string | yes | kebab-case plugin 名 |
-| `phase` | enum | no | `0` / `1` / `2` / `all`、default `all` |
+| `phase` | enum | no | `0` / `1` / `2` / `all`、default `0` (SKILL.md 入力契約が正本) |
 | `pkg` | string[] | no | 個別 PKG ID 絞込（カンマ区切り入力を配列化） |
 | `dry_run` | bool | no | default false |
 | `output_dir` | path | no | default `eval-log/<plugin>/` |
@@ -152,7 +152,7 @@
 
 ### 6.1 上位 skill との接続
 
-- 呼び出し元: `run-skill-create` (Step 5 PKG completeness check)、CI/CD pipeline、開発者 manual invocation
+- 呼び出し元: `run-skill-create` (Step 4a.5 pkg-check、25章 runbook では Step 5 PKG completeness check)、CI/CD pipeline、開発者 manual invocation
 - 後続 phase: R2 `gate-decide`（phase 完了判定）、`run-elegant-review` (Step 5.5)、`assign-skill-design-evaluator` (Step 6)
 
 ### 6.2 並列性

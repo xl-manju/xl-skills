@@ -68,7 +68,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
   criteria:
     - id: IN1
       loop_scope: inner
-      text: workflow-manifest.json phases[id=p0-lint] の 8 本 lint が全て exit 0 で通り、未解決 TODO や未展開プレースホルダ {{...}} や英語仮文の残存(パラメーター名を除く)を検出した場合は Step 2 へ自律差し戻すことを lint で機械検証できる。
+      text: workflow-manifest.json phases[id=p0-lint] の 9 コマンド (ユニークスクリプト 8 本、validate-prompt は prompt/trace の 2 phase 実行) が全て exit 0 で通り、未解決 TODO や未展開プレースホルダ {{...}} や英語仮文の残存(パラメーター名を除く)を検出した場合は Step 2 へ自律差し戻すことを lint で機械検証できる。
       verify_by: lint
     - id: IN2
       loop_scope: inner
@@ -116,7 +116,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 5. **handoff 保存**: 各ゲート通過時に `eval-log/handoff-<step>.json` を `schemas/handoff.schema.json` 準拠で残す。
 6. **resource-map 先読み**: `references/resource-map.yaml` を最初に読み、必要ファイルのみ open。
 7. **日本語成果物**: 本文・レビュー・完了レポートを日本語に保つ (パラメーター名・JSON キー・CLI 引数は英語)。
-8. **Markdown 既定**: 新規 prompt は `prompts/<R-id>-<slug>.md` で `references/seven-layer-markdown-template.md` 写経 (YAML は legacy のみ許容、新規禁止)。
+8. **Markdown 既定**: 新規 prompt は `prompts/<R-id>-<slug>.md` で `../run-prompt-creator-7layer/references/seven-layer-markdown-template.md` 写経 (YAML は legacy のみ許容、新規禁止)。
 9. **Layer 依存方向不変**: L7 → L6 → ... → L1。逆方向参照は C2 FAIL。
 10. **質ベース判定**: 数量カウント (3 つ以上等) を排し「実行可能か」「検証可能か」で判定。doc/prompt-creator/ 由来の核心原則。
 11. **要素原子性**: 1 フィールド=1 概念、1 値=1 短文 (50 字目安)。長文は分解。
@@ -144,7 +144,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 |---|---|---|
 | elicit (1/G1) | goals (成果状態)・checklist (item+judgement) を含む schema 準拠 brief が `eval-log/prompt-brief.json` に保存済み | R1 5.3 全充足 + Gate 1 ユーザー承認 (唯一の対話。否認は最大 3 周) |
 | build (2/-) | 7 層プロンプトと `eval-log/prompt-build-trace.json` (build-trace.schema.json 準拠・Layer coverage 全 PASS/N/A/skip 理由付き) が生成済み | trace schema 検証 exit 0 (Gate 2 前提) |
-| p0-lint (3a/G2) | manifest `phases[id=p0-lint].commands` (8 本) が全 exit 0 の状態 | 全 exit 0。fail / `TODO` / 未展開 `{{...}}` / 英語仮文残存 (パラメーター名除く) は findings 付きで build へ差し戻し (最大 3 周) |
+| p0-lint (3a/G2) | manifest `phases[id=p0-lint].commands` (9 コマンド、ユニークスクリプト 8 本) が全 exit 0 の状態 | 全 exit 0。fail / `TODO` / 未展開 `{{...}}` / 英語仮文残存 (パラメーター名除く) は findings 付きで build へ差し戻し (最大 3 周) |
 | design-evaluate (3b/-) | fork した evaluator の findings (`eval-log/docs/<NN>-<timestamp>.json`, findings.schema.json 準拠) に C1-C4 FAIL がない | FAIL は build へ自律差し戻し (最大 3 周)。未収束は governance へ昇格し solo_operator_auto 失効を判定 |
 | elegant-review (4/G3) | (new_prompt or diff>30 行のみ。判定 `scripts/evaluate-create-gates.py`) C1-C4 全 PASS | FAIL 残存時のみ停止し修正ループへ |
 | governance (5/G4) | preconditions (環境前提) 成立かつ `auto_approve_conditions` 全充足が各 evidence で機械評価済み → solo_operator_auto。不成立は `run-skill-rubric-governance` の手動承認確定 | manifest `governance.auto_approve_conditions` の evidence 全 PASS または手動承認 handoff (R3 5.3 全充足) |

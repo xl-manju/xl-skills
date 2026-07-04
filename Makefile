@@ -2,7 +2,7 @@
 # 二重正本 drift 防止: creator-kit/skills/ 変更後に sync ターゲットを実行すること。
 # CI では --check gate (harness-creator-kit-ci.yml) が走るため二重防護となる。
 
-.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
+.PHONY: sync sync-check lint plugin-package-check contract-intake vendored-ssot runtime-portability readme-portability prompt-contract-drift company-master-vendored config-version-lock feedback-contract content-review pytest coverage llm-coverage coverage-gate harness-coverage test help
 
 # LLM_COV_SINCE: 新規スキルの coverage gate 境界日。これ以降に since された loop-kind スキルは
 # coverage-gate で <80% なら fail-closed。既存スキルは ratchet で段階的に底上げ。
@@ -18,7 +18,7 @@ sync-check:
 	bash scripts/sync-skills-to-claude.sh --check
 
 ## lint: スキル lint 一式 + skill-intake contract test + vendored SSOT + runtime/README ポータビリティ + company-master vendored 検証を実行する
-lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readme-portability company-master-vendored
+lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readme-portability prompt-contract-drift company-master-vendored
 	python3 scripts/lint-skill-name.py --skills-dir plugins/harness-creator/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/harness-creator/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/harness-creator/skills
@@ -65,6 +65,13 @@ runtime-portability:
 ##   生ターミナル空展開事故の恒久再発を防ぐ (company-master deferred の文書層 lint 回収)。
 readme-portability:
 	python3 scripts/lint-readme-plugin-root-portability.py
+
+## prompt-contract-drift: 7 層プロンプトの契約記述 (参照 schema/reference/script パス・allowed-tools) が
+##   実装と乖離する再ドリフトを機械検出。Tier1 (参照パス実在) は fail-closed、
+##   Tier2 (allowed-tools) は forked 責務の binding 曖昧性ゆえ WARN (report-only)。
+##   content-review の LLM 監査に頼らず、schema 移動/削除時に即赤化して再発を封じる。
+prompt-contract-drift:
+	python3 scripts/lint-prompt-contract-drift.py --all
 
 ## company-master-vendored: company-master の scripts が外部依存ゼロ(空 vendor が正常)か機械検証
 company-master-vendored:

@@ -103,7 +103,7 @@ R4 は下記を**自分で実行せず** `assign-plugin-plan-evaluator` の `pla
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: run-plugin-dev-plan (検証フェーズ)
-- 後続 phase: 完了 (各 inventory component を run-skill-create へ委譲)
+- 後続 phase: 完了 (各 inventory component を handoff routes[] の builder へ component_kind 別に委譲: skill→run-skill-create / 非 skill capability→run-build-skill の kind dispatch / 共有 script→plugin-scaffold。SKILL.md「ハンドオフ (component_kind でルーティング)」表が正本)
 
 ### 6.2 ハンドオフ / 並列性
 - 直列: 検証 NG は R3 へ差し戻し。PASS なら handoff を出し計画を確定する

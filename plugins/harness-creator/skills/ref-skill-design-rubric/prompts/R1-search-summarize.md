@@ -20,39 +20,39 @@
 - **CONST_001 (rubric_version 一致)**: 応答の rubric_version が references/rubric.json と一致する。
   - 目的: caller が evaluator 出力の再現性を担保できるようにする。
   - 背景: rubric_version 不一致は採点結果の再現失敗の主因だった。
-- **CONST_002 (重み合計)**: matches[] の axis weight 合計が rubric 内合計 1.0 ±0.01 を破らない。
-  - 目的: 部分集合返却で重みが歪み採点が偏るのを防ぐ。
-- **CONST_003 (hint の根拠)**: 改善 hint は rubric 内の axis に紐づける (rubric 外 hint 禁止)。
-  - 目的: 存在しない axis での誤誘導を防ぐ。
+- **CONST_002 (severity 忠実転記)**: matches[] 各要素の severity は rubric.json の当該 rule の severity を逐語転記し、減点値を併記する場合は severity_weights (high -20 / medium -10 / low -3) に一致させる。
+  - 目的: severity や減点値を歪め採点が偏るのを防ぐ。
+- **CONST_003 (hint の根拠)**: 改善 hint は rubric 内の rule に紐づける (rubric 外 hint 禁止)。
+  - 目的: 存在しない rule での誤誘導を防ぐ。
 
 ### 1.2 倫理ガード
-- 存在しない axis / weight / rationale を捏造しない。
-- alias は rubric.json の `axes[].aliases` に明記されたものだけ採用。
+- 存在しない rule / severity / rationale を捏造しない。
+- 検索キーは rubric.json の `rules[].id / area / check / rationale` に実在する語のみ採用し、別名を捏造しない。
 
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: references/rubric.json から SKILL.md / agent / reference / schema / prompt 設計の採点軸を query に応じて抽出する。
+- 担当: references/rubric.json から skill / agent / hook / command / plugin-composition / prompt / workflow 設計の採点 rule (rules[]) を query に応じて抽出する (kind 語彙は rubric.json の applies_to_kinds に一致)。
 - 非担当: rubric の改訂、採点本体、SKILL.md の自動生成。
 
 ### 2.2 ドメインルール
-- `target_layer`: `skill | subagent | reference | schema | prompt | all` でフィルタ。
-- scope: `axes_only | weights_only | rationales_only | full`。
-- query は `axis.name / axis.aliases / axis.keywords` にあいまい一致で検索する。
-- 各 axis に rationale 1 行抜粋 + 改善 hint 1-3 件 (rubric 由来) を添える。
+- `target_layer`: `skill | agent | hook | command | plugin-composition | prompt | workflow | all` でフィルタ (all は rubric.json の applies_to_kinds='*' 共通核を含む全 kind)。
+- scope: `rules_only | weights_only | rationales_only | full`。
+- query は `rules[].id / area / check / rationale` にあいまい一致で検索する。
+- 各 rule に rationale 1 行抜粋 + 改善 hint 1-3 件 (rubric 由来) を添える。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
 |---|---|---|---|
-| query | string | yes | 探したい axis (例 progressive-disclosure / responsibility-separation) |
-| target_layer | enum | no | skill / subagent / reference / schema / prompt / all (既定 all) |
-| scope | enum | no | axes_only / weights_only / rationales_only / full (既定 full) |
+| query | string | yes | 探したい rule/area (例 progressive-disclosure / frontmatter / body) |
+| target_layer | enum | no | skill / agent / hook / command / plugin-composition / prompt / workflow / all (既定 all) |
+| scope | enum | no | rules_only / weights_only / rationales_only / full (既定 full) |
 
 ### 2.4 出力契約
 - inline schema (object, required: [rubric_version, summary, matches])
   - `rubric_version`: string
   - `summary`: string (50-800 字)
-  - `matches`: array<{axis: string, path: string, weight: number, rationale?: string}>
+  - `matches`: array<{id: string, area: string, severity: string, check: string, rationale?: string}>
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -71,7 +71,7 @@
 
 ### 4.1 失敗時挙動
 - rubric.json 欠損 → exit 1 + stderr に欠損 path。
-  - 目的: silent fallback で空 axes を返し caller が誤判定するのを防ぐ。
+  - 目的: silent fallback で空 matches[] を返し caller が誤判定するのを防ぐ。
 
 ### 4.2 観測 / ロギング
 - 標準出力に JSON。stderr は診断情報のみ。
@@ -85,18 +85,18 @@
 - ref-skill-design-rubric 配下の R1 SubAgent (context fork 推奨。caller context を汚さない)。
 
 ### 5.2 ゴール定義
-- **目的**: 呼出元 query に対し skill 設計 rubric の該当 axes / weights / rationale を target_layer 単位で返す。
+- **目的**: 呼出元 query に対し skill 設計 rubric の該当 rules / severity / rationale を target_layer 単位で返す。
 - **背景**: caller は skill 設計評価のみを必要とし、rubric 改訂は ref-* の責務外。改善 hint を rubric 外から捏造すると設計判断を誤らせるため rubric 内由来に限定する。
-- **達成ゴール**: query に該当する axes が version + target_layer フィルタ + rationale 1 行 + 改善 hint (rubric 内由来) 付きで引用され、weight 合計が 1.0 を破らず、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が評価にそのまま使える状態。
+- **達成ゴール**: query に該当する rules が version + target_layer フィルタ + rationale 1 行 + 改善 hint (rubric 内由来) 付きで引用され、各 severity が rubric.json 記載通りで、呼出元責務外情報を含まず、概ね 50 行 / 2KB 以内で caller が評価にそのまま使える状態。
 
 ### 5.3 完了チェックリスト (停止条件)
-- [ ] 全 matches[] が references/rubric.json の実在 axis から逐語引用されている
+- [ ] 全 matches[] が references/rubric.json の実在 rule から逐語引用されている
 - [ ] 呼出元責務外の情報 (rubric 改訂 / skill 実装) を含まない
 - [ ] 出力が 50 行 / 2KB 目安以内に収まる
 - [ ] rubric_version が references/rubric.json と一致している
 - [ ] target_layer フィルタが守られている
-- [ ] matches[].weight 合計が 1.0 ±0.01 を破らない
-- [ ] 改善 hint が rubric 内 axis に紐づいている (捏造禁止)
+- [ ] matches[].severity が rubric.json の当該 rule の severity と一致している
+- [ ] 改善 hint が rubric 内 rule に紐づいている (捏造禁止)
 - [ ] summary が 50-800 字に収まる
 - [ ] 該当ゼロ時は `matches: []` + `suggestions` を返す (exit 0)
 
@@ -125,8 +125,8 @@
 ## 正規化方針 (auto-applied)
 
 - query: NFKC + lowercase + 半角空白 → `-` 連結 (例 "progressive disclosure" → `progressive-disclosure`)。
-- 期待マッチ axis は rubric.json の axes[].id / axes[].keywords を走査して動的解決。
-- 0 件ヒット時は近傍 axis (Levenshtein <= 2) を `suggestions` に最大 3 件、超過は提示しない。
+- 期待マッチ rule は rubric.json の rules[].id / area を走査して動的解決。
+- 0 件ヒット時は近傍 rule (Levenshtein <= 2) を `suggestions` に最大 3 件、超過は提示しない。
 
 ## 出力指示 (LLM 実行時に読む箇所)
 

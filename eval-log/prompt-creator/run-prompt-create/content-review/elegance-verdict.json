@@ -2,37 +2,34 @@
   "target": {
     "plugin": "prompt-creator",
     "skill": "run-prompt-create",
-    "skill_md_sha256": "8d80823ac31179c935f6b0d215c90484d4540da725664d7e9ba7f1a3cfbfe386"
+    "skill_md_sha256": "ad6ed915a10391609641c6d8844f33666230dbf03466487ff9ad749d6e086cfc"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "reviewer": "independent-rename-review-subagent-f",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
-  "iterations": 1,
-  "human_review_required": false,
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 2
+    "smell": 0
   },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:21Z",
+  "iterations": 1,
+  "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "改名 (skill-creator→harness-creator) の参照追従が C4 依存整合で健全: L188 の子スキル列挙で委譲先 `run-elegant-review (harness-creator)` と `run-skill-rubric-governance (harness-creator)` が plugin 修飾つきで正しく注記され、いずれも plugins/harness-creator/skills/ 配下に実在。意味論境界も正確 — plugin 名参照は harness-creator、単体スキル操作 (run-elegant-review/run-skill-rubric-governance) は skill 表現を維持。旧固有名 (skill-creator/skill_creator/スキルクリエイター) の残存は本 SKILL.md 全文 grep で 0 件。",
-      "宣言型 orchestrator 設計が一貫: invariant『手順の機械正本は workflow-manifest.json、散文はゴール+完了条件のみ宣言』と本文 (Phase 別ゴール表・概観図注記・Gotchas 6 二重管理禁止) が整合し、Phase 表 7 行 (elicit/build/p0-lint/design-evaluate/elegant-review/governance/report) の step/gate/handoff×7 が manifest 実体と対応。Gate 1 唯一対話+Gate 2-4 機械評価 (user_question_budget=1) が invariant/Key Rules 1-2/概観図★で統一。",
-      "OUT1 (責務単一性) 健全: orchestrator は制御専従で各 phase を独立 Skill へ委譲し、evaluator/governance reviewer の context:fork 強制で Sycophancy を防止。frontmatter の script_refs (evaluate-create-gates.py・../run-prompt-creator-7layer/scripts/×2)・schema_refs 4 本・prompts R1-R3 が全て実在し、L7→L1 依存不変の差し戻し設計と合わせて再現性目的に過不足なし。"
+      "C3 整合性が向上: IN1 (L71) と Phase 表 p0-lint 行 (L147) の本数表記が旧『8 本』から『9 コマンド (ユニークスクリプト 8 本、validate-prompt は prompt/trace の 2 phase 実行)』へ揃い、workflow-manifest.json phases[id=p0-lint].commands の実体 9 要素 (distinct script 8 本・validate-prompt.py が --phase prompt/trace の 2 相) と粒度・両表記が完全一致。前回 verdict の low smell (本数粒度不一致) が構造的に解消。",
+      "C4 依存整合が向上: Key Rule 8 (L119) のテンプレ参照が旧 `references/seven-layer-markdown-template.md` (本 skill references/ に不在) から `../run-prompt-creator-7layer/references/seven-layer-markdown-template.md` へ修正され、相対パスが plugins/prompt-creator/skills/run-prompt-creator-7layer/references/seven-layer-markdown-template.md (実在) に正しく解決。本 skill references/ には governance-params.json・resource-map.yaml のみで正本 skill 直結の導線が明確化。",
+      "OUT1 (責務単一性) 健全維持: orchestrator は制御専従で各 phase を独立 Skill へ委譲し、evaluator/governance reviewer を context:fork 強制 (invariant L31・Key Rule 4) で Sycophancy 防止。script_refs (evaluate-create-gates.py・../run-prompt-creator-7layer/scripts ×2)・schema_refs 4 本・prompts R1-R3 が全て実在し、L7→L1 依存不変の差し戻し設計と合わせ再現性目的に過不足なし。"
     ],
-    "negative_feedback": [
-      "[low/smell] (改名非依存・HEAD 継承) p0-lint の本数表記: IN1 と Phase 表 (L147) が『8 本』と記すが manifest phases[id=p0-lint].commands はコマンド粒度では 9 呼び出し (validate-prompt.py が prompt/trace 2 相で 2 回実行、distinct script は 8 本)。規範条件は『全 exit 0』で本数非依存ゆえ実害なし。次回改訂で粒度明示を推奨。",
-      "[low/smell] (改名非依存・HEAD 継承) Key Rule 8 の `references/seven-layer-markdown-template.md` は本 skill の references/ に不在で正本は run-prompt-creator-7layer/references/ 配下。prompts/*.md 冒頭注記で正本 skill が示されるため断線ではないが、resource-map.yaml 未掲載で参照導線が一段弱い。"
-    ],
+    "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名後の genuine 再評価。主眼は改名の C4 依存整合と意味論境界: L188 の harness-creator 修飾つき委譲先 2 件 (run-elegant-review/run-skill-rubric-governance) の実在、全ローカル参照 (evaluate-create-gates.py/workflow-manifest.json/prompts R1-R3/schemas 4 本) の実在、旧固有名残存 0 を実測確認。4 条件 (矛盾なし/漏れなし/整合性/依存整合) いずれも改名由来の defect なし。残 negative 2 件はいずれも改名と無関係の HEAD 継承 low smell (本数表記粒度・参照導線) で挙動矛盾・断線に非ず。PASS。"
+  "notes": "現 SHA (ad6ed915...) の SKILL.md を read-only 逐一照合した genuine 再評価。変更点=(1) IN1 と Phase 表の p0-lint 本数表記を『8 本』→『9 コマンド (ユニークスクリプト 8 本、validate-prompt 2 phase)』へ精緻化、(2) Key Rule 8 テンプレ参照を隣接 skill の相対パスへ是正。前回 verdict の残 low smell 2 件を狙って解消したもので、manifest commands=9・テンプレ実在・本 skill references/ 不在を実測確認済み。4 条件 (矛盾なし/漏れなし/整合性/依存整合) 全 PASS、smell=0。PASS。"
 }

@@ -14,7 +14,7 @@
       "entryHook": null,
       "exitHook": "validate-snapshot-hash",
       "resourceIds": ["ref-canonical-snapshot", "ref-abstraction-contract"],
-      "fatal_exit_codes": [2, 3]
+      "fatal_exit_codes": [64]
     },
     {
       "id": "P2-fidelity-check",

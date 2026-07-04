@@ -69,7 +69,7 @@ Layer マッピング:
 
 | 次元 | 客観判定基準 (PASS 条件) |
 |---|---|
-| 完全性 | brief.responsibilities[] の全 id に対応する `prompts/R*.yaml` と SubAgent.md anchor が 1:1 存在 |
+| 完全性 | brief.responsibilities[] の全 id に対応する `prompts/R*.md` (R2 正本 `prompts/<R-id>.md` 命名) と SubAgent.md anchor が 1:1 存在 |
 | 一貫性 | frontmatter.kind と variant_support.prefix が一致、prompts/ 配置が path_convention と完全一致 |
 | 深度 | 26-35 章の `*_model` キー全件が reproducibility-trace に反映 (欠落 0) |
 | 検証可能性 | validate-build-trace.py と lint-agent-prompt-section.py 双方が exit 0 |

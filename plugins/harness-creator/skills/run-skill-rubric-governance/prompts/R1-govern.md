@@ -74,7 +74,7 @@
 ### 5.4 完了チェックリスト
 - [ ] proposal が schema PASS (`templates/proposal.json` 構造合致)
 - [ ] 影響評価ログが存在 (`log/impact.jsonl` にエントリ)
-- [ ] `proposer != approver` (`log/review.jsonl` の actor 不一致)
+- [ ] `proposer != approver` (`proposal.json` の `reviewers.proposer != reviewers.approver`)
 - [ ] 猶予 lint 実施済 (`log/grace.jsonl` にエントリ)
 - [ ] `rubric_version` bump 済み (`log/enact.jsonl` + rubric.json 更新)
 - [ ] `uncertain` フラグの適切運用 (推測を事実として述べない)
@@ -88,13 +88,13 @@
 6. 上限到達 / 影響閾値超 / approve 不成立時は board escalation。
 
 ### 5.6 ビジネスルール
-- CONST_001: approver は `governance-params.json` の roster / solo_operator_mode で決定。
+- CONST_001: approver は `references/governance-board.md` の 4 ロール規約 (Proposer/Reviewer/Approver/Tooling・兼任不可) と議決ルール (major=Approver 2 名以上 / minor·patch=Approver 1 名+Reviewer 1 名) に従い決定。
 - CONST_002: 自己承認禁止。
 
 ### 5.7 インターフェース
 - 入力: `proposal_path` (templates/proposal.json 構造準拠 + proposer 識別可能。欠損で fatal_exit_code=2)
 - 出力: `log/*.jsonl` → `assign-skill-design-evaluator / board`
-  - 形式: `{ "phase", "actor", "decision", "metadata" }` 構造の JSONL
+  - 形式: `schemas/output.schema.json` 準拠 JSONL。必須キー `{ "proposal_id", "phase", "rubric_version", "decision" }` + 任意 `impact_summary` / `violations` (`additionalProperties:false` ゆえ他キー不可)。proposer≠approver は `proposal.json` の `reviewers` を参照
 
 ### 5.8 依存関係
 - 前提: なし
