@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# /// script
+# name: compute-dogfooding-metrics
+# version: 0.1.0
+# purpose: plugins/harness-creator/ を走査し dogfooding メトリクス6種を集計、
+#          EVALS.json の dogfooding_metrics キーへ upsert する自己適用計測器。
+# inputs:
+#   - argv: [--dry-run] [--plugin-root <dir>]
+#   - files: lessons-learned/*.md / plugin-composition.yaml / .claude-plugin/plugin.json / rubric.json
+#   - git: マージ commit 数・rubric version 変更履歴 (subprocess 経由 read-only)
+# outputs:
+#   - stdout: 集計サマリ JSON (--dry-run 時)
+#   - exit: 0=集計成功 / 1=失敗 (traceback)
+# contexts: [E]
+# network: false
+# write-scope: EVALS.json (dogfooding_metrics キーのみ upsert・--dry-run で抑止)
+# dependencies: ["pyyaml; optional (不在時は capability_count_by_kind を skip)"]
+# requires-python: ">=3.9"
+# ///
 """
 dogfooding メトリクス集計スクリプト。
 

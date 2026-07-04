@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "ecf74e4e63704648b10229acdd1e96d031501001a95c6fa6f2e0036cd83f6b20"
+    "skill_md_sha256": "6042d32c903713c99be923694c92dbccba653a073fd62702ad76a0cc5cf621e9"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -13,25 +13,27 @@
     "dependency_break": 0,
     "smell": 1
   },
-  "reviewer": "independent-7layer-subagent-rubric",
-  "reviewed_at": "2026-07-03T09:32:06+09:00",
+  "reviewer": "independent-merge-reconcile-subagent-rubric",
+  "reviewed_at": "2026-07-04T12:55:46+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "完全性=3: frontmatter の responsibility_refs/script_refs(15)/reference_refs(7)/agent_refs(3)/command_refs/hook_refs/harness_refs/schema_refs を stat で全数検査し dangling 0 件を実測 (34/34 OK)。core 5+拡張ゲート 6 の 11 script・schemas・prompts・references が全て実在。kind=run 必須サポート資産 (scripts/tests/references/examples/sample-plan) 完備。",
-      "一貫性=3: 主要変更点『3 agent を自己完結型 7 層 SubAgent へ位置づけ』が SKILL.md L193・plugin-composition.yaml L14・commands/plugin-dev-plan.md L44・agents/*.md L17 の 4 面で用語も含め一致 (grep 実測)。SKILL.md 内に旧『薄いアダプタ』表記の残置 0 件。isolation 記述 (elicitor=inherit / architect=fork / evaluator=fork) が 3 agent の frontmatter 実値と完全一致 (grep 実測)。pipeline 単方向 handoff・proposer≠approver の skill 分離も矛盾なし。",
-      "深度=3: goal-seek と固定出力形状の直交・緑のパラドクス (全ゲート PASS だが purpose 未達の空プラグイン) を purpose-traceability fail-closed で弾く設計・Goodhart 回避 (現状数値非焼込)・カレンダー freshness を time-bomb アンチパターンとして敢えて排し実ドリフト検知 3 辺へ委ねる判断など、表層でなく trade-off と既知失敗パターンまで掘り下げた根拠が随所にある。",
-      "検証可能性=3: 『7 層準拠は verify-completeness.py で機械検査する』の裏取りとして正準 validator plugins/prompt-creator/skills/run-prompt-creator-7layer/scripts/verify-completeness.py の実在を確認し、3 agent 全てに対し --input 実行で exit0 (l5-contract v2.0.0 PASS) を実測。CI wiring も tests/test_plugin_surfaces.py::test_agents_pass_canonical_seven_layer_verify (L58-74) が subprocess で同 validator を回し returncode==0 を assert、test_agents_are_self_contained_seven_layer_subagents が owner_skill/responsibility_id/isolation/source と『薄いアダプタ』非在を機械固定。数値・コマンド・二値判定 (core 5/6 invocations・≥80%・13 phase・46 行) 豊富。",
-      "簡潔性=2: 本文 215 行で lint-skill-tree P0-2 の 300 行上限内。詳細は references/*.md へ委譲し二重管理を回避。"
+      "完全性=3: frontmatter の *_refs 全 35 参照 (responsibility 4/script 15/reference 7/agent 3/command 1/hook 1/harness 2/schema 2) を SKILL ディレクトリ起点で resolve し dangling 0 を実測 (MISSING NONE)。合成 2 変更の触れる資産 (agent_refs 3 本・command_refs plugin-dev-plan.md・呼称先 plugin-compose.md) が全て実在。core 5+拡張ゲート 6 の 11 script・schemas・prompts・references 完備。",
+      "一貫性=3: main 側変更『3 agent を自己完結型 7 層 SubAgent へ位置づけ』が SKILL.md L193・agents/*.md frontmatter+本文で用語一致し旧『薄いアダプタ』残置 0 (grep 実測)。branch 側変更『/plugin-compose (unprefixed)』が SKILL.md L271 の 1 箇所のみで一貫し旧 `harness-creator:plugin-compose` 残置 0 (grep 実測)。2 変更は別セクションで参照対象が直交し相互矛盾なし。isolation 3 値 (inherit/fork/fork) が 3 agent frontmatter 実値と完全一致。",
+      "深度=3: goal-seek と固定出力形状の直交・緑のパラドクス (全ゲート PASS だが purpose 未達の空プラグイン) を purpose-traceability fail-closed で弾く設計・Goodhart 回避 (現状数値非焼込)・カレンダー freshness を time-bomb アンチパターンとして敢えて排し実ドリフト検知 3 辺へ委ねる判断・envelope owner の unprefixed 呼称を『clone 専用基盤ゆえ project-local が正本』と根拠付けて namespaced prefix を排する判断など、表層でなく trade-off と既知失敗パターンまで掘り下げた根拠が随所にある。",
+      "検証可能性=3: 『7 層準拠は verify-completeness.py で機械検査する』の裏取りとして正準 validator (10867B) 実在確認 + 3 agent 全て --input 実走で exit0 (l5-contract v2.0.0 PASS) を実測。CI wiring も tests/test_plugin_surfaces.py::test_agents_pass_canonical_seven_layer_verify が subprocess で同 validator を回し returncode==0 を assert、test_agents_are_self_contained_seven_layer_subagents が owner_skill/responsibility_id/isolation と『薄いアダプタ』非在を機械固定 (pytest 12 passed 実走)。branch 変更側も呼称先 plugin-compose.md の実在を stat で検証可能。数値・コマンド・二値判定豊富。",
+      "簡潔性=2: 本文 313 行 (末尾) 構成だが core 詳細は references/*.md へ委譲し二重管理を回避。L193 の agent 配線記述が単一の高密度長段落 (pipeline/isolation/Bash 依存検証を 1 段落へ凝縮) で可読性がやや低い点が簡潔性を 3 でなく 2 に留めるが、情報欠落はなく非ブロッキング。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "[smell/low, 非ブロッキング] SKILL.md L193 の agent 配線記述が単一の高密度長段落に pipeline (elicitor→architect→evaluator)・isolation 3 値・R 責務写像・Bash 依存検証・proposer≠approver まで詰め込まれ可読性がやや低い (簡潔性=2 の要因)。情報は完全で欠落なく、合成後も矛盾を生まないため非ブロッキング。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SKILL.md sha256=ecf74e4e63704648b10229acdd1e96d031501001a95c6fa6f2e0036cd83f6b20 を shasum -a 256 で実測。旧 verdict は sha=a5bc76719dd5cdc9f032ef8140275a487a6085072de7988a5b781e632840ee9d (reviewed_at 2026-07-02T22:00:00) を pin しており、その後 3 agent を『薄いアダプタ』から『自己完結型 7 層 SubAgent (7 層本文自持・verify-completeness.py 機械検査)』へ位置づけ変更する SKILL.md 編集 (特に L193) で本文が変わり sha が乖離→stale 化していた。5 次元 genuine 採点=完全性3/一貫性3/深度3/検証可能性3/簡潔性2、全次元>=2 かつ FM/BD/NM/PD 系ブロッキング規範違反 0 (contradiction/omission/inconsistency/dependency_break=0)。裏取り実測: (a) frontmatter 参照 34/34 が stat で解決 dangling 0、(b) 『自己完結型 7 層 SubAgent』が composition/command/agents で用語一致・SKILL.md 内『薄いアダプタ』残置 0、(c) verify-completeness.py 実在かつ 3 agent 全て exit0、(d) test_plugin_surfaces.py が同 validator を CI ゲートとして配線・isolation 3 値も frontmatter 実値と一致。smell=1 は L193 の agent 配線記述が単一の高密度長段落に pipeline/isolation/Bash 依存検証まで詰め込まれ可読性がやや低い点 (非ブロッキング・簡潔性2 の要因) を記録したもの。criteria_evaluated は frontmatter feedback_contract.criteria の id (IN1/IN2/OUT1/OUT2) に一致。"
+  "notes": "①再評価理由: feature ブランチが origin/main をマージした結果、SKILL.md が main 側変更 (L193: 3 agent 位置づけを『薄いアダプタ』→『自己完結型 7 層 SubAgent』へ変更・7 層準拠を verify-completeness.py で機械検査) と branch 側変更 (L271: envelope owner 呼称 `/harness-creator:plugin-compose` → `/plugin-compose` unprefixed + namespaced prefix 非付与注記) の合成となり、旧 verdict が pin していた sha=ecf74e4e63704648b10229acdd1e96d031501001a95c6fa6f2e0036cd83f6b20 が stale 化した。②現 sha=6042d32c903713c99be923694c92dbccba653a073fd62702ad76a0cc5cf621e9 を shasum -a 256 で実測 (旧 ecf74e4e を上書き)。③5 次元 genuine 採点=完全性3/一貫性3/深度3/検証可能性3/簡潔性2 (全次元>=2)、かつ FM/BD/NM/PD 系ブロッキング規範違反 0 (contradiction/omission/inconsistency/dependency_break=0)。裏取り実測: (a) frontmatter 35 refs 全て resolve dangling 0、(b) 『自己完結型 7 層 SubAgent』が SKILL.md/agents 本文+frontmatter で用語一致・SKILL.md 内『薄いアダプタ』残置 0、(c) `/plugin-compose` の実体 plugins/harness-creator/commands/plugin-compose.md 実在 (3955B)・旧 namespaced `harness-creator:plugin-compose` 残置 0、(d) verify-completeness.py 実在(10867B)+3 agent exit0+test_plugin_surfaces.py が CI ゲート配線 (pytest 12 passed)。④両変更は SKILL.md の別セクションにあり参照対象が直交するため合成が新たな不整合/依存断裂を生まない。⑤criteria_evaluated は frontmatter feedback_contract.criteria の id (IN1/IN2/OUT1/OUT2) に一致。smell=1 は L193 の高密度長段落 (非ブロッキング・簡潔性2 の要因)。C1-C4 ハードカテゴリ全 0 につき PASS。"
 }

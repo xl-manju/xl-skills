@@ -50,9 +50,10 @@
       "id": "script-frontmatter",
       "script": "lint-script-frontmatter.py",
       "contexts": [
-        "build-preflight"
+        "build-preflight",
+        "ci"
       ],
-      "ci_exclusion_reason": "既存 scripts に # /// script frontmatter 未整備が残存するため CI 配線は棚卸し後 (2026-07-02 時点の既知債務。build-preflight では新規生成物のみ対象のため有効)"
+      "ci_scope": "governance-check.yml で plugins/harness-creator/scripts (plugin-root 直下 scripts) を CI 配線し、メタプラグイン自身の flow-level scripts の frontmatter 自己免除を解消 (dogfooding 破れの中核=compute-dogfooding-metrics.py/notion_config.py を封鎖)。plugins/harness-creator/skills/*/scripts と full plugins/ tree は既存 backlog (PENDING_FILES + hook scripts 等 16 本) で未配線=段階棚卸し後に拡張する。build-preflight は従来どおり新規生成物を強制。"
     },
     {
       "id": "skill-completeness",

@@ -60,6 +60,27 @@ def test_plugin_goal_spec_rejects_bad_slug(plugin_goal_spec):
     assert any("ASCII kebab-case" in e for e in errors)
 
 
+def test_plugin_goal_spec_rejects_plan_dir_slug_mismatch(plugin_goal_spec):
+    """plan_dir が target_plugin_slug 由来の正本と食い違えば再現性アンカー違反 (out_dir 未指定時)。"""
+    data = _goal_spec()
+    data["plan_dir"] = "plugin-plans/some-other-dir"  # slug=notion-task-sync と不一致
+
+    errors = plugin_goal_spec.validate(data)
+
+    assert any("再現性アンカー" in e for e in errors), errors
+
+
+def test_plugin_goal_spec_accepts_explicit_out_dir(plugin_goal_spec):
+    """out_dir 明示時は plan_dir==正規化 out_dir なら受理 (slug 由来既定でなく out_dir を正本にする)。"""
+    data = _goal_spec()
+    data["out_dir"] = "custom/plans/x"
+    data["plan_dir"] = "custom/plans/x"
+
+    errors = plugin_goal_spec.validate(data)
+
+    assert not any("再現性アンカー" in e for e in errors), errors
+
+
 def test_plugin_goal_spec_rejects_unknown_force_13(plugin_goal_spec):
     """per-phase 転換で force_13 は廃止。残置すると additionalProperties でエラー。"""
     data = _goal_spec()

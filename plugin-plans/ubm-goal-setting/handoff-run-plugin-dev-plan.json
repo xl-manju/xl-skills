@@ -328,7 +328,7 @@
       "id": "GAP-KNOWLEDGE-003",
       "severity": "low",
       "status": "resolved-design-residual-build",
-      "text": "knowledge の data-tier 設計は確定済み (単一の vendor/非vendor判断でなく data-tier 3層: L1 curated=28 category JSON+router.jsonをplugin同梱シードとしてvendor / L2 raw vault sources=05_Project/UBM等の生ソースでUBM_VAULT_ROOTから外部解決 / L3 bookkeeping=registry.json+sync-log.jsonl+kitahara-principles-db.mdを空seedとしてvendorしinstall後はwriteback-configで書込先解決)。schema.jsonはplugin-root共有surfaceへhoistしC16/C17が対称参照する。残る低リスクは L3 書込先解決 (writeback-config) の具体実装で、これは build 段階 (P05) で確定する (設計は closed・実装のみ P05 へ残置)"
+      "text": "knowledge の data-tier 設計は確定済み (単一の vendor/非vendor判断でなく data-tier 3層: L1 curated=28 category JSON+router.jsonをplugin同梱シードとしてvendor / L2 raw vault sources=05_Project/UBM等の生ソースでUBM_VAULT_ROOTから外部解決 / L3 bookkeeping=registry.json(実台帳初期シード・処理済み74ファイル)+sync-log.jsonl(空の初期シード)+kitahara-principles-db.mdをvendorしinstall後はwriteback-configで書込先解決)。schema.jsonはplugin-root共有surfaceへhoistしC16/C17が対称参照する。残る低リスクは L3 書込先解決 (writeback-config) の具体実装で、これは build 段階 (P05) で確定する (設計は closed・実装のみ P05 へ残置)"
     },
     {
       "id": "GAP-SCRIPT-BUILDER",

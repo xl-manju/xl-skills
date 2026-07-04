@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+# /// script
+# name: notion_config
+# version: 0.1.0
+# purpose: Per-repository Notion 設定 (DB ID / API キー / parent page) を解決する
+#          vendored 共有 loader。単独 install でも repo-root 非依存で動く多段フォールバック探索を持つ。
+# inputs:
+#   - env: NOTION_CONFIG_PATH (最優先) / CLAUDE_PLUGIN_ROOT
+#   - files: .notion-config.json (repo-root or plugin-root) / notion-config.fixed.json
+# outputs:
+#   - return: config dict / DB ID / token を呼び出し側 module へ返す (stdout 出力なし)
+#   - exit: なし (import して関数利用する library)
+# contexts: [C, E]
+# network: false
+# write-scope: none
+# dependencies: []
+# requires-python: ">=3.9"
+# ///
 """Per-repository Notion configuration loader (SSOT, vendored into each plugin).
 
 harness-creator / skill-intake に vendoring 実体として同梱され、各環境固有の
