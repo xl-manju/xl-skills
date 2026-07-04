@@ -28,7 +28,7 @@ P01 で確定した goal-spec を、実際に build 可能な実体へ落とす�
 
 ## ドメイン知識
 - 二相 skill build: C01-C03 (script) は toposort 上 C16/C17 (親 skill) より先に build されるが build_target は親 skill 配下パスであるため、「run-skill-create が空 scaffold を先行生成→parent-skill-build が scripts/ を充填」の二相で調停する (`component-inventory.json` の `build_sequencing_notes` が正本)。
-- data-tier 3 層: knowledge は単一の vendor/非vendor 判断でなく L1 curated (vendor同梱シード)/L2 raw vault sources (外部 env 解決)/L3 bookkeeping (空seed+writeback-config) で設計する。
+- data-tier 3 層: knowledge は単一の vendor/非vendor 判断でなく L1 curated (vendor同梱シード)/L2 raw vault sources (外部 env 解決)/L3 bookkeeping (registry.json=実台帳初期シード / sync-log.jsonl=空の初期シード + writeback-config) で設計する。
 - 消費者ゼロ leaf の DROP 判断: 旧 phase3-interviewer は新プラグインの別名前空間では旧呼出し元が到達せず inbound depends_on 0 になるため独立 component 化せず phase3-coordinator+steps1-5 への統合として扱う。
 - その他の plan 全体用語 (component_kind 5 種の定義等) は index `## ドメイン知識` を参照。
 

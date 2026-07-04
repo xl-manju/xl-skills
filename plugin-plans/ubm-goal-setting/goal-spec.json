@@ -52,7 +52,7 @@
     }
   ],
   "constraints": [
-    "knowledge JSON の正確な件数はR2の実棚卸しで確定する。ここでは6カテゴリ×複数ファイルの概数として扱う",
+    "knowledge JSON は6カテゴリ計28 category JSON(R2実棚卸しで確定・router.json集計155エントリ)",
     "既存 shell script (.sh) はプラグイン規約 (stdlib Python) に反しており R3 で書き換えが必須。挙動の逐語移植でなく検知/検証ロジックの契約移植を優先する",
     "配布は個人利用想定でmarketplace既定オフ寄りだが、最終判断はR2/R3のplugin_meta.distributionに委ねる",
     "移植元 (~/dev/dev/ObsidianMemo/.claude/ 配下) は読み取り専用ソースであり、フォーク・複製は禁止。抽出/参照のみで移植すること"

@@ -60,7 +60,7 @@ plugin_meta:
 - **件数の軸区別と C14 欠番**: 移植元 sub-agent は原資産 **11 本** (旧 phase3-interviewer 含む)、うち 1 本 DROP で生成する active component は **10 本** (C05-C13, C15)。以降「11 本」=原資産棚卸し値・「10 本」=生成 component 数として使い分ける。id **C14** は当初 phase3-interviewer へ割当てていたが DROP 統合につき欠番とし、既存参照 (C15-C19) を壊さぬよう再採番せず id 安定性のため意図的に空けたまま保持する (機械ゲートは id 連続性を要求しない)。
 - **phase ≠ component**: 13 はフェーズ数の固定値、N=18 は buildable 実体数で独立に決まる。phase は `entities_covered: [C01, ...]` の id 参照のみで component に紐づく。
 - **移植 (port) ≠ greenfield**: 本 plan は既存資産 (`~/dev/dev/ObsidianMemo/.claude/` 配下) の faithful-transfer+adapt であり、13 phase 構造自体は保持しつつ P01=要件棚卸し・P02=再設計でなく写像設計という性格を持つ。
-- **data-tier 3 層**: knowledge は単一の vendor/非vendor 判断でなく L1 curated (28 category JSON+router.jsonをplugin同梱シード) / L2 raw vault sources (`UBM_VAULT_ROOT`で外部解決) / L3 bookkeeping (registry.json/sync-log.jsonl/kitahara-principles-db.mdを空seed+writeback-config) で扱う。
+- **data-tier 3 層**: knowledge は単一の vendor/非vendor 判断でなく L1 curated (28 category JSON+router.jsonをplugin同梱シード) / L2 raw vault sources (`UBM_VAULT_ROOT`で外部解決) / L3 bookkeeping (registry.json=実台帳初期シード[処理済み74ファイル] / sync-log.jsonl=空の初期シード[0エントリ] / kitahara-principles-db.md + writeback-config) で扱う。
 - **二相 skill build**: C01-C03 (script) は toposort 上 C16/C17 (親 skill) より先に build されるが build_target は親 skill 配下パスであるため、「run-skill-create が空 scaffold 先行生成→parent-skill-build が scripts/ を充填」の二相で調停する。
 
 ## インフラ
@@ -77,7 +77,7 @@ plugin_meta:
   | harness_eval | required | `EVALS.json` (owner: P06) + `plugin_meta.harness_eval` |
   | references_config_assets | required | reference 8本+asset 5本の per-file build_target を `component-inventory.json` の `plugin_level_surfaces.references_config_assets.files` に列挙、`plugin_meta.ssot_dedup` に記録 |
   | schemas | required | `plugins/ubm-goal-setting/knowledge/schema.json` (C16/C17 が対称参照する plugin-root 共有 surface) |
-  | vendor | required | component inventory の `plugin_level_surfaces.vendor.tiers` (L1 curated=北原知見本体28JSON+router.jsonをvendor同梱シード / L2 raw vault sources=`UBM_VAULT_ROOT`で外部解決 / L3 bookkeeping=registry.json+sync-log.jsonl+kitahara-principles-db.mdを空seed+writeback-config) |
+  | vendor | required | component inventory の `plugin_level_surfaces.vendor.tiers` (L1 curated=北原知見本体28JSON+router.jsonをvendor同梱シード / L2 raw vault sources=`UBM_VAULT_ROOT`で外部解決 / L3 bookkeeping=registry.json(実台帳初期シード)+sync-log.jsonl(空の初期シード)+kitahara-principles-db.md を writeback-config) |
   | notion_config | omitted | component inventory の `plugin_level_surfaces.notion_config.omitted_reason` (機能上 Notion 非使用。harness-creator メタ改善ループの feedback 受け皿は `plugin_meta.feedback_deploy.notion_sink` で別途宣言) |
   | mcp_app_connector | omitted | component inventory の `plugin_level_surfaces.mcp_app_connector.omitted_reason` |
 
@@ -123,7 +123,7 @@ plugin_meta:
 
 ## 受入確認 (build 後の見方)
 
-> 計画 (上記) が満たすのは「各 component が評価基準を携帯し決定論ゲートを通る」こと。**組み上がった実プラグインが当初 purpose を満たすか**は build 後に下記で確認する。plan は受入基準を**契約として焼く**だけで、実行は後段 build (run-skill-create の harness criteria-test)。purpose の正本 = `goal-spec.purpose`「UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 harness-creator の量産規律を継承した 1 plugin へ漏れなく移植する」。なお本表・C16 goal・C16 criteria(IN1)・C01 purpose に反復出現する「統一ハイブリッド構造 21 項目」の定義正本は、移送される reference `references/output-formats.md` + `references/data-contract.md`(`plugin_level_surfaces.references_config_assets.files` に列挙)であり、validate-goal-output.py はこの正本に基づき 21 項目を検査する(数値が宙に浮かないよう定義元をここに pin する)。
+> 計画 (上記) が満たすのは「各 component が評価基準を携帯し決定論ゲートを通る」こと。**組み上がった実プラグインが当初 purpose を満たすか**は build 後に下記で確認する。plan は受入基準を**契約として焼く**だけで、実行は後段 build (run-skill-create の harness criteria-test)。purpose の正本 = `goal-spec.purpose`「UBM(北原さん式ゴールセッティング)の目標設定・振り返り対話機能とナレッジ差分同期機能一式を、新 harness-creator の量産規律を継承した 1 plugin へ漏れなく移植する」。なお本表・C16 goal・C16 criteria(IN1)・C01 purpose に反復出現する「統一ハイブリッド構造 21 項目」の定義正本は、移送される reference `references/output-formats.md` + `references/data-contract.md`(`plugin_level_surfaces.references_config_assets.files` に列挙)であり、validate-goal-output.py はこの正本に基づき 21 項目を検査する(数値が宙に浮かないよう定義元をここに pin する)。対称的に、C06 output-formatter description・C16 checklist/responsibilities に現れる「15 項目品質チェック」の定義正本は、output-formatter sub-agent prompt の『品質チェックリスト(コンテンツ検証)』節(移送元 `agents/output-formatter.md` 由来・prompt に同伴して移送)+ `references/output-formats.md` の公式 21 項目ブロック順であり、21 項目=出力構造の充足・15 項目=保存前コンテンツ検証と役割を区別する。
 
 | 受入観点 (purpose 由来) | 確認の見方 (build 後) | 焼き先 |
 |---|---|---|
@@ -133,6 +133,7 @@ plugin_meta:
 | vault固有パスが変数化され移植先非依存 | `UBM_VAULT_ROOT` 環境変数を差し替えても同一挙動になる (L2 raw vault sources のみ。L1 curated knowledge は vendor 同梱のため差し替え不要) | envelope-draft/plugin.json の config.vault_root_env |
 | fresh-install 直後から知識ベースが機能する | install 直後 (vault 未接続でも) info-collector が vendor 同梱の L1 curated knowledge (router.json→knowledge/*.json) を読めることを確認する | plugin-root `knowledge/` の vendor tiers (L1_curated_seed) |
 | 破壊的書き込みで元資産が消えない | ubm-write-path-guard hook が vault 外/禁止パスへの書き込みを fail-closed で阻む | guard hook (C04) |
+| 目標保存後にDailyノート参照が最新化される | 目標保存後 Templates/Daily.md の種別該当embedが最新目標ファイルへ置換され他部分は不変更 | run-ubm-goal-setting (C16) の Phase6-daily-update responsibility + guard許可write |
 
 build 後、各 component の `feedback_contract.criteria` が criteria-test として実行され、上表の受入が PASS して初めて「purpose を満たすプラグインが出来た」と確定する。`EVALS.json` の `llm_eval` はこの受入が評価系に配線されていることを宣言する。
 
