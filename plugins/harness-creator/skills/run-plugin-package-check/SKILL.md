@@ -70,7 +70,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 **入力**:
 ```yaml
 plugin: "harness-creator"                       # 必須
-phase: 0                                       # {0, 1, 2, all}。既定 0
+phase: 0                                       # {0, 1, 2, all}。既定 0。⚠️出荷前検査は必ず --phase all を明示。省略時(=0)は PKG-001〜009 のみ走り 010〜015 が黙って未検査=subset PASS が緑に見える false green。0/1/2 は反復途中の部分検査用
 pkg: null                                      # 個別 PKG ID 指定（例: "PKG-010,PKG-013a"）。null なら phase 全件
 dry_run: false                                 # true なら scripts を呼ばず計画のみ表示
 output_dir: "eval-log/<plugin>/"               # 既定値、27章 §3.1 規約

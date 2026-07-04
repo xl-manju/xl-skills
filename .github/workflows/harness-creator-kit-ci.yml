@@ -127,12 +127,17 @@ jobs:
       # CI で実起動する。従来どの workflow も coverage-gate / validate-harness を呼ばず、spec の
       # 「gate 配線済」記述は虚偽だった (gate が一度も走らない)。現状 7 本の新規 loop-kind skill が
       # <80% (既存債務) のため即 blocking 化は CI を赤化させる。よって今は WARN (可視化・非ブロック) で
-      # 配線し gate を毎回走らせ、債務 backfill 後に blocking 化する (ratchet)。
+      # 配線し gate を毎回走らせる。80% 絶対 gate は WARN (漸進を許す) のままだが、
+      # 現状値 floor からの回帰 (verdict/test 未添付の新規 artifact 追加による率低下) は
+      # 次 step の harness-ratchet で blocking する。これで「80% を最低条件と成文化しながら
+      # 自 CI では non-blocking」という spec↔enforcement 乖離を、赤化させずに解消する。
       - name: Coverage gate + harness coverage (WARN; ratchet baseline)
         run: |
           python3 -m pip install --quiet -r requirements-dev.txt
           make coverage-gate || echo "[WARN] coverage-gate: 新規 loop-kind に未達 skill あり (ratchet, non-blocking)"
           make harness-coverage || echo "[WARN] harness-coverage: spec_met=false (ratchet, non-blocking)"
+      - name: Harness coverage ratchet-floor (blocking; 現状値からの回帰を止める)
+        run: make harness-ratchet
 
       # skill-intake コアフローの契約・SSOT・パッケージ整合を CI で保証する。
       # references/assets/schemas を plugin 直下へ移設した後の参照整合 (enum SSOT /

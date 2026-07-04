@@ -53,8 +53,8 @@
   },
   {
    "path": "plugins/harness-creator/scripts/notion_config.py",
-   "sha256": "f5acb1ac79884062353db04899218ea0d641a93e92d98cbf39202ebc842b3cab",
-   "verified_at": "2026-07-02",
+   "sha256": "29faf0723e91651ec45800ee4310a352baa86a3a0b6802872f92c52338074d6b",
+   "verified_at": "2026-07-04",
    "matrix_rows": [
     "B4"
    ]

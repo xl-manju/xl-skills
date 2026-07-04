@@ -80,7 +80,7 @@ Claude Code セッションを起動し、以下を打ちます。
 
 配布対象の 12 plugin を入れるには、`/plugin install <name>@xl-skills` を plugin ごとに繰り返します (一覧は [Part 3](#part-3-plugin-一覧と役割))。
 
-> **bundle (バンドル)について**: `xl-skills-full` (配布 12 件) / `xl-skills-intake` (skill-intake + skill-governance-secrets) という一括導入セットの定義はありますが、これを 1 行で展開する手段 (`/harness-creator:install-bundle` スラッシュコマンド・`scripts/install-bundle.sh`) はいずれも **repo を clone した開発環境専用**です ([開発者向け](#開発者向け-harness-creator--prompt-creator-clone-時のみ) 参照)。clone していない配布ユーザは上記のとおり 1 つずつ install してください。
+> **bundle (バンドル)について**: `xl-skills-full` (配布 12 件) / `xl-skills-intake` (skill-intake + skill-governance-secrets) という一括導入セットの定義はありますが、これを 1 行で展開する手段 (`/install-bundle` スラッシュコマンド・`scripts/install-bundle.sh`) はいずれも **repo を clone した開発環境専用**です ([開発者向け](#開発者向け-harness-creator--prompt-creator-clone-時のみ) 参照)。clone していない配布ユーザは上記のとおり 1 つずつ install してください。
 
 ✅ **確認**:
 
@@ -124,11 +124,28 @@ claude
 
 clone した worktree では、`plugins/` 配下の正本が `.claude/` の symlink を通してそのまま使えます (symlink は `make sync` で生成・更新)。harness-creator / prompt-creator のスラッシュコマンドや agent は、この状態で直接呼び出せます (marketplace への install は不要)。
 
+```bash
+make sync
+claude
+```
+
+clone した本プロジェクト内での呼び出し名は project-local command 名です。`/plugin install harness-creator@xl-skills` は不要です。
+
+| やりたいこと | 本プロジェクト内の呼び出し |
+|---|---|
+| 構想から plugin 計画を作る | `/plugin-dev-plan <構想>` |
+| 単体スキルを端から端まで作る | `/run-skill-create` |
+| skill 以外の単一 Capability を作る | `/capability-build <kind> <name> --plugin=<plugin-name>` |
+| Capability を束ねる | `/plugin-compose <plugin-name>` |
+| 総体の出荷前検査 | `/run-plugin-package-check <plugin-name> --phase all` |
+| 4条件レビュー | `/capability-review plugins/<plugin-name> plugin` |
+| 改善まで実行 | `/skill-improve <capability-path>` |
+
 配布対象の 12 plugin もまとめて入れたい場合は、この clone 環境でだけ bundle helper が使えます。
 
 ```bash
 # clone 環境でのみ利用可
-#   slash command: /harness-creator:install-bundle xl-skills-full
+#   slash command: /install-bundle xl-skills-full
 bash scripts/install-bundle.sh xl-skills-full
 ```
 
@@ -264,7 +281,7 @@ export NOTION_CONFIG_PATH="/path/to/.notion-config.json"
 
 | 部品 | 役割 | 利用方法 |
 |---|---|---|
-| **Skill (スキル)** | 作業手順書 + 知識資料 | `/harness-creator:run-skill-create` のようにスラッシュコマンドで呼ぶ。または AI が自動で発火条件を見て呼ぶ |
+| **Skill (スキル)** | 作業手順書 + 知識資料 | clone した本プロジェクト内では `/run-skill-create` のように project-local スラッシュコマンドで呼ぶ。または AI が自動で発火条件を見て呼ぶ |
 | **SubAgent (サブエージェント)** | 独立した別 AI として動く専門家 | Skill から呼ばれて、別の文脈で 1 つの仕事だけをこなす |
 | **Hook (フック)** | 特定タイミングで自動実行されるスクリプト | ユーザーが直接呼ばない。「保存したら走る」「コマンド前に走る」など |
 | **Slash Command (スラッシュコマンド)** | `/コマンド名` で呼べるショートカット | ユーザーが直接タイプする |

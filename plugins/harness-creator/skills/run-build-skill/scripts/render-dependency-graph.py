@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# /// script
+# name: render-dependency-graph
+# purpose: Render a CapabilityBundle (plugin-composition.yaml) into a Mermaid `graph LR` dependency graph.
+# inputs:
+#   - argv: [--bundle <plugin-composition.yaml>] [--out <md>] [--self-test] [--raw]
+#   - reads: plugin-composition.yaml (capabilities[] / dependencies[])
+# outputs:
+#   - stdout: Markdown (Mermaid fence) or raw mermaid when --out is omitted
+#   - file: Markdown written to --out when provided
+#   - exit: 0=OK / 1=bundle load error / 2=usage error
+# contexts: [A, B, C]
+# network: false
+# write-scope: output-arg-only
+# dependencies: []
+# requires-python: ">=3.10"
+# ///
 """render-dependency-graph.py
 
 CapabilityBundle (plugin-composition.yaml) を読み込み、capabilities[] と dependencies[] を

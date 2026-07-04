@@ -282,7 +282,7 @@ Code タブのチャット欄に次を入力して Enter:
 ```
 
 > 一覧に **`company-master`** が表示されれば成功です。
-> (配布対象のプラグインをまとめて入れたい場合は、`/plugin install <name>@xl-skills` を 1 つずつ繰り返してください。`/harness-creator:install-bundle xl-skills-full` や `bash scripts/install-bundle.sh xl-skills-full` といった bundle 一括導入は、harness-creator が配布対象外のため **repo を clone した開発環境でのみ**使えます。company-master を単独で使うならこの手順は不要です。)
+> (配布対象のプラグインをまとめて入れたい場合は、`/plugin install <name>@xl-skills` を 1 つずつ繰り返してください。`/install-bundle xl-skills-full`（clone 環境の project-local command）や `bash scripts/install-bundle.sh xl-skills-full` といった bundle 一括導入は、harness-creator が配布対象外のため **repo を clone した開発環境でのみ**使えます。company-master を単独で使うならこの手順は不要です。)
 
 ### 6-4. プラグインを読み込み直す
 
