@@ -234,6 +234,41 @@ def test_verify_all_malformed_prefix_fails_closed(tmp_path):
     assert not skipped and not ok_list
 
 
+def test_verify_all_planned_extension_plan_skipped_despite_realized_root(tmp_path):
+    """build_status=planned の未 build 拡張計画: plugin root が実在し component gap があっても
+    計画ドキュメント宣言として skip され failure に入らない (既存 plugin 拡張計画の非対称是正)。"""
+    _make_plugin(tmp_path, agent=False)  # demo-verifier.md 欠落 = realized なら本来 gap
+    inv = _inv()
+    inv["build_status"] = "planned"
+    _write_plan(tmp_path, "demo", inv)
+    failures, ok_list, skipped = MOD.verify_all(tmp_path)
+    assert not failures  # planned は gap があっても fail-closed 対象外
+    assert not ok_list
+    assert any("demo" in s and "planned" in s for s in skipped), skipped
+    assert MOD._run_all(tmp_path, as_json=True) == 0
+
+
+def test_verify_all_draft_status_also_skipped(tmp_path):
+    """build_status=draft も未 build 状態として skip (状態集合 _NOT_BUILT_STATES)。"""
+    inv = _inv()
+    inv["build_status"] = "draft"
+    _write_plan(tmp_path, "demo", inv)  # plugins/demo/ 未 build
+    failures, _ok, skipped = MOD.verify_all(tmp_path)
+    assert not failures
+    assert any("demo" in s and "draft" in s for s in skipped), skipped
+
+
+def test_verify_all_unknown_status_not_skipped_and_gated(tmp_path):
+    """build_status が未 build 状態でない (例 realized) 場合は従来通り fail-closed 照合する。"""
+    _make_plugin(tmp_path, agent=False)  # gap を作る
+    inv = _inv()
+    inv["build_status"] = "realized"
+    _write_plan(tmp_path, "demo", inv)
+    failures, _ok, skipped = MOD.verify_all(tmp_path)
+    assert any("C04" in e for f in failures for e in f["missing_components"])
+    assert not any("demo" in s for s in skipped)
+
+
 def test_main_all_rejects_positional(tmp_path):
     """--all と単一 inventory 位置引数の併存は排他 usage error (exit 2)。silent 優先しない。"""
     assert MOD.main(["--all", "some-inv.json"]) == 2

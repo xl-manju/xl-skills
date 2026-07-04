@@ -51,6 +51,15 @@ from pathlib import Path
 # それ以外 (sub-agent/slash-command/hook/script) は単一ファイル。
 _DIR_KINDS = {"skill"}
 
+# inventory 直下 build_status がこれらの値のとき「未 build の計画ドキュメント」として
+# 計画↔実体 completeness 照合を skip する (build 実行時に build_status を realized 等へ
+# 更新すると gate が発火する)。既存の「対象 plugin 不在→skip」は *新規 plugin* の未 build を
+# 扱うが、*既存 plugin を対象とする拡張計画* は plugin root が実在するため従来 skip 経路に
+# 乗らず build 漏れと誤検出されていた。build_status はその非対称を埋める第一級ライフサイクル
+# 宣言で、計画側 (component-inventory.json) が自身の状態を SSOT として宣言する。gate script を
+# 個別 plan ごとに編集する path ハードコード allowlist ではなく、任意の将来計画へ汎用に効く。
+_NOT_BUILT_STATES = {"planned", "draft"}
+
 
 def _plugin_root_of(build_target: str) -> str | None:
     """build_target 'plugins/<plugin>/...' から 'plugins/<plugin>' を抽出する。
@@ -162,7 +171,10 @@ def verify_all(repo_root: Path, plans_dir: str = "plugin-plans") -> tuple[list[d
     戻り値 (gated_failures, gated_ok, skipped):
       gated_failures: 実体化済みだが漏れありの plan 情報 [{inventory, missing_components, missing_surfaces}]
       gated_ok:       実体化済みで漏れなしの inventory パス
-      skipped:        未 build (実体不在) or plugins/ 外で gate 対象外の inventory パス + 理由
+      skipped:        gate 対象外の inventory パス + 理由。3 種:
+                      (a) build_status=planned/draft の未 build 計画ドキュメント (第一級宣言)、
+                      (b) 対象 plugin 不在の未 build 新規 plugin 計画、
+                      (c) plugins/ 外で照合不能なもの。
     """
     gated_failures: list[dict] = []
     gated_ok: list[str] = []
@@ -188,6 +200,16 @@ def verify_all(repo_root: Path, plans_dir: str = "plugin-plans") -> tuple[list[d
             })
             continue
         rel = str(inv_path.relative_to(repo_root))
+        status = inventory.get("build_status")
+        if isinstance(status, str) and status.strip().lower() in _NOT_BUILT_STATES:
+            # 未 build の計画ドキュメント (build_status=planned/draft): 計画↔実体照合の対象外。
+            # malformed / root 不在 / component gap 判定より前に評価し、既存 plugin を対象とする
+            # 拡張計画でも root 実在に引きずられず正しく skip する (build 時に status 更新で gate 化)。
+            skipped.append(
+                f"{rel} — build_status={status.strip()} "
+                "(未 build の計画ドキュメント。build 実行時に build_status を realized へ更新すると gate 化)"
+            )
+            continue
         roots = _plugin_roots_of(inventory)
         if (inventory.get("components") or []) and not roots:
             # component はあるが build_target が 1 つも plugins/ 配下でない = malformed。
@@ -358,6 +380,18 @@ def _self_test() -> int:
             "plugin_level_surfaces": {},
         }), encoding="utf-8")
 
+        # (8g) build_status=planned の未 build 計画ドキュメント: 対象 plugin (built-gap) が実在し
+        #      component gap があっても、計画ドキュメント宣言として skip され failure に入らない。
+        (plans / "planned-doc").mkdir(parents=True)
+        (plans / "planned-doc/component-inventory.json").write_text(json.dumps({
+            "build_status": "planned",
+            "components": [
+                {"id": "C1", "component_kind": "skill", "build_target": "plugins/built-gap/skills/run-y/"},
+                {"id": "C2", "component_kind": "hook", "build_target": "plugins/built-gap/hooks/absent.py"},
+            ],
+            "plugin_level_surfaces": {},
+        }), encoding="utf-8")
+
         failures, ok_list, skipped = verify_all(root)
         assert any(f["inventory"].endswith("built-gap/component-inventory.json") for f in failures), failures
         assert not any(f["inventory"].endswith("built-ok/component-inventory.json") for f in failures), failures
@@ -365,7 +399,9 @@ def _self_test() -> int:
         assert any("not-built" in s for s in skipped), skipped
         assert any("malformed" in f["inventory"] for f in failures), failures  # (8e)
         assert not any("malformed" in s for s in skipped), skipped
-        assert _run_all(root, as_json=True) == 1  # 漏れありで fail-closed
+        assert any("planned-doc" in s and "planned" in s for s in skipped), skipped  # (8g)
+        assert not any("planned-doc" in f["inventory"] for f in failures), failures  # (8g)
+        assert _run_all(root, as_json=True) == 1  # 漏れありで fail-closed (planned skip は失敗に影響しない)
 
     # 8f. --all と位置引数の併存 → 排他 usage error (exit 2)
     assert main(["--all", "some-inv.json"]) == 2
