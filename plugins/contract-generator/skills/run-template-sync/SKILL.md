@@ -106,7 +106,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/lib/check_intermediate.py" run-template-sync
 - `prompts/R1-diagnose-and-resync.md` — ひな形差分診断・マッピング/台帳追従・再生成フラグ付与の責務単位7層プロンプト(SSOT正本)。`../../agents/template-sync-agent.md` は本プロンプトを参照する薄い実行アダプタ(本文を持たない)。
 - 追加リソースは plugin 直下 `lib/` ディレクトリ全体を参照。各ファイルは PEP723 風メタブロックで purpose を記載。
 - 本 skill が強く依存する lib: `scan_template.py`(差分診断) / `ledger.py`(再生成フラグ付与・台帳列追加) / `docx_lib.py`(黄色 run 抽出)
-- `scripts/sync.py` — 薄い shim(`lib/scan_template.py` への委譲のみ)
+- `scripts/sync.py` — エントリ(`lib/scan_template.py` を集約診断し、`--apply` 時は `ledger` へ completed 行の再生成フラグ書込。scan_template の等価 shim ではなく drift 時も exit 0)
 
 ## 使い方
 ```bash

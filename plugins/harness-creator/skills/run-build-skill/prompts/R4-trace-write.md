@@ -17,13 +17,13 @@
 ## Layer 1: 基本定義層 (不変原則)
 
 ### 1.1 不変ルール
-- doc_coverage は 01/01a/02-35 章 ID を enum で扱う
-  - 目的: 章 ID typo を schema で機械検知
-  - 背景: 自由文字列は trace の信頼性を破壊する
-- C1-C4 reproducibility_gates を必ず埋める
-  - 目的: 再現性ゲート可視化
+- doc_coverage は validate-build-trace.py の REQUIRED_DOC_COVERAGE (02-skill-structure〜35-meta-harness-feedback-loop のスラッグ形式24件) を必ず網羅する
+  - 目的: 必須参照章の被覆漏れを validator で機械検知
+  - 背景: doc は schema 上自由文字列だが validator が必須スラッグ集合との差分を検査する
+- reproducibility_gates (lint / evaluator / elegant_review / governance) を必ず PASS/FAIL/N/A で埋める
+  - 目的: 再現性ゲート可視化 (4条件 C1-C4 は four_conditions プロパティ側へ記入)
   - 背景: 未記入は false-pass を生む
-- 未読章は status=na と reason を残す
+- 未読章は status=N/A と reason を残す
   - 目的: 監査可能性の確保
   - 背景: 黙示の skip は審査不能
 
@@ -39,7 +39,7 @@
 - 非担当: 骨格 (R1)、prompt 生成 (R2)、template 選択 (R3)
 
 ### 2.2 ドメインルール
-- `pattern_decisions / layer_decisions / reproducibility_gates (C1-C4)` を必ず記入
+- `pattern_decisions / layer_decisions / reproducibility_gates (lint/evaluator/elegant_review/governance)` を必ず記入 (4条件 C1-C4 は four_conditions プロパティへ)
 - `variable_contract` に変数化した具体値の source_trace を記録
 - loop 実行系 (skill_kind=run/wrap/delegate) は `feedback_contract.criteria` を trace と生成 SKILL.md frontmatter の両方に必ず記入。各 criterion は `id / loop_scope(inner|outer) / text / verify_by` を持ち、inner と outer を最低各1件。criteria は goal-seek checklist と**同源化**する (checklist=二値達成判定 / criteria=評価観点+verify_by の写像) ことで二重管理を回避する。ref/assign は `feedback_contract.skip_reason` で N/A escape。
 - 最後に `validate-build-trace.py` で exit 0 を確認
@@ -87,13 +87,13 @@
 - run-build-skill 配下の R4 SubAgent (最終フェーズ)
 
 ### 5.2 ゴール定義
-- **目的**: skill-build-trace.json を章別 enum + 再現性ゲート (C1-C4) で機械検証可能な状態にする
-- **背景**: 黙示の skip や未記入は監査不能と false-pass を生むため、章 ID 固定と validate-build-trace.py 通過を必須化する
+- **目的**: skill-build-trace.json を doc_coverage 必須スラッグ被覆 + 再現性ゲート (lint/evaluator/elegant_review/governance) で機械検証可能な状態にする
+- **背景**: 黙示の skip や未記入は監査不能と false-pass を生むため、必須章スラッグ被覆と validate-build-trace.py 通過を必須化する
 - **達成ゴール**: schema 準拠 trace が成立し validate-build-trace.py exit 0、再実行で sha256 一致する状態
 
 ### 5.3 完了チェックリスト (停止条件)
-- [ ] C1-C4 reproducibility_gates に pass/fail/na が必ず入る
-- [ ] doc_coverage の全章 ID (01/01a/02-35) を網羅、未読は status=na + reason 残存
+- [ ] reproducibility_gates (lint/evaluator/elegant_review/governance) に PASS/FAIL/N/A が必ず入る (4条件 C1-C4 は four_conditions 側)
+- [ ] doc_coverage が必須スラッグ集合 (02-skill-structure〜35-meta-harness-feedback-loop、計24件) を網羅、未読は status=N/A + reason 残存
 - [ ] pattern_decisions / layer_decisions を記入
 - [ ] variable_contract に変数化具体値の source_trace あり
 - [ ] (loop 実行系のみ) SKILL.md frontmatter と trace の feedback_contract.criteria に inner/outer 各1件以上 (id/loop_scope/text/verify_by 充足)、ref/assign は skip_reason
@@ -131,7 +131,7 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 `eval-log/skill-build-trace.json` を `{{schema}}` に従って章別に記入し、
-未読章は `status=na + reason` を残す。`reproducibility_gates` の C1-C4 を必ず埋め、
+未読章は `status=N/A + reason` を残す。`reproducibility_gates` (lint/evaluator/elegant_review/governance) を必ず PASS/FAIL/N/A で埋め (4条件 C1-C4 は four_conditions プロパティ)、
 `variable_contract` に source_trace を記録する。loop 実行系 (skill_kind=run/wrap/delegate)
 は `feedback_contract.criteria` を goal-seek checklist と同源で導出し、生成 SKILL.md frontmatter と trace に inner/outer 各1件以上
 (id/loop_scope/text/verify_by) を記入する (ref/assign は `feedback_contract.skip_reason`)。

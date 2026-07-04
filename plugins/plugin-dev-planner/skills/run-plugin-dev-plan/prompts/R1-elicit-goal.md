@@ -52,7 +52,7 @@
 | intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator / next-action.json の split_candidates[] を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本) |
 
 ### 2.4 出力契約
-- schema: `schemas/plugin-goal-spec.schema.json` 準拠。`run-goal-elicit/schemas/goal-spec.schema.json` は purpose/background/goal/checklist 抽出にだけ使い、plugin 固有アンカーは専用 schema で検証する
+- schema: `schemas/plugin-goal-spec.schema.json` 準拠。purpose/background/goal/checklist の抽出は harness-creator run-goal-elicit の goal-spec 概念に倣い、plugin 固有アンカーは専用 schema で検証する
 - 必須フィールド: purpose / background / goal / checklist(≥1) / target_plugin_slug / plan_dir
 - 出力先: `<PLAN_DIR>/goal-spec.json` (既定 `<PLAN_DIR>` = `plugin-plans/<plugin-slug>/`)
 
@@ -67,7 +67,7 @@
 | goal_seek | ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md | ゴール推定方針の確認時 |
 
 ### 3.2 外部ツール / API
-- Read / Write のみ (CLI / MCP 不使用)
+- Read / Write / Glob / Grep (CLI / MCP 不使用)
 
 ## Layer 4: 共通ポリシー層
 
@@ -84,7 +84,7 @@
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当 agent
-- `agents/plugin-dev-plan-elicitor.md` (本ファイルを SSOT とする薄いアダプタ)。`isolation: inherit` で起動する。R1 は会話履歴・構想文から最尤ゴールを推定するため親 context を必要とし、fork すると推定材料を失う (context-fork しない)
+- `agents/plugin-dev-plan-elicitor.md` (本ファイルを authoring source とする自己完結型 7 層 SubAgent)。`isolation: inherit` で起動する。R1 は会話履歴・構想文から最尤ゴールを推定するため親 context を必要とし、fork すると推定材料を失う (context-fork しない)
 
 ### 5.2 ゴール定義
 - **目的**: 曖昧なプラグイン構想を、後段が消費できる goal-spec に固める

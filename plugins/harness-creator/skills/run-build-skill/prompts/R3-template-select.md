@@ -9,7 +9,7 @@
 |---|---|
 | name | template-select |
 | skill | run-build-skill |
-| responsibility | R3 (kind → templates/_base 決定) |
+| responsibility | R3 (kind → 基底テンプレート templates/<kind> 決定) |
 | layers_covered | [L2, L4] |
 | output_schema | schemas/template-selection.schema.json#/properties/selection_rules/items |
 | reproducible | true |
@@ -102,11 +102,11 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: run-build-skill (R1/R2 と並列可)
+- 呼び出し元: run-build-skill (R1 と同 scaffold phase・step 2 で並列可。R2=prompts-emit は step 7 で後段のため並列対象外)
 - 後続 phase: trace-write (R4)
 
 ### 6.2 並列性
-- R1/R2 と独立並列可 (副作用なし)
+- 同 scaffold phase の R1 と独立並列可 (副作用なし)
 
 ## Layer 7: UI / 提示層
 

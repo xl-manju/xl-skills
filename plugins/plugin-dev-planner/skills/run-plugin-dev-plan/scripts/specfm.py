@@ -1206,7 +1206,7 @@ def render_minimal_index(*, plugin_slug: str = "sample-plugin") -> str:
         "title": f"{plugin_slug} 開発計画 index (main)",
         "plugin_meta": {
             "manifest": {"required": True, "path": ".claude-plugin/plugin.json",
-                         "name_matches_folder": True, "no_todo_placeholders": True, "validate_plugin": True},
+                         "name_matches_folder": True, "no_unresolved_placeholders": True, "validate_plugin": True},
             "marketplace": {"default_personal": True,
                             "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL", "category": "Productivity"},
                             "cachebuster_for_update": True},

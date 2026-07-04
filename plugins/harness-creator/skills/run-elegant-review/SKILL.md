@@ -13,6 +13,7 @@ allowed-tools:
   - Bash(python3 *)
   - Bash(git diff *)
   - Skill
+  - Agent
 kind: run
 prefix: run
 effect: local-artifact

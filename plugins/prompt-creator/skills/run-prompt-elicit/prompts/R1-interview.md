@@ -67,7 +67,7 @@
 - 評価優先度が schema enum 外 → evaluation_priorities に入れず open_questions へ fail-visible に記録
 
 ### 4.2 最大反復
-- ヒアリングの補完反復は最大 3 周 (`run-elegant-review/references/convergence-policy.json` の loop_bounds 準拠)。超過分は open_questions に残して停止
+- ヒアリングの補完反復は最大 3 周 (harness-creator run-elegant-review の convergence-policy loop_bounds 慣行に倣う)。超過分は open_questions に残して停止
 
 ### 4.3 観測
 - eval-log/hearing-result.json に session 単位で保存

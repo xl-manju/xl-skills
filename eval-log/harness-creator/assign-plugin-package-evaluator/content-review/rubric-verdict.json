@@ -2,27 +2,21 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "assign-plugin-package-evaluator",
-    "skill_md_sha256": "f413cc0ee4a5d717acbddf22699187bff79d6823695e20772c88618b0126b764"
+    "skill_md_sha256": "99c356d5e769334b6943c3a3adcad2320f9f5d7cd1c84a29cca657ff2773a5e7"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 0
-  },
-  "reviewer": "independent-rename-review-subagent-a",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:14:02Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "検証可能性が高い: PKG-002〜008 の 7 件全てに検査関数と fail 条件例が表で割り当てられ、findings 出力に run_id/severity/location/evidence/suggested_fix の具体構造と verdict カウント (total/pass/fail/skip/not_applicable) が示され、二値採点の網羅性が担保されている。",
-      "簡潔性が SSOT 委譲で担保: PKG ID 定義を ref-pkg-contract、eval-log パスを 27章 §3.1 へ委譲し本文で再定義せず (Key Rules 1・5)、frontmatter refs 群と Additional Resources が一対一で整合し改名後も冗長化していない。"
+      "完全性 3/3: 入力 yaml・出力 contract・完了条件(line 51)・PKG-002〜008 検査表(line 90-98)・findings 出力例(line 104-138)・Gotchas を空欄なく網羅。一貫性 3/3: PKG ID は ref-pkg-contract 経由再定義禁止(Key Rules 1)と skill-only の not_applicable 判定が本文全体で統一",
+      "深度 3/3: 各 PKG に検査関数名と fail 条件例が具体化され location/evidence/severity 付与を要求。検証可能性 3/3: validate-plugin-package.py --check pkg-<id> の単独実行可・schema 違反 exit2 で機械判定が担保",
+      "簡潔性 2/3: PKG ID 表を本 skill 内で再定義せず ref-pkg-contract へ外出しし早見表化。新規 render オプションも1行で既存 script 参照に留め肥大化を回避。合計 14/15"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -30,5 +24,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator quality-rubric.md 5 次元 (完全性/一貫性/深度/検証可能性/簡潔性) で現 SKILL.md (sha256=f413cc0ee4a5d717acbddf22699187bff79d6823695e20772c88618b0126b764 実測) を独立採点。[完全性 3] commonCore + kind=assign 系必須 (context:fork/pair/role_suffix/schema_refs/rubric_refs) 完備、PKG 検査表と findings フォーマットで出力契約を空欄なく提示。[一貫性 3] skill-only 縮退判定・fail_fast=false 既定・exit!=0 でも JSON 出力が複数箇所で同値、改名で harness-creator 表記に統一 (Skill Creator 基盤等の旧総体ラベル残存なし)。[深度 3] 既存 validate-plugin-completeness.py との責務分離 (Gotchas 1)、PKG-001/009/010〜015 対象外の境界根拠を明示。[検証可能性 3] 各 PKG に検査関数/fail 条件、findings に location/evidence、verdict カウント算出。[簡潔性 3] ref-pkg-contract/27章への委譲で本文再掲なし。全次元 >=2、合計 15/15、参照先 harness-creator 配下で全実在につき rubric PASS。"
+  "notes": "現 SHA (99c356d5...) の SKILL.md を 5 次元(完全性/一貫性/深度/検証可能性/簡潔性)で genuine 採点した再評価。変更点=任意オプション `render: markdown` 1行追加(line 47)で既存 render-pkg-findings.py 参照を明文化しただけで採点構造に影響なし。合計 14/15、閾値超過で PASS。"
 }

@@ -2,37 +2,58 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://xl-skills/assign-notion-fidelity-evaluator/fidelity-report.schema.json",
   "title": "fidelity-report.json",
-  "description": "fidelity check + delta report の出力 schema。描画 GO/NO-GO を決定論で判定する。",
+  "description": "scripts/validate-notion-fidelity.py が書き出す fidelity-report.json の出力契約。SSOT はスクリプト実出力 (evaluate() + main())。JSON 構造比較のみで公開 GO/NO-GO 相当の verdict を決定論判定する。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["snapshot_ref", "decision", "section_results"],
+  "required": ["sections", "overall_score", "overall_score_ratio", "forced_fail", "verdict", "thresholds"],
   "properties": {
-    "snapshot_ref": {
-      "type": "object",
-      "required": ["path", "sha256"],
-      "additionalProperties": false,
-      "properties": {
-        "path": {"type": "string"},
-        "sha256": {"type": "string"}
-      }
-    },
-    "decision": {"type": "string", "enum": ["GO", "NO_GO"]},
-    "section_results": {
+    "sections": {
       "type": "array",
       "minItems": 12,
       "maxItems": 12,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["section", "required_fields_filled", "char_bounds_ok", "viz_slots_ok"],
+        "required": [
+          "section_key",
+          "context_key",
+          "present",
+          "granularity_score",
+          "char_score",
+          "field_score",
+          "viz_score",
+          "missing_slots",
+          "excess_slots",
+          "missing_fields",
+          "warnings"
+        ],
         "properties": {
-          "section": {"type": "string"},
-          "required_fields_filled": {"type": "boolean"},
-          "char_bounds_ok": {"type": "boolean"},
-          "viz_slots_ok": {"type": "boolean"},
-          "missing": {"type": "array", "items": {"type": "string"}},
-          "deltas": {"type": "array", "items": {"type": "string"}}
+          "section_key": {"type": "string"},
+          "context_key": {"type": ["string", "null"]},
+          "present": {"type": "boolean"},
+          "text_length": {"type": "integer", "description": "present=true のときのみ付与。"},
+          "granularity_score": {"type": "number", "minimum": 0, "maximum": 100, "description": "0-100 スケール (素点 char/field/viz 加重和 ×100)。"},
+          "char_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "field_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "viz_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "missing_slots": {"type": "array", "items": {"type": "string"}},
+          "excess_slots": {"type": "array", "items": {"type": "string"}},
+          "missing_fields": {"type": "array", "items": {"type": "string"}},
+          "warnings": {"type": "array", "items": {"type": "string"}}
         }
+      }
+    },
+    "overall_score": {"type": "number", "minimum": 0, "maximum": 100, "description": "12 section 素点の加重平均 ×100 (0-100 スケール)。"},
+    "overall_score_ratio": {"type": "number", "minimum": 0, "maximum": 1, "description": "verdict 判定に用いる 0.0-1.0 の生比率。"},
+    "forced_fail": {"type": "boolean", "description": "absence_behavior=block の section 欠落で true。true のとき verdict は必ず fail。"},
+    "verdict": {"type": "string", "enum": ["pass", "warn", "fail"]},
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "warn"],
+      "properties": {
+        "pass": {"type": "number", "minimum": 0, "maximum": 1},
+        "warn": {"type": "number", "minimum": 0, "maximum": 1}
       }
     }
   }

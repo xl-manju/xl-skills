@@ -1,21 +1,20 @@
 {
-  "target": {"plugin":"contract-generator","skill":"run-contract-generate","skill_md_sha256":"94b06993cc06414beaae830c9914fac9983b1221b08a43696d6575a749cba2f1"},
+  "target": {"plugin":"contract-generator","skill":"run-contract-generate","skill_md_sha256":"6c4b8eb3549ef9c7f32c1ffeedec7d2468d8d33d758af3ef738b01c10516f754"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
-  "reviewer": "independent-rename-review-subagent-e",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:13:52Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1","IN2","OUT1"],
-    "positive_feedback": ["完全性(3): 認証/2シート/抽出/ひな形取得/黄色維持差込/Docs化/命名/欠損補完/残存チェック/Slack+台帳draft書戻し と完了チェックリストが Purpose の各要素へ 1:1 対応し MECE。", "検証可能性(3): 口座番号7桁・口座種類 enum・契約開始<終了・金額整形・未置換残存なし が validate.py/docx_fill.py の実コマンドへ紐づき二値判定可能。"],
+    "positive_feedback": ["完全性 3/3: 認証/2シート/行抽出/ひな形取得/黄色維持差込/Docs化/命名/欠損補完/残存チェック/Slack+台帳draft書戻し と完了チェックリスト(L68-79)が Purpose の各要素へ 1:1 対応し MECE。一貫性 3/3: draft 停止条件がゴール・境界・チェックリストで一致し、今回の diff(L71)が draft phase と legacy 経路を明示分岐して混線を排除。", "深度 3/3: Why(L66)で1人事業の負荷削減→本業(AIコンサル)再配分・二重管理/レイアウト崩れ排除まで掘り下げ。検証可能性 3/3: 口座番号7桁・口座種類 enum・契約開始<終了・金額整形・未置換残存なし が validate.py/docx_fill.py の実コマンドへ紐づき二値判定可能。", "簡潔性 2/3: 正負シグナルを prompts/R1 §4.4 の SSOT 参照へ委譲し重複を抑制する一方、legacy 注記が Purpose/境界/ゴール/チェックリストに反復し密度がやや高い。合計 14/15。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator quality-rubric.md の5次元で採点(SHA=94b06993…)。完全性3/一貫性3(draft停止条件がゴール・境界・チェックリストで矛盾なく一致、PDF確定=finalize・ひな形追従=sync へ正しく分離)/深度2(Why で1人事業の負荷削減→本業再配分まで掘る)/検証可能性3/簡潔性2(prompt_ssot=R1一本化・shim薄化・agent本文非保持で重複抑制)。全次元≥2 で PASS。旧名残存なし・harness-creator パス実在を確認。"
+  "notes": "現 SHA (6c4b8eb3…) の SKILL.md に対する 5 次元 genuine 採点(完全性3/一貫性3/深度3/検証可能性3/簡潔性2=14/15)。L71 の draft phase/legacy 抽出条件の分離明記により完全性・一貫性が向上。全次元しきい値を満たし PASS。"
 }

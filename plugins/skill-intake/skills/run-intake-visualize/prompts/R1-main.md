@@ -39,7 +39,7 @@
 |---|---|---|---|
 | sheet | resource://intake/sheet.md | yes | 5 軸シート |
 | purpose | resource://intake/purpose.json | yes | true_purpose |
-| options | resource://intake/options.json | yes | 外部連携選定 |
+| options | resource://intake/options.json | no | 外部連携選定 (参考。決定論配置は sheet+purpose のみで確定し options は不使用。IN2 determinism 準拠) |
 | assets | resource://plugins/skill-intake/assets/ | yes | Mermaid/SVG カタログ |
 
 ### 2.4 出力契約
@@ -57,7 +57,7 @@
 
 ### 3.2 外部ツール / API
 - `plugins/skill-intake/scripts/render_to_image.py` (Mermaid→PNG + SVG 同梱 PNG 配置、aggregator 共有正本)
-- `scripts/verify-visuals.py` (網羅性検証)
+- `scripts/verify-visuals.py <visuals.json> <out_dir>` (網羅性検証。引数必須: `output/<hint>/visuals.json output/<hint>/visuals/`。両方必須で欠くと IndexError)
 
 ## Layer 4: 共通ポリシー層
 
@@ -135,4 +135,4 @@ visuals.json 生成後に以下を自己確認する。未達があれば対応 
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`{{sheet_path}}` と `{{purpose_path}}` を読み、`section-figure-mapping.md` に従いカタログから各セクション 1-3 図を選択せよ。SVG は `render_to_image.py` で PNG 化し、結果を `visuals.json` (schemas/output.schema.json 準拠) として書き出せ。最後に `verify-visuals.py` を実行し PASS を確認すること。出力は JSON のみ、前置き禁止。
+`{{sheet_path}}` と `{{purpose_path}}` を読み、`section-figure-mapping.md` に従いカタログから各セクション 1-3 図を選択せよ。SVG は `render_to_image.py` で PNG 化し、結果を `visuals.json` (schemas/output.schema.json 準拠) として書き出せ。最後に `verify-visuals.py output/<hint>/visuals.json output/<hint>/visuals/` を実行し PASS を確認すること。出力は JSON のみ、前置き禁止。

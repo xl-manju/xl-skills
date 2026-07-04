@@ -44,7 +44,7 @@
 
 ### 2.4 出力契約
 - schema: `schemas/output.schema.json`
-- 必須フィールド: `orchestrator_trace`, `artifacts.intake_md`, `artifacts.intake_json`, `artifacts.notion_url`
+- 必須フィールド: `session_id`, `phases` (11 要素), `artifacts.intake_md`, `artifacts.intake_json`。`notion_url` は required ではなく Notion 公開成功時のみ `artifacts.notion_url` に設定する。
 - Notion 指定ありの場合は `artifacts.intake_json.notion_target` と `notion-publish-result.json.page_id` の一致を必須とする。
 
 ## Layer 3: インフラ層 (外部依存)
@@ -69,14 +69,14 @@
 ### 4.2 観測 / ロギング
 - `eval-log/intake-trace.json` に各 phase の入出力パス、exit code、所要時間を残す。
 
-### 4.5 最大反復回数
-- phase 委譲ループ上限: **11 回** (workflow-manifest.json の phases 数と一致)。上限到達でも全 PASS 未達の場合は exit 非 0 で中断。
+### 4.3 セキュリティ
+- Notion トークン等の secret は orchestrator のログに残さない (delegate 内で扱う)。
 
 ### 4.4 lint / quality_gate 自動修正禁止
 - `quality_gate.py` / `cross_check.py` fail は根本原因をユーザー提示し、AI 判断で自動修正しない。
 
-### 4.3 セキュリティ
-- Notion トークン等の secret は orchestrator のログに残さない (delegate 内で扱う)。
+### 4.5 最大反復回数
+- phase 委譲ループ上限は **manifest の phases 数 (11) と一致しない**。SKILL.md 規定の再試行 (handoff fail による同 phase 差し戻し最大 3 周・Gate A 否認による Phase 4 戻し最大 2 周) を包含する回数を上限とする。各再試行の規定上限に達しても全 PASS 未達の場合は exit 非 0 で中断。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 

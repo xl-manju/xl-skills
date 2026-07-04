@@ -49,7 +49,7 @@
 - 独立変更は分けて適用、依存変更は順序を守る
 - 具体値直書きは `variable_abstraction` に基づき `{{VAR}}` へ置換し source_trace を保持
 - パッチ適用後、`validation_commands` (validate-paradigm-coverage.py 等) を実行
-- **claim_vs_reality_audit (MED-3)**: 前回 run の `applied_patches[]` を実 file に対し `grep -F` で再検証し、gap があれば severity=contradiction の finding として再起票
+- **claim_vs_reality_audit (MED-3)**: 前回 run の `changed_paths[]` を実 file に対し `grep -F` で再検証し、gap があれば severity=contradiction の finding として再起票
 
 ### 2.3 入力契約
 
@@ -62,7 +62,7 @@
 
 ### 2.4 出力契約
 - schema: `./schemas/phase-output.schema.json#/definitions/phase3_output`
-- 必須: applied_patches / validation_results / iteration_count / convergence_status
+- 必須: changed_paths / validation_commands / residual_risks / convergence_status (任意: iteration_count / four_conditions)
 - 追加成果物: `verdict.json` (`./schemas/verdict.schema.json` 準拠) を `eval-log/<plugin>/<skill>/elegant-review/<run-id>/` に生成
 
 ## Layer 3: インフラ層 (外部依存)
@@ -89,7 +89,7 @@
   - 背景: 自動収束失敗は構造的問題のシグナル
 
 ### 4.2 観測 / ロギング
-- 出力先: `applied_patches` / `validation_results` を JSON で記録
+- 出力先: `changed_paths` / `validation_commands` / `residual_risks` を JSON で記録
 - trace 連携: `eval-log/<plugin>/<skill>/elegant-review/<run-id>/elegant-review-trace.json` の phase3 セクションに patch diff 要約 / validation 結果 / iteration_count を記録
 - 反復上限: `max_iterations=3` 超過で `human_escalate` (Layer 1 不変ルール参照)
 
@@ -109,7 +109,7 @@
 ### 5.2 ゴール定義
 - **目的**: Phase2 findings の C1-C4 FAIL を最小パッチで解消し、検証通過した verdict.json を成立させる
 - **背景**: 周辺リファクタ混入と検証未実行の自己申告は review 再現性を破壊するため、スコープ最小化と validation_commands 必須化を要件化
-- **達成ゴール**: applied_patches / validation_results / iteration_count / convergence_status が記録され、verdict.json が schema 準拠で出力された状態
+- **達成ゴール**: changed_paths / validation_commands / residual_risks / convergence_status が記録され、verdict.json が schema 準拠で出力された状態
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] severity_order: high/critical から順に適用
@@ -118,12 +118,12 @@
 - [ ] validation_run: `validation_commands` を実行し結果を記録 (未実行のまま pass 宣言禁止)
 - [ ] safety_valve: `max_iterations=3` 超過時 `convergence_status: human_escalate` を選択 (force_pass 禁止)
 - [ ] verdict_emit: `verdict.json` を `./schemas/verdict.schema.json` 準拠で生成、`emit-observable.py` を PASS/FAIL 双方で実行
-- [ ] determinism: 同 findings + iteration_count で applied_patches の順序と内容が一致
+- [ ] determinism: 同 findings + iteration_count で changed_paths の順序と内容が一致
 
 ### 5.4 実行方式 (固定手順を持たない動的生成ループ)
 **固定手順禁止**。完了チェックリストと `convergence-policy.json` の Δneg/Δpos 閾値を唯一の停止条件とし、状況に応じて手順をその都度設計・実行・自己評価する。例示 (網羅でない):
 - 未充足項目を特定 (未解消 finding / 未実行検証) → 解消候補手順を立案 (severity 順グルーピング / 独立 finding の SubAgent 並列起動 / 最小パッチ適用 / validation_commands 実行 / 収束判定 / verdict emit のいずれか)
-- 実行し `applied_patches` / `validation_results` を更新 → 閾値で自己評価
+- 実行し `changed_paths` / `validation_commands` を更新 → 閾値で自己評価
 - 未達なら次周回 (上限: max_iterations=3)
 - 到達後も C1-C4 未達なら `convergence_status: human_escalate` を選択 (`force_pass` 禁止)
 
@@ -141,7 +141,7 @@
 ## Layer 7: UI / 提示層
 
 ### 7.1 ユーザー提示形式
-- `applied_patches` diff + `validation_results` + `convergence_status`
+- `changed_paths` diff + `validation_commands` + `convergence_status`
 
 ### 7.2 言語
 - 本文: 日本語 (パラメーター名 / schema key は英語のまま)

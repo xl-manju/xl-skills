@@ -63,7 +63,7 @@
 | role_suffix | references/role-suffix-vocabulary.md | suffix query 時 |
 
 ### 3.2 外部ツール / API
-- Read / Grep のみ。ネットワーク不使用。
+- Read のみ (全文読取・文中検索を含む)。ネットワーク不使用。
 
 ## Layer 4: 共通ポリシー層
 

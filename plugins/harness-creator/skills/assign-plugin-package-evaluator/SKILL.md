@@ -44,6 +44,7 @@ pkg_ids: ["PKG-002", "PKG-003", "PKG-004", "PKG-005", "PKG-006", "PKG-007", "PKG
 options:
   fail_fast: false                          # true なら最初の FAIL で停止
   output_path: "eval-log/<plugin>/pkg-<id>/<date>-<run>.json"
+  render: markdown                          # 任意。指定時のみ render-pkg-findings.py で markdown サマリも出力
 ```
 
 **出力**: `schemas/findings.schema.json` 準拠の findings 配列 + verdict サマリ

@@ -110,8 +110,9 @@
 ## Layer 6: オーケストレーション層
 
 ### 6.1 上位 skill との接続
-- 呼び出し元: run-build-skill (R1 完了後)
-- 後続 phase: template-select (R3) / trace-write (R4)
+- 呼び出し元: run-build-skill (prompts-emit phase / scaffold 完了後)
+- 後続 phase: trace-write (R4)
+  - 補足: template-select (R3) は scaffold phase (step 2) の資源で本 R2 (prompts-emit, step 7) より先行するため後続ではない
 
 ### 6.2 並列性
 - R-id 間は並列可、SubAgent への Edit 注入は順次 (競合回避)

@@ -2,7 +2,7 @@
 # ref-output-routing の references/ ファイル索引
 resources:
   - file: sink-contract.md
-    topic: 出力 sink (file/stdout/notion/...) の input/output/effect 契約表
+    topic: 全 adapter 共通の sink 契約 (payload/result schema・exit code・on_conflict)
     read_when: 出力先を切り替えたいとき、新 sink を追加したいとき
   - file: security-model.md
     topic: 出力先別のセキュリティ制約 (権限 / network / write 範囲)

@@ -107,11 +107,11 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 
 ### ゴールシークループ
 
-未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (判定表ヒットなし=2、入力欠落=3) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake`) のループ上限に従う。
+未充足チェック項目を特定 → 該当局面の解消手順を立案 → 実行 → チェックリストで自己評価 → 全項目充足まで反復。固定の Step 順序は持たない。`workflow-manifest.json` の `phases[]` (`P1-load` / `P2-mode-decide` / `P3-confirm-if-diff` / `P4-emit`) は局面カタログ (順序は都度判断) として扱う。逸脱時は `prompts/R1-main.md` Layer 4.1 の exit code 規約 (exit 2=Notion 公開 precondition 未充足、exit 3=入力欠落・不正) に従いエスカレーション。最大反復回数は親オーケストレーター (`run-skill-intake`) のループ上限に従う。
 
 ## Gotchas
 
-1. **判定表ヒットなしは exit 2**: 黙って `mode=E` にフォールバックしない。`stderr` に欠落条件を出して停止する。
+1. **判定表ヒットなしでも停止しない (decide-mode.py 実挙動)**: 該当行なしでも exit せず `kickoff.pattern` を既定採用する (verb_object 空→E / 連結語→D / plugin 徴候→P で上書き)。A-E/P 以外の未知 pattern は handoff 表引きの KeyError で異常終了する。exit 2 は Notion 公開 precondition 未充足時のみで、「ヒットなし→exit 2 / stderr 欠落条件」の停止は未実装。
 2. **AskUserQuestion 並列禁止**: 不一致追認は 1 問ずつ。複数項目を 1 回でまとめない。
 3. **schema 違反は exit 3**: `additionalProperties:false` を満たさない追加キーを出力に混ぜない。
 4. **D の split は提案であり強制ではない**: ユーザーが単一スキル維持を選んだ場合は `multi_skill_suspicion=true` のまま `mode` を `A/B/C` に確定し直し、`reason` に上書き理由を残す。

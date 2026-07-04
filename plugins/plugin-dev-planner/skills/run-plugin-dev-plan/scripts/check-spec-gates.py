@@ -45,8 +45,8 @@ def check_plugin_meta(pm: dict) -> list[str]:
             errs.append("manifest.path は .claude-plugin/plugin.json であること")
         if manifest.get("name_matches_folder") is not True:
             errs.append("manifest.name_matches_folder は true であること")
-        if manifest.get("no_todo_placeholders") is not True:
-            errs.append("manifest.no_todo_placeholders は true であること")
+        if manifest.get("no_unresolved_placeholders") is not True:
+            errs.append("manifest.no_unresolved_placeholders は true であること")
         if manifest.get("validate_plugin") is not True:
             errs.append("manifest.validate_plugin は true であること")
 

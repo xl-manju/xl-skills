@@ -77,7 +77,7 @@ since: 2026-05-24
 1. **1 回目**: 不合格次元の該当 paradigm のみ再評価 (他 paradigm は保持)。
 2. **2 回目**: 完全性 FAIL なら欠落エントリを生成、深度 FAIL ならアブダクションに仮説を追加。
 3. **3 回目 (上限)**: なお未達なら Handoff せず `status=blocked / blocked_paradigms[]` を orchestrator に返す。
-4. **差し戻し条件**: 完全性 FAIL (40 件未満) または 検証可能性 FAIL (line 参照ゼロ) が 3 回連続。
+4. **差し戻し条件**: 完全性 FAIL (distinct `paradigm_id` < 10) または 検証可能性 FAIL (line 参照ゼロ) が 3 回連続。
 
 # Handoff
 

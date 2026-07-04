@@ -40,6 +40,9 @@ jobs:
       - name: lint feedback_contract 携帯化 (量産先 loop-kind が frontmatter に評価基準を持つ)
         run: python3 scripts/lint-feedback-contract.py --all
         continue-on-error: false
+      - name: "lint prompt contract drift (7層プロンプトの参照パス/allowed-tools が実装と整合・Tier1 fail-closed)"
+        run: python3 scripts/lint-prompt-contract-drift.py --all
+        continue-on-error: false
       - name: notion schema drift check (3DB SSOT vs Notion)
         if: ${{ env.NOTION_TOKEN != '' }}
         env:

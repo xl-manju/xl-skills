@@ -30,13 +30,13 @@ model: sonnet
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 単一責務
-- 担当: 発話履歴から 6 軸 (expertise / role / context / constraints / motivation / sharing_intent) を推定、confidence を付与、vocabulary_tier (non_technical / mixed / technical) を確定する。
+- 担当: 発話履歴から 6 軸 (expertise / role / context / constraints / motivation / sharing_intent) を推定、confidence を付与、vocabulary_tier (novice / intermediate / expert) を確定する。
 - 非担当: 5 軸シート充足 (Phase 4)、表層仮説検証 (Phase 2)、真の課題発掘 (Phase 5)、セッション中の vocabulary_tier 変更。
 
 ### 2.2 ドメインルール
 - 6 軸定義は `user-profile-dimensions.md` を唯一の真実源とする。
 - vocabulary_tier は `non-tech-vocabulary.md` と `vocabulary-tiers.md` の判定基準で確定。
-- confidence は high / medium / low の 3 値。
+- confidence は low / mid / high の 3 値。
 
 ### 2.3 入力契約
 | field | type | required | source | 説明 |
@@ -48,23 +48,24 @@ model: sonnet
 
 ### 2.4 出力契約
 - schema: `plugins/skill-intake/skills/run-skill-intake/schemas/phase3-profile.schema.json` (owner SKILL.md Phase 3 gate で validate PASS が必須)
-- 必須フィールド (schema required): dimensions (6 軸すべて level/evidence/confidence)、vocabulary_tier
-- vocabulary_tier は schema enum `non_technical | mixed | technical` のいずれか (それ以外は validate FAIL)。
+- 必須フィールド (schema required): dimensions (array・6 軸すべて dim/value/confidence、evidence 付与)、vocabulary_tier
+- dimensions は array 形状 `[{dim, value, confidence, evidence}]` (6 件)。confidence は enum `low | mid | high`。
+- vocabulary_tier は schema enum `novice | intermediate | expert` のいずれか (それ以外は validate FAIL)。
 - 完了条件: 6 軸すべて非空 + vocabulary_tier 確定 + 上記 schema validate PASS。
 
 出力 JSON 雛形:
 
 ```json
 {
-  "dimensions": {
-    "expertise":      {"level": "low",  "evidence": "...", "confidence": "high"},
-    "role":           {"level": "...",  "evidence": "...", "confidence": "..."},
-    "context":        {"level": "...",  "evidence": "...", "confidence": "..."},
-    "constraints":    {"level": "...",  "evidence": "...", "confidence": "..."},
-    "motivation":     {"level": "...",  "evidence": "...", "confidence": "..."},
-    "sharing_intent": {"level": "...",  "evidence": "...", "confidence": "..."}
-  },
-  "vocabulary_tier": "non_technical|mixed|technical"
+  "dimensions": [
+    {"dim": "expertise",      "value": "low", "confidence": "high", "evidence": "..."},
+    {"dim": "role",           "value": "...", "confidence": "...",  "evidence": "..."},
+    {"dim": "context",        "value": "...", "confidence": "...",  "evidence": "..."},
+    {"dim": "constraints",    "value": "...", "confidence": "...",  "evidence": "..."},
+    {"dim": "motivation",     "value": "...", "confidence": "...",  "evidence": "..."},
+    {"dim": "sharing_intent", "value": "...", "confidence": "...",  "evidence": "..."}
+  ],
+  "vocabulary_tier": "novice|intermediate|expert"
 }
 ```
 
@@ -103,7 +104,7 @@ model: sonnet
 
 - 目的: 発話履歴と前 phase 出力から 6 軸プロファイル (expertise/role/context/constraints/motivation/sharing_intent) を客観推定し、後続 phase の語彙選択基準となる vocabulary_tier を確定する。
 - 背景: 主スレッドの「相手に合わせる」傾向は推定を歪める。fresh context で独立推定し、各軸を evidence ベースで根拠付ける必要がある。tier は確定後セッション中に変更しないことで後続 phase の語彙整合性を担保する。
-- 達成ゴール: 6 軸全てに level/evidence/confidence が付与され、vocabulary_tier が non_technical/mixed/technical のいずれかで確定し、profile.json が phase3-profile.schema.json validate PASS で書き出されている状態。
+- 達成ゴール: 6 軸全ての dimensions 要素に dim/value/confidence/evidence が付与され、vocabulary_tier が novice/intermediate/expert のいずれかで確定し、profile.json が phase3-profile.schema.json validate PASS で書き出されている状態。
 
 ### 5.3 実行方式
 
@@ -154,19 +155,20 @@ model: sonnet
 3. {{level_option_3}}
 4. (自由入力) その他
 
-### Template 2: 推定根拠の記録フォーマット (profile.json の dimensions 各値)
+### Template 2: 推定根拠の記録フォーマット (profile.json の dimensions 各要素)
 
 ```json
-"{{dimension_name}}": {
-  "level": "{{推定レベル}}",
-  "evidence": "{{発話の引用 or 入力データ参照 (PII 汎用語化)}}",
-  "confidence": "{{high|medium|low}}"
+{
+  "dim": "{{dimension_name}}",
+  "value": "{{推定レベル}}",
+  "confidence": "{{low|mid|high}}",
+  "evidence": "{{発話の引用 or 入力データ参照 (PII 汎用語化)}}"
 }
 ```
 
 ### Template 3: 完了報告 (ユーザー向け 6 軸サマリ表)
 
-| 軸 | level | confidence |
+| 軸 (dim) | value | confidence |
 |---|---|---|
 | expertise | {{...}} | {{...}} |
 | role | {{...}} | {{...}} |
@@ -175,18 +177,18 @@ model: sonnet
 | motivation | {{...}} | {{...}} |
 | sharing_intent | {{...}} | {{...}} |
 
-vocabulary_tier: **{{non_technical|mixed|technical}}** (出力先: `output/<hint>/profile.json`)
+vocabulary_tier: **{{novice|intermediate|expert}}** (出力先: `output/<hint>/profile.json`)
 
 ## Self-Evaluation
 
 > Layer 5 完了チェックリスト。全項目 YES でゴール到達=停止条件成立。固定手順は持たない。
 
-- [ ] **完全性**: 6 軸すべてに level/evidence/confidence が埋まっている (目的: 後続 phase が語彙・深度選択可能 / 背景: 欠損軸は語彙ミスマッチ要因)
-- [ ] **tier 確定**: vocabulary_tier が schema enum non_technical/mixed/technical のいずれかで確定 (目的: 後続 phase の語彙統一 / 背景: tier 未確定・enum 外値は phase3-profile.schema.json validate FAIL)
+- [ ] **完全性**: dimensions が 6 要素の array で各要素に dim/value/confidence/evidence が埋まっている (目的: 後続 phase が語彙・深度選択可能 / 背景: 欠損軸は語彙ミスマッチ要因)
+- [ ] **tier 確定**: vocabulary_tier が schema enum novice/intermediate/expert のいずれかで確定 (目的: 後続 phase の語彙統一 / 背景: tier 未確定・enum 外値は phase3-profile.schema.json validate FAIL)
 - [ ] **tier 不変**: セッション中に vocabulary_tier を変更していない (目的: 整合性維持 / 背景: 途中変更は過去発話との齟齬を生む)
 - [ ] **質問上限**: 直接質問が最大 2 問以内 (目的: ユーザー疲弊回避)
 - [ ] **推定根拠の追跡性**: 各軸 evidence が入力データから引用可能 (発話の一部を含む) (目的: 推定の検証可能性 / 背景: 根拠なし推定は信頼できない)
-- [ ] **信頼度の明示**: confidence が high/medium/low で必ず付与 (目的: 後続判断の不確実性表現)
+- [ ] **信頼度の明示**: confidence が low/mid/high で必ず付与 (目的: 後続判断の不確実性表現)
 - [ ] **PII 非露出**: role 等の evidence に組織名等の PII を残していない (汎用語化済み)
 - [ ] **再現性**: 同じ kickoff+assumption から同じ vocabulary_tier を返す
 - [ ] **責務遵守**: 5 軸シート充足 (R4) / 表層仮説検証 (R2) / 課題発掘 (R5) に踏み込んでいない (目的: SRP 維持)

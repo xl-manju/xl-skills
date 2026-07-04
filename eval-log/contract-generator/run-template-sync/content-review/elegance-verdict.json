@@ -1,21 +1,21 @@
 {
-  "target": {"plugin":"contract-generator","skill":"run-template-sync","skill_md_sha256":"f87c3fc005656b9186724c7bada8143aee12bc877dec1068bdaf09752e1abcc8"},
+  "target": {"plugin":"contract-generator","skill":"run-template-sync","skill_md_sha256":"2120f014ea2f7220329d3ad8537180ba20361cd50ac3902545a06884c015569d"},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":0},
-  "reviewer": "independent-rename-review-subagent-e",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "findings_summary": {"contradiction":0,"omission":0,"inconsistency":0,"dependency_break":0,"smell":1},
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-03T22:13:52Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1","IN2","OUT1"],
-    "positive_feedback": ["作成意図と異質な発動条件(ひな形変更)を独立スキルへ分離し Drive API 浪費と再生成フラグ誤爆を構造で防ぐ設計判断が秀逸(OUT1 の誤発火防止を裏付け)。", "scan_template の exit 0/5 と --apply/--dry-run の二段ゲートで診断と破壊的変更(台帳差し戻し)を明確分離し、IN1/IN2 が exit コード・書込抑止という機械検証へ紐づく。"],
+    "positive_feedback": ["作成意図と異質な発動条件(ひな形変更)を独立スキルへ分離し『ひな形が変わった』明示意図でのみ発火・作成意図では発火しない誤発火防止が description(L3)/Purpose(L44)/境界(L47)/主要ルール(L50)まで純化され OUT1 を裏付け。今回の diff(L109)が sync.py を『薄い shim(scan_template 委譲のみ)』→『エントリ(集約診断・--apply で ledger へ completed 行の再生成フラグ書込・drift 時も exit 0)』へ実装実態へ正確化し L44/L68/IN2 の --apply ledger 書込記述と整合を回復。", "scan_template の exit 0/5(IN1)と --apply/--dry-run の二段ゲート(IN2)で診断と破壊的変更(台帳差し戻し)を明確分離し、機械検証手段へ紐づく。"],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator 改名に伴う SKILL.md 再評価(SHA=f87c3fc0…)。全文精読で (a) 旧名 skill-creator/skill_creator/スキルクリエイター の残存ゼロ、(b) rubric_refs L14 の harness-creator/run-elegant-review パスが実在解決、(c) 本文 L56 の run-build-skill は単体スキル生成 skill 名として skill 表現維持で意味論境界に整合、を確認。C1-C4 いずれも実害なし。IN1(scan_template exit 0/5・MISSING/UNMAPPED 判定)/IN2(--apply のみ再生成フラグ付与・dry-run/未指定は書込抑止)/OUT1(明示意図のみ発火の description 純化)を Purpose/境界/主要ルール/検証で裏付け PASS。"
+  "notes": "現 SHA (2120f014…) の SKILL.md を read-only 逐一照合した genuine 再評価。変更点=追加リソース L109 の sync.py 記述を『薄い shim(lib/scan_template.py への委譲のみ)』→『エントリ(scan_template を集約診断し --apply 時は ledger へ completed 行の再生成フラグ書込。scan_template の等価 shim ではなく drift 時も exit 0)』へ正確化。これは L44/L68/IN2 の --apply ledger 書込と整合。ただし『## 検証』L94『実装: scripts/sync.py(薄い shim)』が旧来の『薄い shim』表記のまま残り、同一成果物(scripts/sync.py)を L109 では『等価 shim ではなく』と記す軽微な用語不整合が残存(smell=1)。契約 IN1/IN2/OUT1 は充足し設計欠陥ではないため verdict=PASS(L94 の『薄い shim』を『エントリ/薄いラッパ』へ揃えれば解消)。C1(矛盾)/C2(漏れ)/C4(依存)は実害なし。"
 }

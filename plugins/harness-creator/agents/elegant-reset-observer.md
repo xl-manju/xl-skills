@@ -36,9 +36,9 @@ since: 2026-05-24
 
 `schemas/phase-output.schema.json#/definitions/phase1_output` 準拠の JSON を `review_workspace/raw_observations.json` へ書き、200 字以内の `shared_state.md` を Phase 2 ファンアウト中継として返す (出力先は owner `run-elegant-review` SKILL.md Phase 1 と prompt SSOT に従う)。
 
-## Prompt (SSOT 参照)
+## Prompt Templates
 
-本 agent は run-elegant-review orchestrator から起動される自動実行 agent。7 層プロンプト本体・起動文・Layer マッピングは正本 `run-elegant-review/prompts/R1-phase1-reset.md` を参照する (agents は薄いアダプタ。本文へ複写しない)。入力 placeholder は `{{target_type}}` (schema `phase1_input.target_type` enum) / `{{target_path}}` (絶対パス) / `{{review_workspace}}`。出力契約は `schemas/phase-output.schema.json#/definitions/phase1_output`。
+本 agent は run-elegant-review orchestrator から起動される自動実行 agent。ユーザとの対話はない (対話なし: 自動実行 agent)。7 層プロンプト本体・起動文・Layer マッピングは正本 `run-elegant-review/prompts/R1-phase1-reset.md` を参照する (agents は薄いアダプタ。本文へ複写しない)。入力 placeholder は `{{target_type}}` (schema `phase1_input.target_type` enum) / `{{target_path}}` (絶対パス) / `{{review_workspace}}`。出力契約は `schemas/phase-output.schema.json#/definitions/phase1_output`。
 
 Phase 2 への引き渡しは orchestrator 責務: 本 agent は `raw_observations.json` (schema 準拠) と `shared_state.md` (200 字) を生成し、orchestrator が並列 3 agent (logical-structural / meta-divergent / system-strategic) へ同一入力として配布する。**なぜ**: 3 agent が同一観察を共有することで観察ズレ由来の矛盾を排除するため。
 

@@ -12,7 +12,7 @@
 | responsibility | R1 (Step 1 ヒアリング → skill-brief.json) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | schemas/skill-brief.schema.json |
-| reproducible | true (open_questions は brief.open_questions[] に構造化保持、TODO(human) 化禁止) |
+| reproducible | true (open_questions は brief.open_questions[] に string 配列で保持、判断が分かれる細部は OPEN_QUESTION(escalate) としてユーザーへ返す、TODO(human) ラベル禁止) |
 
 ## Layer 1: 基本定義層 (不変原則)
 
@@ -64,7 +64,7 @@
 
 - schema: `schemas/skill-brief.schema.json` (additionalProperties: false)
 - 必須フィールド: skill_name / prefix / kind / hierarchy_level / trigger_conditions / boundary / responsibilities
-- open_questions が残る場合は `brief.open_questions[]` に `{question, default_decision, rationale}` 形式で保持し、AI が default_decision を確定 (TODO(human) 化禁止)
+- open_questions は `brief.open_questions[]` の string 配列 (maxItems 10)。解消可能な曖昧さは AI が最尤仮説で補い、判断が分かれる細部のみ OPEN_QUESTION(escalate) ラベル付きの文字列としてユーザーへ返す (代理決定・TODO(human) ラベル禁止)
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -74,7 +74,7 @@
 |---|---|---|
 | manifest | workflow-manifest.json | phase=elicit context 取得時 |
 | schema | schemas/skill-brief.schema.json | brief 構造検証時 |
-| naming-rule | references/skill-naming-rule.md | skill_name 検証時 |
+| naming-rule | $CLAUDE_PLUGIN_ROOT/skills/ref-skill-naming-convention/references/decision-table.md | skill_name 検証時 |
 
 ### 3.2 外部ツール / API
 
@@ -87,7 +87,7 @@
 ### 4.1 失敗時挙動
 
 - schema 不一致時は brief を保存せず exit 1
-- open_questions の default_decision 未確定は exit 1 (人間判断保留禁止)
+- open_questions に残った OPEN_QUESTION(escalate) 項目は失敗ではない (brief を保存し、後続 R2 Gate でユーザーへ提示)。代理決定は行わない
 
 ### 4.2 観測 / ロギング
 
@@ -109,8 +109,8 @@
 ### 5.2 ゴール定義
 
 - **目的**: ユーザー要望を schema 準拠の skill-brief.json に構造化する
-- **背景**: 後続 Step は固定パスから brief を参照するため、命名・prefix-kind 整合・open_questions の構造化が完了している必要がある
-- **達成ゴール**: skill-brief.json が schema 検証を通過し、open_questions が default_decision 付きで確定済み (TODO(human) 化禁止) の状態
+- **背景**: 後続 Step は固定パスから brief を参照するため、命名・prefix-kind 整合・open_questions の切り分け (escalate 判定) が完了している必要がある
+- **達成ゴール**: skill-brief.json が schema 検証を通過し、open_questions が string 配列で保持され、判断が分かれる細部のみ OPEN_QUESTION(escalate) としてユーザーへ返される (代理決定・TODO(human) ラベル禁止) 状態
 
 ### 5.3 完了チェックリスト (停止条件)
 
@@ -122,15 +122,15 @@
 - [ ] boundary が 200 文字以内で「やらないこと」を 1 文で明示
 - [ ] kind ∈ {run,assign} なら responsibilities に prompt_required=true が 1 件以上
 - [ ] output_language=ja, parameter_language_exception=true
-- [ ] open_questions が残らない、または `{question, default_decision, rationale}` で AI 自動確定済み
+- [ ] open_questions は string 配列 (maxItems 10) で、解消可能な曖昧さは AI が補い、判断が分かれる細部のみ OPEN_QUESTION(escalate) としてユーザーへ返している (代理決定・TODO(human) ラベル禁止)
 
 ### 5.4 実行方式 (動的手順生成ループ)
 
 1. 未充足チェックリスト項目を特定
-2. 解消手順を立案 (Notion 指定ありなら publish 完了証跡検証 / Skill(run-skill-elicit) 起動 / 対話再質問 / schema 整形 / default_decision 確定 のいずれか)
+2. 解消手順を立案 (Notion 指定ありなら publish 完了証跡検証 / Skill(run-skill-elicit) 起動 / 対話再質問 / schema 整形 / 判断が分かれる細部の open_questions(escalate) 退避 のいずれか)
 3. 実行し brief を更新
 4. schema 検証で自己評価、全項目充足まで反復
-5. 上限到達 / default_decision 未確定は exit 1 (人間判断保留禁止)
+5. 上限到達で構造的必須項目が未充足なら brief を保存せず exit 1。判断が分かれる細部は open_questions(escalate) へ退避しユーザーへ返す (brief は保存継続、代理決定禁止)
 
 ## Layer 6: オーケストレーション層
 
