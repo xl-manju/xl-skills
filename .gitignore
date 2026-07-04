@@ -103,10 +103,12 @@ eval-log/plugin-dev-planner/**
 !eval-log/plugin-dev-planner/*/
 !eval-log/plugin-dev-planner/*/content-review/
 !eval-log/plugin-dev-planner/*/content-review/**
-# プラン単位 (plan-slug キー) の elegant-review run スクラッチは eval-log/<slug>/plan/elegant-review/
-# に落ち、上の plugin 名キー規則 (eval-log/plugin-dev-planner/**) を素通りする。briefing/shared_state/
-# snapshot/patch/diff は再現性正本でない揮発 run スクラッチのため追跡しない (計画正本は plugin-plans/<slug>/)。
+# プラン単位 (plan-slug キー) の elegant-review run スクラッチは eval-log/<slug>/_plan/elegant-review/
+# (harness 実装は `_plan` セグメントを出力・旧 `plan/` も後方互換で残す) に落ち、上の plugin 名キー規則
+# (eval-log/plugin-dev-planner/**) を素通りする。briefing/shared_state/snapshot/patch/diff は再現性正本でない
+# 揮発 run スクラッチのため追跡しない (計画正本は plugin-plans/<slug>/)。
 eval-log/*/plan/elegant-review/**
+eval-log/*/_plan/elegant-review/**
 
 # plugin-dev-planner: 計画成果物 plugin-plans/<slug>/ は可視・永続の tracked deliverable
 # (io-contract.md §9)。既定出力先で、レビュー可能な計画一式を git 追跡する。
