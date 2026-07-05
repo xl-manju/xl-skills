@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 44,
+  "skills_measured": 47,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -697,6 +697,51 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
+    },
+    {
+      "plugin": "slide-report-generator",
+      "skill": "run-cross-deck-review",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-05"
+    },
+    {
+      "plugin": "slide-report-generator",
+      "skill": "run-slide-report-generate",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-05"
+    },
+    {
+      "plugin": "slide-report-generator",
+      "skill": "run-slide-report-modify",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-05"
     },
     {
       "plugin": "ubm-goal-setting",
