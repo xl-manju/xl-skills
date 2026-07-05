@@ -144,10 +144,10 @@ BUILD_KIND_BY_KIND = {
     "script": "script",
 }
 # builder → 実行実体の有無 (io-contract §9 build handoff 契約「builder → 実行手段の解決表」の機械正本)。
-# executor-backed = 実在 skill が build を実行できる / contract-only = 契約 (routing 語彙) のみで
-# 専用 executor 未整備 (当面 run-build-skill 内代替)。contract-only の route は handoff の
-# open_issues に capability-gap を起票し routes[].gap_ref で追跡することを check-build-handoff が
-# fail-closed 強制する (executor gap の無音隠蔽を防ぐ)。
+# executor-backed = 実在 skill が build を実行できる / contract-only = planner 上の routing 語彙で
+# run-build-skill の 7 kind ではない。script route は L4 で harness-creator/scripts/build-script-route.py
+# が消費するが、contract-only の route は handoff の open_issues に routing gap を起票し
+# routes[].gap_ref で追跡することを check-build-handoff が fail-closed 強制する。
 BUILDER_STATUSES = ("executor-backed", "contract-only")
 BUILDER_STATUS = {
     "run-skill-create": "executor-backed",

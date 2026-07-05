@@ -132,9 +132,9 @@ def _route_errors(route: dict, idx: int, ids: set[str], plan_dir: Path) -> list[
 def _check_builder_status(routes: list[dict], open_issue_ids: set[str]) -> list[str]:
     """builder の実行実体有無 (specfm.BUILDER_STATUS) を routes へ fail-closed 強制する。
 
-    contract-only builder (専用 executor 未整備・当面 run-build-skill 内代替) の route は
+    contract-only builder (planner 上の routing 語彙で run-build-skill の 7 kind ではない) の route は
     `builder_status: contract-only` の明示宣言 + open_issues 内の gap id への `gap_ref` を必須に
-    する (executor gap の無音隠蔽を防ぐ)。executor-backed は builder_status 省略可 (宣言時は
+    する (routing 解決先の無音隠蔽を防ぐ)。executor-backed は builder_status 省略可 (宣言時は
     一致必須)。manual-user-gated 等 写像外 builder は本検査の対象外。
     """
     errors: list[str] = []
@@ -153,7 +153,7 @@ def _check_builder_status(routes: list[dict], open_issue_ids: set[str]) -> list[
         if expected == "contract-only":
             if declared != "contract-only":
                 errors.append(
-                    f"{prefix}: builder={builder} は executor 未整備 (contract-only)。"
+                    f"{prefix}: builder={builder} は contract-only routing 語彙。"
                     "builder_status: contract-only を明示宣言すること"
                 )
             gap_ref = str(route.get("gap_ref", "")).strip()

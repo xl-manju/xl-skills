@@ -3,7 +3,7 @@
 # name: emit-improvement-handoff
 # purpose: E3 境界の emitter。改善成果物 (run-elegant-review / content-review 等の findings) と routing 引数から improvement-handoff.json を正規化生成し、run-plugin-dev-plan --mode update (C01) が受理できる構造化入力を produce する。
 # inputs:
-#   - argv: --source-kind K --source-ref R --target-plugin-slug S --plan-dir D --findings F.json [--schema-version V] [--generated-by G] [--source-intake I] [--prev-goal-spec P] [-o OUT]
+#   - argv: --source-kind K --source-ref R --target-plugin-slug S --plan-dir D --findings F.json [--schema-version V] [--generated-by G] [--source-intake I] [--prev-goal-spec P] [--origin-request-kind OK] [--origin-request-ref OR] [-o OUT]
 # outputs:
 #   - stdout: OUT 省略時は生成 JSON / 指定時は OK summary
 #   - stderr: validation error
@@ -33,6 +33,7 @@ from pathlib import Path
 SCHEMA_VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SOURCE_KINDS = ("elegant-review", "content-review", "evaluator", "manual")
+ORIGIN_REQUEST_KINDS = ("notion-improvement-request", "slack", "verbal", "other")
 SEVERITIES = ("high", "medium", "low")
 
 
@@ -68,11 +69,17 @@ def build_handoff(args, findings: list[dict]) -> dict:
     }
     if args.generated_by:
         handoff["source"]["generated_by"] = args.generated_by
+    provenance: dict = {}
     if args.source_intake is not None or args.prev_goal_spec is not None:
-        handoff["provenance"] = {
-            "source_intake": args.source_intake,
-            "prev_goal_spec": args.prev_goal_spec,
+        provenance["source_intake"] = args.source_intake
+        provenance["prev_goal_spec"] = args.prev_goal_spec
+    if args.origin_request_ref is not None:
+        provenance["origin_request"] = {
+            "kind": args.origin_request_kind,
+            "ref": args.origin_request_ref,
         }
+    if provenance:
+        handoff["provenance"] = provenance
     return handoff
 
 
@@ -105,6 +112,17 @@ def validate(handoff: dict) -> list[str]:
                 errors.append(f"{prefix}.severity は {list(SEVERITIES)} のいずれか")
             if not str(f.get("summary", "")).strip():
                 errors.append(f"{prefix}.summary が空")
+    origin = (handoff.get("provenance") or {}).get("origin_request")
+    if isinstance(source, dict) and source.get("kind") == "manual" and origin is None:
+        errors.append("source.kind=manual では provenance.origin_request が必須")
+    if origin is not None:
+        if not isinstance(origin, dict):
+            errors.append("provenance.origin_request が object でない")
+        else:
+            if origin.get("kind") not in ORIGIN_REQUEST_KINDS:
+                errors.append(f"provenance.origin_request.kind は {list(ORIGIN_REQUEST_KINDS)} のいずれか")
+            if not str(origin.get("ref", "")).strip():
+                errors.append("provenance.origin_request.ref が非空 string でない")
     return errors
 
 
@@ -119,6 +137,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--generated-by", default=None)
     ap.add_argument("--source-intake", default=None, help="起点 intake.json 参照 (provenance)")
     ap.add_argument("--prev-goal-spec", default=None, help="改善前 goal-spec.json 参照 (provenance)")
+    ap.add_argument("--origin-request-kind", default="notion-improvement-request",
+                    choices=ORIGIN_REQUEST_KINDS,
+                    help="改善の発端種別 (provenance.origin_request.kind)。--origin-request-ref 指定時に有効")
+    ap.add_argument("--origin-request-ref", default=None,
+                    help="改善の発端への参照 (Notion 改善要望ページ URL 等)。人間ブリッジで起点要望を追跡する (provenance.origin_request.ref)")
     ap.add_argument("-o", "--output", default=None, help="出力先 (省略時 stdout)")
     args = ap.parse_args(argv)
 

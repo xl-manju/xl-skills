@@ -24,30 +24,30 @@ build は phase 順ではなく依存 top-sort 順に走る (共有 script/gate 
 ## 前提条件
 - P04 で C01/C06 の criteria が Red で確定している。
 - `handoff-run-plugin-dev-plan.json` の routes が inventory 由来の依存 top-sort 順で用意されている (順序の正本は routes[] 配列そのもの)。
-- executor-backed builder (run-skill-create / run-build-skill) が利用可能。contract-only builder (parent-skill-build / plugin-scaffold) は単独実行体ではなく routing 語彙として扱い、`handoff-run-plugin-dev-plan.json.open_issues.GAP-SCRIPT-BUILDER` の代替生成手順を通す。
+- executor-backed builder (run-skill-create / run-build-skill) が利用可能。contract-only builder (parent-skill-build / plugin-scaffold) は run-build-skill の kind ではなく planner 上の routing 語彙として扱い、script route は `/capability-build --handoff ... --route-id ...` から `plugins/harness-creator/scripts/build-script-route.py` へ委譲する。
 - `requires_parent_scaffold` は DAG 依存ではなく配置境界を示す二相 build 指示である。C03/C04/C05 の script route を処理する executor は、親 skill C01 のディレクトリが未生成なら空 scaffold を先に作り、script 配置後に C01 本体 build で同じディレクトリを上書き統合する。
 
 ## ドメイン知識
 - build 順の不変条件: inventory DAG の top-sort 順 (依存先が常に先。phase 番号順ではない)。具体的な線形順序は routes[] 配列を正本とし、本文は依存辺の説明に留める。
-- builder 4 種の実行実体差: `builder_status` が executor-backed (run-skill-create/run-build-skill=実行 skill 実在) / contract-only (parent-skill-build/plugin-scaffold=routing 語彙のみ・`gap_ref` が `open_issues` を参照) を区別する。contract-only route は build 不能ではなく、現時点では run-build-skill 側の代替生成またはユーザー承認済み手作業に展開される対象である。
-- contract-only 代替生成の境界: plugin-root script (C08/C09) は `build_target` へ直接生成、skill 配下 script (C03/C04/C05) は `requires_parent_scaffold` が指す C01 の配下へ生成する。builder 自体の恒久実装は本 plan 外だが、代替生成の実行ログは build_trace の必須証跡に含める。
+- builder 4 種の実行実体差: `builder_status` が executor-backed (run-skill-create/run-build-skill=実行 skill 実在) / contract-only (parent-skill-build/plugin-scaffold=planner routing 語彙・`gap_ref` が `open_issues` を参照) を区別する。contract-only script route は build 不能ではなく、`build-script-route.py` が実体確認または最小 scaffold 生成を行う。
+- contract-only script route の実行境界: plugin-root script (C08/C09) は `build_target` へ直接生成、skill 配下 script (C03/C04/C05) は `requires_parent_scaffold` が指す C01 の配下へ生成する。生成結果は route-build-report の必須証跡に含める。
 - Green 判定の主体は P04 で固定した criteria (実装が判定基準を都合よく再定義しない)。
 - self-build 注意: C06 は builder==build_target の自己適用 build (run-skill-create が run-skill-create 自身を更新する)。build 中は旧仕様で走ることを前提に、開始前に現行版を git commit/stash で退避し、完了後に C8 golden example (P07) で再検証する。
 
 ## 成果物
 - 全 11 component の実体 (skill 更新 2 件/command 更新 2 件/script 5 件/sub-agent 1 件/hook 1 件) が build_target に生成された状態。
 - `envelope-draft/plugin.json` (harness-creator 側は無変更、plugin-dev-planner 側は C10/C11 の build スコープ内で entry_points.agents[]/hooks.PreToolUse[] へ登録) を基にした実 manifest。
-- contract-only route を代替生成した場合は、どの executor-backed 手順へ展開したかを build trace に残した状態。
+- contract-only script route を `build-script-route.py` で実行した場合は、実体確認/生成結果を route-build-report に残した状態。
 
 ## スコープ外
 - カバレッジ拡充・テスト網羅 (P06)。
 - purpose 受入判定 (P07)・SSOT 重複整理 (P08)。
-- builder 自体の改修 (harness-creator 側の責務・contract-only builder の gap は `open_issues` へ起票済みで本 plan の実装スコープ外)。
+- run-build-skill の kind 集合そのものへ `script` kind を追加する改修。
 
 ## 完了チェックリスト
 - [ ] 依存 top-sort 順に全 11 component が build され、C01/C06 の criteria が Green (受入テスト PASS) になる。
 - [ ] build 実体パスが inventory の build_target と一致する (cross-plugin routing: plugin-dev-planner 側 7 件・harness-creator 側 4 件)。
-- [ ] contract-only builder の route は `GAP-SCRIPT-BUILDER` を参照し、代替生成手順と生成結果が build trace に記録されている。
+- [ ] contract-only builder の script route は `GAP-SCRIPT-BUILDER` を参照し、`build-script-route.py` の実行結果が route-build-report に記録されている。
 - [ ] 共有 script C08/C09 が `plugins/harness-creator/scripts/` (plugin-root) へ実体化されている (単一 skill 配下に退化していない)。
 - [ ] plugin-dev-planner 側 manifest へ C10 (entry_points.agents[]) / C11 (hooks.PreToolUse[]) の登録が反映されている。
 

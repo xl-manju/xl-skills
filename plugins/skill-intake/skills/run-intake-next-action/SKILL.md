@@ -65,7 +65,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 
 **完了条件**: `mode` 確定 + `reason` に判定根拠 (引いた mode / 判定条件) 含む + (`pattern` 不一致時) `confirmed_with_user=true` + schema 検証 exit 0。
 
-**完了レポートの環境 degrade 文言 (出力契約)**: handoff 先 skill (`run-skill-create` / `run-plugin-dev-plan`) が実行環境に存在しない単独 install 時は、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を必ず含める (推奨が実行不能な環境で完了形を誤認させない)。
+**完了レポートの人間向け次アクション (出力契約)**: `next-action.json` は schema 互換のため mode / handoff_target / phase のみを持つ。人間向け完了レポートには、次に実行する 1 コマンドを必ず併記する。mode P は `/plugin-dev-plan "<構想要約>" --intake-json output/<hint>/intake.json --next-action-json output/<hint>/next-action.json`、mode A-E は `harness_creator_handoff_phase` に対応する `run-skill-create` / `run-build-skill` 起動案内を出す。handoff 先 skill (`run-skill-create` / `run-plugin-dev-plan`) が実行環境に存在しない単独 install 時は、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を必ず含める (推奨が実行不能な環境で完了形を誤認させない)。
 
 **必須前提 (precondition gate)**: skill 生成 (`run-skill-create`) へ進む handoff を確定する前に、**Notion 公開完了が必須前提**である。`scripts/decide-mode.py` は `output/<hint>/notion-publish-result.json` が存在し `notion-log.json.status=="published"` (かつ `page_id` 有り) であることを assert し、不成立なら **exit 2** で停止して未公開のまま skill 生成へ横流れさせない (逸脱B封鎖)。CI / dry-run のみ `--allow-skip` で緩和可。
 
@@ -101,6 +101,7 @@ Phase 11 担当。`summary.json` / `purpose.json` / `options.json` / `kickoff.js
 - [ ] `mode=E` のとき `harness_creator_handoff_phase` が `P1-kickoff (re-intake)` になっている
 - [ ] `handoff_target` が mode P で `plugin-dev-planner`、mode A-E で `harness-creator` になっている (schema の allOf 条件)
 - [ ] handoff 先 skill が環境に存在しない単独 install 時、完了レポートに「Notion ページ共有までが完了形。推奨アクションは開発環境 (repo clone) 用」の 1 行を含めている
+- [ ] 完了レポートに人間がそのまま実行できる次アクションを 1 コマンドで併記している (mode P は `/plugin-dev-plan "<構想要約>" --intake-json output/<hint>/intake.json --next-action-json output/<hint>/next-action.json`)
 - [ ] `split_candidates[*].responsibility` に個人名・社名・固有プロダクト名が転記されていない
 - [ ] `output/<hint>/next-action.json` が `schemas/output.schema.json` で検証 exit 0 (manifest `P4-emit` の `validate-next-action` hook)
 - [ ] 同一入力 4 ファイルで 2 回連続実行した `next-action.json` の `(mode, reason)` が完全一致 (determinism)

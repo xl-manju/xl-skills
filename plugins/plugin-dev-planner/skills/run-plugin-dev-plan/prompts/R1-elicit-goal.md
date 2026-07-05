@@ -51,7 +51,8 @@
 |---|---|---|---|
 | plugin_concept | text | yes | プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望) |
 | mode | enum | no | create / update |
-| intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator / next-action.json の split_candidates[] を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本)。**提供時は下の実行ブロックで必ず消費し** `source_intake` を記録する (documented-but-unwired を解消) |
+| intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本)。**提供時は下の実行ブロックで必ず消費し** `source_intake` を記録する (documented-but-unwired を解消) |
+| next_action_json | path | no | skill-intake の next-action.json。mode P の `split_candidates[]` を R2 の初期分解候補として受理する。`intake_json` と併用された場合は `check-intake-consumption.py --next-action ... --strict` で反映漏れを FAIL にする |
 | improvement_handoff | path | no | E3 改善成果物ハンドオフ (`schemas/improvement-handoff.schema.json` 準拠・harness-creator の `emit-improvement-handoff.py` が emit)。`mode=update` 時のみ受理し `findings[]` を再生成材料として消費、`source_improvement` を記録する |
 
 ### 2.4 出力契約
@@ -137,13 +138,16 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
 動的に手順を生成・実行・自己評価する。入力 `{{plugin_concept}}` (と任意 `{{mode}}` /
-`{{intake_json}}` / `{{improvement_handoff}}`) を Read し、目的ドリブンで
+`{{intake_json}}` / `{{next_action_json}}` / `{{improvement_handoff}}`) を Read し、目的ドリブンで
 `goal-spec.json` を生成する。E1/E3 の消費を必ず配線する:
 
-- `{{intake_json}}` が与えられたら (E1): その §0 executive_summary / §3 purpose_excavator と
-  隣接 next-action の split_candidates[] を purpose/background/goal/checklist へ源泉反映し、
+- `{{intake_json}}` が与えられたら (E1): その §0 executive_summary / §3 purpose_excavator を
+  purpose/background/goal/checklist へ源泉反映し、
   `source_intake: {ref: <intake_json>, schema_version: <intake の schema_version>}` を記録する。
-  生成後に `scripts/check-intake-consumption.py` を実行し fail-severity 未反映を 0 にする。
+  `{{next_action_json}}` も与えられた場合は mode P の split_candidates[] を R2 の初期分解候補として
+  goal-spec/checklist/constraints のいずれかに反映する。生成後に `scripts/check-intake-consumption.py`
+  を実行し fail-severity 未反映を 0 にする。next-action 併用時は `--next-action ... --strict` で
+  split_candidates の未反映も FAIL にする。
   未提供なら従来通り `{{plugin_concept}}` のみで生成する (source_intake は記録しない)。
 - `{{mode}}=update` かつ `{{improvement_handoff}}` が与えられたら (E3): schema 準拠を確認のうえ
   `findings[]` を再生成材料として反映し、`source_improvement: {ref, schema_version}` を記録する。

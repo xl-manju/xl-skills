@@ -4,5 +4,5 @@
   "builder": "parent-skill-build",
   "builder_status": "contract-only",
   "requires_parent_scaffold": "C01",
-  "expected_handling": "Use GAP-SCRIPT-BUILDER alternate generation and record update-in-place when build_target already exists."
+  "expected_handling": "Delegate to build-script-route.py and record a route-build-report; leave build_target untouched when it already exists. If only a minimal scaffold is generated, report status=skipped so dependent routes cannot proceed."
 }

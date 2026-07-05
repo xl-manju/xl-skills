@@ -225,6 +225,12 @@ def _setup_repo(tmp_path):
     _write(reports, "C1", _report("C1", _routes()[0]))
     _write(reports, "C2", _report("C2", _routes()[1],
                                   inputs_consumed=[MOD.report_path(SLUG, "C1")]))
+    # success レポートは build_target の現物存在を要求する (repo_root=tmp_path)。
+    # C1=script (ファイル) / C2=skill (ディレクトリ) の実体を用意する。
+    c1_target = tmp_path / _routes()[0]["build_target"]
+    c1_target.parent.mkdir(parents=True, exist_ok=True)
+    c1_target.write_text("# lint-a\n", encoding="utf-8")
+    (tmp_path / _routes()[1]["build_target"]).mkdir(parents=True, exist_ok=True)
     return handoff_path
 
 
@@ -263,6 +269,8 @@ def test_cli_usage_errors_exit2(tmp_path):
 
 def test_cli_reports_dir_override(tmp_path):
     handoff_path = _setup_repo(tmp_path)
+    # cwd=tmp_path で repo_root を tmp_path に固定し build_target 現物存在検査を成立させる。
     proc = _run("--handoff", str(handoff_path), "--complete",
-                "--reports-dir", str(tmp_path / "eval-log" / SLUG / "build"))
+                "--reports-dir", str(tmp_path / "eval-log" / SLUG / "build"),
+                cwd=tmp_path)
     assert proc.returncode == 0, proc.stdout

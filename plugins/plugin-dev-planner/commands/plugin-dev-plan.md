@@ -1,6 +1,6 @@
 ---
 description: プラグイン構想から index+13 フェーズファイル+component-inventory.json の plan を生成したいとき、skill/sub-agent/command/hook/script/harness/manifest を漏れなく分解したいときに使う。
-argument-hint: "<plugin-concept> [--mode create|update] [--out-dir <path>] [--intake-json <path>] [--improvement-handoff <path>]"
+argument-hint: "<plugin-concept> [--mode create|update] [--out-dir <path>] [--intake-json <path>] [--next-action-json <path>] [--improvement-handoff <path>]"
 allowed-tools: Read, Write, Edit, Bash(python3 *), Skill, Agent
 entrypoint: run-plugin-dev-plan
 name: plugin-dev-plan
@@ -31,7 +31,8 @@ since: 2026-06-30
 | `plugin-concept` | yes | — | プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)。曖昧な場合も停止せず仮 slug + `open_questions` で進める |
 | `--mode create\|update` | no | `create` | `update` は既存 plan への Edit 差分のみ (全書き換え禁止) |
 | `--out-dir <path>` | no | `plugin-plans/<plugin-slug>/` | 計画成果物の出力先を明示上書きする (既定は可視・永続の tracked deliverable)。相対パスは repo root 基準。指定値も `goal-spec.plan_dir` に固定する |
-| `--intake-json <path>` | no | — | skill-intake の `intake.json` を R1 (`intake_json`) へ渡し E1 消費させる (§0/§3/split_candidates を反映し `source_intake` を記録)。未指定なら構想文のみで生成 |
+| `--intake-json <path>` | no | — | skill-intake の `intake.json` を R1 (`intake_json`) へ渡し E1 消費させる (§0/§3 を反映し `source_intake` を記録)。未指定なら構想文のみで生成 |
+| `--next-action-json <path>` | no | — | skill-intake の `next-action.json` を R1 (`next_action_json`) へ渡し、mode P の `split_candidates[]` を初期分解候補として消費させる。`--intake-json` と併用時のみ有効 |
 | `--improvement-handoff <path>` | no | — | E3 改善成果物 (`improvement-handoff.json`) を R1 (`improvement_handoff`) へ渡す。`--mode update` 時のみ有効で `source_improvement` を記録 |
 
 > ライフサイクル軸は **13 フェーズ固定** (`phase-01-requirements.md` … `phase-13-release.md`)。buildable 実体数 N は `component-inventory.json` の `components[]` 件数として現れ 13 とは独立。ユーザーが具体的本数を求めた場合は `goal-spec.requested_count` に任意記録するが gate 強制しない。

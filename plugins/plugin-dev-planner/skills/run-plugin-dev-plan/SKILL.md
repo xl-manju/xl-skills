@@ -3,8 +3,8 @@ name: run-plugin-dev-plan
 description: プラグイン構想から index+13 フェーズファイル+component-inventory.json を生成したいとき、後段のrun-skill-createへ渡す前段の開発計画を立てたいときに使う。
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[plugin-concept?] [--mode create|update] [--out-dir <path>]"
-arguments: [plugin_concept, mode, out_dir]
+argument-hint: "[plugin-concept?] [--mode create|update] [--out-dir <path>] [--intake-json <path>] [--next-action-json <path>] [--improvement-handoff <path>]"
+arguments: [plugin_concept, mode, out_dir, intake_json, next_action_json, improvement_handoff]
 allowed-tools:
   - Read
   - Write
@@ -41,6 +41,8 @@ script_refs:
   - scripts/check-requirements-coverage.py
   - scripts/check-runtime-portability.py
   - scripts/check-plugin-surface-audit.py
+  - scripts/check-intake-consumption.py
+  - scripts/check-provenance-chain.py
   - scripts/check-upstream-pins.py
   - scripts/check-generative-fidelity.py
   - scripts/check-downstream-harness.py
@@ -55,6 +57,7 @@ reference_refs:
   - references/plugin-creator-contract.md
   - references/purpose-driven-requirements.md
   - references/harness-creator-spec-reflection.md
+  - ../../../harness-creator/references/pipeline-boundary-contract.md
   - ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md
 agent_refs:
   - ../../agents/plugin-dev-plan-elicitor.md
@@ -70,6 +73,7 @@ harness_refs:
 schema_refs:
   - schemas/plugin-goal-spec.schema.json
   - schemas/phase-spec.schema.json
+  - schemas/improvement-handoff.schema.json
 completeness_exempt:
   - "manifest: ゴールシークループで P1-P8 の手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。フェーズ定義は references/phase-lifecycle.md を共有正本として参照する。"
 goal_seek:
@@ -109,7 +113,7 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/harness-creator/scripts
 
 プラグイン構想 1 件を、目的ドリブンで **2 軸直交** (ライフサイクル軸=13 フェーズ / 成果物実体軸=N 個の buildable component) に分解し、`run-skill-create` が段階実行できる **index(main) + 13 フェーズファイル + component-inventory.json** に変換する前段の計画スキル。フェーズファイルは上から順に読める宣言型タスク仕様 (8 節・人間向け primary deliverable)、`component-inventory.json` は buildable 実体の build routing・依存 DAG・評価基準を保持する唯一の機械 SSOT、index は plugin-creator の manifest / marketplace / cachebuster / validation 契約を `plugin_meta` で携帯する。両軸は build_target/depends_on を二重に持たず (正規化)、component は `entities_covered: [C01, ...]` の id 参照だけでフェーズに紐づく。
 
-- **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)、`--mode create|update`、任意 `--out-dir <path>`。
+- **入力**: プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望)、`--mode create|update`、任意 `--out-dir <path>`、任意 `--intake-json <path>` (E1)、任意 `--next-action-json <path>` (E1 の split_candidates)、任意 `--improvement-handoff <path>` (E3、`--mode update` 時のみ)。
 - **出力**: **決定論的に解決される可視・永続の plan ディレクトリ** (既定 `plugin-plans/<plugin-slug>/`・`--out-dir` で上書き・正本 `references/io-contract.md` §9) へ (1) `goal-spec.json` (2) **13 フェーズファイル `phase-01-requirements.md` … `phase-13-release.md`** (フェーズ 1 段階=1 ファイル・§2 frontmatter + §5 本文) (3) `index.md`(main) = P01..P13 を phase_number 昇順で列挙した目次 + 全体完了条件 + 受入確認 (4) **`component-inventory.json`** (buildable 実体の唯一の SSOT・品質機構を component エントリへ焼く) (5) `handoff-run-plugin-dev-plan.json` / `plan-findings.json`。同一構想は常に同一出力先 (再現性)。deliverable は tracked、goal-seek transient (progress/intermediate) のみ gitignore。
 - **完了条件**: 同梱 core 5 scripts / 6 invocations が全 exit0 (index が P01..P13 全列挙 + inventory DAG 非循環 / unassigned 0 件=各 component が ≥1 phase に出現 / 13 phase frontmatter+section 床 + inventory component の criteria・harness≥80% 携帯 / plugin_meta 値域 / 46 行反映 self-test + PLAN) に加え、拡張ゲート 6 本 — `check-plugin-goal-spec.py` (R1 goal-spec + plugin 固有アンカー)、`check-requirements-coverage.py` (SDD 要件トレーサビリティ=goal-spec checklist の各 id が index 完了チェックリスト/受入確認へ被覆)、`check-surface-inventory.py` (5種検討証跡 + plugin-level surface 採否)、`check-build-handoff.py` (`handoff-run-plugin-dev-plan.json` の build routing (inventory 由来) / `build_kind` / `build_args` / manifest draft)、`check-runtime-portability.py` (共有 script hoist + build_target 自己完結の install 携帯性)、`check-plugin-surface-audit.py` (`plugins/` 配下の現物 surface 棚卸し) — が exit0 検証する (呼称 2 層=core 5+拡張ゲート・総数と一覧の単一正本は `references/io-contract.md` §11 表)。harness-creator 仕様 46 行と plugin-creator 物理契約が反映され、elegant-review C1-C4 全 PASS の設計が記述されている。
 
@@ -152,6 +156,7 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/harness-creator/scripts
 7. **schema parity**: skill component は `skill-brief.schema.json` 主要 14 フィールド相当へ無加工で写せる粒度にする (`references/io-contract.md`)。
 8. **配置非依存・変数化・install 携帯性**: 具体値は直書きせず `{{PROJECT_ROOT}}`/`$CLAUDE_PLUGIN_ROOT`/self-relative で表現する。Python 標準ライブラリ正本 (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。共有 script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist し (**≥2 skill consumer は plugin-root 必須**)、cross-plugin SSOT は vendoring/self-derive で携帯する (`check-runtime-portability.py` が強制・詳細は `references/io-contract.md`「配布・.claude 反映・install 携帯性」)。
 9. **update は差分のみ**: `--mode update` は Edit 差分。全書き換え禁止。
+10. **境界入力を契約として消費**: `--intake-json` は E1 (skill-intake→goal-spec) の producer artifact として `source_intake` に記録し、`--next-action-json` があれば `split_candidates[]` を初期分解候補として反映する。`--improvement-handoff` は E3 (改善→goal-spec) の producer artifact として `source_improvement` に記録する。境界の正本は `plugins/harness-creator/references/pipeline-boundary-contract.md`。
 
 ## ゴールシーク実行
 
@@ -170,6 +175,8 @@ feedback_contract: # per-skill 評価基準(SSOT=plugins/harness-creator/scripts
 ### 完了チェックリスト (Checklist)
 
 - [ ] R1: 構想から目的駆動の plugin-goal-spec (purpose/background/goal/二値 checklist + target_plugin_slug/plan_dir。`requested_count` は任意) を確定し `check-plugin-goal-spec.py` が exit0
+- [ ] E1: `--intake-json` 提供時は `source_intake` を goal-spec に記録し、`--next-action-json` 提供時は `split_candidates[]` も初期分解候補として反映し、`check-intake-consumption.py` が未反映 0 を報告した (未提供時は非適用)
+- [ ] E3: `--mode update --improvement-handoff` 提供時は `findings[]` を goal-spec/checklist/plan 再生成材料へ反映し、`source_improvement` を記録した
 - [ ] R2: 各実体を 5 種の component_kind へ単一責務分解し `component-inventory.json` (N 実体・同一 kind 複数実体可) と依存 DAG (循環なし) + envelope(plugin.json)設計 (Phase02 owner) を導出した
 - [ ] R3: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`) + index(main) + `component-inventory.json` を生成した
 - [ ] 各 inventory component が `component_kind` を宣言し kind 別構造契約を携帯している (skill 偏重なし)
@@ -229,6 +236,16 @@ else:
 PY
 # plan 決定論ゲート (PLAN_DIR を計画出力先に設定して実行)
 python3 "$SKILL_DIR/scripts/check-plugin-goal-spec.py" "$PLAN_DIR/goal-spec.json" # R1 goal-spec + plugin 固有アンカー
+if [ -n "${INTAKE_JSON:-}" ]; then
+  if [ -n "${NEXT_ACTION_JSON:-}" ]; then
+    python3 "$SKILL_DIR/scripts/check-intake-consumption.py" --intake "$INTAKE_JSON" --next-action "$NEXT_ACTION_JSON" --goal-spec "$PLAN_DIR/goal-spec.json" --strict --marker-dir "$PLAN_DIR"
+  else
+    python3 "$SKILL_DIR/scripts/check-intake-consumption.py" --intake "$INTAKE_JSON" --goal-spec "$PLAN_DIR/goal-spec.json" --marker-dir "$PLAN_DIR"
+  fi
+fi
+if [ -n "${IMPROVEMENT_HANDOFF:-}" ]; then
+  python3 "$SKILL_DIR/scripts/check-provenance-chain.py" --goal-spec "$PLAN_DIR/goal-spec.json" --plan-dir "$PLAN_DIR" --require-improvement --marker-dir "$PLAN_DIR"
+fi
 python3 "$SKILL_DIR/scripts/verify-index-topsort.py" "$PLAN_DIR"
 python3 "$SKILL_DIR/scripts/detect-unassigned.py" --inventory "$PLAN_DIR/component-inventory.json" --specs-dir "$PLAN_DIR"
 python3 "$SKILL_DIR/scripts/check-spec-frontmatter.py" --specs-dir "$PLAN_DIR"   # component_kind 別構造 + core 規律
@@ -268,7 +285,7 @@ routes[] は `component-inventory.json` の `components[]` から導出する (p
 
 - **skill component** → `run-skill-create`(L1) へ 1 本ずつ投入し L4 実 build を委譲 (run-skill-create は skill 専用。投入 brief は `scripts/render-skill-brief.py` が inventory component から決定論射影し routes[].build_args の `brief_path` で渡す)。
 - **sub-agent / slash-command / hook component** → `run-build-skill` の Capability kind dispatch で生成 (sub-agent→`kind=agent` または `--with-subagent` / slash-command→`kind=command` / hook→`kind=hook` または `--with-hooks`)。run-build-skill の 7 kind = skill/agent/hook/command/plugin-composition/prompt/workflow。単独 run-skill-create 投入はしない。本 plugin 自身にも `agents/`、`commands/`、`hooks/` の実体を持たせ、単一 skill だけの plan にならないことを dogfood する。
-- **script component** → **run-build-skill に `script` kind は無い**。単一 skill 専用スクリプトは親 skill の build で `scripts/` + `tests/` として生成され (独立 Capability でなく skill 付随物)、計画上は依存元 skill に紐付ける。**ただし ≥2 skill が共有する script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist する** (routing 上の builder 語彙=`plugin-scaffold`。単一 skill 配下固定は cross-skill/単独 install で dangling するため・`check-runtime-portability.py` が強制)。**`plugin-scaffold` / `parent-skill-build` は contract-only の builder 語彙で単独実行実体は未整備** (capability-gap 起票済・当面は `run-build-skill` の build フロー内で代替生成)。builder→実行手段の解決表は `references/io-contract.md` の build handoff 契約に 1 表固定。
+- **script component** → **run-build-skill に `script` kind は無い**。単一 skill 専用スクリプトは親 skill の build で `scripts/` + `tests/` として生成され (独立 Capability でなく skill 付随物)、計画上は依存元 skill に紐付ける。**ただし ≥2 skill が共有する script は `placement_scope=plugin-root` で `plugins/<slug>/scripts/` へ hoist する** (routing 上の builder 語彙=`plugin-scaffold`。単一 skill 配下固定は cross-skill/単独 install で dangling するため・`check-runtime-portability.py` が強制)。`plugin-scaffold` / `parent-skill-build` は planner 上の builder 語彙としては contract-only のまま扱うが、L4 実行時は `/capability-build --handoff ... --route-id ...` が `plugins/harness-creator/scripts/build-script-route.py` へ委譲して script route を実体化し、route-build-report を書く。builder→実行手段の解決表は `references/io-contract.md` の build handoff 契約に 1 表固定。
 - **harness/eval 仕様** → `EVALS.json` と `plugin-composition.yaml` に集約し、mechanical と llm_eval の両方を持つ。個別 component_kind に無理に押し込まない。
 - **plugin envelope (外殻) 仕様** → N 個の capability を 1 つの plugin に束ねる**外殻の生成 owner を明示する** (skill 偏重・component だけの plan にしないための要):
   - `plugin-composition.yaml` → `run-build-skill kind=plugin-composition` または `/plugin-compose` が生成・更新する（clone 専用基盤ゆえ project-local unprefixed が正本。`<plugin>:` 形式の namespaced prefix は付けない）。

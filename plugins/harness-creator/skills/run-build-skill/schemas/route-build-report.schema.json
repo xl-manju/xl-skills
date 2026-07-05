@@ -45,7 +45,7 @@
     "status": {
       "type": "string",
       "enum": ["success", "failure", "skipped"],
-      "description": "success=build 完了+当該 route のゲート緑 / failure=中断 (後続 route は着手不可) / skipped=意図的スキップ (skip_reason 必須)"
+      "description": "success=build 完了+当該 route のゲート緑 / failure=中断 (後続 route は着手不可) / skipped=意図的スキップまたは最小 scaffold のみ (skip_reason 必須、依存 route は着手不可)"
     },
     "skip_reason": {
       "type": "string",

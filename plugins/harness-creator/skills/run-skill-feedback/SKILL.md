@@ -76,6 +76,8 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
 
 利用者が既存スキルに対して「こう直してほしい」と感じた瞬間に発火し、構造化フィードバックを Notion 改善要望 DB へ N:1 relation 付きでプッシュする。スキル一覧の `未対応要望数` rollup が自動更新され、優先度判断シグナルになる。
 
+**責務境界**: 本 skill の責務は「要望の**収集**と優先度シグナル化」まで。収集した要望を実際の改善 (plugin-dev-planner の改善計画 → harness 再構築) へ繋ぐのは**人間ブリッジ** (`plugins/harness-creator/references/feedback-to-improvement-runbook.md` Stage 2-3)。本 skill も `未対応要望数` rollup も改善着手を自動発火しない (fail-open 回避のため Notion は機械 SSOT にしない設計)。
+
 **前提**: 利用者はプラグイン名・スキル名を知らない。「何をしようとしていたか」という目的から逆算して対象を同定してから要望を収集する。
 
 ## 発火条件 (SSOT)
@@ -243,7 +245,7 @@ token / DB ID は `notion_config.require_or_skip()` 経由 (CLI > env > per-repo
 ## Additional Resources
 
 - 上流: 利用者の口頭・Slack・PR コメントなど任意の発火源
-- 下流: スキル一覧 DB の `未対応要望数` rollup → `skill-improve` skill による着手判断
+- 下流 (人間ブリッジ): スキル一覧 DB の `未対応要望数` rollup は**人間の優先度判断シグナル**。着手要望を改善計画へ橋渡しする手順は `plugins/harness-creator/references/feedback-to-improvement-runbook.md` (E3 人間ブリッジ = Stage 2→3→6)。**本 skill / rollup は改善着手を自動発火せず、`/skill-improve` も Notion / rollup を読まない** (機械の自動 read-back は goal-spec 制約6 で意図的に回避)。
 - スキーマ正本: `doc/notion-schema/improvement-request.schema.json`
 - 物理スクリプト: `scripts/notion-submit-improvement.py`
 - 設定ローダー: `plugins/harness-creator/scripts/notion_config.py`（token/DB ID 解決 SSOT）

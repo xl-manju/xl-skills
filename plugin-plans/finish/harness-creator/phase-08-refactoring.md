@@ -29,7 +29,7 @@ applicability:
 ## ドメイン知識
 - 上書き一本化: 重複を発見したら両方残さず一方を正本に確定し、他方は削除して import/参照へ置換する (共存縮退は禁止)。
 - 第二消費者 = 正本を複製せず import/参照で共有する側 (C08/C09 は plugin-root 実体が正本。`pipeline-boundary-contract.md` は C01/C05/C08/C09/C11 が参照する側=inventory `plugin_level_surfaces.references_config_assets` の列挙と一致、`improvement-handoff.schema.json` は C09 emit 契約を正本に C01/C05/C10/C11 が参照する側)。
-- `pipeline-boundary-contract.md` の対応表には境界契約ごとに enforcement_level 列 (fail-closed hook / advisory gate / prompt-only) と選定理由の記録を必須とする (実例: E3 `--mode update` は既存 plan の破壊的再生成ゆえ fail-closed hook (C11) 強制、E1/E2 の create/build は非破壊・再実行可能ゆえ advisory gate)。状態 ledger 化・boundary-descriptor 化等の代替設計を不採用とする場合は理由を同リファレンスへ記録する。
+- `pipeline-boundary-contract.md` の対応表には境界契約ごとに enforcement_level 列 (fail-closed hook / advisory gate / prompt-only) と選定理由の記録を必須とする (実例: E3 `--mode update` は既存 plan の破壊的再生成ゆえ fail-closed hook (C11) 強制、E1/E2 は各 consumer 内の deterministic gate / route executor が明示入力を fail-closed 検証するため追加 hook は置かない)。状態 ledger 化・boundary-descriptor 化等の代替設計を不採用とする場合は理由を同リファレンスへ記録する。
 - tdd-refactor の不変条件: リファクタリング中もテスト緑を維持する (赤に戻ったら即巻き戻し)。
 
 ## 成果物
