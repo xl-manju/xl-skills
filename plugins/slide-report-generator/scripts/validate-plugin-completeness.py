@@ -22,6 +22,11 @@ REQUIRED_TOP_LEVEL = (
     "EVALS.json",
 )
 PLACEHOLDER_TOKENS = ("[TODO", "TODO:", "{{TODO", "未定義")
+# lint-feedback-protocol R7 で全 product plugin に配備される共有 vendored skill。
+# skills/run-skill-feedback は harness-creator SSOT への symlink であり所有 skill では
+# ないため、他 product plugin (notion-gmail-send / mf-kessai-invoice-check 等) と同様
+# entry_points.skills には宣言しない。completeness 突合でも所有計上から除外する。
+SHARED_SKILLS = frozenset({"run-skill-feedback"})
 MAX_AGENT_ADAPTER_LINES = 80
 PROMPT_REF_RE = re.compile(
     r"^skills/[a-z][a-z0-9-]*/prompts/R[0-9]+(-[a-z0-9]+)*\.md$"
@@ -75,7 +80,7 @@ def check_entry_points(errors: list[str], manifest: dict) -> None:
         return
 
     expected = {
-        "skills": names_in_dir(PLUGIN_ROOT / "skills"),
+        "skills": [s for s in names_in_dir(PLUGIN_ROOT / "skills") if s not in SHARED_SKILLS],
         "agents": names_in_dir(PLUGIN_ROOT / "agents", ".md"),
         "commands": names_in_dir(PLUGIN_ROOT / "commands", ".md"),
     }
