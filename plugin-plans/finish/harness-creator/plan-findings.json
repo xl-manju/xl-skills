@@ -1,47 +1,49 @@
 {
-  "plan_dir": "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator",
+  "plan_dir": "plugin-plans/harness-creator",
   "evaluator": {
     "name": "assign-plugin-plan-evaluator",
     "version": "0.1.0",
-    "context": "fork"
+    "context": "current-worktree"
   },
   "verdict": "PASS",
   "conditions": {
     "C1": {
       "id": "no_contradiction",
       "status": "PASS",
-      "summary": "矛盾なし: deterministic gates passed",
+      "summary": "矛盾なし: C9 order is consistent and build handoff passed.",
       "evidence": [
-        "check-build-handoff exit=0"
+        "check-build-handoff exit=0",
+        "rg stale C9 order exit=0"
       ]
     },
     "C2": {
       "id": "no_missing",
       "status": "PASS",
-      "summary": "漏れなし: deterministic gates passed",
+      "summary": "漏れなし: deterministic gates passed and C8/C9 fixtures plus side_effect_targets are present.",
       "evidence": [
         "detect-unassigned exit=0",
         "check-spec-frontmatter exit=0",
         "check-spec-gates exit=0",
         "check-surface-inventory exit=0",
-        "check-requirements-coverage exit=0"
+        "check-requirements-coverage exit=0",
+        "fixtures/c8-new-flow and fixtures/c9-update-flow present"
       ]
     },
     "C3": {
       "id": "consistent",
       "status": "PASS",
-      "summary": "整合性あり: deterministic gates passed",
+      "summary": "整合性あり: JSON syntax, matrix coverage, and current-worktree evidence are consistent.",
       "evidence": [
-        "check-spec-frontmatter exit=0",
-        "check-spec-gates exit=0",
+        "python3 -m json.tool goal-spec/component-inventory/handoff exit=0",
         "check-spec-matrix-coverage-self-test exit=0",
-        "check-spec-matrix-coverage-plan exit=0"
+        "check-spec-matrix-coverage-plan exit=0",
+        "plan-findings uses relative current-worktree commands"
       ]
     },
     "C4": {
       "id": "dependency_integrity",
       "status": "PASS",
-      "summary": "依存関係整合: deterministic gates passed",
+      "summary": "依存関係整合: DAG, route order, runtime portability, and side effect targets are explicit.",
       "evidence": [
         "verify-index-topsort exit=0",
         "detect-unassigned exit=0",
@@ -52,12 +54,27 @@
   },
   "gate_results": [
     {
+      "id": "G0",
+      "name": "json-syntax",
+      "command": [
+        "sh",
+        "-c",
+        "python3 -m json.tool plugin-plans/harness-creator/goal-spec.json >/dev/null && python3 -m json.tool plugin-plans/harness-creator/component-inventory.json >/dev/null && python3 -m json.tool plugin-plans/harness-creator/handoff-run-plugin-dev-plan.json >/dev/null && python3 -m json.tool plugin-plans/harness-creator/plan-findings.json >/dev/null"
+      ],
+      "exit_code": 0,
+      "conditions": [
+        "C3"
+      ],
+      "stdout": "OK: JSON files parse",
+      "stderr": ""
+    },
+    {
       "id": "G1",
       "name": "verify-index-topsort",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -70,12 +87,12 @@
       "id": "G2",
       "name": "detect-unassigned",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
         "--inventory",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator/component-inventory.json",
+        "plugin-plans/harness-creator/component-inventory.json",
         "--specs-dir",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -89,10 +106,10 @@
       "id": "G3",
       "name": "check-spec-frontmatter",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-frontmatter.py",
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-frontmatter.py",
         "--specs-dir",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -106,10 +123,10 @@
       "id": "G4",
       "name": "check-spec-gates",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-gates.py",
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-gates.py",
         "--specs-dir",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -123,8 +140,8 @@
       "id": "G5",
       "name": "check-spec-matrix-coverage-self-test",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
         "--self-test"
       ],
       "exit_code": 0,
@@ -138,9 +155,9 @@
       "id": "G6",
       "name": "check-spec-matrix-coverage-plan",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -153,9 +170,9 @@
       "id": "G7",
       "name": "check-surface-inventory",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-surface-inventory.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator/component-inventory.json"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-surface-inventory.py",
+        "plugin-plans/harness-creator/component-inventory.json"
       ],
       "exit_code": 0,
       "conditions": [
@@ -168,9 +185,9 @@
       "id": "G8",
       "name": "check-build-handoff",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator/handoff-run-plugin-dev-plan.json"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py",
+        "plugin-plans/harness-creator/handoff-run-plugin-dev-plan.json"
       ],
       "exit_code": 0,
       "conditions": [
@@ -184,9 +201,9 @@
       "id": "G9",
       "name": "check-requirements-coverage",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-requirements-coverage.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-requirements-coverage.py",
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -199,9 +216,9 @@
       "id": "G10",
       "name": "check-runtime-portability",
       "command": [
-        "/Users/dm/miniconda3/bin/python3",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py",
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py",
+        "plugin-plans/harness-creator"
       ],
       "exit_code": 0,
       "conditions": [
@@ -209,15 +226,32 @@
       ],
       "stdout": "OK: 共有 script は plugin-root へ hoist 済・全 build_target が plugin 内自己完結",
       "stderr": ""
+    },
+    {
+      "id": "G11",
+      "name": "check-plugin-goal-spec",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-goal-spec.py",
+        "plugin-plans/harness-creator/goal-spec.json"
+      ],
+      "exit_code": 0,
+      "conditions": [
+        "C3"
+      ],
+      "stdout": "OK: plugin goal-spec schema + plugin anchors validated",
+      "stderr": "WARN: source_intake 不在: intake/改善 由来でない既存 goal-spec として WARN 受理 (後方互換)\nWARN: source_improvement 不在: intake/改善 由来でない既存 goal-spec として WARN 受理 (後方互換)"
     }
   ],
   "findings": [
     {
       "severity": "info",
       "bucket": "C1-C4",
-      "observation": "All deterministic gates exited 0 and plugin-level surfaces were explicit.",
+      "observation": "All plan-scoped deterministic gates exited 0 in the current worktree after adding fixtures, side_effect_targets, explicit provenance nulls, and current-worktree evidence.",
       "evidence": [
-        "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/harness-creator"
+        "plugin-plans/harness-creator",
+        "plugin-plans/harness-creator/fixtures/c8-new-flow",
+        "plugin-plans/harness-creator/fixtures/c9-update-flow"
       ]
     }
   ]

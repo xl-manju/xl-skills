@@ -223,6 +223,18 @@ jobs:
       - name: Lint prompt placement (skill-local-v1 regex)
         run: python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-prompt-placement.py
 
+      # C02 (harness-prompt-conformance): agents/*.md (frontmatter=plugin YAML + 本文7層) と
+      # skills/*/prompts/*.md (純粋7層) の本文が l5-contract v2.0.0 準拠かを検証する内容 lint。
+      # 配置 lint (上の lint-prompt-placement.py) とは直交する。C09 が生成直後 fail-closed ゲートとして
+      # 配線するのに加え、CI で harness-creator 配下走査 (agents 6本 + 自前 prompts 全数。symlink は
+      # 除外し所有元 plugin が各自 lint する) しバイパス不能性を担保する。scanned=0 は floor guard で exit1。
+      - name: Lint agent prompt content vendor parity (C02 vendored verify-completeness byte 一致)
+        run: python3 plugins/harness-creator/scripts/lint-agent-prompt-content.py --check-vendor-parity
+      - name: Lint agent prompt content --mode agent (SubAgent 本文7層準拠)
+        run: python3 plugins/harness-creator/scripts/lint-agent-prompt-content.py --mode agent
+      - name: Lint agent prompt content --mode prompt (skill prompts 本文7層準拠)
+        run: python3 plugins/harness-creator/scripts/lint-agent-prompt-content.py --mode prompt
+
       # G-D1: 既存skill群の回帰smoke test (現状 warn-only、ベースライン整備後に blocking 化)
       - name: Skill fixture runner (regression smoke)
         run: python3 scripts/skill-fixture-runner.py || true

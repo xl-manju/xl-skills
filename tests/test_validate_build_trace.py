@@ -290,6 +290,157 @@ def test_requirement_coverage_non_array_fails(tmp_path):
     assert errs == ["requirement_coverage must be array"]
 
 
+# --- C09: prompt_provenance バイパス不能性 (_validate_prompt_provenance) ---
+
+def _required_pgm():
+    """agent/prompt を実生成する build (resolved_policy=required) の最小 model。"""
+    return {"prompt_generation_model": {"policy_resolution": {"resolved_policy": "required"}}}
+
+
+def _valid_provenance():
+    return {
+        "prompt_creator_invocation": True,
+        "source_contract_ref": "references/subagent-hybrid-format.md",
+        "content_lint": {"mode": "agent", "status": "PASS"},
+    }
+
+
+def test_provenance_valid_required_build_has_no_errors():
+    data = _required_pgm()
+    data["prompt_provenance"] = _valid_provenance()
+    assert MOD._validate_prompt_provenance(data) == []
+
+
+def test_provenance_absent_on_required_build_fails():
+    # policy=required なのに prompt_provenance 欠落 → バイパス試行を検出
+    errs = MOD._validate_prompt_provenance(_required_pgm())
+    assert errs and any("prompt_provenance is required" in e for e in errs)
+
+
+def test_provenance_absent_on_optional_build_is_ok():
+    # policy=optional の従来 build は後方互換で prompt_provenance 不要
+    # (kind 未解決/非必須 kind のみ。run/assign は _validate_prompt_generation_model が弾く)。
+    data = {"prompt_generation_model": {"policy_resolution": {"resolved_policy": "optional"}}}
+    assert MOD._validate_prompt_provenance(data) == []
+
+
+def test_pgm_run_assign_optional_downgrade_with_prompts_fails():
+    # C09-1 (精緻化): 生成物 (per_responsibility 非空) があるのに resolved_policy=optional へ
+    # 降格するのは prompt_provenance 必須化の迂回 (bypass) なので fail-closed にする。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {
+                    "resolved_policy": "optional",
+                    "resolved_via": "brief override",
+                },
+                "per_responsibility": [
+                    {"id": "R1", "path_convention": "skill-local-v1",
+                     "layer_yaml_path": "plugins/x/skills/run-y/prompts/R1.md",
+                     "lint_status": "PASS"}
+                ],
+            },
+        }
+        errs = MOD._validate_prompt_generation_model(data)
+        assert any("resolved_policy=optional contradicts" in e for e in errs)
+        assert MOD._validate_prompt_provenance(data) == []
+
+
+def test_pgm_run_assign_optional_without_prompts_is_ok():
+    # 精緻化: 本 build が prompt を生成しない run/assign (per_responsibility 空=共有 prompt 消費等)
+    # は optional で宣言してよい。生成物がないため provenance 迂回にならない (例: run-company-master-build)。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {
+                    "resolved_policy": "optional",
+                    "resolved_via": "上流/他skillが生成した共有 prompt を消費するため本 build は生成なし",
+                },
+                "per_responsibility": [],
+            },
+        }
+        errs = MOD._validate_prompt_generation_model(data)
+        assert not any("resolved_policy=optional contradicts" in e for e in errs)
+
+
+def test_pgm_run_assign_skip_always_fails():
+    # skip は生成物有無に関わらず run/assign では不可 (生成なしでも optional で宣言する)。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {"resolved_policy": "skip", "resolved_via": "x"},
+                "per_responsibility": [],
+            },
+        }
+        errs = MOD._validate_prompt_generation_model(data)
+        assert any("resolved_policy=skip contradicts" in e for e in errs)
+
+
+def test_provenance_invocation_false_is_bypass_fail():
+    # 単独生成 (prompt-creator 非経由) を宣言する trace は常に FAIL
+    data = _required_pgm()
+    prov = _valid_provenance()
+    prov["prompt_creator_invocation"] = False
+    data["prompt_provenance"] = prov
+    errs = MOD._validate_prompt_provenance(data)
+    assert errs and any("bypass detected" in e for e in errs)
+
+
+def test_provenance_unknown_contract_ref_fails():
+    data = _required_pgm()
+    prov = _valid_provenance()
+    prov["source_contract_ref"] = "references/some-other-doc.md"
+    data["prompt_provenance"] = prov
+    errs = MOD._validate_prompt_provenance(data)
+    assert errs and any("must reference a 7層契約" in e for e in errs)
+
+
+def test_provenance_content_lint_not_pass_fails():
+    data = _required_pgm()
+    prov = _valid_provenance()
+    prov["content_lint"] = {"mode": "agent", "status": "FAIL"}
+    data["prompt_provenance"] = prov
+    errs = MOD._validate_prompt_provenance(data)
+    assert errs and any("content_lint.status" in e for e in errs)
+
+
+def test_provenance_content_lint_bad_mode_fails():
+    data = _required_pgm()
+    prov = _valid_provenance()
+    prov["content_lint"] = {"mode": "schema", "status": "PASS"}
+    data["prompt_provenance"] = prov
+    errs = MOD._validate_prompt_provenance(data)
+    assert errs and any("content_lint.mode invalid" in e for e in errs)
+
+
+def _load_full_valid_trace():
+    """CI が検証する実 trace (全必須トップフィールドを備える) を読み、E2E 受入の土台にする。"""
+    import json
+    return json.loads((ROOT / "eval-log" / "skill-build-trace.json").read_text(encoding="utf-8"))
+
+
+def test_e2e_bypass_trace_exits_1(tmp_path):
+    """受入例: prompt-creator 非経由 (invocation=false) の生成物 trace が CLI で exit1 になる。"""
+    import json
+    trace = _load_full_valid_trace()
+    trace.setdefault("prompt_generation_model", {}).setdefault(
+        "policy_resolution", {}
+    )["resolved_policy"] = "required"
+    trace["prompt_provenance"] = {
+        "prompt_creator_invocation": False,  # ← バイパス試行
+        "source_contract_ref": "references/subagent-hybrid-format.md",
+        "content_lint": {"mode": "agent", "status": "PASS"},
+    }
+    p = tmp_path / "bypass-trace.json"
+    p.write_text(json.dumps(trace, ensure_ascii=False), encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(SCRIPT), str(p)], capture_output=True, text=True)
+    assert proc.returncode == 1
+    assert "bypass detected" in proc.stderr
+
+
 # --- manifest 検証経路 (--self-test) が緑であること ---
 
 def test_self_test_exits_zero():

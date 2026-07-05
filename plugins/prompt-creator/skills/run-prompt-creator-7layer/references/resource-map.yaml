@@ -12,6 +12,9 @@ resources:
   - file: seven-layer-markdown-template.md
     topic: Markdown 提示形式の補助テンプレ
     read_when: phase-layer-gen の scaffold 前
+  - file: subagent-hybrid-format.md
+    topic: SubAgent 向けハイブリッド契約 (frontmatter=plugin YAML / 本文=7層)。純粋7層 (seven-layer-format.md) との差分正本
+    read_when: agents/*.md を生成・検証するとき (harness-creator C02/C09 が参照)
   - file: quality-criteria.md
     topic: 動的評価基準 + 4 パス判定 + §8 冪等更新基準
     read_when: phase-review (4 パスレビュー実行時)

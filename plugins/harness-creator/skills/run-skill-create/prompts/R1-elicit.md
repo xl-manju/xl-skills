@@ -50,6 +50,11 @@
   - **背景**: 不整合は 23 章 prefix-driven 構造違反
 - **CONST_012 (wrap/delegate 必須項目)**: prefix=wrap なら base_skill、delegate なら delegate_agent 必須
 - **CONST_013 (言語既定)**: output_language=ja, parameter_language_exception=true
+- **CONST_014 (E2 routes[] 直接消費)**: `brief_path` が与えられたら R1 ヒアリング (Skill(run-skill-elicit) / 対話) を skip し、射影済み skill-brief.json をそのまま Step1 成果物として採用する
+  - **目的**: plan→build 境界 (E2) で上流 handoff の routes[] を再ヒアリングなしに消費するため
+  - **背景**: README は brief_path 経由の自動投入を記述済みだが実装入口に無く drift していた (documented-but-unwired の解消)
+- **CONST_015 (parity preflight)**: `handoff` 併給時は build 開始前に `check-route-component-parity.py <handoff>` を実行し、exit0 (routes↔inventory 一致) でなければ build を停止する
+  - **目的**: 仕様書と無関係な build_target / 取りこぼしを build 前に fail-closed で止めるため
 
 ### 2.3 入力契約
 
@@ -59,6 +64,8 @@
 | mode | enum | no | `dialog` / `batch`、default `dialog` |
 | manifest | path | yes | workflow-manifest.json |
 | schema | path | yes | schemas/skill-brief.schema.json |
+| brief_path | path | no | E2: 上流 (`run-plugin-dev-plan` の handoff) が `render-skill-brief.py` で決定論射影した skill-brief.json。**提供時は R1 ヒアリングを skip し brief を直接消費する** (再ヒアリングなし) |
+| handoff | path | no | E2: `handoff-run-plugin-dev-plan.json`。`brief_path` と併せて渡し、build 前に `check-route-component-parity.py` で routes↔inventory の一致を preflight する |
 
 ### 2.4 出力契約
 
@@ -123,6 +130,7 @@
 - [ ] kind ∈ {run,assign} なら responsibilities に prompt_required=true が 1 件以上
 - [ ] output_language=ja, parameter_language_exception=true
 - [ ] open_questions は string 配列 (maxItems 10) で、解消可能な曖昧さは AI が補い、判断が分かれる細部のみ OPEN_QUESTION(escalate) としてユーザーへ返している (代理決定・TODO(human) ラベル禁止)
+- [ ] `brief_path` 提供時: R1 ヒアリングを skip し射影済み brief を採用した (再ヒアリングしていない)。`handoff` 併給時は `check-route-component-parity.py` が exit0 であることを build 前提に確認した
 
 ### 5.4 実行方式 (動的手順生成ループ)
 
@@ -159,4 +167,10 @@
 
 ## 出力指示
 
-LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。`--page-url` / `--page-id` が topic に含まれる場合は、先に `validate-intake-publish-ready.py` で指定 Notion ページへの publish 完了を確認し、未完了なら skill-brief 生成へ進まない。通常時は `Skill(run-skill-elicit, args={{topic}})` を起点に、ユーザー要望から skill-brief.json を構築する。出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。
+LLM は Layer 5.2 ゴール + 5.3 完了チェックリストを停止条件として、5.4 ループで動的に手順を生成・実行する。分岐は次の通り:
+
+- `{{brief_path}}` が与えられたら (E2 直接消費・CONST_014): R1 ヒアリングを skip し、`{{brief_path}}` の skill-brief.json を Read してそのまま Step1 成果物として採用する。`{{handoff}}` も与えられていれば (CONST_015)、build を dispatch する前に `Bash(python3 $CLAUDE_PLUGIN_ROOT/scripts/check-route-component-parity.py {{handoff}})` を実行し exit0 を確認する (非0 なら停止し不一致を報告)。
+- `--page-url` / `--page-id` が topic に含まれる場合は、先に `validate-intake-publish-ready.py` で指定 Notion ページへの publish 完了を確認し、未完了なら skill-brief 生成へ進まない。
+- いずれでもない通常時は `Skill(run-skill-elicit, args={{topic}})` を起点に、ユーザー要望から skill-brief.json を構築する。
+
+出力は `schemas/skill-brief.schema.json` 準拠の JSON のみ (`eval-log/skill-brief.json` へ保存)。前置き・後書き・思考過程出力は禁止。

@@ -70,6 +70,7 @@ run-build-skill Step 3.5 はこの schema に従って各キーを埋めるこ�
 ### N/A 条件
 
 - brief.kind ∈ {ref, wrap, delegate} かつ `prompt_creator_policy` が `skip` または resolved=skip の場合は、`per_responsibility: []` + `policy_resolution.resolved_policy: "skip"` + 理由を `resolved_via` に明記すれば N/A 扱い。
+- brief.kind ∈ {run, assign} は prompt 生成必須。`resolved_policy: "optional"` または `"skip"` は `prompt_provenance` 必須化を迂回する downgrade として exit 1。
 - prompt-creator を 1 度も呼ばなかった場合、`cross_ref.prompt_creator_trace_path: null` を許容。ただし resolved=required で per_responsibility が空なら validate-build-trace.py が exit 1。
 
 ## バリデーション
@@ -84,9 +85,24 @@ N/A の場合は理由を必ず添えること（空欄禁止）。
 3. `anchor_coverage.missing_anchors` が空配列であること (SubAgent.md 側に必要 anchor が全て存在)。
 4. `sha256` は同一 brief で 2 回生成した場合に一致する (再現性ハッシュ)。差分が出た場合は `escalation` 非 none が必須。
 5. `layer_yaml_path` が次の正規表現に一致すること (`references/prompt-placement-convention.md` 準拠):
-   - `path_convention == "skill-local-v1"`: `^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+\.yaml$`
-   - `path_convention == "agents-legacy"` (deprecated, 後方互換): `^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.yaml$`
+   - `path_convention == "skill-local-v1"`: `^plugins/[a-z][a-z0-9-]*/skills/(ref|run|wrap|assign|delegate)-[a-z0-9]+(-[a-z0-9]+)*/prompts/R[0-9]+(-[a-z0-9]+(-[a-z0-9]+)*)?\.(md|yaml)$`
+   - `path_convention == "agents-legacy"` (deprecated, 後方互換): `^plugins/[a-z][a-z0-9-]*/agents/prompts/[a-z][a-z0-9-]*\.(md|yaml)$`
+   - 正本は `scripts/validate-build-trace.py` の `LAYER_YAML_PATH_PATTERNS` (slug 付き `R1-elicit.md` 形式と `.yaml`/`.md` 両拡張子を受理。項目 6 と整合)。
 6. `layer_yaml_path` のファイル名先頭 (`R<N>` 部) が `per_responsibility[].id` と一致すること (例: `R1.yaml` / `R1-elicit.md` ↔ id=R1)。拡張子は `.yaml` / `.md` の両者を受理する。
+
+## `prompt_provenance` (C09 バイパス不能性)
+
+agents/*.md・skills/*/prompts/*.md を生成/更新した build が prompt-creator の7層契約を経由し、C02 内容 lint (`lint-agent-prompt-content.py`) を通過したことの証跡ブロック。スキーマは `schemas/skill-build-trace.schema.json#/properties/prompt_provenance`。
+
+- `prompt_creator_invocation` (boolean, 必須): prompt-creator 経由で本文7層を生成したか。**false は単独生成のバイパス試行として常に exit 1**。
+- `source_contract_ref` (string, 必須): 準拠した契約。agent は `subagent-hybrid-format.md`、prompt は `seven-layer-format.md` を参照する。
+- `content_lint` (object, 必須): `{mode: agent|prompt, status: PASS|FAIL|N/A, evidence?}`。C02 が exit0 でなければ status≠PASS となり生成未完了。
+
+検証 (`_validate_prompt_provenance`):
+1. `prompt_generation_model.policy_resolution.resolved_policy == "required"` の build では `prompt_provenance` を必須化 (欠落は exit 1)。`run`/`assign` では `optional`/`skip` への降格も exit 1。`optional`/`skip` の後方互換 escape は prompt 生成非必須 kind に限る。
+2. `prompt_creator_invocation != true` は exit 1 (bypass detected)。
+3. `source_contract_ref` が上記2契約のいずれも参照しなければ exit 1。
+4. `content_lint.status != PASS` または `mode` が agent/prompt 以外は exit 1。
 
 ## path_convention deprecation policy
 
@@ -110,4 +126,3 @@ Phase 3 で確定 (2026-05-21)。
 - ソース: `eval-log/skill-build-trace.json#prompt_generation_model.per_responsibility[].path_convention`
 - 集計単位: skill 単位 (同一 skill_build_id は 1 件としてカウント)。
 - 計測スクリプト: `scripts/measure-path-convention-adoption.py` (未実装、KPI 計測ジョブとして 2026-Q3 中に追加予定)。
-

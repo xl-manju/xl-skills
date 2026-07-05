@@ -259,6 +259,17 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
     "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",
+    # harness-creator パイプライン境界契約 (E1/E2/E3) 初回投入: §4.3 (kebab-case) は満たすが
+    # verb (check/emit) が ALLOWED_VERBS 外。これらは既存の check-* 決定論ゲート族 (上記 19 本) と
+    # 同種で、plan の component-inventory.json / handoff-run-plugin-dev-plan.json の build_target が
+    # 正確なパスを参照する (C08 check-route-component-parity / check-build-handoff の parity) ため、
+    # 許可動詞化 (validate/render 系へのリネーム) は inventory/handoff/prompts/commands/tests 参照を
+    # 原子的に更新する後続 Change Governance PR まで PENDING (plugin-dev-planner check-* /
+    # notion-gmail-send emit-observable と同種の「初回投入時の verb pending」扱い)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-intake-consumption.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-provenance-chain.py",
+    "plugins/harness-creator/scripts/check-route-component-parity.py",
+    "plugins/harness-creator/scripts/emit-improvement-handoff.py",
     # ubm-goal-setting 初回投入: detect (registry MD5 差分検出) / check (knowledge 500 行
     # ガード) は verb pending。SKILL.md(script_refs)/workflow-manifest/tests/EVALS.json/
     # 計画書 (plugin-plans/finish) の参照整合の原子性のため、planner 群と同じ後続

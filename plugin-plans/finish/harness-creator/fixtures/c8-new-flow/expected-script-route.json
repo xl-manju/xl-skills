@@ -1,0 +1,8 @@
+{
+  "route_id": "C02",
+  "component_kind": "script",
+  "builder": "parent-skill-build",
+  "builder_status": "contract-only",
+  "requires_parent_scaffold": "C01",
+  "expected_handling": "Use GAP-SCRIPT-BUILDER alternate generation and record update-in-place when build_target already exists."
+}

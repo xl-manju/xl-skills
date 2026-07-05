@@ -42,6 +42,16 @@ def requirements_coverage() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def intake_consumption() -> ModuleType:
+    return _load("check-intake-consumption")
+
+
+@pytest.fixture(scope="session")
+def provenance_chain() -> ModuleType:
+    return _load("check-provenance-chain")
+
+
+@pytest.fixture(scope="session")
 def unassigned() -> ModuleType:
     return _load("detect-unassigned")
 
