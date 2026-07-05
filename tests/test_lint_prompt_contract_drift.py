@@ -109,6 +109,14 @@ class TestTier1ReferencedPaths:
         p = write_prompt(sk, "`references/<id>.md` と `plugins/foo/bar.md`\n")
         assert t1(p) == []
 
+    def test_glob_star_after_truncation_excluded(self, tmp_path):  # ⑦c
+        # references/diagram-*.md は char class 外の * 手前で 'references/diagram-' に
+        # 切り詰められ in-raw の placeholder 判定を素通りするが、捕捉境界の直後が glob 継続
+        # 文字 (*) のため binding 不能としてスキップされ drift にならない (実ファイル不要)。
+        sk = make_skill(tmp_path)
+        p = write_prompt(sk, "| 図解 | `references/diagram-*.md` | 図解29種 |\n")
+        assert t1(p) == []
+
     def test_prose_enumeration_helper(self):  # ⑧
         assert MOD._is_prose_dir_enumeration("prompts/schemas/references") is True
         assert MOD._is_prose_dir_enumeration("references/real.md") is False

@@ -198,7 +198,7 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/evaluate-deck.js" "<deck-dir>"
   - slide-report-modifier（Phase 4）。
     - 理由: P0/P1 の改善指示を実装する（slide/report いずれの成果物も対象）。
     - 受け渡し内容: 優先度付き改善指示 + 該当スライド/セクション/ファイル。
-  - elegant-improvement-executor（skill-creator 相当）。
+  - elegant-improvement-executor（harness-creator 相当）。
     - 理由: 範囲を絞った改善実装の委譲先（elegant-review 文脈）。
     - 受け渡し内容: findings + 優先度 + 修正範囲。
 

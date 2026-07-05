@@ -81,9 +81,9 @@ last-audited: 2026-07-05
 ## セキュリティ
 | 区分 | 内容 |
 |------|------|
-| 許可アクション | 出力ディレクトリ `05_Project/スライド/slide-YYYY-MM-DD-{タイトル}/` 配下の index.html / styles.css / scripts.js / structure.md / deploy-guide.md / vendor/assets/generated/ の生成・更新。references/vendor/scripts/assets の読み取り |
+| 許可アクション | 出力ディレクトリ `05_Project/スライド/slide-YYYY-MM-DD-{タイトル}/` 配下の index.html / styles.css / scripts.js / structure.md / deploy-guide.md / vendor/assets/generated/ の生成・更新。references / vendor/scripts / vendor/assets の読み取り |
 | 禁止アクション | 出力ディレクトリ外への書き込み。structure.md と index.html を同期させない更新（reference §5.6.2 同期維持 違反）。インラインCSS/JS 埋め込み（CONST_002 違反） |
-| データアクセス | read_write（対象: 上記成果物ファイル）。references/vendor/assets/structure.md（入力）は read_only |
+| データアクセス | read_write（対象: 上記成果物ファイル）。`structure.md`（入力）は read_only |
 
 ## 品質基準（出力に必ず含むもの）
 - 16:9 構造（.slide-area / .slider__item に aspect-ratio）、ライトテーマ変数、分離3ファイル

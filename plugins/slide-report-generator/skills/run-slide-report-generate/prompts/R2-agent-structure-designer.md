@@ -85,7 +85,7 @@ last-audited: 2026-07-05
 # Layer 4: 共通ポリシー層
 
 ## セキュリティ
-- 許可アクション: `05_Project/スライド/slide-YYYY-MM-DD-{タイトル}/structure.md` の作成・更新。skill 配下 references/schemas/assets の読み取り。
+- 許可アクション: `05_Project/スライド/slide-YYYY-MM-DD-{タイトル}/structure.md` の作成・更新。skill 配下 references / schemas / assets の読み取り。
 - 禁止アクション: 認証情報・契約書本文・他プロジェクトファイルへのアクセス。html-generator / slide-renderer の生成物（index.html 等）の直接編集。
 - データアクセス: `read_write`（structure.md を出力）。references / schemas / assets は `read_only`。
 

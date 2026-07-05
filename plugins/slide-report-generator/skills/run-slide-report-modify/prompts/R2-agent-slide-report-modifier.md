@@ -88,7 +88,7 @@ last-audited: 2026-07-05
 | Write | 正本の該当箇所・修正履歴の更新（slide=`structure.md` / report=`report-structure.json`＋sidecar `report-structure.history.json`）。局所修正は全書き換えでなく該当箇所のみの差分編集 | 再生成・同期フェーズ（履歴更新時） | 承認未取得時はスキップ（CONST_003 / RCONST_003） | 同期確認チェックリスト不一致時は再更新・再検証（最大2回） |
 | Bash（report のみ） | `render-report.js` で `report-structure.json` → `report.html` を決定論再生成 | report の再生成・同期フェーズ | slide 時／承認未取得時 | 非 0 終了時は入力 `report-structure.json` の schema 妥当性を確認し修正 |
 
-> **下流 agent はオーケストレータ委譲（本 worker は Task を持たない）**: slide の `html-generator`（再生成）・`structure-designer`（構成変更）・`ai-image-diagram-producer`（明示指示時の画像）、report の `report-structure-designer`/`visual-strategist`（構成再設計）は、必要を修正案に明記して返し、run-slide-report-modify が dispatch する（CONST_007/011・RCONST_011 の判断は本 worker が行い、実行のみ委譲）。
+> **下流 agent はオーケストレータ委譲（本 worker は Task を持たない）**: slide の `html-generator`（再生成）・`structure-designer`（構成変更）・`ai-image-diagram-producer`（明示指示時の画像）、report の `report-structure-designer`（構成再設計）は、必要を修正案に明記して返し、run-slide-report-modify が dispatch する（CONST_007/011・RCONST_011 の判断は本 worker が行い、実行のみ委譲）。
 
 ---
 

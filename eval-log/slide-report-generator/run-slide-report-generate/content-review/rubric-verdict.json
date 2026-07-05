@@ -1,0 +1,41 @@
+{
+  "target": {
+    "plugin": "slide-report-generator",
+    "skill": "run-slide-report-generate",
+    "skill_md_sha256": "2059b9ab4b088617ce524fd2d82bbccc3d3b9105a8f86642a9f8c387c560f360"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent-branch-subagent-rubric",
+  "reviewed_at": "2026-07-05T10:36:37+00:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1"
+    ],
+    "positive_feedback": [
+      "[単一責務] SKILL.md:150-152 / R1-orchestrate.md:28 で境界明示: 本 skill=新規生成、局所修正→run-slide-report-modify、横断整合→run-cross-deck-review。R1(mode確定)→R2(構成+仕様確定ゲート)→R3(生成+生成後評価) に責務収束。",
+      "[パッケージ完全性] validate-plugin-completeness.py PASS。prompts/ 16本 ↔ workflow-manifest.json 15 agent prompt ↔ agents/*.md thin-adapter (prompt_ref) が三者整合。schemas と manifest resources 一致。",
+      "[criteria非退化] IN1(mode/reportType 値域を送信前検証・verify_by=script) / OUT1(生成後評価30種思考法が視覚崩れ0・verify_by=test) は purpose-acceptance。validate-output-mode.py / validate-report-visual.py + deck-evaluator へ実マッピング。",
+      "[progressive disclosure/テスト可能性] resource-map.yaml が 10 reference を owner_agent+when 付きで網羅 + lint exit0。停止条件が exit code (validate-output-mode/validate-structure/evaluate-deck/validate-report-visual) で機械化。"
+    ],
+    "negative_feedback": [
+      "[smell/low, 非ブロッキング] mermaid-render.js の列挙が manifest と SKILL.md:197 追加リソース節で非対称。機能欠落なし。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "skill 設計品質 6 観点 (SRP/progressive disclosure/パッケージ完全性/prompt契約/criteria非退化/テスト可能性) を実測充足。ハードカテゴリ 0 で PASS。唯一の smell は mermaid-render 列挙記述ドリフトで機能・依存に影響しない。"
+}

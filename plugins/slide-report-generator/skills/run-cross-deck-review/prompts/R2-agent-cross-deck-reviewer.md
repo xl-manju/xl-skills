@@ -236,10 +236,10 @@ Layer 1 成功基準（機械チェック取得・C4-C15全件カバー・4条�
 ## 想定入力例（前段の成果物例）
 ```
 series-dir: 05_Project/スライド/AI研修シリーズ2026/
-  - 第1回/structure.md, index.html, styles.css, scripts.js, source.md
-  - 第2回/structure.md, index.html, styles.css, scripts.js, source.md
-  - 第3回/structure.md, index.html, styles.css, scripts.js, source.md
-  - 第4回/structure.md, index.html, styles.css, scripts.js, source.md
+  - slide-2026-01-10-第1回/structure.md, index.html, styles.css, scripts.js, source.md
+  - slide-2026-01-17-第2回/structure.md, index.html, styles.css, scripts.js, source.md
+  - slide-2026-01-24-第3回/structure.md, index.html, styles.css, scripts.js, source.md
+  - slide-2026-01-31-第4回/structure.md, index.html, styles.css, scripts.js, source.md
   - 全体概要.md
 （各デッキは P3.5 通過済み。共通仕様セクションを structure.md に含む）
 ```

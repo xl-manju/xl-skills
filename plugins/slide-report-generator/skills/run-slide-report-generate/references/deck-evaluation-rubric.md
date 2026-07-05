@@ -116,7 +116,7 @@
 
 ## 判定リファレンス（4条件と改善優先度）
 
-4条件の最終判定は機械レポートの `conditions` を起点に、D5 を加味して判定する（4条件すべて PASS かつ機械 `verdict=PASS` なら合格。いずれか FAIL なら改善へ）。改善指示は finding を KJ法でグルーピングし why思考で根本原因へ遡って優先度を付け、実装は `skill-creator:elegant-improvement-executor` 相当 or `$CLAUDE_PLUGIN_ROOT/agents/slide-modifier.md` に委譲する（修正後は `evaluate-deck.js` を再実行して再評価。ループは最大3周・CONST_003）。
+4条件の最終判定は機械レポートの `conditions` を起点に、D5 を加味して判定する（4条件すべて PASS かつ機械 `verdict=PASS` なら合格。いずれか FAIL なら改善へ）。改善指示は finding を KJ法でグルーピングし why思考で根本原因へ遡って優先度を付け、実装は `harness-creator:elegant-improvement-executor` 相当 or `$CLAUDE_PLUGIN_ROOT/agents/slide-modifier.md` に委譲する（修正後は `evaluate-deck.js` を再実行して再評価。ループは最大3周・CONST_003）。
 
 | 条件 | 定義 | 不合格の例 |
 |------|------|-----------|

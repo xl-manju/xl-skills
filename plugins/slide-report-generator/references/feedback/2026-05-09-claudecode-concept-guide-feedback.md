@@ -176,7 +176,7 @@ L-01〜L-10 (10 件) は `specs/04-09-skill-reflection-classification.md` §2 �
 ### 対応方針
 
 - 本プロンプトの責務外（CONST: アーキテクチャ変更ではない、ファイル追加でもないが記述更新は要する）
-- 次回スキル整備プロンプト（または skill-creator メンテナンス）で `references/resource-map.md` を更新する
+- 次回スキル整備プロンプト（または harness-creator メンテナンス）で `references/resource-map.md` を更新する
 - 特に `validate-print.js` は SR-08/SR-09 の自動検査に直結するため、resource-map で位置づけを明確化することを推奨
 
 ---

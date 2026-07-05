@@ -12,7 +12,7 @@
 | skill | run-cross-deck-review |
 | responsibility | R1-orchestrate (1 prompt = 1 責務 = R1→R2→R3 シリーズ横断整合検証の駆動) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
-| output_schema | N/A (schema 未使用・conversation-output = シリーズ横断整合レポート) |
+| output_schema | schemas/cross-deck-review-report.schema.json (横断整合レポートの構造契約。conversation-output としてレンダし機械 emit はしない) |
 | reproducible | true (機械チェック `cross-deck-consistency.js` + C1-C15/4条件マトリクスの判定は決定論的) |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -50,7 +50,7 @@
 | consistency-rules | resource://run-cross-deck-review/references/cross-deck-consistency-rules.md | yes | 用語集 / CONST_001-005 / C1-C15 / 判定マトリクス / Agent A/B/C 3レンズ分析テンプレ / headline 軸対応表 / 優先度分類の逐語正本 |
 
 ### 2.4 出力契約
-- schema: なし (conversation-output)。
+- schema: schemas/cross-deck-review-report.schema.json — 横断整合レポートの構造契約 (conversation-output としてレンダし機械 emit はしない)。
 - 成果物: **横断整合レポート** = 用語ゆれ一覧 ＋ 意匠差一覧 ＋ 構成不整合一覧 ＋ 4 条件判定 (PASS/WARN/FAIL ＋ 根拠 C 番号) ＋ 網羅率、および **修正提案リスト** (P0/P1/P2 分類・対象デッキ・対象ファイル・修正内容)。
 
 ## Layer 3: インフラ層 (外部依存)
@@ -68,7 +68,7 @@
 | `cross-deck-reviewer` | `Task` (name 参照・`isolation: fork`) | 独立 context で機械チェック結果を一次根拠に Agent A/B/C の 3 レンズ分析 (単一 fork context 内・再 fork しない) × 4 条件を実行する read-only 自動 worker。実体は `../../agents/cross-deck-reviewer.md` だが起動はファイルパス依存でなく Task の name 参照。ドメイン規範は reference を SSOT とする薄化アダプタ |
 
 ### 3.3 外部ツール / vendor scripts (`$CLAUDE_PLUGIN_ROOT/vendor/scripts/`)
-- `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/cross-deck-consistency.js" <series-dir> --check all` — shared-spec 差分・px 使用・命名一貫性・CSS 変数・GSAP・印刷・外部 URL 混入の機械検出 (C1-C3 / C11-C13 / C15 の一次根拠)。`--check` は `shared-spec` / `px-rule` / `slide-types` の個別実行も可。
+- `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/cross-deck-consistency.js" <series-dir> --check all` — shared-spec 差分 (A4印刷/コードブロック/GSAP/フォント)・CSS 変数・GSAP・印刷・外部 URL 混入・rem 単位 (px使用) の機械検出 (C1-C2 / C11-C13 / C15 の一次根拠。SVG設計/スライドタイプ定義の異同は Agent A 目視)。`--check` の個別カテゴリは `shared-spec` / `urls` / `css-vars` / `gsap` / `print` / `rem-units`。
 - `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/check-consistency.js" <deck-dir>` — 個別成果物の統一感検証 (テーマ・スタイル整合)。
 - `Read` / `Grep` — structure.md ／ ソース md ／ styles.css ／ scripts.js の横断読取と用語横断検索 (C4-C15 の目視検証)。
 - `Task` — `cross-deck-reviewer` を独立 context で fork 起動。

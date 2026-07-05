@@ -53,14 +53,14 @@
 
 ## 評価軸: 検証項目（C1〜C15）
 
-> C1〜C15 は 4条件判定（§評価軸: 判定マトリクス）と完了チェックリスト（agent 5.3）が参照する評価軸の定義である。機械的チェック（`cross-deck-consistency.js`）は C1-C3・C11-C13・C15 を一次根拠とし、Agent A/B/C の3レンズ分析（§Agent A/B/C 3レンズ分析テンプレート・単一 context 内多角分析）は C4-C5 / C6-C10 / C11-C15 を分担検証する。統合判定では両者を突き合わせ、各判定に根拠C番号を明示する。
+> C1〜C15 は 4条件判定（§評価軸: 判定マトリクス）と完了チェックリスト（agent 5.3）が参照する評価軸の定義である。機械的チェック（`cross-deck-consistency.js`）は C1-C2・C11-C13・C15 を一次根拠とし、Agent A/B/C の3レンズ分析（§Agent A/B/C 3レンズ分析テンプレート・単一 context 内多角分析）は C3-C5 / C6-C10 / C11-C15 を分担検証する。統合判定では両者を突き合わせ、各判定に根拠C番号を明示する。
 
 ### カテゴリ1: 構造的整合性（機械的チェック + Agent A）
 | # | 検証項目 | 基準（合否判定可能な客観条件） | 検出方法 |
 |---|---------|------|----------|
-| C1 | shared-spec完全一致 | 全structure.mdの共通仕様セクション（SVG設計/A4印刷/スライドタイプ定義/コードブロック/GSAP/フォント）が同一 | `cross-deck-consistency.js --check shared-spec` |
-| C2 | px使用ルール統一 | 全structure.mdのpx禁止ルールが同一表現 | `cross-deck-consistency.js --check px-rule` |
-| C3 | スライドタイプ定義一致 | CSSクラス対応表がシリーズ全体で統一 | `cross-deck-consistency.js --check slide-types` |
+| C1 | shared-spec完全一致 | 全structure.mdの共通仕様セクション（A4印刷/コードブロック/GSAP/フォント）が機械一致（SVG設計/スライドタイプ定義は Agent A 目視） | `cross-deck-consistency.js --check shared-spec` |
+| C2 | px使用ルール統一 | 全styles.cssの単位系（px/rem 使用）がシリーズで統一 | `cross-deck-consistency.js --check rem-units` |
+| C3 | スライドタイプ定義一致 | CSSクラス対応表がシリーズ全体で統一 | Agent A: 各 structure.md のスライドタイプ定義/CSSクラス対応表を横断比較 |
 | C4 | セクション構成の段階的積み上げ | 第N回の前提が第N-1回までに提示済み | Agent A: 各回のスライド内容を読み依存関係を検証 |
 | C5 | 用語の統一 | 同一概念に異なる用語を使っていない | Agent A: 全デッキのテキストを横断検索 |
 
