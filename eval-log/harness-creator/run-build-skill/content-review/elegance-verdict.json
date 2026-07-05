@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7"
+    "skill_md_sha256": "1aa7e87d79cc2c9b953c7487729fa7fb627fe6048e6da6c0406659dfb608fdf6"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,16 +13,17 @@
     "dependency_break": 0,
     "smell": 0
   },
-  "reviewer": "independent-rename-review-subagent-a",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-route-report-review-subagent-a",
+  "reviewed_at": "2026-07-05T00:30:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1", "OUT2"],
     "positive_feedback": [
-      "改名の意味論境界が本 skill で最も精緻に適用されている: 単一 Capability を 1 本構築する部品なので名前 run-build-skill を維持 (CONVENTIONS 用語規約 1 の明示例) しつつ、plugin 総体を指す横展開候補ラベルは『Harness Creator 基盤』(L134/L333) へ更新し、既存 harness 語 (ハーネス・カバレッジ仕様/doc/harness-coverage-spec.md) は同系譜として保持しており、部品=skill・総体=harness の境界が破綻なく共存する。",
-      "SSOT 徹底が改名後も保たれている: max_iterations/inner-outer/hook queue の詳細を content-review-protocol.md へ、必須集合を capability-manifest.schema.json へ、lint 集合を lint-matrix.json へ委譲し本文再掲せず、criteria の derived_from が CL-1..CL-11 を重複欠落なく全被覆する provenance を維持している。"
+      "L4 復路 (route 実行レポート) が既存の L4 往路 (handoff routes) と対称に閉じ、SSOT 境界が破綻なく保たれている: schema/validator/契約正本を consumer 側 (run-build-skill 配下) に一元化し、planner の io-contract.md は line 129 で正本ポインタ+要約のみを持つ参照宣言に徹する。reference line 45 が『io-contract の route 実行レポート節は本契約への参照宣言であり内容を再定義しない』と自己言及し、二重 SSOT の罠を明示的に回避している。フィールド名・enum(component_kind5/builder4/status3)・パス規約が SKILL.md↔reference↔schema↔validator の四者で逐語一致する。",
+      "CL-12 が genuine に二値化されており fail-closed の実体が validator の --self-test (8 シナリオ: 依存レポート欠落/チェーン充足/inputs_consumed 未宣言/success+evidence 空/skipped+skip_reason/handoff drift/依存 failure 波及/orphan) で自己検証される。契約正本 (route-build-report.md) が『書く時機 (完了後 write)/読む時機 (着手前 read)/検証手段 (--route・--complete)/対象外 (単発 build)』の 4 要素を漏れなく成文化し、単一 skill 内部の handoff-<step>.json との階層差 (component 内側 vs component 間) を reference line 46 で明示して混同を封じている。",
+      "IN3 追加で feedback_contract の criteria provenance が完全に閉じた: CL-12 は route 報告契約の追加時点で derived_from 被覆から漏れた孤児だったが、IN3 (loop_scope: inner / verify_by: script / derived_from: [CL-12]) が唯一の被覆者として写像を復元し、derived_from union = CL-1..CL-12 が checklist アンカーと完全一致 (未被覆0・幻影0・各 CL 単一 criterion)。IN3 の分類が姉妹 criterion と整合的で、bespoke validator (validate-route-build-reports.py) を IN2 の validate-build-trace.py と同じ verify_by: script に、決定論二値ゲートゆえ inner に置き、汎用ゲート言い換えでなく CL-12 の text を忠実に狭く写す purpose-acceptance を保っている。lint-criteria-provenance.py 実走で exit0 (写像整合) を実測。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -30,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "skill-creator → harness-creator 改名後の現 SKILL.md (sha256=2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7、shasum 実測) を独立 context で全文精読し frontmatter feedback_contract の全 criteria (IN1/IN2/OUT1/OUT2) を C1-C4 で genuine 再評価。旧固有名 skill-creator/skill_creator/スキルクリエイター の残存 0 件 (grep 実測)。C1 矛盾 (IN1 系): max_iterations=3 が frontmatter/goal-seek/Step6/Step12 で同値、本文が P0-2 上限内、Purpose/Key Rules/完了チェックリストが整合。C2 漏れ (IN2 系): CL-1..CL-11 全アンカー実在、criteria derived_from 和集合 = CL-1..CL-11 全件被覆 (IN1=[CL-1,2,3,4,7,9,10,11]/IN2=[CL-6]/OUT1=[CL-5]/OUT2=[CL-8])。C3 不整合 (OUT1 系): Step5/Step6 の fork 評価 score>=80/high=0 と feedback_contract OUT1 が一致、content-review-protocol.md 委譲が Step12 と三者整合。C4 依存断 (OUT2 系): $PLUGIN_ROOT 基点 (=plugins/harness-creator) で orchestrate-gate-pattern.md/lint-matrix.json 実在、$SKILL_DIR 基点で build-steps.md/goal-seek-paradigm.md/content-review-protocol.md/build-flags.schema.json/capability-manifest.schema.json 全実在 (実測)、knowledge-skeleton/search_knowledge.py 参照パスも harness-creator 配下で解決。改名追従漏れ(参照先パス断線)なし。意味論境界違反なし: 部品 build 概念に skill 語を維持し、plugin 総体・カバレッジ装具に harness 語を適用。fail_counts 全 0 につき PASS。"
+  "notes": "route 実行レポート契約 + IN3 criterion 追加後の最終状態 SKILL.md (sha256=1aa7e87d79cc2c9b953c7487729fa7fb627fe6048e6da6c0406659dfb608fdf6、実測再計算) を独立 context で全文精読し、新規/変更ファイル (references/route-build-report.md・schemas/route-build-report.schema.json・scripts/validate-route-build-reports.py・workflow-manifest.json・planner io-contract.md・.gitignore) と frontmatter feedback_contract.criteria (IN1/IN2/IN3/OUT1/OUT2) を実読して C1-C4 を genuine 再評価。C1 矛盾 0件: 新設 Step 3.5『route 実行レポート』段落と CL-12 は共に『(plugin 一括 build のみ/handoff routes 消費時のみ)』で条件明示され、既存 Step 3.5 の trace/RTM・eval-log/handoff-<step>.json (単一 skill 内側工程) と階層が異なる (reference line 46) ため干渉なし。IN3 text は CL-12/Step 3.5 と語彙一致し (単発 build は N/A)、他 criterion の derived_from と重複せず max_iterations=3 と整合。本文 245 行 (frontmatter 除く) で 300 行上限 (Key Rules 1/CL-2) 内。C2 欠落 0件: 契約必須 4 要素 (書く時機/読む時機/検証手段/対象外) が reference §書く時機・読む時機 (項1-3)+bash ブロック+line 3 に揃い SKILL.md Step 3.5 が要約射影。**IN3 追加前は CL-12 が derived_from 被覆から漏れた孤児 (criteria provenance 断線=潜在的 omission) だったが、IN3=[CL-12] が写像を復元し union=CL-1..CL-12 完全被覆 (未被覆0/幻影0/各CL単一) を回復** — lint-criteria-provenance.py exit0 実測。C3 不整合 0件: 出力先パス eval-log/<slug>/build/route-<id>.json が SKILL.md Step3.5/CL-12・reference・schema description・validator report_path・io-contract line129 で一致、enum は schema↔validator 定数 (COMPONENT_KINDS/BUILDERS/STATUSES) 逐語一致、起動 mode (--route/--complete) 四者一致 (--handoff 省略は mode 略記で契約正本が完全コマンド携帯・contradiction でない)。IN3 の verify_by: script は bespoke validator ゆえ IN2 (validate-build-trace.py) と同分類で整合、loop_scope: inner は決定論二値ゲートで IN1/IN2 と同群。C4 依存断線 0件: SKILL.md 参照の references/route-build-report.md・schemas/route-build-report.schema.json・scripts/validate-route-build-reports.py 全実在、workflow-manifest の schema-route-build-report/ref-route-build-report path 2 本実在解決、io-contract line129 正本ポインタが consumer 3 資産と一致、.gitignore に eval-log/*/build/** 実在。IN3 が参照する validate-route-build-reports.py も実在。smell 0件: SSOT 二重定義なし (io-contract は参照宣言・reference line45 保証)、CL-12/IN3 とも二値・単一被覆。validate-route-build-reports.py --self-test = {valid:true, findings:[]} exit0、lint-criteria-provenance.py = exit0 を実測。fail_counts 全 0 につき PASS。"
 }

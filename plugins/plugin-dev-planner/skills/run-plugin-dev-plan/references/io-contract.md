@@ -126,6 +126,8 @@ frontmatter は specfm が厳格に operationalize する一方、本文 (prose)
 
 `scripts/check-build-handoff.py` が spec (phase ファイル・任意) 実在、top-sort、builder/build_kind/build_args 整合、builder_status/gap_ref (contract-only の gap 起票)、二相 build 順序 (`requires_parent_scaffold`・placement=skill script の scaffold→fill)、routes↔inventory 件数/`build_target` 一致、manifest draft、envelope gap reason を検査する。これにより「inventory をもとにプラグインを構築できるか」の最低条件を、実 build 実行前に fail-closed で確認する。
 
+**route 実行レポート (L4 復路・受け渡し契約)**: 本 handoff は往路 (計画→build) の routing のみで実行結果を運ばない。後段 builder は route 1 本の build 完了ごとに実行レポートを `eval-log/<target_plugin_slug>/build/route-<id>.json` へ書き、後続 route は自身の依存 route のレポート (`handover`/`deviations`) を読取宣言 (`inputs_consumed`) 付きで消費してから着手する (依存レポート欠落/failure は着手不可の fail-closed)。契約・schema・検証器の正本は consumer 側 = `plugins/harness-creator/skills/run-build-skill/` の `references/route-build-report.md` / `schemas/route-build-report.schema.json` / `scripts/validate-route-build-reports.py` (route 毎 `--route <id>` / 終端 `--complete`) であり、planner はレポートを生成しない (書き手=build 実行主体)。eval-log 配下は transient で、恒久 trace は built plugin 実体 + `validate-plan-coverage.py` が担う。
+
 ### core 規律 (全 buildable component が必ず携帯。inventory component エントリへ焼く)
 
 harness-creator ネイティブ規律を参照でなく **inventory component エントリのキーへ焼いて検証**する (operationalize)。`specfm.validate_inventory_component` が component 単位で下記を fail-closed 検査し、`check-spec-frontmatter.py` (構造 + criteria) と `check-spec-gates.py` (quality_gates/harness 値域 + index.plugin_meta) が inventory を走査して機械強制する。

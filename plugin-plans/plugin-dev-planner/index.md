@@ -6,7 +6,7 @@ plugin_meta:
     required: true
     path: .claude-plugin/plugin.json
     name_matches_folder: true
-    no_todo_placeholders: true
+    no_unresolved_placeholders: true
     validate_plugin: true
   marketplace:
     default_personal: false

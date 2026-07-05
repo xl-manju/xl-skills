@@ -128,3 +128,57 @@ def test_run_bad_json(tmp_path, runtime):
     (tmp_path / "component-inventory.json").write_text("{not json", encoding="utf-8")
     code, errs = runtime.run(tmp_path, None)
     assert code == 2 and any("parse error" in e for e in errs)
+
+
+# ─────────────────── (R) target_plugin_slug 束縛 (C1・MEDIUM-3) ───────────────────
+def test_target_slug_match_passes(runtime):
+    """build_target が target_plugin_slug と一致すれば (R) は発火しない (一致例)。"""
+    comps = [component_entry("C01", "skill")]  # build_target=plugins/sample/skills/run-sample/
+    assert runtime.check_inventory({"components": comps}, "sample") == []
+
+
+def test_target_slug_mismatch_detected(runtime):
+    """target と異なる plugin 配下の build_target は (R) violation として検出される。"""
+    comps = [component_entry("C01", "skill", overrides={
+        "build_target": "plugins/other-plugin/skills/run-sample/"})]
+    errs = runtime.check_inventory({"components": comps}, "sample")
+    assert any("C01" in e and "target_plugin_slug" in e and "other-plugin" in e for e in errs)
+
+
+def test_target_slug_omitted_is_backward_compatible(runtime):
+    """target 省略 (None) 時は (R) を発火させず既存 (P)/(Q) のみ動作する (後方互換)。"""
+    comps = [component_entry("C01", "skill", overrides={
+        "build_target": "plugins/other-plugin/skills/run-sample/"})]
+    assert not any("target_plugin_slug" in e for e in runtime.check_inventory({"components": comps}))
+
+
+def test_target_slug_helper_failsoft(tmp_path, runtime):
+    """_target_plugin_slug は goal-spec 不在/壊れ JSON/キー欠落で None を返す (例外を投げない)。"""
+    assert runtime._target_plugin_slug(tmp_path) is None  # 不在
+    (tmp_path / "goal-spec.json").write_text("{not json", encoding="utf-8")
+    assert runtime._target_plugin_slug(tmp_path) is None  # 壊れ JSON
+    (tmp_path / "goal-spec.json").write_text('{"purpose": "x"}', encoding="utf-8")
+    assert runtime._target_plugin_slug(tmp_path) is None  # キー欠落
+    (tmp_path / "goal-spec.json").write_text(
+        '{"target_plugin_slug": "plugin-dev-planner"}', encoding="utf-8")
+    assert runtime._target_plugin_slug(tmp_path) == "plugin-dev-planner"
+
+
+def test_run_enforces_target_slug_from_goal_spec(tmp_path, runtime):
+    """run() が goal-spec.json の target を読み、別 plugin 配下 build_target を exit1 で弾く。"""
+    comps = [component_entry("C01", "skill", overrides={
+        "build_target": "plugins/other-plugin/skills/run-sample/"})]
+    write_inventory(tmp_path, comps)
+    (tmp_path / "goal-spec.json").write_text('{"target_plugin_slug": "sample"}', encoding="utf-8")
+    code, errs = runtime.run(tmp_path, None)
+    assert code == 1
+    assert any("target_plugin_slug" in e for e in errs)
+
+
+def test_run_without_goal_spec_skips_target_check(tmp_path, runtime):
+    """goal-spec.json が無ければ run() は (R) をスキップし別 plugin build_target でも exit0 (P/Q 担当)。"""
+    comps = [component_entry("C01", "skill", overrides={
+        "build_target": "plugins/other-plugin/skills/run-sample/"})]
+    write_inventory(tmp_path, comps)  # goal-spec.json は書かない
+    code, errs = runtime.run(tmp_path, None)
+    assert code == 0, errs

@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7"
+    "skill_md_sha256": "1aa7e87d79cc2c9b953c7487729fa7fb627fe6048e6da6c0406659dfb608fdf6"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -13,16 +13,18 @@
     "dependency_break": 0,
     "smell": 0
   },
-  "reviewer": "independent-rename-review-subagent-a",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "independent-route-report-review-subagent-b",
+  "reviewed_at": "2026-07-05T08:20:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1", "OUT2"],
     "positive_feedback": [
-      "検証可能性が高い: 完了チェックリスト CL-1..CL-11 が全て二値判定 (lint exit0 / score>=80 / high=0 / 本文行数<=300) で、数値根拠 (7 kind / 300 行 / score 80 / max_iter 3) が随所に具体化され、機械ゲートと LLM ゲートの役割境界が明示されている。",
-      "簡潔性が SSOT 原則で担保: 必須集合・lint 集合・kind→skeleton 対応・content-review 詳細を各正本 (capability-manifest.schema.json / lint-matrix.json / build-steps.md / content-review-protocol.md) へ委譲して本文再掲せず、改名後も本文が上限行数内に収まっている。"
+      "検証可能性が二値で担保: 完了チェックリストが CL-1..CL-12 まで全て exit0 判定で、新規 CL-12 も対象条件 (plugin 一括 build=handoff routes 消費時のみ) を明示したうえで `validate-route-build-reports.py --route <id>` / `--complete` の exit0 に還元される。lint-goal-seek.py も CL-12 を曖昧語なしの二値項目として通過 (exit0)。さらに feedback_contract に inner criterion IN3 (verify_by: script / derived_from: [CL-12]) が配線され、route レポートゲートが per-skill 評価基準へ昇格。lint-criteria-provenance.py が IN3↔CL-12 の写像整合を exit0 で確認。",
+      "簡潔性が SSOT 委譲で維持: route 実行レポート追記は SKILL.md 本文 2 箇所 (CL-12 の 1 行 + Step 3.5 の 1 段落) に留め、契約詳細・受け渡しプロトコル・フィールド意図を references/route-build-report.md へ追い出し、schema/validator を正本として本文に再掲していない。frontmatter を除く本文は 244 行で 300 行上限内。",
+      "契約の完全性が三点整合: schema の required 13 キー・optional (skip_reason)・enum (component_kind 5 / builder 4 / status 3) が validator の REQUIRED_KEYS/OPTIONAL_KEYS/各定数と完全一致し、builder enum は planner 側 specfm.builder_for SSOT (run-skill-create/run-build-skill/parent-skill-build/plugin-scaffold) と同一。validate_against_route が照合する 4 フィールド (component_kind/name/builder/build_target) は handoff routes[] に実在 (io-contract §handoff routes)。planner 側 io-contract.md は consumer 側を正本と宣言し内容を再定義せず、往路 (handoff)/復路 (route report) の責務境界が閉じている。",
+      "テスト規範を genuine に充足: 新規 tests/scripts-plugins/test_harness_creator__validate_route_build_reports.py が 25 tests 全 pass、subprocess (CLI/self-test) を計上した行カバレッジ 92% で 80% 床を超過し、負例 (欠落依存/inputs_consumed 未宣言/依存 failure/orphan/enum 逸脱/cross-field) を genuine に網羅。validator 内蔵 --self-test も exit0。"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -30,5 +32,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator quality-rubric.md 5 次元 (完全性0.25/一貫性0.20/深度0.25/検証可能性0.15/簡潔性0.15) で現 SKILL.md (sha256=2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7 実測) を独立採点。[完全性 3] commonCore 必須 5 キー完備、Capability 7 kind サポート資産を manifest/responsibility/template/schema/script/reference_refs で全参照、CL-6 で build-trace 章 coverage を空欄なく要求。[一貫性 3] 出力先2箇所・max_iterations=3・本文行数上限が全所で同値、改名で Harness Creator 基盤ラベルおよび harness-creator plugin パスに統一し manifest↔本文 drift なし、旧固有名残存なし。[深度 3] design claim/behavioral claim の証拠主張型直交、Gate A-D 分離、実行レイヤー判断表根拠 (Key Rule 9/01a) を反映。[検証可能性 3] CL 全項目が二値 lint コマンド、数値 3 個以上。[簡潔性 3] SSOT 委譲徹底で本文簡潔、同義反復なし。合計 15/15、全次元 >=2、参照先 (orchestrate-gate-pattern.md/lint-matrix.json/build-steps.md/goal-seek-paradigm.md/content-review-protocol.md/capability-manifest.schema.json/build-flags.schema.json) が harness-creator 配下で全実在につき rubric PASS。"
+  "notes": "route 実行レポート契約 (L4 復路) 追加に伴う stale verdict の genuine 再評価。harness-creator quality-rubric.md 5 次元で現 SKILL.md (sha256=609ea69d04612ccf0a14072c351ed80ca30de71cc20fb4b04b9a57e4c31852a0 実測) を独立採点。[完全性] SKILL.md への追記が 3 資産 (references/route-build-report.md / schemas/route-build-report.schema.json / scripts/validate-route-build-reports.py) と対応し、いずれも workflow-manifest.json に schema-route-build-report / ref-route-build-report として登録済 (run 系必須資産構成を満たす)。[一貫性] eval-log/<slug>/build/route-<id>.json のパス規約・enum・route_id パターン (^C[0-9]+$) が SKILL.md/references/schema/validator の全所で同値、planner 側 io-contract.md との往復路境界も drift なし。[深度] 往路 handoff が機械検証されるのに復路がセッション記憶頼みだった断線を、レポートのファイル固定 + 依存チェーン fail-closed (依存欠落/failure で着手停止・inputs_consumed 被覆強制) で閉じており、単一 skill 内部工程 (handoff-<step>.json) と component 間 (route) の階層差も明記。[検証可能性] CL-12 が exit0 二値、validator の self-test/pytest が緑。[簡潔性] SSOT 委譲徹底で本文 244 行 (300 行上限内)、schema を正本とし本文再掲なし。合計 15/15・全次元 >=2・参照資産全実在につき rubric PASS。備考 (非 finding): references/route-build-report.md の『フィールドの意図』表は summary/deviations/evidence/inputs_consumed/handover の 5 payload フィールドに絞り status/skip_reason 等の identity/制御フィールドは schema (正本として明示引用) と受け渡しプロトコル節に委ねる意図的分業であり欠落ではない。validator は skip_reason を非 skipped で禁止する点で schema より厳格だが受入方向 (fail-closed 強化) の追加で契約破綻ではない。lint-goal-seek の WARN 3 件は既存の `### ゴールシーク配線` 節不在に関するもので本変更とは無関係。"
 }
