@@ -250,6 +250,12 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-upstream-pins.py",
+    # 拡張ゲート3本 (layer A/B 下流ハーネス検査 + dogfooding selfcheck) の追加投入。既存
+    # check-* 群と同一ディレクトリ・同一動詞規約のため、同じ Change Governance 一括改名
+    # PR で同時に許可動詞化する (3本だけ validate-* へ先行改名すると兄弟 script と不整合)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-generative-fidelity.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-downstream-harness.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
     "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",

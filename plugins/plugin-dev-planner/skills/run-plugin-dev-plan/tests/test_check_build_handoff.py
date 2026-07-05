@@ -314,6 +314,76 @@ def test_manifest_draft_name_mismatch_fails(tmp_path, handoff):
     assert any("target_plugin_slug" in e for e in errs)
 
 
+# ─────────────────── C2: entry_points × inventory 突合 (MEDIUM-4) ───────────────────
+def _write_draft_entry_points(tmp_path, entry_points: dict):
+    """envelope-draft/plugin.json を entry_points 付きで書き換える (target 名は sample-plugin)。"""
+    (tmp_path / "envelope-draft" / "plugin.json").write_text(
+        json.dumps(
+            {"name": "sample-plugin", "version": "0.1.0", "description": "sample",
+             "entry_points": entry_points},
+            ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def test_entry_points_full_coverage_passes(tmp_path, handoff):
+    """inventory の全 surface component (skill run-sample / sub-agent sample-verifier) が
+    manifest entry_points に宣言済みなら通る (2 SSOT 突合の正例)。"""
+    path, data = _write_plan(tmp_path)
+    _write_inventory_for_handoff(tmp_path)
+    _write_draft_entry_points(tmp_path, {
+        "skills": ["run-sample"], "agents": ["sample-verifier"], "commands": []})
+    assert handoff.validate_handoff(data, path) == []
+    assert handoff.main([str(path)]) == 0
+
+
+def test_entry_points_uncovered_surface_detected(tmp_path, handoff):
+    """entry_points.agents に載っていない sub-agent は未宣言 violation として fail-closed で弾く。"""
+    path, data = _write_plan(tmp_path)
+    _write_inventory_for_handoff(tmp_path)
+    _write_draft_entry_points(tmp_path, {
+        "skills": ["run-sample"], "agents": [], "commands": []})  # sample-verifier 欠落
+    errs = handoff.validate_handoff(data, path)
+    assert any("sample-verifier" in e and "entry_points.agents" in e for e in errs)
+
+
+def test_entry_points_coverage_hook_script_out_of_scope(handoff):
+    """_check_manifest_entry_points_coverage は hook/script を対象外にする (entry_points に現れない)。"""
+    comps = [
+        {"id": "C01", "component_kind": "skill", "skill_name": "run-x"},
+        {"id": "C09", "component_kind": "script", "script_name": "do.py"},
+        {"id": "C08", "component_kind": "hook", "name": "guard"},
+    ]
+    ep = {"skills": ["run-x"], "agents": [], "commands": []}
+    # skill は網羅済・script/hook は entry_points 未宣言でも violation にならない
+    assert handoff._check_manifest_entry_points_coverage(ep, comps, "envelope.manifest") == []
+
+
+def test_entry_points_missing_block_reports_all_surfaces(handoff):
+    """entry_points が未宣言 (None) なら全 surface component を未網羅として報告する。"""
+    comps = [
+        {"id": "C01", "component_kind": "skill", "skill_name": "run-x"},
+        {"id": "C02", "component_kind": "sub-agent", "name": "verifier"},
+    ]
+    errs = handoff._check_manifest_entry_points_coverage(None, comps, "envelope.manifest")
+    assert len(errs) == 2
+
+
+def test_load_inventory_components_failsoft(tmp_path, handoff):
+    """_load_inventory_components は不在/壊れ JSON/components 非 list で空 list を返す (後方互換)。"""
+    assert handoff._load_inventory_components(tmp_path) == []  # 不在
+    (tmp_path / "component-inventory.json").write_text("{not json", encoding="utf-8")
+    assert handoff._load_inventory_components(tmp_path) == []  # 壊れ JSON
+    (tmp_path / "component-inventory.json").write_text('{"components": "x"}', encoding="utf-8")
+    assert handoff._load_inventory_components(tmp_path) == []  # components 非 list
+
+
+def test_entry_points_check_skipped_without_inventory(tmp_path, handoff):
+    """component-inventory.json 不在なら entry_points 突合は発火しない (孤立 handoff の後方互換)。"""
+    path, data = _write_plan(tmp_path)  # inventory を書かない・draft も entry_points 無し
+    assert handoff.validate_handoff(data, path) == []
+
+
 def test_main_missing_file_returns_usage_error(tmp_path, handoff):
     """存在しない handoff パスは usage error (exit 2) を返す。"""
     assert handoff.main([str(tmp_path / "does-not-exist.json")]) == 2

@@ -150,6 +150,26 @@
       "severity_on_fail": "high",
       "source": "component-inventory.plugin_level_surfaces",
       "runner": "mechanical-plus-llm"
+    },
+    {
+      "id": "S3",
+      "name": "layer-a-generative-fidelity",
+      "conditions": [],
+      "bucket": "layer-a-generative-fidelity",
+      "severity_on_fail": "medium",
+      "source": "generated phase prose specificity (C6/C7 mechanical detection + C8 genuine judgment)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、下流 builder が genuine に着手不能なほど空虚なときのみ high"
+    },
+    {
+      "id": "S4",
+      "name": "layer-b-downstream-harness",
+      "conditions": [],
+      "bucket": "layer-b-downstream-harness",
+      "severity_on_fail": "medium",
+      "source": "phase 完了チェックリストの 受入例/事前解決済み判断 サブ節 (C10/C11 mechanical detection + C12 genuine judgment)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、サブ節が形骸化し下流の追加質問を防げないときのみ high"
     }
   ],
   "global_thresholds": {

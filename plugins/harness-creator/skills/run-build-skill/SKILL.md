@@ -86,6 +86,11 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       text: skill-build-trace.json が source_docs/doc_coverage/layer_decisions/reproducibility_gates を空欄なく記録している
       verify_by: script
       derived_from: [CL-6]
+    - id: IN3
+      loop_scope: inner
+      text: plugin 一括 build (handoff routes 消費) では route 完了ごとの実行レポートが validate-route-build-reports.py --route/--complete を exit0 で通過する (単発 build は N/A)
+      verify_by: script
+      derived_from: [CL-12]
     - id: OUT1
       loop_scope: outer
       text: fork した assign-skill-design-evaluator の score>=80 かつ high severity 0 件
@@ -178,6 +183,7 @@ audit-trigger: quarterly
 - [ ] `eval-log/build-plan.json` (`validate-build-plan.py --brief ... --out eval-log/build-plan.json` で brief から決定論導出) の `flags` が true の subagent/prompt/evaluator/hook/knowledge を全て生成し、`--check` が exit 0 (フラグの要否をモデル判断で省略しない) <!-- CL-9 -->
 - [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007) <!-- CL-10 -->
 - [ ] (kind=plugin で外部依存(API/DB/秘密)の疎通確認手順が要る場合のみ) install位置を `__file__` 相対で自己解決する doctor 同梱 + 疎通確認はチャット委譲(`/<name>-doctor` or 自然文) + 生 `$CLAUDE_PLUGIN_ROOT` 非露出 (README **及び `references/*-setup.md` 等 setup 手順**の bash に裸変数/repo相対を書かず fallback 形 `${CLAUDE_PLUGIN_ROOT:-plugins/<name>}` へ降格。番号付きリスト内の字下げフェンスも同様)。`scripts/lint-readme-plugin-root-portability.py` exit0。正本 `ref-cross-platform-runtime/references/runtime-portability.md` 層2 <!-- CL-11 -->
+- [ ] (plugin 一括 build=handoff routes 消費時のみ) route 完了ごとに `eval-log/<slug>/build/route-<id>.json` を記録し `validate-route-build-reports.py --route <id>` exit0、全 route 終端で `--complete` exit0 (契約正本 `references/route-build-report.md`) <!-- CL-12 -->
 
 ### ゴールシークループ
 
@@ -244,6 +250,7 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 **agent/prompt 生成の provenance (C09)**: agents/*.md・skills/*/prompts/*.md を生成/更新した build は `prompt_provenance` を trace に記録する。`prompt_creator_invocation`=true (prompt-creator 経由で本文7層を生成)・`source_contract_ref` (準拠契約: agent=`subagent-hybrid-format.md` / prompt=`seven-layer-format.md`)・`content_lint`={mode, status:PASS} (C02 `lint-agent-prompt-content.py` の結果) の3点を持つ。`run` / `assign` は prompt 生成必須のため `prompt_generation_model.policy_resolution.resolved_policy=optional|skip` を禁止し、`required` へ到達させる。`required` の build ではこのブロックが必須で、`validate-build-trace.py` が invocation=false・契約参照欠落・content_lint≠PASS・ブロック欠落のいずれも exit1 で止める (バイパス不能性)。
 
+**route 実行レポート (plugin 一括 build のみ)**: `handoff-run-plugin-dev-plan.json` の routes を消費する build では、route 1 本の完了ごとに `eval-log/<target_plugin_slug>/build/route-<id>.json` (`schemas/route-build-report.schema.json`) へ実行レポートを書き、後続 route は依存 route のレポート (`handover`/`deviations`) を読んでから着手する。契約正本は `references/route-build-report.md`、機械検証は `scripts/validate-route-build-reports.py` (route 毎 `--route <id>` / 終端 `--complete`)。単発 build (route 外) は対象外。
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
 > lint 集合の正本は `$PLUGIN_ROOT/references/lint-matrix.json` (context: build-preflight / p0-gate / ci)。下記 bash ブロックはその **build-preflight 射影**であり、集合の乖離は `plugins/skill-governance-lint/scripts/lint-matrix-sync.py` が CI で fail させる (lint の増減は matrix を先に更新)。`workflow-manifest.json` は宣言的リソース (schema/prompt/reference) の正本で、lint を manifest に resource 登録はしない (責務分離)。
