@@ -214,11 +214,24 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
             )
         if not str(policy.get("resolved_via", "")).strip():
             errs.append("policy_resolution.resolved_via must explain derivation")
-        if kind in PROMPT_REQUIRED_KINDS and resolved in {"optional", "skip"}:
+        if kind in PROMPT_REQUIRED_KINDS and resolved == "skip":
             errs.append(
-                f"resolved_policy={resolved} contradicts brief.kind={kind!r} "
-                "(run/assign require prompt generation and prompt_provenance)"
+                f"resolved_policy=skip contradicts brief.kind={kind!r} "
+                "(run/assign は prompt 生成を skip できない。生成なしでも optional で宣言する)"
             )
+        elif kind in PROMPT_REQUIRED_KINDS and resolved == "optional":
+            # optional は「本 build が prompt を生成しない run/assign」(per_responsibility 空=
+            # 上流/他skillが生成した共有 prompt を消費する等) では許容する。生成物があるのに
+            # optional へ降格するのは prompt_provenance 必須化の迂回 (bypass) なので禁止する。
+            # 実際の本文7層準拠は C02 (lint-agent-prompt-content.py) の CI repo 全走査が
+            # trace 非依存で独立強制するため、生成物ありの bypass はここと二層で塞がれる。
+            _pr = model.get("per_responsibility")
+            if isinstance(_pr, list) and _pr:
+                errs.append(
+                    f"resolved_policy=optional contradicts brief.kind={kind!r} with "
+                    "non-empty per_responsibility (生成物があるのに optional 降格は "
+                    "prompt_provenance の迂回。required + provenance にすること)"
+                )
         if kind in PROMPT_SKIP_KINDS and resolved == "required":
             errs.append(
                 f"resolved_policy=required contradicts brief.kind={kind!r} "

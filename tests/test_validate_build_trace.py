@@ -324,9 +324,9 @@ def test_provenance_absent_on_optional_build_is_ok():
     assert MOD._validate_prompt_provenance(data) == []
 
 
-def test_pgm_run_assign_optional_downgrade_fails():
-    # C09-1: run/assign は prompt 生成必須。resolved_policy=optional へ降格すると
-    # prompt_provenance 必須化を迂回できるため、policy 解決時点で fail-closed にする。
+def test_pgm_run_assign_optional_downgrade_with_prompts_fails():
+    # C09-1 (精緻化): 生成物 (per_responsibility 非空) があるのに resolved_policy=optional へ
+    # 降格するのは prompt_provenance 必須化の迂回 (bypass) なので fail-closed にする。
     for kind in ("run", "assign"):
         data = {
             "variant_support": {"prefix": kind},
@@ -335,12 +335,48 @@ def test_pgm_run_assign_optional_downgrade_fails():
                     "resolved_policy": "optional",
                     "resolved_via": "brief override",
                 },
-                "per_responsibility": [],
+                "per_responsibility": [
+                    {"id": "R1", "path_convention": "skill-local-v1",
+                     "layer_yaml_path": "plugins/x/skills/run-y/prompts/R1.md",
+                     "lint_status": "PASS"}
+                ],
             },
         }
         errs = MOD._validate_prompt_generation_model(data)
         assert any("resolved_policy=optional contradicts" in e for e in errs)
         assert MOD._validate_prompt_provenance(data) == []
+
+
+def test_pgm_run_assign_optional_without_prompts_is_ok():
+    # 精緻化: 本 build が prompt を生成しない run/assign (per_responsibility 空=共有 prompt 消費等)
+    # は optional で宣言してよい。生成物がないため provenance 迂回にならない (例: run-company-master-build)。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {
+                    "resolved_policy": "optional",
+                    "resolved_via": "上流/他skillが生成した共有 prompt を消費するため本 build は生成なし",
+                },
+                "per_responsibility": [],
+            },
+        }
+        errs = MOD._validate_prompt_generation_model(data)
+        assert not any("resolved_policy=optional contradicts" in e for e in errs)
+
+
+def test_pgm_run_assign_skip_always_fails():
+    # skip は生成物有無に関わらず run/assign では不可 (生成なしでも optional で宣言する)。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {"resolved_policy": "skip", "resolved_via": "x"},
+                "per_responsibility": [],
+            },
+        }
+        errs = MOD._validate_prompt_generation_model(data)
+        assert any("resolved_policy=skip contradicts" in e for e in errs)
 
 
 def test_provenance_invocation_false_is_bypass_fail():
