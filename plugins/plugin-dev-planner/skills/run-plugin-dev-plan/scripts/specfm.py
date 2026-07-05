@@ -338,6 +338,28 @@ def split_frontmatter(text: str) -> str | None:
     return parts[1]
 
 
+def phase_body_sections(text: str) -> dict[str, str]:
+    """phase Markdown 本文を {"## 見出し": 本文} へ分解する (frontmatter/H1 を除外)。
+
+    `## ` (H2) のみを節境界にし `### ` サブ見出しは親 H2 本文へ内包する。本文は strip 済み。
+    §5 節床検査・生成時品質検査 (未カスタマイズ/曖昧語)・下流ハーネス検査 (受入例サブ節) の
+    共有 SSOT パーサ (節本文抽出を各 script に複製しない=doc-points-to-SSOT)。
+    """
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        if len(parts) >= 3:
+            text = parts[2]
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            current = line.strip()
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+    return {k: "\n".join(v).strip() for k, v in sections.items()}
+
+
 def _strip_comment(v: str) -> str:
     """スカラ値から YAML コメントを除去する (flow list / quote 内は保持)。"""
     v = v.strip()

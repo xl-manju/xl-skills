@@ -239,6 +239,9 @@ jobs:
       - name: plugin-dev-planner live surface audit (skills/agents/commands/hooks/scripts/tests)
         run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner
         continue-on-error: false
+      - name: plugin-dev-planner harness-coverage self-apply (12軸自己適用 dogfooding)
+        run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py
+        continue-on-error: false
       # ── ubm-goal-setting conformance (harness-creator 仕様準拠) ──
       # NOTE: ubm-goal-setting は distributable:false (marketplace 非配布 = 層 A-internal) で
       #   lint-plugin-lint-coverage.py の required 集合 (marketplace 起点) には入らないが、
