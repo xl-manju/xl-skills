@@ -16,6 +16,8 @@ USAGE = """build-claude-symlinks.py [-h]
                                 [--dry-run]
                                 [--check]
                                 [--prune]
+                                [--exclude-plugin PLUGIN]
+                                [--conflicts-only]
                                 [--json]"""
 
 
@@ -39,6 +41,8 @@ def parse_args(argv=None):
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--prune", action="store_true")
+    parser.add_argument("--exclude-plugin", action="append", default=[])
+    parser.add_argument("--conflicts-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
 
@@ -50,13 +54,17 @@ def parse_kinds(value):
     return kinds
 
 
-def discover_plugins(plugins_dir):
+def discover_plugins(plugins_dir, exclude_plugins=None):
+    exclude_plugins = set(exclude_plugins or [])
     plugins_dir = Path(plugins_dir)
     if not plugins_dir.exists():
         raise LayoutError(f"plugins dir does not exist: {plugins_dir}")
     if not plugins_dir.is_dir():
         raise LayoutError(f"plugins dir is not a directory: {plugins_dir}")
-    return sorted(path for path in plugins_dir.iterdir() if path.is_dir())
+    return sorted(
+        path for path in plugins_dir.iterdir()
+        if path.is_dir() and path.name not in exclude_plugins
+    )
 
 
 def discover_items(plugin, kind):
@@ -99,12 +107,12 @@ def read_skill_frontmatter_name(skill_dir):
     return None
 
 
-def desired_entries(plugins_dir, target_dir, kinds):
+def desired_entries(plugins_dir, target_dir, kinds, exclude_plugins=None):
     raw_entries = []
     identifiers = {}
     conflicts = set()
 
-    for plugin in discover_plugins(plugins_dir):
+    for plugin in discover_plugins(plugins_dir, exclude_plugins=exclude_plugins):
         for kind in kinds:
             for item in discover_items(plugin, kind):
                 dst = target_dir / kind / item.name
@@ -171,10 +179,12 @@ def is_known_source(readlink_value, dst, source_paths):
     return target in source_paths
 
 
-def compute_plan(plugins_dir, target_dir, kinds, prune=False):
+def compute_plan(plugins_dir, target_dir, kinds, prune=False, exclude_plugins=None):
     plugins_dir = Path(plugins_dir)
     target_dir = Path(target_dir)
-    entries, conflicts = desired_entries(plugins_dir, target_dir, kinds)
+    entries, conflicts = desired_entries(
+        plugins_dir, target_dir, kinds, exclude_plugins=exclude_plugins
+    )
     source_paths = {entry["src"].resolve(strict=False) for entry in entries}
     desired_dsts = {entry["dst"] for entry in entries}
     plan = []
@@ -263,11 +273,12 @@ def check_drift(plan):
     return False
 
 
-def build_report(plugins_dir, target_dir, kinds, plan):
+def build_report(plugins_dir, target_dir, kinds, plan, exclude_plugins=None):
     return {
         "plugins_dir": str(plugins_dir),
         "target_dir": str(target_dir),
         "kinds": kinds,
+        "exclude_plugins": list(exclude_plugins or []),
         "plan": plan,
         "summary": summarize(plan),
     }
@@ -289,11 +300,26 @@ def main(argv=None):
     args = parse_args(argv)
     try:
         kinds = parse_kinds(args.kinds)
-        plan = compute_plan(args.plugins_dir, args.target_dir, kinds, prune=args.prune)
-        report = build_report(args.plugins_dir, args.target_dir, kinds, plan)
+        plan = compute_plan(
+            args.plugins_dir,
+            args.target_dir,
+            kinds,
+            prune=args.prune,
+            exclude_plugins=args.exclude_plugin,
+        )
+        report = build_report(
+            args.plugins_dir,
+            args.target_dir,
+            kinds,
+            plan,
+            exclude_plugins=args.exclude_plugin,
+        )
         if report["summary"]["conflict"]:
             print_report(report, args.json or args.dry_run)
             return 2
+        if args.conflicts_only:
+            print_report(report, args.json or args.dry_run)
+            return 0
         if args.check:
             print_report(report, args.json or args.dry_run)
             return 1 if check_drift(plan) else 0

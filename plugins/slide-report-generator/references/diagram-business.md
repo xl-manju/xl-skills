@@ -194,26 +194,7 @@
   height: 450px;
 }
 
-/* 中央の核心価値 */
-.slide-value-prop .vp-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200px;
-  height: 200px;
-  background: linear-gradient(135deg, var(--wave-blue), var(--sakura-pink));
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: var(--bg-dark);
-  padding: 1rem;
-  z-index: 10;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-}
+/* 中央ノードの基本 CSS は diagram-visual.md の中心円パターンを正本として参照 */
 
 .slide-value-prop .vp-center-icon {
   font-size: 2.5rem;

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -21,6 +22,20 @@ REQUIRED_TOP_LEVEL = (
     "EVALS.json",
 )
 PLACEHOLDER_TOKENS = ("[TODO", "TODO:", "{{TODO", "未定義")
+MAX_AGENT_ADAPTER_LINES = 80
+PROMPT_REF_RE = re.compile(
+    r"^skills/[a-z][a-z0-9-]*/prompts/R[0-9]+(-[a-z0-9]+)*\.md$"
+)
+AGENT_REQUIRED_SECTIONS = (
+    "## Purpose",
+    "## Inputs",
+    "## Outputs",
+    "## Goal-Seeking Execution",
+    "## Constraints",
+    "## Prompt Templates",
+    "## Self-Evaluation",
+    "## Handoff",
+)
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -70,6 +85,75 @@ def check_entry_points(errors: list[str], manifest: dict) -> None:
             fail(errors, f"entry_points.{key} mismatch: declared={declared} actual={actual}")
 
 
+def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        fail(errors, f"frontmatter missing: {path.relative_to(PLUGIN_ROOT)}")
+        return {}
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        fail(errors, f"frontmatter malformed: {path.relative_to(PLUGIN_ROOT)}")
+        return {}
+    values: dict[str, str] = {}
+    for line in text[4:end].splitlines():
+        if ":" in line and not line.startswith(" "):
+            key, value = line.split(":", 1)
+            values[key.strip()] = value.strip()
+    return values
+
+
+def check_thin_agent_adapters(errors: list[str]) -> None:
+    """Enforce harness-creator style: agents are Task adapters, prompts live in skills."""
+    agents_dir = PLUGIN_ROOT / "agents"
+    nested_prompt_dirs = sorted((PLUGIN_ROOT / "skills").glob("*/prompts/*/"))
+    for nested in nested_prompt_dirs:
+        if nested.name != "__pycache__":
+            fail(
+                errors,
+                f"nested prompts directory forbidden by prompt-placement-convention: "
+                f"{nested.relative_to(PLUGIN_ROOT)}",
+            )
+    for path in sorted(agents_dir.glob("*.md")):
+        rel = path.relative_to(PLUGIN_ROOT)
+        text = path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        if len(lines) > MAX_AGENT_ADAPTER_LINES:
+            fail(
+                errors,
+                f"agent adapter too large: {rel} has {len(lines)} lines "
+                f"(max {MAX_AGENT_ADAPTER_LINES}); move detail to skills/*/prompts/agents/",
+            )
+        fm = parse_frontmatter(path, errors)
+        owner_skill = fm.get("owner_skill", "")
+        prompt_ref = fm.get("prompt_ref", "")
+        if not owner_skill:
+            fail(errors, f"agent owner_skill missing: {rel}")
+        if not prompt_ref:
+            fail(errors, f"agent prompt_ref missing: {rel}")
+            continue
+        if not PROMPT_REF_RE.match(prompt_ref):
+            fail(
+                errors,
+                f"agent prompt_ref must be flat prompts/R*.md path: {rel} -> {prompt_ref}",
+            )
+        prompt_path = PLUGIN_ROOT / prompt_ref
+        if not prompt_path.exists():
+            fail(errors, f"agent prompt_ref target missing: {rel} -> {prompt_ref}")
+        expected_prefix = f"skills/{owner_skill}/prompts/"
+        if owner_skill and not prompt_ref.startswith(expected_prefix):
+            fail(
+                errors,
+                f"agent prompt_ref must be packaged under owner skill: "
+                f"{rel} owner={owner_skill} prompt_ref={prompt_ref}",
+            )
+        prompt_id = Path(prompt_ref).stem
+        if f"<!-- responsibility: {prompt_id} -->" not in text:
+            fail(errors, f"agent responsibility anchor missing: {rel} -> {prompt_id}")
+        for section in AGENT_REQUIRED_SECTIONS:
+            if section not in text:
+                fail(errors, f"agent required section missing: {rel} -> {section}")
+
+
 def check_hooks(errors: list[str], manifest: dict) -> None:
     hooks = manifest.get("hooks", {})
     if not hooks:
@@ -115,6 +199,7 @@ def main() -> int:
         check_hooks(errors, manifest)
 
     check_plugin_surfaces(errors)
+    check_thin_agent_adapters(errors)
 
     if errors:
         print("plugin completeness: FAIL", file=sys.stderr)

@@ -7,6 +7,8 @@
       "python3 plugins/slide-report-generator/scripts/validate-output-mode.py --mode slide",
       "python3 plugins/slide-report-generator/scripts/validate-output-mode.py --mode report --report-type internal-analysis",
       "python3 plugins/slide-report-generator/scripts/validate-plugin-completeness.py",
+      "python3 plugins/slide-report-generator/scripts/lint-reference-attribution.py plugins/slide-report-generator",
+      "python3 plugins/harness-creator/skills/run-build-skill/scripts/lint-ssot-duplication.py --plugin-dir plugins/slide-report-generator",
       "python3 plugins/slide-report-generator/scripts/lint-vendor-parity.py",
       "node plugins/slide-report-generator/vendor/tests/test-render-report.js",
       "node plugins/slide-report-generator/vendor/tests/test-mermaid-render.js"
@@ -18,7 +20,7 @@
       "run-elegant-review C1-C4 all PASS を各 buildable component の昇格前ゲートとする"
     ],
     "threshold": 80,
-    "threshold_note": "threshold:80 は各 buildable component (component-inventory.json) が携帯する harness_coverage{min:80} の宣言値。plugin 自身の行カバレッジは CI の per-plugin pytest (tests/) が担う。",
+    "threshold_note": "threshold:80 は各 buildable component (build 計画正本 plugin-plans/slide-report-generator/component-inventory.json) が携帯する harness_coverage{min:80} の宣言値。plugin 自身の行カバレッジは CI の per-plugin pytest (tests/) が担う。",
     "llm_eval_note": "llm_eval の各行は『どの独立 agent/契約がどの観点を fork で評価するか』の配線宣言であり採点器ではない。slide/report 両モードの受入が評価系に配線されていることを宣言する (goal-spec C2/C4)。"
   },
   "surfaces": [
@@ -35,11 +37,11 @@
   ],
   "surfaces_enforced_by": {
     "skills": "governance-check + per-plugin pytest。frontmatter(name/description/kind/allowed-tools) + 7 層本文",
-    "agents": "frontmatter(name/description/kind:agent/tools/owner_skill/prompt_layer) を機械固定。16 agent が plugin.json entry_points.agents と 1 対 1",
+    "agents": "frontmatter(name/description/kind:agent/tools/owner_skill/prompt_ref/prompt_layer) を機械固定。17 thin adapters が plugin.json entry_points.agents と 1 対 1",
     "commands": "frontmatter(name/description/argument-hint/allowed-tools/disable-model-invocation) 契約",
     "hooks": "plugin.json PostToolUse 配線 + hook-postgen-eval.py の fail-soft 挙動",
-    "scripts": "tests/test_validate_output_mode.py (行カバレッジ) + validate-output-mode.py の exit code 規約",
-    "schemas": "structure.schema.json + report-structure.schema.json が共通コア $defs を共有し JSON valid",
+    "scripts": "tests/test_validate_output_mode.py / test_validate_report_visual.py + validate-output-mode.py / validate-report-visual.py の exit code 規約",
+    "schemas": "plugin-root schemas/ が runtime SSOT。vendor/schemas-fixtures の重複 schema は持たず、lint-vendor-parity.py が root schemas を upstream digest と照合",
     "references": "42 upstream + report 新規 4 (report-types/report-writing-rules/report-visual-strategy/mermaid-integration)",
     "vendor": "lint-vendor-parity.py が vendor-digest-manifest.json(195 sha256) と byte 照合。additive(render-report.js/mermaid-render.js) は parity 対象外・vendor/tests で品質担保",
     "plugin-manifest": "scripts/validate-plugin-completeness.py (name↔folder 一致 / distributable:false 整合 / placeholder 禁止 / declared hooks 実在)",

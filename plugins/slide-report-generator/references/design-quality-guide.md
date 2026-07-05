@@ -91,40 +91,7 @@ CSS変数定義の正本 → [SR-2-04](spec-registry.md#sr-2-04)。彩度強化�
 
 ### グラスカードクラス
 
-```css
-/* 標準グラス */
-.glass-card {
-  background: rgba(250, 250, 250, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 16px;
-  box-shadow: var(--shadow-medium);
-}
-
-/* 強調グラス */
-.glass-card-strong {
-  background: rgba(250, 250, 250, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 16px;
-  box-shadow: var(--shadow-prominent);
-}
-
-/* グラデーションオーバーレイ */
-.card-gradient-overlay {
-  position: relative;
-}
-.card-gradient-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(59, 125, 216, 0.05), rgba(217, 75, 110, 0.05));
-  border-radius: inherit;
-  pointer-events: none;
-}
-```
+グラスカードの CSS 正本は [theme-style.md](theme-style.md) §16。ここでは品質判断だけを扱い、クラス定義は再掲しない。
 
 ### 深度レイヤー
 
@@ -330,33 +297,11 @@ gsap.timeline()
 
 ### prefers-reduced-motion
 
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-```
+具体 CSS は [theme-style.md](theme-style.md) §17 を正本とする。本書では「定義されていること」を品質チェック対象にする。
 
 ### focus-visible
 
-```css
-:focus-visible {
-  outline: 3px solid var(--accent-blue-vivid);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* ボタン・ナビゲーション要素 */
-button:focus-visible,
-a:focus-visible {
-  outline: 3px solid var(--accent-blue-vivid);
-  outline-offset: 2px;
-}
-```
+具体 CSS は [theme-style.md](theme-style.md) §17 を正本とする。本書ではボタン・リンク・ナビゲーション要素に適用されているかだけを確認する。
 
 ### 最低 opacity
 
@@ -411,23 +356,11 @@ UIテキスト要素（ナビゲーション、ラベル、キャプション等
 
 ## 8. ホワイトスペースシステム
 
-8px ベースの9段階スペーシングスケール。
+8px ベースの9段階スペーシングスケールを使う。具体変数の正本は [theme-style.md](theme-style.md) のスペーシングスケール。
 
 ### スペーシング変数
 
-```css
-:root {
-  --space-1:  0.25rem;  /* 4px */
-  --space-2:  0.5rem;   /* 8px */
-  --space-3:  0.75rem;  /* 12px */
-  --space-4:  1rem;     /* 16px */
-  --space-5:  1.5rem;   /* 24px */
-  --space-6:  2rem;     /* 32px */
-  --space-7:  3rem;     /* 48px */
-  --space-8:  4rem;     /* 64px */
-  --space-9:  6rem;     /* 96px */
-}
-```
+再掲しない。`--space-*` の値は theme-style 側を参照する。
 
 ### 使い分け
 

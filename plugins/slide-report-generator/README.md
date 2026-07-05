@@ -12,10 +12,10 @@ Node 製レンダリング/画像/印刷/検証エンジンは `vendor/` に **b
 | surface | 実体 |
 |---|---|
 | skills | `run-slide-report-generate` (主オーケストレータ) / `run-slide-report-modify` / `run-cross-deck-review` |
-| agents | 16 sub-agent (slide 13 + report 新規 3: report-structure-designer / visual-strategist / report-composer) |
+| agents | 17 thin Task adapters (詳細 7 層 prompt は各 owner skill の `prompts/R*.md`) |
 | commands | `/slide-report-generate` / `/slide-report-status` |
 | hooks | `hook-postgen-eval.py` (PostToolUse・生成後評価の自動起動・fail-soft) |
-| scripts | `validate-output-mode.py` (mode/reportType 値域の送信前検証) / `lint-vendor-parity.py` (vendor byte-parity) / `validate-plugin-completeness.py` (surface completeness) |
+| scripts | 5 plugin-root scripts: `validate-output-mode.py` / `lint-vendor-parity.py` / `validate-plugin-completeness.py` / `lint-reference-attribution.py` / `validate-report-visual.py` |
 | schemas | `structure.schema.json` (slide) / `report-structure.schema.json` (report・共通コア共有) ほか |
 | references | 42 upstream + report 新規 4 (report-types / report-writing-rules / report-visual-strategy / mermaid-integration) |
 | vendor | Node engine 一式 (195 files byte 携行) + report 新規 Node 2 (render-report.js / mermaid-render.js) |
@@ -57,7 +57,7 @@ Mermaid は runtime 依存を増やさず、`mermaid-render.js` が CDN 初期�
 
 ## 品質・再現性
 
-- **vendor byte-parity**: `python3 "$CLAUDE_PLUGIN_ROOT/scripts/lint-vendor-parity.py"` が `vendor/vendor-digest-manifest.json` (195 files sha256 pin) と照合する。
+- **vendor byte-parity**: `python3 "$CLAUDE_PLUGIN_ROOT/scripts/lint-vendor-parity.py"` が `vendor/vendor-digest-manifest.json` (195 files sha256 pin) と照合する。runtime schema は重複を避けて plugin-root `schemas/` を正本にし、upstream digest もそこで検証する。
 - **plugin completeness**: `python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-plugin-completeness.py"` が manifest 名・entry_points・hook 実体・必須 surface を検証する。
 - **mode 検証**: `validate-output-mode.py` が `output_mode`/`reportType` の値域を fail-closed 検証。
 - **生成後評価**: `hook-postgen-eval.py` が deck/report 中核ファイル書込を検知し deck-evaluator を mode 判定つきで起動を促す。

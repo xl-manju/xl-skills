@@ -30,6 +30,13 @@ goal_seek:
   engine: inline
   fork: subagent
   max_loops: 5
+responsibility_refs:
+  - prompts/R1-orchestrate.md
+schema_refs:
+  - ../../schemas/structure.schema.json
+  - ../../schemas/report-structure.schema.json
+  - schemas/generation-report.schema.json
+manifest: workflow-manifest.json
 feedback_contract: # per-skill 受入基準(purpose-acceptance)。deck-evaluator の生成後評価 verdict と突合し汎用ゲート言い換えへ退化させない
   max_iterations: 3
   criteria:
@@ -76,7 +83,7 @@ feedback_contract: # per-skill 受入基準(purpose-acceptance)。deck-evaluator
 
 - `output_mode` = slide ／ report。
 - report 時: `reportType` (4 enum)／読者／長さ／ビジュアル方針。
-- 全面画像化ゲート (CONST_006): ユーザーが「画像生成でスライドを作る」等を明示した場合、`references/full-image-deck-method.md` を適用する全面画像生成モードを確定 (背景化バランス型は明示時のみ)。
+- 全面画像化ゲート (CONST_006): ユーザーが「画像生成でスライドを作る」等を明示した場合、全面画像生成モードを確定 (背景化バランス型は明示時のみ)。設計方針の正本は `$CLAUDE_PLUGIN_ROOT/references/full-image-deck-method.md` (plugin-root 共有)、Codex Image2 実行導線の正本は skill 私有 `references/ai-image-pipeline.md` (ai-image-diagram-producer が消費) の 2 層に分離する。
 
 確定した mode 一式を**下流 R2／R3 の全 agent へ一貫伝播**する。伝播前に `validate-output-mode.py` (下記 IN1) で値域を検証する。
 
@@ -97,8 +104,10 @@ feedback_contract: # per-skill 受入基準(purpose-acceptance)。deck-evaluator
   - `slide` 決定論経路 (推奨・再現性 100%): `Task` で **slide-renderer** → `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-slide.cjs" <structure.json> <out-dir>`。
   - `report` 経路: `Task` で **report-composer** → `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.json> <out.html>` で `report.html` を決定論生成。
   - **画像明示時のみ**: `Task` で **ai-image-diagram-producer** (Codex Image2)。導線 = `build-image-prompts.js` → `generate-images-codex.js` (`meta.source=codex-image2`・PNG 署名回収＋リトライ) → `build-deck-html.js` (自己完結 index.html)。`codex` 単体は画像生成器ではなく実 backend を着手前に確認する。
-  - **品質補正 (slide)**: 必要に応じ **layout-optimizer** (レイアウト最適化) ／ **ui-quality-reviewer** (テキスト切れ・改行・バランス) を併用。
-- **生成後評価 (mode-aware)**: `Task` で **deck-evaluator** を起動 (思考リセット後 30 種思考法)。`slide`=視覚崩れ／1 メッセージ、`report`=可読性／図解適合／情報密度の mode 別 rubric 次元で区分評価する。**改善→再評価は最大 3 周** (`feedback_contract.max_iterations`)。
+  - **品質補正 (mode 別・slide/report 対称)**:
+    - `slide`: 必要に応じ **layout-optimizer** (レイアウト最適化) ／ **ui-quality-reviewer** (テキスト切れ・改行・バランス) を併用 + `verify-slides.js`／`validate-print.js` の決定論視覚ゲート。
+    - `report`: **report-quality-reviewer** (読み物文体・段落密度・1 項目 1 ビジュアル整合・reportType 骨格順守) を併用 + `python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> [--structure <report-structure.json>]` の決定論視覚ゲート (report 版・slide の verify-slides に対称)。
+- **生成後評価 (mode-aware)**: `Task` で **deck-evaluator** を起動 (思考リセット後 30 種思考法)。`slide`=視覚崩れ／1 メッセージ、`report`=可読性／図解適合／情報密度の mode 別 rubric 次元で区分評価する。**改善→再評価は最大 3 周** (`feedback_contract.max_iterations`)。CRITICAL (視覚崩れ) が残存する場合はループ枯渇時も未完了 (hard-fail) とし、`未達指摘一覧` は非 CRITICAL に限定する。
 
 状態確認は `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/workflow-manager.js" <out-dir> --check --next` で行える。
 
@@ -113,8 +122,10 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-output-mode.py" --mode <slide|repo
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-output-mode.py" --preflight
 # 構成の仕様確定ゲート (V-001〜043・SR-ID 連動)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/validate-structure.js" <structure|report-structure>
-# UI 品質 (テキスト切れ・16:9 比率)
+# slide の UI 品質 (テキスト切れ・16:9 比率)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-slides.js" ./index.html --check-ratio
+# report の決定論視覚ゲート (section 構造/1項目1ビジュアル/段落密度/placeholder/印刷・0=PASS/1=崩れ検出/2=usage)
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> [--structure <report-structure.json>]
 # 生成後評価オーケストレータ (D1 視覚崩れ/D2 文字サイズ/D3 ナビ/D4 仕様適合・0=PASS/4=FAIL)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/evaluate-deck.js" <out-dir>
 # 画像明示時: prompt/meta/WebP 整合と style genome 反映 (PNG/WebP 署名検査)
@@ -160,8 +171,28 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/validate-print.js" <index.html>
 
 ## 追加リソース
 
-- `schemas/structure.schema.json` — slide 入力契約 (97 slideType, `$defs`)。
-- `schemas/report-structure.schema.json` — report 入力契約 (`sections[]`・structure と共通コア `$defs` 共有)。
-- `references/report-types.md` / `report-writing-rules.md` / `report-visual-strategy.md` / `mermaid-integration.md` — report モード正本。
-- `references/full-image-deck-method.md` / `post-generation-evaluation.md` — 全面画像・生成後評価の正本。
-- `vendor/scripts/` — 決定論レンダラ・validator 群 (byte 携行・書換禁止)。
+**パッケージ (実行 SSOT)**
+- `prompts/R1-orchestrate.md` — R1→R2→R3 の 7 層実行 SSOT (Layer 1-7・15 agent/vendor scripts/schema/reference を実体参照。SKILL.md は router 要約、本 prompt が完全駆動契約)。
+- `workflow-manifest.json` — phases (R1-hearing-mode → R2-structure-gate → R3-generate-evaluate)・gate(C1-C3)・dependsOn・entryHook/exitHook・fatal_exit_codes・resources[] (references/schemas/scripts の id↔path↔phaseIds)。
+
+**skill 私有 references (10 本・帰属は `references/resource-map.yaml`)**
+- `references/structure-design-rules.md` — slide 構成設計 (1スライド1メッセージ分解・共通仕様セクション・slideType 判定)。owner=structure-designer。
+- `references/report-structure-types.md` — report 4 reportType 骨格 (社内報告分析/顧客提案WP/技術ドキュメント/学習解説)。owner=report-structure-designer。
+- `references/d3-diagram-rules.md` — D3 インタラクティブ図解の意匠/実装規範。owner=d3-diagram-designer。
+- `references/data-visualization-rules.md` — データ可視化 (グラフ/chart) 設計規範。owner=data-visualizer。
+- `references/html-generation-rules.md` — slide HTML LLM 経路生成規範 (CONST_001-038)。owner=html-generator。
+- `references/layout-optimization-rules.md` — レイアウト最適化 (文字数・カード/フォント・印刷 pt 換算)。owner=layout-optimizer。
+- `references/ui-quality-checklist.md` — slide UI 品質 S 系観点定義・判定基準。owner=ui-quality-reviewer。
+- `references/report-quality-checklist.md` — report 品質観点 RQ1-20・RQCONST (読み物文体/段落密度/1項目1ビジュアル/reportType 骨格)。owner=report-quality-reviewer。`$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py` の決定論ゲートと対 (機械/意味を分離)。
+- `references/deck-evaluation-rubric.md` — 生成後評価 (30 種思考法 mode-aware rubric・評価次元)。owner=deck-evaluator (hook-postgen-eval も消費)。
+- `references/ai-image-pipeline.md` — Codex Image2 全面画像/差替パイプライン規範。owner=ai-image-diagram-producer。
+- `references/resource-map.yaml` — 私有 reference の帰属 + progressive disclosure マップ (lint-reference-attribution.py の orphan/dangling 検査対象)。
+
+**plugin 共有 schemas (`schema_refs`)**
+- `../../schemas/structure.schema.json` — slide 入力契約 (97 slideType, `$defs`)。
+- `../../schemas/report-structure.schema.json` — report 入力契約 (`sections[]`・structure と共通コア `$defs` 共有)。
+
+**plugin 共有 scripts**
+- `../../scripts/validate-output-mode.py` — 送信前 mode/reportType 値域検証 (fail-closed exit 2) + `--preflight` 環境検出 (plugin-root glue)。
+- `../../vendor/scripts/` — 決定論レンダラ・validator 群 (`render-slide.cjs`/`render-report.js`/`validate-structure.js`/`verify-slides.js`/`evaluate-deck.js`/`validate-print.js`/`build-image-prompts.js`/`generate-images-codex.js`/`build-deck-html.js`/`validate-ai-image-assets.js`/`workflow-manager.js`。byte 携行・書換禁止)。
+- plugin-root references (本文が参照): `../../references/full-image-deck-method.md` / `post-generation-evaluation.md` / `report-types.md` ほか意匠・生成規範の共有正本。

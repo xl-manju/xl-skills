@@ -30,6 +30,15 @@ SUBTREE_TARGETS = {
     "presentation-slide-generator/package-lock.json": "vendor/",
 }
 
+# Runtime schema SSOT lives at plugin-root schemas/. These files are still
+# checked against the upstream digest, but are not duplicated under vendor/.
+ROOT_SCHEMA_FILES = {
+    "evaluation-report.schema.json",
+    "image-asset-manifest.schema.json",
+    "image-deck-plan.schema.json",
+    "structure.schema.json",
+}
+
 
 def sha256(path: str) -> str:
     h = hashlib.sha256()
@@ -53,13 +62,18 @@ def main() -> int:
             return 1
         for filename, digest in subtree.get("files", {}).items():
             total += 1
-            path = os.path.join(PLUGIN_ROOT, target, filename)
+            if subtree["source"] == "presentation-slide-generator/schemas/" and filename in ROOT_SCHEMA_FILES:
+                path = os.path.join(PLUGIN_ROOT, "schemas", filename)
+                display = f"schemas/{filename}"
+            else:
+                path = os.path.join(PLUGIN_ROOT, target, filename)
+                display = f"{target}{filename}"
             if not os.path.exists(path):
                 missing += 1
-                print(f"MISSING {target}{filename}", file=sys.stderr)
+                print(f"MISSING {display}", file=sys.stderr)
             elif sha256(path) != digest:
                 mismatch += 1
-                print(f"MISMATCH {target}{filename}", file=sys.stderr)
+                print(f"MISMATCH {display}", file=sys.stderr)
             else:
                 ok += 1
 

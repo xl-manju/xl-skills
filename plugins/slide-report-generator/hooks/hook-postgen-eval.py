@@ -114,19 +114,30 @@ def resolve_target(file_path: str):
 def build_context(mode: str, deck_dir: str) -> str:
     plugin_root = _plugin_root()
     evaluator = plugin_root / "vendor" / "scripts" / "evaluate-deck.js"
+    report_visual = plugin_root / "scripts" / "validate-report-visual.py"
     ref = plugin_root / "references" / "post-generation-evaluation.md"
     deck_name = os.path.basename(os.path.normpath(deck_dir)) or deck_dir
     label = "スライドデッキ" if mode == "slide" else "レポート"
+    if mode == "slide":
+        mechanical = (
+            "1) slide 機械評価 (broken img・はみ出し・computed フォント・16:9 等の静的/動的検証):\n"
+            f'   node "{evaluator}" "{deck_dir}"\n'
+            "   (chromium 未導入なら vendor で npx playwright install chromium 後に再実行)"
+        )
+    else:
+        mechanical = (
+            "1) report 機械評価 (section 構造・1項目1ビジュアル・段落密度・placeholder・印刷):\n"
+            f'   python3 "{report_visual}" "{os.path.join(deck_dir, "report.html")}"\n'
+            "   report では slide 用 evaluate-deck.js を必須扱いしない"
+        )
     return (
         f"【生成後評価フックが起動 (mode={mode})】\n"
         f"{label}: {deck_name}\n"
         f"出力先: {deck_dir}\n\n"
         f"次の生成後評価を必ず実施すること:\n"
-        f"1) 機械評価 (broken img・はみ出し・computed フォント・16:9 等の静的/動的検証):\n"
-        f'   node "{evaluator}" "{deck_dir}"\n'
-        f"   (chromium 未導入なら vendor で npx playwright install chromium 後に再実行)\n"
+        f"{mechanical}\n"
         f"2) deck-evaluator エージェント (思考リセット後 30 種思考法・mode={mode} の rubric) を起動し、\n"
-        f"   評価レポート (evaluation-report.json) を入力に、要望↔構成の矛盾・仕組み反映を含む\n"
+        f"   mode 別の機械評価結果を入力に、要望↔構成の矛盾・仕組み反映を含む\n"
         f"   多角的・視覚的評価と 4 条件 (矛盾なし/漏れなし/整合性/依存関係整合) の最終判定を行う。\n"
         f"   参照: {ref}"
     )
