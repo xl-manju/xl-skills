@@ -44,6 +44,8 @@ slide 構成を独立 context で1スライド1メッセージへ分解し共通
 
 ## Prompt Templates
 
+(対話なし: 自動実行 agent) — owner skill から自動起動され、実行仕様の正本は下記 prompts/R*.md を参照する。
+
 Use `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/prompts/R2-agent-structure-designer.md` as the executable 7-layer prompt for responsibility `R2-agent-structure-designer`. Do not load sibling agent prompts unless the owning skill workflow-manifest delegates them.
 
 ## Self-Evaluation

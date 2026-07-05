@@ -44,6 +44,8 @@ report 品質(読み物破綻/段落密度/1項目1ビジュアル/reportType �
 
 ## Prompt Templates
 
+(対話なし: 自動実行 agent) — owner skill から自動起動され、実行仕様の正本は下記 prompts/R*.md を参照する。
+
 Use `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/prompts/R3-agent-report-quality-reviewer.md` as the executable 7-layer prompt for responsibility `R3-agent-report-quality-reviewer`. Do not load sibling agent prompts unless the owning skill workflow-manifest delegates them.
 
 ## Self-Evaluation
