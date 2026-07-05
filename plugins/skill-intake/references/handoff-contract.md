@@ -89,13 +89,13 @@ Step 1 が読むのは §1/§2/§3/§6/§8/§9。Step 2 は §4/§7。Step 3 は
 
 ## plugin-dev-planner 分岐 (mode P)
 
-`run-intake-next-action` が `mode=P` (plugin 規模構想) を確定した場合、引き渡し先は `run-skill-create` でなく **`plugins/plugin-dev-planner/skills/run-plugin-dev-plan` の R1 (elicit-goal)** になる (`next-action.json.handoff_target="plugin-dev-planner"`)。intake.json の以下の § を R1 の `plugin_concept` 材料として渡す:
+`run-intake-next-action` が `mode=P` (plugin 規模構想) を確定した場合、引き渡し先は `run-skill-create` でなく **`plugins/plugin-dev-planner/skills/run-plugin-dev-plan` の R1 (elicit-goal)** になる (`next-action.json.handoff_target="plugin-dev-planner"`)。利用者向けの次アクションは `/plugin-dev-plan "<構想要約>" --intake-json output/<hint>/intake.json --next-action-json output/<hint>/next-action.json` とし、intake.json と next-action.json の以下の § を R1 の材料として渡す:
 
 | intake.json §x (v2 sections パス) | R1 (goal-spec) への写像 |
 |---|---|
 | `sections.0_executive_summary` (true_purpose_oneliner / pattern / handoff_mode) | `purpose` / `background` の推定材料 |
 | `sections.3_purpose_excavator` (true_purpose / underlying_motivation / output_priority) | `goal` (観測可能な完了形 1 文) と `checklist` の導出材料 |
-| `next-action.json.split_candidates[]` (mode P 判定時の複数コンポーネント/skill 候補) | コンポーネント分解 (R2) へ渡す初期候補 |
+| `next-action.json.split_candidates[]` (mode P 判定時の複数コンポーネント/skill 候補) | `--next-action-json` 経由でコンポーネント分解 (R2) へ渡す初期候補 |
 
 受け側契約の正本は `plugins/plugin-dev-planner/skills/run-plugin-dev-plan/references/io-contract.md` §9 (intake.json は**任意の構造化入力**であり必須ではない)。harness-creator 分岐 (mode A-D) と同じく、intake 側は推奨を出して停止し `run-plugin-dev-plan` を起動しない。
 

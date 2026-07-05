@@ -205,7 +205,7 @@
       "status": "planned",
       "build_target": "plugins/harness-creator/.claude-plugin/plugin.json",
       "draft_path": "envelope-draft/plugin.json",
-      "note": "harness-creator はディレクトリ自動発見のため envelope-draft/plugin.json は現行値を無変更で mirror する (C06/C07/C08/C09 の追加/更新に manifest 差分は不要)。plugin-dev-planner 側 manifest (entry_points.agents[]/hooks.PreToolUse[]) への C10/C11 登録は本 envelope の対象外で、各 component (C10/C11) 自身の build スコープで処理する。build preflight で envelope-draft/plugin.json ↔ 実 manifest (plugins/harness-creator/.claude-plugin/plugin.json) の parity 検査を行い、陳腐化時は fail する"
+      "note": "envelope-draft/plugin.json は build handoff gate 用に inventory surface component の entry_points.skills/commands/agents を明示する。実 plugins/harness-creator/.claude-plugin/plugin.json への反映は envelope build 境界で扱い、C10/C11 の plugin-dev-planner 側 manifest 登録は各 component 自身の build スコープで処理する。build preflight では envelope-draft/plugin.json の entry_points と inventory surface component の parity を検査する"
     },
     "marketplace": {
       "owner": "plugin-scaffold",
@@ -218,7 +218,7 @@
     {
       "id": "GAP-SCRIPT-BUILDER",
       "severity": "medium",
-      "text": "plugin-scaffold / parent-skill-build は contract-only builder 語彙で単独実行実体が未整備 (capability-gap 起票済・当面は run-build-skill の build フロー内で代替生成)。対象 route: C03,C04,C05 (parent-skill-build) / C08,C09 (plugin-scaffold)。代替生成手順: (1) run-build-skill が route.build_kind=script と build_args.script_path を読み、plugin-root script は build_target へ直接生成する、(2) requires_parent_scaffold を持つ skill 配下 script は親 skill C01 のディレクトリ実在を先に確認し、無ければ空 scaffold を作ってから script を配置する、(3) 生成後に check-build-handoff / check-runtime-portability / build_trace を再実行し、どの contract-only route をどの executor-backed 手順で展開したかを evidence に記録する、(4) build_target が既存ファイルの場合 (C03) は新規生成でなく update-in-place (既存挙動+既存テストを維持) で更新する。影響範囲: build 順先頭 5 route (C09/C03/C08/C04/C05) が本 gap に依存する。責務境界: C07 が route を解析し script_path/build_target を明示引数として run-build-skill へ渡す (run-build-skill 本体は無改修)。解消条件: plugin-scaffold executor の恒久実装 or builder 語彙の run-build-skill への正規化。次回 elegant-review 時に再評価する"
+      "text": "plugin-scaffold / parent-skill-build は run-build-skill の 7 capability kind ではなく planner 上の contract-only builder 語彙。対象 route: C03,C04,C05 (parent-skill-build) / C08,C09 (plugin-scaffold)。/capability-build は build_kind=script を run-build-skill の正式 kind として直接実行せず、専用 executor plugins/harness-creator/scripts/build-script-route.py へ委譲して既存実体確認または最小 scaffold 生成を行い、route-build-report を残す。最小 scaffold 生成は route status=skipped として後続依存を進めない。gap_ref は既存 handoff 互換と routing 語彙の明示参照として維持する。解消条件: run-build-skill が script kind を正式受理する、または planner の builder 語彙から contract-only 参照を廃止できる状態に正規化すること"
     }
   ]
 }

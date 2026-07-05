@@ -61,6 +61,33 @@ references:
       - run-skill-create
     relates_to: [orchestrate-gate-pattern]
 
+  - id: pipeline-boundary-contract
+    path: references/pipeline-boundary-contract.md
+    kind: reference
+    read_when:
+      - "skill-intake → plugin-dev-planner → harness-creator の E1/E2/E3 境界契約を確認する時"
+      - "intake.json / handoff-run-plugin-dev-plan.json / improvement-handoff.json の producer-consumer を検証する時"
+      - "Notion 改善要望 DB を改善計画へ戻す設計判断を確認する時"
+    produced_by: team-platform
+    consumed_by:
+      - run-build-skill
+      - run-elegant-review
+      - run-skill-feedback
+      - run-plugin-package-check
+    relates_to: [feedback-to-improvement-runbook, orchestrate-gate-pattern]
+
+  - id: feedback-to-improvement-runbook
+    path: references/feedback-to-improvement-runbook.md
+    kind: reference
+    read_when:
+      - "run-skill-feedback が Notion に収集した改善要望を plugin-dev-planner --mode update へ橋渡しする時"
+      - "Notion 改善要望 DB の rollup を機械 read-back せず人間工程で扱う理由を確認する時"
+    produced_by: team-platform
+    consumed_by:
+      - run-skill-feedback
+      - run-elegant-review
+    relates_to: [pipeline-boundary-contract]
+
 read_policy:
   default: "lazy (read_when 条件成立時のみ load)"
   override: "orchestrator が明示的に require した場合は eager load 可"

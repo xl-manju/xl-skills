@@ -36,5 +36,10 @@ def emit() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def script_route_builder() -> ModuleType:
+    return _load("build-script-route")
+
+
+@pytest.fixture(scope="session")
 def content_lint() -> ModuleType:
     return _load("lint-agent-prompt-content")

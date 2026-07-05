@@ -108,6 +108,7 @@ Step2 と Step4 だけ入口の命名が他と異なる: Step2 の skill は `/r
 - `agents/` — elegant-review 系 5 体 + run-build-skill-subagent
 - `commands/` — /capability-build, /capability-review, /skill-improve, /plugin-compose, /install-bundle
 - `scripts/` — feedback_contract_ssot.py (dogfooding 境界 SSOT・vendored byte 一致 lint 対象) ほか
+- **hooks** — top-level `hooks/` dir は**持たない** (意図的)。各 hook は所有 skill の `scripts/` へ co-locate し (例 `skills/run-elegant-review/scripts/check-review-trigger.py`)、`.claude-plugin/plugin.json` の `hooks` 配線が `$CLAUDE_PLUGIN_ROOT/skills/<skill>/scripts/*.py` を指す。hook を発火経路でなく所有 skill に紐付けることで cohesion を保つ設計 (漏れではなく意図)。量産先の既定配置 (`plugins/<slug>/hooks/<name>.py`) とは別で、これは hand-built メタ plugin の意図的例外。
 - `plugin-composition.yaml` — CapabilityBundle 宣言 (リファレンス実装)
 
 単独配布非対応 (`distributable: false`, NEVER_DISTRIBUTE denylist 登録済み)。repo を clone した開発環境でのみ `.claude/` symlink 経由で利用する。

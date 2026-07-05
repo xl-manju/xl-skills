@@ -1,39 +1,28 @@
 {
-  "target": {
-    "plugin": "plugin-dev-planner",
-    "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "0b712f338cedb8bc5f2689f6e1b80b78c76b06ccfe4f83e53a88b8f31597ff98"
-  },
+  "target": {"plugin": "plugin-dev-planner", "skill": "run-plugin-dev-plan", "skill_md_sha256": "45161fd06db9455e0e3489eed777d15acd6375208247457af8dd2d77b430a579"},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 0,
-    "dependency_break": 0,
-    "smell": 2
-  },
-  "reviewer": "independent-branch-delta-subagent-elegance",
-  "reviewed_at": "2026-07-05T03:07:47+00:00",
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 1, "dependency_break": 0, "smell": 1},
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T09:51:42Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "[C1 矛盾0/C4 依存0] ブランチ delta が追加した 3 script_ref (SKILL.md L45-47: check-generative-fidelity.py / check-downstream-harness.py / check-harness-coverage-selfcheck.py) が実体 scripts/*.py と 1:1 対応することを stat 実測 (それぞれ 244/237/192 行・MISSING 0)。さらに frontmatter の全 *_refs 38 参照 (responsibility 4/script 18/reference 7/agent 3/command 1/hook 1/harness 2/schema 2) を skill ディレクトリ起点で resolve し dangling 0 を実測 (TOTAL refs=38 MISSING=0)。cross-plugin ref (../../../harness-creator/...goal-seek-paradigm.md) も実在。",
-      "[C1 矛盾0/C3 整合0] layer A/B の役割記述が 4 箇所で完全一致することを grep 実測。evaluator agent §2.4 (L50-51) が『layer A 生成時品質 (S3・C8)→check-generative-fidelity.py・bucket:layer-a-generative-fidelity』『layer B 下流ハーネス (S4・C12)→check-downstream-harness.py・bucket:layer-b-downstream-harness』と宣言し、assign-plugin-plan-evaluator/prompts/R1-evaluate.md (L35/L87/L88) が同一 script・同一 bucket・同一 severity (既定 medium・空虚/形骸化時のみ high) を反復し、plan-rubric.json (L155-175) が S3/S4 semantic_check を同 bucket + source『C6/C7 mechanical + C8 genuine』『C10/C11 mechanical + C12 genuine』+ verdict_impact『advisory-graded・4条件verdictへ直接写像しない補助レイヤー』で定義する。S3・C8 / S4・C12 の引用チェーンが dangling せず coherent。",
-      "[C2 漏れ0] 追加 3 script に対応する tests が全て実在 (test_check_generative_fidelity.py 199 行 / test_check_downstream_harness.py 154 行 / test_check_harness_coverage_selfcheck.py 97 行)。conftest.py に genfidelity/downstream fixture が追加され、skill 全テストスイートを実走して 444 passed, 1 skipped (新規 3 script + CI integration の絞り込みは 59 passed)。共有節パーサ specfm.phase_body_sections() を新設し §5 節床/生成時品質/下流ハーネス検査で複製せず SSOT 共有 (doc-points-to-SSOT)。",
-      "[C4 依存0/dogfooding 配線] check-harness-coverage-selfcheck.py が孤立せず CI へ配線済みを実測 — governance-check.yml に『plugin-dev-planner harness-coverage self-apply (12軸自己適用 dogfooding)』step が追加され continue-on-error:false、test_ci_integration.py::test_governance_check_has_harness_coverage_selfcheck が同 step 文字列の存在を assert (self-application 断線検出)。3 script は全て check-*.py + argparse + def main(argv) + __name__ guard で既存 script 群と命名/呼出規約が一貫。io-contract.md +2 行が指す consumer 側 3 実体 (harness-creator の route-build-report.md / route-build-report.schema.json / validate-route-build-reports.py) も stat 実在。"
+      "本 PR delta(E1/E3 境界契約) は clean: Rule 10 (SKILL.md:159) が E1(--intake-json/--next-action-json→source_intake/split_candidates)・E3(--improvement-handoff→source_improvement) を定義し、入力節(SKILL.md:116)・checklist E1/E3(SKILL.md:178-179)・条件付き検証ブロック(SKILL.md:239-248)・frontmatter(SKILL.md:6-7,44-45,60,76)と一貫整合。矛盾・漏れなし",
+      "script route L4 実体化(SKILL.md:288 /capability-build→build-script-route.py→route-build-report)は下流L4挙動であり『本スキルは投入も build もしない』(SKILL.md:296)・4層分離(SKILL.md:146)と非矛盾。planner責務=contract-only 保持",
+      "新規参照5件(check-intake-consumption.py/check-provenance-chain.py/improvement-handoff.schema.json/pipeline-boundary-contract.md/build-script-route.py)を実在確認、dependency_break=0"
     ],
     "negative_feedback": [
-      "[smell/low, 非ブロッキング] SKILL.md §追加リソース末尾『scripts/ — 検証 11 本 (core 5 + 拡張ゲート 6) + skeleton renderer + 共有 SSOT specfm.py』の script 概説が、delta で追加した 3 script (generative-fidelity/downstream-harness=evaluator 補助レイヤー・harness-coverage-selfcheck=dogfooding 自己適用ゲート) を明示列挙していない。ただし『11 本』は io-contract §11 表が定義する plan-scoped ゲート数の projection であり (3 script はゲートでなく evaluator 補助+dogfooding ゆえ 11 に加算しないのは正しい)、この概説行は元々 check-upstream-pins.py / render-skill-brief.py も非列挙で『非ゲート script は暗黙』という既存慣行に沿う。数値契約の矛盾ではなく文書網羅性の軽微 smell。",
-      "[smell/low, 非ブロッキング] test_ci_integration.py の新規テスト docstring が harness-coverage 自己適用を『layer b の CI 配線』と表現し、evaluator 側の正式な『layer B = 下流ハーネス (check-downstream-harness.py)』と語が重なる。参照先 (self-application dogfooding) は明確で機能挙動に影響せず assert 文字列も正しいため非ブロッキングだが、layer B 語の二義使用は将来の読み手を惑わす軽微 smell。"
+      "[inconsistency/medium, 非ブロッキング, main既存] 二段検証で実走確認: check-downstream-harness.py が golden examples/sample-plan の 13 phase 全てで '### 受入例'/'### 事前解決済み判断' サブ節欠落により exit=1。evaluator C12 の期待サブ節契約が生成側 SSOT(specfm.PHASE_BODY_SECTIONS・io-contract §5・R3-emit-specs.md)と golden へ未伝播で非対称。ただし本 script は evaluate-plan.py が invoke しない advisory 補助レイヤー(R1-evaluate.md で severity 既定 medium・C1-C4 verdict へ非写像)で §11 ゲート表/CI/golden test のいずれのハードゲートでもなく非ブロッキング。本 PR の E1/E3 delta 由来ではなく main 既存(前 PR merge)。生成側へのサブ節契約伝播 or golden の grandfather 明記が望ましい(backlog)",
+      "[smell/low, 非ブロッキング] SKILL.md L316『scripts/ — 検証 11 本 (core 5 + 拡張ゲート 6) + skeleton renderer + 共有 SSOT specfm.py』が criteria 自己検査 3 script(generative-fidelity/downstream-harness/harness-coverage-selfcheck)を列挙せず追加リソース記述と実体(18 script)に軽微 drift。§11 表は 11 ゲートを正しく scope しており数値矛盾ではない"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "①再評価理由: 本 feature ブランチが SKILL.md へ 3 script_ref (check-generative-fidelity/check-downstream-harness/check-harness-coverage-selfcheck) を追加した結果、旧 verdict pin sha=6042d32c... が stale 化。現 sha=0b712f338cedb8bc5f2689f6e1b80b78c76b06ccfe4f83e53a88b8f31597ff98 を shasum -a 256 で実測し上書き。②delta 範囲: SKILL.md script_refs +3・agents/plugin-dev-plan-evaluator.md §2.4 +補助レイヤー節/完了チェックリスト C8/C12・references/io-contract.md +route 実行レポート契約 2 行・assign-plugin-plan-evaluator の R1-evaluate.md +3/plan-rubric.json +S3/S4・新規 3 script + 3 tests・specfm.phase_body_sections() 共有パーサ・governance-check.yml +selfcheck step。③C1-C4 各 0 の根拠: C1(矛盾0)=3 script_ref↔実体 1:1・layer A/B 役割記述が evaluator agent §2.4/R1-evaluate.md/plan-rubric.json S3-S4 で完全一致。C2(漏れ0)=3 script に 3 tests 実在 (444 passed/1 skipped)・criteria(IN1/IN2/OUT1/OUT2) が 3 script を写像しないのは設計 (generative-fidelity/downstream-harness は C1-C4 と直交する evaluator 補助レイヤー・rubric verdict_impact=advisory-graded / harness-coverage-selfcheck は dogfooding CI ゲートで plan criterion でない)。C3(整合0)=命名 check-*.py + argparse+main+__name__ が既存規約と一貫・S3/S4↔C8/C12↔bucket の引用が coherent。C4(依存0)=frontmatter 38 refs 全 resolve (MISSING 0)・io-contract 参照先 harness-creator 3 実体 stat 実在・selfcheck が governance-check.yml + ci_integration test で配線検証。④smell 2 件 (追加リソース script 概説の非列挙 / test docstring の layer b 語重複) は共に low・非ブロッキングで C1-C4 に触れない。ハードカテゴリ全 0 につき PASS。"
+  "notes": "現SHA(45161fd0)を精読した genuine 再評価。本 PR delta=E1/E3 境界契約(Rule 10)・script route 実体化。delta は入力節/checklist/条件付き検証ブロック/frontmatter へ完全整合し新規5参照は全実在で clean。二段検証(check-downstream-harness を golden へ実走)で main 既存の非ブロッキング inconsistency(サブ節契約の生成側未伝播・golden 13 phase exit=1)が残存を確認し正直計上。当該 script は advisory 補助レイヤーでハードゲート外ゆえ CI/build 非破綻。blocking カテゴリ(contradiction/omission/dependency_break)=0 につき verdict=PASS。inconsistency は backlog(生成側伝播 or grandfather 明記)。"
 }

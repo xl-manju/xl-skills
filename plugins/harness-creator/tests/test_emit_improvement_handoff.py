@@ -20,6 +20,8 @@ def _args(tmp_path, findings, **over):
         generated_by=None,
         source_intake=None,
         prev_goal_spec=None,
+        origin_request_kind="notion-improvement-request",
+        origin_request_ref=None,
     )
     base.update(over)
     ns = types.SimpleNamespace(**base)
@@ -80,6 +82,36 @@ def test_build_handoff_includes_provenance_and_generated_by(emit, tmp_path):
     assert h["source"]["generated_by"] == "run-elegant-review"
     assert h["provenance"]["source_intake"] == "intake.json"
     assert h["provenance"]["prev_goal_spec"] == "prev/goal-spec.json"
+
+
+def test_build_handoff_records_origin_request(emit, tmp_path):
+    """人間ブリッジ (feedback-to-improvement-runbook Stage 3): 起点 Notion 要望を provenance に刻む。"""
+    ns = _args(tmp_path, _GOOD, source_kind="manual",
+               origin_request_ref="https://notion.so/req-abc")
+    h = emit.build_handoff(ns, emit.normalize_findings(_GOOD))
+    assert h["provenance"]["origin_request"] == {
+        "kind": "notion-improvement-request",
+        "ref": "https://notion.so/req-abc",
+    }
+    assert emit.validate(h) == []
+
+
+def test_build_handoff_omits_origin_request_when_absent(emit, tmp_path):
+    """origin_request 未指定なら provenance ごと省略され後方互換を保つ。"""
+    h = emit.build_handoff(_args(tmp_path, _GOOD), emit.normalize_findings(_GOOD))
+    assert "provenance" not in h
+
+
+def test_validate_manual_requires_origin_request(emit, tmp_path):
+    ns = _args(tmp_path, _GOOD, source_kind="manual")
+    h = emit.build_handoff(ns, emit.normalize_findings(_GOOD))
+    assert any("origin_request" in e for e in emit.validate(h))
+
+
+def test_validate_bad_origin_request_kind(emit, tmp_path):
+    ns = _args(tmp_path, _GOOD, origin_request_ref="r", origin_request_kind="bogus")
+    h = emit.build_handoff(ns, emit.normalize_findings(_GOOD))
+    assert any("origin_request.kind" in e for e in emit.validate(h))
 
 
 # ─────────────────── validate ───────────────────
