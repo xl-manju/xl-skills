@@ -23,12 +23,61 @@
 | 種別 | 数 | 移植先 |
 |---|---|---|
 | sub-agent (`agents/*.md`) | 13 | sub-agent component（§3 C04-C16） |
-| references (`references/*.md`) | 42 | `references_config_assets` surface + report新規追加 |
+| references (`references/*.md`) | 42 (全名 = §1.1) | `references_config_assets` surface + report新規追加 |
 | Node scripts (`scripts/*.js/.cjs`) | 30 | `vendor` surface（byte携行）+ report新規 |
 | HTML templates (`scripts/templates/*.tpl`) | 118 | `vendor`/`references_config_assets` surface |
-| schemas (`schemas/*.json`) | 7 | `schemas` surface + report-structure schema 新設 |
+| schemas (`schemas/*.json`) | 7 (真 schema 4 + example fixture 3) | `schemas` surface (真 schema 4 本) + report-structure schema 新設で真 schema 計5。example fixture 3 本 (example.structure.json/example.v8.structure.json/example-full.structure.json) は `vendor/schemas-fixtures/` へ byte 携行 |
 | assets (`assets/*`, d3-components, style genome) | 多数 | `references_config_assets`/`vendor` surface |
 | feedback (`feedback/*.md`) | 数件 | `references_config_assets`（運用知見・移植任意） |
+
+### 1.1 既存 references 42 本の名前正本（機械照合可能）
+
+> upstream (移植元) references は数だけでは実装と突合できないため名前を列挙する。移植先 `plugins/slide-report-generator/references/*.md`（直下のみ・`feedback/` サブディレクトリは除外）は **46 本**で、うち report 新規 4 本（`report-types.md` / `report-writing-rules.md` / `report-visual-strategy.md` / `mermaid-integration.md`）を除いた **42 本**が既存移植分に一致する。すなわち `references/*.md − report新規4 == 下記42名` が成立する（差分が出たら本リストを先に更新＝spec-first）。実測 46 − 4 = 42（2026-07-05 Glob 実測。数の偽装なし）。
+
+1. `agenda-navigation.md`
+2. `ai-image-diagram-workflow.md`
+3. `bp-classification.md`
+4. `changelog.md`
+5. `chart-types.md`
+6. `color-strategy.md`
+7. `composition-patterns.md`
+8. `d3-integration.md`
+9. `design-quality-guide.md`
+10. `diagram-business.md`
+11. `diagram-chart.md`
+12. `diagram-comparison.md`
+13. `diagram-cycle-flow.md`
+14. `diagram-fabe.md`
+15. `diagram-visual.md`
+16. `full-image-deck-method.md`
+17. `icons.md`
+18. `image-format-guide.md`
+19. `layout-visual.md`
+20. `llm-script-separation.md`
+21. `post-generation-evaluation.md`
+22. `print-layout.md`
+23. `resource-map.md`
+24. `slide-components.md`
+25. `slide-design-patterns.md`
+26. `slide-interactions.md`
+27. `slide-text-guidelines.md`
+28. `slide-type-decision-tree.md`
+29. `slide-types-basic.md`
+30. `slide-types-extended.md`
+31. `slide-types-overview.md`
+32. `spec-registry.md`
+33. `strategy.md`
+34. `structure.md`
+35. `style-genome-packaging.md`
+36. `svg-design-spec.md`
+37. `svg-diagram-primitives.md`
+38. `theme-style.md`
+39. `unit-system.md`
+40. `v8-spec-fields.md`
+41. `visual-hierarchy-principles.md`
+42. `writing-rules.md`
+
+> 照合コマンド例: `ls -1 plugins/slide-report-generator/references/*.md | xargs -n1 basename | grep -vxE 'report-types\.md|report-writing-rules\.md|report-visual-strategy\.md|mermaid-integration\.md'` の 42 行が上記と一致する。
 
 ---
 
@@ -86,7 +135,7 @@ report モードは P2→P2.5→P3→P3.6 を report 版に射影（P3.2 画像/
 
 | id | name | event | 責務 |
 |---|---|---|---|
-| C20 | hook-postgen-eval | PostToolUse(Write\|Edit\|MultiEdit) | deck/report 中核ファイル(index.html/report.html/styles.css/scripts.js/structure.*)書込を検知し **mode 判定して**生成後評価(deck-evaluator)を自動起動。既存 deck-postgen-hook.js を移植(mode-aware化) |
+| C20 | hook-postgen-eval | PostToolUse(Write\|Edit\|MultiEdit) | deck/report 中核ファイル(index.html/report.html/styles.css/scripts.js/structure.*/report-structure.*)書込を検知し **mode 判定して**生成後評価(deck-evaluator)の起動を促す(fail-soft・常に exit 0・非ブロッキング)。既存 deck-postgen-hook.js を移植(mode-aware化) |
 
 ### SLASH-COMMANDS
 

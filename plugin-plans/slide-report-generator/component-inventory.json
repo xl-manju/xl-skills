@@ -1,6 +1,6 @@
 {
   "plugin_concept": "slide-report-generator — presentation-slide-generator の全機能を移植した共通コア + output_mode=slide/report の 2 モード・ビジュアル生成ハーネス",
-  "derivation": "既存 presentation-slide-generator(v8.4.2) の全資産(13 sub-agent / 42 references / 30 Node scripts / 118 templates / 7 schemas / Codex Image2 チェーン / 30種思考法評価ゲート / A4印刷 / GASデプロイ)を 1 つ残らず新 component or plugin-level surface へ写像する(抜け漏れ=平均回帰=禁止)。capability を 5 種の component_kind へ写像し実体単位に分解した: 主オーケストレータ/修正/横断レビューの 3 skill、既存 13 worker + report 新規 3(report-structure-designer/visual-strategist/report-composer)= 16 sub-agent、生成後評価を自動起動する 1 hook、手動起動/状況確認の 2 slash-command、output_mode/reportType の値域を送信前検証する共有 stdlib script 1 = 計 23 buildable 実体。Node 製レンダリング/画像/印刷/検証エンジン(render-slide.cjs/template-engine.cjs/style-builder.cjs/svg-builder.cjs/画像チェーン/検証 js/118 templates/print + report 新規 render-report.js/mermaid-render.js)は vendor surface として byte 維持で携行し Python-stdlib script へ書き換えない(既存資産の毀損回避)。skill/agent は Bash(node *) で起動する。意匠/技術層(Kanagawa配色/16:9/最小1.4rem/GSAP/インラインSVG2/印刷CSS/letterbox/Codex Image2/style genome/決定論レンダラ)は vendor + references + schemas の単一 SSOT で共有し slide/report で重複させず、コンテンツ意図層(slide=1メッセージ/chip強制 vs report=読み物/1項目1ビジュアル)のみ output_mode で分岐する。この inventory は build 軸の唯一 SSOT で、人間可読なライフサイクルは phase-01..13.md が担う(2 軸直交)。",
+  "derivation": "既存 presentation-slide-generator(v8.4.2) の全資産(13 sub-agent / 42 references / 30 Node scripts / 118 templates / schemas 7本(真 schema 4 + example fixture 3。移植先は report-structure 新設で真 schema 計5) / Codex Image2 チェーン / 30種思考法評価ゲート / A4印刷 / GASデプロイ)を 1 つ残らず新 component or plugin-level surface へ写像する(抜け漏れ=平均回帰=禁止)。capability を 5 種の component_kind へ写像し実体単位に分解した: 主オーケストレータ/修正/横断レビューの 3 skill、既存 13 worker + report 新規 3(report-structure-designer/visual-strategist/report-composer)= 16 sub-agent、生成後評価を自動起動する 1 hook、手動起動/状況確認の 2 slash-command、output_mode/reportType の値域を送信前検証する共有 stdlib script 1 = 計 23 buildable 実体。Node 製レンダリング/画像/印刷/検証エンジン(render-slide.cjs/template-engine.cjs/style-builder.cjs/svg-builder.cjs/画像チェーン/検証 js/118 templates/print + report 新規 render-report.js/mermaid-render.js)は vendor surface として byte 維持で携行し Python-stdlib script へ書き換えない(既存資産の毀損回避)。skill/agent は Bash(node *) で起動する。意匠/技術層(Kanagawa配色/16:9/最小1.4rem/GSAP/インラインSVG2/印刷CSS/letterbox/Codex Image2/style genome/決定論レンダラ)は vendor + references + schemas の単一 SSOT で共有し slide/report で重複させず、コンテンツ意図層(slide=1メッセージ/chip強制 vs report=読み物/1項目1ビジュアル)のみ output_mode で分岐する。この inventory は build 軸の唯一 SSOT で、人間可読なライフサイクルは phase-01..13.md が担う(2 軸直交)。",
   "considered_component_kinds": ["skill", "sub-agent", "slash-command", "hook", "script"],
   "components": [
     {
@@ -521,14 +521,14 @@
       "name": "hook-postgen-eval",
       "event": "PostToolUse",
       "matcher": "Write|Edit|MultiEdit",
-      "exit_semantics": "fail-closed-exit2",
+      "exit_semantics": "fail-soft-exit0",
       "settings_wiring": "plugin-manifest",
       "settings_wiring_note": "配線正本 = plugin manifest (envelope-draft/plugin.json の hooks ブロック)。settings.json 配線は廃止し二重宣言を解消 (裁定済み契約)",
-      "fail_closed": true,
-      "target_glob": ["**/index.html", "**/report.html", "**/styles.css", "**/scripts.js", "**/structure.*"],
+      "fail_closed": false,
+      "target_glob": ["**/index.html", "**/report.html", "**/styles.css", "**/scripts.js", "**/structure.*", "**/report-structure.*"],
       "scope_guard": {
         "non_target_behavior": "target_glob 対象外パスへの Write|Edit|MultiEdit は無条件 exit 0 (生成成果物以外の編集を遮らない)",
-        "fail_closed_scope": "fail_closed=true (exit 2 block) は target_glob 一致ファイルの評価実行時のみ適用する",
+        "fail_soft_scope": "target_glob 一致ファイルでも評価はブロックせず、生成後評価 (deck-evaluator) 起動を additionalContext で促すのみで常に exit 0 (fail-soft・非ブロッキング)。評価は hook 内で走らせない設計のため exit 2 は発火しない (実装 hooks/hook-postgen-eval.py の挙動が正)",
         "evaluator_missing_behavior": "評価器 (deck-evaluator 起動経路 / vendor evaluate-deck.js) 不在時は stderr へ warn を出し exit 0 (非ブロック。不在自体は build ゲート側で検出する)"
       },
       "depends_on": ["C13"],
@@ -542,7 +542,7 @@
         "content_review": {"verdict": "PASS", "sha_match": true},
         "evaluator": {"threshold": 80, "high_max": 0}
       },
-      "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict+test", "test_scenarios": ["target_glob 一致 (index.html/report.html/styles.css/scripts.js/structure.*) で生成後評価が起動する", "target_glob 対象外パスは無条件 exit 0 (ブロックしない)", "評価器不在時は warn + exit 0 (fail_closed は対象ファイル評価時のみ)"]}
+      "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict+test", "test_scenarios": ["target_glob 一致 (index.html/report.html/styles.css/scripts.js/structure.*/report-structure.*) で生成後評価 (deck-evaluator) の起動を促す additionalContext を出力する", "target_glob 対象外パスは無条件 exit 0 (ブロックしない)", "評価器不在時は warn + exit 0 (常に exit 0・fail-soft)"]}
     },
     {
       "id": "C21",
@@ -661,6 +661,12 @@
       "excluded": [],
       "contents": ["render-slide.cjs", "template-engine.cjs", "style-builder.cjs", "svg-builder.cjs", "d3-bootstrap.cjs", "utils.js(共有ランタイム・11+箇所から import される中核依存)", "workflow-manager.js", "log_usage.js(workflow-manager.js の runbook step から参照)", "html-scaffold.js", "test-schema-builder-equivalence.js", "build-image-prompts.js", "generate-images-codex.js", "build-deck-html.js", "build-image-manifest.js", "build-single-html.js", "convert-to-webp.js", "validate-ai-image-assets.js", "evaluate-image-consistency.js", "validate-structure.js", "verify-slides.js", "evaluate-deck.js", "validate-print.js", "validate-d3.js", "sync-checker.js", "precheck-layout.js", "phase-gate.js", "cross-deck-consistency.js", "check-consistency.js", "auto-linebreak.js", "layout-calculator.js", "hooks/deck-postgen-hook.js(移植元)", "templates/*.tpl(118)", "test-fixtures/*(構造検証テスト用フィクスチャ)", "package.json", "package-lock.json", "render-report.js(新規)", "mermaid-render.js(新規)"],
       "contents_note": "上記 contents は代表例の明示列挙(非網羅)。byte 実体の網羅性は allowlist ではなく copy_mode=whole-tree の byte_parity_subtrees が保証する(ファイル追加・依存追加時も自動被覆)"
+    },
+    "scripts": {
+      "required": true,
+      "record_in": "component C23 + build-time governance gates",
+      "note": "plugin scripts/ 直下の実体は3本。(1) validate-output-mode.py = C23 の buildable script component (output_mode/reportType 値域 + --preflight ゲート)。(2) lint-vendor-parity.py = vendor byte-parity ゲート (vendor.parity_scope.verifier・copy 直後に vendor-digest-manifest.json と全件照合・build 時 scripts/ へ同梱)。(3) validate-plugin-completeness.py = plugin surface completeness ゲート (配布可能性/surface 網羅を build 後に静的検証する build-time governance glue)。(2)(3) は buildable component ではなく plugin-root の governance glue のため buildable component 総数 23 は不変 (script component は C23 の1本のみ)",
+      "surface_files": ["validate-output-mode.py (C23 buildable script component)", "lint-vendor-parity.py (vendor byte-parity gate)", "validate-plugin-completeness.py (surface completeness gate)"]
     },
     "mcp_app_connector": {"required": false, "omitted_reason": "画像生成は codex exec(Bash)経由で扱う。MCP/app connector を新設しない"},
     "notion_config": {"required": false, "omitted_reason": "Notion DB を読み書きしない(ローカル HTML 出力のみ)。改善要望の Notion 受け皿も設けず feedback_deploy は opt-out にする"}

@@ -42,6 +42,7 @@ plugin_meta:
 
 > プラグイン構想「presentation-slide-generator の全機能を xl-skills plugin へ抜け漏れなく移植しつつ、共通コア + output_mode=slide/report の 2 モードへ再編し report 出力を新規追加する」を、人間可読な 13 フェーズのライフサイクル (本 index + phase-01..13.md) と、機械可読な buildable component 目録 (`component-inventory.json`) の 2 軸直交で計画したもの。
 > ライフサイクル軸 (フェーズ) は宣言型のタスク仕様 (`specfm.PHASE_BODY_SECTIONS` の 8 節) で primary deliverable。成果物実体軸 (component) は build routing・依存 DAG・品質機構を保持する唯一の SSOT。フェーズは component id を `entities_covered` で参照するだけで build_target を再記述しない (正規化)。
+> 注記: 本 index は当初の L3 計画正本を保持するためフェーズ一覧に「未実施」表記を残す。ユーザー指示により後続で実プラグイン build まで進めた完了記録は `outputs/phase-05..13/` と `plugins/slide-report-generator/` が正本であり、実体反映の判定はそちらを優先する。
 
 ## 基本定義
 - **プラグイン slug**: `slide-report-generator` (plan_dir=`plugin-plans/slide-report-generator/`・同一構想は常に同一出力先=再現性アンカー)。既存 `presentation-slide-generator` との併存・区別のため暫定命名 (確定後 rename 可)。
@@ -80,7 +81,7 @@ plugin_meta:
 
 ## 環境ポリシー
 - **品質基準**: 全 23 buildable component が quality_gates (p0_lint(kind別)/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) + harness_coverage(min≥80/kind_pass) を携帯する。
-- **抜け漏れ厳禁**: 既存全資産 (13 agents / 42 references / 30 Node scripts / 118 templates / 7 schemas / Codex Image2 / 30種思考法 / A4印刷 / GAS) を機能削減・平均回帰・オミットせず component or surface へ移植する (`source-inventory.md` §5 被覆)。
+- **抜け漏れ厳禁**: 既存全資産 (13 agents / 42 references / 30 Node scripts / 118 templates / schemas 7本(真 schema 4 + example fixture 3・移植先は report-structure 新設で真 schema 計5) / Codex Image2 / 30種思考法 / A4印刷 / GAS) を機能削減・平均回帰・オミットせず component or surface へ移植する (`source-inventory.md` §5 被覆)。
 - **proposer≠approver**: 設計/最終レビューは提案者と別 context の approver が承認する (design-gate/final-gate)。
 - **現状値非焼込**: 「≥80% を満たす設計」を要件化し、harness 現状未達数値は component エントリへ焼かない (Goodhart 回避)。
 - **エスカレーション**: ゲート未達は最大 5 周 (goal-spec.max_loops) で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
@@ -128,7 +129,7 @@ plugin_meta:
 | 既存全機能が抜け漏れなく移植されている (C1/C4/C5) | 13 agents→C04-C16、Codex Image2→C14+vendor、30種思考法→C13+C20+vendor、決定論レンダラ→C10+vendor、A4印刷/GAS→vendor+references が実体で機能 | source-inventory §5 被覆 + 各 component の受入テスト |
 | slide/report が 1 経路で mode 別に生成できる (C2) | 同一 skill で --mode slide/report を切替え、意匠/技術は共通・コンテンツ意図のみ mode 別で出力 | generate skill (C01) の inner/outer criterion + hearing (C04) |
 | report 新規機能が動く (C3) | 4 reportType 骨格で構成 (C17)、SVG/Mermaid/Codex 三択最適化 (C18)、report HTML 生成 (C19+vendor render-report/mermaid-render) | C17/C18/C19 + schemas(report-structure) + vendor |
-| 生成後評価が両モードで機能する (C4) | 30種思考法で slide=視覚崩れ/1メッセージ・report=可読性/図解適合を区分評価し、hook が書込を検知して自動起動 | deck-evaluator (C13) + hook-postgen-eval (C20) |
+| 生成後評価が両モードで機能する (C4) | 30種思考法で slide=視覚崩れ/1メッセージ・report=可読性/図解適合を区分評価し、hook が書込を検知して fail-soft に評価起動を促す | deck-evaluator (C13) + hook-postgen-eval (C20) |
 | Node engine が byte 携行で動く (C5) | node 再 install 後、skill/agent が Bash(node *) で render-slide.cjs 等を起動し HTML を出力 (Python 化していない)。byte 携行の検証は `vendor-digest-manifest.json` を比較基準に lint-vendor-parity.py で行う (移植元 live tree 非依存・additive_new_files は除外集合) | vendor surface + C10/C14/C18/C19 |
 | 修正/横断検証が独立起動できる | 既存成果物の局所修正 (C02)、シリーズ横断整合検出 (C03) が単独 skill で動く | modify skill (C02) / cross-deck-review skill (C03) の OUT criterion |
 
