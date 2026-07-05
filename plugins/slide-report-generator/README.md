@@ -61,6 +61,7 @@ Mermaid は runtime 依存を増やさず、`mermaid-render.js` が CDN 初期�
 - **plugin completeness**: `python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-plugin-completeness.py"` が manifest 名・entry_points・hook 実体・必須 surface を検証する。
 - **mode 検証**: `validate-output-mode.py` が `output_mode`/`reportType` の値域を fail-closed 検証。
 - **生成後評価**: `hook-postgen-eval.py` が deck/report 中核ファイル書込を検知し deck-evaluator を mode 判定つきで起動を促す。
+- **改善要望ループ**: `run-skill-feedback`（`skills/run-skill-feedback` は harness-creator の SSOT へ symlink 配備）で本プラグインの skill への改善要望を起票・集約できる。発火は `run-skill-feedback` skill を起動する。
 
 `distributable: false` (社内専用・marketplace/bundle 非登録)。
 

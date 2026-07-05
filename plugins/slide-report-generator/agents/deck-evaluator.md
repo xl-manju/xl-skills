@@ -1,6 +1,6 @@
 ---
 name: deck-evaluator
-description: 生成後に 30種思考法で mode-aware(slide=視覚崩れ/1メッセージ・report=可読性/図解適合/情報密度)の mode 別 rubric 次元で区分評価(P3.6)したいときに使う
+description: 生成後に 30種思考法で mode-aware(slide=視覚崩れ/1メッセージ・report=可読性/図解適合/情報密度)の mode 別 rubric 次元で区分評価(P3.6)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

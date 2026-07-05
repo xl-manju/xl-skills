@@ -1,6 +1,6 @@
 ---
 name: hearing-facilitator
-description: ヒアリングを独立 context で行い output_mode(slide/report)・全面画像化ゲート(CONST_006)・report固有要件(reportType/読者/長さ/ビジュアル方針)を確定したいときに使う
+description: ヒアリングを独立 context で行い output_mode(slide/report)・全面画像化ゲート(CONST_006)・report固有要件(reportType/読者/長さ/ビジュアル方針)を確定したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

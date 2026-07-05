@@ -1,6 +1,6 @@
 ---
 name: slide-report-modifier
-description: 既存成果物(slide deck / report)の指定箇所を独立 context で部分修正(P4)したいときに使う
+description: 既存成果物(slide deck / report)の指定箇所を独立 context で部分修正(P4)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

@@ -1,6 +1,6 @@
 ---
 name: slide-renderer
-description: 決定論経路で render-slide.cjs(vendor Node engine)を Bash(node *) 起動し slide HTML を独立 context で生成したいときに使う
+description: 決定論経路で render-slide.cjs(vendor Node engine)を Bash(node *) 起動し slide HTML を独立 context で生成したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

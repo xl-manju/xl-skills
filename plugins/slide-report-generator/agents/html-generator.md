@@ -1,6 +1,6 @@
 ---
 name: html-generator
-description: slide HTML を独立 context で LLM 経路生成(従来 P3 経路)したいときに使う
+description: slide HTML を独立 context で LLM 経路生成(従来 P3 経路)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

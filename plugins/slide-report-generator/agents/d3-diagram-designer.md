@@ -1,6 +1,6 @@
 ---
 name: d3-diagram-designer
-description: D3 インタラクティブ図解を独立 context で設計し両モードの図解ノードへ配置したいときに使う
+description: D3 インタラクティブ図解を独立 context で設計し両モードの図解ノードへ配置したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

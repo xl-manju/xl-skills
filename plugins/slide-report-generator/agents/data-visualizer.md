@@ -1,6 +1,6 @@
 ---
 name: data-visualizer
-description: データ可視化(グラフ/chart)を独立 context で設計し両モードのビジュアルノードへ配置したいときに使う
+description: データ可視化(グラフ/chart)を独立 context で設計し両モードのビジュアルノードへ配置したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

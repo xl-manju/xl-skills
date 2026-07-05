@@ -1,6 +1,6 @@
 ---
 name: ai-image-diagram-producer
-description: Codex Image2 全面画像/差替を独立 context で生成(build-image-prompts→generate-images-codex→build-deck-html→validate・PNG署名回収)したいときに使う
+description: Codex Image2 全面画像/差替を独立 context で生成(build-image-prompts→generate-images-codex→build-deck-html→validate・PNG署名回収)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

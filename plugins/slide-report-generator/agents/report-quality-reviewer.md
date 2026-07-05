@@ -1,6 +1,6 @@
 ---
 name: report-quality-reviewer
-description: report 品質(読み物破綻/段落密度/1項目1ビジュアル/reportType 骨格順守/section 構造 RQ1-RQ20)を独立 context で検証(R3.5)し崩れ検出+補正指針を返したいときに使う
+description: report 品質(読み物破綻・段落密度・1項目1ビジュアル・reportType 骨格順守・section 構造 RQ1-RQ20)を独立 context で検証(R3.5)し崩れ検出+補正指針を返したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

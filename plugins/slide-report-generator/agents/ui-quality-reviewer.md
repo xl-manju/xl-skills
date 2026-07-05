@@ -1,6 +1,6 @@
 ---
 name: ui-quality-reviewer
-description: UI 品質(テキスト切れ/改行/バランス S1-S26)を独立 context で検証(P3.5)したいときに使う
+description: UI 品質(テキスト切れ/改行/バランス S1-S26)を独立 context で検証(P3.5)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

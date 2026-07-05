@@ -1,6 +1,6 @@
 ---
 name: layout-optimizer
-description: レイアウトを独立 context で最適化(precheck-layout/layout-calculator 連携)し両モードで崩れを抑えたいときに使う
+description: レイアウトを独立 context で最適化(precheck-layout と layout-calculator を連携)し両モードで崩れを抑えたいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

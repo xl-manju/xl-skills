@@ -1,6 +1,6 @@
 ---
 name: run-slide-report-generate
-description: スライドやレポートを新規に作りたいとき、ヒアリングで output_mode(slide/report) を確定し構成設計→仕様確定ゲート→生成(HTML/決定論 render-slide.cjs/report render-report.js/Codex 画像)→30種思考法の生成後評価まで一気通貫で駆動したいときに使う。
+description: スライドやレポートを新規に作りたいとき、ヒアリングで output_mode(slide/report) を確定し構成設計→仕様確定ゲート→生成(HTML・決定論 render-slide.cjs・report render-report.js・Codex 画像)→30種思考法の生成後評価まで駆動したいときに使う。
 kind: run
 prefix: run
 version: 0.1.0

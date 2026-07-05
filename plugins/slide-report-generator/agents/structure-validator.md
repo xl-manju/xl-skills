@@ -1,6 +1,6 @@
 ---
 name: structure-validator
-description: slide/report の構成を独立 context で仕様確定ゲート(validate-structure V-001〜043/phase-gate/spec-registry SR-ID 62)にかけ承認可否を判定したいときに使う
+description: slide/report の構成を独立 context で仕様確定ゲート(validate-structure V-001〜043・phase-gate・spec-registry SR-ID 62)にかけ承認可否を判定したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

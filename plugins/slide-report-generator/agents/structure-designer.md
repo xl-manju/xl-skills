@@ -1,6 +1,6 @@
 ---
 name: structure-designer
-description: slide 構成を独立 context で1スライド1メッセージへ分解し共通仕様セクション付き structure.json を設計したいときに使う
+description: slide 構成を独立 context で1スライド1メッセージへ分解し共通仕様セクション付き structure.json を設計したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

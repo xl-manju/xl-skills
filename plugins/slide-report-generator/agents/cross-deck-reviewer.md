@@ -1,6 +1,6 @@
 ---
 name: cross-deck-reviewer
-description: シリーズ横断整合性を独立 context で 3並列分析×4条件で検証(P5)したいときに使う
+description: シリーズ横断整合性を独立 context で 3並列分析×4条件で検証(P5)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

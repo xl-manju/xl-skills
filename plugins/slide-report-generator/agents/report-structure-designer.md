@@ -1,6 +1,6 @@
 ---
 name: report-structure-designer
-description: 4 reportType 骨格(社内報告分析/顧客提案WP/技術ドキュメント/学習解説)で report 構成(セクション+段落+1項目1ビジュアル指定)を独立 context で設計したいときに使う
+description: 4 reportType 骨格(社内報告分析/顧客提案WP/技術ドキュメント/学習解説)で report 構成(セクション+段落+1項目1ビジュアル指定)を独立 context で設計したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

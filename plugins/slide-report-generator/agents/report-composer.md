@@ -1,6 +1,6 @@
 ---
 name: report-composer
-description: report HTML/prose を独立 context で LLM 経路生成(文章多め・Markdown本文→HTML・visual-strategist 指定ビジュアル埋込)したいときに使う。slide の html-generator に対応する report 版
+description: slide の html-generator に対応する report 版として、report HTML/prose を独立 context で LLM 経路生成(文章多め・Markdown本文→HTML・visual-strategist 指定ビジュアル埋込)したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

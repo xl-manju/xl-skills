@@ -1,6 +1,6 @@
 ---
 name: visual-strategist
-description: 各セクションで SVG図解/Mermaid/Codex生成画像 の三択を独立 context で最適化し配置(grid/zones/readingOrder/focalPoint)を決めたいときに使う。固定比率なし・両モードに波及可
+description: 固定比率なしで各セクションの SVG図解/Mermaid/Codex生成画像 の三択を独立 context で最適化し、両モードに波及する配置(grid/zones/readingOrder/focalPoint)を決めたいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers
