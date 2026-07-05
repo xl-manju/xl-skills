@@ -28,6 +28,23 @@ def _pick_axis(text: str, axis: str) -> str:
     return value.strip()
 
 
+def extract_procedure(sheet_text: str):
+    """sheet.md の『現状手順』セクション内の ```json フェンスから procedure ブロックを抽出する。
+    節が無ければ None (procedure 未収集の後方互換)。JSON パース不能なら ValueError。
+    procedure ブロックの完全性判定は plugin-root scripts/validate-procedure-completeness.py が担う
+    (本スクリプトは構造抽出のみで完全性は重複検証しない)。"""
+    section = re.search(r"#+\s*現状手順[^\n]*\n(.*?)(?=\n#+\s|\Z)", sheet_text, re.S)
+    if not section:
+        return None
+    block = re.search(r"```json\s*\n(.+?)\n```", section.group(1), re.S)
+    if not block:
+        return None
+    try:
+        return json.loads(block.group(1))
+    except Exception as exc:
+        raise ValueError(f"procedure JSON パース失敗: {exc}")
+
+
 def build(sheet_text: str, depth: str) -> dict:
     row_depth = DEPTH_TO_ROW_DEPTH.get(depth, "standard")
     rows = []
@@ -43,7 +60,7 @@ def build(sheet_text: str, depth: str) -> dict:
     knowledge = next(r["content"] for r in rows if r["name"] == "ナレッジ資産")
     source = next(r["content"] for r in rows if r["name"] == "情報源")
     output = next(r["content"] for r in rows if r["name"] == "出力先")
-    return {
+    payload = {
         "five_axes": {
             "rows": rows,
             "pipeline": {
@@ -55,6 +72,10 @@ def build(sheet_text: str, depth: str) -> dict:
             },
         }
     }
+    procedure = extract_procedure(sheet_text)
+    if procedure is not None:
+        payload["procedure"] = procedure
+    return payload
 
 
 def main(argv: list[str]) -> int:

@@ -17,7 +17,7 @@ rubric_refs: []
 role_suffix: null
 owner: team-platform
 since: 2026-05-22
-version: 0.1.0
+version: 0.1.1
 responsibility_refs:
   - prompts/R1-main.md
 schema_refs:
@@ -38,6 +38,14 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       loop_scope: outer
       text: 本スキルが Phase 9(全成果物統合と最終 intake 生成)に責務を絞り、render→quality_gate→cross_check の直列順序固定・単一発火点・atomic write を維持して Notion 公開や next-action 生成へ越境しない設計になっている
       verify_by: elegant-review
+    - id: IN3
+      loop_scope: inner
+      text: intake.json 生成前に ../../scripts/validate-procedure-completeness.py と ../../scripts/quality_gate.py --require-procedure の両方を実行し、procedure(現状手順)と true_purpose(本質的課題)のいずれかが欠落、または as-is フィールドへの to-be 語彙混入(contamination.detected=true)を検出したとき exit0 にならず Phase9 を FAIL とし該当 Phase(Phase4 または Phase5/Phase8)へ差し戻す(goal-spec C3/C7)。成功時のみ procedure を sections.6_five_axes_summary.procedure へ、C02 stdout を validation.procedure_completeness へ格納する。
+      verify_by: script
+    - id: OUT2
+      loop_scope: outer
+      text: procedure または true_purpose を意図的に欠落させた入力を与えたとき、intake.json が生成されず下流ハンドオフ(run-skill-create/run-plugin-dev-plan)へ進めないことを受入テストが確認する(goal-spec C3)。
+      verify_by: test
 ---
 
 # run-intake-finalize
@@ -49,9 +57,9 @@ Phase 9 担当。Phase 1-8 で生成された全 JSON / sheet.md / visuals.json 
 **入力**: Phase 1-8 の全成果物 + `intake-final-template.md.tmpl` + `intake-final-schema.json`
 **出力**:
 - `output/<hint>/intake.md`
-- `output/<hint>/intake.json` (`schemas/output.schema.json` 準拠、`validation` field 必須)
+- `output/<hint>/intake.json` (`schemas/output.schema.json` 準拠、`validation` field 必須。procedure 拡張時は `sections.6_five_axes_summary.procedure` と `validation.procedure_completeness` を含む)
 
-**完了条件**: render PASS + quality_gate PASS + cross_check PASS。FAIL 時は `validation.failures[].retry_phase` を埋めて orchestrator へ返却。
+**完了条件**: procedure dual-gate PASS (procedure + true_purpose 両方存在 + as-is フィールドへの to-be 非混入) + render PASS + quality_gate PASS (`--require-procedure`) + cross_check PASS。FAIL 時は `validation.failures[].retry_phase` を埋めて orchestrator へ返却 (procedure/purpose 欠落・to-be 混入は Phase4 へ差し戻し)。
 
 ## Key Rules
 
@@ -60,6 +68,7 @@ Phase 9 担当。Phase 1-8 で生成された全 JSON / sheet.md / visuals.json 
 3. **失敗時の戻り先明示**: render fail → 該当 Phase へ、quality_gate fail → 該当軸の Phase へ、cross_check fail → 不整合元 Phase へ。
 4. **検証順序固定**: render → quality_gate → cross_check の直列 (順序入替・並列起動禁止、atomic write 保証)。
 5. **日本語成果物**: 本文・validation reason は日本語、schema key / CLI 引数 / path は英語。
+6. **procedure dual-gate (purpose+procedure 両立)**: intake.json 生成前に `../../scripts/validate-procedure-completeness.py --interview <procedure を持つ入力>` を実行し、procedure 完全性と as-is フィールドへの to-be 語彙非混入を確認する。exit0 のときのみ procedure を `sections.6_five_axes_summary.procedure` へ、その stdout を `validation.procedure_completeness` へ格納する。加えて `../../scripts/quality_gate.py --require-procedure` で true_purpose と procedure の両方が非空であることを強制する。procedure/purpose 欠落または contamination 検出時は Phase4 へ差し戻す。**contamination 差し戻しは同一 axis につき上限 2 回**とし、超過時は contamination を warning へ降格して人間確認 1 回へ切り替え、ヒアリング全体を停止させない (goal-spec C2 の「停止しない」原則の escape)。
 
 ## ゴールシーク実行
 
@@ -78,6 +87,9 @@ LLM 推論を混入させると同入力で差分が出て、後段 (`run-notion
 - [ ] 同一 Phase 1-8 入力で `intake.md` / `intake.json` が bit-identical (determinism)
 - [ ] 不足成果物を推測補完していない (欠落は FAIL として返している)
 - [ ] `intake.json.validation` サマリ書き戻し済み (render / quality_gate / cross_check 各 enum)
+- [ ] procedure を持つ入力に対し `validate-procedure-completeness.py` が exit0 (完全性 + to-be 非混入) で、結果を `validation.procedure_completeness` へ格納済み
+- [ ] `quality_gate.py --require-procedure` が true_purpose と procedure の両方非空を PASS (いずれか欠落・contamination 検出時は Phase4 へ差し戻し)
+- [ ] contamination 差し戻しが同一 axis で 2 回を超えた場合は warning 降格 + 人間確認 1 回へ切り替え、停止させていない
 
 未充足項目を特定 → 必要 script (`render-intake-final.py` / `convert_md_to_json.py` / `quality_gate.py` / `cross_check.py`) を該当ステップから起動 → validation 更新 → 再度チェックリストで自己評価、を反復する。固定手順は持たない。
 
@@ -93,9 +105,15 @@ cp output/<hint>/intake-final.md output/<hint>/intake.md
 python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/convert_md_to_json.py \
   output/<hint>/intake.md output/<hint>/intake.json
 
+# procedure dual-gate (intake.json 格納前): 完全性 + as-is フィールドへの to-be 非混入を
+# 確認し、その stdout を validation.procedure_completeness へ格納する (C04 が再利用)。
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/validate-procedure-completeness.py \
+  --interview output/<hint>/interview.json
+
 # 検証 2 段 (順序固定): quality_gate → cross_check
 # cross_check の引数順は <intake.md> <intake.json> (md が先)。
-python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/quality_gate.py output/<hint>/intake.json
+# procedure 拡張 intake は --require-procedure で purpose+procedure 両立を強制する。
+python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/quality_gate.py --require-procedure output/<hint>/intake.json
 python3 ${CLAUDE_PLUGIN_ROOT:-plugins/skill-intake}/scripts/cross_check.py  output/<hint>/intake.md output/<hint>/intake.json
 ```
 
@@ -115,4 +133,6 @@ Step/Gate の機械可読定義は `workflow-manifest.json` (P1-collect / P2-ren
 - `prompts/R1-main.md` — R1 責務プロンプト (7 層 Markdown、決定論実行指示)
 - `references/template-pointer.md` — Jinja2 テンプレ / schema の正本パス案内
 - `references/validation-flow.md` — render → quality_gate → cross_check の順序と失敗戻り先表
+- `../../scripts/validate-procedure-completeness.py` — procedure 完全性 + as-is フィールドへの to-be 混入検出 (dual-gate 第一段, C02)
+- `../../scripts/quality_gate.py` — `--require-procedure` で true_purpose+procedure 両立を強制 (C04)
 - `references/resource-map.yaml` — リソース一覧 (machine-readable)

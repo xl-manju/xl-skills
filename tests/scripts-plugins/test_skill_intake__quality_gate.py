@@ -489,3 +489,148 @@ def test_subprocess_blocks_fail_exits_2(tmp_path):
     proc = _run([str(ij), "--blocks", str(bj)])
     assert proc.returncode == 2
     assert "blocks-coverage:" in proc.stderr
+
+
+# ---------------------------------------------------------------------------
+# procedure ゲート (C04 拡張, goal-spec C3/C7) — purpose+procedure 両方揃うまで
+# 下流ハンドオフへ進めない invariant を network/LLM 無しで網羅する。
+# ---------------------------------------------------------------------------
+
+
+def _intake_procedure_aware(purpose="報告作成を一気通貫で代行する", with_procedure=True,
+                            validation="clean"):
+    """procedure-aware な v2 intake を組む。validation: clean|contaminated|incomplete|none。"""
+    sections = {
+        "3_purpose_excavator": {"true_purpose": purpose} if purpose else {},
+        "6_five_axes_summary": {
+            "axes": [{"axis_id": "real_problem", "answer": "報告に時間がかかる"}],
+        },
+    }
+    if with_procedure:
+        sections["6_five_axes_summary"]["procedure"] = {
+            "mode": "detailed",
+            "steps": [{"action": "a", "input": "b", "output": "c", "tool": "d", "frequency": "e"}],
+        }
+    intake = {"schema_version": "2.0.0", "sections": sections}
+    if validation == "clean":
+        intake["validation"] = {"procedure_completeness": {
+            "complete": True, "mode": "detailed", "missing": [],
+            "contamination": {"detected": False, "fields": [], "matched_terms": []}}}
+    elif validation == "contaminated":
+        intake["validation"] = {"procedure_completeness": {
+            "complete": True, "mode": "detailed", "missing": [],
+            "contamination": {"detected": True, "fields": ["procedure.steps[0].action"],
+                              "matched_terms": ["すべき"]}}}
+    elif validation == "incomplete":
+        intake["validation"] = {"procedure_completeness": {
+            "complete": False, "mode": "detailed",
+            "missing": ["steps[0].tool: 非空文字列が必要"],
+            "contamination": {"detected": False, "fields": [], "matched_terms": []}}}
+    # validation == "none": validation を付けない (fail-closed 検証用)
+    return intake
+
+
+def test_procedure_gate_migration_warn_for_legacy_v1(MOD):
+    # 旧 intake (procedure 節・validation とも無し) は migration_warn で通す (後方互換)。
+    r = MOD.check_procedure_gate(_valid_intake())
+    assert r["ok"] is True
+    assert r.get("migration_warn") is True
+
+
+def test_procedure_gate_pass_when_complete(MOD):
+    r = MOD.check_procedure_gate(_intake_procedure_aware())
+    assert r["ok"] is True
+    assert r["violations"] == []
+
+
+def test_procedure_gate_missing_purpose(MOD):
+    # purpose は true_purpose 節と axes[real_problem].answer の二重ソース。両方空で初めて欠落。
+    intake = _intake_procedure_aware(purpose=None)
+    intake["sections"]["6_five_axes_summary"]["axes"] = []
+    r = MOD.check_procedure_gate(intake)
+    assert r["ok"] is False
+    assert "missing_purpose" in r["violations"]
+
+
+def test_procedure_gate_purpose_from_axes_fallback(MOD):
+    # true_purpose 節が空でも axes[real_problem].answer から purpose を拾える。
+    intake = _intake_procedure_aware(purpose=None)
+    intake["sections"]["6_five_axes_summary"]["axes"][0]["answer"] = "報告に時間がかかる課題"
+    r = MOD.check_procedure_gate(intake)
+    assert "missing_purpose" not in r["violations"]
+
+
+def test_procedure_gate_missing_procedure(MOD):
+    r = MOD.check_procedure_gate(_intake_procedure_aware(with_procedure=False))
+    assert r["ok"] is False
+    assert "missing_procedure" in r["violations"]
+
+
+def test_procedure_gate_missing_validation_fail_closed(MOD):
+    r = MOD.check_procedure_gate(_intake_procedure_aware(validation="none"))
+    assert r["ok"] is False
+    assert "missing_procedure_validation" in r["violations"]
+
+
+def test_procedure_gate_contamination_detected(MOD):
+    r = MOD.check_procedure_gate(_intake_procedure_aware(validation="contaminated"))
+    assert r["ok"] is False
+    assert "to_be_contamination_detected" in r["violations"]
+
+
+def test_procedure_gate_incomplete_flag_is_missing_procedure(MOD):
+    r = MOD.check_procedure_gate(_intake_procedure_aware(validation="incomplete"))
+    assert r["ok"] is False
+    assert "missing_procedure" in r["violations"]
+
+
+def test_procedure_gate_require_procedure_forces_legacy_fail(MOD):
+    # require_procedure=True では procedure-aware でない旧 intake も fail-closed で強制。
+    r = MOD.check_procedure_gate(_valid_intake(), require_procedure=True)
+    assert r["ok"] is False
+    assert "missing_procedure" in r["violations"]
+    assert "missing_purpose" in r["violations"]
+
+
+def test_gate_integration_procedure_fail_makes_status_fail(MOD):
+    # v1 valid intake に validation.procedure_completeness を足すと procedure-aware になり、
+    # sections 不在で purpose/procedure 欠落 -> procedure_gate FAIL -> gate status FAIL。
+    intake = _valid_intake()
+    intake["validation"] = {"procedure_completeness": {
+        "complete": True, "mode": "detailed", "missing": [],
+        "contamination": {"detected": False, "fields": [], "matched_terms": []}}}
+    r = MOD.gate(intake)
+    assert r["status"] == "FAIL"
+    assert r["checks"]["procedure_gate"]["ok"] is False
+
+
+def test_gate_legacy_v1_still_passes_procedure_gate(MOD):
+    # procedure 拡張は既存 v1 intake の PASS を壊さない (migration_warn)。
+    r = MOD.gate(_valid_intake())
+    assert r["status"] == "PASS"
+    assert r["checks"]["procedure_gate"]["ok"] is True
+
+
+def test_parse_flag_args_require_procedure(MOD):
+    out = MOD.parse_flag_args(["i.json", "--require-procedure"])
+    assert out["require_procedure"] is True
+    assert out["positional"] == ["i.json"]
+
+
+def test_main_require_procedure_flag_fails_legacy(MOD, tmp_path, capsys):
+    # --require-procedure を付けると旧 intake は procedure 欠落で FAIL し stderr に列挙。
+    ij = tmp_path / "intake.json"
+    ij.write_text(json.dumps(_valid_intake(), ensure_ascii=False), encoding="utf-8")
+    rc = MOD.main(["prog", "--intake", str(ij), "--require-procedure"])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "procedure-gate:" in err
+    assert "missing_procedure" in err
+
+
+def test_subprocess_require_procedure_fails_legacy(tmp_path):
+    ij = tmp_path / "intake.json"
+    ij.write_text(json.dumps(_valid_intake(), ensure_ascii=False), encoding="utf-8")
+    proc = _run([str(ij), "--require-procedure"])
+    assert proc.returncode == 1
+    assert "procedure-gate:" in proc.stderr

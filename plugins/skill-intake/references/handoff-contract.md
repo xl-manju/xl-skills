@@ -37,6 +37,8 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 - 必須欠落 → ヒアリング差し戻し
 - `sections.8_open_questions.blocking_count` は 0 必須 (blocking 残存のまま handoff へ進めない)
 - `sections.6_five_axes_summary.axes[]` は 5 軸 (knowledge_asset 含む) 全件必須
+- `scripts/validate-procedure-completeness.py` が `sections.6_five_axes_summary.procedure` (現状手順) の mode 別完全性 (detailed の `steps[]` / overview_fallback の `difficulty_flag`+`overview`) と、as-is フィールド (`procedure.*` / 真の課題 content) への to-be 語彙非混入 (contamination check) を検証する。結果は `validation.procedure_completeness` に格納
+- `scripts/quality_gate.py --require-procedure` が true_purpose (本質的課題) と procedure (現状手順) の両方非空を強制し、いずれか欠落・to-be 混入のまま handoff へ進めない (procedure 拡張 intake のみ発火。procedure 導入前の旧 intake は migration_warn で通す後方互換)
 
 ## harness-creator 入力契約マッピング
 
@@ -52,7 +54,7 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 | 2 | Purpose | `sections.3_purpose_excavator.true_purpose` + `.underlying_motivation` | Layer 1 不変定義 (役割の正本) |
 | 3 | Inputs | `sections.4_option_presenter.decision_tables[].options[adopted=true]` + `sections.4_option_presenter.connectors` | Layer 2 ドメイン定義 (前提・参照リソース) |
 | 4 | Outputs | `sections.9_handoff_contract.recommended_next.skip_to_phase` + `sections.11_artifact_index.base_path` 規約 | Layer 6 出力契約 (成果物パス + JSON 雛形) |
-| 5 | Steps | `sections.3_purpose_excavator.output_priority` の段階分解 + `sections.7_design_decisions.adoptions` | Layer 5/6 実行仕様 (思考プロセス番号付き) |
+| 5 | Steps | `sections.3_purpose_excavator.output_priority` の段階分解 + `sections.7_design_decisions.adoptions` + **`sections.6_five_axes_summary.procedure` (現状手順 as-is)** | Layer 5/6 実行仕様 (思考プロセス番号付き)。procedure の `steps[]` (action/input/output/tool/frequency) を build 時の手順雛形として参照し、手順推測による手戻りを排除する。to-be (最適化・理想手順) の設計は build 側の責務 |
 | 6 | Constraints | `sections.2_user_profile.dimensions[dim=constraints]` + `sections.8_open_questions.questions[blocking=true]` | Layer 4 ガードレール (禁止事項) |
 | 7 | Prompt Templates | `sections.2_user_profile.vocabulary_tier` で語彙難易度決定 + `responsibilities[]` anchor | Layer 7 実発話例 (responsibility ごとに Round 配置) |
 | 8 | Self-Evaluation | `sections.6_five_axes_summary.axes[].depth` + `sections.0_executive_summary.value_realized_score` | quality-rubric.md 5 次元採点の重点定義 |
@@ -72,7 +74,7 @@ intake.json の正規スキーマは **`references/intake.schema.json` (schema_v
 | §3 purpose_excavator | `sections.3_purpose_excavator.true_purpose` / `.underlying_motivation` / `.output_priority` | Step 1 (true_purpose 正本) / Step 5 (フォーク評価) | SubAgent §2 Purpose の正本 |
 | §4 option_presenter | `sections.4_option_presenter.decision_tables[].adopted_id` + `.connectors` | Step 2 (テンプレ展開) / Step 3 (補助ファイル生成) | SubAgent §3 Inputs の初期値 |
 | §5 visualizer (図解 5 枚) | `sections.5_visualizer.figures[]` | Step 3 (`templates/`/`assets/` 配置候補) | 図解資産を skill 本体へ移植 |
-| §6 five_axes_summary | `sections.6_five_axes_summary` (axes 5 軸 + intent_contract + knowledge_pipeline) | Step 1 / Step 6 ゲート判定 | rubric score >= 80 の前提 |
+| §6 five_axes_summary | `sections.6_five_axes_summary` (axes 5 軸 + intent_contract + knowledge_pipeline + **procedure 現状手順**) | Step 1 / Step 5 (手順雛形) / Step 6 ゲート判定 | rubric score >= 80 の前提。procedure (as-is 現状手順) は Step 5 の Steps 段階分解の入力として手順推測を排除する |
 | §7 design_decisions | `sections.7_design_decisions.adoptions` / `.output_priority_finalized` | Step 2 (kind / pair / hooks の宣言値) | SubAgent §1 Frontmatter の `pair`/`kind`/`script_refs` |
 | §8 open_questions | `sections.8_open_questions.questions[]` (blocking / defer_to) | Step 1 (defer_to=harness-creator 再尋問) | blocking=true で Step 6 ゲート停止 |
 | §9 handoff_contract | `sections.9_handoff_contract.recommended_next` (mode / skip_to_phase / reason) | Step 1 → Step 2 ジャンプ条件 | mode=fast-track で Step 1 簡略化 |
