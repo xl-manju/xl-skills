@@ -1,0 +1,38 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-goal-setting",
+    "skill_md_sha256": "746c50cb79e5a648fc66be42fd17ac4fecda8873738fbb0f649df6a80876a513"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T05:36:15Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter commonCore(name/description/kind=run/version/allowed-tools/feedback_contract)充足。kind=run サポート資産が全て解決 — prompts R1-R5(L32-36)・references 7本(L42-44,L51-56)・scripts validate-goal-output.py(L49-50,L146)・assets 4本(L148)・agents 4体 info-collector/goal-reviewer/phase3-coordinator/output-formatter(L37-41,L144)・knowledge router-registry(L45-48,L149)・hook ubm-write-path-guard(L140)を実測ディスク照合で確認。feedback_contract に IN1/OUT1/OUT2 の3受入基準(L64-75)を宣言。",
+      "深度 3/3: 『売上は関係の結果』(L127)・精神論NG→具体化要求(L128)・やらないこと3項目以上+判断基準1文(L129)・合宿整合の即軌道修正(L130)・プロジェクト別タスクの種別方針(週報任意/月報必須/期報禁止 L131)・思考法を名前を出さず質問形で適用(L132)の深層原則。Gotchas に既知失敗パターン(期報正本 A1 優先 L139・Daily.md embed 見出し凍結+正規表現ピンポイント置換 L138・hook fail-closed 保護 L140)。ゴールシーク inner/outer 二層 + Anchor Step で original_goal_hash を初回固定し drift 照合(L119)。",
+      "検証可能性 3/3: L121 に実行コマンド `validate-goal-output.py --file <保存先> --type <weekly|monthly|bimonthly>` と exit 二値ゲート。script 実測で統一ハイブリッド構造21項目・NG表現・やらないこと3項目以上・プロジェクト別タスク種別方針の決定論検査を確認。verify_by:script(IN1 L67)/test(OUT1 L71)/live-trial(OUT2 L75)の3手段。OUT2 で AskUserQuestion gate→Phase3 対話→Phase5 検証→Phase6 Daily.md embed 更新までの自走完遂を実行証拠で観測可能化(L72-75)。",
+      "簡潔性 3/3: 本文73行(rubric BD-003 の300行上限・PD-001 の100行閾値の双方内)に収め、テンプレート21項目正本・思考法・Phase 間 I/O は references/assets へ委譲。同義反復なし。",
+      "D7 ratchet / tier=live 準拠: AskUserQuestion allowed-tool(L16)+Phase0 対話 gate(L95)から導出される tier=live に対し OUT2 verify_by:live-trial(L72-75)を携帯し、tier=live loop skill の live-trial 最低1件要件を満たす。",
+      "KL-001(high) 充足: knowledge_loop=router-registry(L45-48)宣言に対し knowledge/router.json + registry.json + 21 カテゴリ JSON(各3エントリ以上)が実在・解決。ナレッジそのものの更新/feedback ループは run-ubm-knowledge-sync へ委譲する責務境界を L86 で明示し、本 skill を consult(runtime 検索)のみに閉じた分離設計。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "新SHA(746c50cb…)の SKILL.md を read-only 再照合し genuine 再採点。旧 verdict(SHA 05e9556d…)は総109行の未コミット作業版への評価で行番号引用が現版(総149行/本文73行)と乖離していたため、全引用を実測行へ更新。5次元採点(各0-3): 完全性3/一貫性2/深度3/検証可能性3/簡潔性3 = 14/15 = 93.3% (>=80% PASS)、全次元>=2、high severity 0件。一貫性2の唯一の理由(低severity smell=1): Phase4『15項目品質チェック』(L99)と Phase5『21項目を検証』(L100)が隣接テーブル行で数値近接し、別レイヤー(整形品質チェックリスト vs 統一ハイブリッド構造21ブロック)である旨のインライン注記が無く一時的混同余地。矛盾ではなく数字ゆれの域ゆえ PASS を損なわない。参照リソース(prompts R1-R5/references 7/scripts/assets 4/agents 4/knowledge router-registry/hook)を実測ディスク照合で全解決確認し dependency_break 0。mechanical rubric.json の高severity rule(FM-001/BD-001/BD-003/NM-001/KL-001)は全 PASS、high finding 皆無で verdict=PASS。"
+}

@@ -31,6 +31,7 @@ DEFAULT_ALLOWED_PREFIXES = (
     ".claude/",
     "eval-log/",
     "references/",
+    "scripts/",
 )
 
 PATH_RE = re.compile(

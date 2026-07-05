@@ -259,6 +259,12 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
     "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",
+    # ubm-goal-setting 初回投入: detect (registry MD5 差分検出) / check (knowledge 500 行
+    # ガード) は verb pending。SKILL.md(script_refs)/workflow-manifest/tests/EVALS.json/
+    # 計画書 (plugin-plans/finish) の参照整合の原子性のため、planner 群と同じ後続
+    # Change Governance 一括改名 PR で許可動詞化する。
+    "plugins/ubm-goal-setting/skills/run-ubm-knowledge-sync/scripts/detect-knowledge-updates.py",
+    "plugins/ubm-goal-setting/skills/run-ubm-knowledge-sync/scripts/check-knowledge-split.py",
     # specfm.py: check-spec-*.py / render-spec-skeleton.py / tests が `import specfm` する
     # kind→必須キーの共有 SSOT module。Python import 上ハイフン不可のため <verb>-<target> 形に
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・

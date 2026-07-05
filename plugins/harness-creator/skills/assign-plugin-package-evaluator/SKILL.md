@@ -89,7 +89,7 @@ evaluator は一度の採点で完結する read-only 工程。ループは回�
 
 | PKG ID | 検査関数 | fail 条件例 |
 |---|---|---|
-| PKG-002 | `validate_plugin_json_frontmatter` | `name`/`version`/`package_mode`/`description`/`entry_points` のいずれか欠落 |
+| PKG-002 | `validate_plugin_json_frontmatter` + `validate_package_contract` | 公式 `plugin.json` の `name`/`version`/`description`、または `references/package-contract.json` の `package_mode`/`entry_points` のいずれか欠落 |
 | PKG-003 | `validate_namespace_conflict` | 同一 marketplace 内で skill/agent/hook/permission 名が重複 |
 | PKG-004 | `validate_skill_frontmatter` | 03章必須キー欠落、`responsibility_refs`/`schema_refs`/`manifest` 不在 |
 | PKG-005 | `validate_agent_definition` | `agents/*.md` の name と `subagent_refs` 不一致 |

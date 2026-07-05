@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-knowledge-sync",
+    "skill_md_sha256": "272a27773fcd5cbf922817f56f590c91b6522cfd71787884115f18bbf3110eb2"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 2
+  },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T05:38:01Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter commonCore キー完備(name/description/kind/prefix/effect/owner/version/since/allowed-tools/feedback_contract/completeness_exempt, SKILL.md:1-65)。kind別サポート資産 scripts*2(detect-knowledge-updates.py/check-knowledge-split.py)/references*2/assets*1(kitahara-principles-db.md)/agent(knowledge-extractor.md)/knowledge(schema/router/registry/sync-log + 6カテゴリ実21ファイル) を実測で全て実在確認。出力契約・境界・6カテゴリ(SKILL.md:71-76)明記。唯一の LLM 責務(抽出・6カテゴリ分類)は completeness_exempt で plugin 直下 SubAgent knowledge-extractor.md へ正当委譲。必須項目100%。",
+      "深度 3/3: 表層に止まらず — 分割基準の二層化(25エントリ意味単位 + 500行機械ガード)と衝突時の解消規則(SKILL.md:111)、legacy null 7件の backfill 移行パス(SKILL.md:114・registry.json 実測で extracted_entry_ids total=67/null=7 と一致・各 _note 'legacy' で裏付け)、バッチ resume トランザクション(SKILL.md:115)、MODIFIED の extracted_entry_ids 辿り削除→全件再抽出(SKILL.md:113)、guard対象外の根拠(vault 外書込ゆえ, SKILL.md:122)。既知失敗パターン(初回全件NEW誤検知回避のため registry vendor 済・移植元 dead path 6件除去, SKILL.md:120 / L2 vault 未接続時0件レポートを正常終了扱い, SKILL.md:121)を反映。",
+      "検証可能性 3/3: 数値多数(6カテゴリ/20ファイルバッチ/25エントリ/500行/32文字md5/legacy null 7件/処理済67ファイル)、具体コマンド(detect-knowledge-updates.py --registry ... --sources ... [--all|--since] 引数付き, SKILL.md:102)。IN1 verify_by=script / OUT1 verify_by=test の二値契約で inner/outer を明示写像。数値と registry.json 実台帳(null 7/total 67)が突合一致し、検知ゲートの再現性を担保。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "quality-rubric.md(harness-creator 5次元)で genuine 再採点: 完全性3・一貫性2・深度3・検証可能性3・簡潔性3 = 14/15(93%)。全次元 >=2、合計 >=12、high severity 0件で PASS。IN1/OUT1(frontmatter feedback_contract 全2件)を評価対象に含め、detect スクリプト引数・受入契約構造・registry 実台帳との数値突合を確認。直近変更(db070cb: ゴールシーク配線節の箇条書き3点→1点統合)は同一内容の整形のみで意味不変(本文 67→65行)、スコアに影響なし。統合後の run-on 箇条書きは scannability を僅かに下げるが content 完全保持で全次元スコアを動かさない(smell 非計上)。一貫性が2止まりの理由(用語/帰属の軽微な不正確さ・低smell 2件、矛盾ではない): (1) Gotchas(SKILL.md:119)の『info-collector が schema.json を対称参照』は不正確 — info-collector.md(:44,131,176) は router.json + knowledge/*.json を Read し schema.json 自体は読まない(共有データ層への参照であって schema.json literal ではない)。(2) SKILL.md:83,111 の『最大20ファイル/20件ずつ分割』が委譲先 knowledge-extractor.md に未明文化で Flow 表の帰属が緩い。簡潔性3: 本文65行で深い詳細(43KB agent 本文)を重複させず委譲。"
+}

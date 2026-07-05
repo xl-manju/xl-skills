@@ -242,6 +242,25 @@ jobs:
       - name: plugin-dev-planner harness-coverage self-apply (12軸自己適用 dogfooding)
         run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py
         continue-on-error: false
+      # ── ubm-goal-setting conformance (harness-creator 仕様準拠) ──
+      # NOTE: ubm-goal-setting は distributable:false (marketplace 非配布 = 層 A-internal) で
+      #   lint-plugin-lint-coverage.py の required 集合 (marketplace 起点) には入らないが、
+      #   計画 (plugin-plans/ubm-goal-setting) が ci.workflow=governance-check を宣言するため
+      #   conformance lint を明示配線する (配布除外と品質検査は独立した関心事)。
+      # lint-skill-completeness は run skill 2 本の prompts/・workflow-manifest.json 不在で
+      # 現状 FAIL するため未配線 (後日是正。baseline を緩めた偽緑化はしない)。
+      - name: ubm-goal-setting validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/ubm-goal-setting/skills
+        continue-on-error: false
+      - name: ubm-goal-setting lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/ubm-goal-setting/skills
+        continue-on-error: false
+      - name: ubm-goal-setting lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/ubm-goal-setting/skills
+        continue-on-error: false
+      - name: ubm-goal-setting lint plugin composition (capabilities 重複/実在 + hooks↔plugin.json 配線対応)
+        run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py plugins/ubm-goal-setting/plugin-composition.yaml
+        continue-on-error: false
       # ── plugin lint 被覆メタ検査 (新 plugin 追加時の配線忘れを fail-closed 検出) ──
       - name: lint plugin lint coverage (marketplace 全 plugin の lint 被覆保証)
         run: python3 scripts/lint-plugin-lint-coverage.py

@@ -19,6 +19,47 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
     },
+    "entry_points": {
+      "description": "公式 plugin manifest に混在させない harness 用 entrypoint 台帳。",
+      "type": "object",
+      "properties": {
+        "skills": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "agents": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "hooks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "distribution": {
+      "description": "harness 用の配布・分類メタデータ。公式 plugin manifest には混在させない。",
+      "type": "object",
+      "properties": {
+        "distributable": { "type": "boolean" },
+        "bundle_targets": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "category": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "vault_root_env": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "pkg_checks": {
       "description": "PKG ID 別の実行結果。閉列挙の PKG ID のみ受理。",
       "type": "object",
