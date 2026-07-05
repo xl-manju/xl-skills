@@ -5,7 +5,7 @@ phase_name: test-design
 category: テスト
 prev_phase: 3
 next_phase: 5
-status: 未実施
+status: 完了
 gate_type: tdd-red
 entities_covered: [C01, C02, C03, C16, C17]
 applicability:

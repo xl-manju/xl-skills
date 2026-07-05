@@ -1,5 +1,6 @@
 {
   "plan_dir": "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260703-124959-wt-7/plugin-plans/ubm-goal-setting",
+  "provenance_note": "本 findings は生成時 worktree (task-20260703-124959-wt-7) の絶対パスを記録した当時の証跡であり書き換えない。最新の検証は eval-log/ubm-goal-setting/_plugin/elegant-review/20260705-082331/ を参照",
   "evaluator": {
     "name": "assign-plugin-plan-evaluator",
     "version": "0.1.0",

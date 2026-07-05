@@ -5,7 +5,7 @@ phase_name: documentation
 category: 文書
 prev_phase: 11
 next_phase: 13
-status: 未実施
+status: 完了
 gate_type: none
 entities_covered: []
 applicability:

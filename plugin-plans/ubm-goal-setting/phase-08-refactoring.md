@@ -5,7 +5,7 @@ phase_name: refactoring
 category: 改善
 prev_phase: 7
 next_phase: 9
-status: 未実施
+status: 完了
 gate_type: tdd-refactor
 entities_covered: []
 applicability:
@@ -16,7 +16,7 @@ applicability:
 # P08 — refactoring (リファクタリング)
 
 ## 目的
-テストが緑の状態を保ったまま、SSOT 重複を排除する (lint-ssot-duplication・上書き一本化)。本プラグインでは capability A (目標設定対話・info-collector が読取) と capability B (ナレッジ同期・knowledge-extractor が書込) が、plugin-root 共有 knowledge substrate (`plugins/ubm-goal-setting/knowledge/`) + schema.json 契約 + Rule A-F (C15 knowledge-extractor が保持) を対称参照する構造が二重定義されない単一実体であることを保証する改善フェーズ。knowledge はもはや外部 (vault) 前提ではなく、L1 curated (vendor seed) / L3 bookkeeping (seed+writeback-config) として plugin 内に実在するデータであることを前提に dedup 検査する。
+テストが緑の状態を保ったまま、SSOT 重複を排除する (lint-ssot-duplication・上書き一本化)。本プラグインでは capability A (目標設定対話・info-collector が読取) と capability B (ナレッジ同期・knowledge-extractor が書込) が、plugin-root 共有 knowledge substrate (`plugins/ubm-goal-setting/knowledge/`) + schema.json 契約 + Rule A-F (C15 knowledge-extractor が保持) を対称参照する構造が二重定義されない単一実体であることを保証する改善フェーズ。knowledge はもはや外部 (vault) 前提ではなく、L1 curated (vendor seed) / L3 bookkeeping (seed+plugin同梱 knowledge/ への直書き) として plugin 内に実在するデータであることを前提に dedup 検査する。
 
 ## 背景
 共有ロジック (knowledge 格納規約 Rule A-F・schema.json 契約) が capability A/B から二重定義されると SSOT が崩れ、片方だけ修正した際にドリフトする。本プラグインは移植プロジェクトのため、旧資産 (`.claude/skills/ubm-goal-setting/` 配下に散在していた規約) を plugin-root へ hoist する過程で重複が生じやすい。テスト緑を保ったまま重複を上書きで一本化し、第二消費者は import/参照で共有する tdd-refactor。

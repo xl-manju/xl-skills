@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-knowledge-sync",
+    "skill_md_sha256": "52aea0e3af8338a2fe79ca1d79e08372d4c7e15e62603223bcb6e04785a4cab3"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 2
+  },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T02:51:32Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter commonCore キー完備(name/description/kind/prefix/effect/owner/version/since/allowed-tools/feedback_contract/completeness_exempt, SKILL.md:1-39)。kind別サポート資産 references*2/scripts*2/assets*1/agent/knowledge 全て配置・実在。出力契約・境界・6カテゴリ(SKILL.md:45-50)明記。LLM責務は completeness_exempt で agent へ正当委譲。必須項目100%。",
+      "深度 3/3: 表層に止まらず — 分割基準の二層化(25エントリ意味単位 + 500行機械ガード)と衝突時の解消規則(SKILL.md:74)、legacy null 7件の backfill 移行パス(SKILL.md:77・registry.json 実測 null 7件・各 _note 'legacy:...' で裏付け)、バッチ resume トランザクション(SKILL.md:78)、Case A/B/C の MECE 削除(agent:255-289)、guard対象外の根拠(vault外, SKILL.md:85)。既知失敗パターン(初回全件NEW誤検知回避のため registry vendor 済・dead path 6件除去, SKILL.md:83)を反映。",
+      "検証可能性 3/3: 数値多数(6カテゴリ/20ファイルバッチ/25エントリ/500行/32文字md5/legacy null 7件/処理済67ファイル)、具体コマンド(detect-knowledge-updates.py 引数付き, SKILL.md:65)。IN1 verify_by=script/OUT1 verify_by=test の二値契約。実走で detect が `NEW|youtube|<32hex>|<path>` を出力、check-knowledge-split が各ファイル行数を列挙し exit0(case-studies-success.json 492行で閾値500に近接も OK)を genuine 確認。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "quality-rubric.md 5次元を genuine 採点: 完全性3・一貫性2・深度3・検証可能性3・簡潔性3 = 14/15(93%)。全次元 >=2、合計 >=12、high severity 0件で PASS。一貫性が2止まりの理由(用語ゆれ・低smell 2件, 矛盾ではない): (1) Gotchas:82 の『info-collector が schema.json を対称参照』は不正確 — 実装(info-collector.md:131,176)は router.json + knowledge/*.json を Read し schema.json 自体は読まない。(2) SKILL.md:57,78 の『最大20ファイル/20件ずつ分割』が委譲先 knowledge-extractor.md に未明文化で Flow表帰属が緩い。簡潔性3: SKILL.md は94行に収まり深い詳細(43KB agent本文)を重複させず委譲。IN1/OUT1 とも評価対象に含めスクリプト実走・受入契約構造を確認。"
+}

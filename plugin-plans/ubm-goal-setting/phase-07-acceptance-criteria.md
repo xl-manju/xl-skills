@@ -5,7 +5,7 @@ phase_name: acceptance-criteria
 category: 判定
 prev_phase: 6
 next_phase: 8
-status: 未実施
+status: 完了
 gate_type: none
 entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13, C15, C16, C17, C18, C19]
 applicability:
@@ -29,12 +29,12 @@ applicability:
 ## ドメイン知識
 - AC (受入基準) と品質ゲートの区別: lint/coverage は「壊れていない」保証、AC は「purpose を満たす」保証 (両方必要・相互代替不可)。
 - 統一ハイブリッド構造21項目の観測方法: 週報/月報/期報を生成し validate-goal-output.py が全21項目・NG表現0件・やらないこと3項目以上を検証して PASS することを観測する (C16 の outer criterion)。
-- fail-closed: 判定不能・異常時に安全側 (拒否) へ倒す性質 (C04 hook の受入観点)。
+- fail-closed: `UBM_VAULT_ROOT` 配下の Write/Edit/MultiEdit で、許可リスト (目標設定保存先・Daily.md embed 更新先) に入らないパスを安全側 (拒否) へ倒す性質 (C04 hook の受入観点)。vault 外と `UBM_VAULT_ROOT` 未設定時は保護対象外として素通しする。
 
 ## 成果物
 - C16 (run-ubm-goal-setting): 週報/月報/期報の目標設定・振り返り対話を生成し、統一ハイブリッド構造21項目を満たし validate-goal-output.py が PASS することの判定結果。
 - C17 (run-ubm-knowledge-sync): 既知の更新済みソースを投入し detect-knowledge-updates.py が検知、knowledge-extractor が6カテゴリへ分類し router.json/registry.json が同期完了することの判定結果。
-- C04 (ubm-write-path-guard): vault 外への書き込みや破壊的操作が hook で fail-closed に阻まれることの判定結果。
+- C04 (ubm-write-path-guard): `UBM_VAULT_ROOT` 配下の許可外パスへの破壊的書き込みが hook で fail-closed に阻まれることの判定結果。
 - C01-C03/C05-C13/C15/C18-C19: 各 component の output_contract が満たされ受入テストが二値で PASS することの判定結果。
 - 全 component の AC 判定結果 (PASS/FAIL の二値)。
 

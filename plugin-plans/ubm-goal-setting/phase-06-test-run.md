@@ -5,7 +5,7 @@ phase_name: test-run
 category: テスト
 prev_phase: 5
 next_phase: 7
-status: 未実施
+status: 完了
 gate_type: none
 entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13, C15, C16, C17, C18, C19]
 applicability:

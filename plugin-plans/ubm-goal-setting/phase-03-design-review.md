@@ -5,7 +5,7 @@ phase_name: design-review
 category: レビュー
 prev_phase: 2
 next_phase: 4
-status: 未実施
+status: 完了
 gate_type: design-gate
 entities_covered: []
 applicability:
@@ -42,7 +42,7 @@ P02 の設計 (inventory と envelope draft) を design-gate として elegant-r
 ## 完了チェックリスト
 - [ ] elegant-review C1-C4 が全 PASS し、proposer と異なる approver が設計を承認している。
 - [ ] sub-agent 10 本 (旧 phase3-interviewer は消費者ゼロの後方互換スタブと判明したため独立component化せず phase3-coordinator+steps へ統合済み) と script 3 本 (旧 .sh 書き換え対象) が単一 skill への退化でも不要な水増しでもなく goal-spec の明示要求に基づくことを確認済み。
-- [ ] vault_root_env 変数化と knowledge の data-tier 3 層判断 (L1 curated=vendor同梱シード / L2 raw vault sources=外部env解決 / L3 bookkeeping=registry.json は実台帳初期シード・sync-log.jsonl は空の初期シード+writeback-config) の妥当性が確認され、差し戻しが解消され後続フェーズへ進める状態になっている。
+- [ ] vault_root_env 変数化と knowledge の data-tier 3 層判断 (L1 curated=vendor同梱シード / L2 raw vault sources=外部env解決 / L3 bookkeeping=registry.json は実台帳初期シード・sync-log.jsonl は空の初期シード。書込は plugin 同梱 knowledge/ への直書き=writeback-config 不要と build で確定) の妥当性が確認され、差し戻しが解消され後続フェーズへ進める状態になっている。
 
 ## 参照情報
 - P02 成果物 (`component-inventory.json` / `envelope-draft/plugin.json`)。

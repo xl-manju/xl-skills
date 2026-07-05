@@ -46,7 +46,8 @@ PKG_IDS = ["PKG-002", "PKG-003", "PKG-004", "PKG-005", "PKG-006", "PKG-007", "PK
 
 SKILL_FRONTMATTER_REQUIRED = {"name", "description", "kind"}
 SKILL_FRONTMATTER_RECOMMENDED = {"responsibility_refs", "schema_refs", "manifest"}
-PLUGIN_JSON_REQUIRED = {"name", "version", "package_mode", "description", "entry_points"}
+PLUGIN_JSON_REQUIRED = {"name", "version", "description"}
+PACKAGE_CONTRACT_REQUIRED = {"package_mode", "entry_points"}
 
 
 def now_iso() -> str:
@@ -85,7 +86,20 @@ def load_plugin_json(plugin_dir: Path) -> dict | None:
         return None
 
 
+def load_package_contract(plugin_dir: Path) -> dict | None:
+    pc = plugin_dir / "references" / "package-contract.json"
+    if not pc.exists():
+        return None
+    try:
+        return json.loads(pc.read_text())
+    except json.JSONDecodeError:
+        return None
+
+
 def get_package_mode(plugin_dir: Path) -> str:
+    pc = load_package_contract(plugin_dir)
+    if pc and "package_mode" in pc:
+        return pc["package_mode"]
     pj = load_plugin_json(plugin_dir)
     if pj and "package_mode" in pj:
         return pj["package_mode"]
@@ -124,6 +138,22 @@ def check_pkg_002(plugin_dir: Path) -> list[dict]:
             f"{plugin_dir}/.claude-plugin/plugin.json",
             f"必須キー欠落: {key}",
             suggested_fix=f"plugin.json に {key} を追加"))
+    contract = load_package_contract(plugin_dir)
+    start_idx = len(findings) + 1
+    if contract is None:
+        findings.append(make_finding(
+            "PKG-002", start_idx,
+            f"{plugin_dir}/references/package-contract.json",
+            "package-contract.json が存在しないか JSON 解析エラー",
+            suggested_fix="references/package-contract.json に package_mode と entry_points を追加"))
+        return findings
+    missing_contract = PACKAGE_CONTRACT_REQUIRED - contract.keys()
+    for offset, key in enumerate(sorted(missing_contract), start_idx):
+        findings.append(make_finding(
+            "PKG-002", offset,
+            f"{plugin_dir}/references/package-contract.json",
+            f"package contract 必須キー欠落: {key}",
+            suggested_fix=f"references/package-contract.json に {key} を追加"))
     return findings
 
 

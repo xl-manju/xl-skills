@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-goal-setting",
+    "skill_md_sha256": "05e9556dd2955ab5c59b2a45e265d0c99038cff79490c7c52cbeb8d3dd880a61"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T03:12:10Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter commonCore 充足、kind=run サポート資産(prompts R1-R5・references 6本・scripts・assets 4本・agents 4体・knowledge・hook)全配置かつ解決。feedback_contract に IN1/OUT1/OUT2 の3受入基準を宣言。",
+      "深度 3/3: 『売上は関係の結果』(L83)・精神論NG具体化(L84)・やらないこと+判断基準(L85)の深層原則、Gotchas に既知失敗パターン(期報重複見出し禁止 L95・Daily.md embed 凍結 L94)。ゴールシーク inner/outer 二層で反復収束。",
+      "検証可能性 3/3: L77 に実行コマンド・exit 二値ゲート、数値根拠多数、verify_by:script/test/live-trial の3手段。OUT2 追加で live 実行証拠まで受入契約が観測可能化。",
+      "簡潔性 3/3: 本文105行(OUT2 追加後 SKILL.md 全109行)に収まり詳細は references へ委譲。同義反復なし。",
+      "D7 ratchet 準拠: tier=live 導出(AskUserQuestion allowed-tool L16/Phase0 gate L67)に対し OUT2 live-trial 受入基準(L44-47)を携帯し、tier=live loop skill の verify_by:live-trial 最低1件要件を満たす。受入契約強化により検証可能性が一段深化。"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "5次元採点(各0-3): 完全性3/一貫性2/深度3/検証可能性3/簡潔性3 = 14/15 = 93.3% (>=80% PASS)、全次元>=2、high severity 0件。一貫性2の理由(低severity smell=1・前回据え置き): L67『15項目品質チェック』と L52/55/68/77『21項目統一ハイブリッド構造』の数値近接による一時的混同余地(別レイヤーゆえ矛盾でなく数字ゆれの域)。新SHA(05e9556d…)の SKILL.md を read-only 再照合。前回差分は frontmatter への OUT2(verify_by:live-trial)追加のみで設計本文は不変、受入契約が強化されており adequacy は損なわれず genuine PASS。"
+}

@@ -6,7 +6,7 @@ plugin_meta:
     required: true
     path: .claude-plugin/plugin.json
     name_matches_folder: true
-    no_todo_placeholders: true
+    no_unresolved_placeholders: true
     validate_plugin: true
   marketplace:
     default_personal: true
@@ -60,7 +60,7 @@ plugin_meta:
 - **件数の軸区別と C14 欠番**: 移植元 sub-agent は原資産 **11 本** (旧 phase3-interviewer 含む)、うち 1 本 DROP で生成する active component は **10 本** (C05-C13, C15)。以降「11 本」=原資産棚卸し値・「10 本」=生成 component 数として使い分ける。id **C14** は当初 phase3-interviewer へ割当てていたが DROP 統合につき欠番とし、既存参照 (C15-C19) を壊さぬよう再採番せず id 安定性のため意図的に空けたまま保持する (機械ゲートは id 連続性を要求しない)。
 - **phase ≠ component**: 13 はフェーズ数の固定値、N=18 は buildable 実体数で独立に決まる。phase は `entities_covered: [C01, ...]` の id 参照のみで component に紐づく。
 - **移植 (port) ≠ greenfield**: 本 plan は既存資産 (`~/dev/dev/ObsidianMemo/.claude/` 配下) の faithful-transfer+adapt であり、13 phase 構造自体は保持しつつ P01=要件棚卸し・P02=再設計でなく写像設計という性格を持つ。
-- **data-tier 3 層**: knowledge は単一の vendor/非vendor 判断でなく L1 curated (28 category JSON+router.jsonをplugin同梱シード) / L2 raw vault sources (`UBM_VAULT_ROOT`で外部解決) / L3 bookkeeping (registry.json=実台帳初期シード[処理済み74ファイル] / sync-log.jsonl=空の初期シード[0エントリ] / kitahara-principles-db.md + writeback-config) で扱う。
+- **data-tier 3 層**: knowledge は単一の vendor/非vendor 判断でなく L1 curated (28 category JSON+router.jsonをplugin同梱シード) / L2 raw vault sources (`UBM_VAULT_ROOT`で外部解決) / L3 bookkeeping (registry.json=実台帳初期シード[処理済み67ファイル。移植元の dead path は build 時に除去] / sync-log.jsonl=空の初期シード[0エントリ] / kitahara-principles-db.md。install 後の書込は plugin 同梱 knowledge/ への直書き=writeback-config という別機構は build で不要と確定) で扱う。
 - **二相 skill build**: C01-C03 (script) は toposort 上 C16/C17 (親 skill) より先に build されるが build_target は親 skill 配下パスであるため、「run-skill-create が空 scaffold 先行生成→parent-skill-build が scripts/ を充填」の二相で調停する。
 
 ## インフラ
@@ -75,9 +75,9 @@ plugin_meta:
   | manifest | required | `plugin_meta.manifest` |
   | composition | required | `plugin-composition.yaml` (owner: P02・builder: plugin-scaffold・`handoff.envelope.plugin_composition`) |
   | harness_eval | required | `EVALS.json` (owner: P06) + `plugin_meta.harness_eval` |
-  | references_config_assets | required | reference 8本+asset 5本の per-file build_target を `component-inventory.json` の `plugin_level_surfaces.references_config_assets.files` に列挙、`plugin_meta.ssot_dedup` に記録 |
+  | references_config_assets | required | reference 9本 (移植8本+build時新設索引 resource-map.yaml)+asset 5本の per-file build_target を `component-inventory.json` の `plugin_level_surfaces.references_config_assets.files` に列挙、`plugin_meta.ssot_dedup` に記録 |
   | schemas | required | `plugins/ubm-goal-setting/knowledge/schema.json` (C16/C17 が対称参照する plugin-root 共有 surface) |
-  | vendor | required | component inventory の `plugin_level_surfaces.vendor.tiers` (L1 curated=北原知見本体28JSON+router.jsonをvendor同梱シード / L2 raw vault sources=`UBM_VAULT_ROOT`で外部解決 / L3 bookkeeping=registry.json(実台帳初期シード)+sync-log.jsonl(空の初期シード)+kitahara-principles-db.md を writeback-config) |
+  | vendor | required | component inventory の `plugin_level_surfaces.vendor.tiers` (L1 curated=北原知見本体28JSON+router.jsonをvendor同梱シード / L2 raw vault sources=`UBM_VAULT_ROOT`で外部解決 / L3 bookkeeping=registry.json(実台帳初期シード)+sync-log.jsonl(空の初期シード)+kitahara-principles-db.md は plugin 同梱パスへ直書き=writeback-config 不要と確定) |
   | notion_config | omitted | component inventory の `plugin_level_surfaces.notion_config.omitted_reason` (機能上 Notion 非使用。harness-creator メタ改善ループの feedback 受け皿は `plugin_meta.feedback_deploy.notion_sink` で別途宣言) |
   | mcp_app_connector | omitted | component inventory の `plugin_level_surfaces.mcp_app_connector.omitted_reason` |
 
@@ -90,19 +90,19 @@ plugin_meta:
 
 ## フェーズ一覧
 
-1. P01 — requirements (要件定義) / 未実施
-2. P02 — design (設計) / 未実施
-3. P03 — design-review (設計レビューゲート) / 未実施
-4. P04 — test-design (テスト設計) / 未実施
-5. P05 — implementation (実装) / 未実施
-6. P06 — test-run (テスト実行) / 未実施
-7. P07 — acceptance-criteria (受入基準判定) / 未実施
-8. P08 — refactoring (リファクタリング) / 未実施
-9. P09 — quality-assurance (品質保証) / 未実施
-10. P10 — final-review (最終レビューゲート) / 未実施
-11. P11 — evidence (手動テスト検証) / 未実施
-12. P12 — documentation (ドキュメント) / 未実施
-13. P13 — release (完了/PR・リリース) / 未実施
+1. P01 — requirements (要件定義) / 完了
+2. P02 — design (設計) / 完了
+3. P03 — design-review (設計レビューゲート) / 完了
+4. P04 — test-design (テスト設計) / 完了
+5. P05 — implementation (実装) / 完了
+6. P06 — test-run (テスト実行) / 完了
+7. P07 — acceptance-criteria (受入基準判定) / 完了
+8. P08 — refactoring (リファクタリング) / 完了
+9. P09 — quality-assurance (品質保証) / 完了 (証跡: eval-log/ubm-goal-setting/_plugin/build-evidence/20260705/)
+10. P10 — final-review (最終レビューゲート) / 完了 (証跡: eval-log/ubm-goal-setting/_plugin/build-evidence/20260705/)
+11. P11 — evidence (手動テスト検証) / 完了 (証跡: eval-log/ubm-goal-setting/_plugin/build-evidence/20260705/)
+12. P12 — documentation (ドキュメント) / 完了
+13. P13 — release (完了/PR・リリース) / 未実施 (コミット未)
 
 ## 完了チェックリスト
 - [ ] 基本定義 (plugin slug / purpose / スコープ) が宣言されている。
@@ -114,7 +114,7 @@ plugin_meta:
 - [ ] 要件 C2: 中核 skill (Phase0-5 統一ハイブリッド構造ワークフロー) が run-ubm-goal-setting (C16) として移植され、goal/checklist が原文の責務を反映している。
 - [ ] 要件 C3: sub-agent 10 本 (info-collector/output-formatter/knowledge-extractor/goal-reviewer/phase3-coordinator + steps1-5、C05-C13/C15) が漏れなく sub-agent component として inventory に列挙されている。
 - [ ] 要件 C4: 3 本の既存 shell script (validate-goal-output.sh/detect-knowledge-updates.sh/check-knowledge-split.sh) が C01/C02/C03 として Python 標準ライブラリのみの script component へ書き換え登録されている。
-- [ ] 要件 C5: knowledge JSON 群 + references 8本 + assets 5本 が `plugin_level_surfaces` (vendor/references_config_assets) に required:true で明示され、L1 curated (vendor同梱シード) と L2 raw vault sources (外部env解決) が区別されている。
+- [ ] 要件 C5: knowledge JSON 群 + references 9本 (移植8本+build時新設索引 resource-map.yaml 1本) + assets 5本 が `plugin_level_surfaces` (vendor/references_config_assets) に required:true で明示され、L1 curated (vendor同梱シード) と L2 raw vault sources (外部env解決) が区別されている。
 - [ ] 要件 C6: capability A (目標設定対話) と capability B (ナレッジ同期) が `knowledge/*.json` を plugin-root 共有 SSOT (schema契約 + P08 dedup) として整合し、実行時 depends_on でなく共有データ層としての整合であることが component-inventory の記述に明示されている。
 - [ ] 要件 C7: `component-inventory.json` が 5 component_kind の検討証跡と plugin-level surfaces の採否を記録し、全 18 component が build_target 非空・builder/build_kind 整合・依存 DAG 非循環で core 規律 (quality_gates + harness_coverage + skill loop の feedback_contract) を携帯する。
 - [ ] 各 component が >=1 phase の `entities_covered` に出現する (orphan 0 件)。
@@ -132,7 +132,7 @@ plugin_meta:
 | ナレッジ差分が漏れなく検知・分類される | 既知の更新済みソースを投入し detect-knowledge-updates.py が全件検知、knowledge-extractor が6カテゴリへ正しく分類 | run-ubm-knowledge-sync (C17) の inner/outer criterion |
 | vault固有パスが変数化され移植先非依存 | `UBM_VAULT_ROOT` 環境変数を差し替えても同一挙動になる (L2 raw vault sources のみ。L1 curated knowledge は vendor 同梱のため差し替え不要) | envelope-draft/plugin.json の config.vault_root_env |
 | fresh-install 直後から知識ベースが機能する | install 直後 (vault 未接続でも) info-collector が vendor 同梱の L1 curated knowledge (router.json→knowledge/*.json) を読めることを確認する | plugin-root `knowledge/` の vendor tiers (L1_curated_seed) |
-| 破壊的書き込みで元資産が消えない | ubm-write-path-guard hook が vault 外/禁止パスへの書き込みを fail-closed で阻む | guard hook (C04) |
+| 破壊的書き込みで元資産が消えない | ubm-write-path-guard hook が `UBM_VAULT_ROOT` 配下の許可外パスへの書き込みを fail-closed で阻む。vault 外(plugin同梱knowledge等)と `UBM_VAULT_ROOT` 未設定時は保護対象外として素通しする | guard hook (C04) |
 | 目標保存後にDailyノート参照が最新化される | 目標保存後 Templates/Daily.md の種別該当embedが最新目標ファイルへ置換され他部分は不変更 | run-ubm-goal-setting (C16) の Phase6-daily-update responsibility + guard許可write |
 
 build 後、各 component の `feedback_contract.criteria` が criteria-test として実行され、上表の受入が PASS して初めて「purpose を満たすプラグインが出来た」と確定する。`EVALS.json` の `llm_eval` はこの受入が評価系に配線されていることを宣言する。

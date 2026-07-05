@@ -54,8 +54,8 @@ try:
 except Exception:
     _HAS_YAML = False
 
-# kind 7 種(rubric_kind_coverage の分母)
-KNOWN_KINDS = ("skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow")
+# kind 8 種(rubric_kind_coverage の分母)。capability-manifest.schema.json の kind enum と同期。
+KNOWN_KINDS = ("skill", "agent", "hook", "command", "plugin-composition", "prompt", "workflow", "script")
 
 # このスクリプトを基準に plugin root を決定
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent

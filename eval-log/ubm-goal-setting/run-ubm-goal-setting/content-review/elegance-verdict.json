@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-goal-setting",
+    "skill_md_sha256": "05e9556dd2955ab5c59b2a45e265d0c99038cff79490c7c52cbeb8d3dd880a61"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T03:12:10Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "C4依存整合(PASS): SKILL.md L23-28 responsibility_refs の prompts/R1-R5 が全て実在し、phase3-coordinator.md L150-154 が相対リンクで解決参照。references・scripts/validate-goal-output.py・agents 4体・knowledge/router.json(total_entries=154)・hooks/ubm-write-path-guard.py が全てディスク実在。dangling ref 0件・循環0件。",
+      "C1矛盾なし(PASS): L67『Phase4=15項目品質チェック』(output-formatter.md Layer4) と L52/55/68/77『21項目統一ハイブリッド構造』(output-formats.md) は別レイヤーゆえ矛盾なし。プロジェクト別タスク方針 週報=任意/月報=必須/期報=禁止(L87)が output-formats.md L799・output-formatter.md 項目11・validate-goal-output.py L339-342 と三辺一致。",
+      "C2漏れなし(PASS): Purpose&Output Contract/End-to-End Flow(Phase0-6)/ゴールシーク(inner=IN1・outer=OUT1/OUT2)/Key Rules/Gotchas/Additional Resources を MECE 網羅。feedback_contract に IN1(verify_by:script)・OUT1(verify_by:test)・OUT2(verify_by:live-trial)を宣言。",
+      "C4検証機構genuine(PASS): validate-goal-output.py が NG表現(L292)・やらないこと3項目以上(L324)・種別別必須見出しを決定論検査。受入テスト tests/test_validate_goal_output.py を実行し 10 passed → OUT1 genuine 緑。",
+      "D7 ratchet 準拠(PASS): allowed-tools に AskUserQuestion(L16)を持ち Phase0-init が AskUserQuestion gate(L67)を張るため acceptance_tier=live 導出。これに対し OUT2(L44-47)が verify_by:live-trial の outer 受入基準を携帯。OUT2 の text は run-skill-live-trial(plugins/harness-creator/skills/run-skill-live-trial 実在)で AskUserQuestion gate→Phase3対話→Phase5検証→Phase6 Daily.md embed 更新→ファイル実生成を実行証拠で確認、と本 skill 固有の Phase0-6 フローを具体名で参照する genuine 基準でありフォールバック既定文ではない。tier=live loop skill の OUT verify_by:live-trial 最低1件要件を満たす。"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "新SHA(05e9556d…)の SKILL.md 全109行を read-only 再照合。前回(iteration1)から差分は frontmatter feedback_contract への OUT2(loop_scope:outer/verify_by:live-trial)追加4行のみで、本文105行(設計)は不変。4条件(C1/C2/C3/C4)は全て genuine PASS 維持。OUT2 追加は受入契約を『受入テスト(OUT1)+live実走(OUT2)』へ強化し tier=live 導出と整合、設計 adequacy は損なわれず強化された。L55『21項目』framing は定義正本ポインタありで許容(前回据え置き)。high severity 0・矛盾/漏れ/依存破綻なしにつき genuine PASS。"
+}

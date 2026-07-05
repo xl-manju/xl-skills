@@ -5,7 +5,7 @@ phase_name: final-review
 category: レビュー
 prev_phase: 9
 next_phase: 11
-status: 未実施
+status: 完了
 gate_type: final-gate
 entities_covered: []
 applicability:

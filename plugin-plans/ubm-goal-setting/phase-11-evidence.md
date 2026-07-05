@@ -5,7 +5,7 @@ phase_name: evidence
 category: 検証
 prev_phase: 10
 next_phase: 12
-status: 未実施
+status: 完了
 gate_type: evidence
 entities_covered: []
 applicability:
@@ -37,6 +37,8 @@ Markdown evidence として以下 5 要素を集約した検証記録:
 3. build-trace coverage の結果。
 4. content-review verdict (PASS・sha 一致)。
 5. harness coverage の JSON (kind 別 ≥80%、EVALS.json 準拠)。
+
+格納先: `eval-log/ubm-goal-setting/_plugin/build-evidence/<YYYYMMDD>/` (evidence.md + 補助 JSON/ログ)。初回生成分は `20260705/`。
 
 ## スコープ外
 - 新規の検証実施 (P06-P10 の結果を集約するのみ・ここで再テストしない)。

@@ -5,7 +5,7 @@ phase_name: requirements
 category: 要件
 prev_phase: 0
 next_phase: 2
-status: 未実施
+status: 完了
 gate_type: none
 entities_covered: []
 applicability:
