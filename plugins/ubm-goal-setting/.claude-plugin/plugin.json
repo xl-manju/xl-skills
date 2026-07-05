@@ -1,6 +1,7 @@
 {
   "name": "ubm-goal-setting",
   "version": "0.1.0",
+  "distributable": false,
   "description": "北原さん式ゴールセッティングの目標設定・振り返り対話とナレッジ差分同期を提供する個人利用向け plugin。",
   "author": {
     "name": "xl-skills maintainers"
