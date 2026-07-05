@@ -155,7 +155,85 @@ def _check_intent(intake):
     }
 
 
-def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
+def _extract_true_purpose(intake):
+    """true_purpose を sections.3_purpose_excavator.true_purpose または
+    sections.6_five_axes_summary.axes[axis_id="real_problem"].answer から取り出す (非空時のみ)。"""
+    if not isinstance(intake, dict):
+        return None
+    sections = intake.get('sections')
+    if not isinstance(sections, dict):
+        return None
+    pe = sections.get('3_purpose_excavator')
+    if isinstance(pe, dict):
+        tp = pe.get('true_purpose')
+        if isinstance(tp, str) and tp.strip():
+            return tp
+    six = sections.get('6_five_axes_summary')
+    if isinstance(six, dict) and isinstance(six.get('axes'), list):
+        for ax in six['axes']:
+            if isinstance(ax, dict) and str(ax.get('axis_id', '')).strip() == 'real_problem':
+                a = ax.get('answer')
+                if isinstance(a, str) and a.strip():
+                    return a
+    return None
+
+
+def _extract_procedure(intake):
+    """intake.json sections.6_five_axes_summary.procedure を取り出す (dict なら返す)。"""
+    if not isinstance(intake, dict):
+        return None
+    sections = intake.get('sections')
+    if isinstance(sections, dict):
+        six = sections.get('6_five_axes_summary')
+        if isinstance(six, dict) and isinstance(six.get('procedure'), dict):
+            return six['procedure']
+    return None
+
+
+def _procedure_aware(intake):
+    """intake が procedure 拡張パイプラインの成果物か (procedure 節 or
+    validation.procedure_completeness の存在)。旧 intake は False。"""
+    if _extract_procedure(intake) is not None:
+        return True
+    if isinstance(intake, dict):
+        val = intake.get('validation')
+        if isinstance(val, dict) and 'procedure_completeness' in val:
+            return True
+    return False
+
+
+def check_procedure_gate(intake, require_procedure=False):
+    """purpose と procedure の両方が非空で揃い、procedure 完全性検証 (C02) 結果が
+    validation.procedure_completeness に格納され汚染なし (contamination.detected=false) で
+    あることを検証する (goal-spec C3/C7)。判定ロジック自体は C02 に一元化し重複実装しない。
+
+    後方互換: procedure-aware でない旧 intake は migration_warn で通す。ただし
+    require_procedure=True (procedure パイプラインの明示宣言) では fail-closed で強制する。
+    """
+    aware = _procedure_aware(intake)
+    if not aware and not require_procedure:
+        return {'ok': True, 'migration_warn': True,
+                'reason': 'procedure 節・validation.procedure_completeness とも不在 (procedure 導入前 intake)'}
+    violations = []
+    if _extract_true_purpose(intake) is None:
+        violations.append('missing_purpose')
+    if _extract_procedure(intake) is None:
+        violations.append('missing_procedure')
+    val = intake.get('validation') if isinstance(intake, dict) else None
+    pc = val.get('procedure_completeness') if isinstance(val, dict) else None
+    if not isinstance(pc, dict):
+        violations.append('missing_procedure_validation')  # fail-closed
+    else:
+        contamination = pc.get('contamination')
+        if isinstance(contamination, dict) and contamination.get('detected') is True:
+            violations.append('to_be_contamination_detected')
+        if pc.get('complete') is False:
+            violations.append('missing_procedure')  # C02 が incomplete を記録済み (Phase9 迂回)
+    return {'ok': len(violations) == 0, 'violations': sorted(set(violations))}
+
+
+def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None,
+         require_procedure=False):
     v = validate(intake)
     c = check(intake)
     d = detect(intake)
@@ -163,6 +241,7 @@ def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
     dbm = check_db_match(intake, requested_db_id)
     pid = check_page_id_consistency(result_path, prev_page_id)
     ic = _check_intent(intake)
+    proc = check_procedure_gate(intake, require_procedure=require_procedure)
     checks = {
         'validate_intake': {'ok': v['ok'], 'errors': v['errors']},
         'check_completeness': {'ok': c['ok'], 'placeholders': c['placeholders'], 'filled_axes': c['filled_axes']},
@@ -171,8 +250,10 @@ def gate(intake, requested_db_id=None, result_path=None, prev_page_id=None):
         'db_match': dbm,
         'page_id_consistency': pid,
         'intent_contract': ic,
+        'procedure_gate': proc,
     }
-    ok = v['ok'] and c['ok'] and d['ok'] and pc['ok'] and dbm['ok'] and pid['ok'] and ic['ok']
+    ok = (v['ok'] and c['ok'] and d['ok'] and pc['ok'] and dbm['ok']
+          and pid['ok'] and ic['ok'] and proc['ok'])
     return {'status': 'PASS' if ok else 'FAIL', 'checks': checks}
 
 
@@ -199,6 +280,8 @@ def parse_flag_args(argv):
         elif a == '--prev-page-id':
             i += 1
             out['prev_page_id'] = argv[i]
+        elif a == '--require-procedure':
+            out['require_procedure'] = True
         elif a.startswith('--'):
             raise ValueError(f'unknown option: {a}')
         else:
@@ -230,7 +313,14 @@ def main(argv):
     # 発火させ、再公開で別ページに化ける (orphan 化) のを publish 前に FAIL させる。
     r = gate(data, requested_db_id=args.get('database_id'),
              result_path=args.get('result_path'),
-             prev_page_id=args.get('prev_page_id'))
+             prev_page_id=args.get('prev_page_id'),
+             require_procedure=args.get('require_procedure', False))
+
+    # procedure ゲート違反は stderr に列挙する (purpose/procedure 欠落・validation 欠落・to-be 汚染)。
+    pgate = r['checks'].get('procedure_gate', {})
+    if not pgate.get('ok', True):
+        for violation in pgate.get('violations', []):
+            sys.stderr.write(f'procedure-gate: {violation}\n')
 
     blocks_failed = False
     if args.get('blocks'):

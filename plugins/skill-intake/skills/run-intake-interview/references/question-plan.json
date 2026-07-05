@@ -68,5 +68,26 @@
   "skip_rules": {
     "pattern_C_skips_axes": ["output", "source", "share"],
     "note": "kickoff.json の pattern=C (プロンプト改善) は軸 output/source/share を skip 可 (five-axes-priority.md 準拠)。既に sheet.md に記入済みの軸も skip する。"
+  },
+  "procedure_axis": {
+    "label": "現状手順",
+    "note": "5 軸ヒアリング完了後に開始する 6 本目の as-is procedure 軸 (goal-spec C1/C2/C6)。axis_order には含めず (5 軸選択ロジックへ混ぜない)、本定義を SKILL.md が参照して 5 軸完了後に起動する。手順を言語化できるユーザーは detailed_questions で各ステップの action/input/output/tool/frequency を固有名詞・実例で聞き取り、procedure 軸で 2 連続の抽象判定/未回答 (validate-answer-abstraction.py --axis procedure が exit3) となった時点で overview_fallback_questions へ決定論的に切り替える。",
+    "detailed_questions": [
+      {"field": "action", "text": "その作業で行っている具体的な操作を、1 ステップずつ順番に教えてください (固有名詞・実例で)。"},
+      {"field": "input", "text": "そのステップの入力 (元データ・受け取るもの) は何で、どこから来ますか?"},
+      {"field": "output", "text": "そのステップの出力 (成果物・次に渡すもの) は何ですか?"},
+      {"field": "tool", "text": "そのステップで使うツール・アプリ・システムは何ですか? (製品名で)"},
+      {"field": "frequency", "text": "そのステップはどのくらいの頻度で行いますか? (毎日/週次/月次など)"}
+    ],
+    "overview_fallback_questions": [
+      {"field": "step_count_estimate", "text": "全体でだいたい何工程くらいありそうですか? (ざっくりで構いません)"},
+      {"field": "participants", "text": "その作業に関わる人は誰ですか? (自分だけ/経理担当/外注など)"},
+      {"field": "frequency", "text": "その一連の作業はどのくらいの頻度で発生しますか?"}
+    ],
+    "fallback_threshold": {
+      "consecutive_abstract_or_unanswered": 2,
+      "judge": "validate-answer-abstraction.py --axis procedure",
+      "note": "as-is 忠実性 (goal-spec C7/C8): 抽象・一般論的な回答が来ても正規化・要約せず追加質問で具体化を促す。ユーザーが自発的に述べた改善提案 (to-be) は handoff 対象 as-is フィールドへ記録しない。to-be 語彙の混入検出は validate-procedure-completeness.py の contamination check が担う。"
+    }
   }
 }
