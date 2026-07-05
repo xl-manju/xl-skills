@@ -17,7 +17,8 @@
     "agents": [
       "plugin-dev-plan-elicitor",
       "plugin-dev-plan-architect",
-      "plugin-dev-plan-evaluator"
+      "plugin-dev-plan-evaluator",
+      "plugin-dev-plan-improvement-reviewer"
     ],
     "commands": [
       "plugin-dev-plan"
@@ -34,6 +35,18 @@
           {
             "type": "command",
             "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/hook-validate-plugin-plan.py",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/enforce-provenance-chain.py",
             "timeout": 10000
           }
         ]

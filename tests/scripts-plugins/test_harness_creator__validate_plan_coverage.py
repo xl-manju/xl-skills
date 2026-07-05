@@ -115,7 +115,8 @@ def test_verify_component_not_object(tmp_path):
     assert any("object でない" in e for e in mc)
 
 
-def test_verify_multi_plugin_span(tmp_path):
+def test_verify_multi_plugin_span_path_surface_unresolvable(tmp_path):
+    # cross-plugin inventory + plugin-relative path surface: root を一意解決できないと報告
     inv = {
         "components": [
             {"id": "C1", "component_kind": "script", "build_target": "plugins/a/scripts/x.py"},
@@ -124,7 +125,31 @@ def test_verify_multi_plugin_span(tmp_path):
         "plugin_level_surfaces": {"manifest": {"required": True, "path": ".claude-plugin/plugin.json"}},
     }
     _, ms, _ = MOD.verify(inv, tmp_path)
-    assert any("跨ぐ" in e for e in ms)
+    assert any("一意解決できない" in e for e in ms)
+
+
+def test_verify_multi_plugin_span_targets_surface_checked(tmp_path):
+    # cross-plugin inventory + targets[] surface: repo-relative で各 target を直接照合 (C7)
+    (tmp_path / "plugins" / "a" / "scripts").mkdir(parents=True)
+    (tmp_path / "plugins" / "a" / "scripts" / "x.py").write_text("x", encoding="utf-8")
+    (tmp_path / "plugins" / "b" / "scripts").mkdir(parents=True)
+    (tmp_path / "plugins" / "b" / "scripts" / "y.py").write_text("y", encoding="utf-8")
+    (tmp_path / "plugins" / "a" / "refs").mkdir(parents=True)
+    (tmp_path / "plugins" / "a" / "refs" / "z.md").write_text("z", encoding="utf-8")
+    inv = {
+        "components": [
+            {"id": "C1", "component_kind": "script", "build_target": "plugins/a/scripts/x.py"},
+            {"id": "C2", "component_kind": "script", "build_target": "plugins/b/scripts/y.py"},
+        ],
+        "plugin_level_surfaces": {
+            "ref": {"required": True, "targets": ["plugins/a/refs/z.md", "plugins/b/vendor/missing.py"]},
+        },
+    }
+    _, ms, _ = MOD.verify(inv, tmp_path)
+    # 実在する z.md は通り、不在の missing.py だけ検出される (cross-plugin でも照合実行)
+    assert any("missing.py 不在" in e for e in ms)
+    assert not any("z.md 不在" in e for e in ms)
+    assert not any("一意解決できない" in e for e in ms)
 
 
 def test_verify_empty(tmp_path):

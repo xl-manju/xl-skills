@@ -6,7 +6,7 @@ plugin_meta:
     required: true
     path: .claude-plugin/plugin.json
     name_matches_folder: true
-    no_todo_placeholders: true
+    no_unresolved_placeholders: true
     validate_plugin: true
   marketplace:
     default_personal: true
@@ -58,14 +58,15 @@ plugin_meta:
 - **2 軸直交**: ライフサイクル軸 (13 phase・人間可読) と成果物実体軸 (N=11 component・機械 SSOT) を二重に持たない。
 - **component_kind (5 種)**: skill / sub-agent / slash-command / hook / script。同一 kind の複数実体はそれぞれ独立 component。本 plan は skill×2 (更新) / slash-command×2 (更新) / script×4 (新設) + script×1 (既存更新=C03) / sub-agent×1 (新設) / hook×1 (新設) = 計 11。
 - **phase ≠ component**: 13 はフェーズ数の固定値、N=11 は buildable 実体数で独立に決まる。phase は `entities_covered: [C01, ...]` の id 参照のみで component に紐づく。
-- **ID 名前空間**: 要件 checklist は `C1`..`C12`、component は `C01`..`C11`、elegant-review 4 条件は機械フィールド上 `C1`..`C4` だが本文では「4 条件 (矛盾なし/漏れなし/整合性あり/依存関係整合)」と併記して混同を避ける。
+- **ID 名前空間**: 要件 checklist は `C1`..`C12`、component は `C01`..`C11`、elegant-review 4 条件は機械フィールド上 `C1`..`C4` だが本文では「4 条件 (矛盾なし/漏れなし/整合性あり/依存関係整合)」と併記して混同を避ける。加えて golden fixture (`fixtures/c8-new-flow/`) 内の route id も `C01`/`C02` を採るが、これは demo プラグイン `demo-boundary-skill` のローカル route 名前空間であり本 plan の component `C01`..`C11` とは別軸である (P07 の `--route C02` は demo fixture の route=`demo-boundary-check` script を指し、本 plan の component C02=`plugin-dev-plan` command ではない)。
 - **E1/E2/E3 用語集**: E1=intake→goal-spec 境界 (skill-intake の intake.json 消費契約欠落)、E2=plan→build 境界 (routes[] 消費経路欠落)、E3=改善→plan 境界 (改善成果物の構造化入力契約欠落)。provenance chain = intake.json→goal-spec(source_intake)→plan→build handoff→改善成果物(source_improvement)→次サイクル goal-spec の 5 ノード追跡可能性。
-- **cross-plugin routing**: E1 consumer→`plugins/plugin-dev-planner/`、E2 consumer→`plugins/harness-creator/`、E3 emit→`plugins/harness-creator/`、E3 consume→`plugins/plugin-dev-planner/`。両 plugin とも repo-bundled `distributable:false` であり、`check-runtime-portability.py` (plugins/ 始まり・`..` 禁止) を満たすため install 携帯性を毀損しない。
+- **cross-plugin routing**: E1 consumer→`plugins/plugin-dev-planner/`、E2 consumer→`plugins/harness-creator/`、E3 emit→`plugins/harness-creator/`、E3 consume→`plugins/plugin-dev-planner/`。両 plugin とも repo-bundled `distributable:false` であり、`check-runtime-portability.py` (plugins/ 始まり・`..` 禁止) を満たすため build_target のパス形状は install 携帯性を毀損しない。**ただし携帯性ゲートは build_target のパス接頭辞のみを検査し、実行時に別 plugin 配下のファイルを読む cross-plugin runtime 参照は検査しない**。具体的に `improvement-handoff.schema.json` は consumer skill `run-plugin-dev-plan` の schemas/ に凝集配置され (検証者近接: plugin-goal-spec/phase-spec と同居)、producer (C09=harness-creator) が cross-plugin 参照する。producer は schema を import せず stdlib 自己検証ゆえ共置コストは 0 で、全 consumer C01/C05/C10/C11 と producer が単一 SSOT を参照するため schema parity の二重化は発生しない (P09 parity 安全弁は SSOT 単一化により不要化)。健全性は「両 plugin が常に共在する不変条件 (双方 `distributable:false`・repo-bundled・NEVER_DISTRIBUTE denylist で片方のみ配布しない)」が担保する。
 
 ## インフラ
 - **実行環境**: スクリプトは Python 標準ライブラリのみ (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。
 - **同梱決定論ゲート (2 層命名・機械正本=`specfm.GATE_SCRIPTS`)**: core 5 scripts / 6 invocations = verify-index-topsort (§9 section 床+phase 完全性+DAG) / detect-unassigned / check-spec-frontmatter / check-spec-gates / check-spec-matrix-coverage (--self-test + PLAN の 2 起動)。拡張ゲート = check-plugin-goal-spec / check-requirements-coverage / check-surface-inventory / check-build-handoff / check-runtime-portability / check-plugin-surface-audit (総数の人間可読正本=io-contract §11 表)。plan の C12 判定では `specfm.GATE_SCOPE=plan-scoped` のゲートを対象にし、`input-gate` (check-plugin-goal-spec) は R1 入力確定時の証跡、`dogfood` (check-plugin-surface-audit) は plugin-dev-planner 現物監査として分ける。
-- **build の始め方 (consumer 手順・宣言のみ)**: 後段 builder は `handoff-run-plugin-dev-plan.json` の routes 配列を正本として消費する。skill 付随 script (C03/C04/C05) は `requires_parent_scaffold: C01` で親 skill scaffold 内へ二相 build する。plugin-root 共有 script (C08/C09) は `plugin-scaffold` (contract-only・`gap_ref: GAP-SCRIPT-BUILDER`) が実体化する (詳細手順と順序列挙は routes[] へ寄せ、本文へ重複保持しない)。
+- **build の始め方 (consumer 手順・宣言のみ)**: 後段 builder は `handoff-run-plugin-dev-plan.json` の routes 配列を正本として消費する。skill 付随 script (C03/C04/C05) は `requires_parent_scaffold: C01` で親 skill scaffold 内へ二相 build する (`requires_parent_scaffold` は `depends_on` DAG 辺ではなく配置境界指示であり、topsort が表現しない親 scaffold→child script→本体上書きの順序は本節と GAP-SCRIPT-BUILDER の代替生成手順が正本)。plugin-root 共有 script (C08/C09) は `plugin-scaffold` (contract-only・`gap_ref: GAP-SCRIPT-BUILDER`) が実体化する (詳細手順と順序列挙は routes[] へ寄せ、本文へ重複保持しない)。
+- **mode 語彙の分離**: `handoff-run-plugin-dev-plan.json` top-level と C01/C06 の `build_args.mode:update` は builder の**既存ファイル更新ビルドモード** (artifact_class=existing-plugin-update) を指し、run-plugin-dev-plan 自身の `--mode update` (E3 改善フロー再生成・C11 hook が provenance pass marker を要求する破壊的再生成) とは別語彙である。前者に C11 の pass marker 要求は適用されない。本 plan 自身の goal-spec が `source_intake/source_improvement:null` なのは from-scratch 起票 (改善フロー由来でない) ゆえであり、handoff の `mode:update` (=既存 plugin 更新ビルド) と矛盾しない。
 - **コンポーネント目録の所在**: buildable な実体 (skill×2 / sub-agent×1 / slash-command×2 / hook×1 / script×5 = 計 11) は `component-inventory.json` が唯一の SSOT。build_target・依存 DAG・quality_gates・harness_coverage・feedback_contract を目録側が保持する。
 - **Plugin-level surfaces**:
 
@@ -85,23 +86,25 @@ plugin_meta:
 - **現状値非焼込**: 「≥80% を満たす設計」を要件化し、harness 現状未達数値は component エントリへ焼かない (Goodhart 回避)。
 - **実行分離の不変条件**: intake/plan/build/改善の各段実行は分離したまま維持する。本計画は producer/consumer 機械契約・検証ゲート・provenance の整備に留め、自動連鎖 orchestrator は新設しない。
 - **regenerate-exempt**: plan_dir 内の `fixtures/` と `.gate/` は `--mode update` 再生成の対象外 (golden fixture と pass marker を再生成で破壊しない)。
-- **エスカレーション**: ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
+- **エスカレーション**: ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。この「最大 3 周」はゲート外周のエスカレーション予算であり、component 内部の goal-seek ループ (`goal_seek.max_loops=5`・skill 精緻化の内周) とは別スコープ。両者を混同しない (fixture の demo plan `max_loops:3` は demo 独自値)。
 
 ## フェーズ一覧
 
-1. P01 — requirements (要件定義) / 未実施
-2. P02 — design (設計) / 未実施
-3. P03 — design-review (設計レビューゲート) / 未実施
-4. P04 — test-design (テスト設計) / 未実施
-5. P05 — implementation (実装) / 未実施
-6. P06 — test-run (テスト実行) / 未実施
-7. P07 — acceptance-criteria (受入基準判定) / 未実施
-8. P08 — refactoring (リファクタリング) / 未実施
-9. P09 — quality-assurance (品質保証) / 未実施
-10. P10 — final-review (最終レビューゲート) / 未実施
-11. P11 — evidence (手動テスト検証) / 未実施
-12. P12 — documentation (ドキュメント) / 未実施
-13. P13 — release (完了/PR・リリース) / 未実施
+build_status: realized (2026-07-05 build 完了 + commit。証跡=build-evidence.md / 状態正本=component-inventory.json 直下 build_status)
+
+1. P01 — requirements (要件定義) / 実施済 (2026-07-05)
+2. P02 — design (設計) / 実施済 (2026-07-05)
+3. P03 — design-review (設計レビューゲート) / 実施済 (2026-07-05)
+4. P04 — test-design (テスト設計) / 実施済 (2026-07-05)
+5. P05 — implementation (実装) / 実施済 (2026-07-05)
+6. P06 — test-run (テスト実行) / 実施済 (2026-07-05)
+7. P07 — acceptance-criteria (受入基準判定) / 実施済 (2026-07-05)
+8. P08 — refactoring (リファクタリング) / 実施済 (2026-07-05)
+9. P09 — quality-assurance (品質保証) / 実施済 (2026-07-05)
+10. P10 — final-review (最終レビューゲート) / 実施済 (2026-07-05)
+11. P11 — evidence (手動テスト検証) / 実施済 (2026-07-05)
+12. P12 — documentation (ドキュメント) / 実施済 (2026-07-05)
+13. P13 — release (完了/PR・リリース) / 実施済 (2026-07-05)
 
 ## 完了チェックリスト
 - [ ] 基本定義 (plugin slug / purpose / スコープ) が宣言されている。
@@ -140,6 +143,6 @@ plugin_meta:
 | E3: 改善反映が意味的に忠実か | C10 が独立 context で改善成果物と再生成 plan の意味的整合をレビュー | C10 の content-review verdict |
 | 破壊的な --mode update が未検証で走らない | C11 hook が `run-plugin-dev-plan --mode update` の PreToolUse で C04/C05 pass marker を確認し、欠落時は exit2 block | C11 の受入テスト |
 | C8: 新規作成フロー一巡 | P07 の `demo-boundary-skill` fixture で intake → C01 → C02 → C07 → C08 preflight → C06 build dispatch が追加質問なしに一巡できる | P07 の C8 判定 + evidence (P11) |
-| C9: 改善フロー一巡 | P07 の `demo-boundary-skill` fixture で C09 → C11 preflight → C01 update → C05 → C10 → build 再実行が追加質問なしに一巡できる | P07 の C9 判定 + evidence (P11) |
+| C9: 改善フロー一巡 | P07 の `demo-boundary-skill` fixture で C09 → C04/C05 pass marker 生成 → C11 preflight → C01 update → C03/C05 → C10 → build 再実行が追加質問なしに一巡できる | P07 の C9 判定 + evidence (P11) |
 
 build 後、各 component の `feedback_contract.criteria` が criteria-test として実行され、上表の受入が PASS して初めて「purpose (E1/E2/E3 断線解消) を満たす量産パイプラインが出来た」と確定する。`EVALS.json` の `llm_eval` はこの受入が評価系に配線されていることを宣言する。

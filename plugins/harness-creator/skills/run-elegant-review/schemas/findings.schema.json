@@ -73,13 +73,24 @@
   "definitions": {
     "paradigm_finding": {
       "type": "object",
-      "required": ["paradigm_id", "paradigm_name", "category", "agent", "observations", "issues", "score"],
+      "required": ["paradigm_id", "paradigm_name", "category", "agent", "observations", "condition_matrix", "issues", "score"],
       "properties": {
         "paradigm_id": {"type": "integer", "minimum": 1, "maximum": 30},
         "paradigm_name": {"type": "string"},
         "category": {"type": "string", "enum": ["A-logical", "B-structural", "C-meta", "D-divergent", "E-system", "F-strategic", "G-problem"]},
         "agent": {"type": "string", "enum": ["elegant-logical-structural-analyst", "elegant-meta-divergent-analyst", "elegant-system-strategic-analyst"]},
         "observations": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "condition_matrix": {
+          "type": "object",
+          "required": ["C1", "C2", "C3", "C4"],
+          "properties": {
+            "C1": {"$ref": "#/definitions/condition_verdict"},
+            "C2": {"$ref": "#/definitions/condition_verdict"},
+            "C3": {"$ref": "#/definitions/condition_verdict"},
+            "C4": {"$ref": "#/definitions/condition_verdict"}
+          },
+          "additionalProperties": false
+        },
         "issues": {
           "type": "array",
           "items": {
@@ -122,7 +133,7 @@
       "required": ["verdict", "evidence"],
       "properties": {
         "verdict": {"type": "string", "enum": ["PASS", "FAIL", "PARTIAL"]},
-        "evidence": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "violation_count": {"type": "integer", "minimum": 0}
       }
     }

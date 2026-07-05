@@ -18,6 +18,9 @@
         "script_path": "scripts/emit-improvement-handoff.py"
       },
       "build_target": "plugins/harness-creator/scripts/emit-improvement-handoff.py",
+      "side_effect_targets": [
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/schemas/improvement-handoff.schema.json"
+      ],
       "status": "planned"
     },
     {
@@ -37,6 +40,9 @@
         "script_path": "scripts/check-plugin-goal-spec.py"
       },
       "build_target": "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-goal-spec.py",
+      "side_effect_targets": [
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/schemas/plugin-goal-spec.schema.json"
+      ],
       "status": "planned"
     },
     {
@@ -169,6 +175,9 @@
         "name": "plugin-dev-plan-improvement-reviewer"
       },
       "build_target": "plugins/plugin-dev-planner/agents/plugin-dev-plan-improvement-reviewer.md",
+      "side_effect_targets": [
+        "plugins/plugin-dev-planner/.claude-plugin/plugin.json"
+      ],
       "status": "planned"
     },
     {
@@ -184,6 +193,9 @@
         "name": "enforce-provenance-chain"
       },
       "build_target": "plugins/plugin-dev-planner/hooks/enforce-provenance-chain.py",
+      "side_effect_targets": [
+        "plugins/plugin-dev-planner/.claude-plugin/plugin.json"
+      ],
       "status": "planned"
     }
   ],

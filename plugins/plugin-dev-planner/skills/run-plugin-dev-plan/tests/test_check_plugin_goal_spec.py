@@ -172,3 +172,76 @@ def test_validator_enums_match_schema_behaviorally(plugin_goal_spec):
     assert any("verify_by" in e for e in plugin_goal_spec.validate(d)), (
         "validator が verify_by の enum 外値を拒否しない (enum drift)"
     )
+
+
+# ─────────── E1/E3 provenance (source_intake / source_improvement) ───────────
+# C03: 存在時は schema 準拠を fatal 検査 (IN1)、欠落は WARN 受理 (OUT1・後方互換)。
+def _prov():
+    return {"ref": "plugins/plugin-dev-planner/.../intake.json", "schema_version": "2.0.0"}
+
+
+def test_provenance_present_valid_accepted(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = _prov()
+    data["source_improvement"] = {"ref": "improvement-handoff.json", "schema_version": "1.0.0"}
+    assert plugin_goal_spec.validate(data) == []
+
+
+def test_provenance_absent_is_not_fatal(plugin_goal_spec):
+    """欠落は validate() で error にならない (後方互換)。"""
+    data = _goal_spec()
+    assert not any("source_intake" in e or "source_improvement" in e for e in plugin_goal_spec.validate(data))
+
+
+def test_provenance_absent_emits_warnings(plugin_goal_spec):
+    """欠落は provenance_warnings が 2 件 (source_intake/source_improvement) を返す。"""
+    warns = plugin_goal_spec.provenance_warnings(_goal_spec())
+    assert len(warns) == 2
+    assert any("source_intake" in w for w in warns)
+
+
+def test_provenance_null_treated_as_absent(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = None
+    assert not any("source_intake" in e for e in plugin_goal_spec.validate(data))
+    assert any("source_intake" in w for w in plugin_goal_spec.provenance_warnings(data))
+
+
+def test_provenance_not_object_is_fatal(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = "intake.json"
+    assert any("source_intake は object" in e for e in plugin_goal_spec.validate(data))
+
+
+def test_provenance_missing_ref_is_fatal(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_improvement"] = {"schema_version": "1.0.0"}
+    assert any("source_improvement.ref" in e for e in plugin_goal_spec.validate(data))
+
+
+def test_provenance_bad_schema_version_is_fatal(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = {"ref": "intake.json", "schema_version": "2.0"}
+    assert any("source_intake.schema_version" in e and "semver" in e for e in plugin_goal_spec.validate(data))
+
+
+def test_provenance_extra_key_is_fatal(plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = {"ref": "intake.json", "schema_version": "2.0.0", "bogus": 1}
+    assert any("source_intake additionalProperties" in e for e in plugin_goal_spec.validate(data))
+
+
+def test_provenance_present_valid_main_exit_zero(tmp_path, plugin_goal_spec):
+    data = _goal_spec()
+    data["source_intake"] = _prov()
+    path = tmp_path / "goal-spec.json"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    assert plugin_goal_spec.main([str(path)]) == 0
+
+
+def test_provenance_in_allowed_and_schema_properties(plugin_goal_spec):
+    """新 provenance フィールドが ALLOWED と schema.properties の双方に載る (parity 維持)。"""
+    schema = _schema()
+    for key in ("source_intake", "source_improvement"):
+        assert key in plugin_goal_spec.ALLOWED
+        assert key in schema["properties"]

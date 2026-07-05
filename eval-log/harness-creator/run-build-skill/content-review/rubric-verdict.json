@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7"
+    "skill_md_sha256": "4a2f571c4d4aa4edfd6a285960afc5403968c834b32264d3ef6dd54a239c41f0"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -11,24 +11,26 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 0
+    "smell": 1
   },
-  "reviewer": "independent-rename-review-subagent-a",
-  "reviewed_at": "2026-07-02T22:00:00+09:00",
+  "reviewer": "elegant-review run-20260705-113702 配下の独立 content-reviewer SubAgent",
+  "reviewed_at": "2026-07-05T11:37:02+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "検証可能性が高い: 完了チェックリスト CL-1..CL-11 が全て二値判定 (lint exit0 / score>=80 / high=0 / 本文行数<=300) で、数値根拠 (7 kind / 300 行 / score 80 / max_iter 3) が随所に具体化され、機械ゲートと LLM ゲートの役割境界が明示されている。",
-      "簡潔性が SSOT 原則で担保: 必須集合・lint 集合・kind→skeleton 対応・content-review 詳細を各正本 (capability-manifest.schema.json / lint-matrix.json / build-steps.md / content-review-protocol.md) へ委譲して本文再掲せず、改名後も本文が上限行数内に収まっている。"
+      "検証可能性が高い: CL-1..CL-11 が全て二値判定で、新設 C02/C09 も機械検証点を持つ (C02=lint-agent-prompt-content.py exit code / C09=validate-build-trace.py の exit1 4条件)。数値根拠 (7 kind / 300 行 / score 80 / max_iter 3) が随所に具体化。",
+      "簡潔性が SSOT 委譲で担保: C09 の契約詳細 (agent=subagent-hybrid-format.md / prompt=seven-layer-format.md) と content-review 詳細を外部正本へ委譲し、Step 3.5 は provenance 3フィールド + fail-closed 条件のみを 1 段落で記述。Step 0.4 も既存 kind→lint 対応表へ 1 行追加に留め、本文 ~244 行で上限内。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "[一貫性 dimension・low・非阻害] Step 0.4 の契約括弧が subagent-hybrid-format.md のみを agent/prompt 双方に付す一方、Step 3.5 は agent/prompt で契約を分離。dimension スコアを 3 から落とすほどではない (他の断面整合は完全) が、契約括弧の kind 別明示が望ましい。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "harness-creator quality-rubric.md 5 次元 (完全性0.25/一貫性0.20/深度0.25/検証可能性0.15/簡潔性0.15) で現 SKILL.md (sha256=2515ed74f419ac5252c831d1c4e2ecc3460888f6384da8dbff3ad8c8582225c7 実測) を独立採点。[完全性 3] commonCore 必須 5 キー完備、Capability 7 kind サポート資産を manifest/responsibility/template/schema/script/reference_refs で全参照、CL-6 で build-trace 章 coverage を空欄なく要求。[一貫性 3] 出力先2箇所・max_iterations=3・本文行数上限が全所で同値、改名で Harness Creator 基盤ラベルおよび harness-creator plugin パスに統一し manifest↔本文 drift なし、旧固有名残存なし。[深度 3] design claim/behavioral claim の証拠主張型直交、Gate A-D 分離、実行レイヤー判断表根拠 (Key Rule 9/01a) を反映。[検証可能性 3] CL 全項目が二値 lint コマンド、数値 3 個以上。[簡潔性 3] SSOT 委譲徹底で本文簡潔、同義反復なし。合計 15/15、全次元 >=2、参照先 (orchestrate-gate-pattern.md/lint-matrix.json/build-steps.md/goal-seek-paradigm.md/content-review-protocol.md/capability-manifest.schema.json/build-flags.schema.json) が harness-creator 配下で全実在につき rubric PASS。"
+  "notes": "harness-creator quality-rubric.md 5 次元 (完全性0.25/一貫性0.20/深度0.25/検証可能性0.15/簡潔性0.15) で現 SKILL.md (sha256=4a2f571c…実測一致) を独立採点。新設 Step 0.4 (C02)・Step 3.5 (C09 prompt_provenance) を含めて評価。[完全性 3] commonCore 5キー完備、Capability 7 kind サポート、CL-1..CL-11 全アンカー実在、C02 を kind→lint 対応表へ・C09 を prompt_provenance 3フィールド + fail-closed ゲートで完全記述。[一貫性 3] max_iterations=3・出力先・本文行数上限が全所同値、C02 の --mode agent/prompt 分離と C09 の契約 kind 別分離が validate-build-trace.py L313 実装と一致。唯一 Step 0.4 契約括弧の agent 寄り不精 (low smell) があるが他断面整合は完全ゆえ dimension は 3 維持。[深度 3] design/behavioral claim 直交 (Step 12 静的設計ゲート / Gate D 実走)、C02+C09 の二層防御、fail-closed 4条件が bypass 経路を先回りし『バイパス不能性』を validator L317 で実装裏付け。[検証可能性 3] CL 全項目二値、C02/C09 とも機械検証点あり、数値 3個以上。[簡潔性 3] SSOT 委譲徹底・本文 ~244 行・同義反復なし。全次元 >=2、合計 15/15、参照先全実在ゆえ rubric PASS。低 smell 1 件は backlog として記録 (human_review_required=false・next_action=none)。"
 }

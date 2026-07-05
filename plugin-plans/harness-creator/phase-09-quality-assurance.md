@@ -29,7 +29,7 @@ applicability:
 ## ドメイン知識
 - genuine verdict: content-review verdict は現 SHA から独立 SubAgent が再生成したもののみ有効 (SHA 手書換は偽装として無効)。
 - P0 lint は component_kind 別に集合が異なる (正本は `specfm.P0_LINT_BY_KIND`・全 kind 同一集合を仮定しない。script 系 5 件は `lint-script-frontmatter`、skill 系 2 件は skill 標準 8 種、command 系 2 件は `validate-frontmatter`、sub-agent/hook は agent/script 系の複合)。
-- schema parity = frontmatter の required と schema の required の双方向一致 (片側追加は drift)。C03 (goal-spec schema 更新) と C09 (improvement-handoff schema 新設) が対象。
+- schema parity (2 軸): (1) frontmatter↔schema の required 双方向一致 (片側追加は drift)。C03 (goal-spec schema 更新) と C09 (improvement-handoff schema 新設) が対象。(2) cross-plugin producer↔consumer parity: improvement-handoff.schema.json は producer C09 (harness-creator 所有) が正本で、consumer C01/C05/C10/C11 (plugin-dev-planner 側) が期待するフィールド集合と正本 schema の required が一致することを確認する。別 plugin に跨る partial drift (schema_version は一致するが required 集合が片側追加) を検出する安全弁で、cross-plugin runtime 参照 (index「cross-plugin routing」節) の健全性を担保する。
 
 ## 成果物
 - 全 11 component の P0 lint / build-trace / schema parity / content-review verdict の結果一式。
@@ -41,7 +41,7 @@ applicability:
 
 ## 完了チェックリスト
 - [ ] 全 11 component で P0 lint が component_kind 別に exit0。
-- [ ] build-trace coverage が全 component で PASS し、schema parity (goal-spec schema/improvement-handoff schema の frontmatter↔schema required) が一致。
+- [ ] build-trace coverage が全 component で PASS し、schema parity が (1) frontmatter↔schema required と (2) improvement-handoff.schema.json の cross-plugin producer(C09)↔consumer(C01/C05/C10/C11) required の双方で一致。
 - [ ] content-review verdict=PASS・sha_match=true を独立 SubAgent の現 SHA 再生成で得ている。
 
 ## 参照情報

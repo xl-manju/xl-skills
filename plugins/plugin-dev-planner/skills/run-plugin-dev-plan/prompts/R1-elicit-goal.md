@@ -42,6 +42,8 @@
 - checklist 各項目は `{id:^C[0-9]+$, criterion, done, verify_by ∈ {reasoning,script,lint,test,human}}`。手順を checklist にしない
 - criterion は EARS 形推奨 (「<状態/イベント> のとき <観測可能な結果> を満たす」・指針=`references/purpose-driven-requirements.md` SDD 節・非強制)。id は R3 が index 完了チェックリスト/受入確認で引用する RTM の追跡キー (`check-requirements-coverage.py` が被覆を機械検査)
 - 推定根拠が弱い項目は `constraints`、未確定だが停止不要な事項は `open_questions` に明示する
+- **E1 (intake→goal-spec)**: `intake_json` 提供時は §0 executive_summary / §3 purpose_excavator / next-action の split_candidates[] を purpose/background/goal/checklist へ源泉反映し `source_intake` を記録する。反映漏れは `scripts/check-intake-consumption.py --intake <intake> --goal-spec <PLAN_DIR>/goal-spec.json` が検出する (未提供時は従来 fallback で動作する = 非適用例)
+- **E3 (改善→goal-spec)**: `mode=update` かつ `improvement_handoff` 提供時は `findings[]` を再生成材料として反映し `source_improvement` を記録する。provenance chain の連続性は `scripts/check-provenance-chain.py --goal-spec <PLAN_DIR>/goal-spec.json --plan-dir <PLAN_DIR>` が検証する
 
 ### 2.3 入力契約
 
@@ -49,11 +51,13 @@
 |---|---|---|---|
 | plugin_concept | text | yes | プラグイン構想 1 件 (自然文 + 任意でコンポーネント希望) |
 | mode | enum | no | create / update |
-| intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator / next-action.json の split_candidates[] を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本) |
+| intake_json | path | no | skill-intake の intake.json (schema_version 2.0.0)。§0 executive_summary / §3 purpose_excavator / next-action.json の split_candidates[] を plugin_concept の構造化材料として受理 (references/io-contract.md §9 正本)。**提供時は下の実行ブロックで必ず消費し** `source_intake` を記録する (documented-but-unwired を解消) |
+| improvement_handoff | path | no | E3 改善成果物ハンドオフ (`schemas/improvement-handoff.schema.json` 準拠・harness-creator の `emit-improvement-handoff.py` が emit)。`mode=update` 時のみ受理し `findings[]` を再生成材料として消費、`source_improvement` を記録する |
 
 ### 2.4 出力契約
 - schema: `schemas/plugin-goal-spec.schema.json` 準拠。purpose/background/goal/checklist の抽出は harness-creator run-goal-elicit の goal-spec 概念に倣い、plugin 固有アンカーは専用 schema で検証する
 - 必須フィールド: purpose / background / goal / checklist(≥1) / target_plugin_slug / plan_dir
+- provenance (任意・E1/E3 由来時は必須): `intake_json` 消費時は `source_intake: {ref, schema_version}`、`improvement_handoff` 消費時は `source_improvement: {ref, schema_version}` を goal-spec に記録する。欠落は `check-plugin-goal-spec.py` が後方互換で WARN 受理する
 - 出力先: `<PLAN_DIR>/goal-spec.json` (既定 `<PLAN_DIR>` = `plugin-plans/<plugin-slug>/`)
 
 ## Layer 3: インフラ層 (外部依存)
@@ -99,6 +103,8 @@
 - [ ] `target_plugin_slug` と `plan_dir` を固定し、既定時は `plugin-plans/<plugin-slug>/` になることを明示した
 - [ ] plugin-plan の場合、manifest / marketplace / cachebuster / validate_plugin の契約を後続へ渡す意図を残した
 - [ ] UBM 固有物 (IPC/Cloudflare/スクショ/PR) のみ除外し harness-creator ネイティブ規律の伝播意図を残した
+- [ ] `intake_json` 提供時: §0/§3/split_candidates を反映し `source_intake` を記録、`check-intake-consumption.py` が未反映 0 (fail-severity) を報告した (未提供時はこの項目を skip)
+- [ ] `mode=update` かつ `improvement_handoff` 提供時: `findings[]` を反映し `source_improvement` を記録、`check-provenance-chain.py` が断裂なしを報告した
 - [ ] `<PLAN_DIR>/goal-spec.json` が `check-plugin-goal-spec.py` で schema 検証を通過した
 
 ### 5.4 実行方式
@@ -130,10 +136,23 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件とし、5.4 ループで
-動的に手順を生成・実行・自己評価する。入力 `{{plugin_concept}}` (と任意 `{{mode}}`) を
-Read し、目的ドリブンで `goal-spec.json` を生成する。出力は次の 2 つのみとする:
+動的に手順を生成・実行・自己評価する。入力 `{{plugin_concept}}` (と任意 `{{mode}}` /
+`{{intake_json}}` / `{{improvement_handoff}}`) を Read し、目的ドリブンで
+`goal-spec.json` を生成する。E1/E3 の消費を必ず配線する:
 
-1. `<PLAN_DIR>/goal-spec.json` (plugin-goal-spec 準拠 / purpose・background・goal・checklist・target_plugin_slug・plan_dir。ユーザー本数要求があれば requested_count を任意記録)
-2. 意図サマリ (Markdown 数行 / 採用ゴールの根拠と残仮定)
+- `{{intake_json}}` が与えられたら (E1): その §0 executive_summary / §3 purpose_excavator と
+  隣接 next-action の split_candidates[] を purpose/background/goal/checklist へ源泉反映し、
+  `source_intake: {ref: <intake_json>, schema_version: <intake の schema_version>}` を記録する。
+  生成後に `scripts/check-intake-consumption.py` を実行し fail-severity 未反映を 0 にする。
+  未提供なら従来通り `{{plugin_concept}}` のみで生成する (source_intake は記録しない)。
+- `{{mode}}=update` かつ `{{improvement_handoff}}` が与えられたら (E3): schema 準拠を確認のうえ
+  `findings[]` を再生成材料として反映し、`source_improvement: {ref, schema_version}` を記録する。
+  生成後に `scripts/check-provenance-chain.py --goal-spec <PLAN_DIR>/goal-spec.json --plan-dir <PLAN_DIR>`
+  で断裂なしを確認する。
+
+出力は次の 2 つのみとする:
+
+1. `<PLAN_DIR>/goal-spec.json` (plugin-goal-spec 準拠 / purpose・background・goal・checklist・target_plugin_slug・plan_dir。E1/E3 消費時は source_intake / source_improvement を記録。ユーザー本数要求があれば requested_count を任意記録)
+2. 意図サマリ (Markdown 数行 / 採用ゴールの根拠と残仮定・消費した intake/improvement の provenance)
 
 余計な前置き・後書き・思考過程出力は禁止。

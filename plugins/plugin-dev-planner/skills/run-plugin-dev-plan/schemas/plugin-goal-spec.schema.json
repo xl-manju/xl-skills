@@ -39,6 +39,26 @@
     "constraints": { "type": "array", "items": { "type": "string" } },
     "handoff_targets": { "type": "array", "items": { "type": "string" } },
     "max_loops": { "type": "integer", "minimum": 1 },
-    "open_questions": { "type": "array", "items": { "type": "string" } }
+    "open_questions": { "type": "array", "items": { "type": "string" } },
+    "source_intake": {
+      "description": "E1 provenance: 消費した intake.json の源泉参照 (任意)。欠落は後方互換で WARN 受理。",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["ref", "schema_version"],
+      "properties": {
+        "ref": { "type": "string" },
+        "schema_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+      }
+    },
+    "source_improvement": {
+      "description": "E3 provenance: 受理した improvement-handoff.json の源泉参照 (任意)。欠落は後方互換で WARN 受理。",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["ref", "schema_version"],
+      "properties": {
+        "ref": { "type": "string" },
+        "schema_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+      }
+    }
   }
 }

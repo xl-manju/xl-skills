@@ -214,10 +214,10 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
             )
         if not str(policy.get("resolved_via", "")).strip():
             errs.append("policy_resolution.resolved_via must explain derivation")
-        if kind in PROMPT_REQUIRED_KINDS and resolved == "skip":
+        if kind in PROMPT_REQUIRED_KINDS and resolved in {"optional", "skip"}:
             errs.append(
-                f"resolved_policy=skip contradicts brief.kind={kind!r} "
-                "(run/assign require prompt generation)"
+                f"resolved_policy={resolved} contradicts brief.kind={kind!r} "
+                "(run/assign require prompt generation and prompt_provenance)"
             )
         if kind in PROMPT_SKIP_KINDS and resolved == "required":
             errs.append(
@@ -304,6 +304,73 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
         if resolved == "required" and not cross_ref.get("prompt_creator_trace_path"):
             errs.append(
                 "cross_ref.prompt_creator_trace_path required when policy=required"
+            )
+
+    return errs
+
+
+# C09: agent/prompt 生成が prompt-creator (7層契約) を経由し C02 内容 lint を通過したことの証跡を強制する。
+# subagent-hybrid-format.md=agent 契約 / seven-layer-format.md=prompt 契約 を source_contract_ref に許容する。
+PROMPT_CONTRACT_REFS = ("subagent-hybrid-format.md", "seven-layer-format.md")
+
+
+def _validate_prompt_provenance(data: dict) -> list[str]:
+    """C09 バイパス不能性: agents/prompts 生成が prompt-creator 経由 + C02 lint 通過であることを検証。
+
+    prompt_generation_model.policy_resolution.resolved_policy=required の build では
+    prompt_provenance を必須化する。prompt_creator_invocation!=true / 契約参照欠落 /
+    content_lint.status!=PASS / (policy=required 時の) ブロック欠落 はいずれも FAIL。
+    """
+    errs: list[str] = []
+    model = data.get("prompt_generation_model")
+    resolved = ""
+    if isinstance(model, dict):
+        policy = model.get("policy_resolution")
+        if isinstance(policy, dict):
+            resolved = str(policy.get("resolved_policy", "")).strip().lower()
+
+    prov = data.get("prompt_provenance")
+    if not isinstance(prov, dict):
+        if resolved == "required":
+            errs.append(
+                "prompt_provenance is required when prompt_generation_model."
+                "policy_resolution.resolved_policy=required "
+                "(agent/prompt 生成は prompt-creator 経由 + C02 内容 lint 通過の証跡が必須)"
+            )
+        return errs
+
+    # invocation は true 必須 (false=単独生成のバイパス試行 → 常に FAIL)
+    invoked = prov.get("prompt_creator_invocation")
+    if invoked is not True:
+        errs.append(
+            f"prompt_provenance.prompt_creator_invocation must be true (got {invoked!r}) "
+            "— prompt-creator 非経由の単独生成は禁止 (bypass detected)"
+        )
+
+    ref = str(prov.get("source_contract_ref", "")).strip()
+    if not ref:
+        errs.append("prompt_provenance.source_contract_ref is empty (準拠した7層契約を明示すること)")
+    elif not any(c in ref for c in PROMPT_CONTRACT_REFS):
+        errs.append(
+            f"prompt_provenance.source_contract_ref={ref!r} must reference a 7層契約 "
+            f"({' / '.join(PROMPT_CONTRACT_REFS)})"
+        )
+
+    lint = prov.get("content_lint")
+    if not isinstance(lint, dict):
+        errs.append(
+            "prompt_provenance.content_lint missing "
+            "(C02 lint-agent-prompt-content --mode agent|prompt の結果を記録すること)"
+        )
+    else:
+        mode = str(lint.get("mode", "")).strip().lower()
+        if mode not in {"agent", "prompt"}:
+            errs.append(f"prompt_provenance.content_lint.mode invalid: {mode!r} (agent|prompt)")
+        status = str(lint.get("status", "")).strip().upper()
+        if status != "PASS":
+            errs.append(
+                f"prompt_provenance.content_lint.status={status!r} must be PASS "
+                "(C02 --mode agent|prompt が exit0 でなければ生成は未完了)"
             )
 
     return errs
@@ -1369,6 +1436,8 @@ def main() -> int:
                 errs.append(f"{model_name}.{key} is empty")
 
     errs.extend(_validate_prompt_generation_model(data))
+
+    errs.extend(_validate_prompt_provenance(data))
 
     errs.extend(_validate_feedback_contract(data))
 

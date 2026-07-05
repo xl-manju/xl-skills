@@ -29,7 +29,7 @@ UBM 固有の GUI スクリーンショット検証は本ドメイン (CLI/プ�
 ## ドメイン知識
 - 再現可能性の要件: 第三者が evidence 記載のコマンド/入力を再実行して同じ合否へ到達できること (ログ貼付だけでは不足)。
 - DROP 読替の正本は `phase-lifecycle.md` §7 (UBM スクショ→Markdown evidence 5 要素)。他の plan 全体用語は index `## ドメイン知識` 参照。
-- C8/C9 の evidence は P07 の golden example を正本にする。C8 は `fixtures/c8-new-flow/intake.json` / `next-action.json` を入力し、`demo-boundary-skill` の新規作成フローが `C01→C02→C07→C08 preflight→C06 build dispatch` へ進むログを記録する。C9 は `fixtures/c9-update-flow/improvement-handoff.json` を入力し、`C09→C11 preflight→C01 update→C05→C10→build 再実行` の PASS ログと、marker 欠落時に C11 が exit2 block する FAIL ログを両方記録する。
+- C8/C9 の evidence は P07 の golden example を正本にする。C8 は `fixtures/c8-new-flow/intake.json` / `next-action.json` を入力し、`demo-boundary-skill` の新規作成フローが `C01→C02→C07→C08 preflight→C06 build dispatch` へ進むログを記録する。C9 は `fixtures/c9-update-flow/improvement-handoff.json` を入力し、`C09→C04/C05 pass marker 生成→C11 preflight→C01 update→C03/C05→C10→build 再実行` の PASS ログと、marker 欠落時に C11 が exit2 block する FAIL ログを両方記録する。
 
 ## 成果物
 - evidence 5 要素 (P0 lint ログ / schema parity / build-trace coverage / content-review verdict / harness coverage JSON) を集約した Markdown 検証記録。
