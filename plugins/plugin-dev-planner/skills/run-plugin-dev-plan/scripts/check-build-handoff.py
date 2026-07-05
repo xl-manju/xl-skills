@@ -38,6 +38,10 @@ ALLOWED_BUILDERS = {
 }
 ENVELOPE_STATUSES = {"planned", "external_gap", "manual-user-gated", "not_applicable"}
 TODO_RE = ("TODO", "TBD", "<TODO", "{{")
+# inventory の surface component_kind → plugin manifest entry_points の該当リストキー。
+# hook は entry_points でなく hooks ブロック・script は skill 内包物ゆえ entry_points に現れない
+# (=突合対象外)。この写像に載る kind の component のみ entry_points 網羅を強制する。
+ENTRY_POINT_KEY_BY_KIND = {"skill": "skills", "sub-agent": "agents", "slash-command": "commands"}
 
 
 def _load_json(path: Path):
@@ -271,7 +275,65 @@ def _check_inventory_provenance(routes: list[dict], plan_dir: Path) -> list[str]
     return errors
 
 
-def _check_manifest_draft(path: Path, target_plugin_slug: str, prefix: str) -> list[str]:
+def _load_inventory_components(plan_dir: Path) -> list[dict]:
+    """<plan_dir>/component-inventory.json の components[] を fail-soft に返す。
+
+    ファイル不在・parse error・OSError・components[] 非 list はいずれも空 list を返し例外を
+    投げない (inventory を伴わない孤立 handoff fixture の検証を壊さない=既存動作の後方互換)。
+    空 list を受けた突合器は entry_points 検査を no-op にするため、既存呼び出し元の挙動は不変。
+    """
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.is_file():
+        return []
+    try:
+        data = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(data, dict) or not isinstance(data.get("components"), list):
+        return []
+    return [c for c in data["components"] if isinstance(c, dict)]
+
+
+def _check_manifest_entry_points_coverage(entry_points: object, comps: list[dict], prefix: str) -> list[str]:
+    """inventory の surface component が manifest の entry_points 該当リストへ宣言済みか検査する。
+
+    ENTRY_POINT_KEY_BY_KIND に載る kind (skill/sub-agent/slash-command) の component について、
+    その name/skill_name が entry_points.<key> リストに含まれることを必須にする。build 後に
+    「生成されたが manifest に未宣言で LLM から発見不能」という無音欠落を plan 段階で fail-closed
+    にする (inventory=作る物 と manifest=宣言 の 2 SSOT 突合)。hook/script は entry_points に
+    現れない (hooks 別ブロック・script は skill 内包物) ため対象外。entry_points が dict でない
+    (未宣言) 場合は全 surface を未網羅として報告する。
+    """
+    errors: list[str] = []
+    ep = entry_points if isinstance(entry_points, dict) else {}
+    for comp in comps:
+        ck = str(comp.get("component_kind", "")).strip()
+        ep_key = ENTRY_POINT_KEY_BY_KIND.get(ck)
+        if ep_key is None:
+            continue  # hook/script は entry_points 対象外
+        cid = str(comp.get("id", "")).strip()
+        name = str(comp.get("name") or comp.get("skill_name") or "").strip()
+        if not name:
+            errors.append(f"{prefix}: component {cid} (kind={ck}) に name/skill_name が無く entry_points 突合不能")
+            continue
+        listed = ep.get(ep_key)
+        listed = listed if isinstance(listed, list) else []
+        if name not in listed:
+            errors.append(
+                f"{prefix}: component {cid} ({ck} {name!r}) が manifest entry_points.{ep_key} に未宣言 "
+                "(inventory の surface component は entry_points へ漏れなく登録すること)"
+            )
+    return errors
+
+
+def _check_manifest_draft(
+    path: Path, target_plugin_slug: str, prefix: str, comps: list[dict] | None = None
+) -> list[str]:
+    """manifest draft の placeholder 不在・name 一致・(comps 指定時) entry_points 網羅を検査する。
+
+    comps は既定 None (既存呼び出し元の後方互換=name/placeholder のみ検査)。非空 list を渡した
+    ときだけ _check_manifest_entry_points_coverage を発火し inventory との突合を追加する。
+    """
     errors: list[str] = []
     if not path.is_file():
         return [f"{prefix}.draft_path が存在しない: {path}"]
@@ -286,6 +348,8 @@ def _check_manifest_draft(path: Path, target_plugin_slug: str, prefix: str) -> l
         return errors
     if data.get("name") != target_plugin_slug:
         errors.append(f"{prefix}.draft_path name={data.get('name')!r} != target_plugin_slug={target_plugin_slug!r}")
+    if comps:
+        errors.extend(_check_manifest_entry_points_coverage(data.get("entry_points"), comps, prefix))
     return errors
 
 
@@ -313,7 +377,9 @@ def _check_envelope(envelope: object, plan_dir: Path, target_plugin_slug: str) -
             if not isinstance(draft_path, str) or not draft_path.strip():
                 errors.append(f"{prefix}.draft_path が非空 string でない")
             else:
-                errors.extend(_check_manifest_draft(plan_dir / draft_path, target_plugin_slug, prefix))
+                errors.extend(_check_manifest_draft(
+                    plan_dir / draft_path, target_plugin_slug, prefix,
+                    comps=_load_inventory_components(plan_dir)))
     return errors
 
 

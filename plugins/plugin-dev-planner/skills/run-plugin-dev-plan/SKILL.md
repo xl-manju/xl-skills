@@ -42,6 +42,9 @@ script_refs:
   - scripts/check-runtime-portability.py
   - scripts/check-plugin-surface-audit.py
   - scripts/check-upstream-pins.py
+  - scripts/check-generative-fidelity.py
+  - scripts/check-downstream-harness.py
+  - scripts/check-harness-coverage-selfcheck.py
   - scripts/render-spec-skeleton.py
   - scripts/render-skill-brief.py
   - scripts/specfm.py

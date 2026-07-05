@@ -59,6 +59,18 @@ def test_governance_check_has_plugin_dev_planner_conformance():
     assert missing == [], f"governance-check.yml に plugin-dev-planner conformance 配線が欠落: {missing}"
 
 
+def test_governance_check_has_harness_coverage_selfcheck():
+    """governance-check.yml に harness-coverage 12軸自己適用 (C3・dogfooding) の配線がある。
+
+    『生成 plan に課すハーネス規律を自分自身へも適用する』layer b の CI 配線が静かに外れたら
+    本テストが落ちて気づける (self-application の断線検出)。
+    """
+    gov = _read_or_skip("governance-check.yml")
+    assert "check-harness-coverage-selfcheck.py" in gov, (
+        "governance-check.yml に plugin-dev-planner の harness-coverage 自己適用 step が欠落"
+    )
+
+
 def test_evals_surfaces_each_have_enforced_by():
     """EVALS.surfaces の各面に enforced_by 宣言がある (宣言 surface の被覆漏れ防止・A2-4)。"""
     evals = json.loads((PLUGIN_ROOT / "EVALS.json").read_text(encoding="utf-8"))

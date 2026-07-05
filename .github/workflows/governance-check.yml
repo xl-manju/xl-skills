@@ -239,6 +239,9 @@ jobs:
       - name: plugin-dev-planner live surface audit (skills/agents/commands/hooks/scripts/tests)
         run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner
         continue-on-error: false
+      - name: plugin-dev-planner harness-coverage self-apply (12軸自己適用 dogfooding)
+        run: python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py
+        continue-on-error: false
       # ── plugin lint 被覆メタ検査 (新 plugin 追加時の配線忘れを fail-closed 検出) ──
       - name: lint plugin lint coverage (marketplace 全 plugin の lint 被覆保証)
         run: python3 scripts/lint-plugin-lint-coverage.py

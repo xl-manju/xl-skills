@@ -32,6 +32,7 @@
 ### 2.2 ドメインルール
 - C1 矛盾なし / C2 漏れなし / C3 整合性あり / C4 依存関係整合
 - 決定論ゲートの exit code を一次根拠とし、LLM は `plan-rubric.json.semantic_checks` の契約間突合と単一 skill 退化判定だけを追加で行う。`scripts/evaluate-plan.py` の PASS は機械ゲートPASSであり、LLM semantic_checks の代替ではない
+- 決定論ゲート (C1-C4) に加え、「緑のパラドクス」対策の 2 補助レイヤーを genuine 意味判定する: **layer A 生成時品質 (S3・C8)** と **layer B 下流ハーネス (S4・C12)**。機械検出 (`check-generative-fidelity.py`=曖昧語denylist/skeleton未カスタマイズ・`check-downstream-harness.py`=受入例/事前解決済み判断サブ節) は表層のみを見るため、意味の実効性 (曖昧箇所が本当に下流を妨げるか・サブ節が形骸化していないか) は本 LLM 判定で補う二層分離。findings は `bucket: layer-a-generative-fidelity` / `layer-b-downstream-harness` に記録し、C1-C4 verdict へは直接写像しない (補助レイヤー)。severity は既定 medium、着手不能なほど空虚 or サブ節形骸化のときのみ high
 - global_thresholds (high == 0, medium <= 2, all_gates_exit0 == true) で verdict を確定
 
 ### 2.3 入力契約
@@ -83,6 +84,8 @@
 - [ ] `evaluate-plan.py` で plan-scoped 決定論ゲート (io-contract §11 の plan-scoped 集合) を実行し、gate_results に各 exit code を記録した
 - [ ] C2/C3/C4 の scripted checks を exit code で判定した (自然言語で PASS 判定しない)
 - [ ] C1 (契約衝突) と C2-004 (単一 skill 退化の根拠) を LLM 意味判定し、必要な high finding を追加した
+- [ ] C8 (layer A 生成時品質): 各 phase 本文が下流 builder AI の追加質問なしに実行着手できる具体度を持つか genuine 判定し、曖昧箇所を `bucket: layer-a-generative-fidelity` の finding として具体的に指摘した (`check-generative-fidelity.py` の denylist_violations/uncustomized_sections を根拠に補強・機械 0 件でも意味的曖昧は指摘する)
+- [ ] C12 (layer B 下流ハーネス): 各 phase の 受入例/事前解決済み判断 サブ節が実際に下流実行者の追加質問を防ぐ実効性を持つか genuine 判定し、形骸化していれば `bucket: layer-b-downstream-harness` の finding として指摘した (`check-downstream-harness.py` のサブ節存在を根拠に補強・存在しても中身が空虚なら指摘する)
 - [ ] conditions に C1, C2, C3, C4 が全て PASS/FAIL/N/A で埋まっている
 - [ ] findings[] が空配列でなく info 以上の観点を最低 1 件含む (severity/bucket/observation/evidence/suggested_fix)
 - [ ] high severity がある場合 suggested_fix が明記されている

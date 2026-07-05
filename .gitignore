@@ -107,6 +107,10 @@ eval-log/plugin-dev-planner/**
 # に落ち、上の plugin 名キー規則 (eval-log/plugin-dev-planner/**) を素通りする。briefing/shared_state/
 # snapshot/patch/diff は再現性正本でない揮発 run スクラッチのため追跡しない (計画正本は plugin-plans/<slug>/)。
 eval-log/*/plan/elegant-review/**
+# L4 plugin 一括 build の route 実行レポート (契約正本 = harness-creator run-build-skill
+# references/route-build-report.md / io-contract.md「build handoff 契約」)。build 実行中の
+# route 間受け渡し証跡で揮発。恒久 trace は built plugin 実体 + validate-plan-coverage.py。
+eval-log/*/build/**
 
 # plugin-dev-planner: 計画成果物 plugin-plans/<slug>/ は可視・永続の tracked deliverable
 # (io-contract.md §9)。既定出力先で、レビュー可能な計画一式を git 追跡する。

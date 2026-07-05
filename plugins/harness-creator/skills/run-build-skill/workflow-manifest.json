@@ -169,6 +169,8 @@
     {"id": "schema-build-flags", "kind": "schema", "path": "./schemas/build-flags.schema.json", "phaseIds": ["init", "evaluator-emit"]},
     {"id": "schema-build-plan", "kind": "schema", "path": "./schemas/build-plan.schema.json", "phaseIds": ["init", "scripts"]},
     {"id": "schema-content-review-verdict", "kind": "schema", "path": "./schemas/content-review-verdict.schema.json", "phaseIds": ["content-review"]},
+    {"id": "schema-route-build-report", "kind": "schema", "path": "./schemas/route-build-report.schema.json", "phaseIds": ["trace-write"]},
+    {"id": "ref-route-build-report", "kind": "reference", "path": "./references/route-build-report.md", "phaseIds": ["trace-write"]},
     {"id": "ref-content-review-protocol", "kind": "reference", "path": "./references/content-review-protocol.md", "phaseIds": ["content-review"]},
     {"id": "prompt-scaffold", "kind": "prompt", "path": "./prompts/R1-scaffold.md", "phaseIds": ["scaffold"]},
     {"id": "prompt-template-select", "kind": "prompt", "path": "./prompts/R3-template-select.md", "phaseIds": ["scaffold"]},

@@ -46,6 +46,11 @@ source: plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/prompts/R
 - C3: 整合性あり。
 - C4: 依存関係整合。
 
+### 2.4 補助レイヤー (緑のパラドクス対策・4条件と直交)
+- **layer A 生成時品質 (S3・C8)**: phase 本文が下流 builder AI の追加質問なしに着手できる具体度か genuine 判定する。機械検出 `check-generative-fidelity.py` (曖昧語 denylist / skeleton 未カスタマイズ) を根拠に補強し、findings は `bucket: layer-a-generative-fidelity` に記録する。
+- **layer B 下流ハーネス (S4・C12)**: 各 phase の 受入例/事前解決済み判断 サブ節が下流実行者の追加質問を実際に防ぐ実効性を持つか genuine 判定する。機械検出 `check-downstream-harness.py` (サブ節存在) を根拠に補強し、findings は `bucket: layer-b-downstream-harness` に記録する。
+- 両レイヤーは C1-C4 verdict へ直接写像しない補助判定。severity は既定 medium、着手不能なほど空虚 or サブ節形骸化のときのみ high。
+
 ## Layer 3: インフラストラクチャ定義層
 
 ### 3.1 参照リソース
@@ -87,6 +92,8 @@ python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] evaluate-plan.py の結果を `gate_results` に記録している。
 - [ ] C1-C4 の各 condition が PASS/FAIL で埋まっている。
+- [ ] C8 (layer A): phase 本文の具体度を genuine 判定し、曖昧箇所を `bucket: layer-a-generative-fidelity` の finding に記録した (機械 0 件でも意味的曖昧は指摘)。
+- [ ] C12 (layer B): 受入例/事前解決済み判断サブ節の実効性を genuine 判定し、形骸化を `bucket: layer-b-downstream-harness` の finding に記録した (存在しても空虚なら指摘)。
 - [ ] findings が空でなく、PASS でも info 観点を含む。
 - [ ] high severity がある場合 verdict=FAIL になっている。
 - [ ] 評価対象 plan を書き換えていない。
