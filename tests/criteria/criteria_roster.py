@@ -54,6 +54,9 @@ ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
     ("skill-intake", "run-intake-visualize", ("IN1", "IN2", "OUT1")),
     ("skill-intake", "run-notion-intake-publish", ("IN1", "IN2", "OUT1")),
     ("skill-intake", "run-skill-intake", ("IN1", "IN2", "OUT1")),
+    ("slide-report-generator", "run-cross-deck-review", ("IN1", "OUT1")),
+    ("slide-report-generator", "run-slide-report-generate", ("IN1", "OUT1")),
+    ("slide-report-generator", "run-slide-report-modify", ("IN1", "OUT1")),
     ("ubm-goal-setting", "run-ubm-goal-setting", ("IN1", "OUT1", "OUT2")),
     ("ubm-goal-setting", "run-ubm-knowledge-sync", ("IN1", "OUT1")),
 ]

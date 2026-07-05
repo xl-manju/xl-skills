@@ -63,6 +63,13 @@ def test_parse_args_defaults():
     assert a.target_dir == ".claude"
     assert a.kinds == "agents,skills,commands"
     assert a.prune is False
+    assert a.exclude_plugin == []
+    assert a.conflicts_only is False
+
+
+def test_parse_args_exclude_plugin_repeatable():
+    a = MOD.parse_args(["--exclude-plugin", "v2", "--exclude-plugin", "scratch"])
+    assert a.exclude_plugin == ["v2", "scratch"]
 
 
 def test_parse_kinds_ok():
@@ -89,6 +96,8 @@ def test_help_matches_contract_usage():
     assert res.returncode == 0
     assert res.stdout.startswith("usage: build-claude-symlinks.py [-h]")
     assert "--prune" in res.stdout
+    assert "--exclude-plugin" in res.stdout
+    assert "--conflicts-only" in res.stdout
 
 
 # --- discover_plugins --------------------------------------------------------
@@ -111,6 +120,18 @@ def test_discover_plugins_sorted_dirs_only(tmp_path):
     (tmp_path / "afile").write_text("x", encoding="utf-8")
     out = [p.name for p in MOD.discover_plugins(tmp_path)]
     assert out == ["alpha", "beta"]
+
+
+def test_discover_plugins_excludes_named_dirs(tmp_path):
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "slide-report-generator-v2").mkdir()
+    out = [
+        p.name
+        for p in MOD.discover_plugins(
+            tmp_path, exclude_plugins=["slide-report-generator-v2"]
+        )
+    ]
+    assert out == ["alpha"]
 
 
 # --- discover_items ----------------------------------------------------------
@@ -227,6 +248,21 @@ def test_desired_entries_name_conflict_distinct_realpaths(tmp_path):
     assert len(conflicts) >= 1  # 同 dst, 異なる realpath -> conflict
 
 
+def test_desired_entries_exclude_plugin_avoids_name_conflict(tmp_path):
+    plugins = tmp_path / "plugins"
+    _skill(plugins, "slide-report-generator", "run-slide-report-generate")
+    _skill(plugins, "slide-report-generator-v2", "run-slide-report-generate")
+    entries, conflicts = MOD.desired_entries(
+        plugins,
+        tmp_path / ".claude",
+        ["skills"],
+        exclude_plugins=["slide-report-generator-v2"],
+    )
+    assert len(entries) == 1
+    assert conflicts == set()
+    assert entries[0]["src"].parts[-3] == "slide-report-generator"
+
+
 def test_desired_entries_frontmatter_alias_conflict(tmp_path):
     plugins = tmp_path / "plugins"
     _skill(plugins, "alpha", "first", frontmatter_name="shared")
@@ -321,6 +357,21 @@ def test_compute_plan_name_conflict_entry(tmp_path):
     _skill(plugins, "beta", "demo")
     plan = MOD.compute_plan(plugins, tmp_path / ".claude", ["skills"])
     assert any(p["action"] == "conflict" and p["reason"] == "name conflict" for p in plan)
+
+
+def test_compute_plan_exclude_plugin_skips_conflicting_v2(tmp_path):
+    plugins = tmp_path / "plugins"
+    _skill(plugins, "slide-report-generator", "run-slide-report-generate")
+    _skill(plugins, "slide-report-generator-v2", "run-slide-report-generate")
+    plan = MOD.compute_plan(
+        plugins,
+        tmp_path / ".claude",
+        ["skills"],
+        exclude_plugins=["slide-report-generator-v2"],
+    )
+    assert not any(p["action"] == "conflict" for p in plan)
+    assert len(plan) == 1
+    assert plan[0]["action"] == "create"
 
 
 def test_compute_plan_kind_path_not_directory_conflict(tmp_path):

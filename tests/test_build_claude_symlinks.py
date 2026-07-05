@@ -69,6 +69,8 @@ class BuildClaudeSymlinksTest(unittest.TestCase):
                                 [--dry-run]
                                 [--check]
                                 [--prune]
+                                [--exclude-plugin PLUGIN]
+                                [--conflicts-only]
                                 [--json]
 """,
         )
@@ -113,6 +115,30 @@ class BuildClaudeSymlinksTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("conflict", result.stdout)
+
+    def test_exclude_plugin_avoids_duplicate_skill_conflict(self):
+        src = self.skill("slide-report-generator", "run-slide-report-generate")
+        self.skill("slide-report-generator-v2", "run-slide-report-generate")
+
+        result = self.run_cli(
+            "--kinds",
+            "skills",
+            "--exclude-plugin",
+            "slide-report-generator-v2",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        dst = self.target / "skills" / "run-slide-report-generate"
+        self.assertTrue(dst.is_symlink())
+        self.assertEqual(os.readlink(dst), os.path.relpath(src, dst.parent))
+
+    def test_conflicts_only_ignores_missing_symlink_drift(self):
+        self.skill("alpha", "demo")
+
+        result = self.run_cli("--kinds", "skills", "--check", "--conflicts-only")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("created=1", result.stdout)
 
     def test_duplicate_skill_frontmatter_names_conflict_exit_2(self):
         self.skill("alpha", "first", frontmatter_name="shared")
