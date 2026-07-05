@@ -90,9 +90,7 @@ UBM ナレッジソース（YouTube 議事録・合宿記録・月報 FB・セ�
 
 ### ゴールシーク配線
 
-- `goal_seek.progress`: `eval-log/ubm-goal-setting/run-ubm-knowledge-sync/goal-seek-progress.json` に checklist 状態、iteration、`open_issues`、`status` を記録する。
-- `goal_seek.intermediate`: 各周回末の Anchor Step で `run-ubm-knowledge-sync-intermediate.jsonl` に `original_goal` / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal` を append-only で残す。
-- `goal_seek.handoff`: 完了時に検知件数、更新先、split-check 結果、dry-run 有無、未解決課題を `handoff-run-ubm-knowledge-sync.json` へ書く。
+- `goal_seek.progress`: `eval-log/ubm-goal-setting/run-ubm-knowledge-sync/goal-seek-progress.json` に checklist 状態、iteration、`open_issues`、`status` を記録する。 `goal_seek.intermediate`: 各周回末の Anchor Step で `run-ubm-knowledge-sync-intermediate.jsonl` に `original_goal` / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal` を append-only で残す。 `goal_seek.handoff`: 完了時に検知件数、更新先、split-check 結果、dry-run 有無、未解決課題を `handoff-run-ubm-knowledge-sync.json` へ書く。
 - ループ本体は SubAgent context で実行し、親へ返すのは同期レポート、handoff 要約、未解決 `open_issues` のみにする。
 - `--dry-run` 指定時は Phase1 の検知と Phase4 のレポートだけを実行し、Phase2 extraction と Phase3 split repair の write を禁止する。
 - `max_loops` 到達時は PASS 扱いせず、残チェック項目を `open_issues` に残して human review へ差し戻す。
