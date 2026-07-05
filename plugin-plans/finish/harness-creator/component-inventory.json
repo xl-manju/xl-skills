@@ -379,7 +379,7 @@
       "builder": "run-build-skill",
       "build_kind": "command",
       "description": "構想または intake.json を受理して run-plugin-dev-plan を起動する command へ intake_json 引数を追加",
-      "argument-hint": "[<構想文> | --intake-json <path>] [--mode create|update] [--improvement-handoff <path>]",
+      "argument-hint": "[<構想文> | --intake-json <path> --next-action-json <path>] [--mode create|update] [--improvement-handoff <path>]",
       "allowed-tools": [
         "Read",
         "Skill"
@@ -700,7 +700,7 @@
         "plugins/harness-creator/.claude-plugin/plugin.json",
         "plugins/plugin-dev-planner/.claude-plugin/plugin.json"
       ],
-      "note": "harness-creator の plugins/harness-creator/.claude-plugin/plugin.json は skills/commands/scripts を ディレクトリ規約で自動発見するため本 plan の新規/更新 component (C06/C07/C08/C09) は manifest 差分不要。plugin-dev-planner 側 (.claude-plugin/plugin.json) は entry_points.agents[] へ C10、hooks.PreToolUse へ C11 の登録が必要 (該当 component 自身の build スコープ内で処理し envelope surface としては現状維持)。envelope-draft/plugin.json は harness-creator 側を無変更で mirror する"
+      "note": "envelope-draft/plugin.json は build handoff gate 用に inventory surface component の entry_points.skills/commands/agents を明示する。実 plugins/harness-creator/.claude-plugin/plugin.json への反映は envelope build 境界で扱い、plugin-dev-planner 側 (.claude-plugin/plugin.json) への C10/C11 登録は該当 component 自身の build スコープ内で処理する"
     },
     "composition": {
       "required": false,
@@ -715,7 +715,7 @@
       "targets": [
         "plugins/harness-creator/references/pipeline-boundary-contract.md"
       ],
-      "note": "cross-cutting 課題 (パイプライン全体像が harness-creator README:52-85 の人手手順のみで記述) に対し、新規リファレンス plugins/harness-creator/references/pipeline-boundary-contract.md を Phase02/Phase06 で整備し E1/E2/E3 の producer/consumer/gate/provenance 対応表を一元化する (C01/C05/C08/C09/C11 が参照)。対応表には境界契約ごとに enforcement_level 列 (fail-closed hook / advisory gate / prompt-only) と選定理由の記録を必須とする (実例: E3 --mode update は既存 plan の破壊的再生成ゆえ fail-closed hook (C11) 強制、E1/E2 の create/build は非破壊・再実行可能ゆえ advisory gate)。状態 ledger 化・boundary-descriptor 化等の代替設計を不採用とする場合は理由を同リファレンスへ記録する"
+      "note": "cross-cutting 課題 (パイプライン全体像が harness-creator README:52-85 の人手手順のみで記述) に対し、新規リファレンス plugins/harness-creator/references/pipeline-boundary-contract.md を Phase02/Phase06 で整備し E1/E2/E3 の producer/consumer/gate/provenance 対応表を一元化する (C01/C05/C08/C09/C11 が参照)。対応表には境界契約ごとに enforcement_level 列 (fail-closed hook / advisory gate / prompt-only) と選定理由の記録を必須とする (実例: E3 --mode update は既存 plan の破壊的再生成ゆえ fail-closed hook (C11) 強制、E1/E2 は各 consumer 内の deterministic gate / route executor が明示入力を fail-closed 検証するため追加 hook は置かない)。状態 ledger 化・boundary-descriptor 化等の代替設計を不採用とする場合は理由を同リファレンスへ記録する"
     },
     "schemas": {
       "required": true,

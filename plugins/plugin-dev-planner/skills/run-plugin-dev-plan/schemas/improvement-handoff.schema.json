@@ -70,8 +70,47 @@
         "prev_goal_spec": {
           "type": ["string", "null"],
           "description": "改善前サイクルの goal-spec.json への参照 (無ければ null)。"
+        },
+        "origin_request": {
+          "type": ["object", "null"],
+          "description": "改善の発端 (利用者フィードバック等) への逆リンク。Notion 改善要望 DB からの人間ブリッジ (feedback-to-improvement-runbook.md Stage 3) 時に起点ページを記録し、要望→改善→要望クローズ (Stage 6) の帰路追跡を可能にする (無ければ null)。任意・後方互換。",
+          "additionalProperties": false,
+          "required": ["kind", "ref"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["notion-improvement-request", "slack", "verbal", "other"],
+              "description": "発端の種別。"
+            },
+            "ref": {
+              "type": "string",
+              "description": "発端への参照 (Notion 改善要望ページ URL / id 等)。"
+            }
+          }
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "properties": {
+              "kind": { "const": "manual" }
+            },
+            "required": ["kind"]
+          }
+        }
+      },
+      "then": {
+        "required": ["provenance"],
+        "properties": {
+          "provenance": {
+            "required": ["origin_request"]
+          }
+        }
+      }
+    }
+  ]
 }

@@ -67,6 +67,12 @@ def test_resolve_plan_dir_from_plugin_plans_token(hook):
     assert hook._resolve_plan_dir("... plugin-plans/sample/goal-spec.json ...") == Path("plugin-plans/sample")
 
 
+def test_resolve_plan_dir_from_improvement_handoff(tmp_path, hook):
+    handoff = tmp_path / "improvement-handoff.json"
+    handoff.write_text(json.dumps({"plan_dir": "plugin-plans/from-handoff"}), encoding="utf-8")
+    assert hook._resolve_plan_dir(f"... --improvement-handoff {handoff} ...") == Path("plugin-plans/from-handoff")
+
+
 def test_resolve_plan_dir_none(hook):
     assert hook._resolve_plan_dir("no path here") is None
 
@@ -123,6 +129,14 @@ def test_main_clean_markers_allows(tmp_path, hook, monkeypatch):
     _write_markers(plan, hook.REQUIRED_GATES)
     cmd = f"run-plugin-dev-plan --mode update --out-dir {plan}"
     assert _run(hook, monkeypatch, {"tool_input": {"command": cmd}}) == 0
+
+
+def test_main_improvement_handoff_plan_dir_blocks_without_markers(tmp_path, hook, monkeypatch):
+    plan = _plan_with_goal_spec(tmp_path)
+    handoff = tmp_path / "improvement-handoff.json"
+    handoff.write_text(json.dumps({"plan_dir": str(plan)}), encoding="utf-8")
+    cmd = f"run-plugin-dev-plan --mode update --improvement-handoff {handoff}"
+    assert _run(hook, monkeypatch, {"tool_input": {"command": cmd}}) == 2
 
 
 def test_main_stale_markers_block(tmp_path, hook, monkeypatch):

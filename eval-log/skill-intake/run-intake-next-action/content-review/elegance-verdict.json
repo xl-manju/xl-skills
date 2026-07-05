@@ -1,29 +1,28 @@
 {
-  "target": {
-    "plugin": "skill-intake",
-    "skill": "run-intake-next-action",
-    "skill_md_sha256": "e94f3dc134bd17c4eaf220988777a567dd1f1f7b90e63473288e884f451372a4"
-  },
+  "target": {"plugin": "skill-intake", "skill": "run-intake-next-action", "skill_md_sha256": "3e28f43a4d5a13287e12875ae19b470b5e45a45015e14c4f017385c8219b13ec"},
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 1, "dependency_break": 0, "smell": 1},
   "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-03T22:14:27Z",
+  "reviewed_at": "2026-07-05T09:51:42Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1"],
     "positive_feedback": [
-      "Notion 公開完了 precondition gate (SKILL.md:70,82) が exit 2 で未公開横流れを封鎖し IN2 を機械検証可能形で固定。今回の変更で exit code 規約 (ゴールシークループ SKILL.md:110) と Gotcha 1 (SKILL.md:114) が decide-mode.py 実挙動(判定表ヒットなし→kickoff.pattern 既定採用で停止しない、exit 2 は Notion precondition 未充足のみ)へ整合訂正され、従来 doc の『ヒットなし=exit 2』という実装との不整合が解消された",
-      "Rule 7 (SKILL.md:81) が本スキルを mode 判定と next-action.json 生成のみに絞り、allowed-tools に Skill/Task を持たないため生成スキル起動が構造的に不可能である点を明記し OUT1 の責務単一を担保",
-      "決定論性を decide-mode.py+mode-catalog.md 判定表で機構化し、同一4入力での (mode, reason) 完全一致 (checklist SKILL.md:106) を検証条件に含めて IN1 を満たす"
+      "新規 mode P コマンド (SKILL.md:68/104) が正本 handoff-contract.md:92 と逐語一致し drift ゼロ。--intake-json/--next-action-json は plugin-dev-plan.md:34-35 のフラグ契約と整合し、参照先全て実在で dependency_break=0 (intake.json も run-intake-finalize が生成する実成果物)",
+      "Rule 7 (SKILL.md:81) の allowed-tools=Read/Write/Bash/AskUserQuestion で Skill/Task 不所持を構造保証し OUT1 の生成起動禁止を担保。Gotcha 1 (SKILL.md:115) が decide-mode.py 実挙動 (table-miss は exit せず pattern fallback、exit 2 は Notion precondition のみ) を正直開示",
+      "exit code 規約 (exit 2=Notion precondition / exit 3=入力欠落・schema違反) が本文 70/82/111/115/117 行で一貫。mode P は pattern 軸外で常に不一致→追認1問必発 (Rule 2) が OUT1 の『不一致時のみ AskUserQuestion 直列1問』と整合"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "非ブロッキング(inconsistency): SKILL.md:68『next-action.json は schema 互換のため mode/handoff_target/phase のみを持つ』は output.schema.json の required 6 フィールドおよび例 JSON (SKILL.md:54-64 の 7 キー) と不一致。実際は reason/multi_skill_suspicion/confirmed_with_user も保持するため『機械フィールドのみを持ち人間向けコマンドは JSON に含めない』と精緻化推奨",
+      "非ブロッキング(smell): SKILL.md:68『mode A-E は run-skill-create/run-build-skill 起動案内』は mode E (harness_creator_handoff_phase=P1-kickoff re-intake, SKILL.md:101) では再ヒアリングであり起動案内ではない過度一般化。『harness_creator_handoff_phase に対応する』従属句が救済するが軽微"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SHA (e94f3dc1...) の SKILL.md を read-only で逐一照合した genuine 再評価。変更点=exit code 規約の実装整合訂正: (1) ゴールシークループ (SKILL.md:110) の『判定表ヒットなし=2、入力欠落=3』→『exit 2=Notion 公開 precondition 未充足、exit 3=入力欠落・不正』、(2) Gotcha 1 (SKILL.md:114) を『判定表ヒットなしは exit 2 で停止』→『decide-mode.py は該当行なしでも停止せず kickoff.pattern を既定採用、A-E/P 以外の未知 pattern は handoff 表 KeyError で異常終了、exit 2 は Notion precondition のみ』へ書換。これは spec-drift の是正で IN2/Rule 8/precondition gate 節と exit code の意味が全節で統一され C3(整合性)を強化。矛盾・漏れ・依存断なし。4条件全PASS。"
+  "notes": "現SHA(3e28f43a)を実読した genuine 再評価。delta(degrade文言→人間向け次アクション出力契約への拡張+checklist 1項目追加)は正本 handoff-contract.md:92 と逐語一致し、schema/exit規約/Rule群/mode-catalog と矛盾なし。検出した 2 件(field記述の不精確・mode E の過度一般化)はいずれも文言レベルで機械契約を破らず非ブロッキング。契約矛盾・漏れ・依存断は無く 4 条件を genuine に満たすため PASS。"
 }

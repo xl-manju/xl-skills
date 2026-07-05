@@ -1,39 +1,28 @@
 {
-  "target": {
-    "plugin": "plugin-dev-planner",
-    "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "0b712f338cedb8bc5f2689f6e1b80b78c76b06ccfe4f83e53a88b8f31597ff98"
-  },
+  "target": {"plugin": "plugin-dev-planner", "skill": "run-plugin-dev-plan", "skill_md_sha256": "45161fd06db9455e0e3489eed777d15acd6375208247457af8dd2d77b430a579"},
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {
-    "contradiction": 0,
-    "omission": 0,
-    "inconsistency": 1,
-    "dependency_break": 0,
-    "smell": 1
-  },
-  "reviewer": "independent-branch-delta-subagent-rubric",
-  "reviewed_at": "2026-07-05T03:10:24+00:00",
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 1, "dependency_break": 0, "smell": 1},
+  "reviewer": "independent-content-review-subagent",
+  "reviewed_at": "2026-07-05T09:51:42Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "完全性=3: SKILL.md frontmatter の全 *_refs を PyYAML でパースし skill ディレクトリ起点で resolve、path 参照 38 件 (responsibility 4/script 15/reference 7/agent 3/command 1/hook 1/harness 2/schema 2) が全て実在し dangling 0 を実測。本 delta が追加した 3 script (check-generative-fidelity.py / check-downstream-harness.py / check-harness-coverage-selfcheck.py) は script_refs 登録 + ディスク実体 + 各 tests/test_check_*.py が対応し、新規 59 テスト + plugin 全体 444 passed/1 skipped 緑を実測。",
-      "一貫性=3: 3 script の役割記述が層を跨いで用語一致。check-generative-fidelity/check-downstream-harness は agents/plugin-dev-plan-evaluator.md §2.4 と assign-plugin-plan-evaluator/prompts/R1-evaluate.md L35/L87/L88 で『layer A 生成時品質 (C8)』『layer B 下流ハーネス (C12)』の呼称と bucket 名 (layer-a-generative-fidelity / layer-b-downstream-harness) が完全一致し、severity 規約 (既定 medium・C1-C4 非写像) も両所で揃う (grep 実測)。check-harness-coverage-selfcheck は governance-check.yml (continue-on-error:false=fail-closed) の CI ステップと tests/test_ci_integration.py L69 の配線 assert で二重固定され配線 drift を機械封鎖。",
-      "深度=3: 3 script は空洞の飾りでなく実検査を行う。check-generative-fidelity は曖昧語 denylist 部分一致 + skeleton プレースホルダ完全一致に加え、否定接頭辞『不』直前の反転除外・バッククォート code span 除去・『満たさない例』のみ ignored_context 分類 (裸の『満たさない』条件文は violation 保持) と過検出/見逃し双方の罠を先回り。check-downstream-harness は prefix 境界照合で『### 受入例外』の偽充足を回避し gate 系 phase (P03/P07/P09/P10) を縮小要件へ非対称化、applicability.applicable==false を detect-unassigned と同一規則で免除。check-harness-coverage-selfcheck は subprocess で 6 種別×2 軸=12 軸の構造存在のみ検査し達成率 (met/coverage_pct) を判定に使わず Goodhart を回避、validator 不在時 skip で standalone install を fail-soft 対応。3 script とも --self-test exit0 を実測。",
-      "検証可能性=3: 主張が数値・コマンド・二値判定で裏取り可能。3 script の --self-test が exit0、evaluate-plan.py が新 2 script を invoke しない (=LLM 評価の背景根拠でありハードゲートでない) ことを grep で確認、golden example への実走で check-generative-fidelity=exit0 (曖昧語0/未カスタマイズ0)・check-downstream-harness=exit1 (下記 inconsistency の実測根拠) を取得、plugin 全体 pytest 444 passed/1 skipped を実走。lint-content-review.py --all の残違反が本 verdict の stale-sha 1 件のみであることも実測。"
+      "5次元スコア内訳: 完全性3/一貫性2/深度3/検証可能性3/簡潔性2 = 合計13/15 (PASS 閾値>=11)",
+      "完全性3: 入出力/完了条件/10ルール(新Rule10含む)/checklist(E1/E3含む)/検証ブロック/handoff が網羅。E1/E3・script route が frontmatter〜検証まで多層記述(SKILL.md:116-118,159,178-179,239-248,288)",
+      "検証可能性3: 二値checklist+決定論ゲートを実bashで明示(SKILL.md:214-260)、E1/E3も条件付き実行で機械配線。深度3: Goodhart回避/purpose-acceptance/DEF-1ドリフト検知/envelope生成器gap起票 等の設計根拠明記"
     ],
     "negative_feedback": [
-      "[inconsistency/medium, 非ブロッキング] check-downstream-harness が全 phase の `## 完了チェックリスト` に `### 受入例` / `### 事前解決済み判断` サブ節を要求するが、この契約が生成側 SSOT (specfm.PHASE_BODY_SECTIONS=8 節・_PHASE_SECTION_HINT・references/io-contract.md §5 表・prompts/R3-emit-specs.md) と golden example (examples/sample-plan) のいずれにも反映されていない (grep 0 件)。結果、同梱 golden の 13 phase 全てが check-downstream-harness exit=1。評価側 (evaluator C12) の期待とサブ節の生成側指示が同一 delta 内で非対称になっている。ただし本 script は evaluate-plan.py が invoke しない補助レイヤー (R1-evaluate.md で severity 既定 medium・C1-C4 verdict へ非写像と明記) で §11 ゲート表/CI/golden test のいずれのハードゲートでもないため CI (444 passed) もビルドも破綻しない。生成側 (R3 prompt / specfm skeleton / golden) へのサブ節契約伝播、または golden を grandfather と明記して解消するのが望ましい。",
-      "[smell/low, 非ブロッキング] SKILL.md L316『scripts/ — 検証 11 本 (core 5 + 拡張ゲート 6) + skeleton renderer + 共有 SSOT specfm.py』が本 delta で追加された criteria 自己検査 3 script を列挙せず、追加リソース記述と script_refs/ディスク実体 (18 script) に軽微な drift。§11 表 (ゲート数の SSOT) は 11 ゲートを正しく scope しており数値矛盾ではないが、3 self-check script の資産区分を明示すると読者の資産棚卸しが揃う。"
+      "[inconsistency/medium, 非ブロッキング, main既存] 一貫性 -1(3→2): check-downstream-harness の要求サブ節(### 受入例/### 事前解決済み判断)契約が生成側 SSOT(specfm/io-contract/R3-emit-specs.md)と golden(examples/sample-plan)へ未伝播で golden 13 phase が exit=1(実走確認)。evaluator 期待と生成側指示が非対称。ただし当該 script は evaluate-plan.py 非 invoke の advisory 補助レイヤーで CI ハードゲート外・非ブロッキング。本 PR の E1/E3 delta 由来でなく main 既存",
+      "[smell/low, 非ブロッキング] 簡潔性 -1(3→2): SKILL.md L316 が 3 self-check script を列挙せず資産棚卸しに軽微 drift。加えて symlink同期/distributable二重ロック等が複数節反復(各節が異なる読者導線を担う意図的重複)"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "①再評価理由: feature ブランチが 3 script (check-generative-fidelity / check-downstream-harness / check-harness-coverage-selfcheck) + 各 tests を追加し、SKILL.md script_refs +3 行・agents/plugin-dev-plan-evaluator.md +7 行 (§2.4 補助レイヤー)・references/io-contract.md +2 行 (route 実行レポート契約) を伴ったため、旧 verdict が pin していた sha=6042d32c... が stale 化 (現 sha=0b712f338c...)。②現 sha を shasum -a 256 で実測し上書き。③delta genuine 採点=完全性3/一貫性3/深度3/検証可能性3 (全次元>=2) で高影響 (blocking) findings 0: contradiction/omission/dependency_break=0。dangling 0 (38 refs 全 resolve)・新 3 script self-test exit0・plugin pytest 444 passed/1 skipped 緑・CI 配線 (check-harness-coverage-selfcheck→governance-check.yml fail-closed + test_ci_integration.py assert)・evaluator 配線 (check-generative-fidelity/check-downstream-harness→evaluator §2.4 + R1-evaluate.md C8/C12・bucket 名一致) を実測。④非ブロッキング findings 2 件を正直に計上: inconsistency=1 (check-downstream-harness のサブ節契約が生成側 SSOT/golden へ未伝播で golden が exit=1・ただし advisory で CI 非破綻ゆえ medium)、smell=1 (SKILL.md L316 の script 資産記述 drift)。⑤criteria_evaluated は frontmatter feedback_contract.criteria の id (IN1/IN2/OUT1/OUT2) に一致。高影響 finding 0 につき verdict=PASS。"
+  "notes": "5次元 genuine 採点=完全性3/一貫性2/深度3/検証可能性3/簡潔性2=13/15。本 PR delta(E1/E3境界契約・script route実体化)は 2軸直交/完了条件/build handoff契約へ齟齬なく織込み済。二段検証で main 既存の非ブロッキング inconsistency(check-downstream サブ節契約の生成側未伝播・golden exit=1)を実走確認し正直計上(一貫性 -1)。当該は advisory でハードゲート外ゆえ CI(444 passed)非破綻。閾値 11 を超過し blocking finding 0 につき PASS。inconsistency は backlog。"
 }

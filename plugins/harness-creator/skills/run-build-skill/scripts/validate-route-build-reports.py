@@ -108,7 +108,15 @@ def validate_report_shape(report: object) -> list[str]:
     return findings
 
 
-def validate_against_route(report: dict, route: dict, slug: str) -> list[str]:
+def _repo_root_from_handoff_path(path: Path) -> Path:
+    resolved = path.resolve()
+    if "plugin-plans" in resolved.parts:
+        idx = resolved.parts.index("plugin-plans")
+        return Path(*resolved.parts[:idx]) if idx else Path("/")
+    return Path.cwd()
+
+
+def validate_against_route(report: dict, route: dict, slug: str, repo_root: Path | None = None) -> list[str]:
     """レポートと handoff route の同値性 (route が SSOT・レポートは写し)。"""
     findings: list[str] = []
     if report.get("plugin_slug") != slug:
@@ -116,6 +124,10 @@ def validate_against_route(report: dict, route: dict, slug: str) -> list[str]:
     for key in ("component_kind", "name", "builder", "build_target"):
         if report.get(key) != route.get(key):
             findings.append(f"{key}: handoff route と不一致 (report={report.get(key)!r} route={route.get(key)!r})")
+    if repo_root is not None and report.get("status") == "success":
+        target = repo_root / str(report.get("build_target", ""))
+        if not target.exists():
+            findings.append(f"build_target: success report だが現物が存在しない ({report.get('build_target')})")
     return findings
 
 
@@ -142,17 +154,17 @@ def validate_dependency_chain(report: dict, route: dict, reports_dir: Path, slug
             findings.extend(f"依存 {e}" for e in errs)
             continue
         dep_status = dep_report.get("status")
-        if dep_status == "failure":
-            findings.append(f"依存 route {dep_id}: status=failure のまま後続を build している")
-        elif dep_status not in STATUSES:
+        if dep_status not in STATUSES:
             findings.append(f"依存 route {dep_id}: status 不正 ({dep_status!r})")
+        elif dep_status != "success":
+            findings.append(f"依存 route {dep_id}: status={dep_status} のまま後続を build している")
         expected = report_path(slug, dep_id)
         if expected not in consumed:
             findings.append(f"inputs_consumed: 依存レポート {expected} の読取宣言が無い")
     return findings
 
 
-def validate_route(handoff: dict, reports_dir: Path, route_id: str) -> list[str]:
+def validate_route(handoff: dict, reports_dir: Path, route_id: str, repo_root: Path | None = None) -> list[str]:
     slug = handoff.get("target_plugin_slug", "")
     routes = {r.get("id"): r for r in handoff.get("routes", []) if isinstance(r, dict)}
     route = routes.get(route_id)
@@ -164,18 +176,18 @@ def validate_route(handoff: dict, reports_dir: Path, route_id: str) -> list[str]
     findings = validate_report_shape(report)
     if report.get("route_id") not in (None, route_id):
         findings.append(f"route_id: ファイル名 route-{route_id}.json と不一致 ({report.get('route_id')!r})")
-    findings.extend(validate_against_route(report, route, slug))
+    findings.extend(validate_against_route(report, route, slug, repo_root))
     findings.extend(validate_dependency_chain(report, route, reports_dir, slug))
     return findings
 
 
-def validate_complete(handoff: dict, reports_dir: Path) -> list[str]:
+def validate_complete(handoff: dict, reports_dir: Path, repo_root: Path | None = None) -> list[str]:
     slug = handoff.get("target_plugin_slug", "")
     routes = [r for r in handoff.get("routes", []) if isinstance(r, dict)]
     findings: list[str] = []
     for route in routes:
         rid = route.get("id", "?")
-        route_findings = validate_route(handoff, reports_dir, rid)
+        route_findings = validate_route(handoff, reports_dir, rid, repo_root)
         findings.extend(route_findings)
         if not route_findings:
             report, _ = _load_report(reports_dir, slug, rid)
@@ -247,20 +259,23 @@ def _self_test() -> int:
             return rep
 
         r1, r2 = handoff["routes"]
+        (root / r1["build_target"]).parent.mkdir(parents=True, exist_ok=True)
+        (root / r1["build_target"]).write_text("# lint-a\n", encoding="utf-8")
+        (root / r2["build_target"]).mkdir(parents=True, exist_ok=True)
         # (1) 依存レポート欠落: C2 は C1 レポートが無いと FAIL
         (reports_dir / "route-C2.json").write_text(json.dumps(
             base_report("C2", r2, inputs_consumed=[report_path(slug, "C1")])), encoding="utf-8")
-        check("C1 欠落で C2 が FAIL", validate_route(handoff, reports_dir, "C2"))
+        check("C1 欠落で C2 が FAIL", validate_route(handoff, reports_dir, "C2", root))
         # (2) チェーン充足で PASS
         (reports_dir / "route-C1.json").write_text(json.dumps(
             base_report("C1", r1, handover="run-b は lint-a の exit code 契約に依存")), encoding="utf-8")
-        check("C1 単体 PASS", not validate_route(handoff, reports_dir, "C1"))
-        check("チェーン充足で C2 PASS", not validate_route(handoff, reports_dir, "C2"))
+        check("C1 単体 PASS", not validate_route(handoff, reports_dir, "C1", root))
+        check("チェーン充足で C2 PASS", not validate_route(handoff, reports_dir, "C2", root))
         # (3) inputs_consumed 未宣言は FAIL
         (reports_dir / "route-C2.json").write_text(json.dumps(
             base_report("C2", r2, inputs_consumed=[])), encoding="utf-8")
         check("読取宣言なしで C2 FAIL",
-              any("inputs_consumed" in f for f in validate_route(handoff, reports_dir, "C2")))
+              any("inputs_consumed" in f for f in validate_route(handoff, reports_dir, "C2", root)))
         (reports_dir / "route-C2.json").write_text(json.dumps(
             base_report("C2", r2, inputs_consumed=[report_path(slug, "C1")])), encoding="utf-8")
         # (4) success なのに evidence 空は FAIL
@@ -274,17 +289,26 @@ def _self_test() -> int:
         # (6) handoff との不一致は FAIL
         drift = base_report("C1", r1, build_target="plugins/other/x.py")
         check("build_target drift FAIL", validate_against_route(drift, r1, slug))
-        # (7) 依存 failure で後続 FAIL
+        missing_target = base_report("C1", r1)
+        (root / r1["build_target"]).unlink()
+        check("success target missing FAIL",
+              any("現物が存在しない" in f for f in validate_against_route(missing_target, r1, slug, root)))
+        (root / r1["build_target"]).write_text("# lint-a\n", encoding="utf-8")
+        # (7) 依存 failure / skipped で後続 FAIL
         (reports_dir / "route-C1.json").write_text(json.dumps(
             base_report("C1", r1, status="failure")), encoding="utf-8")
         check("依存 failure で C2 FAIL",
-              any("failure" in f for f in validate_route(handoff, reports_dir, "C2")))
+              any("failure" in f for f in validate_route(handoff, reports_dir, "C2", root)))
+        (reports_dir / "route-C1.json").write_text(json.dumps(
+            base_report("C1", r1, status="skipped", skip_reason="domain implementation pending", evidence=[])), encoding="utf-8")
+        check("依存 skipped で C2 FAIL",
+              any("status=skipped" in f for f in validate_route(handoff, reports_dir, "C2", root)))
         (reports_dir / "route-C1.json").write_text(json.dumps(base_report("C1", r1)), encoding="utf-8")
         # (8) complete: 全 route 緑で PASS / orphan で FAIL
-        check("complete PASS", not validate_complete(handoff, reports_dir))
+        check("complete PASS", not validate_complete(handoff, reports_dir, root))
         (reports_dir / "route-C9.json").write_text(json.dumps(base_report("C9", r1)), encoding="utf-8")
         check("orphan で complete FAIL",
-              any("orphan" in f for f in validate_complete(handoff, reports_dir)))
+              any("orphan" in f for f in validate_complete(handoff, reports_dir, root)))
 
     return _emit(not findings, "self-test", findings)
 
@@ -310,17 +334,19 @@ def main(argv: list[str]) -> int:
             "usage: validate-route-build-reports.py --handoff <handoff.json> (--route <id> | --complete) [--reports-dir DIR]",
         ]}, ensure_ascii=False))
         return 2
-    handoff, err = _load_handoff(Path(handoff_arg))
+    handoff_path = Path(handoff_arg)
+    handoff, err = _load_handoff(handoff_path)
     if err:
         print(json.dumps({"valid": False, "mode": "usage", "findings": [err]}, ensure_ascii=False))
         return 2
     reports_dir_arg = _opt("--reports-dir")
     reports_dir = Path(reports_dir_arg) if reports_dir_arg else Path(
         report_path(handoff["target_plugin_slug"], "C0")).parent
+    repo_root = _repo_root_from_handoff_path(handoff_path)
     if route_id is not None:
-        return _emit(not (findings := validate_route(handoff, reports_dir, route_id)),
+        return _emit(not (findings := validate_route(handoff, reports_dir, route_id, repo_root)),
                      f"route:{route_id}", findings)
-    return _emit(not (findings := validate_complete(handoff, reports_dir)), "complete", findings)
+    return _emit(not (findings := validate_complete(handoff, reports_dir, repo_root)), "complete", findings)
 
 
 if __name__ == "__main__":

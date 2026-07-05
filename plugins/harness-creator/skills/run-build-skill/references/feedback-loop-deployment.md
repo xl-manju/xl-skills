@@ -20,7 +20,7 @@ brief.kind ∈ {run, ref, assign, delegate, wrap}
        └─ phase: feedback-deploy (default_on: true, dependsOn: trace-write)
             └─ scripts/render-combinators.py apply_feedback_loop(<plugin>)
                  └─ <target-plugin>/skills/run-skill-feedback
-                      (実体コピー。plugin 境界を越える symlink は marketplace install で禁止)
+                      (実体コピー。plugin 境界を越える symlink は marketplace bundle 同梱時のみ禁止 — 下記「禁止」節の例外参照)
 ```
 
 harness-creator 自身は自動除外 (正本側への自己コピーは不要)。
@@ -49,7 +49,8 @@ harness-creator 自身 (生成器メタプラグイン) への除外/非除外�
 
 ## 禁止
 
-- plugin 境界を越える symlink: `plugins/<plugin>/skills/run-skill-feedback -> ../../harness-creator/...` 等。marketplace install で dangling するため禁止。
+- plugin 境界を越える symlink (**distributable な量産先が run-skill-feedback を marketplace bundle に同梱する場合のみ**): `plugins/<plugin>/skills/run-skill-feedback -> ../../harness-creator/...` 等は、install 時に symlink 先が bundle 外なら dangling するため禁止 (この経路の配備は実体コピー `apply_feedback_loop()` に一本化する)。
+  - **例外 (repo 内メタ plugin)**: `distributable:false` または `package.exclude` で run-skill-feedback を bundle から除外し marketplace install の対象にしない repo 内メタ plugin は、harness-creator SSOT への symlink を許容する (bundle に同梱されず dangling しない・DRY で正本一本化)。実例: `plugin-dev-planner` (distributable:false) / `skill-intake` (`package.exclude: skills/run-skill-feedback/**`) は `skills/run-skill-feedback -> ../../harness-creator/skills/run-skill-feedback` の symlink 実体を保持する。本禁止規約が対象とするのは「distributable な量産先の bundle 同梱」であって、これら除外済みメタ plugin ではない。
 - 手動コピー: `cp -r ...` 等。配備は `apply_feedback_loop()` に一本化し、drift は lint/CI で検出する。
 - 量産先 SKILL.md での `feedback_protocol` 文言再定義: SSOT を持たない drift の温床。
 - 発火条件追加を SKILL.md / triggers 先行編集で行うこと: 必ず schema → lint → 派生物同期の順。

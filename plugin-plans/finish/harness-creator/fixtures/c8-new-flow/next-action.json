@@ -10,7 +10,7 @@
     {
       "id": "demo-boundary-check",
       "component_kind": "script",
-      "reason": "One companion script route (demo-boundary-check) to exercise contract-only script handling. id matches the emitted route/component name for split_candidate->component traceability."
+      "reason": "One companion script route (demo-boundary-check) to exercise build-script-route.py handling of planner contract-only script routes. id matches the emitted route/component name for split_candidate->component traceability."
     }
   ]
 }

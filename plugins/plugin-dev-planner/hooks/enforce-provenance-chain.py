@@ -13,7 +13,13 @@
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
-"""E3 横断 fail-closed hook: --mode update の provenance 事前検証。
+"""E3 横断 fail-closed hook: --mode update の provenance 事前検証 (backstop)。
+
+役割の位置づけ (honest labeling): primary gate は run-plugin-dev-plan SKILL.md の inline 検証
+ブロックで、そこが check-intake-consumption.py / check-provenance-chain.py を `--marker-dir`
+付きで実行し marker を*自己生成*する (人間が事前に marker を手作りする必要はない)。本 hook は
+その inline gate を bypass した場合の defense-in-depth backstop にすぎず、matcher (Bash|Task) の
+被覆範囲に限られる (canonical な slash / Agent dispatch の担保は主に inline gate が負う)。
 
 改善フロー (run-plugin-dev-plan --mode update) が走る前に、C04/C05 のゲートが *現在の*
 goal-spec に対して PASS 済みであることを marker (goal-spec の sha256 に pin) で確認する。
@@ -35,6 +41,7 @@ TRIGGER_TOKENS = ("run-plugin-dev-plan", "plugin-dev-plan")
 REQUIRED_GATES = ("intake-consumption", "provenance-chain")
 _UPDATE_RE = re.compile(r"--mode[=\s]+update|\"mode\"\s*:\s*\"update\"")
 _OUT_DIR_RE = re.compile(r"--out-dir[=\s]+(\S+)")
+_IMPROVEMENT_HANDOFF_RE = re.compile(r"--improvement-handoff[=\s]+(\S+)")
 _PLAN_DIR_RE = re.compile(r"(plugin-plans/[A-Za-z0-9._\-/]+)")
 
 
@@ -54,10 +61,21 @@ def _is_update_invocation(text: str) -> bool:
 
 
 def _resolve_plan_dir(text: str) -> Path | None:
-    """command 文字列から plan_dir を特定する (--out-dir 優先、無ければ plugin-plans/ パス)。"""
+    """command 文字列から plan_dir を特定する (--out-dir 優先、次に handoff 内 plan_dir)。"""
     m = _OUT_DIR_RE.search(text)
     if m:
         return Path(m.group(1).rstrip("/"))
+    m = _IMPROVEMENT_HANDOFF_RE.search(text)
+    if m:
+        handoff_path = Path(m.group(1).strip("'\""))
+        if handoff_path.is_file():
+            try:
+                handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                handoff = {}
+            plan_dir = handoff.get("plan_dir") if isinstance(handoff, dict) else None
+            if isinstance(plan_dir, str) and plan_dir.strip():
+                return Path(plan_dir.rstrip("/"))
     m = _PLAN_DIR_RE.search(text)
     if m:
         # plugin-plans/<slug> の 2 セグメントまでに正規化 (末尾のファイル名等を落とす)。

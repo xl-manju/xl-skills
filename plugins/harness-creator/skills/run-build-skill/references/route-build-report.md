@@ -18,9 +18,9 @@ eval-log/<target_plugin_slug>/build/route-<route_id>.json
 
 ## 書く時機・読む時機 (受け渡しプロトコル)
 
-1. **着手前 (read)**: route R の `depends_on` 各 id について `route-<id>.json` を読み、`handover` / `deviations` を R の build 入力に反映する。読んだパスは R 自身のレポートの `inputs_consumed` に列挙する。依存レポートが欠落 or `status=failure` なら着手せず停止する (fail-closed)。
+1. **着手前 (read)**: route R の `depends_on` 各 id について `route-<id>.json` を読み、`handover` / `deviations` を R の build 入力に反映する。読んだパスは R 自身のレポートの `inputs_consumed` に列挙する。依存レポートが欠落、または依存 route の `status` が `success` 以外なら着手せず停止する (fail-closed)。
 2. **完了後 (write)**: `schemas/route-build-report.schema.json` 準拠でレポートを書き、`validate-route-build-reports.py --handoff <path> --route <id>` exit0 を確認してから次 route へ進む。
-3. **全 route 終端**: `validate-route-build-reports.py --handoff <path> --complete` exit0 で「全 route にレポートがあり failure ゼロ・orphan ゼロ」を機械確認する。
+3. **全 route 終端**: `validate-route-build-reports.py --handoff <path> --complete` exit0 で「全 route にレポートがあり failure ゼロ・orphan ゼロ」を機械確認する。依存を持つ route は dependency validator により `success` 以外の依存を拒否する。
 
 ```bash
 python3 "$SKILL_DIR/scripts/validate-route-build-reports.py" \
