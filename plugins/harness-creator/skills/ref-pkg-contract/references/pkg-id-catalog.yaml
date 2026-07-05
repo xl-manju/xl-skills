@@ -20,7 +20,7 @@ pkg_ids:
     package_modes: [bundle, skill-only]
     severity: P0
     script: "scripts/validate-plugin-package.py --check pkg-002"
-    description: "name/version/package_mode/description/entry_points 必須キー充足"
+    description: "公式 plugin.json の name/version/description と references/package-contract.json の package_mode/entry_points 必須キー充足"
 
   PKG-003:
     name: "package 単位の名前空間衝突検査"

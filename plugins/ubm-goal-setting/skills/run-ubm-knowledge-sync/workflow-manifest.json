@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "workflowId": "run-ubm-knowledge-sync",
+  "skill": "run-ubm-knowledge-sync",
+  "description": "UBM knowledge source change detection, extraction, split check, and report flow.",
+  "max_iterations": 5,
+  "phases": [
+    {
+      "id": "phase1-detect",
+      "title": "Source diff detection",
+      "dependsOn": [],
+      "parallel": false,
+      "actor": "detect-knowledge-updates.py",
+      "input": "UBM_VAULT_ROOT/05_Project/UBM and knowledge/registry.json",
+      "output": "NEW/MODIFIED source list excluding goal-setting records",
+      "gate": "registry hash comparison completes; missing vault produces a zero-change report",
+      "command": "python3 scripts/detect-knowledge-updates.py --registry ../../knowledge/registry.json --sources $UBM_VAULT_ROOT/05_Project/UBM",
+      "fatal_exit_codes": [2],
+      "resourceIds": ["scripts/detect-knowledge-updates.py", "../../knowledge/registry.json"]
+    },
+    {
+      "id": "phase2-extract",
+      "title": "Knowledge extraction",
+      "dependsOn": ["phase1-detect"],
+      "parallel": false,
+      "actor": "knowledge-extractor",
+      "condition": "dry_run == false and NEW/MODIFIED source count > 0",
+      "input": "NEW/MODIFIED source list, knowledge/schema.json, knowledge/router.json",
+      "output": "updated knowledge JSON, router.json, registry.json, and sync-log.jsonl",
+      "gate": "each processed source has extracted_entry_ids and sync-log entry; batches are limited to 20 files",
+      "resourceIds": ["../../agents/knowledge-extractor.md", "../../knowledge/schema.json", "../../knowledge/router.json"]
+    },
+    {
+      "id": "phase3-split-check",
+      "title": "Knowledge split check",
+      "dependsOn": ["phase2-extract"],
+      "parallel": false,
+      "actor": "check-knowledge-split.py",
+      "condition": "dry_run == false",
+      "input": "knowledge/*.json",
+      "output": "split threshold report",
+      "gate": "no knowledge JSON exceeds the 500-line hard guard",
+      "command": "python3 scripts/check-knowledge-split.py --dir ../../knowledge",
+      "fatal_exit_codes": [1, 2],
+      "resourceIds": ["scripts/check-knowledge-split.py", "references/knowledge-design-principles.md"]
+    },
+    {
+      "id": "phase4-report",
+      "title": "Sync report",
+      "dependsOn": ["phase3-split-check"],
+      "parallel": false,
+      "actor": "run-ubm-knowledge-sync",
+      "input": "detect, extraction, and split-check results",
+      "output": "NEW/MODIFIED counts, destinations, split actions, dry-run status, and residual risks",
+      "gate": "report includes counts, changed paths, skipped paths, dry-run status, and next action when any gate failed",
+      "resourceIds": ["SKILL.md"]
+    }
+  ]
+}

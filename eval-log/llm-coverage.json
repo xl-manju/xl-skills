@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 42,
+  "skills_measured": 44,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -691,6 +691,37 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
+    },
+    {
+      "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-goal-setting",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-04"
+    },
+    {
+      "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-knowledge-sync",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-04"
     }
   ]
 }

@@ -47,6 +47,15 @@ def _write_plugin_json(plugin_dir: Path, data: dict | None) -> None:
         (cp / "plugin.json").write_text(json.dumps(data), encoding="utf-8")
 
 
+def _write_package_contract(plugin_dir: Path, data: dict | None = None) -> None:
+    """references/package-contract.json を書く (PKG-002 の contract 側必須ファイル)。"""
+    refs = plugin_dir / "references"
+    refs.mkdir(parents=True, exist_ok=True)
+    if data is None:
+        data = {"package_mode": "plugin", "entry_points": {}}
+    (refs / "package-contract.json").write_text(json.dumps(data), encoding="utf-8")
+
+
 def _write_skill(plugin_dir: Path, name: str, frontmatter: str | None,
                  body: str = "本文") -> Path:
     sk = plugin_dir / "skills" / name
@@ -175,19 +184,29 @@ def test_pkg_002_missing_plugin_json(tmp_path):
 def test_pkg_002_all_keys_present_no_findings(tmp_path):
     p = _plugin(tmp_path)
     _write_plugin_json(p, {k: "v" for k in MOD.PLUGIN_JSON_REQUIRED})
+    _write_package_contract(p, {k: "v" for k in MOD.PACKAGE_CONTRACT_REQUIRED})
     assert MOD.check_pkg_002(p) == []
 
 
 def test_pkg_002_missing_some_keys(tmp_path):
     p = _plugin(tmp_path)
     _write_plugin_json(p, {"name": "x", "version": "1"})
+    _write_package_contract(p, {})
     fs = MOD.check_pkg_002(p)
     evid = {f["evidence"] for f in fs}
-    # description / package_mode / entry_points が欠落
+    # plugin.json 側 description / contract 側 package_mode + entry_points が欠落
     assert any("package_mode" in e for e in evid)
     assert any("entry_points" in e for e in evid)
     assert any("description" in e for e in evid)
     assert len(fs) == 3
+
+
+def test_pkg_002_missing_package_contract(tmp_path):
+    p = _plugin(tmp_path)
+    _write_plugin_json(p, {k: "v" for k in MOD.PLUGIN_JSON_REQUIRED})
+    fs = MOD.check_pkg_002(p)
+    assert len(fs) == 1
+    assert "package-contract.json" in fs[0]["evidence"]
 
 
 # ============================================================================
@@ -542,6 +561,7 @@ def test_run_checks_plugin_mode_runs_all(tmp_path):
 def test_run_checks_single_id(tmp_path):
     p = _plugin(tmp_path, "demo")
     _write_plugin_json(p, {k: "v" for k in MOD.PLUGIN_JSON_REQUIRED})
+    _write_package_contract(p)
     result = MOD.run_checks(p, ["PKG-002"])
     assert result["verdict"]["total"] == 1
     assert result["pkg_checks"]["PKG-002"]["status"] == "pass"
@@ -558,6 +578,7 @@ def _make_plugins_root(tmp_path, name="demo", mode="plugin") -> Path:
     if mode:
         pj["package_mode"] = mode
     _write_plugin_json(p, pj)
+    _write_package_contract(p, {"package_mode": mode or "plugin", "entry_points": {}})
     return root
 
 
@@ -592,6 +613,7 @@ def test_main_clean_plugin_exit0(tmp_path):
         "name": "demo", "version": "1", "package_mode": "plugin",
         "description": "d", "entry_points": {},
     })
+    _write_package_contract(p)
     _write_skill(p, "sk", _full_required_fm())
     proc = _run_cli(["--plugin", "demo", "--plugins-root", str(root)])
     assert proc.returncode == 0, proc.stderr
@@ -607,6 +629,7 @@ def test_main_plugin_dir_exit0_without_plugins_root(tmp_path):
         "name": "demo", "version": "1", "package_mode": "plugin",
         "description": "d", "entry_points": {},
     })
+    _write_package_contract(p)
     _write_skill(p, "sk", _full_required_fm())
     proc = _run_cli(["--plugin-dir", str(p)])
     assert proc.returncode == 0, proc.stderr
@@ -620,6 +643,7 @@ def test_main_uses_claude_plugin_root_when_no_plugin_arg(tmp_path):
         "name": "harness-creator", "version": "1", "package_mode": "plugin",
         "description": "d", "entry_points": {},
     })
+    _write_package_contract(p)
     _write_skill(p, "sk", _full_required_fm())
     env = dict(os.environ)
     env["CLAUDE_PLUGIN_ROOT"] = str(p)
@@ -700,6 +724,7 @@ def test_main_inproc_all_clean_exit0(tmp_path, monkeypatch, capsys):
         "name": "demo", "version": "1", "package_mode": "plugin",
         "description": "d", "entry_points": {},
     })
+    _write_package_contract(p)
     _write_skill(p, "sk", _full_required_fm())
     _argv(monkeypatch, ["--plugin", "demo", "--plugins-root", str(root)])
     rc = MOD.main()
