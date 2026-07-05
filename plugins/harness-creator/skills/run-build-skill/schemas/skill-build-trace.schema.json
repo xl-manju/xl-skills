@@ -167,6 +167,32 @@
         }
       }
     },
+    "prompt_provenance": {
+      "type": "object",
+      "description": "C09: agents/*.md・skills/*/prompts/*.md を生成/更新する build が prompt-creator (7層契約) を経由し C02 内容 lint (lint-agent-prompt-content.py) を通過したことの証跡。prompt_generation_model.policy_resolution.resolved_policy=required の build では validate-build-trace.py が必須化する。prompt_creator_invocation=false または本ブロック欠落 (policy=required 時) は fail-closed で exit1 (バイパス不能性)。",
+      "additionalProperties": false,
+      "required": ["prompt_creator_invocation", "source_contract_ref", "content_lint"],
+      "properties": {
+        "prompt_creator_invocation": {
+          "type": "boolean",
+          "description": "prompt-creator (run-prompt-creator-7layer 相当) を経由して本文7層を生成したか。false は単独生成=禁止。"
+        },
+        "source_contract_ref": {
+          "type": "string",
+          "description": "準拠した7層契約への参照 (subagent-hybrid-format.md=agent / seven-layer-format.md=prompt)。"
+        },
+        "content_lint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "status"],
+          "properties": {
+            "mode": {"type": "string", "enum": ["agent", "prompt"]},
+            "status": {"type": "string", "enum": ["PASS", "FAIL", "N/A"], "description": "prompt_provenance ブロック存在時 (=resolved_policy required の build) は validator (_validate_prompt_provenance) が PASS のみ受理し FAIL/N-A は exit 1。FAIL/N-A は将来の optional 記録用の値空間。"},
+            "evidence": {"type": "string", "description": "実行コマンド・exit code 等の証跡。"}
+          }
+        }
+      }
+    },
     "brief_path": {
       "type": "string",
       "description": "本 build が参照した skill-brief.json のパス (cwd または trace 隣接からの相対)。未指定時は source_docs 内の skill-brief*.json 項目から推定される。requirement_coverage の突合先。"

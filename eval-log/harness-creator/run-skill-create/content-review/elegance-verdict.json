@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-skill-create",
-    "skill_md_sha256": "cbbf21da20132f8a17375d1bafc34393a7408706198dde75c405d1cf2c68e37b"
+    "skill_md_sha256": "c9dd3010d187573e74419828f894067375cf747e690d67bf98a07392f6634155"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,13 +13,18 @@
     "dependency_break": 0,
     "smell": 0
   },
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-03T22:14:02Z",
+  "reviewer": "merge-finalize 独立 content-review (非著者 genuine 再評価)",
+  "reviewed_at": "2026-07-05T15:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
+    "criteria_evaluated": [
+      "IN1",
+      "IN2",
+      "OUT1",
+      "OUT2"
+    ],
     "positive_feedback": [
       "allowed-tools への `AskUserQuestion` 追加(line 16)が、本文の『全ゲートは AskUserQuestion 経由』(Key Rules 1, line 101)『ゲート前で必ず止まる』(禁則 line 86/Gotchas 1)というゲート停止要求を実行するのに必須な tool grant を補完し、宣言と granted tools の齟齬(依存の穴)を解消している(依存整合・矛盾なし)",
       "context:fork による evaluator/governance reviewer 独立起動が Key Rules 4(line 104)・Gotchas 2(line 167)・proposer≠approver・OUT1 criterion(line 52)で全節一致し、handoff schema 準拠保存(Key Rules 5/CL-12)も整合(整合性)",
@@ -31,5 +36,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SHA (cbbf21da...) の SKILL.md を read-only 逐一照合した genuine 再評価。変更点=allowed-tools に `AskUserQuestion` を1行追加(line 16)。本文が全ゲートを AskUserQuestion 経由(Key Rules 1/起動フロー)で要求するのに tool grant が欠けていた齟齬を補完し依存整合を改善。①矛盾なし: AskUserQuestion 追加はゲート停止記述と整合。②漏れなし: 従来欠けていたゲート確認の実行権限を補完。③整合性: End-to-End Flow・Key Rules・Gotchas・ゴールシークループが既存記述のまま不変。④依存整合: 委譲先子skill・schemas・workflow-manifest との配線に影響なし。4条件全PASS。"
+  "notes": "現 SKILL.md (sha256=c9dd3010d187573e74419828f894067375cf747e690d67bf98a07392f6634155、shasum 実測一致) を独立 context で逐一照合した genuine 再評価。origin/main→現在の変更点=E2 直接消費モードの追加 (frontmatter argument-hint/arguments に `--brief-path`/`--handoff` を追加・入力節に brief_path/handoff を明記・起動モードに『--brief-path 指定あり (E2 直接消費)』1 節を追加、計5行)。①矛盾なし: 新モードは既存モード (引数なし/Notion/--fast) と排他的に併記され干渉なし。②漏れなし: argument-hint・arguments・入力・起動モードの4面で宣言が揃い、詳細契約を prompts/R1-elicit.md CONST_014/015 へ委譲 (実在確認)。③整合性: E2/brief_path/handoff/parity preflight の語彙が上流 run-plugin-dev-plan 契約と一致、兄弟 bullet と書式統一。④依存整合: 参照資産を実測確認 — render-skill-brief.py は上流 planner (plugins/plugin-dev-planner/.../scripts/) に実在 (E2 では planner が射影する上流ツールで cross-plugin 参照が正)、check-route-component-parity.py は plugins/harness-creator/scripts/ に実在、R1-elicit.md CONST_014/015 も実在 (dependency_break=0)。4条件全 PASS。旧 verdict sha=cbbf21da からの stale を merge-finalize 時の実本文評価で更新。"
 }

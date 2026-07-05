@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "assign-plugin-package-evaluator",
-    "skill_md_sha256": "99c356d5e769334b6943c3a3adcad2320f9f5d7cd1c84a29cca657ff2773a5e7"
+    "skill_md_sha256": "8d685a9603bdb40b16fd8aca6cb2403f3a412188f5022c1e0a456981c5daf405"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -14,16 +14,16 @@
     "smell": 0
   },
   "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-03T22:14:02Z",
+  "reviewed_at": "2026-07-05T05:34:15Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["C1", "C2", "C3", "C4"],
     "positive_feedback": [
-      "新規追加の任意オプション `render: markdown`(line 47)が、既に script_refs(line 27)と Additional Resources(line 151『findings JSON → 人間可読 markdown レポート』)で宣言済みの `render-pkg-findings.py` を参照するだけで、新規依存を一切導入せず既存契約と整合している(依存整合・矛盾なし)",
-      "責務境界が明快: PKG-002〜008 の中核 7 件に絞り PKG-001/009/010〜015 を対象外とする方針が Purpose(line 38)・Gotchas(line 143-144)・Key Rules 2 で多重一致し、skill-only への not_applicable 判定(Key Rules 3, line 57)も findings の status 列挙(line 51)と整合(漏れなし)",
-      "`context: fork` による親 context sycophancy 排除(Key Rules 7, line 61)が Why(line 73)と重複なく整合し、thought_method 不要の責務直交宣言(Key Rules 2, line 56)が run-elegant-review との責務分離を保っている(整合性)"
+      "PKG-002 の二段契約記述(line 92)が検査コードと字義一致: 公式 plugin.json の `name`/`version`/`description` は `PLUGIN_JSON_REQUIRED={name,version,description}`(script line 49)、`references/package-contract.json` の `package_mode`/`entry_points` は `PACKAGE_CONTRACT_REQUIRED={package_mode,entry_points}`(script line 50)、参照 path も `check_pkg_002`(script line 124-158)の `load_package_contract` が読む `references/package-contract.json` と完全一致。fail 条件『いずれか欠落』も findings 累積ロジック(plugin.json 欠落 → package-contract 欠落を順に append)と整合し矛盾なし",
+      "整合性の向上(今回変更の核): skill 全体で使われる `package_mode`(Key Rules 3 line 57 / findings 出力 line 108)の出所が、PKG-002 精緻化で `references/package-contract.json` に明示された。実装 `get_package_mode`(script line 99-108)も package-contract.json を第一参照とし、`schema_refs`(line 24 `package-contract.schema.json`)の宣言とも二重整合。従来 package_mode の source が暗黙だった内部依存を閉じる改善で、inconsistency/dependency_break を残さない",
+      "冗長性なし・責務明確: 二つの検査対象(公式 plugin.json manifest / harness 固有 package-contract.json)が直交概念として分離され、DRY(PKG ID 表は ref-pkg-contract 経由・Key Rules 1)も維持。新規追加の `validate_package_contract` は既存『検査関数=概念記述』convention(全7行が `validate_*` 命名・実 CLI 契約は line 100 の `--check pkg-<id>`)に準拠し、新規 smell を導入していない"
     ],
     "negative_feedback": [],
     "iteration": 1,
@@ -31,5 +31,5 @@
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "現 SHA (99c356d5...) の SKILL.md を read-only 全文照合した genuine 再評価。変更点=入力 yaml へ任意オプション `render: markdown` を1行追加(line 47)。参照先 render-pkg-findings.py は既に script_refs(line 27)・Additional Resources(line 151)で宣言済み・実体存在確認済(scripts/ 配下)のため新規依存導入なし。①矛盾なし: render script 参照が既存宣言と一致。②漏れなし: オプションは任意(指定時のみ)で完了条件(line 51)に影響なし。③整合性: PKG ID は ref-pkg-contract 経由の DRY・not_applicable 判定が本文全体で統一。④依存整合: 参照 script/schema/rubric refs 全て harness-creator 配下で解決。4条件全PASS。"
+  "notes": "現 SHA (8d685a96...) の SKILL.md を read-only 全文精読し、参照先 scripts/validate-plugin-package.py の該当検査コードまで照合した genuine 再評価(旧 verdict の SHA 99c356d5... は render:markdown 追加時点のもので stale)。直近変更=PKG-002 行(line 92)の検査関数記述を単一 `validate_plugin_json_frontmatter` から `validate_plugin_json_frontmatter + validate_package_contract` の二段契約へ精緻化。①矛盾なし: 記述する必須キー集合・参照 path・fail 条件がすべて実装(PLUGIN_JSON_REQUIRED/PACKAGE_CONTRACT_REQUIRED/check_pkg_002)と字義一致。②漏れなし: 二段目 package-contract.json の検査追加により、skill 全体で参照される package_mode の source が本文内で確定(従来暗黙)。③整合性: get_package_mode の第一参照・schema_refs 宣言・Key Rules 3 の適用判定と三重整合。④依存整合: 参照 schema/script/rubric refs 全て harness-creator 配下で解決し dangling なし。elegance 4 条件(構成の簡潔性/矛盾のなさ/冗長性のなさ/責務の明確さ)全 PASS。"
 }

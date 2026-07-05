@@ -57,6 +57,12 @@ def _full_findings() -> dict:
                 "category": category,
                 "agent": agent,
                 "observations": [f"observation for paradigm {pid}"],
+                "condition_matrix": {
+                    "C1": {"verdict": "PASS", "evidence": [f"C1 checked {pid}"]},
+                    "C2": {"verdict": "PASS", "evidence": [f"C2 checked {pid}"]},
+                    "C3": {"verdict": "PASS", "evidence": [f"C3 checked {pid}"]},
+                    "C4": {"verdict": "PASS", "evidence": [f"C4 checked {pid}"]},
+                },
                 "issues": [
                     {
                         "condition": "C1",
@@ -244,6 +250,26 @@ def test_structured_json_observations_not_list(tmp_path):
     ok, errors = MOD.validate_structured_json(p)
     assert ok is False
     assert any("observations must contain non-empty text" in e for e in errors)
+
+
+def test_structured_json_missing_condition_matrix_fails(tmp_path):
+    data = _full_findings()
+    del data["paradigm_findings"][0]["condition_matrix"]
+    p = tmp_path / "f.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    ok, errors = MOD.validate_structured_json(p)
+    assert ok is False
+    assert any("condition_matrix must cover C1-C4" in e for e in errors)
+
+
+def test_structured_json_condition_matrix_empty_evidence_fails(tmp_path):
+    data = _full_findings()
+    data["paradigm_findings"][0]["condition_matrix"]["C2"]["evidence"] = []
+    p = tmp_path / "f.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    ok, errors = MOD.validate_structured_json(p)
+    assert ok is False
+    assert any("condition_matrix.C2.evidence" in e for e in errors)
 
 
 def test_structured_json_issues_not_list(tmp_path):

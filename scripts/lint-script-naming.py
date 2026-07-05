@@ -250,9 +250,32 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-upstream-pins.py",
+    # 拡張ゲート3本 (layer A/B 下流ハーネス検査 + dogfooding selfcheck) の追加投入。既存
+    # check-* 群と同一ディレクトリ・同一動詞規約のため、同じ Change Governance 一括改名
+    # PR で同時に許可動詞化する (3本だけ validate-* へ先行改名すると兄弟 script と不整合)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-generative-fidelity.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-downstream-harness.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
     "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",
+    # harness-creator パイプライン境界契約 (E1/E2/E3) 初回投入: §4.3 (kebab-case) は満たすが
+    # verb (check/emit) が ALLOWED_VERBS 外。これらは既存の check-* 決定論ゲート族 (上記 19 本) と
+    # 同種で、plan の component-inventory.json / handoff-run-plugin-dev-plan.json の build_target が
+    # 正確なパスを参照する (C08 check-route-component-parity / check-build-handoff の parity) ため、
+    # 許可動詞化 (validate/render 系へのリネーム) は inventory/handoff/prompts/commands/tests 参照を
+    # 原子的に更新する後続 Change Governance PR まで PENDING (plugin-dev-planner check-* /
+    # notion-gmail-send emit-observable と同種の「初回投入時の verb pending」扱い)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-intake-consumption.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-provenance-chain.py",
+    "plugins/harness-creator/scripts/check-route-component-parity.py",
+    "plugins/harness-creator/scripts/emit-improvement-handoff.py",
+    # ubm-goal-setting 初回投入: detect (registry MD5 差分検出) / check (knowledge 500 行
+    # ガード) は verb pending。SKILL.md(script_refs)/workflow-manifest/tests/EVALS.json/
+    # 計画書 (plugin-plans/finish) の参照整合の原子性のため、planner 群と同じ後続
+    # Change Governance 一括改名 PR で許可動詞化する。
+    "plugins/ubm-goal-setting/skills/run-ubm-knowledge-sync/scripts/detect-knowledge-updates.py",
+    "plugins/ubm-goal-setting/skills/run-ubm-knowledge-sync/scripts/check-knowledge-split.py",
     # specfm.py: check-spec-*.py / render-spec-skeleton.py / tests が `import specfm` する
     # kind→必須キーの共有 SSOT module。Python import 上ハイフン不可のため <verb>-<target> 形に
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・

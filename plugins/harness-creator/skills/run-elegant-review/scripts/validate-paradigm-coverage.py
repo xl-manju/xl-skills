@@ -191,6 +191,21 @@ def validate_structured_json(path: Path) -> tuple[bool, list[str]]:
         issues = item.get("issues")
         if not isinstance(observations, list) or not any(str(x).strip() for x in observations):
             errors.append(f"paradigm {pid}: observations must contain non-empty text")
+        matrix = item.get("condition_matrix")
+        if not isinstance(matrix, dict):
+            errors.append(f"paradigm {pid}: condition_matrix must cover C1-C4")
+        else:
+            for cond in ("C1", "C2", "C3", "C4"):
+                verdict = matrix.get(cond)
+                if not isinstance(verdict, dict):
+                    errors.append(f"paradigm {pid}: condition_matrix.{cond} must be object")
+                    continue
+                status = verdict.get("verdict")
+                if status not in {"PASS", "FAIL", "PARTIAL"}:
+                    errors.append(f"paradigm {pid}: condition_matrix.{cond}.verdict invalid")
+                evidence = verdict.get("evidence")
+                if not isinstance(evidence, list) or not any(str(x).strip() for x in evidence):
+                    errors.append(f"paradigm {pid}: condition_matrix.{cond}.evidence must contain non-empty text")
         if not isinstance(issues, list):
             errors.append(f"paradigm {pid}: issues must be a list")
             continue

@@ -42,6 +42,16 @@ def requirements_coverage() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def intake_consumption() -> ModuleType:
+    return _load("check-intake-consumption")
+
+
+@pytest.fixture(scope="session")
+def provenance_chain() -> ModuleType:
+    return _load("check-provenance-chain")
+
+
+@pytest.fixture(scope="session")
 def unassigned() -> ModuleType:
     return _load("detect-unassigned")
 
@@ -99,6 +109,16 @@ def upstream_pins() -> ModuleType:
 @pytest.fixture(scope="session")
 def skill_brief() -> ModuleType:
     return _load("render-skill-brief")
+
+
+@pytest.fixture(scope="session")
+def genfidelity() -> ModuleType:
+    return _load("check-generative-fidelity")
+
+
+@pytest.fixture(scope="session")
+def downstream() -> ModuleType:
+    return _load("check-downstream-harness")
 
 
 # ─────────────────────────── YAML 出力ヘルパ ───────────────────────────

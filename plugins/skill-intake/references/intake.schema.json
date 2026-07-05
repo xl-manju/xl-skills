@@ -66,9 +66,79 @@
         "10_self_updater": {"$ref": "#/$defs/self_updater"},
         "11_artifact_index": {"$ref": "#/$defs/artifact_index"}
       }
-    }
+    },
+    "validation": {"$ref": "#/$defs/validation_block"}
   },
   "$defs": {
+    "procedure": {
+      "type": "object",
+      "description": "現状実施手順 (as-is procedure)。interview.json.procedure と同一形状の additive ブロック。既存 12 section 契約を崩さず sections.6_five_axes_summary.procedure へ格納する。完全性/汚染の正本判定は scripts/validate-procedure-completeness.py (C02)。",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["detailed", "overview_fallback"]},
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "input", "output", "tool", "frequency"],
+            "properties": {
+              "action": {"type": "string", "minLength": 1},
+              "input": {"type": "string", "minLength": 1},
+              "output": {"type": "string", "minLength": 1},
+              "tool": {"type": "string", "minLength": 1},
+              "frequency": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "difficulty_flag": {"type": "boolean"},
+        "overview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["step_count_estimate", "participants", "frequency"],
+          "properties": {
+            "step_count_estimate": {"type": "string", "minLength": 1},
+            "participants": {"type": "string", "minLength": 1},
+            "frequency": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "detailed"}}, "required": ["mode"]},
+          "then": {"required": ["steps"], "properties": {"steps": {"minItems": 1}}}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "overview_fallback"}}, "required": ["mode"]},
+          "then": {"required": ["difficulty_flag", "overview"], "properties": {"difficulty_flag": {"const": true}}}
+        }
+      ]
+    },
+    "validation_block": {
+      "type": "object",
+      "description": "決定論ゲートの結果格納 (additive・任意)。procedure_completeness は validate-procedure-completeness.py (C02) の stdout をそのまま格納し、quality_gate.py (C04) が再利用する。",
+      "properties": {
+        "procedure_completeness": {
+          "type": "object",
+          "required": ["complete", "contamination"],
+          "properties": {
+            "complete": {"type": "boolean"},
+            "mode": {"type": ["string", "null"]},
+            "missing": {"type": "array", "items": {"type": "string"}},
+            "contamination": {
+              "type": "object",
+              "required": ["detected"],
+              "properties": {
+                "detected": {"type": "boolean"},
+                "fields": {"type": "array", "items": {"type": "string"}},
+                "matched_terms": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        }
+      }
+    },
     "viz_slot_value": {
       "type": "object",
       "required": ["role", "mermaid_source"],
@@ -309,6 +379,7 @@
       "required": ["axes", "intent_contract", "knowledge_pipeline"],
       "properties": {
         "intent_contract": {"$ref": "#/$defs/intent_contract"},
+        "procedure": {"$ref": "#/$defs/procedure"},
         "axes": {
           "type": "array",
           "minItems": 5,

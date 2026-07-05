@@ -45,8 +45,15 @@ ALLOWED = REQUIRED | {
     "max_loops",
     "open_questions",
     "requested_count",
+    # E1/E3 provenance (任意): 改善/intake 由来の再生成 goal-spec が源泉を追跡できるようにする。
+    # 欠落は後方互換で WARN 受理 (既存 goal-spec を壊さない)、present-but-malformed のみ fatal。
+    "source_intake",
+    "source_improvement",
 }
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+# provenance フィールド (source_intake/source_improvement) が持つべき sub-key。
+_PROVENANCE_KEYS = ("source_intake", "source_improvement")
 
 
 def _nonempty_str(data: dict, key: str, errors: list[str]) -> str:
@@ -55,6 +62,43 @@ def _nonempty_str(data: dict, key: str, errors: list[str]) -> str:
         errors.append(f"{key} が非空 string でない")
         return ""
     return value.strip()
+
+
+def _provenance_field_errors(data: dict, key: str) -> list[str]:
+    """provenance フィールドが *存在するとき* の schema 準拠を検査する (欠落/null は WARN 側で扱う)。
+
+    存在時は object で {ref: 非空 string, schema_version: semver} を要求し、余分キーを禁止する。
+    欠落 (キー無し) / null は fatal でない (後方互換: provenance_warnings が WARN として受理)。
+    """
+    if key not in data or data.get(key) is None:
+        return []
+    val = data.get(key)
+    if not isinstance(val, dict):
+        return [f"{key} は object または null であること (現値 {type(val).__name__})"]
+    errors: list[str] = []
+    extra = sorted(set(val.keys()) - {"ref", "schema_version"})
+    if extra:
+        errors.append(f"{key} additionalProperties not allowed: {extra}")
+    ref = val.get("ref")
+    if not isinstance(ref, str) or not ref.strip():
+        errors.append(f"{key}.ref が非空 string でない")
+    sv = val.get("schema_version")
+    if not isinstance(sv, str) or not SEMVER_RE.match(sv):
+        errors.append(f"{key}.schema_version は semver (X.Y.Z) であること (現値 {sv!r})")
+    return errors
+
+
+def provenance_warnings(data: object) -> list[str]:
+    """provenance フィールド欠落を WARN として列挙する (fatal でない・後方互換受理)。"""
+    warnings: list[str] = []
+    if not isinstance(data, dict):
+        return warnings
+    for key in _PROVENANCE_KEYS:
+        if key not in data or data.get(key) is None:
+            warnings.append(
+                f"{key} 不在: intake/改善 由来でない既存 goal-spec として WARN 受理 (後方互換)"
+            )
+    return warnings
 
 
 def validate(data: object) -> list[str]:
@@ -94,6 +138,10 @@ def validate(data: object) -> list[str]:
     artifact_class = data.get("artifact_class")
     if artifact_class is not None and artifact_class not in {"skill-only", "plugin-plan", "existing-plugin-update"}:
         errors.append("artifact_class は skill-only|plugin-plan|existing-plugin-update のみ")
+
+    # E1/E3 provenance: 存在時のみ schema 準拠を fatal 検査する (欠落は main が WARN 受理)。
+    for key in _PROVENANCE_KEYS:
+        errors.extend(_provenance_field_errors(data, key))
 
     # requested_count は任意記録 (希望本数のメモ)。null または正の int の型のみ検査し、出力本数の
     # 強制 (旧・本数 pin 機構) はしない (per-phase 転換で本数は 13 フェーズ固定)。
@@ -154,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"JSON parse error: {exc}\n")
         return 2
     errors = validate(data)
+    # provenance 欠落は WARN (exit code に影響しない・後方互換受理)。
+    for warn in provenance_warnings(data):
+        sys.stderr.write("WARN: " + warn + "\n")
     if not errors:
         sys.stdout.write("OK: plugin goal-spec schema + plugin anchors validated\n")
         return 0

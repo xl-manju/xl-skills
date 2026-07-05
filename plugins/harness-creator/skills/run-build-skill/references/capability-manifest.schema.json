@@ -170,7 +170,7 @@
             "type": "object",
             "required": ["kind", "ref"],
             "properties": {
-              "kind": { "type": "string", "enum": ["skill", "agent", "hook", "command", "prompt", "workflow"] },
+              "kind": { "type": "string", "enum": ["skill", "agent", "hook", "command", "prompt", "workflow", "script"], "$comment": "script は composition が同梱スクリプト実体を capability として列挙する場合の参照専用 kind (ubm-goal-setting/company-master が採用する確立パターン。scripts は自己 manifest を持たないため commonCore.kind には含めない)。値は compute-dogfooding-metrics.py KNOWN_KINDS と同期すること。" },
               "ref": { "type": "string", "description": "Capability への相対パス。" },
               "tier": { "type": "string", "enum": ["core", "ref", "extension"] }
             }

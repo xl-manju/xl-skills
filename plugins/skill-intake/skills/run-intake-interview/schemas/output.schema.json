@@ -146,6 +146,53 @@
           "normalized_answer": {"type": "string", "minLength": 1}
         }
       }
+    },
+    "procedure": {
+      "description": "現状実施手順 (as-is procedure)。5 軸ヒアリング完了後に抽出する 6 本目の軸。手順を言語化できるユーザーは mode=detailed で steps[] を、できないユーザーは mode=overview_fallback で difficulty_flag+overview を持つ。完全性の正本判定は plugin-root scripts/validate-procedure-completeness.py。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["detailed", "overview_fallback"]},
+        "steps": {
+          "type": "array",
+          "description": "detailed モードの順序付きステップ。各要素は action/input/output/tool/frequency を非空で持つ。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "input", "output", "tool", "frequency"],
+            "properties": {
+              "action": {"type": "string", "minLength": 1},
+              "input": {"type": "string", "minLength": 1},
+              "output": {"type": "string", "minLength": 1},
+              "tool": {"type": "string", "minLength": 1},
+              "frequency": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "difficulty_flag": {"type": "boolean"},
+        "overview": {
+          "type": "object",
+          "description": "overview_fallback モードの概略情報 (工程数目安/関与者/頻度)。",
+          "additionalProperties": false,
+          "required": ["step_count_estimate", "participants", "frequency"],
+          "properties": {
+            "step_count_estimate": {"type": "string", "minLength": 1},
+            "participants": {"type": "string", "minLength": 1},
+            "frequency": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "detailed"}}, "required": ["mode"]},
+          "then": {"required": ["steps"], "properties": {"steps": {"minItems": 1}}}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "overview_fallback"}}, "required": ["mode"]},
+          "then": {"required": ["difficulty_flag", "overview"], "properties": {"difficulty_flag": {"const": true}}}
+        }
+      ]
     }
   },
   "definitions": {

@@ -34,6 +34,13 @@ from pathlib import Path
 DEFAULT_ACTION_ABSTRACT = ["効率化", "最適化", "自動化", "改善", "強化", "整理"]
 DEFAULT_VAGUE_FILLER = ["何となく", "なんとなく", "とりあえず", "普通に", "うまく", "ちゃんと", "きちんと"]
 
+# procedure 軸専用の未回答表現 (完全一致で判定)。手順が言語化できないユーザーの
+# overview_fallback 切替トリガ (goal-spec C2/C6)。他軸の既存挙動は変えない。
+UNANSWERED_PATTERNS = [
+    "わからない", "わかりません", "分からない", "分りません",
+    "特にない", "特に無い", "思いつかない", "答えられない", "ない", "なし",
+]
+
 
 def parse_patterns(text: str) -> tuple[list[str], list[str]]:
     """patterns md の箇条書き ('A / B / C') から語を抽出する。
@@ -55,8 +62,7 @@ def parse_patterns(text: str) -> tuple[list[str], list[str]]:
     return (action or DEFAULT_ACTION_ABSTRACT, vague or DEFAULT_VAGUE_FILLER)
 
 
-def judge(answer: str, action_words: list[str], vague_words: list[str]) -> dict:
-    a = answer.strip()
+def _judge_abstract(a: str, action_words: list[str], vague_words: list[str]) -> dict:
     matched: list[str] = []
     # 規則1: 曖昧フィラー
     for w in vague_words:
@@ -77,6 +83,24 @@ def judge(answer: str, action_words: list[str], vague_words: list[str]) -> dict:
     return {"abstract": False, "matched": [], "reason": "動詞+目的語に分解できる具体回答"}
 
 
+def judge(answer: str, action_words: list[str], vague_words: list[str],
+          axis: str | None = None) -> dict:
+    """回答の抽象度を判定する。axis=procedure のときのみ未回答 (空 / 完全一致の否定表現)
+    を検出し、abstract=True かつ unanswered=True を返す (overview_fallback 切替トリガ)。"""
+    a = answer.strip()
+    if axis == "procedure":
+        if not a:
+            return {"abstract": True, "unanswered": True, "matched": [],
+                    "reason": "手順が未回答 (空)"}
+        stripped = a.rstrip("。.!！?？ 　")
+        if stripped in UNANSWERED_PATTERNS:
+            return {"abstract": True, "unanswered": True, "matched": [stripped],
+                    "reason": "手順の未回答表現 (overview_fallback トリガ)"}
+    res = _judge_abstract(a, action_words, vague_words)
+    res["unanswered"] = False
+    return res
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--patterns", required=True)
@@ -90,7 +114,7 @@ def main(argv: list[str]) -> int:
     except Exception:
         action_words, vague_words = DEFAULT_ACTION_ABSTRACT, DEFAULT_VAGUE_FILLER
 
-    res = judge(args.answer, action_words, vague_words)
+    res = judge(args.answer, action_words, vague_words, args.axis)
     if args.axis:
         res["axis"] = args.axis
     sys.stdout.write(json.dumps(res, ensure_ascii=False) + "\n")

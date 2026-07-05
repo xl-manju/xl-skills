@@ -36,6 +36,15 @@ VENDORED_PAIRS = [
         ROOT / "scripts" / "feedback_contract_ssot.py",
         ROOT / "plugins" / "harness-creator" / "scripts" / "feedback_contract_ssot.py",
     ),
+    # harness-creator の内容 lint (lint-agent-prompt-content.py) が本文 7 層検証に用いる
+    # prompt-creator の verify-completeness.py コアロジック。C02 は agents/prompts の
+    # l5-contract v2.0.0 準拠検証を自己完結させるため canonical を byte 一致で vendoring し、
+    # lint-agent-prompt-content.py --check-vendor-parity と本 registry の両輪で drift を封じる。
+    (
+        ROOT / "plugins" / "prompt-creator" / "skills" / "run-prompt-creator-7layer"
+        / "scripts" / "verify-completeness.py",
+        ROOT / "plugins" / "harness-creator" / "vendor" / "prompt-creator" / "verify-completeness.py",
+    ),
 ]
 
 

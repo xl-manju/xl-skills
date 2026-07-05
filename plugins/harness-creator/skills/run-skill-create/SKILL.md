@@ -3,8 +3,8 @@ name: run-skill-create
 description: 実行して新規Skillを端から端まで作りたいとき、複数Gateを通した品質保証付きフローを起動したいときに使う。
 disable-model-invocation: false
 user-invocable: true
-argument-hint: "[topic?] [--mode create|update] [--fast]"
-arguments: [topic, mode, fast]
+argument-hint: "[topic?] [--mode create|update] [--fast] [--brief-path <skill-brief.json> [--handoff <handoff-run-plugin-dev-plan.json>]]"
+arguments: [topic, mode, fast, brief_path, handoff]
 allowed-tools:
   - Read
   - Write
@@ -72,7 +72,7 @@ audit-trigger: quarterly
 
 ユーザー要望 → `skill-brief.json` → Skill生成 → plugin/marketplace 登録判定 → P0 lint → 設計評価 → パラダイム評価 → governance 承認 を**ゲートあり自動連鎖**で実行する端から端まで orchestrator。各 Step/Gate の機械可読定義は `workflow-manifest.json`、責務別プロンプトは `prompts/*.md`、データ契約は `schemas/*.schema.json` を参照。
 
-**入力**: topic (任意), mode ∈ {create, update}
+**入力**: topic (任意), mode ∈ {create, update}, brief_path (任意・E2 直接消費), handoff (任意・brief_path 併給時の parity preflight)
 **出力**:
 - `plugins/harness-creator/skills/<skill_name>/` 一式 (SKILL.md + references/ + scripts/)
 - `eval-log/skill-build-trace.json` (`schemas/build-trace.schema.json` 準拠)
@@ -88,6 +88,7 @@ audit-trigger: quarterly
 ### 起動モード
 
 - **引数なし**: Step 1 (run-skill-elicit) が起動、対話で topic を確定。フィールド意味は `schemas/skill-brief.schema.json` (詳細は `references/skill-brief-schema.json`)。
+- **`--brief-path` 指定あり (E2 直接消費)**: 上流 `run-plugin-dev-plan` の `handoff-run-plugin-dev-plan.json` を `render-skill-brief.py` で決定論射影した `skill-brief.json` を Step 1 の対話ヒアリング (run-skill-elicit) を skip して直接 Step 1 成果物に採用する (再ヒアリングなし)。詳細契約は `prompts/R1-elicit.md` CONST_014。`--handoff` 併給時は build dispatch 前に `python3 $CLAUDE_PLUGIN_ROOT/scripts/check-route-component-parity.py <handoff>` を実行し exit0 (routes↔inventory 一致) を確認する (CONST_015、非0 で停止)。
 - **Notion 指定あり**: topic / 引数に `--page-url` または `--page-id` が含まれる場合、Step 1 は `skill-intake` の publish 完了証跡を必須入力とする。`output/<hint>/notion-log.json.status=="published"`、`notion-publish-result.json.page_id`、`notion-url.txt` が揃い、指定 page と一致するまで Step 2 build へ進まない。
 - **`--fast`**: 1ファイル変更/<=30行/kind ∈ {ref,wrap}/evaluator pair 不要を全て満たす場合のみ軽量フロー (Step 4b/5 skip)。判定は機械決定:
   ```bash

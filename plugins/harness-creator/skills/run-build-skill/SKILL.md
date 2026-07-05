@@ -86,6 +86,11 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       text: skill-build-trace.json が source_docs/doc_coverage/layer_decisions/reproducibility_gates を空欄なく記録している
       verify_by: script
       derived_from: [CL-6]
+    - id: IN3
+      loop_scope: inner
+      text: plugin 一括 build (handoff routes 消費) では route 完了ごとの実行レポートが validate-route-build-reports.py --route/--complete を exit0 で通過する (単発 build は N/A)
+      verify_by: script
+      derived_from: [CL-12]
     - id: OUT1
       loop_scope: outer
       text: fork した assign-skill-design-evaluator の score>=80 かつ high severity 0 件
@@ -178,6 +183,7 @@ audit-trigger: quarterly
 - [ ] `eval-log/build-plan.json` (`validate-build-plan.py --brief ... --out eval-log/build-plan.json` で brief から決定論導出) の `flags` が true の subagent/prompt/evaluator/hook/knowledge を全て生成し、`--check` が exit 0 (フラグの要否をモデル判断で省略しない) <!-- CL-9 -->
 - [ ] (`--with-knowledge` or `brief.knowledge_loop` 指定時のみ) knowledge/ 雛形展開 + 4スクリプト同梱 + `## ナレッジループ`節注入 + `knowledge_loop`記述子(`consult_at: ["runtime"]`) + `lint-knowledge-loop.py` exit0 (KL-001..007) <!-- CL-10 -->
 - [ ] (kind=plugin で外部依存(API/DB/秘密)の疎通確認手順が要る場合のみ) install位置を `__file__` 相対で自己解決する doctor 同梱 + 疎通確認はチャット委譲(`/<name>-doctor` or 自然文) + 生 `$CLAUDE_PLUGIN_ROOT` 非露出 (README **及び `references/*-setup.md` 等 setup 手順**の bash に裸変数/repo相対を書かず fallback 形 `${CLAUDE_PLUGIN_ROOT:-plugins/<name>}` へ降格。番号付きリスト内の字下げフェンスも同様)。`scripts/lint-readme-plugin-root-portability.py` exit0。正本 `ref-cross-platform-runtime/references/runtime-portability.md` 層2 <!-- CL-11 -->
+- [ ] (plugin 一括 build=handoff routes 消費時のみ) route 完了ごとに `eval-log/<slug>/build/route-<id>.json` を記録し `validate-route-build-reports.py --route <id>` exit0、全 route 終端で `--complete` exit0 (契約正本 `references/route-build-report.md`) <!-- CL-12 -->
 
 ### ゴールシークループ
 
@@ -198,7 +204,7 @@ audit-trigger: quarterly
 1. **kind 確認**: 引数 `kind` または `brief.kind` を確定。既定は `skill`。未指定なら Step 1 のヒアリングで決める。7 kind 以外は exit 1。
 2. **対応 skeleton 選択**: kind 語彙の正本は `schemas/build-flags.schema.json#/properties/capability_kind` (7値 enum)、kind → skeleton/出力先/kind別lint の対応表の正本は `references/build-steps.md` §I.1 (本文に再掲しない=SSOT)。kind=skill 配下のサブ種別 5 値の template 選択は `schemas/template-selection.schema.json#/selection_rules` に従う。
 3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
-4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py`、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py`、workflow→`lint-workflow-md.py`)。未整備 lint (command/prompt/workflow) は warn 出力に留め、Hook/CI で再実行する (`lint-plugin-composition.py` は整備済・CI 配線済)。
+4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py` + **`lint-agent-prompt-content.py --mode agent`** (C02 内容 lint)、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py` + **`lint-agent-prompt-content.py --mode prompt`** (C02)、workflow→`lint-workflow-md.py`)。未整備 lint (command/prompt/workflow) は warn 出力に留め、Hook/CI で再実行する (`lint-plugin-composition.py` は整備済・CI 配線済)。**agent/prompt 生成は本文7層 (l5-contract v2.0.0) を prompt-creator 経由で生成し C02 を fail-closed ゲートとして通す** (契約: `../../../prompt-creator/skills/run-prompt-creator-7layer/references/subagent-hybrid-format.md`)。単独生成の抜け道は Step 3.5 の `prompt_provenance` で塞ぐ。
 
 > 既存「Skill のみ作る」呼び出し (`kind=run|ref|assign|wrap|delegate`) は **kind=skill 配下のサブ種別** として後方互換維持。引数なしまたは `kind` が 5 択のいずれかなら従来通り Step 1 以降の skill 専用フローへ直行する。適用範囲の宣言: `workflow-manifest.json` の phase `init-pre` (本 Step) のみ Capability 7 kind 全てに適用され、`init` 以降の phase の `kind_filter` はこのサブ種別 5 値 (= kind=skill の場合) を指す。非 skill kind は init-pre で skeleton / kind 別 lint を確定し、scaffold 相当の生成 + Step 4 の kind 別 lint で完結する。
 
@@ -242,6 +248,9 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 **要望カバレッジ (RTM)**: brief 経由 build は `requirement_coverage[]` を trace に記録する。brief の非空要求フィールド (例 `key_constraints[2]` / `boundary`) ごとに `disposition: mapped` (+`mapped_to`=反映先 criteria id/生成物) か `not_applicable` (+`reason`) を宣言する。被覆完全性と requirement_id 実在は `validate-build-trace.py` が機械検査し (段階導入: coverage 無しは WARN)、写像の意味的妥当性は Step 12 content-review (LLM 層) が判定する。
 
+**agent/prompt 生成の provenance (C09)**: agents/*.md・skills/*/prompts/*.md を生成/更新した build は `prompt_provenance` を trace に記録する。`prompt_creator_invocation`=true (prompt-creator 経由で本文7層を生成)・`source_contract_ref` (準拠契約: agent=`subagent-hybrid-format.md` / prompt=`seven-layer-format.md`)・`content_lint`={mode, status:PASS} (C02 `lint-agent-prompt-content.py` の結果) の3点を持つ。`run` / `assign` が **prompt を生成する** build (`per_responsibility` 非空) では `resolved_policy=optional/skip` を禁止し `required`+provenance を強制する (生成物があるのに optional へ降格する迂回=バイパスを封鎖)。本 build が prompt を生成しない場合 (共有 prompt を消費する等、`per_responsibility` 空) は `optional` で宣言してよい (`skip` は不可)。`required` の build ではこのブロックが必須で、`validate-build-trace.py` が invocation=false・契約参照欠落・content_lint≠PASS・ブロック欠落のいずれも exit1 で止める (バイパス不能性)。実際の本文7層準拠は C02 の CI repo 全走査が trace 非依存で独立強制する。
+
+**route 実行レポート (plugin 一括 build のみ)**: `handoff-run-plugin-dev-plan.json` の routes を消費する build では、route 1 本の完了ごとに `eval-log/<target_plugin_slug>/build/route-<id>.json` (`schemas/route-build-report.schema.json`) へ実行レポートを書き、後続 route は依存 route のレポート (`handover`/`deviations`) を読んでから着手する。契約正本は `references/route-build-report.md`、機械検証は `scripts/validate-route-build-reports.py` (route 毎 `--route <id>` / 終端 `--complete`)。単発 build (route 外) は対象外。
 ### Step 4: 命名・構造 Lint (phase: scripts)
 
 > lint 集合の正本は `$PLUGIN_ROOT/references/lint-matrix.json` (context: build-preflight / p0-gate / ci)。下記 bash ブロックはその **build-preflight 射影**であり、集合の乖離は `plugins/skill-governance-lint/scripts/lint-matrix-sync.py` が CI で fail させる (lint の増減は matrix を先に更新)。`workflow-manifest.json` は宣言的リソース (schema/prompt/reference) の正本で、lint を manifest に resource 登録はしない (責務分離)。

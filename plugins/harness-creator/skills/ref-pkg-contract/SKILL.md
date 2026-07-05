@@ -80,7 +80,7 @@ PKG fail は 35章 `pkg_check_failed` failure_mode として observable 集約�
 | `bundle` | PKG-001〜015 全て必須 | 新規量産の既定値 |
 | `skill-only` | PKG-002/004 のみ任意適用 | legacy / dev-only / migration の 3 例外限定 |
 
-`skill-only` 選択時は `plugin.json` の `package_mode_exception` に `legacy` / `dev-only` / `migration` のいずれかを記録すること（schema enforced）。
+`skill-only` 選択時は `references/package-contract.json` の `package_mode_exception` に `legacy` / `dev-only` / `migration` のいずれかを記録すること（schema enforced）。公式 CLI が読む `.claude-plugin/plugin.json` には harness 専用キーを混在させない。
 
 ## Gotchas
 

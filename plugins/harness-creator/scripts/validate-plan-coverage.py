@@ -117,32 +117,44 @@ def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict
         if not ok:
             missing_components.append(f"{cid} ({kind}): {bt} — {detail}")
 
-    # plugin-level surface 照合 (required=true かつ path を持つもののみ)。plugin-root
-    # は build_target 群から導出する (1 inventory = 1 plugin 前提)。
+    # plugin-level surface 照合 (required=true のもののみ)。surface は 2 形式を持つ:
+    #   - path    : plugin-relative 単一パス。plugin-root を build_target 群から導出する
+    #               (1 plugin 前提)。cross-plugin inventory では root を一意に解決できない。
+    #   - targets : repo-relative パス配列。所有 plugin を跨ぐ計画 (artifact_class=
+    #               existing-plugin-update で C7 の cross-plugin routing を持つ plan) でも
+    #               各 target を repo_root 起点で直接照合できる (plugin-root 導出不要)。
+    # path も targets も持たない required surface (record_in / resolution 型: Notion config
+    # ・index 記録先など) はファイル実在照合の対象外。宣言妥当性は check-surface-inventory.py
+    # (inventory 内部整合) が担う (責務分離)。
     missing_surfaces: list[str] = []
     skipped_surfaces: list[str] = []
     surfaces = inventory.get("plugin_level_surfaces") or {}
-    if len(plugin_roots) == 1:
-        pr = Path(next(iter(plugin_roots)))
-        for name, spec in surfaces.items():
-            if not isinstance(spec, dict) or not spec.get("required"):
-                continue
-            rel = spec.get("path")
-            if not rel:
-                # path を持たない required surface (record_in / resolution 型:
-                # Notion config・index 記録先など) はファイル実在照合の対象外。宣言
-                # そのものの妥当性は check-surface-inventory.py (inventory 内部整合)
-                # が担う。責務分離のため本 gate は skip する。
-                skipped_surfaces.append(name)
-                continue
-            if not (repo_root / pr / rel).exists():
-                missing_surfaces.append(f"{name}: {pr}/{rel} 不在")
-    elif len(plugin_roots) > 1:
-        missing_surfaces.append(
-            f"build_target が複数 plugin を跨ぐ ({sorted(plugin_roots)})。"
-            "1 inventory = 1 plugin が前提のため surface 照合を実行できない。"
-        )
-    # plugin_roots が空 (components 全滅 or 空) の場合、surface 照合は対象なし。
+    for name, spec in surfaces.items():
+        if not isinstance(spec, dict) or not spec.get("required"):
+            continue
+        targets = spec.get("targets")
+        rel = spec.get("path")
+        if isinstance(targets, list) and targets:
+            # repo-relative 直接照合 (cross-plugin 安全)。
+            for t in targets:
+                if not isinstance(t, str) or not t.strip():
+                    continue
+                if not (repo_root / t).exists():
+                    missing_surfaces.append(f"{name}: {t} 不在")
+        elif rel:
+            # plugin-relative 単一パス: plugin-root 一意時のみ照合可能。
+            if len(plugin_roots) == 1:
+                pr = Path(next(iter(plugin_roots)))
+                if not (repo_root / pr / rel).exists():
+                    missing_surfaces.append(f"{name}: {pr}/{rel} 不在")
+            else:
+                missing_surfaces.append(
+                    f"{name}: plugin-relative path={rel!r} だが build_target が "
+                    f"{sorted(plugin_roots)} を跨ぎ plugin-root を一意解決できない "
+                    "(targets[] で repo-relative 宣言すれば cross-plugin 照合可能)"
+                )
+        else:
+            skipped_surfaces.append(name)
 
     summary = {
         "components_total": len(components),
@@ -326,7 +338,7 @@ def _self_test() -> int:
     mc, ms, _ = verify({"components": [{"id": "Cx", "component_kind": "hook"}]}, Path("/nonexistent"))
     assert any("Cx" in e and "build_target" in e for e in mc), mc
 
-    # 6. 複数 plugin 跨ぎ検出
+    # 6a. cross-plugin inventory + plugin-relative path surface: root 一意解決不可を報告
     inv2 = {
         "components": [
             {"id": "C1", "component_kind": "script", "build_target": "plugins/a/scripts/x.py"},
@@ -335,7 +347,21 @@ def _self_test() -> int:
         "plugin_level_surfaces": {"manifest": {"required": True, "path": ".claude-plugin/plugin.json"}},
     }
     _, ms, _ = verify(inv2, Path("/nonexistent"))
-    assert any("跨ぐ" in e for e in ms), ms
+    assert any("一意解決できない" in e for e in ms), ms
+
+    # 6b. cross-plugin inventory + targets[] surface: repo-relative 直接照合 (cross-plugin 安全)
+    inv2b = {
+        "components": [
+            {"id": "C1", "component_kind": "script", "build_target": "plugins/a/scripts/x.py"},
+            {"id": "C2", "component_kind": "script", "build_target": "plugins/b/scripts/y.py"},
+        ],
+        "plugin_level_surfaces": {
+            "ref": {"required": True, "targets": ["plugins/a/refs/z.md", "plugins/b/vendor/w.py"]},
+        },
+    }
+    _, ms2b, _ = verify(inv2b, Path("/nonexistent"))
+    assert any("plugins/a/refs/z.md 不在" in e for e in ms2b), ms2b
+    assert not any("一意解決できない" in e for e in ms2b), ms2b
 
     # 7. 空 components → 漏れなし (照合対象なし)
     mc, ms, _ = verify({"components": [], "plugin_level_surfaces": {}}, Path("/nonexistent"))

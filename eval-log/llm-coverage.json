@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 42,
+  "skills_measured": 44,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -106,16 +106,17 @@
     {
       "plugin": "harness-creator",
       "skill": "run-build-skill",
-      "criteria_total": 4,
-      "criteria_covered": 4,
+      "criteria_total": 5,
+      "criteria_covered": 5,
       "covered_ids": [
         "IN1",
         "IN2",
+        "IN3",
         "OUT1",
         "OUT2"
       ],
       "uncovered_ids": [],
-      "checklist_items": 11,
+      "checklist_items": 12,
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-17"
@@ -550,15 +551,17 @@
     {
       "plugin": "skill-intake",
       "skill": "run-intake-finalize",
-      "criteria_total": 3,
-      "criteria_covered": 3,
+      "criteria_total": 5,
+      "criteria_covered": 5,
       "covered_ids": [
         "IN1",
         "IN2",
-        "OUT1"
+        "IN3",
+        "OUT1",
+        "OUT2"
       ],
       "uncovered_ids": [],
-      "checklist_items": 8,
+      "checklist_items": 11,
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
@@ -566,15 +569,19 @@
     {
       "plugin": "skill-intake",
       "skill": "run-intake-interview",
-      "criteria_total": 3,
-      "criteria_covered": 3,
+      "criteria_total": 7,
+      "criteria_covered": 7,
       "covered_ids": [
         "IN1",
         "IN2",
-        "OUT1"
+        "IN3",
+        "IN4",
+        "OUT1",
+        "OUT2",
+        "OUT3"
       ],
       "uncovered_ids": [],
-      "checklist_items": 18,
+      "checklist_items": 22,
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
@@ -690,6 +697,37 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-22"
+    },
+    {
+      "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-goal-setting",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-04"
+    },
+    {
+      "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-knowledge-sync",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 0,
+      "under_derived": false,
+      "coverage_pct": 100.0,
+      "since": "2026-07-04"
     }
   ]
 }

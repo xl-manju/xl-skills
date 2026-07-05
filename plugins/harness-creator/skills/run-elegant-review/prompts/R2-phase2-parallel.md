@@ -161,8 +161,8 @@
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
 各エージェントは独立に担当 paradigm のレンズで `{{phase1_output}}` を観察し、
-C1-C4 verdict を付与し、具体値を `variable_abstraction` に登録する。
-集約後 30 件で `validate-paradigm-coverage.py` / `build-paradigm-scorecard.py` を実行する。
+各 paradigm finding の `condition_matrix.C1..C4` に PASS/FAIL/PARTIAL と evidence を付与し、具体値を `variable_abstraction` に登録する。
+集約後 30 件の `validate-paradigm-coverage.py` / `build-paradigm-scorecard.py` 実行は `phase2-exit` hook / orchestrator の責務であり、並列 agent 内では実行しない。
 他エージェントの中間結果を覗かない (検出時 exit 1)。
 
 出力は `./schemas/phase-output.schema.json#/definitions/phase2_output` 準拠の JSON のみ。

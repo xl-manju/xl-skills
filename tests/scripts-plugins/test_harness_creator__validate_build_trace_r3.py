@@ -164,6 +164,11 @@ def _full_trace() -> dict:
                 "prompt_creator_trace_path": "eval-log/pc.json",
             },
         },
+        "prompt_provenance": {
+            "prompt_creator_invocation": True,
+            "source_contract_ref": "references/seven-layer-format.md",
+            "content_lint": {"mode": "prompt", "status": "PASS"},
+        },
         "feedback_contract": {
             "criteria": [
                 {
@@ -1140,6 +1145,38 @@ def test_pgm_skip_contradicts_run():
     }
     errs = M._validate_prompt_generation_model(data)
     assert any("resolved_policy=skip contradicts" in e for e in errs)
+
+
+def test_pgm_optional_contradicts_run_assign():
+    # 精緻化: 生成物 (per_responsibility 非空) がある run/assign の optional 降格のみ禁止 (bypass)。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {"resolved_policy": "optional", "resolved_via": "x"},
+                "per_responsibility": [
+                    {"id": "R1", "path_convention": "skill-local-v1",
+                     "layer_yaml_path": "plugins/x/skills/run-y/prompts/R1.md",
+                     "lint_status": "PASS"}
+                ],
+            },
+        }
+        errs = M._validate_prompt_generation_model(data)
+        assert any("resolved_policy=optional contradicts" in e for e in errs)
+
+
+def test_pgm_optional_without_prompts_ok_run_assign():
+    # 精緻化: 生成物なし (per_responsibility 空=共有 prompt 消費) の run/assign は optional 許容。
+    for kind in ("run", "assign"):
+        data = {
+            "variant_support": {"prefix": kind},
+            "prompt_generation_model": {
+                "policy_resolution": {"resolved_policy": "optional", "resolved_via": "shared prompt 消費"},
+                "per_responsibility": [],
+            },
+        }
+        errs = M._validate_prompt_generation_model(data)
+        assert not any("resolved_policy=optional contradicts" in e for e in errs)
 
 
 def test_pgm_required_contradicts_delegate():
