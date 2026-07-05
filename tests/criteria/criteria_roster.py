@@ -17,7 +17,7 @@ ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
     ("contract-generator", "run-contract-generate", ("IN1", "IN2", "OUT1")),
     ("contract-generator", "run-template-sync", ("IN1", "IN2", "OUT1")),
     ("harness-creator", "delegate-codex-skill-review", ("IN1", "IN2", "OUT1", "OUT2")),
-    ("harness-creator", "run-build-skill", ("IN1", "IN2", "OUT1", "OUT2")),
+    ("harness-creator", "run-build-skill", ("IN1", "IN2", "IN3", "OUT1", "OUT2")),
     ("harness-creator", "run-elegant-review", ("IN1", "IN2", "OUT1", "OUT2")),
     ("harness-creator", "run-goal-elicit", ("IN1", "OUT1", "OUT2")),
     ("harness-creator", "run-goal-seek", ("IN1", "IN2", "OUT1", "OUT2")),
