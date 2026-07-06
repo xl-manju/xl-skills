@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "1c0984c39547d5db5efc8e873f01715dc3acf0f63d3efbd2d13912b317ee2368"
+    "skill_md_sha256": "0a3c2b38de310184e962013d902c96a382c0260a3d10548c6214d5285898d212"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,10 +11,10 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 2
   },
-  "reviewer": "elegant-review run-20260705-113702 配下の独立 content-reviewer SubAgent",
-  "reviewed_at": "2026-07-05T11:37:02+09:00",
+  "reviewer": "独立 content-reviewer SubAgent (PR前 stale-sha 再評価 2026-07-07・with-goal-seek engine:task-graph 変種 0.2.0→0.3.0 delta を現物裏取り)",
+  "reviewed_at": "2026-07-07T09:00:00+09:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
@@ -27,20 +27,20 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "新設 Step 0.4 (Step 0 kind 分岐ナビ item 4「lint hook 連動」) が C02 内容 lint (lint-agent-prompt-content.py --mode agent / --mode prompt) を既存の kind→lint 対応表へ 1 行追加で統合しており、新規 Step を切らず最小複雑性で配線している。agent→section+content(--mode agent)、prompt→prompt-md+content(--mode prompt) と mode を kind 別に正しく分離。実測で lint-agent-prompt-content.py は plugins/harness-creator/scripts/ に実在。",
-      "新設 Step 3.5「agent/prompt 生成の provenance (C09)」が prompt_provenance ブロック (prompt_creator_invocation / source_contract_ref / content_lint) を既存の trace 生成 Step (3.5) に相乗りさせ、別成果物を増やさず SSOT 委譲スタイルを維持。fail-closed 強制の主張 (invocation=false・契約参照欠落・content_lint≠PASS・policy=required 時のブロック欠落で exit1) は vaporware でなく validate-build-trace.py の _validate_prompt_provenance (L317) と skill-build-trace.schema.json の prompt_provenance 定義 (required=[prompt_creator_invocation, source_contract_ref, content_lint]) で実装裏付けを実測確認。Step 0.4 の C02 lint ゲート (Step 4 起動) と Step 3.5 の trace 検証ゲートで二層防御を成し、plugin の『保証要件は機械層で担保・多層防御』方針と整合。",
-      "Step 0.4 末尾『単独生成の抜け道は Step 3.5 の prompt_provenance で塞ぐ』が両新設節を相互参照で結び、C02 (build lint 時) と C09 (trace 検証時) の役割分担が破綻なく接続されている。本文実測 ~244 行 (frontmatter L1-104 / 本文 L106-348) で 300 行上限内を維持。参照契約 subagent-hybrid-format.md / seven-layer-format.md / content-review-protocol.md / orchestrate-gate-pattern.md / lint-matrix.json / build-steps.md 等は全て実在 (dependency_break=0)。"
+      "参照実在性 (dependency_break=0) を全数実測: template_refs 追加 4 本 (templates/task-graph-engine/scripts/{ready-set-from-checklist.py=C01, self-reflect-append.py=C02, extract-capability-dependency-graph.py=C06, record-capability-graph-knowledge.py=C07}) と script_refs 追加 1 本 (scripts/lint-capability-graph-knowledge.py=C08) が全て実在 (ls で byte サイズ確認済み)。frontmatter に列挙した既存 template_refs/script_refs も含め dangling 参照ゼロ。",
+      "Step 10.6 の inert-gate (絶対体空洞 / absence-as-violation) 主張が vaporware でなく実装裏付けを実測: lint-capability-graph-knowledge.py の check_inert_engine + activated_script_roots (templates/task-graph-engine/scripts を活性化検出から除外) を読み、4 ケースの実挙動を再現確認した — (A) 4 engine script を生成先 scripts/ へ同梱 + SKILL.md が engine:inline → exit1 '駆動体空洞' violation、(B) 同梱 + frontmatter 'engine: task-graph' + 'dependency graph knowledge' consult token → exit0、(C) 非同梱・engine 無宣言 → not-applicable exit0、(D) run-build-skill 自身 (template 配下のみ・engine:inline 維持) → not-applicable exit0。SKILL.md L329/L326 の『同梱かつ未宣言=inert exit1 / 非該当=exit0』および Step 10.6 の C05 自己 inline 維持で自己 inert 誤発火しない設計 (templates 除外) が両立していることを genuine に裏取りした。",
+      "A2 制約 (独立 combinator flag 新設禁止) が実コードと整合: render-combinators.py 含む scripts/ 配下に '--engine' argparse フラグは一切存在しない (grep 実測ゼロ)。engine 活性化は render-frontmatter.py のフラット mapping で '{{goal_seek.engine | default(\"inline\")}}' が既定へ落ちる性質を利用し、Step 10.6 の prose で生成物当該行を明示 'engine: task-graph' へ確定する方式。with-feedback-loop の apply_feedback_loop() (CLI flag 駆動 copytree) とは意図的に異なる prose 方式である旨も L322 で明示され、機構選択の理由が追える。",
+      "『単一 truth (progress.json)』主張が engine script 実体と一致: C01 (ready-set-from-checklist.py) は write-scope: none のステートレス決定論ゲート、C02 (self-reflect-append.py) は write-scope が '<progress_json_path> のみ (別 state file を一切生成しない)' で checklist 配列末尾へ追記のみ (id 重複/未知 depends_on/追記後サイクルを fail-closed 検査)、C07 (record-capability-graph-knowledge.py) は派生 knowledge を knowledge-capability-graph.json (Loop A/B) へ append/merge するのみで task-graph.json 相当の別状態を複製しない。checklist state の唯一 truth を progress.json に保つ設計が実装で守られている。",
+      "同梱・活性化・検査の三点が Step で閉じている (omission=0): 同梱=Step 10.6 手順2 (4 script コピー) と render-combinators の C06/C07 consult サブセクション注入、活性化=Step 10.6 手順3 (frontmatter engine 書換=唯一の起動条件)、検査=Step 4 bash への lint-capability-graph-knowledge.py 追記 (L276) + lint-goal-seek.py --self-test (実走 exit0: engine/fork/max_loops drift なし・task-graph consumption verifier トークン検査)。render-combinators.py が『ゴールシーク配線（task-graph 変種）』『ゴールシーク検証（task-graph 変種・機械検査）』『dependency graph knowledge consult』の 3 サブセクションを default-ON with-goal-seek へ注入する主張も grep で該当定数を実確認した。"
     ],
     "negative_feedback": [
-      "[smell/low・非阻害] Step 0.4 の bold 文『agent/prompt 生成は本文7層…C02 を fail-closed ゲートとして通す (契約: subagent-hybrid-format.md)』が、agent/prompt 双方を主語にしながら括弧内で agent 契約 subagent-hybrid-format.md のみを掲げる。一方 Step 3.5 は source_contract_ref を agent=subagent-hybrid-format.md / prompt=seven-layer-format.md と分離し、validate-build-trace.py L313 コメントも同分離を正本化している。Step 0.4 で止読した読者は prompt も subagent-hybrid-format.md 準拠と誤読しうる。直前の per-kind lint は --mode agent/prompt を正しく分離しており、seven-layer-format.md も有効な 7層契約であるため阻害ではないが、契約括弧を『kind 別: subagent-hybrid-format.md (agent) / seven-layer-format.md (prompt)』へ一般化するのが望ましい。backlog 相当。",
-      "L4 復路 (route 実行レポート) が既存の L4 往路 (handoff routes) と対称に閉じ、SSOT 境界が破綻なく保たれている: schema/validator/契約正本を consumer 側 (run-build-skill 配下) に一元化し、planner の io-contract.md は line 129 で正本ポインタ+要約のみを持つ参照宣言に徹する。reference line 45 が『io-contract の route 実行レポート節は本契約への参照宣言であり内容を再定義しない』と自己言及し、二重 SSOT の罠を明示的に回避している。フィールド名・enum(component_kind5/builder4/status3)・パス規約が SKILL.md↔reference↔schema↔validator の四者で逐語一致する。",
-      "CL-12 が genuine に二値化されており fail-closed の実体が validator の --self-test (8 シナリオ: 依存レポート欠落/チェーン充足/inputs_consumed 未宣言/success+evidence 空/skipped+skip_reason/handoff drift/依存 failure 波及/orphan) で自己検証される。契約正本 (route-build-report.md) が『書く時機 (完了後 write)/読む時機 (着手前 read)/検証手段 (--route・--complete)/対象外 (単発 build)』の 4 要素を漏れなく成文化し、単一 skill 内部の handoff-<step>.json との階層差 (component 内側 vs component 間) を reference line 46 で明示して混同を封じている。",
-      "IN3 追加で feedback_contract の criteria provenance が完全に閉じた: CL-12 は route 報告契約の追加時点で derived_from 被覆から漏れた孤児だったが、IN3 (loop_scope: inner / verify_by: script / derived_from: [CL-12]) が唯一の被覆者として写像を復元し、derived_from union = CL-1..CL-12 が checklist アンカーと完全一致 (未被覆0・幻影0・各 CL 単一 criterion)。IN3 の分類が姉妹 criterion と整合的で、bespoke validator (validate-route-build-reports.py) を IN2 の validate-build-trace.py と同じ verify_by: script に、決定論二値ゲートゆえ inner に置き、汎用ゲート言い換えでなく CL-12 の text を忠実に狭く写す purpose-acceptance を保っている。lint-criteria-provenance.py 実走で exit0 (写像整合) を実測。"
+      "[smell/low・非阻害] 『単一truth』の語 (L159/L331) は checklist state を progress.json に一元化する意味では正確だが、実際には progress.json (checklist truth) / intermediate.jsonl (依存順消費の anchor トレース) / knowledge-capability-graph.json (C06/C07 の派生 knowledge) の 3 artifact が併存する。L331 が派生 knowledge を『実行前判断用の派生情報として分離レイヤに置く』と明示し役割分担は破綻していないが、casual reader が『単一truth=状態ファイルは 1 個だけ』と誤読しうる。『progress.json は checklist state の唯一 truth。anchor/派生 knowledge は別ロールの分離レイヤ』と 1 行で明示すると曖昧さが消える。backlog 相当。",
+      "[smell/low・非阻害] Step 10.6 手順4 (L328) 『render-combinators.py は…3 サブセクションを注入済み…Step 3 で設定した engine 値 task-graph で有効化』は、注入自体は default-ON with-goal-seek へ engine 値に依らず無条件で行われ (render-combinators の該当定数は常に patch へ入る)、有効化は各サブセクション内の prose 条件 (`goal_seek.engine: task-graph の場合のみ`) と runtime verifier の engine 判別 (engine!=task-graph は sys.exit(0)) が担う、という injection-time と runtime-activation の二段を 1 文に畳んでいる。設計意図としては正しいが『engine 値で有効化』の語が注入自体を engine 条件と読ませうる。非阻害。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "[merge 解消 verdict] feature ブランチの C09 追加 (Step 0.4 C02 内容 lint 配線 / Step 3.5 prompt_provenance) レビューと origin/main の route 実行レポート追加レビューを結合した merged SKILL.md (sha256=2378b46a307e2fbe48e9f8109f6b4371256281f69b1ff8ffa18dd2127d1e2502、shasum 実測一致) への PASS 判定。両追加は Step 3.5 の独立2段落として矛盾なく共存することを merge 時に実確認 (contradiction=0)。両側とも独立 content-review で PASS 済み (HEAD=elegant-review run-20260705-113702 の C09 レビュー / origin=route-report 独立レビュー)。merge はレビュー済み2追加の機械的結合のため union 証跡を positive_feedback に保持し sha のみ merged 値へ更新。C1-C4 (矛盾/漏れ/整合/依存) いずれも 0、smell=1 (Step 0.4 契約括弧の kind 別分離が backlog) は非阻害ゆえ verdict=PASS 維持。 [追記] C09-1 精緻化 (run/assign の optional 禁止を『生成物あり(per_responsibility 非空)の bypass のみ』へ限定し共有 prompt 消費型 run skill を救済) に伴う Step 3.5 doc 更新で sha を 2378b46a→1c0984c3 へ更新。validate-build-trace 全テスト 150 passed・company-master sample trace 通過を実測。"
+  "notes": "[stale-sha 再評価] 0.2.0→0.3.0 で追加された with-goal-seek engine:task-graph 変種 (SKILL.md +21/-1: version 更新 / template_refs 4 本 / script_refs 1 本 / Rule19 engine 変種段落 / Step 4 lint 追記 / Step 10.6 新設) を現物ファイルで裏取りした結果 verdict=PASS。裏取り事実: (1) 参照 5 本全数実在 (dependency_break=0)、(2) lint-capability-graph-knowledge.py の inert-gate absence-as-violation を 4 ケース実走で確認 (同梱+inline=exit1 / 同梱+task-graph=exit0 / 非該当=exit0 / 自己=not-applicable exit0)、(3) '--engine' argparse フラグ不在で A2 制約遵守、(4) C01 write-scope none / C02 write-scope progress.json のみ / C07 派生 knowledge レイヤ分離で単一truth 実装一致、(5) lint-goal-seek.py --self-test exit0。矛盾 (contradiction/omission/inconsistency/dependency_break) いずれも 0。smell=2 (単一truth 語の 3 artifact 併存・Step10.6 手順4 の注入時/実行時二段畳み) はいずれも非阻害の文面明確化余地。sha=0a3c2b38 (現行 SKILL.md shasum 実測一致) を逐語記録。"
 }

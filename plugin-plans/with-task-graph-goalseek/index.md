@@ -21,7 +21,7 @@ plugin_meta:
     marketplace: false
   pkg_contract:
     applicable: false
-    reason: "harness-creator は distributable:false かつ NEVER_DISTRIBUTE denylist(旧 skill-creator 由来)対象で PKG-001..015 の配布契約検査は非該当。本 plan は既存 run-build-skill skill 内部への engine 変種追加のみで配布境界自体を変更しない"
+    reason: "harness-creator は distributable:false かつ NEVER_DISTRIBUTE denylist(改名前から継承)対象で PKG-001..015 の配布契約検査は非該当。本 plan は既存 run-build-skill skill 内部への engine 変種追加のみで配布境界自体を変更しない"
   governance:
     applicable: false
     reason: "run-skill-rubric-governance が所有する評価 rubric 正本(plan-rubric.json 等)は本 plan で変更しない。本 plan は run-build-skill の with-goal-seek engine 拡張であり rubric governance の対象外"

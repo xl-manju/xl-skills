@@ -461,6 +461,12 @@ _GOOD_RENDER = (
     "merged_directive_for_next drift_signal\n"
     "initial aligned compressing stagnant widening oscillating\n"
     "required_keys original_goal_hash hashlib.sha256\n"
+    # engine:task-graph 変種の配線/consult トークン (check_task_graph_variant 整合用)。
+    # engine:/fork:/max_loops: コロン記法は避け _extract_defaults 正規表現に干渉させない。
+    "task-graph 変種配線: ready-set-from-checklist.py self-reflect-append.py "
+    "ready_set selected_item 依存順消費 self-reflect 完了 gate\n"
+    "extract-capability-dependency-graph.py record-capability-graph-knowledge.py "
+    "dependency graph knowledge consult\n"
 )
 _GOOD_PATCH = _GOOD_RENDER  # patch 側も同型で逐語一致させる
 _GOOD_RGS = "required_keys original_goal_hash hashlib.sha256\n"
@@ -468,7 +474,10 @@ _GOOD_BUILD_FLAGS = {
     "properties": {
         "with_goal_seek": {
             "properties": {
-                "engine": {"default": "inline"},
+                "engine": {
+                    "default": "inline",
+                    "enum": ["inline", "run-goal-seek", "task-graph"],
+                },
                 "max_loops": {"default": 5},
             }
         }
@@ -500,6 +509,13 @@ _GOOD_LOOP_SCHEMA = {
                         ]
                     }
                 },
+            }
+        },
+        "checklist": {
+            "items": {
+                "properties": {
+                    "depends_on": {"type": "array", "default": []},
+                }
             }
         },
     }

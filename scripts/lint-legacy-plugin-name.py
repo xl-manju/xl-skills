@@ -41,6 +41,10 @@ ALLOWLIST = {
     "plugins/harness-creator/README.md": "改名の経緯と移行手順",
     "plugins/harness-creator/references/plugin-rename-checklist.md":
         "plugin 単位改名手順の恒久チェックリスト",
+    "plugins/harness-creator/skills/ref-yaml-spec-fetcher/references/yaml-spec-cache.md":
+        "外部由来 (Anthropic 公式 docs) の auto-fetch spec cache。同名別物 "
+        "(claude-plugins-official の skill-creator plugin) の言及であり本 repo の "
+        "改名対象外・再取得で再流入するため凍結",
 }
 
 
