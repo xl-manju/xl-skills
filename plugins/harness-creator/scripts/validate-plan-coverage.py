@@ -154,7 +154,18 @@ def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict
                     "(targets[] で repo-relative 宣言すれば cross-plugin 照合可能)"
                 )
         else:
-            skipped_surfaces.append(name)
+            # 非正準キー drift の封鎖: required surface が 'target'(単数) 等の非正準キーで
+            # ファイルを宣言していると、正準 'targets'[]/'path' しか見ない照合が silent skip し
+            # 完全性 gate が盲目化する (fail-open)。単数 'target' を持つ required surface は
+            # 語彙 drift として fail-closed 検出する (正準へ是正するまで missing 扱い)。
+            drift_val = spec.get("target")
+            if drift_val is not None:
+                missing_surfaces.append(
+                    f"{name}: 非正準 surface キー 'target' を使用 (正準は 'targets'[] または 'path')。"
+                    "silent skip を避けるため fail-closed — inventory を 'targets': [repo-relative...] へ是正すること"
+                )
+            else:
+                skipped_surfaces.append(name)
 
     summary = {
         "components_total": len(components),

@@ -159,6 +159,25 @@
         "type": "feedback",
         "date": "2026-05-24"
       }
+    },
+    {
+      "id": "build-patterns_008",
+      "title": "task-graph実行知見はproposalでplannerへ戻し、knowledgeには蒸留して残す",
+      "intent": "Harness Creatorが依存グラフ実行中に見つけた新課題を安全にplanへ還流し、未解決課題を残したまま完了扱いにしないこと",
+      "background": "task-graph本体をHarness側が直接書くとplannerのDAG正本とruntime状態が二重writerになり、依存方向が崩れる。Harnessはdiscovered-task proposal、task-state、task-events、knowledgeだけを書き、plannerの次回updateがgraphを更新する一方向writerに分ける。knowledgeは生ログ全量ではなく依存詰まり・成果物欠落・blocked起点・解決判断をsource_ref付きで蒸留する。",
+      "keywords": [
+        "task-graph",
+        "discovered-task",
+        "knowledge-loop",
+        "completion-gate",
+        "一方向writer",
+        "Loop A",
+        "Loop B",
+        "依存DAG"
+      ],
+      "source": {
+        "file": "plugin-plans/harness-creator/goal-spec.json#C13"
+      }
     }
   ]
 }

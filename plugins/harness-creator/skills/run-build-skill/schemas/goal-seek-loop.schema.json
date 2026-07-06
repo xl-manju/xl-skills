@@ -31,6 +31,12 @@
       "default": 5,
       "description": "ゴールシークループの最大周回数。frontmatter goal_seek.max_loops と一致させる。"
     },
+    "engine": {
+      "type": "string",
+      "enum": ["inline", "run-goal-seek", "task-graph"],
+      "default": "inline",
+      "description": "この周回状態を回している goal-seek engine (frontmatter goal_seek.engine と一致)。additive/後方互換 (既定 inline)。engine==task-graph の周回状態は intermediate.jsonl へ ready_set/selected_item トレースを必須で追記し、機械検査 (task-graph 変種) が『トレース不在=拘束違反 (exit1)』として絶対検査する — 沈黙による依存順消費の回避を封鎖する (absence-as-violation)。"
+    },
     "fork_context": {
       "type": "string",
       "enum": ["inline", "subagent", "agent-team"],
@@ -52,6 +58,12 @@
             "type": "string",
             "enum": ["pending", "done", "blocked"],
             "description": "pending=[ ] / done=[x] / blocked=この周回では達成不能。"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^C[0-9]+$" },
+            "default": [],
+            "description": "engine:task-graph 変種の additive フィールド。依存先 checklist item の id 群。全ての depends_on 先が status==done になって初めて当該 item は ready 集合 (ready-set-from-checklist.py) に入る。engine:inline では無視され後方互換 (default [])。逐次単一 self-writer ゆえ write_scope/tie-break は持たない (H1)。"
           },
           "verify_by": {
             "type": "string",

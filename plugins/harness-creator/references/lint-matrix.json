@@ -151,6 +151,14 @@
         "p0-gate"
       ],
       "ci_exclusion_reason": "入力の skill-brief.json が build 実行時 (eval-log/) にのみ存在するため CI 一括適用は不可。量産経路では build-preflight と p0-gate の2面で強制され、brief 不在の単発 build は NOTE 付き skip (fail-open は量産経路外に限定)"
+    },
+    {
+      "id": "capability-graph-knowledge",
+      "script": "lint-capability-graph-knowledge.py",
+      "contexts": [
+        "build-preflight"
+      ],
+      "ci_exclusion_reason": "engine:task-graph を concrete 宣言した生成 harness のみに適用され (非 task-graph は not-applicable exit0)、固定の governance 対象を持たない。入力が build 実行時の生成物 (eval-log/ 配下の生成 SKILL.md) であり CI 一括適用の固定対象が無いため build-preflight でのみ強制する (C06/C07 同梱・各 surface consult token・knowledge entry source_ref 検査・C08)"
     }
   ]
 }
