@@ -91,7 +91,7 @@ last-audited: 2026-07-05
 - データアクセス: `read_write`（report-structure.json を出力）。references / schemas は `read_only`。
 
 ## 品質基準
-- 出力 `report-structure.json` に必ず含むもの: meta（title/reportType/audience/keyMessage）・theme（name=kanagawa-lotus・accentColors）・sections[]（各節に id/heading/role/paragraphs）。
+- 出力 `report-structure.json` に必ず含むもの: meta（title/reportType/audience/keyMessage、`schemaVersion:"1.2.0"`。読み物では加えて `throughLine`＝文書アーク、length=deep では文書メタ version/updatedDate/readingTime）・theme（name=kanagawa-lotus・accentColors）・sections[]。**各節の本文は 1.2.0 の `body[]`（構造化ブロック）を第一級で使い、role∈{analysis,argument} の節には `narrative`（本質課題→解決→活用）を、節末には `transition`（次節への橋渡し1文）を付す。`paragraphs[]` は 1.0.0 後方互換専用**（新規の読み物では body[] に寄せ、羅列退化を避ける。C25 決定論ゲートが「1.2.0/deep 宣言で body[] 不使用＝羅列」を warn/strict-fail する）。canonical 1.2.0 例は `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/examples/report-structured-120-example.json`（throughLine＋role別 narrative＋body[]＋transition＋新block の few-shot 実例）を参照。
 - `theme.accentColors` に登録した色のみを節・図解で参照する。
 - 事実確認: 入力素材の各情報塊が 1 つ以上のセクションに対応し、未反映がゼロであること。
 - schema 適合: 出力を `report-structure.schema.json` に照らし、required 欠落・additionalProperties 違反・enum 逸脱がゼロであること（本エージェントは目視＋構造チェックで担保し、機械検証は structure-validator が実行）。
@@ -139,7 +139,9 @@ last-audited: 2026-07-05
 - [ ] 確定 reportType の必須 role が `sections[].role` に 1 つ以上ずつ写像されている（骨格網羅）
 - [ ] `sections[]` の並びが骨格の論理順序と一致している（RCONST_001・骨格順序保持）
 - [ ] meta の required（title/reportType/audience/keyMessage）が揃い、theme.name=kanagawa-lotus・accentColors が登録済みである
-- [ ] 全 section の `paragraphs[]` が空でなく、要点が言い切られている（見出しだけの空節ゼロ・RCONST_002）
+- [ ] 全 section が非空の本文を持つ（1.1.0 は `body[]`＝構造化ブロック推奨 / 1.0.0 後方互換は `paragraphs[]`）。見出しだけの空節ゼロ・要点が言い切られている（RCONST_002）。`body[]` を使う節に `paragraphs[]` を併載していない（二重充填禁止）
+- [ ] 1.1.0 で設計する場合、各 section に `narrative`（essence/approach/leverage or logic）があり heading の言い換えでない。対照は table・手順は ordered-list・コードは code で表現し本文へ流し込んでいない。要点強調は `==…==`（1段落1箇所）/ key-point（1節0〜1個）で過剰でない（[report-narrative-logic.md](../references/report-narrative-logic.md) §5）
+- [ ] 1.2.0 で設計する場合、`meta.throughLine`（本質課題→解決→活用のアーク）を1文で宣言し、各 section の `role` に応じ narrative を付す（role∈{analysis,argument,problem,solution,finding,background,impact,body}=必須／{reference,procedure,summary,overview,prerequisite,step,cta,next-action}=不要=category error 回避）。各 section に次節への `transition` を付し節間フローを作る。幾何配置（emphasisZone/readingOrder/focalPoint）は割り当てず C18 に委ねている
 - [ ] 各 section の visual は 0 または 1 である（1項目1ビジュアル・RCONST_003）
 - [ ] ビジュアルが要る節に kind 第一候補と rationale、要らない節に `kind:"none"` が指定され、三択の最終確定を visual-strategist に委ねる旨が rationale に含意されている（RCONST_004）
 - [ ] 入力素材の各情報塊が 1 つ以上の section に対応し、未反映素材がゼロである
@@ -183,6 +185,23 @@ last-audited: 2026-07-05
 - read-through 粒度: slide の「20文字超は `<br>`」「chip 強制」「長文禁止」は report では**適用しない**。文章として自然な長さで書く（詳細は [references/report-writing-rules.md](../references/report-writing-rules.md)）。
 - 逐語が変わりやすい要素（数値・コード・表）は本文に置き、画像へ焼き込まない。
 
+### 1.1.0 構造化本文の設計（body[] / narrative / highlight）＝羅列を避ける中核（推奨・既定）
+> 正本 = [references/report-narrative-logic.md](../references/report-narrative-logic.md)。`meta.schemaVersion:"1.1.0"` を宣言し、各 section を「narrative（論理）→ body[]（構造）→ highlight（強調）」の3層で設計する。render-report.js が body[]/narrative/highlight/placement を決定論 HTML 化する。**paragraphs[] だけの節は情報の羅列に退化しやすいため、原則 body[] を使う**（paragraphs[] は 1.0.0 後方互換）。
+
+- **narrative（節内論理展開・必須推奨）**: 各 section に `narrative: {essence(本質課題), approach(解決策), leverage(活用/含意)}`（または `logic:[{role,text}]`）を付す。heading の言い換えにしない。
+- **body[]（構造化ブロック）**: 内容の性質でブロック型を選ぶ — 対照/一覧/精密値は `table`（本文へ流し込まない）、手順は `ordered-list`、コマンド/コードは `code`、節の結論は `key-point`（1節0〜1個）、数値要約は `stat-tile`、注意は `callout`、引用は `blockquote`、話題転換は `subheading`。`body[]` を使う節に `paragraphs[]` を併載しない（二重充填禁止）。
+- **highlight（要点強調・過剰禁止）**: 文中のキーフレーズ1つを `==…==`（1段落1箇所まで）、節の最重要メッセージを `key-point` で囲う。強調過多は減点（report-quality-reviewer RQ・validate-report-visual 上限チェック）。配色は意匠 accent を流用し新規配色を足さない。
+- **図解の意味的配置**: 本文と図を左右に並べたい節は `visual.layout.grid:"2x1"` を指定（render-report.js が2カラム分割）。`visual.caption` で「図N.」採番。
+- **横断要素（reportType 別）**: report-narrative-logic.md §4 に従い、共通（エグゼクティブ要約/キーテイクアウェイ/次アクション/根拠出典/リスク留保/TL;DR/図表番号/長尺は `meta.toc:true`）＋型別（tech-doc=前提/用語定義/手順/既知の問題、learning=学習目標/要点/演習 等）を織り込む。
+
+### 1.2.0 文書スケールの論理設計（throughLine / role×narrative / transition）＝節間を貫く読み物化（推奨・length=deep で実質必須）
+> 正本 = report-structure.schema.json（`meta.throughLine` / `section.role`=argument 追加 / `section.transition`）。`meta.schemaVersion:"1.2.0"` を宣言し、1.1.0 の節内論理（narrative）に加え**文書スケールの論理**を宣言する。C17 は**論理構造の owner** としてこれらを割り当て、**幾何配置（emphasisZone/readingOrder/focalPoint）は決めない**（C18 visual-strategist が唯一 owner）。意味論の enforce は C25（validate-report-visual.py）が担い、schema は additive-safe を保つ（二層分離）。
+
+- **meta.throughLine（文書アーク・必須推奨）**: 文書全体の通し筋を1文で言い切る（冒頭=本質課題→本論=解決→結=活用のアーク）。reportType 骨格の節順序だけでなく文書スケールの論理接続を宣言し、羅列でなく1本の筋を通す。length=deep では実質必須。
+- **section.role×narrative の条件付け（1.2.0 で厳密化）**: role が narrative 要否を決める。narrative 必須の role∈{analysis, argument, problem, solution, finding, background, impact, body}＝本質課題→解決の論理展開が要る。narrative 不要の role∈{reference, procedure, summary, overview, prerequisite, step, cta, next-action}＝列挙/手順/要約/行動喚起が主で、弧を強制すると category error。1.2.0 で論証節 `argument`（主張→論拠→含意）を追加。
+- **section.transition（節間の橋渡し・推奨）**: 各節に次節への接続1文を付し、throughLine を節スケールで支える。節が飛石でなく流れとして読めるようにする（要約/CTA など弧末端の節は省略可）。
+- **責務境界（1.2.0 で明確化）**: emphasisZone / readingOrder / focalPoint（幾何配置）は C18 visual-strategist の唯一責務。C17 は throughLine / role / narrative / transition（論理構造）と意味的スロット割当までを owner し、面内配置は決めない（1.0.0/1.1.0 で C17 が付した readingOrder/focalPoint ヒントは後方互換で温存されるが、1.2.0 では C18 が確定する）。
+
 ## 5.6 インターフェース
 
 ### 入力
@@ -223,8 +242,6 @@ last-audited: 2026-07-05
       "heading": "{{節見出し}}",
       "role": "analysis",
       "paragraphs": ["{{分析本文}}"],
-      "readingOrder": "left-to-right",
-      "focalPoint": { "x": 50, "y": 54 },
       "visual": {
         "kind": "svg",
         "caption": "{{図の説明}}",

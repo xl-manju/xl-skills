@@ -29,6 +29,11 @@ verify-slides.js (16:9比率) / validate-print.js (letterbox) に対応する re
   C4 placeholder        : 未解決プレースホルダ ({{...}}) 残存・空セクションを fail 検出。
   C5 print-letterbox    : @media print 内の cover/16:9 letterbox 兆候 (slide 用印刷指定の
                           report 混入)・@page landscape を warn 検出 (任意)。
+  C6 structuring(1.1.0) : 下限=羅列 / 上限=過剰構造化・強調過多 の双方向 warn (body[]/narrative/強調密度)。
+  C7 structuring(1.2.0) : through-line(文書アーク/節間接続)・色覚非依存の強調(非色第2チャネル)・
+                          reportType 横断要素 role・多様性<適合性(羅列の床)・render 忠実度
+                          (structure が新block/throughLine/placement を宣言→html 反映) を検査。
+                          render 忠実度の不一致は fail、密度/流れ系は warn (strict 昇格)。
 
 exit code 規約:
   - 0: 崩れ無し (PASS)。--strict 時は warn も無い。
@@ -53,11 +58,52 @@ DEFAULT_THRESHOLDS = {
     "para_len_warn": 2000,          # 単一段落の文字数がこれ以上で warn。
     "para_len_fail": 3800,          # 単一段落の文字数がこれ以上で fail (schema max 4000 近傍)。
     "section_para_warn": 15,        # 1セクションの段落数がこれ以上で warn (過密)。
+    # -- 1.1.0 構造化ゲート (羅列←→過剰構造化 の双方向) --
+    "max_highlights_per_section": 6,  # 1セクションの ==highlight== (mark) がこれ超で warn (強調過多)。
+    "max_keypoints_per_section": 2,   # 1セクションの key-point ボックスがこれ超で warn (強調過多)。
+    # -- 1.2.0 構造化ゲート (through-line / 色覚非依存 / reportType 横断 / 多様性<適合性) --
+    "doc_highlight_budget": 24,       # 文書全体の ==highlight== 総数上限 (per-section cap に加えた doc-level 予算)。
+    "monotone_block_floor": 6,        # 1セクションの body[] が同一 block 型のみでこの数以上 → 羅列 warn (床)。
+    "throughline_min_sections": 4,    # section 数がこれ以上の文書で meta.throughLine 未宣言 → warn (文書アーク欠落)。
+    "transition_min_sections": 3,     # section 数がこれ以上で transition が皆無 → warn (節が飛び石・流れが切れる)。
+    "parts_suggest_sections": 12,     # length=deep でこれ以上の節数なら throughLineParts(part 単位 sub-arc) 未宣言を warn (大規模文書の道標)。
+}
+
+# narrative(節内論理展開) を必要とする role。report-narrative-logic.md §6.1 の role→narrative 表 (SSOT正本) と
+# 1:1 で対応させる: 「期待」群=REQUIRED / 「不要」群+「文脈依存(learning系)」群=OPTIONAL。
+# schema の section.role enum(全22値) を過不足なく二分類し fall-through を無くす。
+# 文脈依存(concept/question/conclusion/diagram-understanding/example-application/caution) は「節が主張を
+# 持てば narrative 期待」という意味判定であり機械では測れないため、機械ゲートは安全側(OPTIONAL=warn しない)へ
+# 倒し、主張を持つのに narrative 欠落という意味的欠陥は report-quality-reviewer(C24) が判定する(二層分離)。
+_NARRATIVE_REQUIRED_ROLES = {
+    "analysis", "argument", "problem", "solution", "finding", "background", "impact", "body",
+}
+_NARRATIVE_OPTIONAL_ROLES = {
+    "reference", "procedure", "summary", "overview", "prerequisite", "step", "cta", "next-action",
+    "concept", "question", "conclusion", "diagram-understanding", "example-application", "caution",
+}
+# 二分類は Mutually Exclusive を import 時に自己検査する (将来 enum 追加時に片方へ二重登録した desync を早期検出)。
+# Collectively Exhaustive (両集合 == schema role enum) は schema を要するため tests の
+# test_120_role_classification_covers_all_schema_roles が担保する。
+assert _NARRATIVE_REQUIRED_ROLES.isdisjoint(_NARRATIVE_OPTIONAL_ROLES), (
+    "role narrative 分類が重複: " + str(sorted(_NARRATIVE_REQUIRED_ROLES & _NARRATIVE_OPTIONAL_ROLES))
+)
+
+# reportType → 本質的に含むべき横断要素の role 群 (report-narrative-logic.md 正本の抜粋・機械検査可能な subset)。
+# 意味の充足 (要約が本当に要約か) は report-quality-reviewer に委ね、ここでは role の存在のみ決定論検査する。
+_REPORTTYPE_REQUIRED_ROLES = {
+    "internal-analysis": {"summary", "next-action"},
+    "client-proposal": {"solution", "cta"},
+    "tech-doc": {"prerequisite", "reference"},
+    "learning": {"question", "conclusion"},
 }
 
 # 未解決プレースホルダ ({{...}} / {{}})。pre/code/svg 内は走査対象外にして
 # mermaid の hexagon 記法 A{{...}} 等の誤検出を避ける。
 _PLACEHOLDER_RE = re.compile(r"\{\{[^{}]*\}\}")
+
+# インライン脚注参照 [^id] (render-report.js の inlineMd と同じ id 文法)。
+_FOOTNOTE_REF_RE = re.compile(r"\[\^([a-z0-9][a-z0-9-]*)\]", re.IGNORECASE)
 
 # 走査から外す (プレースホルダ誤検出源) タグ。style/script は data 自体を捨てる。
 _SUPPRESS_TAGS = {"pre", "code", "svg"}
@@ -131,12 +177,27 @@ class _ReportParser(HTMLParser):
                     "figure_count": 0,
                     "img_count": 0,
                     "table_count": 0,
+                    "content_count": 0,  # 段落以外の構造化本文ブロック (リスト/定義リスト/タスク/強調/引用等) の存在量。空セクション誤判定を防ぐ。
                     "has_fallback": False,
                 }
             )
             return
 
         sec = self._cur_section()
+
+        # 段落以外の構造化本文ブロックも「本文あり」として計上 (body block は <p> を出さないものが多い)。
+        if sec is not None:
+            if tag in ("li", "dt", "dd"):
+                sec["content_count"] += 1
+            elif any(
+                marker in cls
+                for marker in (
+                    "report-keypoint", "report-stat", "report-quote", "report-callout",
+                    "report-subheading", "report-deflist", "report-tasklist", "report-footnotes",
+                    "report-list", "report-narrative", "report-code",
+                )
+            ):
+                sec["content_count"] += 1
 
         if tag == "h1":
             self._start_capture("h1")
@@ -269,8 +330,228 @@ def _extract_print_css(style_text: str) -> str:
 
 
 def _visual_count(sec: dict) -> int:
-    """1セクションのビジュアル要素数 (figure.report-visual + 単独 img + table)。"""
-    return sec["figure_count"] + sec["img_count"] + sec["table_count"]
+    """1セクションの hero ビジュアル数 (figure.report-visual + 単独 img)。
+
+    1.1.0+ 設計で表(table)は body ブロック=構造化本文であり hero visual ではないため
+    『1項目1ビジュアル』のカウントには含めない (図解+補助表を持つ正当な節の誤爆を防ぐ)。
+    """
+    return sec["figure_count"] + sec["img_count"]
+
+
+def _has_content(sec: dict) -> bool:
+    """セクションが実質的な本文/ビジュアルを持つか (空セクション誤判定を防ぐ)。
+
+    段落テキスト・hero ビジュアル・表・段落以外の構造化ブロック(リスト/定義/タスク/強調等)の
+    いずれかがあれば非空とみなす。
+    """
+    return (
+        sec["text_len"] > 0
+        or _visual_count(sec) > 0
+        or sec["table_count"] > 0
+        or sec["content_count"] > 0
+    )
+
+
+def _check_structuring_1_1_0(html, structure, html_sections, th, add) -> None:
+    """1.1.0 構造化ゲート (report-narrative-logic.md)。
+
+    下限=『羅列でも破綻ゼロなら PASS』を塞ぐ / 上限=『構造過剰・強調過多でも多様性ありなら PASS』を塞ぐ
+    双方向の warn を出す。block 型は structure(権威源) を、要点強調密度は html を主に使う。
+    意味の正否 (論理が本質を突くか等) は report-quality-reviewer の意味判定に委ねる (二層分離)。
+    """
+    struct = structure if isinstance(structure, dict) else None
+    if struct is not None:
+        meta = struct.get("meta") or {}
+        sv = meta.get("schemaVersion", "1.0.0")
+        length = meta.get("length")
+        secs = [s for s in (struct.get("sections") or []) if isinstance(s, dict)]
+        # 構造化を要求する条件: 1.1.0/1.2.0 を宣言 or length=deep(腰を据えて読む長尺) or 実際に body/narrative 使用。
+        # 1.2.0 を宣言しつつ body/narrative を一切使わない『opt-in したのに退化』を穴にしない (ダブル・ループ)。
+        is_110 = sv in ("1.1.0", "1.2.0") or length == "deep" or any(s.get("body") or s.get("narrative") for s in secs)
+        if is_110:
+            any_body = False
+            for s in secs:
+                sid = s.get("id")
+                body = s.get("body") if isinstance(s.get("body"), list) else []
+                paras = s.get("paragraphs") if isinstance(s.get("paragraphs"), list) else []
+                if body:
+                    any_body = True
+                if body and paras:
+                    add("structuring", "warn",
+                        f"section '{sid or '?'}': body[] と paragraphs[] を二重充填 (body[] 優先ゆえ paragraphs[] は描画されない・どちらかに寄せる)", sid)
+                # 1.2.0: role-aware。reference/procedure/summary 等は narrative 不要 (弧の強制は category error)。
+                role = (s.get("role") or "body")
+                if body and not s.get("narrative") and role not in _NARRATIVE_OPTIONAL_ROLES:
+                    add("structuring", "warn",
+                        f"section '{sid or '?'}'(role={role}): narrative(本質課題→解決→活用) が無い (節内論理展開を宣言すると羅列を防げる)", sid)
+                kp = sum(1 for b in body if isinstance(b, dict) and b.get("type") == "key-point")
+                if kp > th["max_keypoints_per_section"]:
+                    add("emphasis-overuse", "warn",
+                        f"section '{sid or '?'}': key-point が {kp}個 (強調過多・節あたり0〜{th['max_keypoints_per_section']}個に絞る)", sid)
+            if secs and not any_body:
+                trigger = "1.2.0" if sv == "1.2.0" else ("1.1.0" if sv == "1.1.0" else "length=deep")
+                add("structuring", "warn",
+                    f"構造化({trigger})が要求されるが body[](構造化ブロック) を一切使っていない (全節 paragraphs[] のみ・表/コード/リスト/強調ボックスが無く『情報の羅列』の兆候)")
+
+    # html 駆動 (section chunk 単位の強調密度)。structure が key-point を検査済みなら html 側は highlight のみ。
+    chunks = re.split(r"<section\b", html)[1:]
+    for i, chunk in enumerate(chunks):
+        hl = len(re.findall(r'<mark class="report-hl"', chunk))
+        if hl > th["max_highlights_per_section"]:
+            add("emphasis-overuse", "warn",
+                f"section #{i + 1}: 要点ハイライト(==…==) が {hl}箇所 (強調過多・要点に絞る)")
+        if struct is None:
+            kp = len(re.findall(r'class="report-keypoint', chunk))
+            if kp > th["max_keypoints_per_section"]:
+                add("emphasis-overuse", "warn",
+                    f"section #{i + 1}: key-point ボックスが {kp}個 (強調過多・節あたり0〜{th['max_keypoints_per_section']}個)")
+
+
+def _check_structuring_1_2_0(html, structure, facts, th, add) -> None:
+    """1.2.0 構造化ゲート (report-narrative-logic.md L4)。
+
+    through-line(文書アーク/節間接続)・色覚非依存の強調・reportType 横断要素・
+    多様性<適合性(羅列の床のみ叩く)・render 忠実度(structure 宣言→html 反映) を検査する。
+    意味の正否は report-quality-reviewer に委ねる (二層分離)。
+    """
+    struct = structure if isinstance(structure, dict) else None
+    meta = (struct.get("meta") or {}) if struct else {}
+    sv = meta.get("schemaVersion", "1.0.0")
+    secs = [s for s in (struct.get("sections") or []) if isinstance(s, dict)] if struct else []
+    is_120 = sv == "1.2.0" or bool(meta.get("throughLine")) or any(
+        s.get("transition") or (s.get("role") == "argument") for s in secs
+    ) or any(
+        isinstance(b, dict) and b.get("type") in {"definition-list", "footnote", "task-list"}
+        for s in secs for b in (s.get("body") or [])
+    )
+
+    # -- structure 駆動: through-line/横断要素/多様性 は 1.2.0 文書にのみ適用 (旧 doc への誤発火を防ぐ) --
+    if struct is not None and secs and is_120:
+        # (1) 文書アーク throughLine: 節数が多い/1.2.0 宣言なのに未宣言 → warn。
+        #     ただし length=brief は §6.3 マトリクスで throughLine を opt-out 許容 (短報にアークを強制しない)。
+        if meta.get("length") != "brief" and (sv == "1.2.0" or len(secs) >= th["throughline_min_sections"] or meta.get("length") == "deep") and not (meta.get("throughLine") or "").strip():
+            add("through-line", "warn",
+                f"文書アーク(meta.throughLine)が未宣言 (section {len(secs)}節・冒頭=本質課題→本論=解決→結=活用の通し筋を宣言すると飛び石を防げる)")
+        # 大規模文書(多節・deep)は throughLine を part 単位へ階層化すると道標になる。
+        if meta.get("length") == "deep" and len(secs) >= th["parts_suggest_sections"] and not (meta.get("throughLineParts") if isinstance(meta.get("throughLineParts"), list) else None):
+            add("through-line", "warn",
+                f"大規模文書({len(secs)}節・deep)だが throughLineParts(part 単位 sub-arc)が未宣言 (単一 throughLine に収まらない弧を部へ分解すると読者の道標になる)")
+        # (2) 節間接続 transition: 節が多いのに1つも transition が無い → warn。
+        if len(secs) >= th["transition_min_sections"]:
+            n_trans = sum(1 for s in secs if (s.get("transition") or "").strip())
+            if n_trans == 0:
+                add("through-line", "warn",
+                    f"節間接続(section.transition)が皆無 ({len(secs)}節・節末の橋渡し1文で流れを繋ぐ)")
+        # (3) reportType 横断要素: 型別に本質的に含むべき role の存在を決定論検査 (意味は quality-reviewer)。
+        rt = meta.get("reportType")
+        required = _REPORTTYPE_REQUIRED_ROLES.get(rt)
+        if required:
+            present = {s.get("role") for s in secs if s.get("role")}
+            missing = required - present
+            if missing:
+                add("cross-cutting", "warn",
+                    f"reportType='{rt}' の横断要素 role が不足: {sorted(missing)} (report-narrative-logic.md の型別必須要素)")
+        # (4) 多様性<適合性: 羅列の床のみ叩く (同一 block 型のみ N 個以上=段落の羅列)。多様性それ自体は加点しない。
+        for s in secs:
+            body = s.get("body") if isinstance(s.get("body"), list) else []
+            if len(body) >= th["monotone_block_floor"]:
+                types = {b.get("type") for b in body if isinstance(b, dict)}
+                if len(types) == 1 and "paragraph" in types:
+                    add("structuring", "warn",
+                        f"section '{s.get('id') or '?'}': body[] が全て paragraph ({len(body)}個・段落の羅列。表/リスト/定義リスト/強調で内容に適合する構造化を検討)", s.get("id"))
+
+    # -- render 忠実度/placement live: feature 宣言時のみ発火するので version gate 不要 (self-gating) --
+    if struct is not None and secs:
+        # (5) render 忠実度: structure が新 block/throughLine を宣言したのに html に反映が無い → fail。
+        declared_blocks = {b.get("type") for s in secs for b in (s.get("body") or []) if isinstance(b, dict)}
+        block_class = {
+            "definition-list": "report-deflist",
+            "footnote": "report-footnotes",
+            "task-list": "report-tasklist",
+        }
+        for btype, cls in block_class.items():
+            if btype in declared_blocks and cls not in html:
+                add("render-fidelity", "fail",
+                    f"structure が block type='{btype}' を宣言したが report.html に .{cls} が無い (render-report.js 未反映)")
+        if (meta.get("throughLine") or "").strip() and "report-throughline" not in html:
+            add("render-fidelity", "fail",
+                "meta.throughLine を宣言したが report.html に .report-throughline が無い (render 未反映)")
+        if any((s.get("transition") or "").strip() for s in secs) and "report-transition" not in html:
+            add("render-fidelity", "fail",
+                "section.transition を宣言したが report.html に .report-transition が無い (render 未反映)")
+        # (6) placement live 反映: emphasisZone/emphasis を宣言したのに data-emphasis が html に無い → fail。
+        wants_emph = any(
+            ((s.get("visual") or {}).get("layout") or {}).get("emphasisZone", "normal") not in ("normal", None)
+            or ((s.get("visual") or {}).get("layout") or {}).get("emphasis", "normal") not in ("normal", None)
+            for s in secs
+        )
+        if wants_emph and "data-emphasis" not in html:
+            add("render-fidelity", "fail",
+                "placement.emphasisZone/emphasis を宣言したが report.html に data-emphasis が無い (placement 未 live 反映)")
+        # focalPoint も placement live 反映の対象 (readingOrder/emphasisZone と対称・dead field 化を防ぐ)。
+        wants_focal = any(
+            isinstance(((s.get("visual") or {}).get("layout") or {}).get("focalPoint"), dict)
+            or isinstance(s.get("focalPoint"), dict)
+            for s in secs
+        )
+        if wants_focal and "data-focal" not in html:
+            add("render-fidelity", "fail",
+                "placement.focalPoint/section.focalPoint を宣言したが report.html に data-focal が無い (focalPoint 未 live 反映)")
+        # readingOrder も placement live 反映の対象 (emphasisZone/focalPoint と対称に被覆し回帰を捕捉)。
+        # readingOrder は視線方向ヒント属性で視覚再配置はしないが、data-reading-order 出力の退行は検出する。
+        wants_order = any(
+            (s.get("readingOrder") or ((s.get("visual") or {}).get("layout") or {}).get("readingOrder"))
+            for s in secs
+        )
+        if wants_order and "data-reading-order" not in html:
+            add("render-fidelity", "fail",
+                "section.readingOrder/placement.readingOrder を宣言したが report.html に data-reading-order が無い (readingOrder 未 live 反映)")
+        # narrative の essence系(essence/approach/leverage)と logic[] を併載すると render は essence系を優先し
+        # logic[] を黙って描画しない (schema は両形を許容するが render は排他)。併載を warn で顕在化する。
+        for s in secs:
+            nar = s.get("narrative")
+            if isinstance(nar, dict) and any(nar.get(k) for k in ("essence", "approach", "leverage")) and nar.get("logic"):
+                add("structuring", "warn",
+                    f"section '{s.get('id') or '?'}': narrative に essence系と logic[] を併載 (render は essence系を優先し logic[] を描画しない・一方へ寄せる)", s.get("id"))
+
+        # footnote インライン参照 [^id] の係り先健全性: 参照 id に対応する footnote(id) が無ければ warn (dangling ref / id typo)。
+        fn_ids: set = set()
+        ref_ids: set = set()
+        for s in secs:
+            for para in (s.get("paragraphs") or []):
+                if isinstance(para, str):
+                    ref_ids.update(m.lower() for m in _FOOTNOTE_REF_RE.findall(para))
+            for b in (s.get("body") or []):
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "footnote":
+                    for fn in (b.get("footnotes") or []):
+                        if isinstance(fn, dict) and fn.get("id"):
+                            fn_ids.add(str(fn["id"]).lower())
+                if isinstance(b.get("text"), str):
+                    ref_ids.update(m.lower() for m in _FOOTNOTE_REF_RE.findall(b["text"]))
+                for item in (b.get("items") or []):
+                    if isinstance(item, str):
+                        ref_ids.update(m.lower() for m in _FOOTNOTE_REF_RE.findall(item))
+        dangling = ref_ids - fn_ids
+        if dangling:
+            add("footnote-ref", "warn",
+                f"インライン脚注参照 [^id] に対応する footnote(id) が無い: {sorted(dangling)} (dangling ref / id typo・同一文書内に id 付き footnote を置く)")
+
+    # -- html 駆動 (render 品質・色覚非依存 / doc-level 予算) ---------------------
+    # (7) 色覚非依存の第2チャネル: mark.report-hl を使うのに CSS block が非色属性 (font-weight/underline) を持たない → warn。
+    if '<mark class="report-hl"' in html:
+        m = re.search(r"mark\.report-hl\s*\{([^}]*)\}", facts["style_text"])
+        css = (m.group(1) if m else "")
+        has_second_channel = bool(re.search(r"font-weight\s*:\s*[6-9]\d\d", css)) or ("underline" in css) or ("text-decoration" in css)
+        if not has_second_channel:
+            add("colorblind-safe", "warn",
+                "要点強調(mark.report-hl)が色単一チャネル (font-weight/underline 等の非色第2チャネルを併存させ色覚非依存にする)")
+    # (8) doc-level highlight 予算: 文書全体の ==highlight== 総数上限 (per-section cap に加えた総量)。
+    total_hl = len(re.findall(r'<mark class="report-hl"', html))
+    if total_hl > th["doc_highlight_budget"]:
+        add("emphasis-overuse", "warn",
+            f"文書全体の要点ハイライトが {total_hl}箇所 (doc 予算 {th['doc_highlight_budget']} 超・強調の希釈。真の要点に絞る)")
 
 
 def check_report(html, structure=None, strict=False, thresholds=None) -> dict:
@@ -394,7 +675,7 @@ def check_report(html, structure=None, strict=False, thresholds=None) -> dict:
     for ph in facts["placeholders"]:
         add("placeholder", "fail", f"未解決プレースホルダ残存: {ph}")
     for sec in sections:
-        if sec["text_len"] == 0 and _visual_count(sec) == 0:
+        if not _has_content(sec):
             add(
                 "placeholder",
                 "fail",
@@ -412,6 +693,12 @@ def check_report(html, structure=None, strict=False, thresholds=None) -> dict:
         add("print-letterbox", "warn", "@media print に 16:9 letterbox 指定 (slide 用印刷指定の report 混入)")
     if re.search(r"@page[^{]*\{[^}]*landscape", facts["style_text"].lower()):
         add("print-letterbox", "warn", "@page が landscape: report は A4 portrait 想定")
+
+    # -- C6: 1.1.0 構造化ゲート (下限=羅列を塞ぐ / 上限=過剰構造化・強調過多を塞ぐ) --------
+    _check_structuring_1_1_0(html, structure, sections, th, add)
+
+    # -- C7: 1.2.0 構造化ゲート (through-line / 色覚非依存 / reportType横断 / render忠実度) --------
+    _check_structuring_1_2_0(html, structure, facts, th, add)
 
     n_fail = sum(1 for f in findings if f["severity"] == "fail")
     n_warn = sum(1 for f in findings if f["severity"] == "warn")

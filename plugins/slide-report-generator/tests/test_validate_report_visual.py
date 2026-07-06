@@ -224,7 +224,9 @@ def test_render_fallback_is_warn():
     assert any("フォールバック" in f["message"] for f in r["findings"])
 
 
-def test_standalone_img_and_table_count_as_visuals():
+def test_standalone_img_counts_as_visual_but_table_does_not():
+    # 1.1.0+ 設計: 表(table)は body ブロック=構造化本文であり hero visual に数えない。
+    # img(1) + figure(1) = hero 2個 → warn 止まり (table は加算しない)。
     extra = '<img src="a.png" alt="x">\n  <table><tr><td>1</td></tr></table>\n  ' + _SVG_FIGURE
     secs = "\n".join(
         [
@@ -233,8 +235,23 @@ def test_standalone_img_and_table_count_as_visuals():
         ]
     )
     r = mod.check_report(_doc(secs))
-    # img + table + figure = 3 → fail。
-    assert r["passed"] is False
+    assert r["passed"] is True, r["findings"]  # hero 2個は warn 止まり
+    assert any(f["check"] == "one-visual" and "逸脱" in f["message"] for f in r["findings"])
+    assert mod.check_report(_doc(secs), strict=True)["passed"] is False
+
+
+def test_diagram_plus_table_is_not_over_visual():
+    # 図解 1 + データ表 1 の正当な節は『1項目1ビジュアル逸脱』に誤爆しない (表は本文扱い)。
+    table_html = '<figure class="report-table-wrap"><table class="report-table"><tbody><tr><td>v</td></tr></tbody></figure>'
+    secs = "\n".join(
+        [
+            _section("section-intro", "はじめに"),
+            _section("section-flow", "流れ", visuals_html=_SVG_FIGURE + "\n  " + table_html),
+        ]
+    )
+    r = mod.check_report(_doc(secs), strict=True)
+    assert r["passed"] is True, r["findings"]
+    assert not any(f["check"] == "one-visual" for f in r["findings"])
 
 
 # --- C3: 段落過密 / オーバーフロー ------------------------------------------
@@ -482,3 +499,358 @@ def test_main_bad_structure_json_returns_2(tmp_path, capsys):
     rc = mod.main([str(html), "--structure", str(struct)])
     assert rc == 2
     assert "JSON" in capsys.readouterr().err
+
+
+# ===== C6: 1.1.0 構造化ゲート (羅列←→過剰構造化 の双方向) =====
+
+def _sec_html(sec_id, heading, inner):
+    return f'<section class="report-section" id="{sec_id}"><h2 data-secnum="01">{heading}</h2>{inner}</section>'
+
+
+def test_110_all_paragraphs_warns_raretsu():
+    """1.1.0 宣言だが全節 paragraph-only (body[] 不使用) は羅列の兆候として warn。"""
+    struct = {"meta": {"title": "t", "reportType": "internal-analysis", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "paragraphs": ["x。y。"]},
+                           {"id": "section-b", "heading": "B", "paragraphs": ["z。"]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>x。y。</p>") + _sec_html("section-b", "B", "<p>z。</p>"))
+    r = mod.check_report(html, structure=struct)
+    msgs = " ".join(f["message"] for f in r["findings"] if f["check"] == "structuring")
+    assert "羅列" in msgs or "body[]" in msgs
+
+
+def test_110_double_fill_warns():
+    """body[] と paragraphs[] の二重充填は warn。"""
+    struct = {"meta": {"title": "t", "reportType": "tech-doc", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "narrative": {"essence": "e"},
+                            "paragraphs": ["p"], "body": [{"type": "paragraph", "text": "b"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>b</p>"))
+    r = mod.check_report(html, structure=struct)
+    assert any("二重充填" in f["message"] for f in r["findings"])
+
+
+def test_110_body_without_narrative_warns():
+    struct = {"meta": {"title": "t", "reportType": "tech-doc", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "body": [{"type": "paragraph", "text": "b"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>b</p>"))
+    r = mod.check_report(html, structure=struct)
+    assert any("narrative" in f["message"] for f in r["findings"])
+
+
+def test_110_keypoint_overuse_warns():
+    struct = {"meta": {"title": "t", "reportType": "tech-doc", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "narrative": {"essence": "e"},
+                            "body": [{"type": "key-point", "text": "1"}, {"type": "key-point", "text": "2"}, {"type": "key-point", "text": "3"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>x</p>"))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "emphasis-overuse" and "key-point" in f["message"] for f in r["findings"])
+
+
+def test_110_highlight_overuse_warns():
+    """1 section に ==highlight== が閾値(6)超で emphasis-overuse warn (html 駆動)。"""
+    marks = "".join(f'<p><mark class="report-hl">h{i}</mark> ふつうの文。</p>' for i in range(8))
+    html = _doc(_sec_html("section-a", "A", marks))
+    r = mod.check_report(html)  # structure なし → html 駆動
+    assert any(f["check"] == "emphasis-overuse" and "ハイライト" in f["message"] for f in r["findings"])
+
+
+def test_110_structured_passes_clean():
+    """適度に構造化された 1.1.0 (body + narrative + key-point 1個) は structuring/emphasis warn ゼロ。"""
+    struct = {"meta": {"title": "t", "reportType": "tech-doc", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "narrative": {"essence": "本質", "approach": "解決"},
+                            "body": [{"type": "paragraph", "text": "説明"},
+                                     {"type": "table", "headers": ["h"], "rows": [["v"]], "caption": "t"},
+                                     {"type": "key-point", "text": "要点"}]}]}
+    html = _doc(_sec_html("section-a", "A", '<p>説明</p><figure class="report-table-wrap"><table class="report-table"><thead><tr><th>h</th></tr></thead><tbody><tr><td>v</td></tr></tbody></table></figure><div class="report-keypoint report-keypoint--accent"><div class="report-keypoint__body">要点</div></div>'))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] in ("structuring", "emphasis-overuse") for f in r["findings"]), r["findings"]
+
+
+# ===== C7: 1.2.0 構造化ゲート (through-line / 色覚非依存 / reportType横断 / render忠実度 / バグ修正) =====
+
+def _meta_120(**kw):
+    m = {"title": "t", "reportType": "internal-analysis", "audience": "a", "keyMessage": "k", "schemaVersion": "1.2.0"}
+    m.update(kw)
+    return m
+
+
+def test_120_body_only_section_not_flagged_empty():
+    """バグ修正: task-list / definition-list のみ (段落なし) の節を『空セクション』と誤検出しない。"""
+    inner = (
+        '<ul class="report-tasklist"><li class="is-done"><span class="report-tasklist__box">[x]</span>'
+        '<span class="report-tasklist__text">完了</span></li></ul>'
+        '<dl class="report-deflist"><dt>用語</dt><dd>定義</dd></dl>'
+    )
+    html = _doc(_sec_html("section-next", "次アクション", inner))
+    r = mod.check_report(html)
+    assert not any("空セクション" in f["message"] for f in r["findings"]), r["findings"]
+
+
+def test_120_reference_role_without_narrative_no_warn():
+    """role=reference は narrative 不要 (弧の強制は category error) → narrative warn を出さない。"""
+    struct = {"meta": _meta_120(reportType="tech-doc"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-ref", "heading": "参照", "role": "reference", "body": [{"type": "paragraph", "text": "列挙。"}]}]}
+    html = _doc(_sec_html("section-ref", "参照", "<p>列挙。</p>"))
+    r = mod.check_report(html, structure=struct)
+    # narrative 欠如 warn (check=structuring, "narrative(本質…") が出ないこと (cross-cutting 等の別 warn は許容)。
+    assert not any(f["check"] == "structuring" and "narrative(本質" in f["message"] for f in r["findings"]), r["findings"]
+
+
+def test_120_analysis_role_without_narrative_warns():
+    """role=analysis は narrative を強く期待 → 欠如で warn。"""
+    struct = {"meta": _meta_120(), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-an", "heading": "分析", "role": "analysis", "body": [{"type": "paragraph", "text": "本文。"}]}]}
+    html = _doc(_sec_html("section-an", "分析", "<p>本文。</p>"))
+    r = mod.check_report(html, structure=struct)
+    assert any("narrative" in f["message"] for f in r["findings"])
+
+
+def test_120_throughline_missing_warns():
+    struct = {"meta": _meta_120(), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "role": "summary", "body": [{"type": "paragraph", "text": "p"}]} for i in range(4)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>p</p>") for i in range(4)))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "through-line" and "throughLine" in f["message"] for f in r["findings"])
+
+
+def test_120_transition_absent_warns():
+    struct = {"meta": _meta_120(throughLine="通し筋"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "role": "summary", "body": [{"type": "paragraph", "text": "p"}]} for i in range(3)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>p</p>") for i in range(3)))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "through-line" and "transition" in f["message"] for f in r["findings"])
+
+
+def test_120_reporttype_cross_cutting_missing_warns():
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "background", "transition": "x", "body": [{"type": "paragraph", "text": "p"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>p</p>"))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "cross-cutting" and "summary" in f["message"] for f in r["findings"])
+
+
+def test_120_render_fidelity_deflist_missing_is_fail():
+    """structure が definition-list を宣言したのに html に .report-deflist が無い → fail。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "reference",
+                            "body": [{"type": "definition-list", "terms": [{"term": "x", "definition": "y"}]}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>def なし</p>"))  # deflist class を出していない
+    r = mod.check_report(html, structure=struct)
+    assert r["passed"] is False
+    assert any(f["check"] == "render-fidelity" and "report-deflist" in f["message"] for f in r["findings"])
+
+
+def test_120_render_fidelity_throughline_missing_is_fail():
+    struct = {"meta": _meta_120(throughLine="通し筋"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary", "body": [{"type": "paragraph", "text": "p"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>p</p>"))  # report-throughline を出していない
+    r = mod.check_report(html, structure=struct)
+    assert r["passed"] is False
+    assert any(f["check"] == "render-fidelity" and "throughLine" in f["message"] for f in r["findings"])
+
+
+def test_120_readingorder_declared_but_not_rendered_is_fail():
+    """structure が readingOrder を宣言したのに html に data-reading-order が無い → render-fidelity fail (placement 5field 対称被覆)。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary", "readingOrder": "z-shape",
+                            "body": [{"type": "paragraph", "text": "p"}]}]}
+    html = _doc(_sec_html("section-a", "A", "<p>p</p>"))  # data-reading-order を出していない
+    r = mod.check_report(html, structure=struct)
+    assert r["passed"] is False
+    assert any(f["check"] == "render-fidelity" and "reading-order" in f["message"] for f in r["findings"])
+
+
+def test_role_classification_sets_are_disjoint():
+    """narrative 要否2集合が排他 (import 時 assert と対) — 二重登録の desync を防ぐ。"""
+    assert mod._NARRATIVE_REQUIRED_ROLES.isdisjoint(mod._NARRATIVE_OPTIONAL_ROLES)
+
+
+def test_120_footnote_dangling_ref_warns():
+    """本文の [^id] 参照に対応する footnote(id) が無い → footnote-ref warn (dangling / typo)。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "reference",
+                            "body": [{"type": "paragraph", "text": "根拠[^typo]を示す。"},
+                                     {"type": "footnote", "footnotes": [{"id": "real", "text": "実在脚注"}]}]}]}
+    html = _doc(_sec_html("section-a", "A", '<p>根拠を示す。</p><aside class="report-footnotes"><ol><li id="fn-real">[1] 実在脚注</li></ol></aside>'))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "footnote-ref" and "typo" in f["message"] for f in r["findings"])
+
+
+def test_120_footnote_resolved_ref_no_warn():
+    """[^id] 参照に対応する footnote(id) が在れば footnote-ref warn を出さない。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "reference",
+                            "body": [{"type": "paragraph", "text": "根拠[^src]を示す。"},
+                                     {"type": "footnote", "footnotes": [{"id": "src", "text": "一次資料"}]}]}]}
+    html = _doc(_sec_html("section-a", "A", '<p>根拠<sup class="report-fnref"><a href="#fn-src">[1]</a></sup>を示す。</p><aside class="report-footnotes"><ol><li id="fn-src">[1] 一次資料</li></ol></aside>'))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] == "footnote-ref" for f in r["findings"])
+
+
+def test_120_placement_emphasis_not_rendered_is_fail():
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary",
+                            "body": [{"type": "paragraph", "text": "p"}],
+                            "visual": {"kind": "svg", "layout": {"emphasisZone": "highlight"}, "spec": {"variant": "flow", "nodes": [{"id": "n-a", "label": "A"}]}}}]}
+    html = _doc(_sec_html("section-a", "A", "<p>p</p>"))  # data-emphasis を出していない
+    r = mod.check_report(html, structure=struct)
+    assert r["passed"] is False
+    assert any(f["check"] == "render-fidelity" and "data-emphasis" in f["message"] for f in r["findings"])
+
+
+def test_120_colorblind_highlight_single_channel_warns():
+    """mark.report-hl を使うのに CSS が非色第2チャネル (weight/underline) を欠く → colorblind-safe warn。"""
+    style = "<style>\nmark.report-hl { background: yellow; color: black; }\n</style>"
+    html = _doc(_sec_html("section-a", "A", '<p><mark class="report-hl">要点</mark></p>'), style=style)
+    r = mod.check_report(html)
+    assert any(f["check"] == "colorblind-safe" for f in r["findings"])
+
+
+def test_120_colorblind_highlight_two_channel_ok():
+    style = "<style>\nmark.report-hl { background: yellow; font-weight: 700; text-decoration: underline; }\n</style>"
+    html = _doc(_sec_html("section-a", "A", '<p><mark class="report-hl">要点</mark></p>'), style=style)
+    r = mod.check_report(html)
+    assert not any(f["check"] == "colorblind-safe" for f in r["findings"])
+
+
+def test_120_doc_highlight_budget_warns():
+    marks = "".join(f'<p><mark class="report-hl">h{i}</mark></p>' for i in range(26))
+    # 5 節に分散させ per-section cap を避けつつ doc 総量で超過させる。
+    secs = "\n".join(_sec_html(f"section-{i}", f"H{i}", "".join(f'<p><mark class="report-hl">h</mark></p>' for _ in range(6))) for i in range(5))
+    r = mod.check_report(_doc(secs))
+    assert any(f["check"] == "emphasis-overuse" and "文書全体" in f["message"] for f in r["findings"])
+
+
+def test_120_monotone_paragraph_floor_warns():
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary",
+                            "body": [{"type": "paragraph", "text": f"p{i}"} for i in range(6)]}]}
+    html = _doc(_sec_html("section-a", "A", "".join(f"<p>p{i}</p>" for i in range(6))))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "structuring" and "羅列" in f["message"] for f in r["findings"])
+
+
+def test_120_gate_does_not_fire_on_110_doc():
+    """1.1.0 doc には through-line/cross-cutting の C7 warn を出さない (旧 doc 誤発火防止)。"""
+    struct = {"meta": {"title": "t", "reportType": "internal-analysis", "audience": "a", "keyMessage": "k", "schemaVersion": "1.1.0"},
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "body": [{"type": "paragraph", "text": "p"}], "narrative": {"essence": "e"}} for i in range(5)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>p</p>") for i in range(5)))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] in ("through-line", "cross-cutting") for f in r["findings"]), r["findings"]
+
+
+def test_120_role_classification_covers_all_schema_roles():
+    """validator の narrative 要否2集合が schema の section.role enum を過不足なく覆う (fall-through 曖昧さ排除)。"""
+    import json as _json
+    schema = _json.loads((Path(__file__).resolve().parent.parent / "schemas" / "report-structure.schema.json").read_text(encoding="utf-8"))
+    enum = set(schema["$defs"]["section"]["properties"]["role"]["enum"])
+    classified = mod._NARRATIVE_REQUIRED_ROLES | mod._NARRATIVE_OPTIONAL_ROLES
+    assert enum - classified == set(), f"未分類 role: {sorted(enum - classified)}"
+    assert mod._NARRATIVE_REQUIRED_ROLES & mod._NARRATIVE_OPTIONAL_ROLES == set(), "REQUIRED と OPTIONAL が重複"
+
+
+def test_120_focalpoint_declared_but_not_rendered_is_fail():
+    """structure が placement.focalPoint を宣言したのに html に data-focal が無い → render-fidelity fail。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary",
+                            "body": [{"type": "paragraph", "text": "p"}],
+                            "visual": {"kind": "svg", "layout": {"focalPoint": {"x": 30, "y": 70}}, "spec": {"variant": "flow", "nodes": [{"id": "n-a", "label": "A"}]}}}]}
+    html = _doc(_sec_html("section-a", "A", "<p>p</p>"))  # data-focal を出していない
+    r = mod.check_report(html, structure=struct)
+    assert r["passed"] is False
+    assert any(f["check"] == "render-fidelity" and "focalPoint" in f["message"] for f in r["findings"])
+
+
+def test_120_large_deep_doc_without_parts_warns():
+    """length=deep かつ多節(>=12)で throughLineParts 未宣言 → through-line warn (部構成で道標を促す)。"""
+    struct = {"meta": _meta_120(length="deep", throughLine="x"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "role": "summary", "transition": "t",
+                            "body": [{"type": "paragraph", "text": "p"}]} for i in range(12)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>p</p>") for i in range(12)))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "through-line" and "throughLineParts" in f["message"] for f in r["findings"])
+
+
+def test_120_large_deep_doc_with_parts_no_warn():
+    """throughLineParts を宣言すれば part 未宣言 warn を出さない。"""
+    struct = {"meta": _meta_120(length="deep", throughLine="x", throughLineParts=[{"arc": "第1部"}, {"arc": "第2部"}]),
+              "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "role": "summary", "transition": "t",
+                            "body": [{"type": "paragraph", "text": "p"}]} for i in range(12)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>p</p>") for i in range(12)))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] == "through-line" and "throughLineParts" in f["message"] for f in r["findings"])
+
+
+def test_120_clean_report_passes_strict():
+    """完全な 1.2.0 report (throughLine + transition + role別narrative + 横断role + 新block render) は strict PASS。"""
+    struct = {
+        "meta": _meta_120(throughLine="本質→解決→活用", length="deep"),
+        "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+        "sections": [
+            {"id": "section-sum", "heading": "要約", "role": "summary", "transition": "次へ",
+             "body": [{"type": "key-point", "text": "結論"}]},
+            {"id": "section-an", "heading": "分析", "role": "analysis", "transition": "次へ",
+             "narrative": {"essence": "本質", "approach": "解決"},
+             "body": [{"type": "paragraph", "text": "本文"}]},
+            {"id": "section-next", "heading": "次アクション", "role": "next-action",
+             "body": [{"type": "task-list", "tasks": [{"text": "T", "done": False}]}]},
+        ],
+    }
+    inner_sum = '<div class="report-keypoint report-keypoint--accent"><div class="report-keypoint__body">結論</div></div>'
+    inner_an = '<div class="report-narrative"><span class="report-narrative__label">本質課題</span></div><p>本文</p>'
+    inner_next = '<ul class="report-tasklist"><li><span class="report-tasklist__box">[ ]</span><span class="report-tasklist__text">T</span></li></ul>'
+    body = (
+        _sec_html("section-sum", "要約", inner_sum).replace("</section>", '<p class="report-transition">次へ</p></section>')
+        + _sec_html("section-an", "分析", inner_an).replace("</section>", '<p class="report-transition">次へ</p></section>')
+        + _sec_html("section-next", "次アクション", inner_next)
+    )
+    # throughLine 帯 + data-emphasis 不要 (emphasis 未宣言)
+    html = _doc('  <div class="report-throughline">本質→解決→活用</div>\n' + body)
+    r = mod.check_report(html, structure=struct, strict=True)
+    assert r["passed"] is True, r["findings"]
+
+
+# ===== Phase3 (elegant review) で検出した回帰 =====
+
+def test_120_paragraphs_only_deep_still_caught_raretsu():
+    """opt-in ゲート抜け穴の封鎖: sv=1.2.0 or length=deep で全節 paragraphs[]-only は羅列 warn (body 不使用で escape させない)。"""
+    struct = {"meta": _meta_120(length="deep", throughLine="x"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": f"section-{i}", "heading": f"H{i}", "role": "analysis", "paragraphs": ["羅列文。"]} for i in range(5)]}
+    html = _doc("\n".join(_sec_html(f"section-{i}", f"H{i}", "<p>羅列</p>") for i in range(5)))
+    r = mod.check_report(html, structure=struct, strict=True)
+    assert any(f["check"] == "structuring" and "羅列" in f["message"] for f in r["findings"])
+    assert r["passed"] is False  # strict で fail (羅列退化を緑通過させない)
+
+
+def test_120_brief_throughline_optout_no_warn():
+    """length=brief は §6.3 マトリクスで throughLine を opt-out 許容 → 未宣言でも warn しない。"""
+    struct = {"meta": _meta_120(length="brief"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "summary", "body": [{"type": "key-point", "text": "結論"}]}]}
+    html = _doc(_sec_html("section-a", "A", '<div class="report-keypoint"><div class="report-keypoint__body">結論</div></div>'))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] == "through-line" and "throughLine" in f["message"] for f in r["findings"])
+
+
+def test_120_code_only_section_not_flagged_empty():
+    """コードブロックのみの節 (tech-doc で頻出) を『空セクション』と誤検出しない (content marker に report-code)。"""
+    inner = '<figure class="report-code-wrap"><pre class="report-code"><code>echo hi</code></pre></figure>'
+    html = _doc(_sec_html("section-code", "実装例", inner))
+    r = mod.check_report(html)
+    assert not any("空セクション" in f["message"] for f in r["findings"]), r["findings"]
+
+
+def test_120_narrative_dual_form_warns():
+    """narrative に essence系と logic[] を併載すると render が logic[] を黙 drop → structuring warn で顕在化。"""
+    struct = {"meta": _meta_120(throughLine="t"), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-a", "heading": "A", "role": "analysis",
+                            "narrative": {"essence": "本質", "logic": [{"role": "claim", "text": "主張"}]},
+                            "body": [{"type": "paragraph", "text": "p"}]}]}
+    html = _doc('  <div class="report-throughline">t</div>\n' + _sec_html("section-a", "A", '<div class="report-narrative"></div><p>p</p>'))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "structuring" and "併載" in f["message"] for f in r["findings"])

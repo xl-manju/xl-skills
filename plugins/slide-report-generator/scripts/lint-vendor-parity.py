@@ -3,7 +3,7 @@
 
 vendor/ 配下の byte 携行ツリー (scripts/ assets/ schemas-fixtures/ package.json
 package-lock.json) を、plan 同梱の再現性アンカー ``vendor-digest-manifest.json``
-(195 files sha256 pin) と照合する。移植元 live tree には依存しない。
+(191 files sha256 pin) と照合する。移植元 live tree には依存しない。
 
 additive_new_files (report 新規 Node: render-report.js / mermaid-render.js、
 および vendor/tests/ 配下、manifest 自身) は parity 対象外 (excluded_additive)
@@ -26,19 +26,10 @@ SUBTREE_TARGETS = {
     "presentation-slide-generator/scripts/": "vendor/scripts/",
     "presentation-slide-generator/assets/": "vendor/assets/",
     "presentation-slide-generator/schemas/": "vendor/schemas-fixtures/",
+    "presentation-slide-generator/schemas/ (example fixtures + README のみ)": "vendor/schemas-fixtures/",
     "presentation-slide-generator/package.json": "vendor/",
     "presentation-slide-generator/package-lock.json": "vendor/",
 }
-
-# Runtime schema SSOT lives at plugin-root schemas/. These files are still
-# checked against the upstream digest, but are not duplicated under vendor/.
-ROOT_SCHEMA_FILES = {
-    "evaluation-report.schema.json",
-    "image-asset-manifest.schema.json",
-    "image-deck-plan.schema.json",
-    "structure.schema.json",
-}
-
 
 def sha256(path: str) -> str:
     h = hashlib.sha256()
@@ -62,12 +53,8 @@ def main() -> int:
             return 1
         for filename, digest in subtree.get("files", {}).items():
             total += 1
-            if subtree["source"] == "presentation-slide-generator/schemas/" and filename in ROOT_SCHEMA_FILES:
-                path = os.path.join(PLUGIN_ROOT, "schemas", filename)
-                display = f"schemas/{filename}"
-            else:
-                path = os.path.join(PLUGIN_ROOT, target, filename)
-                display = f"{target}{filename}"
+            path = os.path.join(PLUGIN_ROOT, target, filename)
+            display = f"{target}{filename}"
             if not os.path.exists(path):
                 missing += 1
                 print(f"MISSING {display}", file=sys.stderr)

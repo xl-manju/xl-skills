@@ -8,7 +8,7 @@
 | 用語 | 定義 | 関連概念 |
 |------|------|----------|
 | 必須検証基準 RQ1〜RQ20 | report.html を read-through 成立性の観点で確認する 20 項目の客観チェック。6 群（読み物文体・段落密度 / 1項目1ビジュアル・図解適合 / reportType 骨格・section 構造 / 見出し階層 / 印刷・letterbox / 可読性・意匠維持） | RQCONST_001-007 |
-| 決定論ゲート | `validate-report-visual.py <report.html>`。機械検出可能な崩れ（1項目1ビジュアル超過 / 見出し階層スキップ / 最小フォント違反 / letterbox 強制 / 印刷 px 依存 / 構造同期ずれ）を LLM 検証に先行して確定するスクリプト | RQCONST_001 |
+| 決定論ゲート | `validate-report-visual.py <report.html> [--structure …]`。同スクリプトが実検出する崩れ（1項目1ビジュアル超過 / 段落過密 / プレースホルダ・空セクション / letterbox 兆候 / 構造同期ずれ / 1.1.0-1.2.0 構造化＝羅列・強調過多・through-line・reportType横断role・render忠実度・色覚非依存）を LLM 検証に先行して確定するスクリプト（見出し階層スキップ/最小フォント/印刷px は対象外＝grep 手動 or C24 意味判定） | RQCONST_001 |
 | read-through 粒度 | 投影ではなく通読を前提とした本文密度。文章多め・複数段落を許容 | `$CLAUDE_PLUGIN_ROOT/references/report-writing-rules.md` |
 | reportType 骨格 | 目的別に定義された節（role）の必須並び。4 型（internal-analysis/client-proposal/tech-doc/learning） | `$CLAUDE_PLUGIN_ROOT/references/report-types.md` |
 | 1項目1ビジュアル | 1 section の非 none visual は最大 1。図解過多を避け読解を助ける 1 点に絞る | `$CLAUDE_PLUGIN_ROOT/references/report-visual-strategy.md` |
@@ -30,7 +30,7 @@
 
 ## ビジネスルール（制約カタログ RQCONST_001-007）
 
-- **RQCONST_001 (機械検証先行ゲート)**: 決定論ゲート `validate-report-visual.py <report.html>` を LLM 意味検証に**先行**して実行し、機械検出可能な崩れ（1項目1ビジュアル超過 / 見出し階層スキップ / 最小フォント違反 / letterbox 強制 / 印刷 px 依存 / 構造同期ずれ）を確定してから意味検証に入る。
+- **RQCONST_001 (機械検証先行ゲート)**: 決定論ゲート `validate-report-visual.py <report.html> [--structure …]` を LLM 意味検証に**先行**して実行し、**同スクリプトが実際に検出する崩れ**（1項目1ビジュアル超過 / 段落過密・オーバーフロー / 未解決プレースホルダ・空セクション / 印刷 letterbox 兆候 / 構造同期ずれ / 1.1.0-1.2.0 構造化ゲート＝羅列退化・強調過多・through-line 欠落・reportType 横断 role・render 忠実度・色覚非依存強調）を確定してから意味検証に入る。**見出し階層スキップ・最小フォント違反・印刷 px 依存は validate-report-visual.py の検査対象外**であり、RQ17 等の `grep` 手動確認または C24 の意味判定が担う（機械ゲートが担保しない項目を担保済みと誤認しない＝宣言と実装を一致させる）。
   - 目的: 機械で確定できる崩れを LLM の主観・記憶に委ねず、機械検証と意味検証を分離する。
   - 背景: The Checklist Manifesto の知見。機械層で捕れる項目を先に潰すことで、LLM は読み物成立・段落密度品質・種別適合・骨格論理順序という意味判断に集中できる。
 - **RQCONST_002 (read-through 成立)**: 各 section は見出しだけで終わらせず、要点を言い切る段落を持つ。空節・箇条書きだけの節は退化。chip 強制・長文禁止を緩和した read-through 粒度を守る。
@@ -148,7 +148,33 @@
 | RQ19 | 意匠共有 | 配色・フォント・印刷 CSS を共有 SSOT から適用し report 独自発明がない | 意匠トークンが共有 SSOT 由来か確認（意味） |
 | RQ20 | 構造同期 | report.html が report-structure.json の忠実な射影で過不足ゼロ（勝手な節の増減なし） | sections 数と各 section 内容を report.html と照合（機械） |
 
-**RQ9・RQ20 に違反（骨格欠落・構造同期崩れ）がある場合、上流起因として report-structure-designer / report-composer へ差し戻す。その他の RQ 違反は補正指針を返し report-composer / slide-report-modifier が適用する。**
+### G 群: 積極評価 — 構造化された読み物としての魅力（RQ21〜RQ26・1.1.0）
+
+> A〜F 群が「破綻していないか」の減点型なのに対し、G 群は「構造化された読み物として魅力的か」を **積極評価** する。『羅列でも破綻ゼロなら PASS』と『構造過剰・強調過多でも多様性ありなら PASS』の**双方向**を塞ぐ。機械層（`validate-report-visual.py` の C6）が下限・上限を検出し、意味の正否は本レビュアが判定する（二層分離）。正本は [report-narrative-logic.md](report-narrative-logic.md)。
+
+| # | 検証項目 | 基準（検証可能条件） | 検出方法 |
+|---|---------|------|----------|
+| RQ21 | 節内論理展開の成立 | 各節に narrative（本質課題→解決→活用 / logic）があり、heading の言い換えでなく本質を突いている | `section.narrative` の有無（機械）＋ essence が本質課題か（意味） |
+| RQ22 | block 構造多様性 | 対照は table・手順は ordered-list・コードは code で表現し、本文へ流し込んでいない（1.1.0 は原則 body[] 使用・全節 paragraph-only は羅列の兆候） | body[] の block 型分布（機械）＋ 内容適合（意味） |
+| RQ23 | 要点強調の効き | 要点が `==…==`（1段落1箇所）/ key-point（1節0〜1個）で強調され、読者が結論を掴める | mark/key-point の存在（機械）＋ 強調対象が真の要点か（意味） |
+| RQ24 | 強調・構造の非過剰 | 強調過多・block 過剰で読み物が断片化していない（節あたり highlight ≤6・key-point ≤2） | validate-report-visual C6 の上限 warn（機械）＋ 断片化の印象（意味） |
+| RQ25 | 図解の意味的配置 | 図が段落末尾全幅固定でなく、該当説明の隣（`visual.layout.grid` 2カラム等）へ意味的に配置され、図表番号・キャプションで相互参照可能 | placement/caption の反映（機械）＋ 配置の妥当性（意味） |
+| RQ26 | 横断要素の充足 | reportType 別の本質的横断要素（要約/テイクアウェイ/次アクション/根拠出典/リスク留保、型別=前提/用語/手順/学習目標/演習 等）が揃っている | report-narrative-logic §4 のカタログと照合（意味） |
+
+**RQ9・RQ20 に違反（骨格欠落・構造同期崩れ）がある場合、上流起因として report-structure-designer / report-composer へ差し戻す。RQ21〜RQ26（積極評価）に違反する場合は「構造化が薄い / 強調が過剰」の補正指針を上流（report-structure-designer）へ返す。その他の RQ 違反は補正指針を返し report-composer / slide-report-modifier が適用する。**
+
+### H 群: 積極評価 — through-line・色覚非依存・横断要素・適合性優先（RQ27〜RQ30・1.2.0）
+
+> G 群（1.1.0）が**節内**の構造化（narrative・block・強調）を積極評価するのに対し、H 群（1.2.0）は軸を足す: **節間**の論理接続（through-line）、色に依存しない強調（色覚非依存）、型別横断要素の**意味的**充足、block 多様性の水増しでなく**適合性優先**。機械ゲート C25（`validate-report-visual.py`）は「構造の存在／render 忠実度」だけを決定論検査し、**意味の正否（論理が本質を突くか・要約が本当に要約か）は C24 report-quality-reviewer の意味判定が担う**（二層分離）。正本は [report-narrative-logic.md](report-narrative-logic.md)。
+
+| # | 検証項目 | 基準（検証可能条件） | 検出方法 |
+|---|---------|------|----------|
+| RQ27 | through-line（節間論理・弧） | `meta.throughLine`（通し筋）→本論→結の弧が成立し、節が飛び石でなく `section.transition` が節間を橋渡ししている（heading 羅列でなく主張線が通る） | throughLine/transition の存在（機械 C25）＋ 通し筋が実際に節を貫き transition が論理接続を果たすか（意味） |
+| RQ28 | 色覚非依存の強調 | 要点強調 `==…==` が色単一チャネルでなく font-weight/underline 等の非色第2チャネルを併存し、色覚特性に依存せず要点が判別できる | highlight の非色チャネル併存（機械 C25）＋ 色を抜いても要点として立つか（意味） |
+| RQ29 | reportType 横断要素の意味的充足 | 型別の本質的横断要素（共通=要約/テイクアウェイ/次アクション/根拠出典/リスク留保/TL;DR＋文書メタ〈version/updatedDate/readingTime/audience〉、型別=前提/用語/手順/学習目標/演習/argument 等）が、role の存在だけでなく内容が実際にその役割を果たす形で揃っている | role・文書メタの存在（機械 C25）＋ 要約が本当に要約か・次アクションが実行可能かの意味充足（意味・report-narrative-logic §4 照合） |
+| RQ30 | 多様性 < 適合性 の優先 | block 種類の水増しを加点せず、内容が要求する構造への適合を評価する。全 paragraph の羅列だけを減点し、無意味な block 多様化は加点しない。narrative 不要な role（reference/procedure/summary）へ弧を強制するのは category error として要求しない（analysis/argument は narrative 必須） | 全 paragraph 羅列の下限検出（機械 C25）＋ 構造が内容要求に適合するか・多様化が意味を持つか・role 別 narrative 要否が正しいか（意味） |
+
+**RQ27〜RQ30（1.2.0 積極評価）に違反する場合は「節間の流れが弱い / 強調が色依存 / 横断要素が意味的に欠落 / 構造が内容に不適合」の補正指針を上流（through-line・横断要素・適合性は report-structure-designer、色覚非依存の第2チャネルは report-composer / render）へ返す。多様性の水増しは加点せず、羅列だけを減点する（適合性 > 多様性）。**
 
 ## 補正指針（検出問題→補正指針）
 

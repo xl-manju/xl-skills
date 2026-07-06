@@ -87,3 +87,45 @@ slide は「投影され、一瞬で読み取られる」ことを前提に、1�
 | 維持ラインを守っているか | 最小1.4rem・Kanagawa 意匠・退化耐性・1項目1ビジュアル |
 | 逐語要素を本文で持つか | コード・数値・料金が画像でなく本文（表/コード）にある |
 | 構造同期しているか | 本文が report-structure.json の射影で過不足ゼロ |
+
+---
+
+## 6. 1.2.0 追補 — read-through 執筆規律
+
+### 6.1 多様性 < 適合性（block は内容に従わせる）
+
+構造化ブロックは「種類を増やす」ためでなく「内容に合わせる」ために使う。
+
+- **適合**: 3項以上の対照→表、手順→番号リスト、用語対→定義リスト、出典→脚注、次アクション→タスクリスト。内容が要求した器だけを使う。
+- **禁止（水増し）**: 多様性を演出するための不要な table/stat-tile。適合しない構造化はノイズで減点。
+- **床（最低ライン）**: 全ブロックが `paragraph` だけの節は羅列退化。ここだけを叩く（多様性それ自体は加点しない）。評価規律の詳細は [report-narrative-logic.md](report-narrative-logic.md) §6.4。
+
+### 6.2 inline highlight は2チャネル（色覚非依存）
+
+`==要点==` は色マーカー単独でなく**色 + 非色（font-weight:700 + underline）を併存**させる。色覚特性で色が判別できない読者にも要点が届く。render-report.js の `mark.report-hl` が両チャネルを持つ（新規配色は足さず意匠 SSOT を流用）。
+
+### 6.3 highlight 密度予算（per-section + doc-level）
+
+強調は「絞るほど効く」。二段の上限を守る。
+
+| レベル | 上限 | 根拠 |
+|---|---|---|
+| 段落 | `==…==` は **1段落1箇所** | §2.2 / narrative-logic §3 |
+| 節 | `key-point` は **1節0〜1個** | narrative-logic §3 |
+| **文書** | `==…==` の**総数 24 箇所まで** | C25 `doc_highlight_budget=24`（超過で warn） |
+
+per-section cap を各節で守っても、節数が多いと文書全体で強調が希釈する。doc-level 予算で「文書としての要点」を絞る。
+
+### 6.4 新 block 型の content-regime（いつどれを使うか）
+
+1.2.0 で `definition-list` / `footnote` / `task-list` を追加。使いどころ:
+
+| type | いつ使うか | 主フィールド | 主な reportType |
+|---|---|---|---|
+| `definition-list` | **用語↔定義の対**が3組以上並ぶ（本文に「A は… B は…」と流さない） | `terms[{term,definition}]` | tech-doc（用語集）/ learning（概念定義） |
+| `footnote` | **主張の出典・根拠**を本文から分離し可検証にする | `footnotes[{id?,marker?,text,citation?}]` | internal-analysis（根拠）/ client-proposal（実績出典） |
+| `task-list` | **意思決定・次アクション**を担当/完了付きで第一級表現 | `tasks[{text,done?,owner?}]` | internal-analysis（次アクション）/ client-proposal（導入 TODO） |
+
+> 順序が本質なら `ordered-list`、チェック管理なら `task-list`。列挙が本質なら `bullet-list`、用語定義なら `definition-list`。器は内容の性質で選ぶ（§6.1）。
+
+**footnote のインライン係り先**: 特定の主張に脚注を係らせるときは、脚注 entry に `id` を付し、本文 text 中に `[^id]` を書く。render-report.js が文書順で連番採番し、本文の `[^id]` を上付き番号リンク（→ 脚注）に、脚注実体を係り先アンカー（本文へ戻る ↩ 付き）にする双方向リンクを生成する。`id` を付けない footnote は本文非係りの巻末注（従来どおり）。`[^id]` に対応する `id` 付き footnote が同一文書内に無いと C25 が `footnote-ref` dangling warn を出す（id typo 検出）。
