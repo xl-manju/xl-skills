@@ -1,30 +1,40 @@
 {
-  "target": {"plugin": "plugin-dev-planner", "skill": "run-plugin-dev-plan", "skill_md_sha256": "1cc45cfa669273b5aef2281c9652555b68d72a79c58b83bef49b98f7a121dfb5"},
+  "target": {
+    "plugin": "plugin-dev-planner",
+    "skill": "run-plugin-dev-plan",
+    "skill_md_sha256": "d0129e0b17b6de59002fa32747c9115a339d21166ce4ccf01912c3427571834f"
+  },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 1, "dependency_break": 0, "smell": 1},
-  "reviewer": "independent-content-review-subagent (PR-flow stale-sha 再評価 2026-07-07)",
-  "reviewed_at": "2026-07-07T02:43:28+00:00",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "独立 content-review 評価者 (親=設計者の主張を信用せず現物精読+実走で二段検証・anti-Goodhart)。PR-flow stale-sha genuine 再評価 2026-07-08。",
+  "reviewed_at": "2026-07-08T00:00:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "本 PR delta(task-graph 第一級成果物化+E4 外ループ) は内部整合・実在整合とも clean: 出力節(SKILL.md:133 task-graph.json を成果物(5)へ)・完了条件(SKILL.md:134 拡張ゲート 7 本に validate-task-graph 追加)・Rule 11(SKILL.md:176 E4 外ループ帰路)・checklist(SKILL.md:197 E4 / SKILL.md:211 derive+validate)・ゴールシーク検証 bash(SKILL.md:268 derive-task-graph→SKILL.md:277 validate-task-graph)・handoff(SKILL.md:317 task_graph_ref 常時付与)・frontmatter(argument-hint/arguments に --discovered-inbox/--approved・script_refs 10 本追加・schema_refs 5 本追加・reference_refs task-graph-contract.md) が多層一貫。矛盾なし",
-      "delta の全新規参照を実在確認: scripts/derive-task-graph.py・validate-task-graph.py・compute-ready-set.py・accept-discovered-task.py・apply-handoff-notes.py・check-plan-ledger.py・migrate-plan-layout.py・check-shape-non-regression.py・render-task-graph-mermaid.py・check-task-state-schema.py の 10 script、schemas/{task-graph,discovered-task,handoff-notes,plan-ledger,task-state}.schema.json の 5 schema、references/task-graph-contract.md、cross-plugin 2 ref すべて存在。dependency_break=0",
-      "script arg 契約が prose と一致(二段検証): accept-discovered-task.py が --inbox/--graph/--approved を実装(Rule 11 の passthrough 記述と一致)、check-build-handoff.py が _check_task_graph_ref で未設定を fail-closed(『task_graph_ref 必須』と一致)、validate-task-graph.py が (a)-(h) の 8 検査(『8 検査』と一致)、derive-task-graph.py が <PLAN_DIR>/task-graph.json を単一 writer canonicalize(『単一 writer 射影』と一致)",
-      "golden examples/sample-plan/ が task-graph.json を携帯し、derive-task-graph/validate-task-graph/check-build-handoff を実走したところ全 exit=0。加えて verify-index-topsort/detect-unassigned/check-spec-frontmatter/check-spec-gates/matrix(self-test+PLAN)/check-surface-inventory/check-runtime-portability も exit=0 で、§11 の 12 ゲート suite が golden で緑(『全 exit0 で通る』SKILL.md:353 の実証)",
-      "io-contract §11(io-contract.md:255)が『拡張ゲート 7 本(...validate-task-graph...)』『総数 (検証 12 本)』を SSOT として宣言し、SKILL.md:134/L354 はこの projection として本数を再定義せず一致。呼称 2 層の単一正本が保たれている"
+      "C1 正しさ (二段検証・実走): validate-task-graph.py の validate() を精読し `violations += _check_*` を実カウント=10 本 ((a)dag/(b)orphans/(c)producer_unique/(d)inventory/(e)consumes/(h)edge_endpoints/(i)phase_dependency_direction/(j)couples/(f)canonical/(g)node_states)。SKILL.md prose の『10 検査』は実装と厳密一致。`python3 scripts/validate-task-graph.py examples/sample-plan` を実走し vtg_exit=0 を観測。",
+      "C1 正しさ (lint 挙動・実走): lint-sibling-coupling.py を精読し write-scope:none(read-only)・既定 record-only・main() は --strict 未指定なら candidates>0 でも exit0 を確認。実走 `python3 scripts/lint-sibling-coupling.py examples/sample-plan` → {\"candidates\":[]} lsc_exit=0、`--strict` でも exit0 を観測。SKILL.md bash は `|| true` 付きかつ --strict 無しゆえ二重に非ゲート。prose の advisory/record-only/非ゲート/exit0 主張は全て真。",
+      "C2 一貫性 (多層): 8→10 の更新が SKILL.md 完了条件節(L134)・ゴールシーク bash(L277) 両所へ反映され couples(j) も両所に明記。さらに references/io-contract.md §11(L268)・task_graph_ref 行(L105)・references/task-graph-contract.md(L38-40)・prompts/R2-decompose-components.md・tests/test_lint_sibling_coupling.py が全て『10 検査』『couples(j)』『lint はハード 12 ゲート外の advisory』で一致。新 lint は孤立追加でなく参照/テスト/prompt へ織り込み済み。",
+      "C4 完全性 (回帰保護・実走): 新規 lint に専用テスト test_lint_sibling_coupling.py が同梱され pytest で 10 passed。task-graph/couples/sibling 関連テストも 114 passed を実走確認。governance の lint-skill-completeness.py・validate-frontmatter.py を実走し双方 exit0=CI 破綻なし。",
+      "追加所見 (記述精度の改善): origin/main の validate() は既に 9 check 関数 ((i)phase_dependency_direction 含む) を持ちながら docstring/SKILL.md は『8』と 1 件過少計上していた。本 PR は新 (j)couples 追加に加えこの潜在過少計上も是正し『10』を実装(10 関数)と厳密一致させた=off-by-one から exact へ精度向上。"
     ],
     "negative_feedback": [
-      "[inconsistency/medium, 非ブロッキング, main既存] 二段検証で実走確認: check-downstream-harness.py が golden examples/sample-plan の P12/P13 で '### 受入例'/'### 事前解決済み判断' サブ節欠落により exit=1。evaluator 期待サブ節契約が生成側 SSOT(specfm.PHASE_BODY_SECTIONS/io-contract §5/R3-emit-specs.md)と golden へ未伝播で非対称。ただし本 script は §11 ゲート表(io-contract に 0 mention)にも SKILL.md のゴールシーク検証 bash 12 ゲートにも含まれない advisory 補助レイヤーで、CI ハードゲート外・非ブロッキング。本 PR の task-graph delta 由来ではなく main 既存(前 PR merge から継続)。生成側へのサブ節契約伝播 or golden の grandfather 明記が望ましい(backlog)",
-      "[smell/low, 非ブロッキング] 追加リソース scripts/ 行(SKILL.md:354)が『検証 12 本 ... + task-graph 導出/検証 (derive/validate/compute-ready-set) + skeleton renderer + specfm.py』と記すが、script_refs 宣言済の task-graph subsystem 付随 script(apply-handoff-notes C12/check-plan-ledger C13/migrate-plan-layout C13/check-shape-non-regression C14/render-task-graph-mermaid/check-task-state-schema C16)を列挙せず、契約は references/task-graph-contract.md へ委譲(SSOT delegation ゆえ dependency_break でない)。また validate-task-graph が『拡張ゲート 7』と『task-graph 導出/検証』の両所に現れる軽微冗長。加えて cycle スコープ配置(plugin-plans/<slug>/<cycle_id>/・migrate-plan-layout/plan-ledger)が subsystem 契約側に在るが 配置先表(SKILL.md:339)は flat plugin-plans/<plugin-slug>/ の既定のみ surface(移行は opt-in ゆえ矛盾でなく body 露出の薄さ)。§11 表は 12 ゲートを正しく scope しており本数矛盾ではない"
+      "inconsistency (非ブロッキング): 新規 scripts/lint-sibling-coupling.py が SKILL.md frontmatter の script_refs に未掲載。既存 30 scripts は全て script_refs に列挙される慣習ゆえ本 lint のみ本文 bash 参照に留まる。ただし lint-skill-completeness.py は run kind に scripts カテゴリを要求せず exhaustiveness も強制しない (実走 exit0) ため CI 非破綻。整合のため script_refs へ追記推奨だがブロッキングではない。",
+      "smell (非ブロッキング・情報): 親サマリの『couples(j) 検査が2本追加』は表記上の留意点。本 diff で新規追加された check 関数は _check_couples((j)) の 1 本のみ。記述数値が 8→10(+2) に見えるのは origin/main の『8』自体が (i) を数え落とした過少値だったため。SKILL.md の最終値『10』は実装(10 関数)と一致するので欠陥ではない。なお (j) 内には violation 種別が 2 つ (未知 component 参照 / 直列化未実現) 存在する。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "現SHA(1cc45cfa)を精読した genuine 再評価。本 PR delta=task-graph を第一級成果物+駆動器へ拡張(derive-task-graph/validate-task-graph/compute-ready-set 新設・handoff task_graph_ref 必須化・E4 外ループ帰路 Rule 11)。delta は入力/出力/完了条件/checklist/検証 bash/handoff/frontmatter へ多層一貫で織込まれ、io-contract §11(拡張ゲート 7/検証 12 本)と本数整合。新規 10 script・5 schema・1 reference・cross-plugin 2 ref を全実在確認(dependency_break=0)、script arg 契約を二段検証で prose と突合一致、golden で §11 12 ゲート suite が全 exit=0。blocking カテゴリ(contradiction/omission/dependency_break)=0 につき verdict=PASS。inconsistency 1(check-downstream-harness の golden P12/P13 サブ節 exit=1)は advisory・ハードゲート外・main 既存ゆえ非ブロッキング backlog。smell 1(追加リソース script 列挙の drift + validate-task-graph 二重列挙 + cycle 配置の body 露出薄)。"
+  "notes": "現SHA(d0129e0b)を精読した genuine 再評価 (旧 verdict は stale SHA 1cc45cfa・validate『8 検査』時点)。blocking カテゴリ(contradiction/omission/dependency_break)=0 につき verdict=PASS。delta は additive=(1) validate-task-graph の検査数記述 8→10(実装 10 関数と一致)・(2) 非ゲート advisory lint-sibling-coupling.py を bash へ `|| true` 追加・(3) 完了条件節も 8→10 更新、で既存整合を破壊しない。二段検証で確認した事実: validate() 実カウント 10 本(a-j)/lint は read-only・既定 exit0・二重非ゲート(--strict 無し+`|| true`)/io-contract §11・task-graph-contract・R2 prompt・専用テストが全層一致。非ブロッキング所見 2 件(script_refs 未掲載の inconsistency 1・8→10 表記由来の smell 1)は negative_feedback に正直記載。governance lint 2 本 + 関連 pytest 群(task-graph 114 / lint 10)実走緑。"
 }

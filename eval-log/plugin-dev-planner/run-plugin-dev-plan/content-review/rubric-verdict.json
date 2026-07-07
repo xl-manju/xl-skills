@@ -1,30 +1,43 @@
 {
-  "target": {"plugin": "plugin-dev-planner", "skill": "run-plugin-dev-plan", "skill_md_sha256": "1cc45cfa669273b5aef2281c9652555b68d72a79c58b83bef49b98f7a121dfb5"},
+  "target": {
+    "plugin": "plugin-dev-planner",
+    "skill": "run-plugin-dev-plan",
+    "skill_md_sha256": "d0129e0b17b6de59002fa32747c9115a339d21166ce4ccf01912c3427571834f"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 1, "dependency_break": 0, "smell": 1},
-  "reviewer": "independent-content-review-subagent (PR-flow stale-sha 再評価 2026-07-07)",
-  "reviewed_at": "2026-07-07T02:43:28+00:00",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent rubric evaluator (assign-skill-design-evaluator / ref-skill-design-rubric skill-design v1.3.0) — PR-flow stale-sha genuine 再評価 2026-07-08",
+  "reviewed_at": "2026-07-08T00:00:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "IN1 PASS: 生成 index が P01..P13 昇順全列挙 + DAG 非循環 + unassigned 0 を要求(SKILL.md:108)。golden で verify-index-topsort.py・detect-unassigned.py が実走 exit=0。task-graph delta はこの不変条件を撹乱せず derive-task-graph が phase §5+inventory depends_on を射影するのみ",
-      "IN2 PASS: 13 phase frontmatter(PHASE_REQUIRED)+section 床 + component_kind 別構造 + core quality_gates + harness_coverage(block) を要求(SKILL.md:112)。golden で check-spec-frontmatter.py・check-spec-gates.py・check-spec-matrix-coverage.py(--self-test+PLAN)が全 exit=0",
-      "OUT1 PASS: 目的ドリブン分解が UBM 固有物のみ除外し harness-creator ネイティブ規律を伝播し C1-C4 全 PASS を要求(SKILL.md:116)。elegance 5 軸で blocking(contradiction/omission/dependency_break)=0 を確認し、task-graph 駆動追加は C1-C4 整合設計を保ちつつ additive",
-      "OUT2 PASS: 各 skill component が skill-brief.schema.json 主要フィールドへ無加工写像で run-skill-create へ投入可を要求(SKILL.md:120)。Rule 7 の schema parity(SKILL.md:172)と render-skill-brief.py 決定論射影(SKILL.md:307)は無改変、handoff routing 健在。task-graph delta は build 駆動器を足すのみで skill-brief 写像性を劣化させない",
-      "5次元スコア内訳: 完全性3/一貫性2/深度3/検証可能性3/簡潔性2 = 合計13/15 (PASS 閾値>=11)。task-graph delta が入出力〜検証〜handoff〜frontmatter を多層被覆(完全性3)、single-writer canonicalize/task_graph_ref fail-closed/二段 structural 承認 passthrough/E4 外ループ根拠(深度3)、golden で 12 ゲート実走 exit=0 + validate-task-graph 8 検査(検証可能性3)"
+      "delta 二段検証(prose↔実装)-検査本数: validate-task-graph.py を精読し validate() が (a)dag/(b)orphan/(c)producer-unique/(d)inventory/(e)consumes/(h)edge-endpoints/(i)phase-direction/(j)couples/(f)canonical/(g)node-states の 10 個の check 関数を genuinely 呼ぶことを確認。couples(j)=_check_couples は inventory を渡され wired 済で、推移閉包 skip(derive._transitive_closure 再利用)・共有 phase 無し(cross-phase)skip・対称宣言・unknown component 参照検出まで実装。SKILL.md の '8 検査→10 検査 (couples(j) 追加)' は実装と一致。`python3 scripts/validate-task-graph.py examples/sample-plan` を実走し exit=0 を観測。",
+      "delta 二段検証(新規 advisory lint): lint-sibling-coupling.py を精読し header の write-scope:none / exit 0=候補0 または advisory(既定 record-only)/1=--strict かつ候補>0 の宣言どおり main() が既定で return 0・`--strict` 指定時のみ candidates>0 で return 1 であること、read-only であることを確認。`python3 scripts/lint-sibling-coupling.py examples/sample-plan` を実走し {\"candidates\":[]}・exit=0 を観測。SKILL bash 行の '`|| true` / advisory / record-only / 非ゲート / exit0' 主張と完全一致。",
+      "IN1 PASS(inner/script): index P01..P13 昇順全列挙 + DAG 非循環 + unassigned 0 を要求(SKILL.md:108)。golden で `verify-index-topsort.py examples/sample-plan` exit=0・`detect-unassigned.py --inventory … --specs-dir …` exit=0 を実走観測。task-graph delta はこの不変条件を撹乱せず derive が phase §5+inventory depends_on を射影するのみ。",
+      "IN2 PASS(inner/lint): 13 phase frontmatter(PHASE_REQUIRED)+section 床 + component_kind 別構造 + core quality_gates + harness_coverage(block) を要求(SKILL.md:112)。golden で `check-spec-frontmatter.py` exit=0・`check-spec-gates.py` exit=0・`check-spec-matrix-coverage.py --self-test`/PLAN 双方 exit=0 を実走観測。",
+      "OUT1 PASS(outer/elegant): 目的ドリブン分解が UBM 固有物のみ除外し harness-creator ネイティブ規律を伝播し C1-C4 全 PASS を要求(SKILL.md:116)。本 delta は task-graph 検査追加(couples)/advisory lint 追加という additive で C1-C4 表面を触らず regression なし(C1-C4 の genuine 実走は姉妹 elegance verdict の担当・本 rubric は design 温存を確認)。",
+      "OUT2 PASS(outer/evaluator): 各 skill component が skill-brief.schema.json 主要フィールドへ無加工写像で run-skill-create 投入可を要求(SKILL.md:120)。Rule7 schema parity(SKILL.md:172)・render-skill-brief.py 決定論射影(SKILL.md:307)は本 delta で無改変で写像性劣化なし。golden で `check-build-handoff.py` exit=0 を実走観測。",
+      "回帰網+拡張ゲート: `pytest -k 'task_graph or sibling or coupl'` 114 passed を実走観測。check-surface-inventory / check-runtime-portability も golden で exit=0。",
+      "5次元採点内訳: 完全性3(couples(j) が完了条件節と goal-seek bash 両所に反映・advisory 行の意味論明示・IN1/IN2/OUT1/OUT2 criteria 温存)/一貫性2(delta の '10 検査' 主張は実装と一致=+だが下記 main 既存の生成側↔評価側非対称で -1)/深度3(couples が (d) の鏡像設計・推移閉包/cross-phase 偽陽性回避・advisory は heuristic false-positive を理由に非ゲート配置と判断が明快)/検証可能性3(全て golden 実走 exit0 + 114 pytest で機械検証)/簡潔性2(完了条件文が極端に長い run-on + scripts/ 行が task-graph 付随 script を委譲列挙)。合計13/15(閾値>=11)・blocking 0 → PASS。"
     ],
     "negative_feedback": [
-      "[inconsistency/medium, 非ブロッキング, main既存] 一貫性 -1(3→2): check-downstream-harness.py の要求サブ節(### 受入例/### 事前解決済み判断)契約が生成側 SSOT(specfm/io-contract §5/R3-emit-specs.md)と golden(examples/sample-plan)へ未伝播で golden P12/P13 が exit=1(実走確認)。evaluator 期待と生成側指示が非対称。ただし §11 ゲート表(io-contract 0 mention)にも検証 bash 12 ゲートにも含まれない advisory 補助レイヤーで CI ハードゲート外・非ブロッキング。本 PR の task-graph delta 由来でなく main 既存",
-      "[smell/low, 非ブロッキング] 簡潔性 -1(3→2): 追加リソース scripts/ 行(SKILL.md:354)が task-graph subsystem 付随 script(apply-handoff-notes/check-plan-ledger/migrate-plan-layout/check-shape-non-regression/render-task-graph-mermaid/check-task-state-schema)を列挙せず references/task-graph-contract.md へ委譲(SSOT delegation)、validate-task-graph 二重列挙、cycle 配置(plan-ledger/migrate-plan-layout)が配置先表に薄く露出。§11 表は 12 ゲートを正しく scope し本数矛盾ではない"
+      "[inconsistency/medium, 非ブロッキング, main既存・delta非該当] 一貫性 -1: check-downstream-harness.py が golden(examples/sample-plan)で exit=1 になることを独立実走で確認(各 phase の '## 完了チェックリスト' に '### 受入例'/'### 事前解決済み判断' サブ節を要求するが生成側 SSOT/golden が未産出)。ただし本 script は (1) goal-seek 検証 bash 12 ゲートに未配線 (2) io-contract §11 ゲート表に不在 (3) golden 回帰 test(test_examples_golden.py)非参照・単体 test は synthetic tmp_path のみ検査 (4) --self-test は exit=0 のため CI ハードゲート外の advisory 補助レイヤー。生成側指示と評価器期待の非対称という潜在 inconsistency として正直計上するが、本 PR の task-graph delta 由来ではなく非ブロッキング。",
+      "[smell/low, 非ブロッキング] 簡潔性 -1: 追加リソース scripts/ 行(SKILL.md:355)が task-graph subsystem 付随 script(apply-handoff-notes/check-plan-ledger/migrate-plan-layout/check-shape-non-regression/render-task-graph-mermaid/check-task-state-schema)を列挙せず references へ委譲(SSOT delegation として妥当だが読者は script_refs との差分を追う要)。加えて完了条件節が極端に長い run-on で couples(j) 追記で密度が更に上昇(io-contract §11 表への一段委譲で圧縮余地)。§11 表は 12 ゲートを正しく scope し本数矛盾ではない。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "pre-push",
     "next_action": "none"
   },
-  "notes": "5次元 genuine 採点=完全性3/一貫性2/深度3/検証可能性3/簡潔性2=13/15。IN1/IN2/OUT1/OUT2 を各 PASS 判定(IN1/IN2 は golden 実走 exit=0、OUT1 は elegance blocking 0、OUT2 は schema parity/render-skill-brief 無改変)。本 PR delta(task-graph 第一級成果物化・E4 外ループ)は 2軸直交/完了条件/build handoff 契約へ齟齬なく織込済で io-contract §11(拡張ゲート 7/検証 12 本)と本数整合。二段検証で main 既存の非ブロッキング inconsistency(check-downstream サブ節契約の生成側未伝播・golden P12/P13 exit=1)を実走確認し正直計上(一貫性 -1)。当該は advisory でハードゲート外。閾値 11 超過・blocking finding 0 につき PASS。"
+  "notes": "5次元 genuine 採点 (ref-skill-design-rubric skill-design v1.3.0 規範を 5 次元へ射影): 完全性3/一貫性2/深度3/検証可能性3/簡潔性2 = 合計13/15 (閾値 11 以上・blocking finding 0)。PR delta 3 点 ((1) validate-task-graph 8→10 に couples(j) 追加 (2) goal-seek bash へ lint-sibling-coupling.py advisory 行(record-only・非ゲート・exit0) (3) 完了条件節 8→10) は全て実装と一致することを二段検証で確認: validate() の 10 check 関数直読 + `validate-task-graph.py examples/sample-plan` exit=0 + lint 既定 exit=0/`--strict` のみ exit1/read-only + `lint-sibling-coupling.py` golden candidates:[] exit=0 + 114 pytest passed。10 検査主張は実装と一致するため FAIL 条件(10 検査主張の実装不一致)に非該当。二段検証で main 既存の非ブロッキング inconsistency(check-downstream-harness が golden で exit=1・生成側サブ節未伝播)を独立実走で確認し正直計上(一貫性 -1)。当該は 12 ハードゲート/§11 表/golden 回帰いずれの外の advisory で本 delta 非該当。VERDICT=PASS。"
 }
