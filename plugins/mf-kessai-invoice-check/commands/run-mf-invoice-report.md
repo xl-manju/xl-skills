@@ -16,21 +16,23 @@ Marketplace から install した場合の呼び出し名は通常 `/mf-kessai-i
 1. `Skill(run-mf-invoice-report, args="$ARGUMENTS")` を呼ぶ。
 2. 既定は **dry-run** (分類・集計のみ・Notion 書き込みゼロ)。collect→classify を回し、継続発行/新規・年→月切替/対象外/発行漏れ候補の判定内訳を提示する。
 3. 独立 context の `mfk-report-verifier` で二段確認 (真の発行漏れを『問題ない』と誤って隠していないかの差し戻し) したのち、`--apply --verified` を付けたときだけ当月レポート DB へ 7 列行を非破壊冪等 upsert する。
-4. 出力先の親ページ『請求書発行チェック』(`notion.report_parent_page`) とトグル見出し2ブロック (`notion.report_toggle_block`) は配布既定 `mf-kessai-config.default.json` に焼き込み済みで設定不要。別ワークスペース/別トグルへ出す場合のみ `.mf-kessai-config.json` で上書き。`report_toggle_block` を空にすると `--apply` 時 fail-closed (exit 2)。
+4. 出力先の親ページ『請求書発行チェック』(`notion.report_parent_page`) は配布既定 `mf-kessai-config.default.json` に焼き込み済みで設定不要。月次 DB はこのページ直下に child_database として find-or-create される (Notion API は database の親に page_id/database_id のみ許容し block_id=トグル見出しは不可のため、トグル配下ではなくページ直下に置く)。別ワークスペース/別ページへ出す場合のみ `.mf-kessai-config.json` で上書き。`report_parent_page` を空にすると `--apply` 時 fail-closed (exit 2)。`report_toggle_block` は API 制約により使用しない (deprecated・config には後方互換で残置)。
 
 ## レポート列 (7 列・金額は税抜)
 
-生成 DB は次の 7 列を持つ (列定義はこの左→右順・**金額は税抜**)。継続発行 (今月あり×前月あり) も正常として全行 emit し、真の発行漏れ (継続漏れを含む) だけが「漏れチェック=要対応」に残る。
+生成 DB は次の 7 列を持つ (**金額は税抜**)。継続発行 (今月あり×前月あり) も正常として全行 emit し (漏れチェック=✓)、真の発行漏れ (継続漏れを含む) だけが「漏れチェック=☐ (要対応)」に残る。
 
-| 列 | 内容 |
-|---|---|
-| 漏れチェック | `正常` / `要対応` (発行漏れ候補) |
-| 取引先名 | Notion の title (ページ名)。※Notion table view は title を最左固定で描画するため実表示は取引先名が先頭列 |
-| 商品名 | 対象商品 |
-| 先月の金額 | 先月分の税抜金額 (停止/契約完了行は空) |
-| 今月の金額 | 今月分の税抜金額 (新規/継続漏れ行は空のことがある) |
-| 先月と今月の比較 | 状態ラベル (継続発行 / 新規・年→月切替 / 契約完了 / 継続 等) |
-| コメント | 年契約・契約終了・トライアル完了などの正常事情、または要対応の根拠 |
+列は左→右の順で確定する (取引先名=title を先頭に置き Notion の title 最左固定と定義順を一致させる)。
+
+| 列 | 型 | 内容 |
+|---|---|---|
+| 取引先名 | title | Notion のページ名 (= 各行)。Notion table view は title を最左固定で描画するため先頭に置く |
+| 漏れチェック | checkbox | ✓ (チェックあり) = 正常 / ☐ (チェックなし) = 要対応 (発行漏れ候補)。チェックの有無で直感的に判別 |
+| 商品名 | rich_text | 対象商品 |
+| 先月の金額 | number(税抜) | 先月分の税抜金額 (停止/契約完了行は空) |
+| 今月の金額 | number(税抜) | 今月分の税抜金額 (新規/継続漏れ行は空のことがある) |
+| 先月と今月の比較 | rich_text | 状態ラベル (継続発行 / 新規・年→月切替 / 契約完了 / 継続 等) |
+| コメント | rich_text | 年契約・契約終了・トライアル完了などの正常事情、または要対応の根拠 |
 
 ## 実行コード
 
