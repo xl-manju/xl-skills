@@ -36,6 +36,7 @@ ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
     ("mf-kessai-invoice-check", "run-mf-invoice-check", ("IN1", "IN2", "OUT1")),
     ("mf-kessai-invoice-check", "run-mf-invoice-db-setup", ("IN1", "IN2", "OUT1")),
     ("mf-kessai-invoice-check", "run-mf-invoice-reconcile", ("IN1", "IN2", "OUT1")),
+    ("mf-kessai-invoice-check", "run-mf-invoice-report", ("IN1", "OUT1")),
     ("notion-gmail-send", "run-notion-gmail-dry-run", ("IN1", "IN2", "OUT1")),
     ("notion-gmail-send", "run-notion-gmail-send", ("IN1", "IN2", "IN3", "OUT1")),
     ("notion-gmail-send", "run-notion-gmail-sendlog-setup", ("IN1", "OUT1")),

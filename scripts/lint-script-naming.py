@@ -222,6 +222,14 @@ PENDING_RENAME_PATHS = {
     # 許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
     "plugins/mf-kessai-invoice-check/scripts/backfill_sheet_contract_dates.py",
     "plugins/mf-kessai-invoice-check/scripts/clear_unsupported_end_dates.py",
+    # mfk_period_report.py (C05・前月↔今月分類エンジン) / notion_report_sink.py (C06・月次 DB sink):
+    # run-mf-invoice-report が使う正本スクリプト。tests/test_mfk_period_report.py が
+    # `import mfk_period_report`、tests/test_notion_report_sink.py が `import notion_report_sink`
+    # する module のため §4.3 例外 (ハイフン不可)。mfk_period_report.py は guard-mfk-no-reinvent.py の
+    # SANCTIONED basename でもあり、notion_report_sink.py は build_notion_db を再利用する。許可動詞化は
+    # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_period_report.py",
+    "plugins/mf-kessai-invoice-check/scripts/notion_report_sink.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
