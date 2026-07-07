@@ -182,6 +182,11 @@ def check_tier1_referenced_paths(prompt_path: Path, text: str):
         raw = _strip_token(m.group("path"))
         if not raw or any(c in PLACEHOLDER_CHARS for c in raw):
             continue
+        # 捕捉トークンの直後が glob/placeholder 継続文字 (例: references/diagram-*.md は
+        # char class 外の * 手前で 'references/diagram-' に切れ、上の in-raw 判定を素通りする)。
+        # binding 不能な glob なので resolve せずスキップ (PLACEHOLDER_CHARS 方針の一貫適用)。
+        if m.end() < len(text) and text[m.end()] in PLACEHOLDER_CHARS:
+            continue
         if set(raw.split("/")) & PLACEHOLDER_SEGMENTS:
             continue
         if raw in KNOWN_EXAMPLE_REFS or raw.rstrip("/") in {r.rstrip("/") for r in KNOWN_EXAMPLE_REFS}:

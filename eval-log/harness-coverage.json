@@ -3,11 +3,11 @@
   "spec_met": false,
   "axes_total": 12,
   "axes_instrumented": 12,
-  "axes_met": 8,
+  "axes_met": 9,
   "sections": [
     {
       "type": "scripts",
-      "count": 287,
+      "count": 292,
       "mechanical": {
         "instrumented": true,
         "coverage_pct": 85.6,
@@ -16,14 +16,14 @@
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 70.0,
+        "coverage_pct": 70.5,
         "met": false,
         "note": "code-review verdict(eval-log/coverage/scripts) PASS の script 割合"
       }
     },
     {
       "type": "skills",
-      "count": 64,
+      "count": 67,
       "mechanical": {
         "instrumented": true,
         "coverage_pct": 100.0,
@@ -32,39 +32,39 @@
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 82.8,
+        "coverage_pct": 83.6,
         "met": true,
         "note": "非ref=content-review verdict / ref=ref-review verdict(source-traceability) PASS 率"
       }
     },
     {
       "type": "agents",
-      "count": 31,
+      "count": 48,
       "mechanical": {
         "instrumented": true,
-        "coverage_pct": 71.0,
-        "met": false,
+        "coverage_pct": 81.2,
+        "met": true,
         "note": "agents: tests 参照 or coverage レコード mechanical=true の割合"
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 61.3,
+        "coverage_pct": 75.0,
         "met": false,
         "note": "agents: coverage レコード llm_eval verdict=PASS の割合"
       }
     },
     {
       "type": "commands",
-      "count": 19,
+      "count": 21,
       "mechanical": {
         "instrumented": true,
-        "coverage_pct": 94.7,
+        "coverage_pct": 95.2,
         "met": true,
         "note": "commands: tests 参照 or coverage レコード mechanical=true の割合"
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 57.9,
+        "coverage_pct": 61.9,
         "met": false,
         "note": "commands: coverage レコード llm_eval verdict=PASS の割合"
       }

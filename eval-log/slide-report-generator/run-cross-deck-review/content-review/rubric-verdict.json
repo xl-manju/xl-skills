@@ -1,0 +1,41 @@
+{
+  "target": {
+    "plugin": "slide-report-generator",
+    "skill": "run-cross-deck-review",
+    "skill_md_sha256": "8f09f0709db142a7643bb3bd90138d60ee9eae58e465daee5d6694631fc4d678"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent-subagent-rubric+fix-verify",
+  "reviewed_at": "2026-07-05T10:36:37+00:00",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1"
+    ],
+    "positive_feedback": [
+      "[テスト可能性/修正済] OUT1(verify_by=test『注入不整合を全件検出し網羅性を受入テストが確認』) に対応する受入テスト不在を初回 review が omission 検出 → vendor/tests/test-cross-deck-consistency.js を新設 (parity 対象外の追加領域)。slide- デッキ2件のシリーズに shared-spec/rem-units/urls の既知不整合を注入し --check all --json で全件検出、クリーン系で誤検出0 を assert。node 実走 PASS。",
+      "[prompt契約明確さ/修正済] phantom `--check px-rule/slide-types` を実 check 名 (rem-units) / Agent目視へ honest 化し、LLM が no-op コマンドを正当と誤解する経路を除去。",
+      "[単一責務] SKILL.md:100-102 が入力=複数成果物/出力=横断整合レポート(read-only)、個別修正→run-slide-report-modify・新規→run-slide-report-generate へ排他分割し allowed-tools に Write/Edit を持たせず機械担保。",
+      "[progressive disclosure/criteria非退化] SKILL.md(router)→R1(実行SSOT)→references(逐語正本) の3層。agents/cross-deck-reviewer.md:42 が用語集/CONST を reference 参照し重複排除。IN1/OUT1 は横断分析 purpose 固有で退化なし。"
+    ],
+    "negative_feedback": [
+      "[smell/low, 非ブロッキング] schemas/cross-deck-review-report.schema.json は conversation-output の構造参照であり機械 emit されない (R1 で構造契約として整合化済み・設計選択)。"
+    ],
+    "iteration": 2,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "初回独立 SubAgent が rubric で omission=1 (OUT1 テスト不在) + inconsistency=1 (phantom --check) を検出し FAIL。OUT1 受入テスト新設 + phantom honest 化で解消。fix→verify: node test PASS・lint fatal0。設計骨格 (単一責務/段階開示/非退化 criteria/テスト可能性) を充足しハードカテゴリ 0 で PASS。"
+}
