@@ -96,6 +96,11 @@ last-audited: 2026-07-05
 - 1 セクション 1 ビジュアル（visual-strategist 確定を守る）。alt/caption を必ず付す。
 - 数値・料金・コードは画像へ焼き込まず本文（markdown 表・コードブロック）で持つ（退化耐性）。
 
+### 1.2.0 新 block 型と色覚非依存 highlight の合成基準（多様性 < 適合性・強調予算）
+- **新 block 型は内容適合で使う（水増ししない）**: `definition-list`（用語↔定義）は tech-doc/learning の用語定義に、`footnote`（採番脚注）は根拠・出典の本文分離に、`task-list`（次アクション項目）は意思決定・次アクションに使う。型の多様性を目的化せず、内容に合う型だけを選ぶ（多様性 < 適合性）。
+- **inline highlight `==要点==` は色覚非依存を前提に要点へ絞る**: render-report.js が色（accent）＋非色第2チャネル（weight/underline）を併存描画するため、色覚に依存しない。強調は文書総量の強調予算を意識し要点キーフレーズに限る（過剰は report-quality-reviewer RQ・validate-report-visual 上限で減点）。accent を流用し新規配色を足さない。
+- **C17/C18 の指定を忠実反映**: C17 の narrative/throughLine/transition と C18 の placement（emphasisZone/readingOrder/focalPoint）を body[] 構成へ忠実に反映し、描画そのものは render-report.js へ委譲する（構造を壊さずレンダラへ渡す）。
+
 ## ビジネスルール
 - **CCONST_001（構造同期）**: report.html の内容は report-structure.json と一致させる。勝手に節を足したり削ったりしない。
   - 目的: 承認済み構造からの逸脱を防ぐ。
@@ -202,6 +207,7 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.jso
 - [ ] visual-strategist 確定通りに 1 項目 1 点でビジュアルが埋め込まれ、alt/caption を付与している（CCONST_004）
 - [ ] 意匠トークン（Kanagawa 配色・フォント・最小 1.4rem・印刷 CSS）を共有 SSOT から適用している（CCONST_003）
 - [ ] read-through 粒度で段落により語り切り、chip 強制で本文が痩せていない（CCONST_002）
+- [ ] 1.2.0 の場合、新 block 型（definition-list/footnote/task-list）を内容適合で使い（多様性 < 適合性・水増し禁止）、inline highlight `==要点==` を色覚非依存（render 側で weight+underline 併存）前提に要点へ絞り、C17 の throughLine/transition/narrative・C18 の placement（emphasisZone/readingOrder/focalPoint）を body[] へ忠実反映して描画を render-report.js へ委譲している
 - [ ] CSS/JS をインライン化した自己完結 HTML で単体表示できる（CCONST_006）
 - [ ] 決定論経路はレンダラを発明せず既存 render-report.js / vendor primitives を再利用している（CCONST_005）
 - [ ] Layer 4 出力評価基準を全て満たしている
@@ -229,6 +235,8 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.jso
 | Markdown → HTML の意味的マッピング | 見出し→`<h2>`、段落→`<p>`、強調→`<strong>`、箇条書き→`<ul>`、表→`<table>`、コード→`<pre><code>`。read-through の可読性を保つ。 |
 | タイポグラフィ（可読性） | 行長・行間・最小サイズ（1.4rem）で長文の可読性を確保する。 |
 | 自己完結 HTML（§6.9.1） | CSS/JS をインライン化し、単体で表示・印刷できる HTML を作る（CCONST_006）。 |
+| 1.1.0 構造化ブロックの決定論描画（推奨経路） | `report-structure.json` が 1.1.0（`section.body[]`/`section.narrative`/inline `==highlight==`/`visual.layout.grid`）を持つ場合、**手書き HTML を書かず render-report.js を起動する**。render-report.js が block（表→`<table>`/コード→`<pre><code>`/番号リスト→`<ol>`/小見出し/key-point 強調ボックス/stat-tile/callout/引用）・narrative リード帯・要点ハイライト・意味的配置（grid 2カラム）・図表番号（表N/コードN/図N）・目次（`meta.toc`）を決定論 HTML 化する。構造は structure-designer が [report-narrative-logic.md](../references/report-narrative-logic.md) に従って設計済み。composer は構造を壊さずレンダラへ渡し、生成物と構造の同期（body[]/narrative の欠落ゼロ）を確認する。`body[]` を持つ節では `paragraphs[]` は無視される（body[] 優先）。 |
+| 1.2.0 文書スケール要素の決定論描画（推奨経路） | `report-structure.json` が 1.2.0（`meta.throughLine`/`section.transition`/新 block 型 `definition-list`・`footnote`・`task-list`/placement の `emphasisZone`・readingOrder・focalPoint）を持つ場合も**手書き HTML を書かず render-report.js を起動する**。render-report.js が throughLine を導入部アーク帯・transition を節末接続帯・definition-list を用語定義対（term↔definition）・footnote を採番脚注帯（[1] 等）・task-list を次アクション項目・emphasisZone/readingOrder/focalPoint を data 属性へ live 反映する。C17 が与える throughLine/transition/narrative と C18 が与える placement を body[] へ忠実に反映し、描画そのものはレンダラへ委譲する（構造を壊さず渡す）。 |
 
 ## 5.6 インターフェース
 
@@ -292,7 +300,7 @@ visual-strategist が visual を確定した section の例:
   "visual": {
     "kind": "mermaid",
     "caption": "削減時間の内訳",
-    "layout": { "grid": "2x1", "emphasis": "highlight" },
+    "layout": { "grid": "2x1", "emphasisZone": "highlight" },
     "rationale": "割合が定型記法で素直に書けるため mermaid pie を確定",
     "spec": { "diagramType": "pie", "definition": "pie title 削減時間内訳\n \"定型作業\" : 45\n \"報告作成\" : 25\n \"情報収集\" : 30", "fallback": "定型作業45%/報告作成25%/情報収集30%" }
   }

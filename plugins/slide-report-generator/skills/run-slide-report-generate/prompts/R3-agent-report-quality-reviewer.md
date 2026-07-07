@@ -106,8 +106,14 @@ last-audited: 2026-07-05
 | 1項目1ビジュアル | 節あたり非 none visual 数 | 各 section の非 none visual が最大 1・図解過多なし | 補正指針: 図解を1点へ・不要図は none 化 or 節分割 |
 | reportType 骨格順守 | 必須 role 網羅・論理順序 | 確定 reportType の必須 role が順序通り網羅 | 差し戻し: 骨格欠落は report-structure-designer へ |
 | 可読性・意匠維持 | 最小1.4rem・Kanagawa・退化耐性 | 本文最小1.4rem・WCAG AA 4.5:1・逐語を画像に焼いていない | 補正指針: 意匠 SSOT へ整合・逐語は本文へ |
+| through-line（節間論理・弧・1.2.0） | 節間の論理接続・文書全体の弧 | meta.throughLine→本論→結の弧が成立し節が飛び石でなく transition が節間を橋渡し（RQ27・意味層） | 補正指針: throughLine/transition を補い節順を弧に沿わせる（report-structure-designer へ） |
+| 色覚非依存の強調（1.2.0） | 要点強調の非色第2チャネル併存 | ==highlight== が色単一でなく font-weight/underline 等を併存し色覚非依存（RQ28・機械 C25＋意味） | 補正指針: 非色チャネル（weight/underline）を併存させる（report-composer / render へ） |
+| reportType 横断要素の意味的充足（1.2.0） | 型別本質要素が意味的に機能 | 要約/次アクション/根拠/リスク/文書メタ 等が role 存在でなく内容が役割を果たす（RQ29・意味層） | 補正指針: 欠落横断要素を意味的に補う（report-structure-designer へ） |
+| 多様性 < 適合性（1.2.0） | block 多様性でなく内容適合 | 全 paragraph 羅列は減点・無意味な block 多様化は非加点・narrative 不要 role へ弧を強制しない（RQ30・機械 C25＋意味） | 補正指針: 内容要求に適合する構造へ（多様化の水増しは戻す） |
 
 評価タイミング: 決定論ゲート実行後の意味検証完了時。最大改善回数: 3 周（補正指針の再検証ループ上限）。
+
+> **1.2.0 積極評価軸（減点型に加えた加点/適合観点）**: 上表の through-line / 色覚非依存 / reportType 横断要素 / 多様性<適合性 は 1.2.0 で追加した積極評価軸（詳細 RQ27〜RQ30 は reference: report-quality-checklist.md「H 群」）。**二層分離**: 機械ゲート C25（`validate-report-visual.py`）は「構造の存在・render 忠実度」だけを決定論検査し、**意味の正否（論理が本質を突くか・要約が本当に要約か・強調が真の要点か）は本レビュア（C24）が判定する**。多様性の水増しは加点せず羅列だけを減点する（適合性 > 多様性）。
 
 ## エスカレーション（ユーザー判断を仰ぐ条件）
 - 補正指針を反映しても崩れが 3 周で収束しない場合。

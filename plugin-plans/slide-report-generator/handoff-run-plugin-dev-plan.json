@@ -1,0 +1,693 @@
+{
+  "plan_dir": "plugin-plans/slide-report-generator",
+  "target_plugin_slug": "slide-report-generator",
+  "mode": "update",
+  "routes_toposorted": true,
+  "consumer_steps": {
+    "pre_build": [
+      {
+        "route": "C01",
+        "produces": "briefs/skill-brief-C01.json",
+        "cwd": "repo-root",
+        "command": "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/render-skill-brief.py --inventory plugin-plans/slide-report-generator/component-inventory.json --component C01 --out plugin-plans/slide-report-generator/briefs/skill-brief-C01.json"
+      },
+      {
+        "route": "C02",
+        "produces": "briefs/skill-brief-C02.json",
+        "cwd": "repo-root",
+        "command": "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/render-skill-brief.py --inventory plugin-plans/slide-report-generator/component-inventory.json --component C02 --out plugin-plans/slide-report-generator/briefs/skill-brief-C02.json"
+      },
+      {
+        "route": "C03",
+        "produces": "briefs/skill-brief-C03.json",
+        "cwd": "repo-root",
+        "command": "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/render-skill-brief.py --inventory plugin-plans/slide-report-generator/component-inventory.json --component C03 --out plugin-plans/slide-report-generator/briefs/skill-brief-C03.json"
+      }
+    ],
+    "note": "routes[].build_args.brief_path (plan_dir 相対) は dangling ではなく、当該 route の build 直前に render-skill-brief.py が component-inventory.json から決定論射影で生成する (同一 inventory → byte 同一 brief)"
+  },
+  "routes": [
+    {
+      "id": "C04",
+      "component_kind": "sub-agent",
+      "name": "hearing-facilitator",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "hearing-facilitator"
+      },
+      "build_target": "plugins/slide-report-generator/agents/hearing-facilitator.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C05",
+      "component_kind": "sub-agent",
+      "name": "structure-designer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "structure-designer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/structure-designer.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C06",
+      "component_kind": "sub-agent",
+      "name": "structure-validator",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "structure-validator"
+      },
+      "build_target": "plugins/slide-report-generator/agents/structure-validator.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C07",
+      "component_kind": "sub-agent",
+      "name": "d3-diagram-designer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "d3-diagram-designer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/d3-diagram-designer.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C08",
+      "component_kind": "sub-agent",
+      "name": "data-visualizer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "data-visualizer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/data-visualizer.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C09",
+      "component_kind": "sub-agent",
+      "name": "html-generator",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "html-generator"
+      },
+      "build_target": "plugins/slide-report-generator/agents/html-generator.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C10",
+      "component_kind": "sub-agent",
+      "name": "slide-renderer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "slide-renderer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/slide-renderer.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C11",
+      "component_kind": "sub-agent",
+      "name": "layout-optimizer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "layout-optimizer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/layout-optimizer.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C12",
+      "component_kind": "sub-agent",
+      "name": "ui-quality-reviewer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "ui-quality-reviewer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/ui-quality-reviewer.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C13",
+      "component_kind": "sub-agent",
+      "name": "deck-evaluator",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "deck-evaluator"
+      },
+      "build_target": "plugins/slide-report-generator/agents/deck-evaluator.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C14",
+      "component_kind": "sub-agent",
+      "name": "ai-image-diagram-producer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "ai-image-diagram-producer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/ai-image-diagram-producer.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C15",
+      "component_kind": "sub-agent",
+      "name": "slide-report-modifier",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "slide-report-modifier"
+      },
+      "build_target": "plugins/slide-report-generator/agents/slide-report-modifier.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C16",
+      "component_kind": "sub-agent",
+      "name": "cross-deck-reviewer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "cross-deck-reviewer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/cross-deck-reviewer.md",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C17",
+      "component_kind": "sub-agent",
+      "name": "report-structure-designer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "report-structure-designer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/report-structure-designer.md",
+      "requires_surfaces": [
+        "S-SCHEMAS",
+        "S-REFERENCES"
+      ],
+      "change_surface": "rebuild",
+      "status": "planned"
+    },
+    {
+      "id": "C18",
+      "component_kind": "sub-agent",
+      "name": "visual-strategist",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "visual-strategist"
+      },
+      "build_target": "plugins/slide-report-generator/agents/visual-strategist.md",
+      "requires_surfaces": [
+        "S-VENDOR",
+        "S-SCHEMAS",
+        "S-REFERENCES"
+      ],
+      "change_surface": "rebuild",
+      "status": "planned"
+    },
+    {
+      "id": "C19",
+      "component_kind": "sub-agent",
+      "name": "report-composer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "report-composer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/report-composer.md",
+      "requires_surfaces": [
+        "S-VENDOR",
+        "S-SCHEMAS",
+        "S-REFERENCES"
+      ],
+      "change_surface": "rebuild",
+      "build_contract": {
+        "vendor_js_authoring": "C19 は著者責務で vendor/scripts/render-report.js(block レンダラ+inline highlight 第2チャネル+placement emphasisZone/readingOrder/focalPoint+throughLine/transition+定義リスト/脚注/タスクリスト block)と vendor/scripts/mermaid-render.js を additive 実装する(vendor.additive_new_files ゆえ byte-parity 除外)。読書 CSS は CCONST_006(自己完結 HTML)準拠で render-report.js の buildReportCss() が全量 inline 出力する(別ファイル vendor/assets/report.css は新設しない=二重 SSOT 回避。C25 は inline 出力中の読書 CSS class 存在を検査する)",
+        "verification_steps": [
+          "render-report.js/mermaid-render.js を build 後、vendor/tests/test-render-report.js / vendor/tests/test-mermaid-render.js を実行し tests_min>=80 の coverage で exit0(JS build+test route)",
+          "mermaid 依存を package.json へ additive 追記し package-lock.json を同時更新(byte copy 完了=vendor-digest-manifest.json 照合 PASS 後の順序規約。additive 差分は parity_scope.excluded_additive で照合除外)",
+          "C25 validate-report-visual.py が render 結果に対し block多様性/narrative(role条件)/placement live反映/throughLine/highlight第2チャネル/読書CSS class 存在 を決定論検査し exit0"
+        ]
+      },
+      "status": "planned"
+    },
+    {
+      "id": "C24",
+      "component_kind": "sub-agent",
+      "name": "report-quality-reviewer",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "report-quality-reviewer"
+      },
+      "build_target": "plugins/slide-report-generator/agents/report-quality-reviewer.md",
+      "requires_surfaces": [
+        "S-VENDOR",
+        "S-SCHEMAS",
+        "S-REFERENCES"
+      ],
+      "change_surface": "rebuild",
+      "status": "planned"
+    },
+    {
+      "id": "C23",
+      "component_kind": "script",
+      "name": "validate-output-mode.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "fallback_builder": "run-build-skill",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_kind": "script",
+      "build_args": {
+        "script_path": "scripts/validate-output-mode.py"
+      },
+      "build_target": "plugins/slide-report-generator/scripts/validate-output-mode.py",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C25",
+      "component_kind": "script",
+      "name": "validate-report-visual.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "fallback_builder": "run-build-skill",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_kind": "script",
+      "build_args": {
+        "script_path": "scripts/validate-report-visual.py"
+      },
+      "build_target": "plugins/slide-report-generator/scripts/validate-report-visual.py",
+      "requires_surfaces": [
+        "S-SCHEMAS"
+      ],
+      "change_surface": "rebuild",
+      "status": "planned"
+    },
+    {
+      "id": "C01",
+      "component_kind": "skill",
+      "name": "run-slide-report-generate",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C17",
+        "C18",
+        "C19",
+        "C23",
+        "C24",
+        "C25"
+      ],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-slide-report-generate",
+        "kind": "run",
+        "brief_path": "briefs/skill-brief-C01.json"
+      },
+      "build_target": "plugins/slide-report-generator/skills/run-slide-report-generate/",
+      "requires_surfaces": [
+        "S-VENDOR",
+        "S-SCHEMAS",
+        "S-REFERENCES"
+      ],
+      "change_surface": "rebuild",
+      "status": "planned"
+    },
+    {
+      "id": "C02",
+      "component_kind": "skill",
+      "name": "run-slide-report-modify",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C15",
+        "C23"
+      ],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-slide-report-modify",
+        "kind": "run",
+        "brief_path": "briefs/skill-brief-C02.json"
+      },
+      "build_target": "plugins/slide-report-generator/skills/run-slide-report-modify/",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C03",
+      "component_kind": "skill",
+      "name": "run-cross-deck-review",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C16"
+      ],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-cross-deck-review",
+        "kind": "run",
+        "brief_path": "briefs/skill-brief-C03.json"
+      },
+      "build_target": "plugins/slide-report-generator/skills/run-cross-deck-review/",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C20",
+      "component_kind": "hook",
+      "name": "hook-postgen-eval",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C13"
+      ],
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "build_args": {
+        "kind": "hook",
+        "name": "hook-postgen-eval"
+      },
+      "build_target": "plugins/slide-report-generator/hooks/hook-postgen-eval.py",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C21",
+      "component_kind": "slash-command",
+      "name": "slide-report-generate",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C01"
+      ],
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "build_args": {
+        "kind": "command",
+        "name": "slide-report-generate"
+      },
+      "build_target": "plugins/slide-report-generator/commands/slide-report-generate.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    },
+    {
+      "id": "C22",
+      "component_kind": "slash-command",
+      "name": "slide-report-status",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [
+        "C01"
+      ],
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "build_args": {
+        "kind": "command",
+        "name": "slide-report-status"
+      },
+      "build_target": "plugins/slide-report-generator/commands/slide-report-status.md",
+      "change_surface": "unchanged",
+      "status": "planned"
+    }
+  ],
+  "surface_tasks_note": "plugin_level_surfaces の surface 実体 (vendor byte copy / schemas 新設・additive / references / composition / EVALS) の build route。routes[] は component-inventory.json の components[] と 1:1 (inventory 由来検証・全 25 component) のため surface を routes へ混ぜず、本配列で owner_builder/build_args/build_target/checks/実行順序を宣言する。routes[].requires_surfaces が component→surface の順序依存を宣言する (S-VENDOR は requires_surfaces 宣言 route より先に実行)。本 update での report 構造化改善は S-SCHEMAS(report-structure additive 1.1.0→1.2.0)・S-REFERENCES(report-narrative-logic 新設 + report-writing-rules/visual-strategy/quality-checklist 追補) と C17/C18/C19/C24/C25 route の再 build を伴う。各 route の change_surface フラグ(rebuild=C01/C17/C18/C19/C24/C25 + S-SCHEMAS/S-REFERENCES・unchanged=C02-C16/C20-C23・new=なし)が touch 範囲を機械可読に区分する。requires_surfaces が component→surface の順序依存を機械エッジへ昇格する",
+  "surface_tasks": [
+    {
+      "id": "S-VENDOR",
+      "surface": "vendor",
+      "order": 1,
+      "sequencing": "pre-routes (requires_surfaces:[\"S-VENDOR\"] を宣言する全 route より先に実行)",
+      "owner_builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "fallback_builder": "run-build-skill",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_target": "plugins/slide-report-generator/vendor/",
+      "build_args": {
+        "copy_mode": "whole-tree",
+        "source_digest_manifest": "vendor-digest-manifest.json",
+        "subtrees": [
+          "scripts/ → vendor/scripts/",
+          "assets/ → vendor/assets/",
+          "schemas/ (example fixtures + README のみ) → vendor/schemas-fixtures/ (真 schema 4本は plugin-root schemas/ live へ・本 subtree は fixture3+README=4 file のみ)",
+          "package.json / package-lock.json → vendor/"
+        ],
+        "post_copy": [
+          "npm ci (package-lock.json pinned で node_modules を再install・node_modules は byte copy しない)",
+          "npx playwright install chromium (render/verify 系のヘッドレス実行前提)",
+          "C19 build 後に render-report.js/mermaid-render.js が要求する mermaid を package.json へ additive 追記し package-lock.json を同時更新して npm install を再実行し依存解決を固定する (copy→manifest 照合→additive の順序規約。この後段ステップは byte copy 完了後に走る)"
+        ]
+      },
+      "checks": [
+        "lint-vendor-parity.py (build 時に plugin scripts/ へ同梱・plan 段階では契約のみ) が copy 直後の vendor 実体を vendor-digest-manifest.json (sha256・191 files pinned・upstream presentation-slide-generator v8.4.2。schemas subtree は真 schema 4本を plugin-root live へ移し fixture3+README=4 file のみ pin=従来 195 から 4 減算) と全件照合し exit 0",
+        "npm ci が exit 0 で node_modules を lock どおり再構成し、npx playwright install が完了する",
+        "additive (render-report.js/mermaid-render.js/package.json mermaid 依存追記) は照合の明示除外 (inventory vendor.parity_scope 準拠・別検査。読書 CSS は render-report.js に inline ゆえ独立ファイルの追加なし)。package.json は base manifest との差分が mermaid 依存の additive 追記のみであることを確認する (素朴な全ファイル sha256 一致では additive を許容不能なため、package.json/package-lock.json は base pin との差分が mermaid 追記に限定される意味論を parity 契約へ反映する)"
+      ]
+    },
+    {
+      "id": "S-SCHEMAS",
+      "surface": "schemas",
+      "order": 2,
+      "sequencing": "post-S-VENDOR。live 真 schema は plugin-root schemas/ が正本(README §品質・runtime schema SSOT)。vendor/schemas-fixtures は upstream byte-frozen fixtures(example.structure.json 3本 + README)専用で、live schema をここへ置かない(byte-freeze 抵触回避=L1)",
+      "owner_builder": "run-build-skill",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "build_target": "plugins/slide-report-generator/schemas/report-structure.schema.json",
+      "build_args": {
+        "new_files": [
+          "schemas/report-structure.schema.json (plugin-root live 正本・4 reportType 骨格)"
+        ],
+        "additive_bump": "本 update で report-structure.schema.json を 1.0.0 → 1.1.0 に additive bump(section.narrative / section.body[] block / inline highlight・key-point・stat-tile トークン / placement live 化)。本再検証で更に 1.1.0 → 1.2.0 に additive 拡張(section.role enum で narrative 条件付き optional 化 / meta.throughLine + section.transition / meta 文書メタクラスタ version・updatedDate・readingTime・audience / body[] 新block型 definition-list・footnote+citation・task-list / inline highlight の非色第2チャネル必須 / placement field 正規化 {grid,zones,emphasisZone,readingOrder,focalPoint}・emphasis→emphasisZone / narrative 終端 role 必須で弧保存)。真 schema 4本(structure/image-deck-plan/evaluation-report/image-asset-manifest)も plugin-root schemas/ を唯一 live SSOT とし vendor-digest に非 pin(Grp I/A4-F4)。plugin-root schemas/ の live schema 上の変更で vendor byte-parity(vendor-digest-manifest.json 191 files=従来 195 から真 schema 4本を非 pin 化で減算)対象外ゆえ byte-freeze に抵触しない(L1 解消・report-structure は digest に非 pinned)",
+        "record_in": "index.plugin_meta"
+      },
+      "checks": [
+        "live 真 schema 5本(structure/image-deck-plan/evaluation-report/image-asset-manifest/report-structure)は plugin-root schemas/ に置き(vendor-digest-manifest.json に非 pinned)、vendor/schemas-fixtures は upstream byte-frozen fixtures(example.structure.json 3本 + README)専用=4 file であること(live schema を vendor へ置かない=byte-freeze 抵触回避・inventory byte_parity_subtrees schemas policy と byte 一致)",
+        "report-structure.schema.json 1.2.0 が JSON parse 可能で structure.schema.json と共通コア (nodes/edges/groups/theme/aiVisual) を共有し、既存 paragraphs[]/body[] 1.1.0 後方互換を保つ(1.2.0 は section.role/throughLine/transition/文書メタ/新block/placement正規化を全 additive で並置・section.role 未指定既定は analysis)",
+        "index.plugin_meta の schema 記録が真 schema 5 本 (4 移植 + 1 新設・plugin-root) と一致する"
+      ]
+    },
+    {
+      "id": "S-REFERENCES",
+      "surface": "references_config_assets",
+      "order": 3,
+      "sequencing": "post-S-VENDOR (pointer_only 項目の byte 実体が vendor に在ることを前提)",
+      "owner_builder": "run-build-skill",
+      "requires_surfaces": [
+        "S-VENDOR"
+      ],
+      "build_target": "plugins/slide-report-generator/references/",
+      "build_args": {
+        "byte_copy": "既存 42 references (*.md・upstream presentation-slide-generator v8.4.2) を byte 維持で携行 (本 surface が byte 正本)",
+        "new_files": [
+          "report-types.md",
+          "report-writing-rules.md",
+          "report-visual-strategy.md",
+          "mermaid-integration.md",
+          "report-narrative-logic.md (本 update 新設・plugin-root references・節内論理展開[本質課題→解決→活用/claim-evidence-implication]の語彙 + 本質的に含むべき横断要素カタログ[reportType 別: 共通=エグゼクティブ要約/キーテイクアウェイ/意思決定・次アクション/根拠・出典/リスク・留保/TL;DR、技術ドキュメント=前提条件/用語定義/手順番号/既知の問題、学習解説=学習目標/要点まとめ/演習]の正本。C17/C19 が参照。本再検証で追記する L4 執筆内容(build へ委譲): (1)section.role→narrative 適用表[analysis/argument=narrative 必須・reference/procedure/summary=narrative 不要で category error 回避]、(2)横断要素カタログに文書メタ[version/updatedDate/readingTime/audience]を追加、(3)report 長さ別 要素適用マトリクス[短尺=TOC/文書メタ等の opt-out 許容=MD-I5・長尺=throughLine/TOC/相互参照 必須]、(4)多様性 < 適合性 規律[内容が要求する範囲での block 適合・block 種類数の水増しを評価しない]、(5)inline highlight 2 チャネル規律[色 + weight/underline を必須併存=色覚非依存]、(6)reportType→narrative 形式の binding 正本[第1語彙 essence/approach/leverage と第2語彙 claim/evidence/implication/action の終端 role で本質課題→解決→活用の弧を保存])"
+        ],
+        "augmented_files": [
+          "report-writing-rules.md (plugin-root・本 update で block content-regime[表/コード/番号リスト/小見出しの第一級 block]・highlight/keyPoint 密度上限[節あたり強調は要点1-2=過剰抑制]・見出しごと整形 を additive 追補。本再検証で更に 多様性 < 適合性 規律[内容が要求する範囲での block 適合]・inline highlight 2 チャネル規律[色+weight/underline 併存=色覚非依存]・doc-level highlight 密度予算[per-section cap に加え文書総量上限]・新block型[定義リスト/脚注引用/タスクリスト]の content-regime を additive 追補)",
+          "report-visual-strategy.md (plugin-root・本 update で placement.grid/zones の意味的配置=render-report.js 反映 を additive 追補。本再検証で更に 正規化 placement field {grid,zones,emphasisZone,readingOrder,focalPoint}・emphasis→emphasisZone 改名理由[inline highlight との字面衝突回避]・readingOrder の consumer 配線 を additive 追補)",
+          "skills/run-slide-report-generate/references/report-quality-checklist.md (skill-level・本 update で積極評価 RQ21-[論理展開成立/block多様性/強調の効きと過剰でなさ/意味的配置/見出し整形] を additive 追補。本再検証で更に through-line[節間の論理接続・流れの成立]・色覚非依存の強調・reportType 横断要素の充足・多様性 < 適合性 の優先 を additive 追補。plugin-root でなく生成 skill C01 の references が owner)"
+        ],
+        "pointer_only": "118 templates/pagination/print-styles.css/style-genome/d3-components/gas-deploy-guide.md の byte 実体は S-VENDOR が携行 (相互参照ポインタのみ・二重 SSOT 禁止)"
+      },
+      "checks": [
+        "既存 42 references が移植元と byte 一致する",
+        "report 新規 references (report-types/report-writing-rules/report-visual-strategy/mermaid-integration/report-narrative-logic) が新設され既存 42 と重複しない",
+        "augmented_files が additive 追補され既存内容を破壊しない (report-quality-checklist.md は skill-level owner・plugin-root へ複製しない)",
+        "pointer_only 項目の byte 実体を references 側へ複製していない"
+      ]
+    },
+    {
+      "id": "S-COMPOSITION",
+      "surface": "composition",
+      "order": 4,
+      "sequencing": "post-routes (全 25 component route の build 完了後に合成配線)",
+      "owner_builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "fallback_builder": "run-build-skill",
+      "gap_ref": "GAP-ENVELOPE-001",
+      "build_target": "plugins/slide-report-generator/plugin-composition.yaml",
+      "build_args": {
+        "contents": "skills 3 / agents 17 / commands 2 / hook 1 / plugin-root script 2 の合成配線 (routes C01..C25 と 1:1)"
+      },
+      "checks": [
+        "列挙 component が routes の 25 実体と過不足なく一致する",
+        "hook 配線の正本は plugin manifest (envelope hooks ブロック) であり、composition からは settings.json 配線を宣言しない (inventory C20.settings_wiring=plugin-manifest と整合)"
+      ]
+    },
+    {
+      "id": "S-EVALS",
+      "surface": "harness_eval",
+      "order": 5,
+      "sequencing": "post-routes (受入配線は build 済み成果物実体を参照)",
+      "owner_builder": "run-build-skill",
+      "build_target": "plugins/slide-report-generator/EVALS.json",
+      "build_args": {
+        "modes": [
+          "slide",
+          "report"
+        ],
+        "kinds": [
+          "mechanical",
+          "llm_eval"
+        ]
+      },
+      "checks": [
+        "mechanical + llm_eval が slide/report 両モードの受入を配線する",
+        "EVALS.json が JSON parse 可能で harness coverage >=80 の受入基準を参照する"
+      ]
+    }
+  ],
+  "envelope": {
+    "manifest": {
+      "owner": "plugin-scaffold",
+      "status": "external_gap",
+      "build_target": "plugins/slide-report-generator/.claude-plugin/plugin.json",
+      "draft_path": "envelope-draft/plugin.json",
+      "gap_reason": "manifest scaffold executor は現時点で本 planner の外部。後段 plugin-scaffold (contract-only・GAP-SCRIPT-BUILDER 参照) または手動 scaffold が draft を消費し、vendor Node engine の byte 携行と node_modules 再 install も同 scaffold が担う"
+    },
+    "marketplace": {
+      "owner": "plugin-scaffold",
+      "status": "manual-user-gated",
+      "build_target": ".claude-plugin/marketplace.json",
+      "approval_reason": "配布登録はユーザー承認後の別判断 (正本=index plugin_meta.distribution・現在 distributable:false・bundle 登録なし)"
+    }
+  },
+  "open_issues": [
+    {
+      "id": "GAP-ENVELOPE-001",
+      "severity": "high",
+      "text": "plugin envelope executor (manifest/marketplace scaffold) is external to run-plugin-dev-plan",
+      "resolution_condition": "plugin-scaffold 実行実体 (または人手 scaffold 手順) が envelope-draft/plugin.json を plugins/slide-report-generator/.claude-plugin/plugin.json へ適用して validate_plugin 相当検査が exit 0、かつ surface_tasks S-VENDOR/S-COMPOSITION の checks が全 PASS した build trace が記録された時点で closed"
+    },
+    {
+      "id": "GAP-SCRIPT-BUILDER",
+      "severity": "high",
+      "text": "plugin-scaffold は contract-only builder 語彙で単独実行実体が未整備 (共有 script C23/C25 の plugin-root hoist + S-VENDOR/S-COMPOSITION surface・当面は run-build-skill の build フロー内で代替生成)",
+      "resolution_condition": "specfm.BUILDER_STATUS の plugin-scaffold が executor-backed へ昇格 (専用 executor 整備) する、または routes[C23]/routes[C25].fallback_builder=run-build-skill で C23 に加え C25(validate-report-visual.py)が生成され lint-script-frontmatter + tests_min>=80 PASS、かつ S-VENDOR の byte copy + lint-vendor-parity.py PASS(191 files 照合)の build trace が全て揃った時点で closed"
+    }
+  ]
+}

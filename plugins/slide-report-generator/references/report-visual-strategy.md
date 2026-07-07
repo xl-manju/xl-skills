@@ -115,3 +115,35 @@ full-image-deck-method / slide CONST_007 と同一方針。次は画像へ焼き
 | 退化耐性を守っているか | 逐語が変わる要素を画像に載せていない |
 | 配置が一貫しているか | readingOrder 1方向・focalPoint 同帯 |
 | 描画可能か | 確定種別が環境で描画可能（不在種別を残さない） |
+
+---
+
+## 8. 1.2.0 追補 — placement 正規化
+
+### 8.1 正規化 placement field
+
+`placement`（＝`visual.layout`）を **{grid, zones, emphasisZone, readingOrder, focalPoint}** の5 field に統一した。§3 で節側に置いていた `readingOrder`/`focalPoint` を placement へ移設し、配置決定を1オブジェクトに集約する（C18=幾何配置 owner の単一入力面）。
+
+| field | 意味 | §参照 |
+|---|---|---|
+| `grid` | 本文/ビジュアルの分割（例 `2x1`） | §3.1 |
+| `zones` | 面内領域の役割割り当て（prose/visual/callout/caption） | §3.1 |
+| `emphasisZone` | ビジュアル配置の強調度（normal/highlight/muted） | §8.2 |
+| `readingOrder` | 視線誘導の向き（デッキ/レポートで1方向統一） | §3.2 / §8.3 |
+| `focalPoint` | 主ビジュアル重心（同帯に揃える） | §3.2 |
+
+> section 直下の `readingOrder`/`focalPoint`（1.1.0）は後方互換で温存。render-report.js は section 直下を優先し、無ければ placement 側へフォールバックする。
+
+### 8.2 `emphasis` → `emphasisZone` 改名
+
+§3.3 の `emphasis`（normal/highlight/muted）を **`emphasisZone` に改名**した。理由は inline highlight の `==要点==`（本文の色強調）と **`emphasis` の字面が意味衝突**するため。前者は「本文フレーズの強調」、後者は「ビジュアル配置面の強調度」で別レイヤだが、語が同じだと owner 境界（C17 論理強調 vs C18 幾何配置）を跨いで混同する。`emphasisZone` は「zone の強調」であることを名前で明示する。
+
+- 旧 `emphasis` は **deprecated alias** として温存（後方互換）。両指定時は `emphasisZone` を優先。
+- render-report.js は `emphasisZone`→`emphasis` の順にフォールバックし、非 normal 値を `data-emphasis` 属性へ live 反映する（C25 が宣言↔反映を検査）。
+
+### 8.3 `readingOrder` の consumer 配線
+
+`readingOrder` は render-report.js が **`data-reading-order` 属性**へ反映する。section 直下（1.1.0）を優先し、無ければ placement へ移設された `layout.readingOrder`（1.2.0）を採る。
+
+- **順序ヒントであり並び替えキーではない**: section は配列順でレンダされ、`readingOrder` は視線方向の宣言（CSS/レビューが参照）に留まる。実際の DOM 順序は変えない。
+- 一貫性規律（§3.2）は不変: デッキ/レポート全体で1方向へ統一する。placement へ移設しても「ページごとに向きを変えない」原則は維持する。

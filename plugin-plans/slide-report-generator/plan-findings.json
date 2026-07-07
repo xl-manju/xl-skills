@@ -1,0 +1,190 @@
+{
+  "plan_dir": "plugin-plans/slide-report-generator",
+  "evaluator": {
+    "name": "assign-plugin-plan-evaluator",
+    "version": "0.1.0",
+    "context": "fork",
+    "review_mode": "30-thinking-method elegant verify (Agent1 reset + Agent2/3/4 独立並列 + Agent5 統合実行・proposer≠approver)。本 snapshot は report 読み物化の再検証 (第2周) で、schema 1.2.0 additive + C15 節間フロー + Grp A-N 焼込を反映"
+  },
+  "verdict": "PASS",
+  "staleness_rule": "本 findings は evaluated_inputs に記録した sha256 を鮮度アンカーとする。被評価ファイルの現 sha256 が evaluated_inputs の値と一致しない場合、本 verdict は stale として扱い再評価が必要 (SHA 手書換や無断更新後の使い回しは無効)。",
+  "evaluated_inputs": [
+    {
+      "path": "index.md",
+      "sha256": "ed635eb32e75fdaed48f92be54a99bd2001d27d4ea3751a5b1e50ec240c5c58d"
+    },
+    {
+      "path": "goal-spec.json",
+      "sha256": "3bb7e7819201d8034ecc763d841a6dfcc6e056b9c8d35496ea579b836b9dddd8"
+    },
+    {
+      "path": "source-inventory.md",
+      "sha256": "c2788bacc453378e95bf99bf41a2baf4403db7174fb24556678ffc40837a5a54"
+    },
+    {
+      "path": "component-inventory.json",
+      "sha256": "b2f32b72ec61c54fffe1fdfb20e10c354dbfde690b85f243f168e1baf4307ea4"
+    },
+    {
+      "path": "handoff-run-plugin-dev-plan.json",
+      "sha256": "be37fe2cec276332ddafe285d5b3db7a4561e10645d922efb084bf017d57cce7"
+    },
+    {
+      "path": "envelope-draft/plugin.json",
+      "sha256": "f31df233edd42782f60b0d52a69403b1cca3e18ccd65913b50af4c0f9289448d"
+    },
+    {
+      "path": "vendor-digest-manifest.json",
+      "sha256": "341a7b8dcaa5893de5e248c721a29b0cab55dea436c3dc90a918979f544c09b5"
+    },
+    {
+      "path": "phase-01-requirements.md",
+      "sha256": "68718608c3b46b46d9d8371c02f7cbcc4b9d3ec653e4cb172eefb2bc6ea36ec0"
+    },
+    {
+      "path": "phase-02-design.md",
+      "sha256": "f58ccfee2de98df5d752de53eea404da52c5ec3b81b771aa152dedf4aa62f504"
+    },
+    {
+      "path": "phase-03-design-review.md",
+      "sha256": "a1c570f709a197dadba4afeafa189ef4b2b697f5836e81829fc1d8c3d9ce2ace"
+    },
+    {
+      "path": "phase-04-test-design.md",
+      "sha256": "1176a2a01fd787bd8d2beb281f6903d8d43186451deaac310b8faed448f3719f"
+    },
+    {
+      "path": "phase-05-implementation.md",
+      "sha256": "fcebc4bc79e32d97a3a4ada0de3a674a27e573307fc975f7466818f9a34abf03"
+    },
+    {
+      "path": "phase-06-test-run.md",
+      "sha256": "bf2dea53ceb030c5b215ff426e59aeb61e164a206e1b21de176a2ff5bd9925a0"
+    },
+    {
+      "path": "phase-07-acceptance-criteria.md",
+      "sha256": "479f6cb73bb5e02705933a0efa4be74e27aafec3fae0682a4197437eed99f2ab"
+    },
+    {
+      "path": "phase-08-refactoring.md",
+      "sha256": "c91b8b8461b8a72c967324860f6c727e929d81d37d8d278af520d5420758764f"
+    },
+    {
+      "path": "phase-09-quality-assurance.md",
+      "sha256": "247144b90015674501fe37143aad67708583b0f921cb4a6b25694be414df2eb1"
+    },
+    {
+      "path": "phase-10-final-review.md",
+      "sha256": "6f1bfdd8c78dbeed6eb70ee36f24ff9520a81e9e8a36316a7c1730179bda3977"
+    },
+    {
+      "path": "phase-11-evidence.md",
+      "sha256": "72ca721db784dfe6a615302257ef5486acb572affe8dca4a95b71463d379a65e"
+    },
+    {
+      "path": "phase-12-documentation.md",
+      "sha256": "640529cf5bbca64ceefd5892e044b89312ffbd9215fd6c3a4a0a36ccad27131c"
+    },
+    {
+      "path": "phase-13-release.md",
+      "sha256": "605dc7e8a389904986b6f80bd7fdc4cb2a2d2d723b9129e1439de7671d0729a6"
+    }
+  ],
+  "conditions": {
+    "C1": {
+      "id": "no_contradiction",
+      "status": "PASS",
+      "summary": "矛盾なし。report 読み物化の再検証 (30思考法) が検出した gap を既存 gate-green baseline への additive Edit 差分として焼込み (全書き換えなし)。schema を 1.1.0→1.2.0 に additive 拡張し 1.1.0 の全フィールドを温存 (section.role 未指定既定=analysis で narrative 要求を弱めない)。placement emphasis→emphasisZone は 1.1.0 emphasis を alias 後方互換残置で改名し字面衝突を解消。Grp I の schema 配置矛盾 (inventory は真 schema 4本を schemas-fixtures 携行と記述・handoff S-SCHEMAS は plugin-root live と記述の二重 SSOT) を『真 schema=plugin-root live・fixture のみ vendor』へ inventory/manifest を handoff 側の正へ合わせ、vendor-digest を 195→191 files に減算して inventory↔handoff↔manifest を byte 一致させた。C01 feedback_contract を変更したため C01 route を change_surface=rebuild に区分し derivation の『build 済 25 実体』断定を post-plan additive+outputs 追跡へ弱めて index 注記へポインタ化 (断定矛盾解消)。11 決定論ゲート exit0。",
+      "evidence": [
+        "component-inventory.json schemas.report_structure_additive_1_2_0 (1.1.0 温存の additive)",
+        "vendor-digest-manifest.json total_pinned_files=191 (schemas 8→4・真 schema 4本 非 pin)",
+        "handoff routes change_surface (rebuild=C01/C17/C18/C19/C24/C25) と S-SCHEMAS plugin-root live の整合",
+        "check-build-handoff.py / check-surface-inventory.py exit0"
+      ]
+    },
+    "C2": {
+      "id": "no_missing",
+      "status": "PASS",
+      "summary": "漏れなし。メタ・発想検証 (Agent3) が defect-repair 分解 (欠落を直す 6 根因→C9-C14) の枠外にあった第7根因『読み物としての横断的読書体験の未評価』を発掘し、C15 (節間フロー throughLine/transition) 新設 + C9-C14 の additive 次元 (schema 1.2.0) へ拡張した。MD-M8 文書メタ / MD-M7 新block型 (定義リスト/脚注引用/タスクリスト) / MD-M3 色覚非依存 (highlight 第2チャネル) / MD-M2 report読書CSS / MD-M1 section.role / MD-H2 throughLine・transition / MD-H1 開いた読書体験カタログ / A4-F5 placement 正規化 / MD-M5 内容適合 (多様性<適合性) を schema/references/C17-C25/goal-spec/index/source-inventory へ反映。C14 を『開いた読書体験カタログ (再問い由来)』へ再定義し文書メタ/per-section recap/表現機構を横断要素へ拡張。5 根因の MECE 被覆 (ユーザー要望=図解/表/コード/箇条書き/色付き強調/見出し整形/本質課題→解決→活用) に加え横断読書体験 (節間フロー/読書タイポ/色覚/文書メタ) を上乗せ。",
+      "evidence": [
+        "goal-spec.json checklist C15 新設 + C10/C11/C13/C14 充足条件強化",
+        "phase-01-requirements.md 改善要件表 第7根因行 + C14 再定義",
+        "component-inventory.json schemas.report_structure_additive_1_2_0.added 7 項",
+        "detect-unassigned / check-requirements-coverage / check-surface-inventory exit0"
+      ]
+    },
+    "C3": {
+      "id": "consistent",
+      "status": "PASS",
+      "summary": "整合性あり。改善が実体軸に反映されたが宣言層 (完全性正本) へ未伝播、を是正: source-inventory §3 (C17/C18/C19/C24/C25 責務更新・C25 機械検査 a-h) / §4 (schemas plugin-root live・vendor-digest 191) / §5 (report 構造化改善 C9-C15 additive 節・C15 新設・Grp I 行)、index (要件 C1-C8→C1-C15・報告構造化 owner 表・C17↔C18 責務境界・用語集に throughLine/transition/section.role/文書メタ/definition-list 追加・要件 id↔component id 衝突注記を C10-C15 へ拡張)、phase-01 (第7根因) / phase-02 (schema 1.2.0 設計節・MD-I3 経路非対称 1 行) / phase-07 (C14 横断要素・C15 節間フロー・C12 placement 機械検査の受入行)。placement field 名を producer(C18)/consumer(C19)/schema で統一し drift 封鎖。13 phase frontmatter/gates/matrix 全 exit0。",
+      "evidence": [
+        "source-inventory.md §3 C24/C25 行 + §5 C9-C15 節 + §4 schemas plugin-root live",
+        "index.md report 構造化 owner 表 + C17↔C18 境界 + 用語集 throughLine 追加",
+        "component-inventory.json schemas.report_structure_additive_1_2_0.placement_owner (producer/consumer/schema 三者統一)",
+        "check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage exit0"
+      ]
+    },
+    "C4": {
+      "id": "dependency_integrity",
+      "status": "PASS",
+      "summary": "依存関係整合。component 依存 DAG 非循環 (topsort exit0)。散文 surface_tasks_note の順序意図を機械エッジへ昇格 (Grp B): routes[C17]=[S-SCHEMAS,S-REFERENCES] / C18/C19/C01=[S-VENDOR,S-SCHEMAS,S-REFERENCES] / C24=[S-VENDOR,S-SCHEMAS,S-REFERENCES] / C25=[S-SCHEMAS] を requires_surfaces へ配線し、S-VENDOR は requires_surfaces 宣言 route より先に実行される順序制約を明示。C01 の受入 (feedback_contract IN2/OUT2) に reportType別横断要素/placement live/throughLine 非空/色覚非依存/節間の論理接続/C9-C15 受入を結線。mermaid lifecycle (Grp J) を S-VENDOR post_copy (byte copy→additive→npm install 再実行) + excluded_policy (package.json 差分は mermaid 追記のみ) へ配線。gap 閉条件 (A4-F8) を GAP-SCRIPT-BUILDER へ C25 + S-VENDOR lint-vendor-parity PASS trace で拡張し S-VENDOR/S-COMPOSITION に fallback_builder=run-build-skill を追記。JS build/test route (Grp L) を routes[C19].build_contract の verification_steps へ明記。verify-index-topsort/check-runtime-portability/check-build-handoff exit0。",
+      "evidence": [
+        "handoff routes[C17/C18/C19/C24/C25/C01].requires_surfaces + change_surface",
+        "component-inventory.json C01.feedback_contract IN2/OUT2 (C9-C15 受入)",
+        "handoff surface_tasks S-VENDOR.post_copy (mermaid additive) + open_issues GAP-SCRIPT-BUILDER 拡張",
+        "verify-index-topsort/check-runtime-portability/check-build-handoff exit0"
+      ]
+    }
+  },
+  "gate_results": [
+    {"id": "G1", "name": "verify-index-topsort", "exit_code": 0, "conditions": ["C4"], "stdout": "OK: index が §9 section 床を満たし P01..P13 を昇順全列挙し component 依存 DAG が非循環 (25 component)"},
+    {"id": "G2", "name": "detect-unassigned", "exit_code": 0, "conditions": ["C2", "C4"], "stdout": "OK: 13 フェーズ完全・section 床充足・orphan 0 件・全 component が build_target を保持"},
+    {"id": "G3", "name": "check-spec-frontmatter", "exit_code": 0, "conditions": ["C2", "C3"], "stdout": "OK: 13 phase frontmatter + inventory component 契約を充足"},
+    {"id": "G4", "name": "check-spec-gates", "exit_code": 0, "conditions": ["C2", "C3"], "stdout": "OK: inventory component gates/harness + index.plugin_meta 規律を機械強制で満たす"},
+    {"id": "G5", "name": "check-spec-matrix-coverage-self-test", "exit_code": 0, "conditions": ["C3"], "stdout": "OK: 46行 table と reflection.md が一致 (id 集合/分類/焼き先層 drift なし)"},
+    {"id": "G6", "name": "check-spec-matrix-coverage-plan", "exit_code": 0, "conditions": ["C3"], "stdout": "OK: 適用される全マトリクス行の焼き先が反映済み"},
+    {"id": "G7", "name": "check-surface-inventory", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: 5 component_kind 検討証跡 + surface 採否明示 (schemas 1.2.0 additive/references 追補/真 schema plugin-root live 含む)"},
+    {"id": "G8", "name": "check-build-handoff", "exit_code": 0, "conditions": ["C1", "C4"], "stdout": "OK: build handoff が 25 routes と envelope 契約を満たす"},
+    {"id": "G9", "name": "check-requirements-coverage", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: goal-spec checklist C1-C15 全要件が index 完了チェックリスト/受入確認へトレース済"},
+    {"id": "G10", "name": "check-runtime-portability", "exit_code": 0, "conditions": ["C4"], "stdout": "OK: 共有 script(C23/C25)plugin-root hoist・全 build_target 自己完結"},
+    {"id": "G11", "name": "check-plugin-goal-spec", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: plugin goal-spec schema + anchors(existing-plugin-update/source_improvement)validated"}
+  ],
+  "findings": [
+    {
+      "severity": "info",
+      "bucket": "C1-C4",
+      "observation": "30思考法エレガント検証を思考リセット後に再実施 (report 読み物化・第2周): Agent1(初見俯瞰)+Agent2(論理・構造)/Agent3(メタ・発想)/Agent4(システム・戦略・問題解決)を独立並列 context で起動 (相互 findings 非参照)、Agent5 が KJ法で Group A-N へ統合し 4条件直結の論点を優先適用。2エージェント以上が独立検出した高信頼欠陥 (A4-F4 schema 配置二重 SSOT=Grp I、A2-F4/A4-F3 requires_surfaces 未機械化=Grp B、A2-F5/A4-F9 build 状態断定=Grp K) を最優先で是正。全30思考法を適用・省略なし。",
+      "evidence": ["Agent2/3/4 findings(A2-F*/A4-F*/MD-*)を KJ統合し Group A-N として全件処理"]
+    },
+    {
+      "severity": "info",
+      "bucket": "scope",
+      "observation": "本 plan は existing-plugin-update。report 読み物化の追加改善は既存 report component(C17/C18/C19/C24/C25)と 2 surface(schemas report-structure 1.1.0→1.2.0 additive/references)の additive 強化で閉じ、新規 buildable component を増やさない(no-split)。要件は C15(節間フロー through-line)を1本のみ additive 新設し、他はすべて C9-C14 の充足条件強化 or C14 カタログ拡張で吸収(buildable 総数 25 不変)。slide 経路・vendored 意匠/技術 SSOT・共通コアは無改変。schema/render の shape は機械凍結し、意味の適合(role 判定が妥当か/throughLine が本質を突くか)は C24 evaluator + report-narrative-logic.md に委ねる二層分離(Goodhart回避)。",
+      "evidence": ["goal-spec.artifact_class=existing-plugin-update", "goal-spec.checklist に C15 のみ追加(C16 以降なし)", "component-inventory components 数 25 不変"]
+    },
+    {
+      "severity": "info",
+      "bucket": "kj-groups-applied",
+      "observation": "Phase3 で焼いた KJ グループ A-N: [基盤] schema 1.1.0→1.2.0 additive (section.role/throughLine+transition/文書メタ/新block型/highlight第2チャネル/placement正規化 emphasisZone/narrative弧保存) を inventory schemas + phase-02 へ。[A] C25 機械チェック(a-h)+C01 feedback_contract IN2/OUT2(C9-C15)+phase-07 受入行。[B] requires_surfaces を C17/C18/C19/C24/C25/C01 route へ機械エッジ化。[C] throughLine/transition owner=C17・C24 through-line 積極評価。[D] phase-01 第7根因行 + C14 再定義。[E] 文書メタ/新block/color2チャネル/report読書CSS を inventory C19/C24/C25 + references。[F] section.role + narrative 弧保存。[G] block 多様性<適合性 を C24/C25。[H] placement field 正規化 emphasisZone owner=C18。[I] schema 配置一本化(真schema plugin-root live・vendor-digest 195→191)。[J] mermaid lifecycle(S-VENDOR post_copy + excluded_policy)。[K] change_surface 区分 + derivation 断定弱化。[L] C19 harness coverage(render-report/mermaid-render tests_min>=80 test 名指し)+JS build/test route。[N] index owner表/id衝突注記/用語集。全 group を該当ファイルへ additive 反映。",
+      "evidence": ["component-inventory.json schemas.report_structure_additive_1_2_0", "handoff routes requires_surfaces/change_surface + surface_tasks S-VENDOR/S-SCHEMAS/S-REFERENCES", "index.md report 構造化 owner 表"]
+    },
+    {
+      "severity": "info",
+      "bucket": "anti-goodhart",
+      "observation": "逆説思考が『block/highlight を増やすほど良い』の一方向 Goodhart 穴を再確認し、負次元『内容が要求する範囲での block 適合(多様性 < 適合性・block 種類数の水増しを評価しない)』へ C24 の block 多様性次元を言い換え(MD-M5)。色覚非依存(色+weight/underline 第2チャネル)は色単一チャネルへの Goodhart 依存を封鎖。機械強制の境界は C25 の決定論チェック(shape/存在/閾値)までとし、積極評価の意味判定を機械層が代替しない二層分離を goal-spec C13 に明記。",
+      "evidence": ["component-inventory.json C24 description(多様性 < 適合性)", "goal-spec.json C13(機械強制の境界は shape/存在/閾値)"]
+    },
+    {
+      "severity": "info",
+      "bucket": "build_scope",
+      "observation": "schema 1.2.0 の実 JSON 定義変更・render-report.js の新block/highlight第2チャネル/placement/throughLine 実装・report.css 新設・mermaid 依存追記・C24/C25/C17/C19 agent prompt 更新・report-narrative-logic.md への role→narrative 適用表/横断要素カタログ(文書メタ)/report長さ別要素適用マトリクス(短尺opt-out=MD-I5)/多様性<適合性規律/inline highlight 2チャネル規律 執筆は L4 build の責務(本 plan=L3 は契約として焼くのみ)。plan は build handoff route(S-SCHEMAS additive_bump/S-REFERENCES new_files+augmented_files/C17-C19/C24/C25/S-VENDOR post_copy)と受入契約(C01 IN2/OUT2)を宣言し、実装は capability-build 系が消費する。",
+      "evidence": ["handoff S-SCHEMAS.build_args.additive_bump(1.2.0)", "handoff S-REFERENCES.build_args.new_files report-narrative-logic.md 追記", "handoff routes[C19].build_contract.verification_steps"]
+    },
+    {
+      "severity": "info",
+      "bucket": "backlog",
+      "observation": "残 backlog(plan 段階で FAIL 根拠にしない): MD-I3(report 単一経路 vs slide 2経路の非対称は phase-02 に 1 行明文化済・軽微)。MD-I4/MD-I6(将来 additive 候補: stat-tile group/数式/timeline/用語ツールチップ/比較軸メタ/report 固有図解 genome は schema 追加なしゆえ次周回)。要件 id フル改名(REQ 接頭辞で C10-C15 の component id 字面衝突を根絶)は影響範囲大ゆえ backlog(本再検証では index 識別注記を C10-C15 へ拡張して緩和)。A4-INFO-DAG=component 依存 DAG 骨格は健全(変更不要・topsort exit0 で確認記録)。既存 open_issues GAP-ENVELOPE-001/GAP-SCRIPT-BUILDER は build 段階でのみ解消可能な構造的ギャップとして存置(GAP-SCRIPT-BUILDER は C25+S-VENDOR parity trace の閉条件を追記)。",
+      "evidence": ["phase-02-design.md 経路非対称の明文化(MD-I3)", "index.md 要件 id/component id 識別注記(C10-C15)", "handoff open_issues[1].resolution_condition 拡張"]
+    }
+  ]
+}
