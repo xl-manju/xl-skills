@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "task-graph.schema.json",
+  "title": "task-graph",
+  "description": "plan 成果物の第3の射影。13 phase §5 タスク項目 + component-inventory.json から derive-task-graph.py が決定論導出する型付き依存グラフ。単一 writer=derive-task-graph.py の canonicalize() のみが正準形を書く。手書き編集は validate-task-graph.py が非正準として拒否する。",
+  "type": "object",
+  "required": ["schema_version", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string"},
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "phase_ref", "entity_ref", "state", "write_scope"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "title": {"type": "string"},
+          "phase_ref": {"type": "string", "description": "P01..P13 の phase id"},
+          "entity_ref": {"type": ["string", "null"], "description": "component id (entities_covered 由来)。component 非依存タスクは null"},
+          "state": {
+            "type": "string",
+            "enum": ["pending", "running", "done", "blocked"],
+            "description": "永続 4 値。ready は compute-ready-set が都度導出する computed-only 派生状態であり、task-graph.json の node.state へ焼かない"
+          },
+          "write_scope": {"type": "string", "description": "この task が排他的に書き込む成果物パス (並列衝突判定キー)。2 用法: entity 紐づき node は build_target の排他書込パス / checkpoint node (entity_ref=null の task・phase 仮想ルート) は自 node id の擬似 scope (定義上他 node と衝突しない)"},
+          "acceptance_criterion": {"type": "string", "description": "1 検証可能成果物に対応する受入基準 (C14 携帯率計測対象・optional)"}
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "from", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["parent_of", "depends_on", "produces", "consumes"],
+            "description": "blocks は独立宣言禁止の派生ビューゆえ列挙に含めない (schema レベル機械強制)"
+          },
+          "from": {"type": "string", "description": "node id または artifact id"},
+          "to": {"type": "string", "description": "node id または artifact id"}
+        }
+      }
+    }
+  }
+}

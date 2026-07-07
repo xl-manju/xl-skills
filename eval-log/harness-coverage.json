@@ -7,7 +7,7 @@
   "sections": [
     {
       "type": "scripts",
-      "count": 269,
+      "count": 292,
       "mechanical": {
         "instrumented": true,
         "coverage_pct": 85.6,
@@ -16,7 +16,7 @@
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 68.4,
+        "coverage_pct": 70.5,
         "met": false,
         "note": "code-review verdict(eval-log/coverage/scripts) PASS の script 割合"
       }
@@ -64,7 +64,7 @@
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 57.1,
+        "coverage_pct": 61.9,
         "met": false,
         "note": "commands: coverage レコード llm_eval verdict=PASS の割合"
       }

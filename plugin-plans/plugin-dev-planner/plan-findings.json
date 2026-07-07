@@ -1,0 +1,96 @@
+{
+  "plan_dir": "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260705-210449-wt-3/plugin-plans/plugin-dev-planner",
+  "evaluator": {
+    "name": "assign-plugin-plan-evaluator",
+    "version": "0.1.0",
+    "context": "fork"
+  },
+  "verdict": "PASS",
+  "conditions": {
+    "C1": {
+      "id": "no_contradiction",
+      "status": "PASS",
+      "summary": "矛盾なし: 全決定論ゲートexit0。C16のpin規約(実行中graph変更は次周回反映)とC5 discovered-task受理(additiveは即時graph反映)の相互作用を精査し、両者は層が異なる(graphファイル更新は即時/実行中buildへの consumption はhash不一致で次周回まで遅延)ため矛盾なしと判定",
+      "evidence": [
+        "check-build-handoff exit=0",
+        "index.md:75 「実行中のtask-graph変更(discovered-task受理含む)はhash不一致でfail-closed、反映は次周回のみ」明記"
+      ]
+    },
+    "C2": {
+      "id": "no_missing",
+      "status": "PASS",
+      "summary": "漏れなし: goal-spec checklist C1-C16全16件がindex.md完了チェックリスト/受入確認表へ個別id付きでトレース済み",
+      "evidence": [
+        "detect-unassigned exit=0",
+        "check-spec-frontmatter exit=0",
+        "check-spec-gates exit=0",
+        "check-surface-inventory exit=0",
+        "check-requirements-coverage exit=0"
+      ]
+    },
+    "C3": {
+      "id": "consistent",
+      "status": "PASS",
+      "summary": "整合性あり: C16所有/書込分離がC12(handoff-notes)と同型原則で明記され一貫。C11⇔C16相互参照(graph_hashの生成元)も明記",
+      "evidence": [
+        "check-spec-frontmatter exit=0",
+        "check-spec-gates exit=0",
+        "check-spec-matrix-coverage-self-test exit=0",
+        "check-spec-matrix-coverage-plan exit=0",
+        "phase-02-design.md:35 C16所有/書込分離記述"
+      ]
+    },
+    "C4": {
+      "id": "dependency_integrity",
+      "status": "PASS",
+      "summary": "依存関係整合: C15/C16ともC01への畳み込みでDAG非循環維持。既存ゲートへの後方互換(shape_marker既定値/task_graph_ref未設定時スキップ)を破壊しない",
+      "evidence": [
+        "verify-index-topsort exit=0",
+        "detect-unassigned exit=0",
+        "check-build-handoff exit=0",
+        "check-runtime-portability exit=0"
+      ]
+    }
+  },
+  "gate_results": [
+    {"id": "G1", "name": "verify-index-topsort", "exit_code": 0, "conditions": ["C4"], "stdout": "OK: index が §9 section 床を満たし P01..P13 を昇順全列挙し component 依存 DAG が非循環"},
+    {"id": "G2", "name": "detect-unassigned", "exit_code": 0, "conditions": ["C2", "C4"], "stdout": "OK: 13 フェーズ完全・section 床充足・orphan 0 件・全 component が build_target を保持"},
+    {"id": "G3", "name": "check-spec-frontmatter", "exit_code": 0, "conditions": ["C2", "C3"], "stdout": "OK: 13 phase frontmatter + inventory component 契約を充足"},
+    {"id": "G4", "name": "check-spec-gates", "exit_code": 0, "conditions": ["C2", "C3"], "stdout": "OK: inventory component gates/harness + index.plugin_meta 規律を機械強制で満たす"},
+    {"id": "G5", "name": "check-spec-matrix-coverage-self-test", "exit_code": 0, "conditions": ["C3"], "stdout": "OK: table と reflection.md が一致"},
+    {"id": "G6", "name": "check-spec-matrix-coverage-plan", "exit_code": 0, "conditions": ["C3"], "stdout": "OK: 適用される全マトリクス行の焼き先が反映済み"},
+    {"id": "G7", "name": "check-surface-inventory", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: 5 component_kind 検討証跡 + plugin-level surface 採否が明示済み"},
+    {"id": "G8", "name": "check-build-handoff", "exit_code": 0, "conditions": ["C1", "C4"], "stdout": "OK: build handoff が routes と envelope 契約を満たす"},
+    {"id": "G9", "name": "check-requirements-coverage", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: goal-spec checklist(C1-C16) の全要件 id が index の完了チェックリスト/受入確認へトレース済み"},
+    {"id": "G10", "name": "check-runtime-portability", "exit_code": 0, "conditions": ["C4"], "stdout": "OK: 共有 script は plugin-root へ hoist 済・全 build_target が plugin 内自己完結"},
+    {"id": "G11", "name": "check-plugin-goal-spec", "exit_code": 0, "conditions": ["C2"], "stdout": "OK: plugin goal-spec schema + plugin anchors validated"},
+    {"id": "G12", "name": "check-generative-fidelity", "exit_code": 0, "conditions": ["layer-a"], "stdout": "OK: 曖昧語 violation 0 件 / 未カスタマイズ節 0 件"},
+    {"id": "G13", "name": "check-downstream-harness", "exit_code": 0, "conditions": ["layer-b"], "stdout": "OK: 全 phase の完了チェックリストが受入例/事前解決済み判断サブ節契約を満たす"}
+  ],
+  "findings": [
+    {
+      "severity": "info",
+      "bucket": "c16-delta-ownership-write-separation",
+      "observation": "[差分評価 C16] task-state.schema.jsonの所有(producer=C01)/書込(consumer=harness-creator)分離は、C12(handoff-notes)と明記通り同型の原則で貫かれている。graph_hashはC11 canonicalizerのcanonical bytesから導出され単一writer原則をpin検証へ正しく接続。所有/書込分離の一貫性はPASS",
+      "evidence": ["phase-02-design.md:35", "phase-05-implementation.md:50", "index.md:75"]
+    },
+    {
+      "severity": "info",
+      "bucket": "c16-delta-pin-discovered-task-interaction",
+      "observation": "[差分評価 C16⇔C5] accept-discovered-task.pyのadditive経路は「即時反映」とphase-05:37に記述されるが、これはtask-graph.json(SSOT)への書込みタイミングであり、実行中buildのpin済みgraph_hashとの不一致はcheck-task-state-schema.pyがfail-closedで検出するため、稼働中のbuildへの混入は構造的に防がれる。index.md:75が「反映は次周回のみ」と明示しSSOT更新と実行時消費の遅延を正しく区別しており、矛盾は検出されない",
+      "evidence": ["phase-05-implementation.md:37,50", "index.md:75"]
+    },
+    {
+      "severity": "info",
+      "bucket": "c15-delta-render-determinism",
+      "observation": "[差分評価 C15] render_mermaid()はcanonicalize()と同一canonical順序で走査しbyte一致を担保。node/edge描画要素をgraphのid/title/typeのみから導出し独自テキスト合成をしない設計が明記され、graph外要素非描画の原則が実装レベルで具体的(プレースホルダなし)",
+      "evidence": ["phase-05-implementation.md:49"]
+    },
+    {
+      "severity": "low",
+      "bucket": "task-graph-semantics",
+      "observation": "[継続・backlog] 複合節項目(P02のproducer/consumer境界項目等)の粒度が粗く、build後のtask-graph実運用で部分完了が表現できない点は引き続きbacklog",
+      "evidence": ["phase-02-design.md"]
+    }
+  ]
+}

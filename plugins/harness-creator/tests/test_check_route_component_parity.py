@@ -1,4 +1,4 @@
-"""check-route-component-parity.py (C08) の機能テスト。
+"""check-route-component-parity.py (PB-C08) の機能テスト。
 
 routes[]↔component-inventory.json の 1:1 parity を検査する独立ゲートの受入・負例・
 usage error を固定する。E2 境界: run-skill-create が build 前に parity 不一致を止める。
@@ -81,6 +81,29 @@ def test_one_sided_empty_field_is_not_flagged(parity):
     route = _route("C01")
     route.pop("placement_scope")
     assert parity.check_parity([route], [_comp("C01")]) == []
+
+
+def test_side_effect_targets_mismatch_detected(parity):
+    """side_effect_targets は不在=[] 扱いで突合し、片側のみの宣言も不一致として NG。"""
+    errs = parity.check_parity(
+        [_route("C01", side_effect_targets=["plugins/sample/schemas/a.json"])],
+        [_comp("C01")],
+    )
+    assert any("side_effect_targets" in e and "不一致" in e for e in errs)
+    # 差分明示: 両辺の値が error 文へ載る
+    assert any("plugins/sample/schemas/a.json" in e for e in errs)
+
+
+def test_side_effect_targets_match_is_order_insensitive(parity):
+    """side_effect_targets はソート後比較 (宣言順の違いは不一致にしない)。"""
+    routes = [_route("C01", side_effect_targets=["b.json", "a.json"])]
+    comps = [_comp("C01", side_effect_targets=["a.json", "b.json"])]
+    assert parity.check_parity(routes, comps) == []
+
+
+def test_side_effect_targets_absent_equals_empty(parity):
+    """片側 [] / 片側不在は同値 (どちらも副作用なし宣言)。"""
+    assert parity.check_parity([_route("C01", side_effect_targets=[])], [_comp("C01")]) == []
 
 
 def test_duplicate_id_detected(parity):

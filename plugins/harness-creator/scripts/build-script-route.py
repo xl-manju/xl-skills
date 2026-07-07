@@ -21,7 +21,11 @@ This is intentionally narrow: it only handles routes whose build_kind is
 It does not try to synthesize domain logic. For new files it writes a minimal
 portable Python scaffold with route metadata; for existing files it leaves the
 file untouched and records the route as verified. In both cases it writes a
-route-build-report so downstream routes can consume the result.
+route-build-report so downstream routes can consume the result. When the
+handoff carries a readable task_graph_ref, the report also records
+covered_task_ids (task-graph node ids whose entity_ref equals the route id,
+sorted ascending) so route completion can be traced back to graph nodes; if
+the graph is absent or unreadable the field is omitted (backward compatible).
 """
 from __future__ import annotations
 
@@ -87,6 +91,21 @@ def _report_rel(slug: str, route_id: str) -> str:
     return f"eval-log/{slug}/build/route-{route_id}.json"
 
 
+def _report_rel_dyn(reports_dir: Path, repo_root: Path, route_id: str) -> str:
+    """実際の reports_dir から repo-root 相対の report パスを導出する。
+
+    cycle_id 付き handoff では reports_dir が eval-log/<slug>/build/<cycle-id>/ へ
+    分離されるため、inputs_consumed には flat 規約 (_report_rel) でなく実在場所を
+    宣言する (flat 既定では同一 = 後方互換・validator の report_rel と対)。
+    """
+    p = reports_dir / f"route-{route_id}.json"
+    try:
+        rel = p.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        rel = p
+    return rel.as_posix()
+
+
 def _preflight_parity(handoff_path: Path) -> list[str]:
     parity = _load_module(TOOL_ROOT / "plugins/harness-creator/scripts/check-route-component-parity.py", "route_parity")
     data = _load_json(handoff_path)
@@ -116,7 +135,7 @@ def _dependency_inputs(handoff: dict, route: dict, reports_dir: Path, slug: str,
         dep_status = dep_report.get("status")
         if dep_status != "success":
             findings.append(f"dependency {dep_id}: status={dep_status}")
-        consumed.append(_report_rel(slug, dep_id))
+        consumed.append(_report_rel_dyn(reports_dir, repo_root, dep_id))
     return consumed, findings
 
 
@@ -138,6 +157,33 @@ def _target_path(route: dict, repo_root: Path) -> Path:
 
 def _route_map(handoff: dict) -> dict[str, dict]:
     return {str(r.get("id")): r for r in handoff.get("routes", []) if isinstance(r, dict)}
+
+
+def _covered_task_ids(handoff: dict, handoff_path: Path, route_id: str) -> list[str] | None:
+    """task-graph.json から entity_ref == route_id の node id 一覧 (id 昇順) を引く。
+
+    task_graph_ref.path は plan_dir (絶対のときのみ) か handoff の所在ディレクトリ基準で解決する
+    (check-route-component-parity の inventory 解決と同方針)。graph 不在/読込不能は None を返し
+    report へ field を書かない (task_graph_ref を持たない旧 handoff への後方互換)。
+    """
+    tgr = handoff.get("task_graph_ref")
+    if not isinstance(tgr, dict):
+        return None
+    rel = str(tgr.get("path", "")).strip()
+    if not rel:
+        return None
+    plan_dir_raw = str(handoff.get("plan_dir", "")).strip()
+    base = Path(plan_dir_raw) if plan_dir_raw and Path(plan_dir_raw).is_absolute() else handoff_path.parent
+    try:
+        graph = json.loads((base / rel).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(graph, dict):
+        return None
+    return sorted(
+        str(n["id"]) for n in graph.get("nodes", [])
+        if isinstance(n, dict) and n.get("id") and n.get("entity_ref") == route_id
+    )
 
 
 def _posix_relative(child: str, parent: str) -> str | None:
@@ -244,6 +290,7 @@ def _write_report(
     inputs_consumed: list[str],
     handover: str | None,
     skip_reason: str | None = None,
+    covered_task_ids: list[str] | None = None,
 ) -> Path:
     reports_dir.mkdir(parents=True, exist_ok=True)
     report = {
@@ -263,6 +310,8 @@ def _write_report(
     }
     if skip_reason:
         report["skip_reason"] = skip_reason
+    if covered_task_ids is not None:
+        report["covered_task_ids"] = covered_task_ids
     out = reports_dir / f"route-{route['id']}.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return out
@@ -347,6 +396,7 @@ def build_script_route(
         inputs_consumed=inputs_consumed,
         handover=f"script route {route_id} is available at {target_rel}",
         skip_reason=skip_reason,
+        covered_task_ids=_covered_task_ids(handoff, handoff_path.resolve(), route_id),
     )
 
     validator = _load_module(

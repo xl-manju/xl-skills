@@ -23,6 +23,9 @@ def _write_plan(tmp_path, overrides: dict | None = None):
         "plan_dir": str(tmp_path),
         "target_plugin_slug": "sample-plugin",
         "mode": "create",
+        # task-graph はデフォルト成果物 (§9)。task-graph.json 実体は本 fixture に置かないため
+        # _check_task_graph_ref は shape-only 検証となる (file 不在は validate-task-graph の責務)。
+        "task_graph_ref": {"path": "task-graph.json", "schema_version": "1.0"},
         "routes": [
             {
                 "id": "C01",
@@ -271,6 +274,23 @@ def test_builder_status_enum_violation_fails(tmp_path, handoff):
     path, data = _write_plan(tmp_path, {"routes": [route], "open_issues": _SCRIPT_BUILDER_GAP})
     errs = handoff.validate_handoff(data, path)
     assert any("builder_status" in e and "enum 外" in e for e in errs)
+
+
+def test_task_graph_ref_required(tmp_path, handoff):
+    """task-graph はデフォルト成果物 (§9) ゆえ `task_graph_ref` 未設定は fail-closed で弾く
+    (build を linear route mode へ退化させない=成果物=タスクグラフの機械強制)。"""
+    path, data = _write_plan(tmp_path)
+    del data["task_graph_ref"]
+    errs = handoff.validate_handoff(data, path)
+    assert any("task_graph_ref が未設定" in e for e in errs)
+
+
+def test_task_graph_ref_shape_validated(tmp_path, handoff):
+    """task_graph_ref の形状 (path/schema_version 非空) を検査する。"""
+    path, data = _write_plan(tmp_path)
+    data["task_graph_ref"] = {"path": "", "schema_version": "1.0"}
+    errs = handoff.validate_handoff(data, path)
+    assert any("task_graph_ref.path" in e for e in errs)
 
 
 def test_executor_backed_declared_status_must_match(tmp_path, handoff):

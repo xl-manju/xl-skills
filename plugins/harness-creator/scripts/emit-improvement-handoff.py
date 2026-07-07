@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: emit-improvement-handoff
-# purpose: E3 境界の emitter。改善成果物 (run-elegant-review / content-review 等の findings) と routing 引数から improvement-handoff.json を正規化生成し、run-plugin-dev-plan --mode update (C01) が受理できる構造化入力を produce する。
+# purpose: E3 境界の emitter。改善成果物 (run-elegant-review / content-review 等の findings) と routing 引数から improvement-handoff.json を正規化生成し、run-plugin-dev-plan --mode update (PB-C01) が受理できる構造化入力を produce する。
 # inputs:
 #   - argv: --source-kind K --source-ref R --target-plugin-slug S --plan-dir D --findings F.json [--schema-version V] [--generated-by G] [--source-intake I] [--prev-goal-spec P] [--origin-request-kind OK] [--origin-request-ref OR] [-o OUT]
 # outputs:

@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "1c0984c39547d5db5efc8e873f01715dc3acf0f63d3efbd2d13912b317ee2368"
+    "skill_md_sha256": "38c6b236e756ccc40fb9f395b94b329c89b4b3e609fecc6ae0826a22d17e9db0"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -13,8 +13,8 @@
     "dependency_break": 0,
     "smell": 1
   },
-  "reviewer": "elegant-review run-20260705-113702 配下の独立 content-reviewer SubAgent",
-  "reviewed_at": "2026-07-05T11:37:02+09:00",
+  "reviewer": "independent-content-review-subagent (PR-flow stale-sha 再評価 2026-07-07)",
+  "reviewed_at": "2026-07-07T02:42:22+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
@@ -27,20 +27,19 @@
       "OUT2"
     ],
     "positive_feedback": [
-      "検証可能性が高い: CL-1..CL-11 が全て二値判定で、新設 C02/C09 も機械検証点を持つ (C02=lint-agent-prompt-content.py exit code / C09=validate-build-trace.py の exit1 4条件)。数値根拠 (7 kind / 300 行 / score 80 / max_iter 3) が随所に具体化。",
-      "簡潔性が SSOT 委譲で担保: C09 の契約詳細 (agent=subagent-hybrid-format.md / prompt=seven-layer-format.md) と content-review 詳細を外部正本へ委譲し、Step 3.5 は provenance 3フィールド + fail-closed 条件のみを 1 段落で記述。Step 0.4 も既存 kind→lint 対応表へ 1 行追加に留め、本文 ~244 行で上限内。"
+      "検証可能性が高い (IN1): 新設 task-graph 経路が二値の機械検証点を持つ。Step 4 の lint-capability-graph-knowledge.py は task-graph harness のみ ENG-C06/ENG-C07 同梱・consult token・knowledge entry source_ref を検査し、非 task-graph は not-applicable exit0 (実走確認)。engine enum の SSOT drift は lint-goal-seek.py --self-test が render-combinators.py↔build-flags.schema 間で検査し exit0『drift なし』。IN1 の lint 群 (命名/構造/frontmatter/goal-seek/completeness/ssot + validate-build-trace) に engine 変種ゲートが破綻なく増設され、全て exit0 に還元される。",
+      "簡潔性が SSOT 委譲で維持 (OUT2): task-graph 追加は本文肥大を招かず、詳細契約を references/pipeline-boundary-contract.md へ委譲し frontmatter・Key Rule 19 bullet・Step 10.6 の 3 箇所に要点のみ配置。frontmatter を除く本文は 257 行で 300 行上限内。engine を独立 CLI flag でなく with_goal_seek.engine enum へ畳む設計 (Step 10.6) が argparse 表面積の増加を避け、A2 制約 (独立 combinator flag 新設禁止) と整合する最小複雑性を保つ。"
     ],
     "negative_feedback": [
-      "[一貫性 dimension・low・非阻害] Step 0.4 の契約括弧が subagent-hybrid-format.md のみを agent/prompt 双方に付す一方、Step 3.5 は agent/prompt で契約を分離。dimension スコアを 3 から落とすほどではない (他の断面整合は完全) が、契約括弧の kind 別明示が望ましい。",
-      "検証可能性が二値で担保: 完了チェックリストが CL-1..CL-12 まで全て exit0 判定で、新規 CL-12 も対象条件 (plugin 一括 build=handoff routes 消費時のみ) を明示したうえで `validate-route-build-reports.py --route <id>` / `--complete` の exit0 に還元される。lint-goal-seek.py も CL-12 を曖昧語なしの二値項目として通過 (exit0)。さらに feedback_contract に inner criterion IN3 (verify_by: script / derived_from: [CL-12]) が配線され、route レポートゲートが per-skill 評価基準へ昇格。lint-criteria-provenance.py が IN3↔CL-12 の写像整合を exit0 で確認。",
-      "簡潔性が SSOT 委譲で維持: route 実行レポート追記は SKILL.md 本文 2 箇所 (CL-12 の 1 行 + Step 3.5 の 1 段落) に留め、契約詳細・受け渡しプロトコル・フィールド意図を references/route-build-report.md へ追い出し、schema/validator を正本として本文に再掲していない。frontmatter を除く本文は 244 行で 300 行上限内。",
-      "契約の完全性が三点整合: schema の required 13 キー・optional (skip_reason)・enum (component_kind 5 / builder 4 / status 3) が validator の REQUIRED_KEYS/OPTIONAL_KEYS/各定数と完全一致し、builder enum は planner 側 specfm.builder_for SSOT (run-skill-create/run-build-skill/parent-skill-build/plugin-scaffold) と同一。validate_against_route が照合する 4 フィールド (component_kind/name/builder/build_target) は handoff routes[] に実在 (io-contract §handoff routes)。planner 側 io-contract.md は consumer 側を正本と宣言し内容を再定義せず、往路 (handoff)/復路 (route report) の責務境界が閉じている。",
-      "テスト規範を genuine に充足: 新規 tests/scripts-plugins/test_harness_creator__validate_route_build_reports.py が 25 tests 全 pass、subprocess (CLI/self-test) を計上した行カバレッジ 92% で 80% 床を超過し、負例 (欠落依存/inputs_consumed 未宣言/依存 failure/orphan/enum 逸脱/cross-field) を genuine に網羅。validator 内蔵 --self-test も exit0。"
+      "[一貫性 dimension・low・非阻害・継続 backlog] Step 0 item 4 の契約括弧が subagent-hybrid-format.md のみを agent/prompt 双方に付す一方、Step 3.5 は source_contract_ref を agent=subagent-hybrid-format.md / prompt=seven-layer-format.md と分離。dimension スコアを 3 から落とすほどではない (他の断面整合は完全・両契約とも実在) が、契約括弧の kind 別明示が望ましい。task-graph 追加とは独立の既知 smell。",
+      "検証可能性が二値で担保 (IN2/IN3): 完了チェックリスト CL-1..CL-12 は全て exit0 判定で、CL-8 の re-export shim 条項追加 (『純 re-export shim は import 経由の間接被覆+coverage record への理由記録で代替可・LLM eval record は機能テスト代替にならない』) は 80% 床の抜け穴を honest に限定するもので、二値性を損なわず被覆規約を精緻化している。IN2 (skill-build-trace の 4 フィールド空欄なし=validate-build-trace.py) / IN3 (route レポート=validate-route-build-reports.py --route/--complete) の script ゲートは delta の影響を受けず維持。",
+      "契約の完全性が実体照合で三点整合 (OUT1/OUT2): frontmatter template_refs の 4 task-graph script・script_refs の lint-capability-graph-knowledge.py が全てディスク実在。Step 0 item 4 の未実装 lint 宣言 (lint-command-md.py / lint-prompt-md.py / lint-workflow-md.py) は repo 全走査で 3 本とも不在=宣言と一致し、『整備済』とする lint-plugin-composition.py 他は skill-governance-lint 配下に実在。fork 評価 (Step 5 assign-skill-design-evaluator score>=80/high=0=OUT1) と Step 12 content-review (OUT2) のゲートは delta 非依存で維持され、builder 自身の goal_seek.engine=inline 保持により dogfooding 整合。",
+      "テスト規範を genuine に充足する余地を保持 (IN1): 同梱 scripts/ の行カバレッジ ≥80% 規範 (CL-8) に engine 系 4 script が新たに服する。lint-capability-graph-knowledge.py / lint-goal-seek.py の self-test が実走 exit0 で、engine 変種配線の consumption verifier・depends_on schema・consult token 検査が機械層で自己検証される。frontmatter を除く本文 257 行で上限内、命名・記述子 lint (lint-skill-name / lint-skill-description / validate-frontmatter) も実走 ok。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "[merge 解消 verdict] feature ブランチの C09 追加 (Step 0.4 C02 内容 lint 配線 / Step 3.5 prompt_provenance) レビューと origin/main の route 実行レポート追加レビューを結合した merged SKILL.md (sha256=2378b46a307e2fbe48e9f8109f6b4371256281f69b1ff8ffa18dd2127d1e2502、shasum 実測一致) への PASS 判定。両追加は Step 3.5 の独立2段落として矛盾なく共存することを merge 時に実確認 (contradiction=0)。両側とも独立 content-review で PASS 済み (HEAD=elegant-review run-20260705-113702 の C09 レビュー / origin=route-report 独立レビュー)。merge はレビュー済み2追加の機械的結合のため union 証跡を positive_feedback に保持し sha のみ merged 値へ更新。C1-C4 (矛盾/漏れ/整合/依存) いずれも 0、smell=1 (Step 0.4 契約括弧の kind 別分離が backlog) は非阻害ゆえ verdict=PASS 維持。 [追記] C09-1 精緻化 (run/assign の optional 禁止を『生成物あり(per_responsibility 非空)の bypass のみ』へ限定し共有 prompt 消費型 run skill を救済) に伴う Step 3.5 doc 更新で sha を 2378b46a→1c0984c3 へ更新。validate-build-trace 全テスト 150 passed・company-master sample trace 通過を実測。"
+  "notes": "[stale-sha 再評価 verdict] 本ブランチで run-build-skill/SKILL.md に with-goal-seek engine:task-graph 変種が追加され旧 verdict 記録 SHA (1c0984c3…) が stale 化したため current SKILL.md を思考リセットで rubric 再評価し current SHA (38c6b236…) で再発行。criteria IN1/IN2/IN3/OUT1/OUT2 を各 PASS 判定。全参照契約を ls 実測、lint-goal-seek/--self-test/lint-capability-graph-knowledge/validate-frontmatter/lint-skill-name を実走 exit0。engine 変種は独立 CLI flag を新設せず with_goal_seek.engine enum (inline/run-goal-seek/task-graph, default inline) へ畳み、詳細を references/pipeline-boundary-contract.md へ委譲。本文 257 行 (300 上限内)。C1-C4 いずれも 0、smell=1 (Step 0 item 4 契約括弧の kind 別分離が継続 backlog) は非阻害ゆえ verdict=PASS。"
 }

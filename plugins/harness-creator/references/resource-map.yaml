@@ -65,7 +65,7 @@ references:
     path: references/pipeline-boundary-contract.md
     kind: reference
     read_when:
-      - "skill-intake → plugin-dev-planner → harness-creator の E1/E2/E3 境界契約を確認する時"
+      - "skill-intake → plugin-dev-planner → harness-creator の E1/E2/E3/E4 境界契約を確認する時"
       - "intake.json / handoff-run-plugin-dev-plan.json / improvement-handoff.json の producer-consumer を検証する時"
       - "Notion 改善要望 DB を改善計画へ戻す設計判断を確認する時"
     produced_by: team-platform

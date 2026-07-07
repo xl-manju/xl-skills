@@ -44,7 +44,7 @@ def main() -> int:
         data = json.loads(raw) if raw.strip() else {{}}
     except Exception:
         return 0
-    # TODO(human): {event} 固有の判定ロジックを実装する。
+    # IMPLEMENT: {event} 固有の判定ロジックを実装する。
     # 例: tool_input の path が deny pattern に match するなら return 2
     return 0
 

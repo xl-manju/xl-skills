@@ -9,7 +9,7 @@
  rubric_refs: {{rubric_refs | default([])}}
 +# goal-seek: 固定手順を持たず Goal+Checklist へ向けて反復する。engine は外部スキル非依存(inline)で自己完結し、反復ループは fork で分離 context に切り出し親へ最終差分のみ返す(2軸は独立)。
 +goal_seek:
-+  engine: {{goal_seek.engine | default("inline")}}      # inline(既定/自己完結・外部スキル不要) | run-goal-seek(同梱時のみ任意で使う重量オーケストレータ)
++  engine: {{goal_seek.engine | default("inline")}}      # inline(既定/自己完結・外部スキル不要) | run-goal-seek(同梱時のみ任意で使う重量オーケストレータ) | task-graph(依存順駆動+self-reflect・生成harnessに task-graph-engine 同梱)
 +  spec: eval-log/goal-spec.json                       # 任意。あればロードして利用、無ければ AI が文脈から推定
 +  progress: eval-log/{{skill_name}}-progress.json     # schemas/goal-seek-loop.schema.json 準拠
 +  intermediate: eval-log/{{skill_name}}-intermediate.jsonl  # 各周回末に append: original_goal/current_goal_snapshot/delta/merged_directive (ドリフト圧縮アンカー)

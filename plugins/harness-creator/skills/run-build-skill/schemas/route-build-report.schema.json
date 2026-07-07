@@ -75,6 +75,11 @@
     "handover": {
       "type": ["string", "null"],
       "description": "後続 route への申し送り (次タスクが読む前提の自然文)。無ければ null"
+    },
+    "covered_task_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "task-graph route モードの束ね done 用 (optional)。この report が done を賄う task-graph node id 群。sync-task-state.py (TG-C02) が done 遷移時に task_id ∈ covered_task_ids を照合する。不在時は単一 task 後方互換 (PR#70 契約)"
     }
   }
 }

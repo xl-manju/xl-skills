@@ -1,4 +1,4 @@
-"""lint-agent-prompt-content.py (C02) の機能テスト。
+"""lint-agent-prompt-content.py (plan component C02) の機能テスト。
 
 agents/*.md (frontmatter=plugin YAML + 本文7層) と skills/*/prompts/*.md (純粋7層) の本文が
 l5-contract v2.0.0 に準拠するかを --mode agent|prompt で fail-closed 検証する内容 lint の

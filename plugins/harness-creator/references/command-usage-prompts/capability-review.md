@@ -1,4 +1,4 @@
-/capability-review
+/capability-review plugin 
 # /capability-review 用途プロンプト（30思考法エレガント検証・analyse-only）
 
 ## ① スラッシュコマンド入力
@@ -16,6 +16,17 @@
 ```
 
 `scope_mode` は省略可 (省略時 `skill`。`plugin` / `repo` でレビュー幅を横断拡張)。
+
+### オプション
+
+`/capability-review` の全オプション（正本 = `commands/capability-review.md`）:
+
+| オプション | 何を入れるか | 用途 |
+|---|---|---|
+| `target-path`（必須） | レビュー対象の絶対 or リポジトリ相対パス | 何を診断するか |
+| `scope_mode`（任意） | `skill`（既定）/ `plugin` / `repo` | レビュー幅。`plugin`/`repo` で横断拡張 |
+
+> `--dry-run` は本コマンドが内部で常時付与し Phase3（改善）を封じる（analyse-only）。ユーザーが手で渡すオプションではない。
 
 ## ② 構造化プロンプト（説明）
 
@@ -117,7 +128,7 @@
 - Phase1 リセット必須ゲート: 対象への素観察完了が次工程への必須条件、bias未リセットならabort
 - Phase2 3並列分析ゲート: Agent2/3/4が独立並列で30 findings + 4条件verdictを生成、担当思考法網羅(9/9/12)が完了条件
 - **Phase3 提案提示まで(書き換えなし)**: 通常はここでパッチ適用するが、analyse-onlyではfindingsを改善提案としてまとめ提示するのみ。`changed_paths`は空、実ファイル改変なしで完了レポートを出す
-- FAIL時導線: verdictがFAILの場合、改善実行を行う `/skill-improve <target-path>` を案内する
+- FAIL時導線: verdictがFAILの場合、改善実行を案内する。**in-place で直すなら `/skill-improve <target-path>`（plan/task-graph は非更新・速い）／plan 正本を保ち改善を task-graph へ還流するなら `/plugin-dev-plan --mode update --improvement-handoff <handoff>`（次回 `/capability-build --handoff` が既定=task-graph route モードで改善済み依存グラフを再駆動）**。対象が task-graph 駆動 build の成果物なら乖離を避けるため後者を推奨する
 
 ### Layer7 UserInput
 

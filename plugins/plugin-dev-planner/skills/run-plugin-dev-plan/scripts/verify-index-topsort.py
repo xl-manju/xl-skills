@@ -139,6 +139,47 @@ def verify_phase_enumeration(ordered: list[str], has_section: bool) -> list[str]
     return errors
 
 
+def _shape_marker(index_frontmatter: dict) -> str:
+    """index frontmatter の shape_marker を返す (C10)。
+
+    既定 fixed-13-phase。未知値も fixed-13-phase へ fallback する fail-soft 設計 (本 plan 自身を
+    含む既存の全 plan はこの既定値に該当し従来の 13 ファイル固定検証ロジックを不変維持する)。
+    """
+    v = index_frontmatter.get("shape_marker") if isinstance(index_frontmatter, dict) else None
+    if isinstance(v, str) and v in specfm.SHAPE_MARKERS:
+        return v
+    return "fixed-13-phase"
+
+
+def _verify_task_graph_derived(plan_dir: Path, ordered: list[str], has_section: bool) -> list[str]:
+    """task-graph-derived shape: 期待 phase 集合を task-graph.json の phase_ref unique から動的算出する。
+
+    将来の task-graph 駆動可変構成 plan 向け分岐 (本 plan 自身=fixed-13-phase では発火しない)。
+    task-graph.json 不在時・JSON 不正時は 13 固定検証へ fail-soft fallback する
+    (C14 非劣化ゲート PASS を採用前提とする C10⇔C14 相互参照は shape_marker 採否の側で担保する)。
+    """
+    tg_path = plan_dir / "task-graph.json"
+    if not tg_path.is_file():
+        return verify_phase_enumeration(ordered, has_section)
+    try:
+        graph = json.loads(tg_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return verify_phase_enumeration(ordered, has_section)
+    expected = sorted({
+        n.get("phase_ref")
+        for n in graph.get("nodes", [])
+        if isinstance(n, dict) and isinstance(n.get("phase_ref"), str)
+    })
+    errors: list[str] = []
+    if not has_section:
+        errors.append("index にフェーズ一覧 section が無い (task-graph-derived)")
+    seen = set(ordered)
+    missing = [p for p in expected if p not in seen]
+    if missing:
+        errors.append(f"index フェーズ一覧に task-graph 由来 phase が欠落: {missing}")
+    return errors
+
+
 def load_components(inventory_path: Path) -> tuple[list[dict], str | None]:
     """component-inventory.json の components[] を返す (エラー時 (_, message))。"""
     try:
@@ -217,10 +258,15 @@ def run(plan_dir: Path, index_name: str, inventory_path: Path | None) -> tuple[i
         return 2, [f"component-inventory.json が見つからない: {inventory_path}"]
 
     errors: list[str] = []
-    index_body = body_after_frontmatter(index_path.read_text(encoding="utf-8"))
+    index_text = index_path.read_text(encoding="utf-8")
+    index_body = body_after_frontmatter(index_text)
     errors.extend(index_section_floor_errors(index_body))  # 層0: 基盤層+全体制御 section 床
     ordered, has_section = extract_phase_list_ids(index_body)
-    errors.extend(verify_phase_enumeration(ordered, has_section))
+    # C10: shape_marker で phase 完全性の検証経路を分岐する (既定 fixed-13-phase は従来ロジック不変)。
+    if _shape_marker(specfm.parse_frontmatter(index_text)) == "task-graph-derived":
+        errors.extend(_verify_task_graph_derived(plan_dir, ordered, has_section))
+    else:
+        errors.extend(verify_phase_enumeration(ordered, has_section))
 
     components, msg = load_components(inventory_path)
     if msg:

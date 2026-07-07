@@ -13,7 +13,7 @@ since: 2026-05-24
 source: plugins/harness-creator/skills/run-build-skill/prompts/R1-scaffold.md
 ---
 
-> ハイブリッド契約 SubAgent (frontmatter=plugin YAML / 本文=7層 l5-contract v2.0.0)。契約正本は `../../prompt-creator/skills/run-prompt-creator-7layer/references/subagent-hybrid-format.md`。7 層準拠は C02 `lint-agent-prompt-content.py --mode agent` が機械検査する。
+> ハイブリッド契約 SubAgent (frontmatter=plugin YAML / 本文=7層 l5-contract v2.0.0)。契約正本は `../../prompt-creator/skills/run-prompt-creator-7layer/references/subagent-hybrid-format.md`。7 層準拠は route C02 `lint-agent-prompt-content.py --mode agent` が機械検査する。
 
 ## Layer 1: 基本定義層 (不変原則)
 
@@ -38,7 +38,7 @@ source: plugins/harness-creator/skills/run-build-skill/prompts/R1-scaffold.md
 
 ### 2.3 出力要素
 - `lint_status` は 2 段 lint (`validate-build-trace.py` + `lint-agent-prompt-section.py --strict-coverage`) の PASS|FAIL。
-- prompts 生成時は本文7層を prompt-creator 経由で作り C02 `--mode prompt` を通す (provenance を trace に記録)。
+- prompts 生成時は本文7層を prompt-creator 経由で作り route C02 `--mode prompt` を通す (provenance を trace に記録)。
 
 ## Layer 3: インフラストラクチャ定義層
 

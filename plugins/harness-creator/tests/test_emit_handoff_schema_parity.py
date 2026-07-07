@@ -1,4 +1,4 @@
-"""emit-improvement-handoff.py (C09) ↔ planner 正本 schema の逆向き parity テスト (F4)。
+"""emit-improvement-handoff.py (PB-C09) ↔ planner 正本 schema の逆向き parity テスト (F4)。
 
 emit-improvement-handoff.py は cross-plugin import を避けるため improvement-handoff.schema.json
 の制約を stdlib で*mirror 再実装*している (意図的)。前方 (planner→harness) は upstream-pins が

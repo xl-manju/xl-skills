@@ -38,6 +38,7 @@ python3 "$SKILL_DIR/scripts/validate-route-build-reports.py" \
 | `evidence` | 受入証跡 (lint exit0 / `eval-log/skill-build-trace.json` / pytest 結果)。success は 1 件以上必須 |
 | `inputs_consumed` | 依存 route レポートの読取宣言 (depends_on 全件を被覆・validator が強制) |
 | `handover` | 後続 route への申し送り。「渡すレポート」の本体で、次 route はここを必ず読む |
+| `covered_task_ids` | (optional) task-graph route モードの束ね done 用。この report が done を賄う task-graph node id 群。**writer=dispatcher** (TG-C06 が node→route join `entity_ref==route.component_id` から決定論導出して書く・SubAgent は書かない)。`sync-task-state.py` (TG-C02) が done 遷移時に `task_id ∈ covered_task_ids` を照合する。不在時は単一 task 後方互換 (PR#70 契約) |
 
 ## 責務境界
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-route-component-parity
-# purpose: E2 境界ゲート。handoff の routes[] と component-inventory.json の components[] が 1:1 対応することを検査し、run-skill-create (C06) が build 開始前に parity 不一致を fail-closed で止められるようにする。
+# purpose: E2 境界ゲート。handoff の routes[] と component-inventory.json の components[] が 1:1 対応することを検査し、run-skill-create (PB-C06) が build 開始前に parity 不一致を fail-closed で止められるようにする。
 # inputs:
 #   - argv: <handoff-json> [--inventory <inventory-json>]
 # outputs:
@@ -17,12 +17,13 @@
 """routes[] ↔ component-inventory.json の parity を検査する独立ゲート。
 
 check-build-handoff.py は handoff 全体 (routing/top-sort/envelope) を検証する重いゲートだが、
-build 実行入口 (run-skill-create=C06) は「route が inventory と 1:1 で一致するか」だけを
+build 実行入口 (run-skill-create=PB-C06) は「route が inventory と 1:1 で一致するか」だけを
 build 開始前に軽く preflight したい。本 script はその parity 部分のみを切り出した focused gate。
 
 harness-creator/scripts/ 配下の plugin-root script のため cross-plugin の specfm を import せず
 自己完結する (feedback_contract_ssot.py と同じ複製方針)。parity 判定は id 集合の一致 +
-主要 route フィールドの一致のみで、specfm の enum 定数を必要としない。
+主要 route フィールドの一致 + side_effect_targets (不在は [] 扱い・順序非依存) の一致のみで、
+specfm の enum 定数を必要としない。
 """
 from __future__ import annotations
 
@@ -102,6 +103,16 @@ def check_parity(routes: object, components: object) -> list[str]:
         r_args = route.get("build_args")
         if isinstance(c_args, dict) and c_args and r_args != c_args:
             errors.append(f"route {rid} の build_args が inventory と不一致")
+        # side_effect_targets は宣言済み副作用面の突合 (不在は [] 扱い)。scalar と違い片側欠落も
+        # 「副作用なし宣言」の意味を持つため、[] へ正規化しソート後 list 比較で不一致を NG にする。
+        r_se = route.get("side_effect_targets")
+        c_se = comp.get("side_effect_targets")
+        r_se_n = sorted(str(x) for x in r_se) if isinstance(r_se, list) else []
+        c_se_n = sorted(str(x) for x in c_se) if isinstance(c_se, list) else []
+        if r_se_n != c_se_n:
+            errors.append(
+                f"route {rid} の side_effect_targets={r_se_n!r} が inventory の {c_se_n!r} と不一致"
+            )
     return errors
 
 

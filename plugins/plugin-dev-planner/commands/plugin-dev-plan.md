@@ -77,7 +77,7 @@ python3 "$SKILL_DIR/scripts/check-surface-inventory.py" "$PLAN_DIR/component-inv
 python3 "$SKILL_DIR/scripts/check-build-handoff.py" "$PLAN_DIR/handoff-run-plugin-dev-plan.json"   # L3→L4 routing
 ```
 
-成功条件: 上記は代表サブセット。完全な PASS 条件 (検証 11 本 = core + 拡張ゲート) の総数と一覧の単一正本は `skills/run-plugin-dev-plan/references/io-contract.md` §11 表 (実行可能正本=`specfm.GATE_SCRIPTS`)。加えて elegant-review C1-C4 全 PASS の設計が記述されていること。形状と handoff の生きた手本は `skills/run-plugin-dev-plan/examples/sample-plan/`。
+成功条件: 上記は代表サブセット。完全な PASS 条件 (検証 12 本 = core 5 + 拡張ゲート 7・`validate-task-graph` 含む) の総数と一覧の単一正本は `skills/run-plugin-dev-plan/references/io-contract.md` §11 表 (実行可能正本=`specfm.GATE_SCRIPTS`)。task-graph はデフォルト成果物ゆえ handoff に `task_graph_ref` が常時付与され build は task-graph mode で駆動する。加えて elegant-review C1-C4 全 PASS の設計が記述されていること。形状と handoff の生きた手本は `skills/run-plugin-dev-plan/examples/sample-plan/`。
 
 ## 失敗時
 

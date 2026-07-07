@@ -49,12 +49,30 @@ REQUIRED_KEYS = (
     "builder", "build_target", "status", "summary", "deviations",
     "evidence", "inputs_consumed", "handover",
 )
-OPTIONAL_KEYS = ("skip_reason",)
+OPTIONAL_KEYS = ("skip_reason", "covered_task_ids")
 
 
 def report_path(slug: str, route_id: str) -> str:
-    """レポートの repo-root 相対パス規約 (inputs_consumed の照合にも使う)。"""
+    """レポートの repo-root 相対パス規約 (flat layout・cycle_id 無しの既定)。"""
     return f"eval-log/{slug}/build/route-{route_id}.json"
+
+
+def report_rel(reports_dir: Path, route_id: str, repo_root: Path | None = None) -> str:
+    """実際の reports_dir から repo-root 相対の期待パスを導出する (inputs_consumed 照合の正)。
+
+    cycle_id 付き handoff は resolve_build_dir が reports_dir を
+    eval-log/<slug>/build/<cycle-id>/ へ分離するため、期待パスは flat 規約でなく
+    「validator が dep report を実際に読む場所」から導出する (flat 既定では
+    report_path と同一 = 後方互換)。flat 規約を固定期待にすると cycle build の
+    provenance が別 plan の flat ファイルを指す偽宣言を通してしまう。
+    """
+    p = Path(reports_dir) / f"route-{route_id}.json"
+    base = Path(repo_root) if repo_root is not None else Path.cwd()
+    try:
+        rel = p.resolve().relative_to(base.resolve())
+    except ValueError:
+        rel = p
+    return str(PurePosixPath(rel))
 
 
 def _is_str_list(value: object) -> bool:
@@ -96,6 +114,8 @@ def validate_report_shape(report: object) -> list[str]:
     for key in ("deviations", "evidence", "inputs_consumed"):
         if key in report and not _is_str_list(report[key]):
             findings.append(f"{key}: 非空文字列の配列でない")
+    if "covered_task_ids" in report and not _is_str_list(report["covered_task_ids"]):
+        findings.append("covered_task_ids: 非空文字列の配列でない")
     if "handover" in report and not (report["handover"] is None or isinstance(report["handover"], str)):
         findings.append("handover: string か null でない")
     # cross-field
@@ -144,7 +164,9 @@ def _load_report(reports_dir: Path, slug: str, route_id: str) -> tuple[dict | No
     return data, []
 
 
-def validate_dependency_chain(report: dict, route: dict, reports_dir: Path, slug: str) -> list[str]:
+def validate_dependency_chain(
+    report: dict, route: dict, reports_dir: Path, slug: str, repo_root: Path | None = None
+) -> list[str]:
     """依存 route のレポート実在/非 failure と inputs_consumed 被覆 (fail-closed の本体)。"""
     findings: list[str] = []
     consumed = {str(PurePosixPath(p)) for p in report.get("inputs_consumed", []) if isinstance(p, str)}
@@ -158,10 +180,37 @@ def validate_dependency_chain(report: dict, route: dict, reports_dir: Path, slug
             findings.append(f"依存 route {dep_id}: status 不正 ({dep_status!r})")
         elif dep_status != "success":
             findings.append(f"依存 route {dep_id}: status={dep_status} のまま後続を build している")
-        expected = report_path(slug, dep_id)
+        expected = report_rel(reports_dir, dep_id, repo_root)
         if expected not in consumed:
             findings.append(f"inputs_consumed: 依存レポート {expected} の読取宣言が無い")
     return findings
+
+
+_FAILED_EVIDENCE_RE = re.compile(r"[1-9][0-9]*\s+failed")
+
+
+def report_warnings(report: object) -> list[str]:
+    """valid/exit に影響しない助言 WARN (既知赤の無音通過を機械層で顕在化する・S-04)。
+
+    status=success かつ evidence のいずれかに `N failed` (N>=1) を含み deviations が空のとき、
+    「責務外失敗を deviations へ記録する規約」の未遵守を WARN する。failure を success へ
+    変換する際に deviation 追跡にも乗せない normalization-of-deviance (既知赤の基準線低下) を
+    検出するが、valid 判定は変えない (助言のみ・fail-closed ではない)。
+    """
+    if not isinstance(report, dict):
+        return []
+    warnings: list[str] = []
+    if report.get("status") == "success":
+        evidence = report.get("evidence")
+        deviations = report.get("deviations")
+        has_failed = _is_str_list(evidence) and any(_FAILED_EVIDENCE_RE.search(e) for e in evidence)
+        deviations_empty = isinstance(deviations, list) and not deviations
+        if has_failed and deviations_empty:
+            warnings.append(
+                "evidence に失敗記録 (N failed) があるのに deviations が空: "
+                "責務外失敗は deviations へ記録する規約 (既知赤の無音通過防止)"
+            )
+    return warnings
 
 
 def validate_route(handoff: dict, reports_dir: Path, route_id: str, repo_root: Path | None = None) -> list[str]:
@@ -177,7 +226,7 @@ def validate_route(handoff: dict, reports_dir: Path, route_id: str, repo_root: P
     if report.get("route_id") not in (None, route_id):
         findings.append(f"route_id: ファイル名 route-{route_id}.json と不一致 ({report.get('route_id')!r})")
     findings.extend(validate_against_route(report, route, slug, repo_root))
-    findings.extend(validate_dependency_chain(report, route, reports_dir, slug))
+    findings.extend(validate_dependency_chain(report, route, reports_dir, slug, repo_root))
     return findings
 
 
@@ -217,8 +266,11 @@ def _load_handoff(path: Path) -> tuple[dict | None, str | None]:
     return data, None
 
 
-def _emit(valid: bool, mode: str, findings: list[str]) -> int:
-    print(json.dumps({"valid": valid, "mode": mode, "findings": findings}, ensure_ascii=False, indent=2))
+def _emit(valid: bool, mode: str, findings: list[str], warnings: list[str] | None = None) -> int:
+    out: dict = {"valid": valid, "mode": mode, "findings": findings}
+    if warnings:  # 非空時のみ additive に載せる (既存 stdout 契約 {valid,mode,findings} は後方互換)
+        out["warnings"] = warnings
+    print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0 if valid else 1
 
 
@@ -343,10 +395,18 @@ def main(argv: list[str]) -> int:
     reports_dir = Path(reports_dir_arg) if reports_dir_arg else Path(
         report_path(handoff["target_plugin_slug"], "C0")).parent
     repo_root = _repo_root_from_handoff_path(handoff_path)
+    slug = handoff["target_plugin_slug"]
     if route_id is not None:
-        return _emit(not (findings := validate_route(handoff, reports_dir, route_id, repo_root)),
-                     f"route:{route_id}", findings)
-    return _emit(not (findings := validate_complete(handoff, reports_dir, repo_root)), "complete", findings)
+        findings = validate_route(handoff, reports_dir, route_id, repo_root)
+        report, _ = _load_report(reports_dir, slug, route_id)
+        return _emit(not findings, f"route:{route_id}", findings, report_warnings(report))
+    findings = validate_complete(handoff, reports_dir, repo_root)
+    warnings: list[str] = []
+    for route in handoff.get("routes", []):
+        if isinstance(route, dict):
+            report, _ = _load_report(reports_dir, slug, route.get("id", "?"))
+            warnings.extend(report_warnings(report))
+    return _emit(not findings, "complete", findings, warnings)
 
 
 if __name__ == "__main__":

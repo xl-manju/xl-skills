@@ -202,7 +202,7 @@ def _run_mode(mode: str, plugins_dir: Path) -> int:
     if not targets:
         # fail-closed floor guard: 走査対象 0 件の空振り合格 (vacuous pass) を禁止する。
         # dir 改名・--plugins-dir の typo・symlink 化で対象が消えても CI が恒久緑のまま
-        # 保証が無言で腐るのを防ぐ (C02 の fail-closed 契約)。
+        # 保証が無言で腐るのを防ぐ (plan component C02 の fail-closed 契約)。
         sys.stderr.write(
             f"FAIL content-lint (--mode {mode}): scanned=0 under {_rel(plugins_dir)} — "
             "走査対象 0 件は fail-closed で違反扱い (--plugins-dir は agents/ または "

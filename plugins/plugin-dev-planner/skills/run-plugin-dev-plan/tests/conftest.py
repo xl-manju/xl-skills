@@ -97,6 +97,16 @@ def runtime() -> ModuleType:
 
 
 @pytest.fixture(scope="session")
+def validate_task_graph() -> ModuleType:
+    return _load("validate-task-graph")
+
+
+@pytest.fixture(scope="session")
+def derive_task_graph() -> ModuleType:
+    return _load("derive-task-graph")
+
+
+@pytest.fixture(scope="session")
 def skeleton() -> ModuleType:
     return _load("render-spec-skeleton")
 

@@ -54,13 +54,16 @@ plugin 名が `harness-creator` (総体) でも、**単体スキルを作る入�
 
 1. /plugin-dev-plan <構想>
      産物: index.md + 13 phase + component-inventory.json
-            + handoff-run-plugin-dev-plan.json（各 component の routes[] = builder/build_kind/build_args）
+            + handoff-run-plugin-dev-plan.json（routes[] = builder/build_kind/build_args
+              に加え task_graph_ref を常時携帯）
 
-2. handoff の routes[] を順に走査し、component 1 個ずつ build（component 数 N だけ反復する fan-out）:
-     - skill component  → /run-skill-create（端から端。brief_path 経由で自動投入）
-     - agent/hook/command/prompt/workflow/plugin-composition
-                        → /capability-build <kind> <name> --plugin=<plugin>
-   kind・name・--plugin 値は手で書かず routes[].build_kind / build_args から取る（手写しは非再現の元）。
+2. /capability-build --handoff <handoff>
+     1 回の起動で task-graph 全体を build（既定 = task-graph route モード）:
+     依存グラフ全体を並列 dispatch + 2 ループ（build-execution / spec-improvement）で駆動する。
+     skill route は内部で /run-skill-create へ、build_kind=script は build-script-route.py へ
+     自動 dispatch される。kind・name は routes[] から機械抽出され手写し不要。
+     単一 route だけ消費する段階 build / デバッグは --route-id <Cxx> を明示する（escape hatch）。
+     正本: commands/capability-build.md の「task-graph route モード」節。
 
 2.5 envelope（外殻）を適用（envelope 生成器は未整備＝手動ステップ。省略すると Step4 の PKG-001 が manifest 不在で FAIL）:
      plan の envelope-draft/plugin.json を plugins/<plugin>/.claude-plugin/ へ貼る。
@@ -84,17 +87,16 @@ plugin 名が `harness-creator` (総体) でも、**単体スキルを作る入�
    改善で Capability 集合（追加/削除/改名）が変わったら Step3〜4 を再実行する。
 ```
 
-Step2 と Step4 だけ入口の命名が他と異なる: Step2 の skill は `/run-skill-create`、Step4 は command ラッパを持たない skill 直起動で `/run-plugin-package-check`（run- prefix）。残りは unprefixed command 名。
+Step4 だけ入口の命名が他と異なる: command ラッパを持たない skill 直起動で `/run-plugin-package-check`（run- prefix）。残りは unprefixed command 名（Step2 の `/run-skill-create` は task-graph route モードが内部 dispatch するもので、単体スキルを単発で作るときだけ直接打つ）。
 
 **具体例**（契約書生成プラグインを 1 本組む）:
 
 ```text
 1. /plugin-dev-plan 契約書を台帳から生成し Slack 承認後に PDF 化するプラグイン
      → plugins/contract-generator/ の計画一式 + routes[]（例: skill×2 / agent×1 / hook×1）
-2. routes[] に沿って反復:
-     /run-skill-create（skill 分を 1 本ずつ）
-     /capability-build agent contract-reviewer --plugin=contract-generator
-     /capability-build hook on-approve-pdf     --plugin=contract-generator
+2. /capability-build --handoff plugin-plans/contract-generator/handoff-run-plugin-dev-plan.json
+     （task-graph 全体を並列 build。skill route は内部で /run-skill-create へ、
+       agent/hook 等は run-build-skill へ自動 dispatch）
 2.5 envelope-draft/plugin.json を plugins/contract-generator/.claude-plugin/ へ適用
 3. /plugin-compose contract-generator
 4. /run-plugin-package-check contract-generator --phase all
@@ -104,7 +106,7 @@ Step2 と Step4 だけ入口の命名が他と異なる: Step2 の skill は `/r
 
 ## 構成
 
-- `skills/` — 33 skill (生成: run-* / 評価: assign-* / 参照知識: ref-* / 委譲: delegate-*)
+- `skills/` — 30 skill 実体 + 共有 symlink 3 本 (contract-generator 系) (生成: run-* / 評価: assign-* / 参照知識: ref-* / 委譲: delegate-* / 安全ラッパ: wrap-*)
 - `agents/` — elegant-review 系 5 体 + run-build-skill-subagent
 - `commands/` — /capability-build, /capability-review, /skill-improve, /plugin-compose, /install-bundle
 - `scripts/` — feedback_contract_ssot.py (dogfooding 境界 SSOT・vendored byte 一致 lint 対象) ほか

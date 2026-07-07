@@ -1,7 +1,7 @@
-"""emit-improvement-handoff.py (C09) の機能テスト。
+"""emit-improvement-handoff.py (PB-C09) の機能テスト。
 
 改善成果物 findings → improvement-handoff.json 正規化 emitter の受入・正規化・
-負例・usage error を固定する。E3 境界: 出力は C01 が --mode update で受理する。
+負例・usage error を固定する。E3 境界: 出力は PB-C01 が --mode update で受理する。
 """
 from __future__ import annotations
 
@@ -206,7 +206,7 @@ def test_main_bad_findings_json_returns_two(tmp_path, emit):
 
 
 def test_main_roundtrip_output_passes_parity_of_schema_fields(tmp_path, emit):
-    """emit した JSON が schema 必須フィールドを全て備える (C01/C05 消費前提)。"""
+    """emit した JSON が schema 必須フィールドを全て備える (PB-C01/PB-C05 消費前提)。"""
     out = tmp_path / "improvement-handoff.json"
     emit.main(_cli(tmp_path, _GOOD, out=out))
     data = json.loads(out.read_text(encoding="utf-8"))

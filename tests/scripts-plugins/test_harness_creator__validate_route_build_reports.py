@@ -48,6 +48,13 @@ def _handoff():
     return {"target_plugin_slug": SLUG, "routes": _routes()}
 
 
+def _materialize_targets(repo_root):
+    # repo_root を渡すと validate_against_route の build_target 実在検査が有効化されるため現物を作る。
+    (repo_root / "plugins" / SLUG / "scripts").mkdir(parents=True, exist_ok=True)
+    (repo_root / "plugins" / SLUG / "scripts" / "lint-a.py").write_text("# a\n")
+    (repo_root / "plugins" / SLUG / "skills" / "run-b").mkdir(parents=True, exist_ok=True)
+
+
 def _report(rid, route, **over):
     rep = {
         "schema_version": "1.0.0", "plugin_slug": SLUG, "route_id": rid,
@@ -96,9 +103,46 @@ def test_shape_rejects_unknown_key():
     assert any("未知キー" in f for f in MOD.validate_report_shape(rep))
 
 
+def test_shape_accepts_covered_task_ids():
+    # task-graph route モードの束ね done 用 optional key (TG-C02 照合対象) を許容する
+    rep = _report("C1", _routes()[0], covered_task_ids=["P02-C1-01", "P05-C1-02"])
+    assert MOD.validate_report_shape(rep) == []
+
+
+def test_shape_rejects_non_str_list_covered_task_ids():
+    rep = _report("C1", _routes()[0], covered_task_ids=[1, ""])
+    assert any("covered_task_ids" in f for f in MOD.validate_report_shape(rep))
+
+
 def test_shape_success_requires_evidence():
     rep = _report("C1", _routes()[0], evidence=[])
     assert any("evidence" in f for f in MOD.validate_report_shape(rep))
+
+
+# --------------------------------------------------------------------------
+# report_warnings (既知赤の無音通過 WARN・S-04)
+# --------------------------------------------------------------------------
+
+def test_warnings_known_red_masked_by_empty_deviations():
+    # success + evidence に "1 failed" + deviations 空 → WARN (valid には影響しない)。
+    rep = _report("C1", _routes()[0],
+                  evidence=["728 passed, 1 failed"], deviations=[])
+    assert MOD.report_warnings(rep)
+    # shape 検証は依然 findings 0 (WARN は valid を落とさない)。
+    assert MOD.validate_report_shape(rep) == []
+
+
+def test_warnings_absent_when_deviation_recorded():
+    # 失敗を deviations へ記録していれば WARN しない (規約遵守)。
+    rep = _report("C1", _routes()[0],
+                  evidence=["728 passed, 1 failed"],
+                  deviations=["責務外の upstream pin drift。harness 側で解消想定"])
+    assert MOD.report_warnings(rep) == []
+
+
+def test_warnings_absent_when_all_green():
+    rep = _report("C1", _routes()[0], evidence=["728 passed"], deviations=[])
+    assert MOD.report_warnings(rep) == []
 
 
 def test_shape_skipped_requires_skip_reason():
@@ -149,13 +193,38 @@ def test_chain_missing_dependency_report_fails(reports_dir):
     assert any("未作成" in f for f in MOD.validate_route(handoff, reports_dir, "C2"))
 
 
-def test_chain_satisfied_passes(reports_dir):
+def test_chain_satisfied_passes(reports_dir, tmp_path):
     handoff = _handoff()
+    _materialize_targets(tmp_path)
     _write(reports_dir, "C1", _report("C1", _routes()[0], handover="申し送り"))
     _write(reports_dir, "C2", _report("C2", _routes()[1],
                                       inputs_consumed=[MOD.report_path(SLUG, "C1")]))
-    assert MOD.validate_route(handoff, reports_dir, "C1") == []
-    assert MOD.validate_route(handoff, reports_dir, "C2") == []
+    assert MOD.validate_route(handoff, reports_dir, "C1", tmp_path) == []
+    assert MOD.validate_route(handoff, reports_dir, "C2", tmp_path) == []
+
+
+def test_chain_cycle_dir_declares_cycle_paths(tmp_path):
+    # cycle_id 付き layout: 期待パスは flat 規約でなく reports_dir 由来 (report_rel)。
+    handoff = _handoff()
+    cycle_dir = tmp_path / "eval-log" / SLUG / "build" / "cycle-a"
+    cycle_dir.mkdir(parents=True)
+    _materialize_targets(tmp_path)
+    _write(cycle_dir, "C1", _report("C1", _routes()[0]))
+    _write(cycle_dir, "C2", _report("C2", _routes()[1],
+                                    inputs_consumed=[f"eval-log/{SLUG}/build/cycle-a/route-C1.json"]))
+    assert MOD.validate_route(handoff, cycle_dir, "C2", tmp_path) == []
+
+
+def test_chain_cycle_dir_rejects_flat_declaration(tmp_path):
+    # cycle build で flat パスを宣言する偽 provenance (別 plan の flat report 指し) は fail。
+    handoff = _handoff()
+    cycle_dir = tmp_path / "eval-log" / SLUG / "build" / "cycle-a"
+    cycle_dir.mkdir(parents=True)
+    _write(cycle_dir, "C1", _report("C1", _routes()[0]))
+    _write(cycle_dir, "C2", _report("C2", _routes()[1],
+                                    inputs_consumed=[MOD.report_path(SLUG, "C1")]))
+    assert any("inputs_consumed" in f
+               for f in MOD.validate_route(handoff, cycle_dir, "C2", tmp_path))
 
 
 def test_chain_requires_inputs_consumed_declaration(reports_dir):
@@ -187,11 +256,12 @@ def test_route_id_filename_mismatch_fails(reports_dir):
 # validate_complete
 # --------------------------------------------------------------------------
 
-def test_complete_all_green_passes(reports_dir):
+def test_complete_all_green_passes(reports_dir, tmp_path):
+    _materialize_targets(tmp_path)
     _write(reports_dir, "C1", _report("C1", _routes()[0]))
     _write(reports_dir, "C2", _report("C2", _routes()[1],
                                       inputs_consumed=[MOD.report_path(SLUG, "C1")]))
-    assert MOD.validate_complete(_handoff(), reports_dir) == []
+    assert MOD.validate_complete(_handoff(), reports_dir, tmp_path) == []
 
 
 def test_complete_missing_report_fails(reports_dir):

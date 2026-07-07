@@ -496,10 +496,10 @@ TODO(human): `scripts/build-yaml-spec-cache.py` の実装は、Claude Code 公�
 | agent | `templates/agent-skeleton.md` | `plugins/<plugin>/agents/<name>.md` | `lint-agent-prompt-section.py` / `validate-frontmatter.py` |
 | hook | `templates/hook-skeleton.md` | `plugins/<plugin>/hooks/<name>.{py,md}` | `lint-script-frontmatter.py` / `validate-frontmatter.py` |
 | hook (skill-local) | 同上 | `plugins/<plugin>/skills/<skill>/hooks/<name>.{py,md}` も正式許容 (例: run-skill-update-notifier)。ただし plugin.json からの配線パスと一致させること | 同上 |
-| command | `templates/command-skeleton.md` | `plugins/<plugin>/commands/<name>.md` | `lint-command-md.py` (未整備時は warn) / `validate-frontmatter.py` |
+| command | `templates/command-skeleton.md` | `plugins/<plugin>/commands/<name>.md` | `lint-command-md.py` (未実装・実体なしのため起動しない) / `validate-frontmatter.py` |
 | plugin-composition | `templates/plugin-composition-skeleton.yaml` | `plugins/<plugin>/plugin-composition.yaml` | `lint-plugin-composition.py` (整備済・CI 配線済) |
-| prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` | `lint-prompt-md.py` (未整備時は warn) |
-| workflow | `templates/workflow-skeleton.md` | `plugins/<plugin>/workflows/<name>.md` | `lint-workflow-md.py` (未整備時は warn) / `validate-frontmatter.py` |
+| prompt | `templates/prompt-skeleton.md` | `plugins/<plugin>/prompts/<name>.md` | `lint-prompt-md.py` (未実装・実体なしのため起動しない) |
+| workflow | `templates/workflow-skeleton.md` | `plugins/<plugin>/workflows/<name>.md` | `lint-workflow-md.py` (未実装・実体なしのため起動しない) / `validate-frontmatter.py` |
 
 ### I.2 共通検証ステップ
 

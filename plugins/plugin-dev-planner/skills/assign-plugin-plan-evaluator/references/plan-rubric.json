@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "owner": "team-platform",
-  "purpose": "Map deterministic plan gates and the two semantic checks to the four evaluator conditions.",
+  "purpose": "Map deterministic plan gates and the seven advisory semantic checks (S1-S7) to the four evaluator conditions. Advisory semantic_checks are llm-only and do not feed the mechanical verdict accounting (evaluate-plan.py counts only deterministic-gate/surface findings).",
   "conditions": {
     "C1": {
       "id": "no_contradiction",
@@ -40,6 +40,7 @@
         "verify-index-topsort exits 0",
         "detect-unassigned exits 0",
         "check-build-handoff exits 0",
+        "validate-task-graph exits 0",
         "check-runtime-portability exits 0"
       ]
     }
@@ -128,6 +129,14 @@
         "C4"
       ],
       "severity_on_fail": "high"
+    },
+    {
+      "id": "G11",
+      "name": "validate-task-graph",
+      "conditions": [
+        "C4"
+      ],
+      "severity_on_fail": "high"
     }
   ],
   "semantic_checks": [
@@ -170,6 +179,36 @@
       "source": "phase 完了チェックリストの 受入例/事前解決済み判断 サブ節 (C10/C11 mechanical detection + C12 genuine judgment)",
       "runner": "llm-only",
       "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、サブ節が形骸化し下流の追加質問を防げないときのみ high"
+    },
+    {
+      "id": "S5",
+      "name": "task-graph-semantics",
+      "conditions": [],
+      "bucket": "task-graph-semantics",
+      "severity_on_fail": "medium",
+      "source": "task-graph node の粒度と接地 (entity 単位で produces エッジ1件以上 — deriver は entity の先頭 node にのみ produces を張る — かつ各 node は write_scope で成果物パス (entity 紐づき) / 自 node id の擬似 scope (checkpoint) に接地) と edge 4型 (parent_of/depends_on/produces/consumes) の意味論正しさ (C8)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、粗すぎ(複数成果物束ね)/entity に produces 0件・write_scope 未接地 or parent_of の依存流用等エッジ型誤用で下流が着手不能なときのみ high"
+    },
+    {
+      "id": "S6",
+      "name": "shape-ab-comparison",
+      "conditions": [],
+      "bucket": "shape-ab-comparison",
+      "severity_on_fail": "medium",
+      "source": "同一構想の新旧shape (fixed-13-phase vs task-graph-derived) 生成物 A/B比較・acceptance_criterion の事前解決済み判断内包度の非劣化 (C14b)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 新shape task node が旧shape §5 項目の下流ハーネス実効性を下回るときのみ high (shape_marker task-graph-derived 採用を block・C10⇔C14 相互参照)"
+    },
+    {
+      "id": "S7",
+      "name": "task-graph-consumer",
+      "conditions": [],
+      "bucket": "task-graph-consumer",
+      "severity_on_fail": "medium",
+      "source": "consumer (harness-creator L4) の dispatch/state write-back/成果物注入/discovered-task emit が producer 契約 (安定 CLI 契約・graph_hash 照合・所有/書込分離) を逸脱していないか (harness C8 対向)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: consumer が producer 契約を逸脱し沈黙破綻 (CLI 契約破壊/graph_hash 未照合/task-state 二重 writer) を招くときのみ high"
     }
   ],
   "global_thresholds": {

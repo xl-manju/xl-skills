@@ -12,7 +12,18 @@
 
 `run-skill-intake` (11 phase) が起動し、5軸ヒアリング（出力先・情報源・共有相手・真の課題・ナレッジ資産）+ user_profile 6軸推定 + 図解を経て `intake.json` / `intake.md` / Notion ページが生成される。plugin 規模の構想と判定された場合は mode P として `plugin-dev-planner` への引き渡しを推奨し、そこで停止する（スキル生成は自動起動しない）。
 
-## ② 構造化プロンプト(説明)
+### オプション
+
+`/intake` の全オプション（正本 = `commands/intake.md` の argument-hint）。①では代表として `--page-url` のみ例示:
+
+| オプション | 何を入れるか | 用途 |
+|---|---|---|
+| `"<topic>"`（任意・位置引数） | やりたいことの自然文。省略時は kickoff で対話確定 | ヒアリング対象テーマ |
+| `--page-url <notion-page-url>` | Notion ページ URL | 既存ページへ update 公開。解決不能なら新規作成せず停止 |
+| `--page-id <notion-page-id>` | Notion ページ ID | URL の代わりに ID で出力先を指定 |
+| `--database-id <notion-db-id>` | Notion DB ID | 公開先 DB の明示指定 |
+
+## ② 構造化プロンプト（説明）
 
 ### Layer1 基本定義
 

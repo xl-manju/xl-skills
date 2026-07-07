@@ -223,7 +223,7 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
             # optional は「本 build が prompt を生成しない run/assign」(per_responsibility 空=
             # 上流/他skillが生成した共有 prompt を消費する等) では許容する。生成物があるのに
             # optional へ降格するのは prompt_provenance 必須化の迂回 (bypass) なので禁止する。
-            # 実際の本文7層準拠は C02 (lint-agent-prompt-content.py) の CI repo 全走査が
+            # 実際の本文7層準拠は route C02 (lint-agent-prompt-content.py) の CI repo 全走査が
             # trace 非依存で独立強制するため、生成物ありの bypass はここと二層で塞がれる。
             _pr = model.get("per_responsibility")
             if isinstance(_pr, list) and _pr:
@@ -322,13 +322,13 @@ def _validate_prompt_generation_model(data: dict) -> list[str]:
     return errs
 
 
-# C09: agent/prompt 生成が prompt-creator (7層契約) を経由し C02 内容 lint を通過したことの証跡を強制する。
+# route C09: agent/prompt 生成が prompt-creator (7層契約) を経由し route C02 内容 lint を通過したことの証跡を強制する。
 # subagent-hybrid-format.md=agent 契約 / seven-layer-format.md=prompt 契約 を source_contract_ref に許容する。
 PROMPT_CONTRACT_REFS = ("subagent-hybrid-format.md", "seven-layer-format.md")
 
 
 def _validate_prompt_provenance(data: dict) -> list[str]:
-    """C09 バイパス不能性: agents/prompts 生成が prompt-creator 経由 + C02 lint 通過であることを検証。
+    """route C09 バイパス不能性: agents/prompts 生成が prompt-creator 経由 + route C02 lint 通過であることを検証。
 
     prompt_generation_model.policy_resolution.resolved_policy=required の build では
     prompt_provenance を必須化する。prompt_creator_invocation!=true / 契約参照欠落 /
