@@ -12,10 +12,12 @@
 遮断する生成コンテンツ (tool: Write / Edit / MultiEdit / Bash):
   R1 anti-TODO(human): MF掛け払い照合ドメインの文脈で `TODO(human)` を**コードに**書き込む
      → exit 2。判定は実装済み (lib/mfk_reconcile.py)。人間に判定を書かせない。
-  R2 anti-reinvention: 正本 (lib/mfk_reconcile.py / scripts/reconcile_invoices.py) 以外の
-     新規ファイルへ、請求確認シート × MF 照合を再実装する関数定義
-     (`def classify` / `def reconcile` / `def detect_orphans` / `def build_mf_index` 等) を
-     書き込む → exit 2。/run-mf-invoice-reconcile と lib/mfk_reconcile を使う。
+  R2 anti-reinvention: 正本 (lib/mfk_reconcile.py / scripts/reconcile_invoices.py /
+     scripts/mfk_period_report.py) 以外の新規ファイルへ、請求確認シート × MF 照合や
+     前月↔今月比較レポートの状態遷移分類を再実装する関数定義
+     (`def classify` / `def reconcile` / `def detect_orphans` / `def build_mf_index` /
+     語幹 `compare` / `period_diff` / `classify_*` の派生名 等) を書き込む → exit 2。
+     /run-mf-invoice-reconcile (単月照合) と /run-mf-invoice-report (前月↔今月比較) を使う。
   R3 anti-Bash bypass: Bash の heredoc / tee / redirection / Python write 経路で上記を
      ファイル生成する迂回も同じく遮断する。単なる echo や grep 等の read-only コマンドは
      遮断しない。
@@ -47,18 +49,32 @@ import re
 import sys
 
 # 照合/判定を実装してよい正本ファイル (これ以外への照合関数定義は再発明とみなす)。
-SANCTIONED_BASENAMES = {"mfk_reconcile.py", "reconcile_invoices.py"}
+# mfk_period_report.py (C05) は前月↔今月の状態遷移分類エンジンの正本として追加する
+# (既存 per-月 verdict を消費する薄い差分エンジン・分類系関数を持つため sanction する)。
+SANCTIONED_BASENAMES = {"mfk_reconcile.py", "reconcile_invoices.py", "mfk_period_report.py"}
 
 # 本 plugin 固有の照合ドメイン信号。これを含まないコンテンツ/パスには発火しない。
+# period-report ドメイン語 (先月と今月の比較 / 発行漏れレポート / mfk_period_report) を追加し、
+# 前月↔今月比較レポートの再発明もドメイン内として捕捉できるようにする。
 _DOMAIN_RE = re.compile(
     r"請求確認シート|mfk_reconcile|reconcile_invoices|掛け払い|mfkessai"
-    r"|発行漏れ|verdict-mapping|verdict_mapping|billings/qualified|sheet_to_master",
+    r"|発行漏れ|verdict-mapping|verdict_mapping|billings/qualified|sheet_to_master"
+    r"|先月と今月の比較|発行漏れレポート|mfk_period_report|period-report",
     re.IGNORECASE,
 )
 
 # 照合/判定エンジンの再実装シグネチャ (正本のみが持つべき関数名)。
+# 既存の照合エンジン名 (exact) に加え、period-report 分類エンジンの語幹
+# (compare / period_diff / classify) を **語幹前方一致** (def\s+\w*(...)\w*\() で焼く。
+# 完全一致だと `compare_periods` / `classify_period_transition` / `diff_prev_curr` 等の
+# 派生名がすり抜け、C05 の再発明遮断が vacuous 化する (SS-F1)。C05 実関数名
+# (compare_periods / classify_period_transition) はこの語幹一致で捕捉される
+# (名前ゆらぎ回帰テスト test_guard_mfk_no_reinvent.py で byte 一致を固定)。
 _REINVENT_DEF_RE = re.compile(
-    r"def\s+(classify|reconcile|detect_orphans|build_mf_index|judge_label|sheet_label)\s*\(",
+    r"def\s+(?:"
+    r"classify|reconcile|detect_orphans|build_mf_index|judge_label|sheet_label"
+    r"|\w*(?:compare|period_diff|classify)\w*"
+    r")\s*\(",
     re.IGNORECASE,
 )
 
@@ -148,8 +164,10 @@ def evaluate(tool, ti):
         targets = _bash_write_targets(content)
         if targets and all(_is_exempt_path(t) for t in targets):
             return False, ""
-        if targets and all(os.path.basename(t.replace("\\", "/")) in SANCTIONED_BASENAMES for t in targets):
-            return False, ""
+        # 注意: SANCTIONED basename の早期 return はここでは行わない (F-5)。allowlist は R2
+        # (再実装遮断) にのみ適用し、R1 (anti-TODO(human)) は正本を含む全ドメインファイルへ意図的に
+        # 適用する。ここで sanctioned を早期 return すると Bash 経由の `... > sanctioned.py` に
+        # 埋めた TODO(human) が R1 到達前に素通りし、Write/Edit 経路 (R1 が捕捉) と非対称になる。
     elif _is_exempt_path(path):
         return False, ""
     if not _in_domain(path, content):
@@ -178,7 +196,9 @@ def evaluate(tool, ti):
             "[guard-mfk-no-reinvent] 照合/判定ロジックを自作・再実装しないでください "
             f"(検出: {basename})。正本は scripts/reconcile_invoices.py (orchestrator) と "
             "lib/mfk_reconcile.py (reconcile/classify/detect_orphans)、判定SSOTは "
-            "schemas/verdict-mapping.json です。`/run-mf-invoice-reconcile` を使ってください。"
+            "schemas/verdict-mapping.json です。前月↔今月比較レポートの状態遷移分類 "
+            "(compare/period_diff/classify_*) は scripts/mfk_period_report.py (C05) が正本で、"
+            "`/run-mf-invoice-reconcile` または `/run-mf-invoice-report` を使ってください。"
         )
 
     return False, ""

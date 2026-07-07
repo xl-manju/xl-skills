@@ -110,6 +110,48 @@ def test_reinvent_def_without_domain_is_allowed(monkeypatch):
     assert _run_main(payload, monkeypatch) == 0
 
 
+# --- C05 名前ゆらぎ回帰 (SS-F1): period-report 分類エンジンの語幹前方一致 -------------
+# 完全一致だと compare_periods / classify_period_transition / diff_prev_curr 等の派生名が
+# すり抜け C05 の再発明遮断が vacuous 化する。C05 実関数名を語幹で捕捉することを byte 固定する。
+
+
+@pytest.mark.parametrize(
+    "reinvent_def",
+    [
+        "def compare_periods(prev_set, curr_set):\n    pass\n",          # C05 実関数名 (compare 語幹)
+        "def classify_period_transition(prev, curr):\n    pass\n",      # C05 実関数名 (classify 語幹)
+        "def build_period_diff(prev, curr):\n    pass\n",               # period_diff 語幹
+        "def diff_prev_curr_compare(a, b):\n    pass\n",                # 派生名 (compare 語幹)
+    ],
+)
+def test_period_report_reinvention_in_new_file_is_blocked(monkeypatch, reinvent_def):
+    # 非 sanctioned なドメインファイルへ前月↔今月比較エンジンを再実装すると遮断される。
+    payload = _write("/repo/my_period_report.py", "# 先月と今月の比較 発行漏れレポート\n" + reinvent_def)
+    assert _run_main(payload, monkeypatch) == 2
+
+
+@pytest.mark.parametrize(
+    "reinvent_def",
+    [
+        "def compare_periods(prev_set, curr_set):\n    pass\n",
+        "def classify_period_transition(prev, curr):\n    pass\n",
+        "def build_period_diff(prev, curr):\n    pass\n",
+    ],
+)
+def test_period_report_engine_in_sanctioned_file_is_allowed(monkeypatch, reinvent_def):
+    # C05 正本 mfk_period_report.py 自身は分類系関数を持ってよい (sanctioned)。
+    payload = _write(
+        "/p/scripts/mfk_period_report.py", "# 先月と今月の比較 発行漏れレポート\n" + reinvent_def
+    )
+    assert _run_main(payload, monkeypatch) == 0
+
+
+def test_period_report_reinvention_without_domain_is_allowed(monkeypatch):
+    # ドメイン信号が無ければ compare 系も誤遮断しない (他プロジェクトの正当な compare)。
+    payload = _write("/other/util.py", "def compare_periods(a, b):\n    return a == b\n")
+    assert _run_main(payload, monkeypatch) == 0
+
+
 # --- allowlist / 対象外 -----------------------------------------------------------
 
 def test_editing_sanctioned_engine_is_allowed(monkeypatch):
@@ -189,6 +231,41 @@ def test_bash_readonly_search_for_reinvent_terms_is_allowed(monkeypatch):
         "tool_name": "Bash",
         "tool_input": {
             "command": "rg 'def classify|TODO\\\\(human\\\\)' plugins/mf-kessai-invoice-check"
+        },
+    }
+    assert _run_main(payload, monkeypatch) == 0
+
+
+def test_bash_todo_human_in_sanctioned_file_is_blocked(monkeypatch):
+    # F-5: SANCTIONED ファイルへの Bash 書込でも TODO(human)(R1) は遮断する (Write/Edit と対称)。
+    # allowlist は R2(再実装)のみ免除し、R1(判定丸投げ)は正本を含む全ドメインファイルへ適用する。
+    payload = {
+        "tool_name": "Bash",
+        "tool_input": {
+            "command": (
+                "cat > scripts/mfk_period_report.py <<'PY'\n"
+                "# 先月と今月の比較 発行漏れレポート\n"
+                "def classify_period(prev, curr):\n"
+                "    TODO(human)\n"
+                "PY\n"
+            )
+        },
+    }
+    assert _run_main(payload, monkeypatch) == 2
+
+
+def test_bash_sanctioned_clean_write_is_still_allowed(monkeypatch):
+    # F-5 の裏: sanctioned ファイルへの TODO(human) 無し再実装は許可 (R2 免除・R1 非該当)。
+    payload = {
+        "tool_name": "Bash",
+        "tool_input": {
+            "command": (
+                "cat > scripts/mfk_period_report.py <<'PY'\n"
+                "# 先月と今月の比較 発行漏れレポート\n"
+                "def compare_periods(prev, curr):\n"
+                "    return prev == curr\n"
+                "PY\n"
+            )
         },
     }
     assert _run_main(payload, monkeypatch) == 0

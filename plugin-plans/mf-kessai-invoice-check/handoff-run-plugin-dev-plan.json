@@ -1,0 +1,149 @@
+{
+  "plan_dir": "plugin-plans/mf-kessai-invoice-check",
+  "target_plugin_slug": "mf-kessai-invoice-check",
+  "mode": "update",
+  "task_graph_ref": {
+    "path": "task-graph.json",
+    "schema_version": "1.0"
+  },
+  "routes": [
+    {
+      "id": "C04",
+      "component_kind": "hook",
+      "name": "guard-mfk-no-reinvent",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "build_args": {
+        "kind": "hook",
+        "name": "guard-mfk-no-reinvent",
+        "operation": "extend-existing",
+        "preserve": ["R1-anti-TODO", "R2-anti-reinvention", "R3-anti-Bash-bypass", "allowlist", "guard-mfk-readonly.py 配線", "plugin.json hooks 配線(不変)"],
+        "add_sanctioned_basenames": ["mfk_period_report.py"],
+        "add_reinvent_signatures": ["compare", "period_diff", "classify_irregular"],
+        "reinvent_signature_match": "def 名の語幹前方一致 (def\\s+\\w*(compare|period_diff|classify)\\w*\\s*\\() として焼き def compare_periods(/diff_prev_curr( 等の派生名も捕捉する。または C05 実関数名を登録シグネチャへ byte 一致で揃える。名前ゆらぎ回帰テストを C04 完了条件に追加 (SS-F1・完全一致だと派生名がすり抜け C9 が vacuous 化するのを防ぐ)",
+        "add_domain_terms": ["先月と今月の比較", "発行漏れレポート", "period-report"]
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/hooks/guard-mfk-no-reinvent.py",
+      "status": "planned"
+    },
+    {
+      "id": "C06",
+      "component_kind": "script",
+      "name": "notion_report_sink.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_kind": "script",
+      "build_args": {
+        "script_path": "scripts/notion_report_sink.py"
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/scripts/notion_report_sink.py",
+      "status": "planned"
+    },
+    {
+      "id": "C05",
+      "component_kind": "script",
+      "name": "mfk_period_report.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C04"],
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_kind": "script",
+      "build_args": {
+        "script_path": "scripts/mfk_period_report.py"
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/scripts/mfk_period_report.py",
+      "status": "planned"
+    },
+    {
+      "id": "C01",
+      "component_kind": "skill",
+      "name": "run-mf-invoice-report",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C05", "C06"],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "run-mf-invoice-report",
+        "kind": "run",
+        "brief_path": "briefs/skill-brief-C01.json"
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-report/",
+      "status": "planned"
+    },
+    {
+      "id": "C02",
+      "component_kind": "sub-agent",
+      "name": "mfk-report-verifier",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C01"],
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "build_args": {
+        "kind": "agent",
+        "name": "mfk-report-verifier"
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/agents/mfk-report-verifier.md",
+      "status": "planned"
+    },
+    {
+      "id": "C03",
+      "component_kind": "slash-command",
+      "name": "run-mf-invoice-report",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C01"],
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "build_args": {
+        "kind": "command",
+        "name": "run-mf-invoice-report"
+      },
+      "build_target": "plugins/mf-kessai-invoice-check/commands/run-mf-invoice-report.md",
+      "status": "planned"
+    }
+  ],
+  "envelope": {
+    "manifest": {
+      "owner": "plugin-scaffold",
+      "status": "manual-user-gated",
+      "build_target": "plugins/mf-kessai-invoice-check/.claude-plugin/plugin.json",
+      "draft_path": "envelope-draft/plugin.json",
+      "approval_reason": "既存 plugin の manifest は実在し hooks 配線 (guard-mfk-no-reinvent の Bash/Write|Edit|MultiEdit 両 matcher) は変更しない。manifest の実差分は entry_points への新 3 component (skill run-mf-invoice-report / command run-mf-invoice-report / agent mfk-report-verifier) 追加と version bump (0.1.1→0.2.0) のみ。ユーザー承認後に envelope-draft/plugin.json を手動適用する"
+    },
+    "marketplace": {
+      "owner": "plugin-scaffold",
+      "status": "manual-user-gated",
+      "build_target": ".claude-plugin/marketplace.json",
+      "approval_reason": "既存 marketplace 登録(xl-skills-full bundle)を維持する。配布内容の再登録が要る場合のみユーザー承認後に実行する"
+    }
+  },
+  "open_issues": [
+    {
+      "id": "GAP-SCRIPT-BUILDER",
+      "severity": "medium",
+      "text": "plugin-scaffold / parent-skill-build は run-build-skill の 7 capability kind ではなく planner 上の contract-only builder 語彙。C05 (mfk_period_report.py) / C06 (notion_report_sink.py) の script route は harness-creator の build-script-route.py が L4 で消費し、gap_ref は routing 語彙の明示参照として維持する"
+    },
+    {
+      "id": "GAP-ENVELOPE-001",
+      "severity": "low",
+      "text": "既存 plugin の manifest/marketplace は実在するが、entry_points への新 3 component 反映と version bump を単独自動生成する scaffold executor は planner の外部。envelope-draft/plugin.json を manual-apply artifact として用意し、ユーザー承認後に手動適用する (hooks 配線は不変)"
+    },
+    {
+      "id": "GAP-C04-EXTEND",
+      "severity": "medium",
+      "text": "C04 は既存稼働 hook guard-mfk-no-reinvent.py への in-place 拡張 (build_args.operation=extend-existing)。run-build-skill の新規 hook 生成で 203 行の既存実装 (R1-R3/allowlist) を上書き破壊しないよう、L4 build は build_args.preserve を保持した Edit 差分適用とし、SANCTIONED へ mfk_period_report.py を追加する変更を C05 エンジン生成より先行させる (C05.depends_on=[C04])"
+    },
+    {
+      "id": "GAP-NOTION-TOGGLE-PLACEMENT",
+      "severity": "medium",
+      "text": "R9/C10 の核『トグル見出し2ブロック配下へ月次 DB を find-or-create し newest-on-top で先頭挿入』の Notion API 実現性が未確立。既存 build_notion_db.py は DB 親を page_id 固定・子ブロックは末尾 append で、block(トグル)親の DB 生成/先頭挿入の実績がプラグイン内に無い。L4 build で spike 検証し、不可なら fallback(トグル配下に child_database ブロックを置く / 月次子ページを介す / 末尾 append + title YYYY-MM で人間識別)を採る。DB 生成/列型写像は build_notion_db の build_property を再利用し title=取引先名(列順2番目・Notion title=ページ名)。列順は 漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント で固定。配置順は target_month の YYYY-MM 昇順で安定挿入し過去月 --target 後追いでも順序を壊さない。列表示順は 漏れチェック(select)を先頭列・取引先名(title)を2番目とする。ただし Notion テーブルビューは title 列を最左固定する仕様のため、select を title より左に表示できるかは L4 build の spike で確認し、不可なら fallback(取引先名 title を先頭・漏れチェックを直後列)とする"
+    }
+  ]
+}

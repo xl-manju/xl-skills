@@ -1,0 +1,452 @@
+{
+  "plugin_concept": "mf-kessai-invoice-check 改善 — マネーフォワード掛け払いの前月↔今月発行状況を 2 営業日目以降に何度でも冪等再実行して比較し、年契約/年→月切替/トライアル完了/契約終了のイレギュラーをコメント説明した請求漏れレポートを専用 Notion レポート DB へ上書き生成する",
+  "derivation": "既存プラグイン改善 (existing-plugin-update)。分解軸は『component_kind を 1 種ずつ対称に埋める』ではなく『改善デルタが要する機能クラスタ』を先に列挙し、各クラスタを新規 or 既存改修でラベリングしてから 5 種 component_kind へ写像した (Goodhart 回避)。機能クラスタ: (1) 前月+今月+12 ヶ月フル遡りの収集とレポート描画のオーケストレーション=新規 skill (C01)、(2) 前月↔今月の状態遷移をイレギュラー分類しコメント生成する分類エンジン=新規 script (C05)、(3) 分類の二段確認=新規 sub-agent (C02)、(4) 2 営業日目以降の冪等再実行の手動起動=新規 slash-command (C03)、(5) 新エンジンの再発明遮断と C05 build 非遮断の両立=既存 hook の in-place 拡張 (C04)、(6) 月次スナップショット DB の積層 (毎月新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ find-or-createし、newest-on-top は intended_index で開示・実配置は append fallback とし、当月 DB へレポート行を非破壊冪等 upsert=日々追加)=新規 script sink (C06) = 計 6 実体。C05/C06 を独立 script component へ昇格させる根拠: (a) goal-spec checklist C2-C5/C7 が全て verify_by:test であり分類ロジックと冪等 upsert を独立に単体テスト可能な決定論実体へ切り出す必要がある (LLM skill へ畳むと C7『2 回実行で重複行 0』の test 対象が消える=幻テスト化)、(b) 既存プラグインは分類エンジン (lib/mfk_reconcile.py) と冪等 sink (lib/notion_reconcile_sink.py) と DB ビルダ (scripts/build_reconcile_dbs.py) を独立ファイルへ分離する確立パターンを持ち、report 側も同型に分離するのが自然形。C05 は既存 lib/mfk_reconcile.py の per-月 verdict (SUPPRESS_ANNUAL/SUPPRESS_ENDED/MATCH_ANNUAL 等) を入力に取り、前月↔今月の状態遷移だけを新規責務にする薄い差分エンジンで、契約完了(契約終了)の一次情報源は既存 mfk_reconcile.has_end_basis/_END_BASIS_PAT(確認内容/備考の『請求ナシ』『(YYMM終了)』等の終了注記検出)→ verdict SUPPRESS_ENDED であり、C05 はこの既存 verdict を消費するのみで自由文を再パースしない(構造化列『契約終了月』は has_end_basis と cross-check される二次情報・根拠なき終了月は REVIEW_ENDED_NO_BASIS で抑制せず漏れ隠蔽を防ぐ既存安全弁を保全。初回の『構造化列へ正規化 backfill』は誤帰属ゆえ第2パスで訂正=cluster O)。C05 は plugin-root 配置だが、これは (i) 独立単体テスト性 + (ii) 既存 scripts/reconcile_invoices.py と同じ plugin-root scripts/ 慣習によるもので、reconcile スキルとの分類共有を主張しない (reconcile 側に C05 消費 route は無い=over-claim を撤回)。C04 は既存の稼働・配線・テスト済み hook guard-mfk-no-reinvent.py への in-place 拡張であり新規 build でない (build_mode=extend-existing・既存 R1-R3/allowlist/guard-mfk-readonly.py を保全)。C05 は `def classify` 等を持つため既存 guard に遮断される — よって C05 は C04 に depends_on し『guard の SANCTIONED 拡張 (mfk_period_report.py 追加) → C05 エンジン生成』の順序を DAG に焼く。この inventory は build 軸の唯一 SSOT で、人間可読なライフサイクルは phase-01..13.md が担う (2 軸直交)。",
+  "considered_component_kinds": [
+    "skill",
+    "sub-agent",
+    "slash-command",
+    "hook",
+    "script"
+  ],
+  "components": [
+    {
+      "id": "C04",
+      "component_kind": "hook",
+      "name": "guard-mfk-no-reinvent",
+      "event": "PreToolUse",
+      "matcher": "Write|Edit|MultiEdit",
+      "exit_semantics": "fail-closed-exit2",
+      "settings_wiring": ".claude-plugin/plugin.json hooks (PreToolUse・既存配線を保持し変更しない)",
+      "fail_closed": true,
+      "depends_on": [],
+      "build_target": "plugins/mf-kessai-invoice-check/hooks/guard-mfk-no-reinvent.py",
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "quality_gates": {
+        "p0_lint": [
+          "validate-frontmatter",
+          "lint-script-frontmatter"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "content-review-verdict+test"
+      }
+    },
+    {
+      "id": "C05",
+      "component_kind": "script",
+      "name": "mfk_period_report.py",
+      "script_name": "mfk_period_report.py",
+      "purpose": "既存 lib/mfk_reconcile.py の per-月 verdict を入力に取り、前月↔今月の発行状態遷移だけを分類する薄い差分エンジン。ここでの『今月』は実行日カレンダー月ではなく直近締め済みの請求対象月であり、例: 2026-07-02 実行なら今月=2026-06分請求、先月=2026-05分請求。まず取引先×商品を前月集合と今月集合で突合し、今月あり×前月あり=正常:継続発行、今月あり×前月なし=12ヶ月前の年契約が自動月額切替した可能性を確認、今月なし×前月なし=対象外(元々請求なし)、今月なし×前月あり=正常な非請求事情(年契約期間内/トライアル完了/契約終了)の有無を確認し、該当なしを発行漏れ候補(要対応)として分類する。その差分に現れた該当取引先のみを対象に 12 ヶ月分の発行履歴を遡り、各行の事情コメントを生成する (12 ヶ月遡りは全件でなく差分該当取引先のみに限定=API 負荷最小化)。候補取得は取引先単位で絞るが、最終分類とコメント根拠は取引先×商品単位で照合し、同一取引先・同一商品の複数契約がある場合のみ契約IDを disambiguator として使って混同しない。契約完了(契約終了)の一次情報源は既存 mfk_reconcile.has_end_basis/_END_BASIS_PAT(確認内容/備考の『請求ナシ』『(YYMM終了)』等の終了注記検出)→ verdict SUPPRESS_ENDED であり、C05 は既存 per-月 verdict を入力に取るのみで自由文を再パースしない(終了根拠判定 SSOT=mfk_reconcile・ユーザー『既存の仕組みを使う』指示に合致。構造化列『契約終了月』は has_end_basis と cross-check される二次情報で根拠なき終了月は REVIEW_ENDED_NO_BASIS で抑制せず漏れ隠蔽を防ぐ既存安全弁を保全)。年契約の正常化(前月あり今月なし)も既存 verdict SUPPRESS_ANNUAL/MATCH_ANNUAL を一次源とし 12 ヶ月ルックバックは根拠コメント補強に限定(既存判定を上書きしない=precedence)。トライアル完了判定は canon 前の生商品名 or MF 明細 desc を参照する(既存 shohin_canon の4値正規化後は『トライアル』信号が消えるため)。前月集合↔今月集合の突合キーおよびシート↔MF 結合は既存 mfk_reconcile.normalize/extract_names を再利用して取引先名の表記揺れを吸収する(自作正規化を発明しない)。既存 guard が sanction する分類系関数名を持つため C04 の SANCTIONED 拡張後に生成する",
+      "inputs": "argv(--curr-verdicts FILE(今月=target請求対象月) --prev-verdicts FILE(先月=target-1ヶ月) --lookback-12mo FILE(差分該当取引先のみの12ヶ月履歴; 最終照合は customer/product 単位、必要時 contract_id で disambiguate) --contract-end FILE)",
+      "outputs": "stdout(分類済みレポート行 JSON: customer/amount/prev_amount/gap_check/period_diff/product/comment/contract_id/target_month)/stderr(violation)",
+      "exit_codes": "0/1/2",
+      "network": false,
+      "write_scope": "none",
+      "stdlib_only": true,
+      "tests_min": 80,
+      "depends_on": [
+        "C04"
+      ],
+      "placement_scope": "plugin-root",
+      "build_target": "plugins/mf-kessai-invoice-check/scripts/mfk_period_report.py",
+      "builder": "plugin-scaffold",
+      "build_kind": "script",
+      "quality_gates": {
+        "p0_lint": [
+          "lint-script-frontmatter"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "content-review-verdict+coverage"
+      }
+    },
+    {
+      "id": "C06",
+      "component_kind": "script",
+      "name": "notion_report_sink.py",
+      "script_name": "notion_report_sink.py",
+      "purpose": "月次スナップショット DB を積層する決定論 sink。当月分の DB を、指定ページ『請求書発行チェック』の指定トグル見出し2ブロック配下へ find-or-create し、newest-on-top は intended_index で開示・実配置は Notion API 制約により append fallback とした上で、先月の金額・今月の金額を並べた比較行を非破壊冪等 upsert する。同月内の 2/3 営業日目再実行は当月 DB へ日々追加(入力同定は {customer × contract_id × product}、既存ページ回収は固定7列制約により stored key=(取引先名,商品名)、契約ID違いは要対応優先で 1 行へ収束し collapsed_multi_contract に計上・重複行 0)、月跨ぎは新規 DB を append 作成し placement で newest-on-top の意図位置を開示して過去月 DB を記録として保持する(月次履歴を DB 単位で残す)。月次 DB の一意キーは target_month(YYMM) + logical_parent(report_parent_page/report_toggle_block) + title『請求漏れ比較レポート YYYY-MM』で、同一対象月の再実行では二重 DB を作らず既存 DB を再利用する。親ページ ID/トグルブロック IDは mf-kessai-config.default.json の配布既定が供給し、別出力先にしたい場合のみ .mf-kessai-config.json で上書きする。plan は論理キー(report_parent_page/report_toggle_block)のみ宣言する。DB の新規生成と 7 列スキーマ/列型写像は既存 skills/run-mf-invoice-db-setup/scripts/build_notion_db.py の build_property パターン(title/rich_text/number(yen)/date/select)を踏襲し、title(=各行=ページの作成/ページ名)プロパティ=取引先名・列順は [漏れチェック, 取引先名, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] を順序 SSOT の列定義配列として固定する(列6=先月と今月の比較はテキスト説明・金額は税抜)。行の非破壊冪等 upsert とレート間隔は既存 lib/notion_reconcile_sink.py + notion_transport を踏襲するが、当該 sink は既存 DB への行 upsert 専用で DB 生成機能を持たないため DB 生成は build_notion_db を再利用する(踏襲元の能力境界を明示=SS-F2)。upsert は非破壊マージ(以前の run で書いた行は今回入力に無くても当月 DB から削除しない=deleted 常時 0・全情報保持=以前の情報が消えない)で、手動追記の運用は無い前提ゆえ frozen 列は設けない。HTTP は notion_transport._req を単一正本とし、テストは req 引数で fake-store をモック差し替えして network 非依存で検証する(既存 test_notion_reconcile_sink の offline 契約踏襲)。配置順は target_month の YYYY-MM から newest-on-top の intended_index を算出して報告する。Notion API は child_database の任意位置 insert を提供しないため、実配置は append fallback (title YYYY-MM で識別) とし、この差分を placement に開示する",
+      "inputs": "argv(--rows FILE --target YYMM [--apply])。親ページ/トグルブロック ID は config 解決(引数直書きしない)",
+      "outputs": "stdout(upsert 結果: 当月 DB の created/updated/skipped/deleted(=0 常時・非破壊マージ) 件数 + collapsed_multi_contract + month_db_id + month_db_reused(true/false) + placement(intended_index と actual=append-child-database))/stderr(violation)",
+      "exit_codes": "0/1/2",
+      "network": true,
+      "write_scope": "notion:monthly-report-db (指定ページ『請求書発行チェック』のトグル見出し2配下・newest-on-top intended_index/append fallback)",
+      "stdlib_only": true,
+      "tests_min": 80,
+      "depends_on": [],
+      "placement_scope": "plugin-root",
+      "build_target": "plugins/mf-kessai-invoice-check/scripts/notion_report_sink.py",
+      "builder": "plugin-scaffold",
+      "build_kind": "script",
+      "quality_gates": {
+        "p0_lint": [
+          "lint-script-frontmatter"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "content-review-verdict+coverage"
+      }
+    },
+    {
+      "id": "C01",
+      "component_kind": "skill",
+      "name": "run-mf-invoice-report",
+      "skill_kind": "run",
+      "kind": "run",
+      "skill_name": "run-mf-invoice-report",
+      "prefix": "run",
+      "hierarchy_level": "L1",
+      "trigger_conditions": [
+        "前月と今月の請求書発行状況を比較して漏れレポートを出して",
+        "MFの請求漏れ比較レポートを作って",
+        "run-mf-invoice-report"
+      ],
+      "goal": "前月↔今月の発行状況を突合し漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの列を持つレポートテーブルを、月次で新しい DB として指定ページ『請求書発行チェック』のトグル見出し2配下へ append 作成し newest-on-top の意図位置を開示して当月 DB へ冪等に上書き(日々追加)生成し、12 ヶ月フル遡り(差分該当取引先のみ)で年契約/年→月切替/トライアル完了/契約終了を分類してイレギュラー行に事情コメントを焼き、真の発行漏れだけを漏れとして残し月次履歴を DB 単位で保持した状態。今月は直近締め済みの請求対象月(例: 2026-07-02 実行なら 2026-06分)、先月はその1ヶ月前(2026-05分)を指す",
+      "purpose_background": "単月照合では拾えない前月↔今月の発行増減を一望し、正常イレギュラーと真の漏れを分離してなぜ問題ないかをコメント説明することで経理の請求漏れ確認を最新状態で回すため",
+      "checklist": [
+        "前月+今月+12ヶ月フル遡り収集(候補は取引先単位・分類は契約ID/商品名単位)",
+        "C05エンジンでイレギュラー分類+コメント生成",
+        "全component build後にC02 sub-agentで二段確認",
+        "C06 sinkでレポート DB へ冪等上書き"
+      ],
+      "output_contract": "レポートテーブル(漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント の7列を『この左→右の順で固定』・Notion title プロパティ=取引先名(列順2番目・Notion title=ページ名)・列6=テキスト説明・金額は税抜) + 判定内訳サマリ。継続発行(今月あり×前月あり)も漏れチェック=正常として全行 emit し全請求書一覧を成す(非 emit は今月なし×前月なし=元々請求なしのみ)。C06 sink 経由で当月分の月次 DB へ書き、同月内の再実行は入力同定 {取引先(customer) × 契約ID(contract_id) × 商品(product)} と stored key (取引先名,商品名) で重複行を出さず日々追加し、契約ID違いは要対応優先で collapse 計上する(非破壊マージ=以前 run で書いた行は今回入力に無くても削除されない)。月跨ぎは新しい月の DB が指定トグル配下へ append 作成され、newest-on-top の意図位置が placement で開示され、過去月 DB が履歴として残る (DB 構築/配置/冪等 upsert は C06 sink が所有)",
+      "boundary": "入力=MF 掛け払い実績(参照専用 GET)+既存 mfk_reconcile の per-月 verdict+請求確認シート/出力=月次レポート DB(指定ページ『請求書発行チェック』のトグル見出し2配下)の冪等上書き。MF への書き込みはしない。イレギュラー分類の実体は C05 エンジン・月次 DB 構築/冪等 upsert は C06 sink に委譲し、本 skill は収集→分類呼出→二段確認→冪等描画のオーケストレーションに徹する。既存 reconcile/check スキルの再設計はしない",
+      "output_language": "ja",
+      "placement_candidates": [
+        "Skill"
+      ],
+      "mass_production_profile": "strict",
+      "responsibilities": [
+        {
+          "id": "R1-collect",
+          "summary": "対象月を決定し(例: 2026-07-02 実行なら今月=2026-06分・先月=2026-05分)、前月・今月の全取引先 MF 発行実績 (参照専用 GET) を収集して取引先×商品で状態遷移 (今月あり×前月あり/今月あり×前月なし/今月なし×前月なし/今月なし×前月あり) を抽出し、差分に現れた該当取引先のみ 12 ヶ月分の発行履歴を追加取得する。候補取得は取引先単位、分類照合は取引先×商品単位、同一取引先・同一商品の複数契約は契約IDで disambiguate できる index を作り、既存 mfk_reconcile の per-月 verdict(SUPPRESS_ENDED/SUPPRESS_ANNUAL/MATCH_ANNUAL 等・確認内容ベースの終了根拠 has_end_basis を含む)・請求確認シート由来の契約終了月も収集する。取引先の突合キーは既存 mfk_reconcile.normalize/extract_names で正規化して表記揺れを吸収する",
+          "prompt_required": true
+        },
+        {
+          "id": "R2-classify",
+          "summary": "C05 エンジンで前月↔今月の状態遷移をイレギュラー分類し各行の事情コメントを生成する",
+          "prompt_required": true
+        },
+        {
+          "id": "R3-verify",
+          "summary": "全 component build 後の runtime flow で sub-agent mfk-report-verifier を呼び、独立 context で真の漏れを問題ないと隠していないか二段確認する。C02.depends_on=[C01] は verifier prompt が C01 の出力契約を読むための build 順依存であり、C01 build が C02 実体を前提にする意味ではない",
+          "prompt_required": true
+        },
+        {
+          "id": "R4-render",
+          "summary": "分類済みレポート行を C06 sink 経由で当月分の月次 DB(指定ページ『請求書発行チェック』のトグル配下・newest-on-top intended_index/append fallback)へ入力同定 {取引先×契約ID×商品} と stored key (取引先名,商品名) で冪等上書き(日々追加)し、漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントのテーブルを最新状態にする",
+          "prompt_required": true
+        }
+      ],
+      "cli_tools": [],
+      "mcp_tools": [
+        "notion"
+      ],
+      "external_systems": [
+        "MF KESSAI API",
+        "Notion API"
+      ],
+      "deterministic_checks": [
+        "mfk_period_report.py",
+        "notion_report_sink.py"
+      ],
+      "needs_independent_context": true,
+      "needs_lifecycle_enforcement": true,
+      "prompt_layer": "7layer",
+      "combinators": [
+        "with-goal-seek",
+        "with-feedback-contract"
+      ],
+      "goal_seek": {
+        "engine": "inline",
+        "fork": "subagent",
+        "max_loops": 5
+      },
+      "feedback_contract": {
+        "criteria": [
+          {
+            "id": "IN1",
+            "loop_scope": "inner",
+            "text": "前月↔今月比較と 12 ヶ月フル遡り(差分該当取引先のみ)の年契約周期/トライアル完了/契約終了分類が test_mfk_period_report で機械検証でき、正常イレギュラーと真の発行漏れを取り違えず漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの7列が『この左→右の順で』全行で埋まる(Notion title=取引先名・列6=テキスト説明・金額は税抜)",
+            "verify_by": "test"
+          },
+          {
+            "id": "OUT1",
+            "loop_scope": "outer",
+            "text": "同一対象月で 2 営業日目・3 営業日目相当のデータを与え連続実行しても C06 sink が同じ month_db_id を再利用し、当月 DB へ入力同定 {取引先×契約ID×商品} と stored key (取引先名,商品名) で同一行を 1 行へ収束させ (同月 2 回実行で重複行 0・日々追加・二重 DB 0・非破壊マージで run-1={A,B}→run-2={A,C} 後も当月 DB が {A,B,C} を保持=以前 run の行が消えない/clear-then-insert と区別可能・契約ID違いは要対応優先で collapse 計上)、月跨ぎでは新しい月の DB が指定トグル配下へ append 作成され newest-on-top の意図位置が placement で開示され過去月 DB が残ること、各イレギュラー行がなぜ先月あって今月なくて問題ないかの事情コメントを持ち分類不能な差分だけが真の発行漏れとして漏れチェックに残ることを受入テストが確認する",
+            "verify_by": "test"
+          }
+        ]
+      },
+      "depends_on": [
+        "C05",
+        "C06"
+      ],
+      "build_target": "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-report/",
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "quality_gates": {
+        "p0_lint": [
+          "lint-skill-name",
+          "lint-skill-description",
+          "lint-skill-tree",
+          "validate-frontmatter",
+          "lint-dependency-direction",
+          "lint-skill-dep-step7",
+          "lint-forbidden-deps",
+          "lint-manifest-contents"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "loop=criteria-test+content-review-verdict"
+      }
+    },
+    {
+      "id": "C02",
+      "component_kind": "sub-agent",
+      "name": "mfk-report-verifier",
+      "description": "前月↔今月比較レポートのイレギュラー分類 (年契約/年→月切替/トライアル完了/契約終了) を独立 context で二段確認し、真の発行漏れを問題ないと誤って隠していないか検証したいときに使う",
+      "tools": [
+        "Read",
+        "Bash"
+      ],
+      "independent_context": true,
+      "responsibility_anchor": "prompts/R3-verify.md",
+      "prompt_layer": "7layer",
+      "depends_on": [
+        "C01"
+      ],
+      "build_target": "plugins/mf-kessai-invoice-check/agents/mfk-report-verifier.md",
+      "builder": "run-build-skill",
+      "build_kind": "agent",
+      "quality_gates": {
+        "p0_lint": [
+          "validate-frontmatter",
+          "lint-skill-description",
+          "lint-agent-prompt-section"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "content-review-verdict+verdict"
+      }
+    },
+    {
+      "id": "C03",
+      "component_kind": "slash-command",
+      "name": "run-mf-invoice-report",
+      "description": "前月↔今月の請求書発行状況比較レポートを手動起動する (2 営業日目以降に何度でも冪等再実行し漏れレポートを専用 DB へ上書き)",
+      "argument-hint": "[--target YYMM] [--apply --verified]",
+      "allowed-tools": [
+        "Read",
+        "Bash",
+        "Skill"
+      ],
+      "disable-model-invocation": false,
+      "depends_on": [
+        "C01"
+      ],
+      "build_target": "plugins/mf-kessai-invoice-check/commands/run-mf-invoice-report.md",
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "quality_gates": {
+        "p0_lint": [
+          "validate-frontmatter"
+        ],
+        "build_trace": "required",
+        "elegant_review": {
+          "conditions": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ],
+          "all_pass": true
+        },
+        "content_review": {
+          "verdict": "PASS",
+          "sha_match": true
+        },
+        "evaluator": {
+          "threshold": 80,
+          "high_max": 0
+        }
+      },
+      "harness_coverage": {
+        "min": 80,
+        "kind_pass": "content-review-verdict+test"
+      }
+    }
+  ],
+  "plugin_level_surfaces": {
+    "manifest": {
+      "required": true,
+      "path": ".claude-plugin/plugin.json"
+    },
+    "composition": {
+      "required": false,
+      "omitted_reason": "mf-kessai-invoice-check は単一 plugin で plugin-composition.yaml を持たず、本改善も複数 plugin の合成を要さない (既存 skill 群への component 追加のみ)"
+    },
+    "harness_eval": {
+      "required": false,
+      "omitted_reason": "本 plugin は EVALS.json を持たず pytest tests/ の mechanical テストで検証する運用。本改善も C05/C06/C01 の per-skill tests (test_mfk_period_report/test_notion_report_sink ほか) で harness_coverage>=80 を担保し、独立 EVALS.json を新設しない"
+    },
+    "references_config_assets": {
+      "required": true,
+      "record_in": "index.plugin_meta.ssot_dedup"
+    },
+    "schemas": {
+      "required": false,
+      "omitted_reason": "本改善の新 4 分類 (年契約周期/年→月切替/トライアル完了/契約終了) の語彙は分類エンジン C05 内に定義し、既存の単月 verdict-mapping.json (reconcile skill scope) には焼かない (時間軸分類は report 固有ゆえ独立 JSON schema を新設せず C05 が SSOT)。C05 は既存 per-月 verdict を入力に取るのみで reconcile schema へ逆依存しない"
+    },
+    "vendor": {
+      "required": false,
+      "omitted_reason": "cross-plugin SSOT を新設せず plugin-root 共有 script (C05/C06) の hoist で携帯性を満たすため vendoring 不要"
+    },
+    "mcp_app_connector": {
+      "required": false,
+      "omitted_reason": "MF 掛け払い/Notion は既存 lib(mfk_api.py GET 専用)/Skill 経路で扱い MCP/app connector を新設しない"
+    },
+    "notion_config": {
+      "required": true,
+      "resolution": "notion_config",
+      "token": "keychain",
+      "databases": [
+        {
+          "key": "sheet-db",
+          "used_by": [
+            "C01"
+          ],
+          "direction": "read"
+        },
+        {
+          "key": "report-parent-page",
+          "used_by": [
+            "C06"
+          ],
+          "direction": "write"
+        },
+        {
+          "key": "report-toggle-block",
+          "used_by": [
+            "C06"
+          ],
+          "direction": "write"
+        },
+        {
+          "key": "monthly-report-db",
+          "used_by": [
+            "C01",
+            "C06"
+          ],
+          "direction": "readwrite",
+          "title_property": "取引先名",
+          "property_order": [
+            "漏れチェック",
+            "取引先名",
+            "商品名",
+            "先月の金額",
+            "今月の金額",
+            "先月と今月の比較",
+            "コメント"
+          ]
+        }
+      ]
+    }
+  }
+}

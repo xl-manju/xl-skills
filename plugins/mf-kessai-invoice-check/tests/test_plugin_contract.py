@@ -35,8 +35,10 @@ def test_plugin_manifest_bundle_contract():
         "ref-mf-kessai-api",
         "run-mf-initial-month-enrich",
         "run-mf-invoice-reconcile",
+        "run-mf-invoice-report",
     ]
-    assert manifest["entry_points"]["agents"] == ["mfk-gap-verifier", "mfk-reconcile-verifier"]
+    assert manifest["entry_points"]["agents"] == [
+        "mfk-gap-verifier", "mfk-reconcile-verifier", "mfk-report-verifier"]
     assert manifest["entry_points"]["hooks"] == ["guard-mfk-readonly", "guard-mfk-no-reinvent"]
     # Claude Code 予約フィールド (skills/agents/commands) はトップレベルに置かない。
     # entry_points で宣言し、詳細メタは各 SKILL.md / agents/*.md frontmatter が SSOT。
@@ -63,6 +65,7 @@ def test_run_skills_are_exposed_as_slash_commands():
         "run-mf-invoice-check",
         "run-mf-invoice-db-setup",
         "run-mf-initial-month-enrich",
+        "run-mf-invoice-report",
     ]
     # 直接 lib 実行コマンド: skill を持たず lib スクリプトを $CLAUDE_PLUGIN_ROOT fallback 形で叩く。
     direct_lib_commands = ["run-mf-invoice-doctor"]
@@ -117,6 +120,23 @@ def test_reconcile_is_model_invocable_from_natural_language():
     assert fm.get("disable-model-invocation") == "false", (
         "run-mf-invoice-reconcile を自然文起動不可 (true) へ戻すと事故A(再発明+TODO(human))が"
         "再発する。安全は dry-run + --verified ゲートで担保済みなので false を維持すること。"
+    )
+
+
+def test_report_is_model_invocable_from_natural_language():
+    """run-mf-invoice-report も自然文で自動起動できること (reconcile 旗艦 precedent と対称の恒久ロック)。
+
+    external-mutation な run-* だが disable-model-invocation: false を維持する。generic な
+    lint-skill-dep-step7 (external-mutation→true 要求) は本 plugin CI 非配線で、reconcile/report
+    ファミリは『自然文自動起動 + 書込安全=dry-run 既定 + --apply の --verified 必須ゲート
+    (notion_report_sink.py が exit2 で機械強制)』という documented deviation を採る。
+    false→true への回帰を CI で検知する (reconcile と非対称に保護が欠けていた finding の解消)。
+    """
+    fm = _skill_frontmatter("run-mf-invoice-report")
+    assert fm.get("disable-model-invocation") == "false", (
+        "run-mf-invoice-report を自然文起動不可 (true) へ戻すと trigger_conditions の自然文自動"
+        "起動が壊れる。書込安全は dry-run + --apply の --verified 必須ゲート (機械層) で担保済み"
+        "ゆえ false を維持すること (reconcile 旗艦と同じ documented deviation)。"
     )
 
 
