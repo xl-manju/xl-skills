@@ -2,20 +2,20 @@
 # /// script
 # name: notion_report_sink
 # purpose: 月次スナップショット DB を積層する決定論 sink。対象月の DB を指定ページ『請求書発行チェック』
-#          のトグル見出し2配下へ find-or-create し (同一対象月は既存 month_db_id 再利用=二重 DB 0)、
+#          直下へ find-or-create し (同一対象月は既存 month_db_id 再利用=二重 DB 0)、
 #          分類済みレポート行を非破壊冪等 upsert する (以前 run の行は削除しない=deleted 常時 0)。
 # inputs:
 #   - argv: --rows FILE (C05 分類済みレポート行 JSON list) --target YYMM [--apply --verified] [--config PATH]
 #   - config: mf-kessai-config.default.json (配布既定) + .mf-kessai-config.json (ローカル上書き) の
-#             notion.report_parent_page / notion.report_toggle_block (XLOCAL 共有の配布既定 + 任意上書き)
+#             notion.report_parent_page (XLOCAL 共有の配布既定 + 任意上書き)
 # outputs:
 #   - stdout: upsert 結果 JSON {created, updated, skipped, deleted(=0), collapsed_multi_contract,
 #             month_db_id, month_db_reused, placement}
 #   - stderr: violation
-#   - exit: 0=OK / 1=部分失敗 / 2=fail-closed (target/トグル未設定・rows 不正)
+#   - exit: 0=OK / 1=部分失敗 / 2=fail-closed (target/親ページ未設定・rows 不正)
 # contexts: [C, E]
-# network: true   # Notion REST (トグル子ブロック list + DB find-or-create + 行 upsert)。MF へは書かない
-# write-scope: notion:monthly-report-db (指定ページ『請求書発行チェック』のトグル見出し2配下・newest-on-top intended_index/append fallback)
+# network: true   # Notion REST (親ページ子ブロック list + DB find-or-create + 行 upsert)。MF へは書かない
+# write-scope: notion:monthly-report-db (指定ページ『請求書発行チェック』直下・newest-on-top intended_index/append fallback)
 # dependencies: [notion_transport, build_notion_db, mfk_api]
 # requires-python: ">=3.11"
 # ///
@@ -23,14 +23,15 @@
 
 責務 (C06):
   1. **月次 DB の find-or-create**: 対象月 (target=YYMM) の DB が無ければ、指定ページ
-     『請求書発行チェック』(論理キー ``report_parent_page``) 配下の指定トグル見出し2ブロック
-     (論理キー ``report_toggle_block``) の子として ``child_database`` を作成する。DB の一意キー =
-     target_month(YYMM) + logical_parent(report_parent_page/report_toggle_block) +
-     title『請求漏れ比較レポート YYYY-MM』。同一対象月の再実行では既存 month_db_id を再利用し
+     『請求書発行チェック』(論理キー ``report_parent_page``) の直下の子として ``child_database`` を
+     作成する (database の parent は page_id/database_id のみ許容・block_id=トグル見出し不可の
+     Notion API 制約による)。DB の一意キー = target_month(YYMM) + logical_parent(report_parent_page)
+     + title『請求漏れ比較レポート YYYY-MM』。同一対象月の再実行では既存 month_db_id を再利用し
      二重 DB を作らない (month_db_reused=true)。
-  2. **7 列スキーマ (列順 SSOT)**: [漏れチェック(select), 取引先名(title), 商品名(rich_text),
+  2. **7 列スキーマ (列順 SSOT)**: [取引先名(title), 漏れチェック(checkbox), 商品名(rich_text),
      先月の金額(number/yen), 今月の金額(number/yen), 先月と今月の比較(rich_text), コメント(rich_text)]
-     をこの左→右順で固定する。title(=各行=ページ名)プロパティ = 取引先名。金額は税抜。
+     をこの左→右順で固定する。title(=各行=ページ名)プロパティ = 取引先名を先頭に置き Notion の
+     title 最左固定と定義順を一致させる。漏れチェックは checkbox (正常=✓ / 要対応=☐)。金額は税抜。
      DB 生成と列型写像は build_notion_db.build_property を再利用する (踏襲元の能力境界を明示=SS-F2:
      notion_reconcile_sink は既存 DB への行 upsert 専用で DB 生成機能を持たないため DB 生成は
      build_notion_db に委譲する)。
@@ -45,20 +46,25 @@
      実配置は Notion API 制約により末尾 append する。過去月 --target 後追い時も意図位置を報告し、
      実配置との差を placement で開示する。
 
-GAP-NOTION-TOGGLE-PLACEMENT (能力境界の正直な明記):
-  「トグル見出し2配下へ DB を find-or-create + 任意位置 (先頭) へ insert」のうち、**任意位置
-  insert は Notion API に存在しない** (child ブロックは末尾 append のみ・既存 child_database
-  ブロックの再並べ替え PATCH も無い)。よって本実装は Notion API で確立している方式を採る:
-    - find-or-create : POST /databases に ``parent={type:"block_id", block_id:<toggle>}`` で
-      トグルの子として child_database を作成する。既存月 DB の探索は
-      GET /blocks/{toggle}/children で子を辿り title 一致で見つける (child_database ブロックの
-      id は database_id と一致するので、一致ブロックの id をそのまま month_db_id に使う)。
+GAP-NOTION-DB-PARENT / GAP-NOTION-TOGGLE-PLACEMENT (能力境界の正直な明記):
+  当初設計は「トグル見出し2配下へ DB を find-or-create + 任意位置 (先頭) へ insert」だったが、
+  **Notion API (2022-06-28) は database の parent に page_id / database_id のみ許容し block_id
+  (トグル見出し) を許さない** (POST /databases に block_id 親を送ると 400)。かつ **任意位置 insert
+  も存在しない** (child ブロックは末尾 append のみ・child_database の再並べ替え PATCH も無い)。
+  よって本実装は Notion API で確立している方式を採る:
+    - find-or-create : POST /databases に ``parent={type:"page_id", page_id:<report_parent_page>}``
+      で指定ページ『請求書発行チェック』直下の child_database を作成する (トグル見出し配下ではない)。
+      既存月 DB の探索は GET /blocks/{report_parent_page}/children でページ直下の子を辿り title 一致で
+      見つける (child_database ブロックの id は database_id と一致するので、一致ブロックの id を
+      そのまま month_db_id に使う)。``report_toggle_block`` は本 sink では使用しない (Notion API 制約で
+      トグル配下配置が不能なため deprecated・config には後方互換で残置)。
     - placement     : newest-on-top / YYYY-MM 安定挿入の**意図位置** (intended_index) を既存
       child_database 群の YYYY-MM から算出して報告するが、API は末尾 append しかできないため
       実配置は append となる (fallback = 末尾 append + title の YYYY-MM で人間が識別)。この
       「意図位置 vs 実配置 (append)」の差は stdout の ``placement`` フィールドで開示する。
   全ての API 経路は notion_transport._req 経由で、テストは req 引数に fake-store を差し替えて
-  network 非依存で検証する (既存 test_notion_reconcile_sink の offline 契約踏襲)。
+  network 非依存で検証する (既存 test_notion_reconcile_sink の offline 契約踏襲)。fake-store は
+  POST /databases の parent.type が page_id であることを検証し、block_id 親の再混入を機械 fail させる。
 """
 import argparse
 import json
@@ -80,8 +86,8 @@ from mfk_reconcile import normalize as _normalize_name  # noqa: E402  名寄せ 
 _MAX_RICH_TEXT = 2000
 
 # --- 7 列スキーマ (列順 SSOT: この左→右順で固定する) --------------------------------
-PROP_MISSING_CHECK = "漏れチェック"       # select   (継続発行=正常も全行 emit する漏れチェック)
 PROP_CUSTOMER = "取引先名"                 # title    (= 各行 = ページ名)
+PROP_MISSING_CHECK = "漏れチェック"       # checkbox (正常=✓チェックあり / 要対応=☐チェックなし)
 PROP_PRODUCT = "商品名"                    # rich_text
 PROP_PREV_AMOUNT = "先月の金額"            # number(yen)  税抜
 PROP_CURR_AMOUNT = "今月の金額"            # number(yen)  税抜
@@ -89,9 +95,13 @@ PROP_COMPARISON = "先月と今月の比較"       # rich_text (テキスト説�
 PROP_COMMENT = "コメント"                  # rich_text
 
 # 列順 SSOT の配列。DB 生成時の properties 構築順 = Notion 上の列の左→右順。
+# 取引先名 (title) を先頭に置く: Notion は table view で title 列を最左に固定するため、title を
+# COLUMN_ORDER 先頭に定義することで「定義順 = 実表示順」を一致させ、列順を確実に設定通りにする
+# (title を非先頭に置くと Notion が最左へ引き上げ定義順と表示順がズレる)。漏れチェック(checkbox)は
+# title 直後の 2 列目。
 COLUMN_ORDER = [
-    PROP_MISSING_CHECK,
     PROP_CUSTOMER,
+    PROP_MISSING_CHECK,
     PROP_PRODUCT,
     PROP_PREV_AMOUNT,
     PROP_CURR_AMOUNT,
@@ -107,7 +117,7 @@ COLUMN_ORDER = [
 # (宣言と実装の乖離を機械 fail させる)、(2) test_seam_c05_output_populates_all_seven_columns が
 # C05 実出力 → 本 sink を実 pipe で貫通して 7 列全充足を検証する (isolation では捕捉不能)。
 ROW_CONTRACT = {
-    "gap_check": PROP_MISSING_CHECK,   # 漏れチェック (select: 正常/要対応)
+    "gap_check": PROP_MISSING_CHECK,   # 漏れチェック (checkbox: 正常=✓/要対応=☐)
     "customer": PROP_CUSTOMER,         # 取引先名 (title)
     "product": PROP_PRODUCT,           # 商品名
     "prev_amount": PROP_PREV_AMOUNT,   # 先月の金額 (税抜)
@@ -116,13 +126,12 @@ ROW_CONTRACT = {
     "comment": PROP_COMMENT,           # コメント (事情説明)
 }
 
-# 漏れチェック select の取りうる値 (C05 の GAP_OK/GAP_ACTION)。初回書込前でも Notion UI で
-# フィルタできるよう options を先付けする (空だと最初の非空値まで select オプションが現れない)。
-_MISSING_CHECK_OPTIONS = ["正常", "要対応"]
+# 漏れチェックは checkbox: 正常=チェックあり(True) / 要対応(発行漏れ候補)=チェックなし(False)。
+# チェックの有無だけで直感的に「請求できている(✓)/要対応(☐)」を判別できるようにする。
 
 # 列名 -> build_notion_db.build_property が解釈する型 spec。
 _COLUMN_SPECS = {
-    PROP_MISSING_CHECK: {"type": "select", "options": _MISSING_CHECK_OPTIONS},
+    PROP_MISSING_CHECK: {"type": "checkbox"},
     PROP_CUSTOMER: {"type": "title"},
     PROP_PRODUCT: {"type": "rich_text"},
     PROP_PREV_AMOUNT: {"type": "number"},
@@ -281,10 +290,16 @@ def _merge_action_comments(base, other):
 
 
 def _page_gap_check(page):
-    """既存ページの漏れチェック select 値 (正常/要対応/'') を返す。"""
+    """既存ページの漏れチェック (checkbox) を 正常/要対応 に写像して返す (未設定は '')。
+
+    checkbox True=正常 / False=要対応。cross-run safe guard (前 run の要対応=☐ を新 run の
+    正常=✓ で無条件に上書きしない) が既存値を読むのに使う。
+    """
     props = (page or {}).get("properties") or {}
-    sel = (props.get(PROP_MISSING_CHECK) or {}).get("select") or {}
-    return _norm(sel.get("name"))
+    prop = props.get(PROP_MISSING_CHECK) or {}
+    if "checkbox" not in prop:
+        return ""
+    return "正常" if prop.get("checkbox") else "要対応"
 
 
 def _append_comment(props, note):
@@ -322,13 +337,13 @@ def _build_row_props(row, *, creating):
     props = {}
 
     # 漏れチェック: C05 producer は `gap_check` を emit する (SSOT=ROW_CONTRACT)。
-    # 別名 check/漏れチェック/missing_check も後方互換で受ける。
+    # 別名 check/漏れチェック/missing_check も後方互換で受ける。checkbox へ写像:
+    # 正常=✓(True) / 要対応(発行漏れ候補)=☐(False)。checkbox は空状態を持たないため、
+    # 値が判明したとき (check 非空) のみ設定し、更新で不明なら既存チェックを温存する。
     check = _norm(row.get("gap_check") or row.get("check")
                   or row.get("漏れチェック") or row.get("missing_check"))
     if check:
-        props[PROP_MISSING_CHECK] = {"select": {"name": check}}
-    elif not creating:
-        props[PROP_MISSING_CHECK] = {"select": None}
+        props[PROP_MISSING_CHECK] = {"checkbox": check == "正常"}
 
     product = _row_product(row)
     if product:
@@ -382,13 +397,18 @@ def intended_index(existing_yyyymm, new_yyyymm):
     return sum(1 for m in existing_yyyymm if m and m > new_yyyymm)
 
 
-def list_toggle_children(toggle_block_id, token, req=None):
-    """トグルブロックの子ブロックを has_more/next_cursor を辿り全件取得する。"""
+def list_block_children(block_id, token, req=None):
+    """ブロック/ページの子ブロックを has_more/next_cursor を辿り全件取得する。
+
+    GET /blocks/{id}/children は id がページ (page_id) でもブロックでも子を返す
+    (ページは自身が 1 つのブロックであり page_id をそのまま渡せる)。月次 DB を
+    ページ直下へ置く Option 1 では id = report_parent_page (page_id) を渡す。
+    """
     req = req or _req
     out = []
     cursor = None
     while True:
-        path = f"/blocks/{toggle_block_id}/children?page_size=100"
+        path = f"/blocks/{block_id}/children?page_size=100"
         if cursor:
             path += f"&start_cursor={cursor}"
         res = req("GET", path, token)
@@ -399,14 +419,19 @@ def list_toggle_children(toggle_block_id, token, req=None):
     return out
 
 
-def find_or_create_month_db(target, toggle_block_id, token, req=None, *, apply=True):
+def find_or_create_month_db(target, parent_page_id, token, req=None, *, apply=True):
     """対象月の月次 DB を find-or-create する。返り値 (month_db_id, reused, placement)。
 
-    探索: トグルの子 child_database を辿り title『請求漏れ比較レポート YYYY-MM』一致で既存を探す
-    (child_database ブロックの id は database_id と一致するのでそれを month_db_id に使う)。
-    見つかれば再利用 (reused=True・二重 DB を作らない)。見つからず apply=True なら
-    POST /databases に parent={type:"block_id", block_id:<toggle>} で child_database を作成する。
-    placement は newest-on-top の意図位置 (intended_index) と、API 実配置が末尾 append である旨を開示。
+    探索: 親ページ (report_parent_page) 直下の child_database を辿り title『請求漏れ比較レポート
+    YYYY-MM』一致で既存を探す (child_database ブロックの id は database_id と一致するのでそれを
+    month_db_id に使う)。見つかれば再利用 (reused=True・二重 DB を作らない)。見つからず apply=True
+    なら POST /databases に parent={type:"page_id", page_id:<report_parent_page>} で child_database
+    を作成する。
+
+    Notion API 制約 (GAP-NOTION-TOGGLE-PLACEMENT の解): database の parent は page_id / database_id
+    のみで block_id (トグル見出し) は不可 (Notion-Version 2022-06-28)。よって月次 DB は指定ページ
+    『請求書発行チェック』直下に child_database として置く (トグル見出し配下ではない)。placement は
+    newest-on-top の意図位置 (intended_index) と、API 実配置が末尾 append である旨を開示する。
     """
     req = req or _req
     desired = month_db_title(target)
@@ -414,7 +439,7 @@ def find_or_create_month_db(target, toggle_block_id, token, req=None, *, apply=T
 
     found_id = None
     existing_yyyymm = []
-    for block in list_toggle_children(toggle_block_id, token, req):
+    for block in list_block_children(parent_page_id, token, req):
         if block.get("type") != "child_database":
             continue
         title = _child_db_title(block)
@@ -426,7 +451,7 @@ def find_or_create_month_db(target, toggle_block_id, token, req=None, *, apply=T
             existing_yyyymm.append(ym)
 
     placement = {
-        "toggle_block_id": toggle_block_id,
+        "parent_page_id": parent_page_id,
         "target_yyyymm": new_yyyymm,
         "requested_order": "newest-on-top",          # 新しい月を上部へ
         "intended_index": intended_index(existing_yyyymm, new_yyyymm),
@@ -434,14 +459,14 @@ def find_or_create_month_db(target, toggle_block_id, token, req=None, *, apply=T
         # Notion API は任意位置 insert 不可。child_database は末尾 append される
         # (fallback = title の YYYY-MM で人間が識別)。意図位置との差は intended_index が示す。
         "api_strategy": "append-child-database",
-        # 列順の Notion 制約を append fallback と同じ正直さで開示する (F-10)。COLUMN_ORDER は
-        # 漏れチェックを先頭に置くが、Notion table view は title 列 (取引先名) を最左固定で描画する
-        # ため、実表示は [取引先名(title), 漏れチェック, ...] になる。列定義順 (SSOT) と実描画順の
-        # この差は Notion 仕様であり、漏れチェックを最左にするには title を別列へ移す設計変更が要る。
+        # 列順は定義順=実表示順で一致させる (F-10 解消)。Notion table view は title 列を最左固定で
+        # 描画するため、COLUMN_ORDER の先頭を title (取引先名) に置くことで定義順と実描画順を一致させた。
+        # properties は COLUMN_ORDER 順に build するので実列順は [取引先名, 漏れチェック(checkbox),
+        # 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] で確定する。
         "column_order_defined": list(COLUMN_ORDER),
         "column_order_note": (
-            "Notion は title(取引先名)を table view 最左に固定するため実表示は "
-            "取引先名→漏れチェック→…。列定義順(SSOT)と実描画順の差は Notion 仕様。"),
+            "列順は定義順=実表示順で一致 (取引先名=title を先頭に定義)。実列順は "
+            "取引先名→漏れチェック(✓)→商品名→先月の金額→今月の金額→先月と今月の比較→コメント。"),
     }
 
     if found_id:
@@ -454,7 +479,7 @@ def find_or_create_month_db(target, toggle_block_id, token, req=None, *, apply=T
         return None, False, placement
 
     res = req("POST", "/databases", token, {
-        "parent": {"type": "block_id", "block_id": toggle_block_id},
+        "parent": {"type": "page_id", "page_id": parent_page_id},
         "title": [{"text": {"content": desired}}],
         "properties": schema_properties(),
     })
@@ -542,7 +567,7 @@ def upsert_report_rows(rows, month_db_id, token, req=None):
                 # 正常なら漏れチェックを要対応のまま保持し、正常化した旨を comment へ注記する
                 # (intra-run の _prefer_action と cross-run を対称化)。
                 if _page_gap_check(page) == "要対応" and _severity_rank(row) == 0:
-                    props[PROP_MISSING_CHECK] = {"select": {"name": "要対応"}}
+                    props[PROP_MISSING_CHECK] = {"checkbox": False}  # 要対応を保持 (☐ チェックなし)
                     _append_comment(props, "前 run の要対応を保持 (今 run 入力は正常・cross-run safe guard)")
                 req("PATCH", f"/pages/{page['id']}", token, {"properties": props})
                 updated += 1
@@ -561,10 +586,6 @@ def upsert_report_rows(rows, month_db_id, token, req=None):
 # ---------------------------------------------------------------------------
 # orchestration
 # ---------------------------------------------------------------------------
-
-def _resolve_toggle(cfg):
-    return _norm((cfg.get("notion") or {}).get("report_toggle_block"))
-
 
 def _resolve_parent(cfg):
     return _norm((cfg.get("notion") or {}).get("report_parent_page"))
@@ -598,19 +619,20 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
                 "requested_order": "newest-on-top",
                 "api_strategy": "append-child-database",
                 "report_parent_page": _resolve_parent(cfg),
-                "note": "dry-run: トグル未走査 (書き込みなし)",
+                "note": "dry-run: 親ページ未走査 (書き込みなし)",
             },
         }
 
-    toggle = _resolve_toggle(cfg)
-    if not toggle:
+    parent_page = _resolve_parent(cfg)
+    if not parent_page:
         raise SinkError(
-            "notion.report_toggle_block が未設定です。トグル見出し2ブロック ID を "
-            "mf-kessai-config.default.json または .mf-kessai-config.json に設定してください。")
+            "notion.report_parent_page が未設定です。月次 DB を置くページ『請求書発行チェック』の "
+            "page_id を mf-kessai-config.default.json または .mf-kessai-config.json に設定してください "
+            "(database の親は page_id/database_id のみ・block_id 不可のため、月次 DB は指定ページ直下へ置く)。")
 
     req = req or _req
-    month_db_id, reused, placement = find_or_create_month_db(target, toggle, token, req, apply=True)
-    placement["report_parent_page"] = _resolve_parent(cfg)  # 親ページ (論理キー) を証跡に載せる
+    month_db_id, reused, placement = find_or_create_month_db(target, parent_page, token, req, apply=True)
+    placement["report_parent_page"] = parent_page  # 親ページ (論理キー) を証跡に載せる
     counts = upsert_report_rows(rows, month_db_id, token, req)
     counts.update({
         "month_db_id": month_db_id,
@@ -663,7 +685,7 @@ def main(argv=None):
         sys.stderr.write(f"[notion_report_sink] {e}\n")
         return 2
     except Exception as e:  # noqa: BLE001
-        # apply 中の想定外失敗 (Notion API 拒否・トグル配下 block_id 親での DB 生成拒否等) を
+        # apply 中の想定外失敗 (Notion API 拒否・DB 生成拒否等) を
         # exit1 (=manifest 上 非致命/部分成功) へ落とさず fail-closed=exit2 に統一する。write ツールで
         # 「エラーで何も書けていないのに部分成功」の誤認を防ぐ (F-15/F-B の runtime 失敗モード)。
         sys.stderr.write(f"[notion_report_sink] 想定外エラーで中止 (fail-closed): {e}\n")

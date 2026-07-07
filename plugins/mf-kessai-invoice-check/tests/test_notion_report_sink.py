@@ -2,7 +2,7 @@
 """notion_report_sink.py (C06) を fake-store req モックで完全オフライン検証する。
 
 網羅する 7 観点 (component-inventory C06 criteria 由来):
-  1. 月次新規 DB 作成 (トグル配下 child_database)。
+  1. 月次新規 DB 作成 (親ページ直下 child_database)。
   2. 同一対象月の month_db_id 再利用 (二重 DB 0)。
   3. newest-on-top / YYYY-MM 昇順安定挿入。
   4. 月内冪等 (upsert 主キー {customer×contract_id×product} で 2 回投入 1 行収束・重複行 0)。
@@ -17,8 +17,8 @@ import notion_report_sink as sink
 
 
 # ---------------------------------------------------------------------------
-# fake Notion store: トグル子ブロック + DB + ページを in-memory dict で模す。
-#   - GET  /blocks/{toggle}/children      → トグル子ブロック list
+# fake Notion store: 親ページ子ブロック + DB + ページを in-memory dict で模す。
+#   - GET  /blocks/{page}/children        → 親ページ子ブロック list
 #   - POST /databases                     → child_database 作成 (id=database_id・子として登録)
 #   - POST /databases/{db}/query          → その DB のページ list (= 当月行)
 #   - POST /pages                         → ページ作成
@@ -27,7 +27,7 @@ import notion_report_sink as sink
 
 def _make_store(children=None):
     state = {
-        "children": list(children or []),  # トグル配下のブロック list
+        "children": list(children or []),  # 親ページ直下のブロック list
         "pages": {},                       # page_id -> {"db": db_id, "properties": {...}}
         "dbs": {},                         # db_id -> title
         "seq": 0,
@@ -41,8 +41,10 @@ def _make_store(children=None):
             return {"results": list(state["children"]), "has_more": False}
 
         if method == "POST" and path == "/databases":
-            assert body["parent"] == {"type": "block_id",
-                                      "block_id": body["parent"]["block_id"]}
+            # database の parent は page_id のみ許容 (block_id=トグルは Notion API 2022-06-28 で不可)。
+            # block_id 親の再混入をこの fake-store が機械 fail させる (実 API 制約を offline で固定)。
+            assert body["parent"]["type"] == "page_id" and body["parent"].get("page_id"), \
+                f"database parent must be page_id (block_id 不可): {body['parent']}"
             state["seq"] += 1
             db_id = f"db-{state['seq']}"
             title = body["title"][0]["text"]["content"]
@@ -156,9 +158,9 @@ def test_title_plain_and_child_db_title():
 
 def test_schema_properties_column_order_and_types():
     props = sink.schema_properties()
-    # 列順 SSOT (この左→右順)。
+    # 列順 SSOT (この左→右順)。取引先名=title を先頭に置き Notion の title 最左固定と一致させる。
     assert list(props.keys()) == [
-        "漏れチェック", "取引先名", "商品名", "先月の金額", "今月の金額", "先月と今月の比較", "コメント"]
+        "取引先名", "漏れチェック", "商品名", "先月の金額", "今月の金額", "先月と今月の比較", "コメント"]
     # build_property 踏襲の型写像。
     assert "title" in props["取引先名"]                       # title = 取引先名
     assert "rich_text" in props["商品名"]
@@ -166,25 +168,25 @@ def test_schema_properties_column_order_and_types():
     assert props["今月の金額"]["number"]["format"] == "yen"
     assert "rich_text" in props["先月と今月の比較"]
     assert "rich_text" in props["コメント"]
-    assert "select" in props["漏れチェック"]
+    assert "checkbox" in props["漏れチェック"]                 # 正常=✓ / 要対応=☐
 
 
 # ---------------------------------------------------------------------------
-# 観点 1: 月次新規 DB 作成 (トグル配下 child_database)
+# 観点 1: 月次新規 DB 作成 (親ページ直下 child_database)
 # ---------------------------------------------------------------------------
 
-def test_create_month_db_under_toggle_as_child_database():
+def test_create_month_db_under_page_as_child_database():
     req, state = _make_store()
-    db_id, reused, placement = sink.find_or_create_month_db("2607", "TOGGLE", "tok", req=req)
+    db_id, reused, placement = sink.find_or_create_month_db("2607", "PAGE", "tok", req=req)
 
     assert reused is False
     post = next(c for c in state["calls"] if c[0] == "POST" and c[1] == "/databases")
     body = post[2]
-    # トグルの子として child_database を作成 (parent=block_id)。
-    assert body["parent"] == {"type": "block_id", "block_id": "TOGGLE"}
+    # 指定ページ直下の child_database として作成 (parent=page_id・block_id 不可)。
+    assert body["parent"] == {"type": "page_id", "page_id": "PAGE"}
     assert body["title"][0]["text"]["content"] == "請求漏れ比較レポート 2026-07"
-    # 7 列スキーマが列順 SSOT で載る。
-    assert list(body["properties"].keys())[:2] == ["漏れチェック", "取引先名"]
+    # 7 列スキーマが列順 SSOT で載る (取引先名=title を先頭に定義=Notion 表示順と一致)。
+    assert list(body["properties"].keys())[:2] == ["取引先名", "漏れチェック"]
     assert state["dbs"][db_id] == "請求漏れ比較レポート 2026-07"
     assert placement["api_strategy"] == "append-child-database"
 
@@ -196,7 +198,7 @@ def test_create_month_db_under_toggle_as_child_database():
 def test_reuse_existing_month_db_no_duplicate():
     existing = _child_db("請求漏れ比較レポート 2026-07")
     req, state = _make_store(children=[existing])
-    db_id, reused, placement = sink.find_or_create_month_db("2607", "TOGGLE", "tok", req=req)
+    db_id, reused, placement = sink.find_or_create_month_db("2607", "PAGE", "tok", req=req)
 
     assert reused is True
     assert db_id == existing["id"]           # 一致ブロックの id = database_id
@@ -207,8 +209,8 @@ def test_reuse_existing_month_db_no_duplicate():
 
 def test_reuse_is_idempotent_across_two_runs():
     req, state = _make_store()
-    id1, reused1, _ = sink.find_or_create_month_db("2607", "TOGGLE", "tok", req=req)
-    id2, reused2, _ = sink.find_or_create_month_db("2607", "TOGGLE", "tok", req=req)
+    id1, reused1, _ = sink.find_or_create_month_db("2607", "PAGE", "tok", req=req)
+    id2, reused2, _ = sink.find_or_create_month_db("2607", "PAGE", "tok", req=req)
     assert reused1 is False and reused2 is True     # 2 回目は再利用
     assert id1 == id2                                # 同じ month_db_id
     assert sum(1 for c in state["calls"] if c[0] == "POST" and c[1] == "/databases") == 1
@@ -231,7 +233,7 @@ def test_late_added_past_month_does_not_jump_to_top():
     children = [_child_db("請求漏れ比較レポート 2026-08"),
                 _child_db("請求漏れ比較レポート 2026-07")]
     req, state = _make_store(children=children)
-    _, _, placement = sink.find_or_create_month_db("2606", "TOGGLE", "tok", req=req)
+    _, _, placement = sink.find_or_create_month_db("2606", "PAGE", "tok", req=req)
     # 2026-06 は既存 08/07 より古いので意図位置は末尾 (index 2)、先頭ではない。
     assert placement["intended_index"] == 2
     assert placement["sibling_month_dbs"] == 2
@@ -241,17 +243,17 @@ def test_find_or_create_dry_run_does_not_create():
     """apply=False で未発見なら DB を作らず (month_db_id=None・created=False)。"""
     req, state = _make_store()
     db_id, reused, placement = sink.find_or_create_month_db(
-        "2607", "TOGGLE", "tok", req=req, apply=False)
+        "2607", "PAGE", "tok", req=req, apply=False)
     assert db_id is None and reused is False
     assert placement["created"] is False
     assert all(not (c[0] == "POST" and c[1] == "/databases") for c in state["calls"])
 
 
 def test_placement_ignores_non_report_child_databases():
-    """トグル配下のレポート以外の child_database は月順序判定から除外する。"""
+    """親ページ直下のレポート以外の child_database は月順序判定から除外する。"""
     children = [_child_db("請求漏れ比較レポート 2026-07"), _child_db("その他メモDB")]
     req, state = _make_store(children=children)
-    _, _, placement = sink.find_or_create_month_db("2608", "TOGGLE", "tok", req=req)
+    _, _, placement = sink.find_or_create_month_db("2608", "PAGE", "tok", req=req)
     assert placement["sibling_month_dbs"] == 1       # 「その他メモDB」は数えない
     assert placement["intended_index"] == 0          # 2026-08 は最新 → 先頭
 
@@ -274,7 +276,7 @@ def test_upsert_creates_row_with_all_seven_columns():
     props = next(c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages")[2]["properties"]
     # title = 取引先名。
     assert props[sink.PROP_CUSTOMER]["title"][0]["text"]["content"] == "A社"
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "正常"
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is True
     assert props[sink.PROP_PRODUCT]["rich_text"][0]["text"]["content"] == "月額プラン"
     # 観点 5: 先月/今月の金額列が充足する (税抜)。
     assert props[sink.PROP_PREV_AMOUNT]["number"] == 10000
@@ -415,7 +417,7 @@ def test_query_month_scoped_to_target_db_only():
     assert titles == {"A"}
 
 
-def test_list_toggle_children_paginates():
+def test_list_block_children_paginates():
     pages = [
         {"results": [{"id": "x"}], "has_more": True, "next_cursor": "n2"},
         {"results": [{"id": "y"}], "has_more": False},
@@ -426,7 +428,7 @@ def test_list_toggle_children_paginates():
         seen.append(path)
         return pages.pop(0)
 
-    out = sink.list_toggle_children("TOG", "tok", req=req)
+    out = sink.list_block_children("PAGE", "tok", req=req)
     assert [b["id"] for b in out] == ["x", "y"]
     assert "start_cursor=n2" in seen[1]
 
@@ -462,7 +464,7 @@ def test_failed_row_is_isolated_and_counted_as_skipped():
 
 def test_run_apply_creates_db_and_upserts():
     req, state = _make_store()
-    cfg = {"notion": {"report_toggle_block": "TOGGLE", "report_parent_page": "PAGE"}}
+    cfg = {"notion": {"report_parent_page": "PAGE"}}
     rows = [{"customer": "A社", "product": "P", "prev_amount": 1, "curr_amount": 2}]
     res = sink.run(rows, "2607", cfg, "tok", req=req, apply=True)
 
@@ -475,7 +477,7 @@ def test_run_apply_creates_db_and_upserts():
 
 def test_run_reuses_db_on_second_call():
     req, state = _make_store()
-    cfg = {"notion": {"report_toggle_block": "TOGGLE"}}
+    cfg = {"notion": {"report_parent_page": "PAGE"}}
     rows = [{"customer": "A社", "product": "P"}]
     r1 = sink.run(rows, "2607", cfg, "tok", req=req, apply=True)
     r2 = sink.run([dict(rows[0], comment="day2")], "2607", cfg, "tok", req=req, apply=True)
@@ -491,7 +493,7 @@ def test_run_dry_run_touches_no_network():
         called.append((method, path))
         raise AssertionError("dry-run must not call network")
 
-    cfg = {"notion": {"report_toggle_block": "TOGGLE"}}
+    cfg = {"notion": {"report_parent_page": "PAGE"}}
     res = sink.run([{"customer": "A社"}, {"product": "no-customer"}],
                    "2607", cfg, None, req=req, apply=False)
     assert called == []
@@ -505,11 +507,12 @@ def test_run_dry_run_touches_no_network():
 def test_run_invalid_target_raises():
     import pytest
     with pytest.raises(sink.SinkError):
-        sink.run([], "2699", {"notion": {"report_toggle_block": "T"}}, "tok", apply=True)
+        sink.run([], "2699", {"notion": {"report_parent_page": "P"}}, "tok", apply=True)
 
 
-def test_run_missing_toggle_raises_on_apply():
+def test_run_missing_parent_page_raises_on_apply():
     import pytest
+    # report_parent_page 未設定は fail-closed (月次 DB を置くページが不明)。
     with pytest.raises(sink.SinkError):
         sink.run([{"customer": "A"}], "2607", {"notion": {}}, "tok", apply=True)
 
@@ -535,7 +538,7 @@ def test_main_apply_wires_fake_req(tmp_path, capsys, monkeypatch):
     req, state = _make_store()
 
     monkeypatch.setattr(sink, "load_config",
-                        lambda p=None: {"notion": {"report_toggle_block": "TOGGLE"}})
+                        lambda p=None: {"notion": {"report_parent_page": "PAGE"}})
     monkeypatch.setattr(sink, "_notion_token", lambda cfg=None: "tok")
     monkeypatch.setattr(sink, "_req", req)     # run() の req or _req が拾う
 
@@ -560,7 +563,7 @@ def test_main_skipped_rows_exit_1(tmp_path, capsys, monkeypatch):
     rows_file.write_text(json.dumps([{"customer": "A社"}, {"product": "P"}]), encoding="utf-8")
     req, state = _make_store()
     monkeypatch.setattr(sink, "load_config",
-                        lambda p=None: {"notion": {"report_toggle_block": "TOGGLE"}})
+                        lambda p=None: {"notion": {"report_parent_page": "PAGE"}})
     monkeypatch.setattr(sink, "_notion_token", lambda cfg=None: "tok")
     monkeypatch.setattr(sink, "_req", req)
     rc = sink.main(["--rows", str(rows_file), "--target", "2607", "--apply", "--verified"])
@@ -602,7 +605,7 @@ def test_seam_c05_output_populates_all_seven_columns():
     # seam 断裂なら 漏れチェック(gap_check)/今月の金額(amount)/比較(period_diff) が空になる。7 列全充足を固定。
     assert props[sink.PROP_CUSTOMER]["title"][0]["text"]["content"] == "継続社"
     assert props[sink.PROP_PRODUCT]["rich_text"][0]["text"]["content"] == "月額"
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "正常"          # ← gap_check
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is True          # ← gap_check
     assert props[sink.PROP_PREV_AMOUNT]["number"] == 10000
     assert props[sink.PROP_CURR_AMOUNT]["number"] == 12000                     # ← amount
     assert props[sink.PROP_COMPARISON]["rich_text"][0]["text"]["content"]      # ← period_diff
@@ -621,7 +624,7 @@ def test_seam_multi_contract_action_survives_collapse():
     posts = [c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages"]
     assert len(posts) == 1                                        # 1 行へ収束
     props = posts[0][2]["properties"]
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "要対応"   # 要対応が生存=漏れ隠蔽なし
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False   # 要対応が生存=漏れ隠蔽なし
 
 
 def test_seam_stopped_row_has_empty_curr_amount_but_populated_check():
@@ -634,7 +637,7 @@ def test_seam_stopped_row_has_empty_curr_amount_but_populated_check():
     req, state = _make_store()
     sink.upsert_report_rows(rows, "db-1", "tok", req=req)
     props = next(c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages")[2]["properties"]
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "要対応"
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False
     assert props[sink.PROP_PREV_AMOUNT]["number"] == 5000
     assert sink.PROP_CURR_AMOUNT not in props or props[sink.PROP_CURR_AMOUNT].get("number") is None
     assert props[sink.PROP_COMPARISON]["rich_text"][0]["text"]["content"]
@@ -656,7 +659,7 @@ def test_cross_run_action_not_downgraded_by_normal():
     pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
     assert len(pages) == 1                                        # 同一行へ収束 (重複行なし)
     props = pages[0]["properties"]
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "要対応"   # 要対応を保持=漏れ隠蔽なし
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False   # 要対応を保持=漏れ隠蔽なし
     note = "".join((rt.get("text") or {}).get("content", "")
                    for rt in props[sink.PROP_COMMENT]["rich_text"])
     assert "cross-run safe guard" in note                        # 保持した旨を注記
@@ -684,7 +687,7 @@ def test_row_contract_maps_every_producer_key_to_column():
     props = sink._build_row_props(sentinels, creating=True)
     for producer_key, col in sink.ROW_CONTRACT.items():
         assert col in props, f"ROW_CONTRACT[{producer_key}]→{col} が _build_row_props 出力に不在 (SSOT drift)"
-    assert props[sink.PROP_MISSING_CHECK]["select"]["name"] == "要対応"
+    assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False
     assert props[sink.PROP_PREV_AMOUNT]["number"] == 111
     assert props[sink.PROP_CURR_AMOUNT]["number"] == 222
     assert props[sink.PROP_CUSTOMER]["title"][0]["text"]["content"] == "顧客X"
@@ -694,7 +697,7 @@ def test_token_missing_is_fail_closed_exit2(tmp_path, monkeypatch):
     """F-15: --apply で token 欠落は exit2 (fail-closed)。exit1 (部分成功誤認) にしない。"""
     rows_file = tmp_path / "rows.json"
     rows_file.write_text("[]", encoding="utf-8")
-    monkeypatch.setattr(sink, "load_config", lambda *a, **k: {"notion": {"report_toggle_block": "T"}})
+    monkeypatch.setattr(sink, "load_config", lambda *a, **k: {"notion": {"report_parent_page": "P"}})
 
     def _boom(cfg):
         raise RuntimeError("NOTION_API_KEY 未設定")
@@ -708,7 +711,7 @@ def test_apply_runtime_failure_is_fail_closed_exit2(tmp_path, monkeypatch):
     """F-15/F-B: apply 中の想定外例外 (Notion API 拒否等) は exit1 でなく exit2 (fail-closed)。"""
     rows_file = tmp_path / "rows.json"
     rows_file.write_text("[]", encoding="utf-8")
-    monkeypatch.setattr(sink, "load_config", lambda *a, **k: {"notion": {"report_toggle_block": "T"}})
+    monkeypatch.setattr(sink, "load_config", lambda *a, **k: {"notion": {"report_parent_page": "P"}})
     monkeypatch.setattr(sink, "_notion_token", lambda cfg: "tok")
 
     def _api_reject(*a, **k):
