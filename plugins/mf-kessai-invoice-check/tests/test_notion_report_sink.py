@@ -2,7 +2,7 @@
 """notion_report_sink.py (C06) を fake-store req モックで完全オフライン検証する。
 
 網羅する 7 観点 (component-inventory C06 criteria 由来):
-  1. 月次新規 DB 作成 (トグル配下 child_database)。
+  1. 月次新規 DB 作成 (親ページ直下 child_database)。
   2. 同一対象月の month_db_id 再利用 (二重 DB 0)。
   3. newest-on-top / YYYY-MM 昇順安定挿入。
   4. 月内冪等 (upsert 主キー {customer×contract_id×product} で 2 回投入 1 行収束・重複行 0)。
@@ -17,8 +17,8 @@ import notion_report_sink as sink
 
 
 # ---------------------------------------------------------------------------
-# fake Notion store: トグル子ブロック + DB + ページを in-memory dict で模す。
-#   - GET  /blocks/{toggle}/children      → トグル子ブロック list
+# fake Notion store: 親ページ子ブロック + DB + ページを in-memory dict で模す。
+#   - GET  /blocks/{page}/children        → 親ページ子ブロック list
 #   - POST /databases                     → child_database 作成 (id=database_id・子として登録)
 #   - POST /databases/{db}/query          → その DB のページ list (= 当月行)
 #   - POST /pages                         → ページ作成
@@ -27,7 +27,7 @@ import notion_report_sink as sink
 
 def _make_store(children=None):
     state = {
-        "children": list(children or []),  # トグル配下のブロック list
+        "children": list(children or []),  # 親ページ直下のブロック list
         "pages": {},                       # page_id -> {"db": db_id, "properties": {...}}
         "dbs": {},                         # db_id -> title
         "seq": 0,
@@ -172,7 +172,7 @@ def test_schema_properties_column_order_and_types():
 
 
 # ---------------------------------------------------------------------------
-# 観点 1: 月次新規 DB 作成 (トグル配下 child_database)
+# 観点 1: 月次新規 DB 作成 (親ページ直下 child_database)
 # ---------------------------------------------------------------------------
 
 def test_create_month_db_under_page_as_child_database():
@@ -250,7 +250,7 @@ def test_find_or_create_dry_run_does_not_create():
 
 
 def test_placement_ignores_non_report_child_databases():
-    """トグル配下のレポート以外の child_database は月順序判定から除外する。"""
+    """親ページ直下のレポート以外の child_database は月順序判定から除外する。"""
     children = [_child_db("請求漏れ比較レポート 2026-07"), _child_db("その他メモDB")]
     req, state = _make_store(children=children)
     _, _, placement = sink.find_or_create_month_db("2608", "PAGE", "tok", req=req)

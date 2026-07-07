@@ -7,14 +7,14 @@
 # inputs:
 #   - argv: --rows FILE (C05 分類済みレポート行 JSON list) --target YYMM [--apply --verified] [--config PATH]
 #   - config: mf-kessai-config.default.json (配布既定) + .mf-kessai-config.json (ローカル上書き) の
-#             notion.report_parent_page / notion.report_toggle_block (XLOCAL 共有の配布既定 + 任意上書き)
+#             notion.report_parent_page (XLOCAL 共有の配布既定 + 任意上書き)
 # outputs:
 #   - stdout: upsert 結果 JSON {created, updated, skipped, deleted(=0), collapsed_multi_contract,
 #             month_db_id, month_db_reused, placement}
 #   - stderr: violation
-#   - exit: 0=OK / 1=部分失敗 / 2=fail-closed (target/トグル未設定・rows 不正)
+#   - exit: 0=OK / 1=部分失敗 / 2=fail-closed (target/親ページ未設定・rows 不正)
 # contexts: [C, E]
-# network: true   # Notion REST (トグル子ブロック list + DB find-or-create + 行 upsert)。MF へは書かない
+# network: true   # Notion REST (親ページ子ブロック list + DB find-or-create + 行 upsert)。MF へは書かない
 # write-scope: notion:monthly-report-db (指定ページ『請求書発行チェック』直下・newest-on-top intended_index/append fallback)
 # dependencies: [notion_transport, build_notion_db, mfk_api]
 # requires-python: ">=3.11"
@@ -117,7 +117,7 @@ COLUMN_ORDER = [
 # (宣言と実装の乖離を機械 fail させる)、(2) test_seam_c05_output_populates_all_seven_columns が
 # C05 実出力 → 本 sink を実 pipe で貫通して 7 列全充足を検証する (isolation では捕捉不能)。
 ROW_CONTRACT = {
-    "gap_check": PROP_MISSING_CHECK,   # 漏れチェック (select: 正常/要対応)
+    "gap_check": PROP_MISSING_CHECK,   # 漏れチェック (checkbox: 正常=✓/要対応=☐)
     "customer": PROP_CUSTOMER,         # 取引先名 (title)
     "product": PROP_PRODUCT,           # 商品名
     "prev_amount": PROP_PREV_AMOUNT,   # 先月の金額 (税抜)
@@ -685,7 +685,7 @@ def main(argv=None):
         sys.stderr.write(f"[notion_report_sink] {e}\n")
         return 2
     except Exception as e:  # noqa: BLE001
-        # apply 中の想定外失敗 (Notion API 拒否・トグル配下 block_id 親での DB 生成拒否等) を
+        # apply 中の想定外失敗 (Notion API 拒否・DB 生成拒否等) を
         # exit1 (=manifest 上 非致命/部分成功) へ落とさず fail-closed=exit2 に統一する。write ツールで
         # 「エラーで何も書けていないのに部分成功」の誤認を防ぐ (F-15/F-B の runtime 失敗モード)。
         sys.stderr.write(f"[notion_report_sink] 想定外エラーで中止 (fail-closed): {e}\n")
