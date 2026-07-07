@@ -258,6 +258,19 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-harness-coverage-selfcheck.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
+    # plugin-dev-planner task-graph 拡張 (C1-C16 第3の射影) 投入: §4.3 (kebab-case) は満たすが
+    # verb (derive/compute/accept/apply/check/migrate) が ALLOWED_VERBS 外。既存 check-* 決定論
+    # ゲート族と同種で、SKILL.md(script_refs)/schemas/tests/handoff の参照整合の原子性のため、
+    # 許可動詞化は planner check-* 群と同じ後続 Change Governance 一括改名 PR まで PENDING
+    # (validate-task-graph.py / render-task-graph-mermaid.py は verb が ALLOWED_VERBS 内ゆえ非対象)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/derive-task-graph.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/compute-ready-set.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/accept-discovered-task.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/apply-handoff-notes.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plan-ledger.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/migrate-plan-layout.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-shape-non-regression.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-task-state-schema.py",
     "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py",
     # harness-creator パイプライン境界契約 (E1/E2/E3) 初回投入: §4.3 (kebab-case) は満たすが
     # verb (check/emit) が ALLOWED_VERBS 外。これらは既存の check-* 決定論ゲート族 (上記 19 本) と
@@ -270,6 +283,18 @@ PENDING_RENAME_PATHS = {
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-provenance-chain.py",
     "plugins/harness-creator/scripts/check-route-component-parity.py",
     "plugins/harness-creator/scripts/emit-improvement-handoff.py",
+    # task-graph consumer (harness-creator 実行系 C01-C08 初回投入): dispatch (ready-set 配信) /
+    # sync (task-state write-back) / inject (成果物注入) / emit (discovered-task) / summarize
+    # (進捗集計) / manage (build lease) / record (knowledge 記録) は ALLOWED_VERBS 外。
+    # commands/capability-build.md / references / tests / SKILL 参照の原子的更新を伴う後続
+    # Change Governance 一括改名 PR まで PENDING (planner check-* / emit-improvement-handoff と同種)。
+    "plugins/harness-creator/scripts/dispatch-ready-set.py",
+    "plugins/harness-creator/scripts/sync-task-state.py",
+    "plugins/harness-creator/scripts/inject-task-inputs.py",
+    "plugins/harness-creator/scripts/emit-discovered-task.py",
+    "plugins/harness-creator/scripts/summarize-task-progress.py",
+    "plugins/harness-creator/scripts/manage-build-lease.py",
+    "plugins/harness-creator/scripts/record-task-graph-knowledge.py",
     # ubm-goal-setting 初回投入: detect (registry MD5 差分検出) / check (knowledge 500 行
     # ガード) は verb pending。SKILL.md(script_refs)/workflow-manifest/tests/EVALS.json/
     # 計画書 (plugin-plans/finish) の参照整合の原子性のため、planner 群と同じ後続

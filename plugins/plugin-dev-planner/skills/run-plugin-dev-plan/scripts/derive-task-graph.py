@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+# /// script
+# name: derive-task-graph
+# purpose: 13 phase §5 完了チェックリスト項目 + component-inventory.json から task-graph.json (第3の射影) を決定論導出し canonical serialization で単一 writer として書き出す。graph_hash() と read-only サブコマンド --print-graph-hash <path> (FC-4) を提供し consumer=harness-creator の build 開始時 pin 用 hash 取得の唯一の経路とする。
+# inputs:
+#   - argv: <PLAN_DIR> | --print-graph-hash <task-graph.json path>
+# outputs:
+#   - stdout: (既定) 書込パス / (--print-graph-hash) sha256:<64hex>
+#   - stderr: 導出/正準化エラー
+#   - exit: 0=OK / 1=graph 不正で hash 算出不能 / 2=usage/IO error
+# contexts: [C, E]
+# network: false
+# write-scope: <PLAN_DIR>/task-graph.json (既定経路のみ・--print-graph-hash は副作用なし)
+# dependencies: []
+# requires-python: ">=3.10"
+# ///
+"""task-graph.json の決定論導出器 + canonicalizer + graph_hash (単一 writer)。
+
+design: plugin-plans/plugin-dev-planner/phase-05-implementation.md (C2/C11/C16)。
+canonicalize() が唯一の正準形を書き、validate-task-graph.py は同一ロジックを再適用して
+非正準を拒否する (読み書き責務分離)。graph_hash() は canonical bytes の sha256 で、
+--print-graph-hash が consumer 向け read-only 契約 (argv/stdout/exit を安定固定) を担う。
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import specfm  # noqa: E402
+
+CHECKLIST_SECTION = "## 完了チェックリスト"
+# task node の固定 key 順 (canonical serialization 用)。acceptance_criterion のみ optional (存在時のみ出力)。
+_NODE_KEYS = ("id", "title", "phase_ref", "entity_ref", "state", "write_scope", "acceptance_criterion")
+_EDGE_KEYS = ("type", "from", "to")
+# チェックボックス付き行のみを task 候補にする (## 完了チェックリスト 節に内包される ### 受入例 の `- ` を除外)。
+_CHECKBOX_RE = re.compile(r"^-\s+\[[ xX]\]\s+(.+)$")
+
+
+def _parse_checklist_items(section_body: str) -> list[str]:
+    """`## 完了チェックリスト` 節本文からチェックボックス項目 (task node 候補) を抽出する。"""
+    items: list[str] = []
+    for line in section_body.splitlines():
+        m = _CHECKBOX_RE.match(line.strip())
+        if m:
+            items.append(m.group(1).strip())
+    return items
+
+
+def _phase_files(plan_dir: Path) -> list[Path]:
+    """plan_dir 直下の phase-NN-*.md を phase 番号順で返す。"""
+    return sorted(plan_dir.glob("phase-*.md"), key=lambda p: p.name)
+
+
+def _inventory_build_targets(plan_dir: Path) -> dict[str, str]:
+    """component id → build_target マップ (write_scope 解決用・欠落時は空)。"""
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.exists():
+        return {}
+    try:
+        inv = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, str] = {}
+    for comp in inv.get("components", []):
+        cid = comp.get("id")
+        bt = comp.get("build_target")
+        if isinstance(cid, str) and isinstance(bt, str) and bt:
+            out[cid] = bt
+    return out
+
+
+def _inventory_depends(plan_dir: Path) -> dict[str, list[str]]:
+    """component id → depends_on (component 粒度) マップ (task depends_on 反映用)。"""
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.exists():
+        return {}
+    try:
+        inv = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, list[str]] = {}
+    for comp in inv.get("components", []):
+        cid = comp.get("id")
+        deps = comp.get("depends_on", [])
+        if isinstance(cid, str) and isinstance(deps, list):
+            out[cid] = [d for d in deps if isinstance(d, str)]
+    return out
+
+
+def _phase_order(phase_ref: str) -> int:
+    """P01..P13 を数値順へ写す。未知形式は末尾扱いにして既存後方互換を保つ。"""
+    m = re.match(r"^P(\d+)$", str(phase_ref))
+    return int(m.group(1)) if m else 10_000
+
+
+def derive(plan_dir: Path) -> dict:
+    """13 phase §5 タスク項目 + component-inventory.json から task-graph (未正準の生形) を導出する。
+
+    1 チェックボックス項目 = 1 task node。entities_covered が複数なら各 entity ごとに node を生成し、
+    空なら entity_ref=null の component 非依存タスクとする。parent_of で phase 仮想ルートへ連結し、
+    component-inventory の depends_on を entity_ref 一致 node 集合間の depends_on エッジへ反映する。
+    """
+    plan_dir = Path(plan_dir)
+    build_targets = _inventory_build_targets(plan_dir)
+    comp_depends = _inventory_depends(plan_dir)
+
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    # entity_ref -> その entity に属する node id 群 (depends_on 反映で使用)。
+    nodes_by_entity: dict[str, list[str]] = {}
+    phase_by_node: dict[str, int] = {}
+    produced_entities: set[str] = set()
+    # phase ライフサイクル順序 edge 導出用: phase marker (root) を出現順に、
+    # 各 phase の leaf node 群を root ごとに記録する。
+    phase_roots: list[str] = []
+    leaves_by_root: dict[str, list[str]] = {}
+
+    for pf in _phase_files(plan_dir):
+        text = pf.read_text(encoding="utf-8")
+        fm = specfm.parse_frontmatter(text)
+        phase_ref = str(fm.get("id") or pf.stem)
+        entities = fm.get("entities_covered") or []
+        if not isinstance(entities, list):
+            entities = []
+        sections = specfm.phase_body_sections(text)
+        items = _parse_checklist_items(sections.get(CHECKLIST_SECTION, ""))
+        if not items:
+            continue
+        # phase 仮想ルート node (parent_of の親 + phase 完了集約 marker)。
+        root_id = phase_ref
+        nodes.append({
+            "id": root_id,
+            "title": str(fm.get("phase_name") or phase_ref),
+            "phase_ref": phase_ref,
+            "entity_ref": None,
+            "state": "pending",
+            "write_scope": root_id,
+        })
+        phase_roots.append(root_id)
+        leaves_by_root.setdefault(root_id, [])
+        # entities が空なら [None] で 1 系列だけ生成。
+        entity_slots = entities if entities else [None]
+        for e_idx, entity in enumerate(entity_slots):
+            for i_idx, title in enumerate(items):
+                ent_tag = entity if isinstance(entity, str) else "x"
+                node_id = f"{phase_ref}-{ent_tag}-{i_idx + 1:02d}"
+                write_scope = build_targets.get(entity, node_id) if isinstance(entity, str) else node_id
+                nodes.append({
+                    "id": node_id,
+                    "title": title,
+                    "phase_ref": phase_ref,
+                    "entity_ref": entity if isinstance(entity, str) else None,
+                    "state": "pending",
+                    "write_scope": write_scope,
+                })
+                phase_by_node[node_id] = _phase_order(phase_ref)
+                leaves_by_root[root_id].append(node_id)
+                edges.append({"type": "parent_of", "from": root_id, "to": node_id})
+                if isinstance(entity, str) and entity in build_targets and entity not in produced_entities:
+                    edges.append({"type": "produces", "from": node_id, "to": build_targets[entity]})
+                    produced_entities.add(entity)
+                if isinstance(entity, str):
+                    nodes_by_entity.setdefault(entity, []).append(node_id)
+
+    # component 粒度 depends_on を entity_ref 一致 node 集合間の task depends_on へ反映。
+    for cid, deps in comp_depends.items():
+        downstream = nodes_by_entity.get(cid, [])
+        for dep in deps:
+            upstream = nodes_by_entity.get(dep, [])
+            for dn in downstream:
+                for up in upstream:
+                    # phase ライフサイクル軸を逆走させない。component 依存は「同一または過去
+                    # phase の prerequisite」にだけ展開し、P02 が P10 を待つような未来依存を
+                    # task-graph へ焼かない。
+                    if phase_by_node.get(up, 10_000) > phase_by_node.get(dn, 10_000):
+                        continue
+                    edges.append({"type": "depends_on", "from": dn, "to": up})
+
+    # --- phase ライフサイクル順序を task-graph へ焼く (event 駆動チェーンの graph 保証) ---
+    # ユーザー要件「1 task が完了 → done と記述される → それが次 task の発火条件になる」を
+    # 構造で保証する。既存の x-node (entity_ref=null) は depends_on を一切持たず t=0 で全 ready に
+    # なるため、final-review が実装 phase 完了前に done 化する順序逆転が起きていた。以下 2 規則で封じる:
+    #   (1) phase marker は自 phase の全 leaf に depends_on する (marker done = phase 完了の集約点)。
+    #       from=marker/to=leaf は parent_of と同じ marker→leaf 向きなので DAG 閉路を作らない。
+    #   (2) 各 phase の leaf は直前 phase marker に depends_on する (前 phase 完了記述が発火条件)。
+    # これで「前 phase の全 leaf done → marker ready→done → 次 phase leaf ready」の直列チェーンになる。
+    # compute-ready-set は readiness を depends_on のみで判定し parent_of を無視するため
+    # marker↔leaf の parent_of は readiness に干渉しない (デッドロックしない)。
+    for root_id in phase_roots:
+        for leaf in leaves_by_root.get(root_id, []):
+            edges.append({"type": "depends_on", "from": root_id, "to": leaf})
+    for prev_root, cur_root in zip(phase_roots, phase_roots[1:]):
+        for leaf in leaves_by_root.get(cur_root, []):
+            edges.append({"type": "depends_on", "from": leaf, "to": prev_root})
+
+    return {"schema_version": "1.0", "nodes": nodes, "edges": edges}
+
+
+def _canon_node(n: dict) -> dict:
+    out: dict = {}
+    for k in _NODE_KEYS:
+        if k == "acceptance_criterion":
+            if k in n and n[k] is not None:
+                out[k] = n[k]
+        else:
+            out[k] = n.get(k)
+    return out
+
+
+def _canon_edge(e: dict) -> dict:
+    return {k: e.get(k) for k in _EDGE_KEYS}
+
+
+def canonicalize(graph: dict) -> dict:
+    """graph を正準形へ整える (nodes=id 昇順 / edges=(type,from,to) 昇順 / 固定 key 順)。冪等。"""
+    nodes = [_canon_node(n) for n in graph.get("nodes", [])]
+    edges = [_canon_edge(e) for e in graph.get("edges", [])]
+    nodes.sort(key=lambda n: str(n.get("id")))
+    edges.sort(key=lambda e: (str(e.get("type")), str(e.get("from")), str(e.get("to"))))
+    return {"schema_version": graph.get("schema_version", "1.0"), "nodes": nodes, "edges": edges}
+
+
+def canonical_json(graph: dict) -> str:
+    """canonical graph の JSON 文字列 (末尾 newline なし・graph_hash とファイル書込の共通担体)。"""
+    return json.dumps(canonicalize(graph), ensure_ascii=False, indent=2)
+
+
+def graph_hash(graph: dict) -> str:
+    """canonical bytes の sha256 (`sha256:<64hex>`)。単一 writer の canonicalize 出力から導出。"""
+    return "sha256:" + hashlib.sha256(canonical_json(graph).encode("utf-8")).hexdigest()
+
+
+def _usage() -> int:
+    print("usage: derive-task-graph.py <PLAN_DIR> | --print-graph-hash <task-graph.json>", file=sys.stderr)
+    return 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        return _usage()
+
+    if argv[0] == "--print-graph-hash":
+        if len(argv) < 2:
+            return _usage()
+        path = Path(argv[1])
+        try:
+            graph = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"read/parse error: {exc}", file=sys.stderr)
+            return 2
+        try:
+            h = graph_hash(graph)
+        except (TypeError, AttributeError, KeyError) as exc:
+            print(f"graph invalid, cannot hash: {exc}", file=sys.stderr)
+            return 1
+        print(h)
+        return 0
+
+    # 既定経路: PLAN_DIR から derive → canonicalize → task-graph.json 書込 (唯一の writer)。
+    plan_dir = Path(argv[0])
+    if not plan_dir.is_dir():
+        print(f"not a directory: {plan_dir}", file=sys.stderr)
+        return 2
+    graph = derive(plan_dir)
+    out_path = plan_dir / "task-graph.json"
+    out_path.write_text(canonical_json(graph) + "\n", encoding="utf-8")
+    print(str(out_path))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

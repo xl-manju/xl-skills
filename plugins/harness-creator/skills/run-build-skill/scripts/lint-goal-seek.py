@@ -211,6 +211,24 @@ def lint_file(path: Path) -> tuple[list[str], list[str]]:
                 "with-goal-seek combinator 再適用で注入。run-goal-seek/SKILL.md と同型機械検査)"
             )
 
+        # engine:task-graph を concrete 宣言する生成 SKILL.md のみ、consumption verifier /
+        # dependency graph knowledge consult トークンの存在を検査する (route C04・非 task-graph は非対象)。
+        # engine 宣言は frontmatter (goal_seek.engine) にあるため full text で検出するが、
+        # トークン検査は base 検査 (INTERMEDIATE/VERIFICATION) と同じく wiring_text へ scope 限定する
+        # (本文引用/散文中のトークンで満たされる全文 substring の偽陰性経路を塞ぐ。LS-01b と同型)。
+        # template placeholder ({{...}}) の engine 宣言は具体値でないため対象外。
+        if _CONCRETE_TASK_GRAPH_ENGINE_RE.search(text):
+            missing_tg = [
+                t for t in (_TASK_GRAPH_WIRING_TOKENS + _TASK_GRAPH_KNOWLEDGE_TOKENS)
+                if t not in wiring_text
+            ]
+            if missing_tg:
+                findings.append(
+                    f"{path}: engine:task-graph 宣言スキルに consumption verifier / dependency graph "
+                    f"knowledge consult トークン {missing_tg} が不在 "
+                    "(with-goal-seek 再適用で task-graph 変種配線を注入すること)"
+                )
+
     return findings, warnings
 
 
@@ -227,6 +245,33 @@ _FORK_RE = re.compile(r"goal_seek\.fork \| default\(\\?\"([\w-]+)\\?\"\)")
 _MAXLOOPS_RE = re.compile(r"goal_seek\.max_loops \| default\((\d+)\)")
 # 中間成果物ログファイル名の SSOT 検証 (render定数 / patch / schema description で同名であること)。
 _INTERMEDIATE_PATH_RE = re.compile(r"eval-log/\{\{skill_name\}\}-intermediate\.jsonl")
+
+# --- engine:task-graph 変種 (route C04 追加検査) の SSOT トークン ---------------------
+# 既存 check_default_drift() のロジックには触れず、check_task_graph_variant() として追加する。
+_TASK_GRAPH_ENGINE_VALUE = "task-graph"
+# (c-1) consumption verifier トークン: 依存順消費 (ready 集合の最小 id を拘束選択) と
+#        self-reflect 追記 item の完了 gate を intermediate.jsonl トレースで機械検査する証跡。
+_TASK_GRAPH_WIRING_TOKENS = (
+    "ready-set-from-checklist.py",  # ENG-C01 同梱・ready 算出
+    "self-reflect-append.py",        # ENG-C02 同梱・自己反映
+    "ready_set",                     # intermediate.jsonl additive (算出時点の ready 集合)
+    "selected_item",                 # intermediate.jsonl additive (実際に選択した id)
+    "依存順消費",                     # consumption verifier: selected_item==ready 最小 id 検査
+    "self-reflect 完了 gate",         # consumption verifier: 追記 item が done まで gate
+)
+# (c-2) dependency graph knowledge consult トークン: ENG-C06/ENG-C07 同梱と各 surface consult 手順。
+_TASK_GRAPH_KNOWLEDGE_TOKENS = (
+    "extract-capability-dependency-graph.py",  # ENG-C06 同梱
+    "record-capability-graph-knowledge.py",    # ENG-C07 同梱
+    "dependency graph knowledge",              # 各 surface 実行前 consult 手順
+)
+# 生成 SKILL.md が concrete に engine: task-graph を宣言しているかの判定。
+# frontmatter の YAML 宣言行 (行頭・任意インデント・末尾 YAML コメント許容) のみに一致させ、
+# 機能を説明する散文/コメント中の 'engine:task-graph' 言及 (行頭でない or 末尾に散文が続く) は
+# 除外する (自己言及ドキュメントへの誤発火を防ぐ)。template placeholder ({{...}}) も非一致。
+_CONCRETE_TASK_GRAPH_ENGINE_RE = re.compile(
+    r"^\s*engine:\s*task-graph\s*(?:#.*)?$", re.MULTILINE
+)
 
 
 def _extract_defaults(text: str) -> dict[str, str | None]:
@@ -369,6 +414,77 @@ def check_default_drift() -> list[str]:
                     f"self-test: 機械検証 bash トークン '{token}' が run-goal-seek/SKILL.md に不在 "
                     "(engine 本体側の bash が同型でない)"
                 )
+
+    # engine:task-graph 変種の追加検査を append する (既存検査ロジックは不変)。
+    findings.extend(check_task_graph_variant())
+    return findings
+
+
+def check_task_graph_variant() -> list[str]:
+    """engine:task-graph 変種 (route C03) の SSOT 整合 + consumption verifier トークン存在を検査する (route C04)。
+
+    (a) build-flags.schema.json の engine enum に 'task-graph' が存在し、render-combinators.py の
+        配線にも 'task-graph' の言及がある (enum と配線コメントの整合)。
+    (b) goal-seek-loop.schema.json の checklist item に depends_on additive フィールド (array/default[])
+        が存在する (依存充足順に必須・後方互換)。
+    (c) render-combinators.py の task-graph 配線サブセクションに consumption verifier トークン
+        (依存順消費 + self-reflect 完了 gate) と dependency graph knowledge consult トークンが揃う。
+    既存 check_default_drift() の検査には一切干渉せず、追加検査としてのみ機能する (回帰防止)。
+    """
+    findings: list[str] = []
+    try:
+        render_text = _RENDER.read_text(encoding="utf-8")
+        build_flags = json.loads(_BUILD_FLAGS.read_text(encoding="utf-8"))
+        loop_schema = json.loads(_LOOP_SCHEMA.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return [f"self-test(task-graph): source read error: {e}"]
+
+    # (a) engine enum に task-graph が存在し render 配線にも言及がある。
+    engine_enum = (
+        build_flags.get("properties", {}).get("with_goal_seek", {})
+        .get("properties", {}).get("engine", {}).get("enum", [])
+    )
+    if _TASK_GRAPH_ENGINE_VALUE not in engine_enum:
+        findings.append(
+            f"self-test(task-graph): build-flags.schema の with_goal_seek.engine enum に "
+            f"'{_TASK_GRAPH_ENGINE_VALUE}' が不在 ({engine_enum})"
+        )
+    if _TASK_GRAPH_ENGINE_VALUE not in render_text:
+        findings.append(
+            "self-test(task-graph): render-combinators.py 配線に 'task-graph' engine の言及が不在 "
+            "(build-flags enum と配線コメントの整合が取れていない)"
+        )
+
+    # (b) checklist item に depends_on additive フィールド。
+    item_props = (
+        loop_schema.get("properties", {}).get("checklist", {})
+        .get("items", {}).get("properties", {})
+    )
+    dep = item_props.get("depends_on")
+    if dep is None:
+        findings.append(
+            "self-test(task-graph): goal-seek-loop.schema の checklist item に depends_on additive "
+            "フィールドが不在 (engine:task-graph の依存充足順算出に必須)"
+        )
+    elif dep.get("type") != "array" or dep.get("default") != []:
+        findings.append(
+            "self-test(task-graph): depends_on は additive/後方互換のため type=array かつ default=[] "
+            f"である必要がある (現状 type={dep.get('type')} default={dep.get('default')})"
+        )
+
+    # (c) consumption verifier + dependency graph knowledge consult トークン。
+    for tok in _TASK_GRAPH_WIRING_TOKENS:
+        if tok not in render_text:
+            findings.append(
+                f"self-test(task-graph): consumption verifier トークン '{tok}' が render-combinators.py "
+                "の task-graph 配線に不在 (依存順消費/self-reflect 完了 gate の機械検査が生成 SKILL.md へ注入されない)"
+            )
+    for tok in _TASK_GRAPH_KNOWLEDGE_TOKENS:
+        if tok not in render_text:
+            findings.append(
+                f"self-test(task-graph): dependency graph knowledge consult トークン '{tok}' が "
+                "render-combinators.py の task-graph 配線に不在 (C06/C07 同梱・consult 手順が欠落)"
+            )
     return findings
 
 

@@ -27,10 +27,13 @@ def _route(route_id: str, name: str, target: str, *, depends_on=None, builder="p
     return route
 
 
-def _write_plan(tmp_path: Path, routes: list[dict]) -> Path:
+def _write_plan(tmp_path: Path, routes: list[dict], *, task_graph: dict | None = None) -> Path:
     plan = tmp_path / "plugin-plans" / SLUG
     plan.mkdir(parents=True)
     handoff = {"target_plugin_slug": SLUG, "plan_dir": str(plan), "routes": routes}
+    if task_graph is not None:
+        handoff["task_graph_ref"] = {"path": "task-graph.json", "schema_version": "1.0"}
+        (plan / "task-graph.json").write_text(json.dumps(task_graph, ensure_ascii=False), encoding="utf-8")
     inventory = {"components": routes}
     handoff_path = plan / "handoff-run-plugin-dev-plan.json"
     handoff_path.write_text(json.dumps(handoff, ensure_ascii=False), encoding="utf-8")
@@ -186,6 +189,51 @@ def test_build_script_route_validates_parent_skill_contract(tmp_path, monkeypatc
     assert (tmp_path / parent["build_target"]).is_dir()
     report = _read_report(tmp_path, "C02")
     assert "created parent skill scaffold directory" in report["deviations"][0]
+
+
+def test_build_script_route_report_records_covered_task_ids(tmp_path, monkeypatch, script_route_builder):
+    """task_graph_ref から entity_ref==route_id の node id が id 昇順で report へ焼き込まれる。"""
+    monkeypatch.chdir(tmp_path)
+    route = _route("C01", "lint-a", f"plugins/{SLUG}/scripts/lint-a.py")
+    graph = {
+        "schema_version": "1.0",
+        "nodes": [
+            {"id": "P02-C01-02", "entity_ref": "C01"},
+            {"id": "P02-C01-01", "entity_ref": "C01"},
+            {"id": "P02-C02-01", "entity_ref": "C02"},
+            {"id": "P02", "entity_ref": None},
+        ],
+        "edges": [],
+    }
+    handoff = _write_plan(tmp_path, [route], task_graph=graph)
+
+    rc, payload = script_route_builder.build_script_route(handoff_path=handoff, route_id="C01")
+
+    assert rc == 0, payload
+    report = _read_report(tmp_path, "C01")
+    assert report["covered_task_ids"] == ["P02-C01-01", "P02-C01-02"]
+
+
+def test_build_script_route_report_omits_covered_task_ids_without_graph(tmp_path, monkeypatch, script_route_builder):
+    """task_graph_ref 不在 / graph file 読込不能は covered_task_ids を省略する (後方互換)。"""
+    monkeypatch.chdir(tmp_path)
+    route = _route("C01", "lint-a", f"plugins/{SLUG}/scripts/lint-a.py")
+    handoff = _write_plan(tmp_path, [route])
+
+    rc, payload = script_route_builder.build_script_route(handoff_path=handoff, route_id="C01")
+
+    assert rc == 0, payload
+    assert "covered_task_ids" not in _read_report(tmp_path, "C01")
+
+    # task_graph_ref はあるが graph file 不在 → 読込不能として同じく省略
+    data = json.loads(handoff.read_text(encoding="utf-8"))
+    data["task_graph_ref"] = {"path": "task-graph.json", "schema_version": "1.0"}
+    handoff.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    rc, payload = script_route_builder.build_script_route(handoff_path=handoff, route_id="C01")
+
+    assert rc == 0, payload
+    assert "covered_task_ids" not in _read_report(tmp_path, "C01")
 
 
 def test_build_script_route_rejects_script_path_build_target_mismatch(tmp_path, monkeypatch, script_route_builder):

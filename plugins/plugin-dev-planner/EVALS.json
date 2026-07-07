@@ -14,6 +14,7 @@
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan/handoff-run-plugin-dev-plan.json",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-requirements-coverage.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
+      "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/validate-task-graph.py plugins/plugin-dev-planner/skills/run-plugin-dev-plan/examples/sample-plan",
       "python3 plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-surface-audit.py --plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner"
     ],
     "llm_eval": [

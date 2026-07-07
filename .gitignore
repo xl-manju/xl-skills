@@ -111,6 +111,9 @@ eval-log/*/plan/elegant-review/**
 # references/route-build-report.md / io-contract.md「build handoff 契約」)。build 実行中の
 # route 間受け渡し証跡で揮発。恒久 trace は built plugin 実体 + validate-plan-coverage.py。
 eval-log/*/build/**
+# task-graph build の runtime 排他 lock (writer=manage-build-lease.py TG-C07)。上の
+# eval-log/*/build/** に包含されるが、将来の再 include 改変が lock を誤追跡しないよう明示除外する。
+eval-log/*/build/.build.lock
 
 # plugin-dev-planner: 計画成果物 plugin-plans/<slug>/ は可視・永続の tracked deliverable
 # (io-contract.md §9)。既定出力先で、レビュー可能な計画一式を git 追跡する。

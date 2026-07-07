@@ -383,6 +383,80 @@ def _check_envelope(envelope: object, plan_dir: Path, target_plugin_slug: str) -
     return errors
 
 
+def _check_task_graph_ref(data: dict, plan_dir: Path) -> list[str]:
+    """handoff.task_graph_ref (C6) の形状と routes↔producer task 対応を検証する。
+
+    task-graph はデフォルト成果物 (§9) ゆえ `task_graph_ref` は**常時付与が必須** (未設定は
+    fail-closed で violation)。設定時は {path, schema_version} 形状を検証し、path が指す
+    task-graph.json が実在する場合のみ producer task (produces エッジを持つ node) の entity_ref
+    集合と routes[].id 集合の 1:1 以上対応を検証する。file 不在時は形状のみ検証する
+    (task-graph.json 実体の 8 検査は validate-task-graph.py が別ゲートで担う・責務分離)。
+    """
+    tgr = data.get("task_graph_ref")
+    if tgr is None:
+        return ["handoff.task_graph_ref が未設定 (task-graph はデフォルト成果物ゆえ常時付与が必須・§9・build を task-graph mode で駆動する)"]
+    errors: list[str] = []
+    if not isinstance(tgr, dict):
+        return ["handoff.task_graph_ref が object でない"]
+    path_v = tgr.get("path")
+    sv = tgr.get("schema_version")
+    if not (isinstance(path_v, str) and path_v.strip()):
+        errors.append("handoff.task_graph_ref.path が非空文字列でない")
+    if not (isinstance(sv, str) and sv.strip()):
+        errors.append("handoff.task_graph_ref.schema_version が非空文字列でない")
+    if errors or not isinstance(path_v, str):
+        return errors
+    tg_path = plan_dir / path_v
+    if not tg_path.is_file():
+        # メタ循環分離: 契約宣言のみで実 task-graph.json を持たない fixed-13-phase plan は形状検証で足りる。
+        return errors
+    try:
+        graph = _load_json(tg_path)
+    except ValueError as exc:
+        return [f"handoff.task_graph_ref.path の task-graph.json が JSON として不正: {exc}"]
+    if not isinstance(graph, dict):
+        return ["task-graph.json root が object でない"]
+    node_entity: dict[str, object] = {}
+    for n in graph.get("nodes", []):
+        if isinstance(n, dict) and isinstance(n.get("id"), str):
+            node_entity[n["id"]] = n.get("entity_ref")
+    producer_entities: set[str] = set()
+    for e in graph.get("edges", []):
+        if isinstance(e, dict) and e.get("type") == "produces":
+            ent = node_entity.get(e.get("from"))
+            if isinstance(ent, str) and ent:
+                producer_entities.add(ent)
+    route_ids = {
+        str(r.get("id", "")).strip()
+        for r in data.get("routes", [])
+        if isinstance(r, dict) and str(r.get("id", "")).strip()
+    }
+    for rid in sorted(rid for rid in route_ids if rid not in producer_entities):
+        errors.append(f"route {rid} が task-graph 上の producer task (produces を持つ node) に対応しない")
+    return errors
+
+
+def _check_cycle_id_parity(data: dict, plan_dir: Path) -> list[str]:
+    """handoff.cycle_id (C13・additive) と goal-spec.json の cycle_id の一致を検証する。
+
+    両者不在 (None) は一致とみなす (後方互換・既存 handoff は無改修で妥当)。goal-spec が
+    読めない場合はスキップ (fail-soft)。consumer は cycle-id を本フィールドから読み plan_dir
+    パス末尾解析は禁止 (レイアウト判断の consumer 側二重実装を防ぐ)。
+    """
+    handoff_cid = data.get("cycle_id")
+    gs_path = plan_dir / "goal-spec.json"
+    if not gs_path.is_file():
+        return []
+    try:
+        goal_spec = _load_json(gs_path)
+    except ValueError:
+        return []
+    gs_cid = goal_spec.get("cycle_id") if isinstance(goal_spec, dict) else None
+    if handoff_cid != gs_cid:
+        return [f"handoff.cycle_id={handoff_cid!r} が goal-spec.cycle_id={gs_cid!r} と不一致 (parity)"]
+    return []
+
+
 def validate_handoff(data: object, handoff_path: Path) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
@@ -429,6 +503,8 @@ def validate_handoff(data: object, handoff_path: Path) -> list[str]:
     errors.extend(_check_builder_status([r for r in routes if isinstance(r, dict)], open_issue_ids))
     errors.extend(_check_inventory_provenance(routes, plan_dir))
     errors.extend(_check_envelope(data.get("envelope"), plan_dir, target_plugin_slug))
+    errors.extend(_check_task_graph_ref(data, plan_dir))
+    errors.extend(_check_cycle_id_parity(data, plan_dir))
     return errors
 
 

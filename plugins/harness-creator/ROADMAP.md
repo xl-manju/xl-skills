@@ -4,7 +4,7 @@
 
 ## 短期 (本 PR 〜 次 1-2 スプリント)
 
-**目標**: governance/feedback hook を 7 種 target_type へ配線完了し、改善ループを自走させる基盤を確立する。**成果物**: 7 種 hook 配線済み plugin、lessons-learned 自動記録パイプライン、本 CHANGELOG.md の運用開始 (各 PR で Unreleased セクションを更新する運用ルール)。**KPI**: hook 配線カバレッジ 100% (7/7 種)、lessons 自動記録の取りこぼし率 < 5%、CHANGELOG 更新率 100% (governance ラベル付き PR 基準)。
+**目標**: governance/feedback hook を 7 種 target_type へ配線完了し、改善ループを自走させる基盤を確立する — **済 (CHANGELOG [Unreleased] Added に記録・版番号確定待ち)**。7 種 hook 配線 (7/7)・lessons-learned 自動記録パイプライン (`auto-record-lesson.py` PostToolUse 配線)・CHANGELOG.md の運用開始 (各 PR で Unreleased セクションを更新する運用ルール) はいずれも達成済み。**継続運用 KPI**: lessons 自動記録の取りこぼし率 < 5%、CHANGELOG 更新率 100% (governance ラベル付き PR 基準)。
 
 ### 意図的 deferred (2026-07-02 elegant-review `20260702-declarative-skillcreator`)
 

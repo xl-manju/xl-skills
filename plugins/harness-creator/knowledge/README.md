@@ -24,7 +24,7 @@ knowledge/
 ├── knowledge-index.json            # カテゴリ索引 + global_keywords + synonyms + scoring_weights
 ├── knowledge-build-patterns.json   # ビルド設計パターン・パラダイム (蒸留済み知見)
 ├── knowledge-lessons-index.json    # lessons-learned への検索用ポインタ
-└── usage-log.jsonl                 # §12 活用ログ (作成時の検索結果と採否を追記)
+└── usage-log.jsonl                 # §12 活用ログ (作成時の検索結果と採否を追記。初回 record_usage.py 実行時に lazy 生成・不在=未使用の正常状態)
 ```
 
 ## build-time での検索 (Loop B 実体)

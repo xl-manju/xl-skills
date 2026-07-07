@@ -67,9 +67,17 @@
 | goal_spec | path | yes | <PLAN_DIR>/goal-spec.json |
 
 ### 2.4 出力契約
-- 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + handoff-run-plugin-dev-plan.json
+- 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + **task-graph.json (デフォルト成果物・下記 2.5)** + handoff-run-plugin-dev-plan.json (`task_graph_ref` 常時付与)
 - 出力先: 構想専用 plan ディレクトリ (既定 `plugin-plans/<plugin-slug>/`・可視/永続の tracked deliverable。実プラグインディレクトリは作らない)
 - **envelope ドラフト (artifact_class=plugin-plan 時のみ)**: 唯一 builder を持たない plugin envelope について、`<PLAN_DIR>/envelope-draft/plugin.json` に**具体値入りの「貼れる」 manifest ドラフト** (`name`↔folder 一致・未展開 placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する。これは契約(値域宣言=`plugin_meta`)とは別の「実体ドラフト」で、利用者が build 境界 (実 `plugins/` への書込) を侵さず最後の手動ステップを完了するためのもの。実 `plugins/` には書かない
+
+### 2.5 task-graph をデフォルト成果物にする (成果物 = タスクグラフ)
+
+> **原則**: plan の成果物は **task-graph を第一級**とする。13 phase 文書 + inventory は人間可読・機械 SSOT の入力であり、そこから決定論射影した `task-graph.json` を**必ず**生成し、handoff に `task_graph_ref` を**常時付与**して build を task-graph mode (依存グラフ駆動・最適手順 dispatch + discovered-task 還流) で回す。task-graph を省略した plan (linear route mode への退化) は不完全 deliverable とする。
+
+- **生成手段は再実装しない**: `scripts/derive-task-graph.py <PLAN_DIR>` が 13 phase §5 完了チェックリスト項目 + `component-inventory.json` の `depends_on` を単一 writer として決定論射影し `<PLAN_DIR>/task-graph.json` を canonical serialization で書く。R3 は phase/index/inventory を確定した**後に必ずこの導出を実行**する (手書きしない=単一 writer 契約)。
+- **handoff への常時参照**: `handoff-run-plugin-dev-plan.json` の top-level に `task_graph_ref: {path: "task-graph.json", schema_version: "1.0"}` を**必ず**付与する (consumer=`/capability-build` はこれが在れば task-graph 2 ループ mode で駆動する)。省略は `check-build-handoff.py` が fail-closed で弾く。
+- **自己検証**: 生成後に `scripts/validate-task-graph.py <PLAN_DIR>` (DAG 非循環 / orphan 0 / producer 一意 / inventory 矛盾 0 / dangling 端点 0 / 非正準拒否の 8 検査) が exit0 になることを確認する。非正準・循環は R2 の inventory `depends_on` へ差し戻す。
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -119,7 +127,8 @@
 - [ ] index `## 基本定義` に仕様駆動の大前提 (harness-creator 仕様基点・spec-first・要件正本=goal-spec) を宣言し、goal-spec checklist の全 id を 完了チェックリスト/受入確認 で引用した (`check-requirements-coverage.py` が exit0)
 - [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件)
 - [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` / `detect-unassigned.py` が exit0 になった
-- [ ] `handoff-run-plugin-dev-plan.json` を生成し、`check-build-handoff.py` が exit0 になった
+- [ ] `derive-task-graph.py <PLAN_DIR>` を実行し `task-graph.json` をデフォルト成果物として生成し、`validate-task-graph.py <PLAN_DIR>` が exit0 になった (2.5)
+- [ ] `handoff-run-plugin-dev-plan.json` を生成し `task_graph_ref` を常時付与し、`check-build-handoff.py` が exit0 になった
 
 ### 5.4 実行方式
 - 固定手順を持たない。未充足項目を特定→手順を都度立案→実行→チェックリストで自己評価→全項目充足まで反復 (上限: Layer 4 最大反復回数)。
@@ -156,7 +165,8 @@ Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件
 
 1. 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md` / io-contract.md §2 frontmatter + §5 本文床を満たす)
 2. index.md (P01..P13 phase_number 昇順 + コンポーネント目録の所在 + 全体完了条件 + 受入確認 + plugin_meta)
-3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来)。**placement=skill の script route (builder=parent-skill-build) で build_target が親 skill の build_target 配下にあるものは、二相 build (scaffold→fill) の順序逆転を機械可読にするため `requires_parent_scaffold: <親 skill の component id>` を必ず付す** (io-contract §9・check-build-handoff.py が fail-closed 強制。plugin-root へ hoist した共有 script は親 skill 配下でないため不要)
-4. (plugin-plan 時) `<PLAN_DIR>/envelope-draft/plugin.json` = 貼れる manifest ドラフト (manual-apply artifact・実 `plugins/` には書かない)
+3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来・`task_graph_ref` を常時付与)。**placement=skill の script route (builder=parent-skill-build) で build_target が親 skill の build_target 配下にあるものは、二相 build (scaffold→fill) の順序逆転を機械可読にするため `requires_parent_scaffold: <親 skill の component id>` を必ず付す** (io-contract §9・check-build-handoff.py が fail-closed 強制。plugin-root へ hoist した共有 script は親 skill 配下でないため不要)
+4. **task-graph.json (デフォルト成果物)**: phase/index/inventory 確定後に `scripts/derive-task-graph.py <PLAN_DIR>` を実行して単一 writer 射影で生成し、`scripts/validate-task-graph.py <PLAN_DIR>` exit0 を確認する (2.5・手書き禁止)
+5. (plugin-plan 時) `<PLAN_DIR>/envelope-draft/plugin.json` = 貼れる manifest ドラフト (manual-apply artifact・実 `plugins/` には書かない)
 
 余計な前置き・後書き・思考過程出力は禁止。

@@ -186,11 +186,12 @@ index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_pl
 | `check-spec-gates.py` | inventory component の quality_gates / harness_coverage 値域 + index.plugin_meta 値域 |
 | `check-spec-matrix-coverage.py` | 46 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
 | `check-surface-inventory.py` | 5 種検討証跡 + plugin-level surface 採否 |
-| `check-build-handoff.py` | L3→L4 routing(inventory 由来)/ builder / build_kind / manifest draft |
+| `check-build-handoff.py` | L3→L4 routing(inventory 由来)/ builder / build_kind / manifest draft / `task_graph_ref` 必須 |
+| `validate-task-graph.py` | デフォルト成果物 `task-graph.json` の 8 検査(DAG 非循環/orphan 0/producer 一意/inventory 矛盾 0/非正準拒否) |
 | `check-runtime-portability.py` | install 携帯性: 共有 script の plugin-root hoist(P)+ build_target の plugin 内自己完結(Q) |
 | `check-plugin-surface-audit.py` | plugins/ 配下の現物 surface 横断棚卸し(dogfood) |
 
-呼称は 2 層(core 5 scripts / 6 invocations + 拡張ゲート 6 本)。一覧と総数(検証 11 本)の単一正本 = `references/io-contract.md` §11 表 + `specfm.GATE_SCRIPTS`(本表はその要約 projection)。
+呼称は 2 層(core 5 scripts / 6 invocations + 拡張ゲート 7 本)。一覧と総数(検証 12 本)の単一正本 = `references/io-contract.md` §11 表 + `specfm.GATE_SCRIPTS`(本表はその要約 projection)。task-graph はデフォルト成果物(§9)ゆえ handoff に `task_graph_ref` を常時付与し build を task-graph mode で駆動する。
 
 per-phase の恒久ロック(pytest): `test_examples_golden`(13 phase + index = 14 Markdown / 全 P01-P13 存在)+ inventory の 5-kind 網羅(≥1 kind が ≥2 実体)+ `test_detect_unassigned`(phase 完全性 + component orphan)。
 

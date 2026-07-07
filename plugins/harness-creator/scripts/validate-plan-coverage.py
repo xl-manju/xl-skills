@@ -90,6 +90,36 @@ def _target_exists(repo_root: Path, build_target: str, component_kind: str) -> t
     return True, "ok"
 
 
+def _clean_surface_path(value: str) -> str:
+    """surface path 宣言から実在照合に使う path 部分だけを取り出す。
+
+    既存 inventory には `skills/x/ (補足...)` のように、path フィールドへ人間向け補足を
+    混ぜたものがある。照合は path 部分のみを使い、補足は inventory 側の記述として温存する。
+    """
+    s = value.strip()
+    if " (" in s:
+        s = s.split(" (", 1)[0].rstrip()
+    return s
+
+
+def _surface_exists(repo_root: Path, plugin_roots: set[str], raw_path: str) -> tuple[bool, str | None]:
+    """surface path を repo-root 相対または plugin-root 相対として解決する。
+
+    - `plugins/<slug>/...` で始まる path は repo-root 相対として直接照合する。
+    - それ以外は従来通り plugin-root 相対として、build_target から root が一意な場合だけ照合する。
+    """
+    rel = _clean_surface_path(raw_path)
+    if not rel:
+        return True, None
+    if Path(rel).parts[:1] == ("plugins",):
+        return (repo_root / rel).exists(), rel
+    if len(plugin_roots) == 1:
+        pr = Path(next(iter(plugin_roots)))
+        candidate = str(pr / rel)
+        return (repo_root / candidate).exists(), candidate
+    return False, None
+
+
 def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict]:
     """(missing_components, missing_surfaces, summary) を返す。
 
@@ -117,13 +147,14 @@ def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict
         if not ok:
             missing_components.append(f"{cid} ({kind}): {bt} — {detail}")
 
-    # plugin-level surface 照合 (required=true のもののみ)。surface は 2 形式を持つ:
-    #   - path    : plugin-relative 単一パス。plugin-root を build_target 群から導出する
-    #               (1 plugin 前提)。cross-plugin inventory では root を一意に解決できない。
+    # plugin-level surface 照合 (required=true のもののみ)。surface は 4 形式を持つ:
+    #   - path    : plugin-relative 単一パス、または plugins/<slug>/... の repo-relative パス。
+    #               plugin-relative の場合は plugin-root を build_target 群から導出する (1 plugin 前提)。
+    #   - target  : repo-relative 単一パス。
     #   - targets : repo-relative パス配列。所有 plugin を跨ぐ計画 (artifact_class=
     #               existing-plugin-update で C7 の cross-plugin routing を持つ plan) でも
     #               各 target を repo_root 起点で直接照合できる (plugin-root 導出不要)。
-    # path も targets も持たない required surface (record_in / resolution 型: Notion config
+    # path/target/targets を持たない required surface (record_in / resolution 型: Notion config
     # ・index 記録先など) はファイル実在照合の対象外。宣言妥当性は check-surface-inventory.py
     # (inventory 内部整合) が担う (責務分離)。
     missing_surfaces: list[str] = []
@@ -133,23 +164,28 @@ def verify(inventory: dict, repo_root: Path) -> tuple[list[str], list[str], dict
         if not isinstance(spec, dict) or not spec.get("required"):
             continue
         targets = spec.get("targets")
+        target = spec.get("target")
         rel = spec.get("path")
         if isinstance(targets, list) and targets:
             # repo-relative 直接照合 (cross-plugin 安全)。
             for t in targets:
                 if not isinstance(t, str) or not t.strip():
                     continue
-                if not (repo_root / t).exists():
-                    missing_surfaces.append(f"{name}: {t} 不在")
+                cleaned = _clean_surface_path(t)
+                if cleaned and not (repo_root / cleaned).exists():
+                    missing_surfaces.append(f"{name}: {cleaned} 不在")
+        elif isinstance(target, str) and target.strip():
+            cleaned = _clean_surface_path(target)
+            if cleaned and not (repo_root / cleaned).exists():
+                missing_surfaces.append(f"{name}: {cleaned} 不在")
         elif rel:
-            # plugin-relative 単一パス: plugin-root 一意時のみ照合可能。
-            if len(plugin_roots) == 1:
-                pr = Path(next(iter(plugin_roots)))
-                if not (repo_root / pr / rel).exists():
-                    missing_surfaces.append(f"{name}: {pr}/{rel} 不在")
+            ok, resolved = _surface_exists(repo_root, plugin_roots, str(rel))
+            if resolved:
+                if not ok:
+                    missing_surfaces.append(f"{name}: {resolved} 不在")
             else:
                 missing_surfaces.append(
-                    f"{name}: plugin-relative path={rel!r} だが build_target が "
+                    f"{name}: plugin-relative path={_clean_surface_path(str(rel))!r} だが build_target が "
                     f"{sorted(plugin_roots)} を跨ぎ plugin-root を一意解決できない "
                     "(targets[] で repo-relative 宣言すれば cross-plugin 照合可能)"
                 )
@@ -362,6 +398,55 @@ def _self_test() -> int:
     _, ms2b, _ = verify(inv2b, Path("/nonexistent"))
     assert any("plugins/a/refs/z.md 不在" in e for e in ms2b), ms2b
     assert not any("一意解決できない" in e for e in ms2b), ms2b
+
+    # 6c. path が plugins/<slug>/... の repo-relative 単一 path なら plugin-root を二重付与しない。
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "plugins/demo/.claude-plugin").mkdir(parents=True)
+        (root / "plugins/demo/.claude-plugin/plugin.json").write_text("{}", encoding="utf-8")
+        inv2c = {
+            "components": [
+                {"id": "C1", "component_kind": "script", "build_target": "plugins/demo/scripts/x.py"},
+            ],
+            "plugin_level_surfaces": {
+                "manifest": {"required": True, "path": "plugins/demo/.claude-plugin/plugin.json"},
+            },
+        }
+        _, ms2c, _ = verify(inv2c, root)
+        assert not ms2c, ms2c
+
+    # 6d. target 単数は repo-relative 直接照合。
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "plugins/demo/references").mkdir(parents=True)
+        (root / "plugins/demo/references/x.md").write_text("x", encoding="utf-8")
+        inv2d = {
+            "components": [
+                {"id": "C1", "component_kind": "script", "build_target": "plugins/demo/scripts/x.py"},
+            ],
+            "plugin_level_surfaces": {
+                "reference": {"required": True, "target": "plugins/demo/references/x.md"},
+            },
+        }
+        _, ms2d, _ = verify(inv2d, root)
+        assert not ms2d, ms2d
+
+    # 6e. path に括弧書き補足が混ざっていても path 部分だけで照合する。
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "plugins/demo/skills/run-demo/schemas").mkdir(parents=True)
+        inv2e = {
+            "components": [
+                {"id": "C1", "component_kind": "skill", "build_target": "plugins/demo/skills/run-demo/"},
+            ],
+            "plugin_level_surfaces": {
+                "schemas": {"required": True, "path": "skills/run-demo/schemas/ (schema files)"},
+            },
+        }
+        (root / "plugins/demo/skills/run-demo/SKILL.md").write_text("x", encoding="utf-8")
+        mc2e, ms2e, _ = verify(inv2e, root)
+        assert not mc2e, mc2e
+        assert not ms2e, ms2e
 
     # 7. 空 components → 漏れなし (照合対象なし)
     mc, ms, _ = verify({"components": [], "plugin_level_surfaces": {}}, Path("/nonexistent"))

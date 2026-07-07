@@ -23,6 +23,16 @@
 
 ---
 
+### オプション
+
+`/skill-improve` の全オプション（正本 = `commands/skill-improve.md`）:
+
+| オプション | 何を入れるか | 用途 |
+|---|---|---|
+| `capability-path`（必須） | 改善対象の skill/agent/hook/command パス | レビュー→改善→再レビューを最大 3 周自動実行 |
+
+> オプションは 1 つのみ。**破壊的変更**を行うため事前に git commit clean 推奨。plan 正本を保ちたい改善は in-place でなく `/plugin-dev-plan --mode update --improvement-handoff <handoff>` 経由（②Layer1 の注記参照）。
+
 ## ② 構造化プロンプト（説明）
 
 ### Layer 1: 基本定義層（不変原則）
@@ -33,7 +43,7 @@
 - CONST_001: リセット＝直前contextの**クリア**であり対象ファイルの削除ではない。Phase1は観察専用・write禁止。
 - CONST_002: 30種全使用省略禁止。使用不能な思考法は `skip_reason` 必須記録、`used + skipped_with_reason == 30` に到達させる。
 - CONST_003: 4条件（矛盾なし／漏れなし／整合性あり／依存関係整合）を全PASSまで反復する。未達のまま完了扱い（force_pass）は禁止。
-- **重要な注記（plan非再生成）**: 本コマンドは**in-placeパッチ**であり、タスク仕様書（plan）は再生成されない。plan正本を保ちたい改善は `/plugin-dev-plan --mode update --improvement-handoff <handoff>` 経由を使う。
+- **重要な注記（plan非再生成 / task-graph 非還流）**: 本コマンドは**in-placeパッチ**であり、タスク仕様書（plan）も**その `task-graph.json`（成果物の第一級・依存グラフ駆動の正本）も更新されない**。plan 正本を保ち、改善を **task-graph へ還流**したい場合は `/plugin-dev-plan --mode update --improvement-handoff <handoff>` 経由を使う。この経路は改善を task-graph へ反映し、次回 `/capability-build --handoff`（既定=task-graph route モード）が改善済み依存グラフで再駆動する（＝spec-improvement 外ループ）。in-place は速い代わりに task-graph と乖離しうる点に注意（乖離が問題になる改善は plan 経路へ）。
 
 ### Layer 2: ドメイン定義層
 
@@ -72,7 +82,7 @@
 - 改善パッチは必ず**根拠となった思考法とfinding**を明示して紐付ける（どのAgent・どの思考法由来か遡れること）。
 - 4条件は全PASSまで反復。未達をforce_passで握り潰すことは禁止。
 - エスカレーション: `iteration_count >= 3`（安全弁）で `status: incomplete` + `human_review` 必須。Δneg（負フィードバック）が2周連続増加＝発散なら `human_escalate`。
-- plan整合性の注意: in-place改善はplanを更新しない。plan正本を維持したい改善は `/plugin-dev-plan --mode update` 経由へ誘導する。
+- plan/task-graph 整合性の注意: in-place 改善は plan も `task-graph.json` も更新しない。plan 正本・task-graph 還流を維持したい改善は `/plugin-dev-plan --mode update` 経由へ誘導する（task-graph へ反映され、次回 `/capability-build --handoff` が改善済み依存グラフで再駆動する）。
 
 ### Layer 5: エージェント定義層（ゴール駆動の実行主体）
 

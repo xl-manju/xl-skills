@@ -2,6 +2,10 @@
   "plan_dir": "plugin-plans/notion-task-sync",
   "target_plugin_slug": "notion-task-sync",
   "mode": "create",
+  "task_graph_ref": {
+    "path": "task-graph.json",
+    "schema_version": "1.0"
+  },
   "routes": [
     {
       "id": "C09",

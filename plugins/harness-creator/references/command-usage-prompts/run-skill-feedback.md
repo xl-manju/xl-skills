@@ -1,7 +1,7 @@
 /run-skill-feedback
 # /run-skill-feedback 用途プロンプト（30思考法エレガント検証つき・収集のみ）
 
-> **前提の明記**: 本コマンドは**収集のみ**を行う。構造化フィードバックを Notion 改善要望 DB へ投入するところまでが責務であり、改善の実装・修正・着手は一切自動発火しない（人間ブリッジは `plugins/harness-creator/references/feedback-to-improvement-runbook.md`）。以下の 30 思考法検証も「収集内容が schema 準拠かつ文脈ズレなく投入前チェックを通るか」だけを対象とする。
+> **前提の明記**: 本コマンドは**収集のみ**を行う。構造化フィードバックを Notion 改善要望 DB へ投入するところまでが責務であり、改善の実装・修正・着手は一切自動発火しない（人間ブリッジは `plugins/harness-creator/references/feedback-to-improvement-runbook.md`）。ブリッジ先で要望が actioned される際は `/plugin-dev-plan --mode update` 経由で task 仕様書＝`task-graph.json` へ還流し、次回 `/capability-build --handoff`（既定=task-graph route モード）が改善済み依存グラフで再駆動する。**本収集はその spec-improvement サイクルの起点**であり、収集品質が下流の task-graph 反映精度を左右する（ゆえに投入前チェックが重要）。以下の 30 思考法検証も「収集内容が schema 準拠かつ文脈ズレなく投入前チェックを通るか」だけを対象とする。
 
 ## ① スラッシュコマンド入力
 
@@ -13,7 +13,11 @@
 
 ※ 実態は `plugins/harness-creator/skills/run-skill-feedback`（`kind: run`, `user-invocable: true`）の **skill**。専用の command ファイルは存在せず、`/` 起動可能な skill として分類される。
 
-## ② 構造化プロンプト(説明)
+### オプション
+
+`/run-skill-feedback` は**引数・オプションを取らない**（対話起動のみ）。専用 command ファイルが無いため argument-hint も存在しない。起動後の対話で「対象同定 → 現状仕様提示 → 要望収集」を進める。②の投入前チェックで参照する唯一の CLI が `python3 scripts/notion-submit-improvement.py --dry-run`（対象プラグインのスキル一覧 DB 登録確認 = C4 判定）。
+
+## ② 構造化プロンプト（説明）
 
 以下は、収集した改善要望ドラフトを Notion へ投入する**直前**にエージェントへ渡す 7 層構造プロンプト。思考リセット → 30 思考法並列分析 → 4 条件セルフ検証 → 是正、を経てから投入する。
 

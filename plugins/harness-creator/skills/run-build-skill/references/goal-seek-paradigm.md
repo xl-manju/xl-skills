@@ -164,3 +164,25 @@ evaluator は一度の採点で完結する read-only 工程。ループは回�
 有界反復の数値正本（SSOT）は `run-elegant-review/references/convergence-policy.json` の `loop_bounds`。本ファイルの goal-seek `max_loops` 既定 5 は `loop_bounds.goal_seek_inner`（手順反復＝AI が文脈から手順を都度導出する内ループの上限）であり、content-review の inner 評価→改善 **再評価** 上限 3（`inner_loop.max_iterations`）とは**別ループ**（同名 'inner' の 3 と 5 を混同しない）。ここでは参照のみ（重複宣言しない）。
 
 内ループ × 正フィードバック（従来の空白セル）= 小機能単位で見つけた良手順パターンは、生成スキルの `knowledge/`（Loop A, [[ref-knowledge-loop]]）へ蓄積・横展開する。
+
+## engine 変種 (task-graph): 依存順駆動 + self-reflect
+
+`goal_seek.engine` の opt-in 値 `task-graph`（既定 `inline`・独立 combinator flag は新設しない＝H5）。checklist の `depends_on`（additive・`goal-seek-loop.schema.json`）を依存充足順に消費し、実行中に発見した新規タスクを self-reflect で checklist 末尾へ追記する engine 変種。
+
+### 単一truth設計（別状態ファイルを新設しない・H3）
+task-graph 変種は **別状態ファイル（task-graph.json 相当）を一切新設せず**、既存の `eval-log/<skill>-progress.json` の checklist と `intermediate.jsonl` のみを唯一の真実源とする。
+
+- **ready 集合の算出**: 各周回冒頭で `scripts/ready-set-from-checklist.py <progress.json>` が `depends_on` 全充足かつ `status==pending` の item を id 昇順（`^C[0-9]+$` は数値昇順）で `{"ready":[...]}` として返す。base ループ Step1「未達 `[ ]` を任意特定」を **task-graph 変種に限り**「ready 集合の**最小 id item のみ**を拘束的に選択・実行」へ上書き置換する（`inline` は従来どおり任意選択）。これにより依存順序保証が「助言」でなく「拘束」になる。
+- **self-reflect 追記**: 発見した新規タスクは `scripts/self-reflect-append.py <progress.json> --id <新id> --text <達成条件> --depends-on <...>` で checklist 末尾へ追記する。追記 item は done-judge が毎回スキャンする**同じ checklist 配列**の一部になるため「発見したが完了判定に反映されない」非統合が構造的に発生しない。追記は既存 item を一切書き換えず（新規シンク）、id 重複・未知 depends_on・追記後サイクルを fail-closed 検査する。
+- **consumption verifier**: 各周回末に `intermediate.jsonl` へ `ready_set`（算出時点の ready）と `selected_item`（実際に選択した id）を additive 追記し、ループ完了時に「毎周回 `selected_item` が `ready_set` の最小 id と一致＝依存順消費」と「self-reflect 追記 item が `status==done` まで全体 done 判定を gate」を機械検査する（`references/goal-seek-paradigm.md` 中間成果物アンカー検査と同型）。
+- **done 記述＝発火条件**: item 完了は progress.json の該当 item への `status: done` 記述で確定し、その記述自体が次周回 ready 再計算の入力＝次 item の発火条件になる（完了記述→ready 再計算→次 item 発火の連鎖）。
+- **max_loops の bound 連動**: 1 周回 1 item 消費×消費完全性の拘束下では done 化 item 数 ≤ max_loops。よって `goal_seek.max_loops` は checklist item 数＋self-reflect 追記余裕以上（目安: item 数×1.5）に設定する。不足は completed を構造的に不能にするため、consumption verifier が bound 不足を早期診断し、max_loops 到達時は handed_off で上位が bound を引き上げて再入する。
+
+### write_scope 並列衝突機構は不要（H1）
+本 engine 変種は生成ハーネス内の**単一 self-writer プロセスが逐次一つずつ** checklist を処理するため、同時に複数 writer が同一資源を奪い合う状況が構造的に発生しない。ゆえに `ready-set-from-checklist.py` は write_scope フィールド・tie-break・conflicts 機構を**持たない**。
+
+### 既存 compute-ready-set.py の正しい再framing（H2・バグではない）
+`plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/compute-ready-set.py` の write_scope tie-break（同一 write_scope の ready 候補を id 昇順で 1 件のみ許可し残りを deferred/conflicts へ回す・docstring L16-27、実装 L90-109）は「全除外バグ」ではなく、**複数 candidate が同時に ready になり得る並列/多ノード dispatch モデルを前提とした意図的な fail-closed 回避設計**である。build-pipeline task-graph（producer/consumer 分離・並列 dispatch）ではこの tie-break が正しく機能する。本 engine:task-graph 変種は逐次単一 self-writer ゆえこの前提が構造的に成立せず、同型 tie-break を**複製しない**（H1 と同根）。両者は別概念であり本変種は build-pipeline task-graph を一切改変しない。
+
+### cross-surface dependency graph knowledge（H6）
+実行順序の状態源（checklist）とは別レイヤの派生 knowledge として、`scripts/extract-capability-dependency-graph.py` が生成 harness の skill/command/agent/hook/script surface 間依存を抽出（nodes/edges/gaps・未知参照/循環/空 graph は fail-closed）し、`scripts/record-capability-graph-knowledge.py` が Loop A（生成 harness）/Loop B（harness-creator）へ `source_ref` 付き entry を append/merge 記録する。各 surface は着手前にこの knowledge を consult し、依存先が未完成/dangling の surface を先に着手しない。この graph は「どの surface がどの前提知識・成果物に依存するか」の派生情報であり、別 `task-graph.json` 状態を新設しないため単一truth原則と矛盾しない。

@@ -41,7 +41,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-05-17
-version: 0.2.0 # Capability 7 kind 対応 (skill/agent/hook/command/plugin-composition/prompt/workflow)
+version: 0.3.0 # + with-goal-seek engine:task-graph 変種 (依存順駆動+self-reflect+cross-surface dependency graph knowledge)
 manifest: workflow-manifest.json
 responsibility_refs:
   - prompts/R1-scaffold.md
@@ -55,6 +55,11 @@ template_refs:
   - templates/plugin-composition-skeleton.yaml
   - templates/prompt-skeleton.md
   - templates/workflow-skeleton.md
+  # ENG-Cxx = 生成 harness 同梱 engine 系 component id (凡例表: $PLUGIN_ROOT/references/pipeline-boundary-contract.md)
+  - templates/task-graph-engine/scripts/ready-set-from-checklist.py       # engine:task-graph 同梱 (ENG-C01)
+  - templates/task-graph-engine/scripts/self-reflect-append.py            # engine:task-graph 同梱 (ENG-C02)
+  - templates/task-graph-engine/scripts/extract-capability-dependency-graph.py  # engine:task-graph 同梱 (ENG-C06)
+  - templates/task-graph-engine/scripts/record-capability-graph-knowledge.py    # engine:task-graph 同梱 (ENG-C07)
 schema_refs:
   - references/capability-manifest.schema.json
 prompt_format: markdown # 既定: Markdown (.md)。YAML (.yaml) は legacy 許容、新規禁止
@@ -65,6 +70,7 @@ script_refs:
   - scripts/build-subagent.py
   - scripts/validate-build-trace.py
   - scripts/lint-goal-seek.py
+  - scripts/lint-capability-graph-knowledge.py  # engine:task-graph の ENG-C06/ENG-C07 同梱・consult・source_ref 検査 (ENG-C08)
   - scripts/lint-ssot-duplication.py
 reference_refs:
   - ref-skill-glossary
@@ -151,6 +157,7 @@ audit-trigger: quarterly
 
 19. **ゴールシーク必須 (固定手順禁止)**: ループ実行系 kind (run / wrap / delegate / orchestrator / agent / agent-team / hook-integrated) は達成手順を固定列挙せず、`## ゴールシーク実行` (**Goal + 目的/背景 + 完了チェックリスト + ゴールシークループ**) で構成する。手順は実行時に AI がチェックリストの未達項目から都度生成する。`assign-*` は評価系のため Goal/Checklist 形は使うが runtime loop は配線しない。`ref-*` (read-only) は対象外で `## 手順` は「参照用。手順なし。」のまま。正本定義は `references/goal-seek-paradigm.md`。lint は `lint-goal-seek.py` (固定 `### Step N:` の連番羅列を実行系本文で検出したら violation)。
     - **実行可能機構の配線 (with-goal-seek combinator)**: loop 実行系 (run / wrap / delegate) は `render-combinators.py` が `with-goal-seek.patch` を**default-ON で自動適用**し (`--no-goal-seek` で opt-out)、frontmatter `goal_seek:` と `### ゴールシーク配線` を注入する。周回状態は `schemas/goal-seek-loop.schema.json` 準拠の `eval-log/<skill>-progress.json` に記録し、重い周回は `Skill(run-goal-seek)` に fork 委譲する。`assign-*` は checklist のみ (ループ非配線)。`lint-goal-seek.py` は loop 実行系に対し二値チェックリスト項目の存在・曖昧語不在を violation、`### ゴールシーク配線` 不在を warning で検査する。フラグ仕様は `schemas/build-flags.schema.json#/properties/with_goal_seek`。
+    - **engine 変種 (inline / run-goal-seek / task-graph)**: `goal_seek.engine` は独立 combinator flag ではなく with-goal-seek 内の選択値。`inline`(既定/自己完結)・`run-goal-seek`(重量オーケストレータへ任意 fork) に加え、`task-graph`(opt-in) は checklist の `depends_on` を依存充足順に消費し (`ready-set-from-checklist.py` で ready 集合の最小 id を拘束選択=依存順が「助言」でなく「拘束」)、実行中の新規タスクを `self-reflect-append.py` で checklist 末尾へ自己反映し (別状態ファイル新設せず progress.json を唯一の truth に保つ)、cross-surface dependency graph knowledge を `extract-capability-dependency-graph.py`/`record-capability-graph-knowledge.py` で抽出・記録・consult する engine 変種。同梱は **Step 10.6**(`brief.goal_seek.engine=task-graph` 時のみ 4 テンプレート script を生成先 `scripts/` へコピー)、機械検査は `lint-goal-seek.py --self-test`(consumption verifier / depends_on schema / engine enum の SSOT drift)+ `lint-capability-graph-knowledge.py`(ENG-C06/ENG-C07 同梱・各 surface consult token・knowledge entry source_ref)。
 
 `kind → templates/_base + combinator` 対応表は **`schemas/template-selection.schema.json#/selection_rules`** を正本とする (本文に再掲しない)。
 
@@ -176,7 +183,7 @@ audit-trigger: quarterly
 - [ ] `eval-log/skill-build-trace.json` に `source_docs`/`doc_coverage`/`layer_decisions`/`reproducibility_gates` を空欄なく記録 (未使用は N/A 理由付き)。brief 経由 build は `requirement_coverage` (RTM) で brief 非空フィールドの被覆を宣言 <!-- CL-6 -->
 - [ ] (loop 実行系 run/wrap/delegate のみ) `feedback_contract.criteria` を `brief.goal`/完了チェックリストから導出し inner/outer 各1件以上を trace に記録 (ref/assign は `feedback_contract.skip_reason` で N/A)。各 criterion は `derived_from: [CL-n]` で出所チェックリスト項目を宣言 (`lint-criteria-provenance.py` が被覆を検査) <!-- CL-7 -->
 - [ ] **ハーネス・カバレッジ仕様 (`doc/harness-coverage-spec.md`) を kind 別に満たす** (毎回必達): <!-- CL-8 -->
-  - 同梱 `scripts/` があれば `tests/` に機能テストを追加し当該スクリプト行カバレッジ ≥80% (network/secret 系は monkeypatch で副作用遮断し純関数・分岐・エラー経路を genuine に網羅)
+  - 同梱 `scripts/` があれば `tests/` に機能テストを追加し当該スクリプト行カバレッジ ≥80% (network/secret 系は monkeypatch で副作用遮断し純関数・分岐・エラー経路を genuine に網羅)。純 re-export shim は import 経由の間接被覆+理由記録 (coverage record への明記) で代替可。LLM eval record は補完であり機能テストの代替にはならない
   - loop 実行系: criteria 検証テスト (inner=lint exit0 / outer=verdict PASS) で全 criterion を被覆 (`validate-llm-coverage.py --gate-new --since <today>` を ≥80% で通す)
   - **ref (辞書型/参照型): source-traceability を検証する** — `source`/`source-tier`/`last-audited`/`audit-trigger` が埋まり、参照内容が `source` と整合することを `eval-log/coverage/skills/<plugin>__<skill>.json` の ref-review verdict (verdict=PASS) で記録。ref は behavioral criteria を持たない代わりにこの source 検証が必須カバレッジ (除外でなく ref 専用パス)
   - assign: evaluator verdict、その他 kind: content-review verdict を `eval-log/coverage/` に記録
@@ -204,7 +211,7 @@ audit-trigger: quarterly
 1. **kind 確認**: 引数 `kind` または `brief.kind` を確定。既定は `skill`。未指定なら Step 1 のヒアリングで決める。7 kind 以外は exit 1。
 2. **対応 skeleton 選択**: kind 語彙の正本は `schemas/build-flags.schema.json#/properties/capability_kind` (7値 enum)、kind → skeleton/出力先/kind別lint の対応表の正本は `references/build-steps.md` §I.1 (本文に再掲しない=SSOT)。kind=skill 配下のサブ種別 5 値の template 選択は `schemas/template-selection.schema.json#/selection_rules` に従う。
 3. **Manifest 検証**: 全 kind で `CapabilityManifest commonCore` を `references/capability-manifest.schema.json` で検証。kind 別追加フィールド (`definitions/kindSkill`, `definitions/kindAgent` …) も同 schema で検証する。
-4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py` + **`lint-agent-prompt-content.py --mode agent`** (C02 内容 lint)、hook→`lint-script-frontmatter.py`、command→`lint-command-md.py`、plugin-composition→`lint-plugin-composition.py`、prompt→`lint-prompt-md.py` + **`lint-agent-prompt-content.py --mode prompt`** (C02)、workflow→`lint-workflow-md.py`)。未整備 lint (command/prompt/workflow) は warn 出力に留め、Hook/CI で再実行する (`lint-plugin-composition.py` は整備済・CI 配線済)。**agent/prompt 生成は本文7層 (l5-contract v2.0.0) を prompt-creator 経由で生成し C02 を fail-closed ゲートとして通す** (契約: `../../../prompt-creator/skills/run-prompt-creator-7layer/references/subagent-hybrid-format.md`)。単独生成の抜け道は Step 3.5 の `prompt_provenance` で塞ぐ。
+4. **lint hook 連動**: kind に応じた lint を Step 4 で起動 (skill→既存 4 種、agent→`lint-agent-prompt-section.py` + **`lint-agent-prompt-content.py --mode agent`** (route C02 内容 lint)、hook→`lint-script-frontmatter.py`、plugin-composition→`lint-plugin-composition.py` (整備済・CI 配線済)、prompt→**`lint-agent-prompt-content.py --mode prompt`** (route C02))。command / prompt (構造面) / workflow の kind 専用 lint (`lint-command-md.py` / `lint-prompt-md.py` / `lint-workflow-md.py`) は**未実装 (script 実体なし・整備予定) のため起動しない** — それまで当該 3 kind は共通 lint (`validate-frontmatter.py` 等) のみで検査する。**agent/prompt 生成は本文7層 (l5-contract v2.0.0) を prompt-creator 経由で生成し route C02 を fail-closed ゲートとして通す** (契約: `../../../prompt-creator/skills/run-prompt-creator-7layer/references/subagent-hybrid-format.md`)。単独生成の抜け道は Step 3.5 の `prompt_provenance` で塞ぐ。
 
 > 既存「Skill のみ作る」呼び出し (`kind=run|ref|assign|wrap|delegate`) は **kind=skill 配下のサブ種別** として後方互換維持。引数なしまたは `kind` が 5 択のいずれかなら従来通り Step 1 以降の skill 専用フローへ直行する。適用範囲の宣言: `workflow-manifest.json` の phase `init-pre` (本 Step) のみ Capability 7 kind 全てに適用され、`init` 以降の phase の `kind_filter` はこのサブ種別 5 値 (= kind=skill の場合) を指す。非 skill kind は init-pre で skeleton / kind 別 lint を確定し、scaffold 相当の生成 + Step 4 の kind 別 lint で完結する。
 
@@ -248,7 +255,7 @@ run 系は `templates/` / `scripts/` / `examples/`、ref 系は `references/arti
 
 **要望カバレッジ (RTM)**: brief 経由 build は `requirement_coverage[]` を trace に記録する。brief の非空要求フィールド (例 `key_constraints[2]` / `boundary`) ごとに `disposition: mapped` (+`mapped_to`=反映先 criteria id/生成物) か `not_applicable` (+`reason`) を宣言する。被覆完全性と requirement_id 実在は `validate-build-trace.py` が機械検査し (段階導入: coverage 無しは WARN)、写像の意味的妥当性は Step 12 content-review (LLM 層) が判定する。
 
-**agent/prompt 生成の provenance (C09)**: agents/*.md・skills/*/prompts/*.md を生成/更新した build は `prompt_provenance` を trace に記録する。`prompt_creator_invocation`=true (prompt-creator 経由で本文7層を生成)・`source_contract_ref` (準拠契約: agent=`subagent-hybrid-format.md` / prompt=`seven-layer-format.md`)・`content_lint`={mode, status:PASS} (C02 `lint-agent-prompt-content.py` の結果) の3点を持つ。`run` / `assign` が **prompt を生成する** build (`per_responsibility` 非空) では `resolved_policy=optional/skip` を禁止し `required`+provenance を強制する (生成物があるのに optional へ降格する迂回=バイパスを封鎖)。本 build が prompt を生成しない場合 (共有 prompt を消費する等、`per_responsibility` 空) は `optional` で宣言してよい (`skip` は不可)。`required` の build ではこのブロックが必須で、`validate-build-trace.py` が invocation=false・契約参照欠落・content_lint≠PASS・ブロック欠落のいずれも exit1 で止める (バイパス不能性)。実際の本文7層準拠は C02 の CI repo 全走査が trace 非依存で独立強制する。
+**agent/prompt 生成の provenance (route C09)**: agents/*.md・skills/*/prompts/*.md を生成/更新した build は `prompt_provenance` を trace に記録する。`prompt_creator_invocation`=true (prompt-creator 経由で本文7層を生成)・`source_contract_ref` (準拠契約: agent=`subagent-hybrid-format.md` / prompt=`seven-layer-format.md`)・`content_lint`={mode, status:PASS} (route C02 `lint-agent-prompt-content.py` の結果) の3点を持つ。`run` / `assign` が **prompt を生成する** build (`per_responsibility` 非空) では `resolved_policy=optional/skip` を禁止し `required`+provenance を強制する (生成物があるのに optional へ降格する迂回=バイパスを封鎖)。本 build が prompt を生成しない場合 (共有 prompt を消費する等、`per_responsibility` 空) は `optional` で宣言してよい (`skip` は不可)。`required` の build ではこのブロックが必須で、`validate-build-trace.py` が invocation=false・契約参照欠落・content_lint≠PASS・ブロック欠落のいずれも exit1 で止める (バイパス不能性)。実際の本文7層準拠は route C02 の CI repo 全走査が trace 非依存で独立強制する。
 
 **route 実行レポート (plugin 一括 build のみ)**: `handoff-run-plugin-dev-plan.json` の routes を消費する build では、route 1 本の完了ごとに `eval-log/<target_plugin_slug>/build/route-<id>.json` (`schemas/route-build-report.schema.json`) へ実行レポートを書き、後続 route は依存 route のレポート (`handover`/`deviations`) を読んでから着手する。契約正本は `references/route-build-report.md`、機械検証は `scripts/validate-route-build-reports.py` (route 毎 `--route <id>` / 終端 `--complete`)。単発 build (route 外) は対象外。
 ### Step 4: 命名・構造 Lint (phase: scripts)
@@ -267,6 +274,7 @@ python3 "$SKILL_DIR/scripts/lint-goal-seek.py" "$OUT_BASE/$SKILL_NAME/SKILL.md"
 python3 scripts/lint-feedback-contract.py --changed-only  # loop実行系(run/wrap/delegate)のSKILL.md frontmatterに feedback_contract.criteria(inner/outer) が無ければ fail
 python3 "$SKILL_DIR/scripts/lint-ssot-duplication.py" --plugin-dir "$(dirname "$OUT_BASE")"  # SSOT 重複(正本曖昧/redirect 太り/required 二重定義/本文再掲)を検出。DUP-SCHEMA-ID は exit 1
 python3 "$SKILL_DIR/scripts/lint-knowledge-loop.py" "$OUT_BASE/$SKILL_NAME"  # knowledge/ がある場合のみ KL-001..007 を検査(無ければ exit0 skip)。既定 warn、CI の --strict で fail 化
+python3 "$SKILL_DIR/scripts/lint-capability-graph-knowledge.py" "$OUT_BASE/$SKILL_NAME"  # brief.goal_seek.engine=task-graph の生成 harness のみ ENG-C06/ENG-C07 同梱・consult token・source_ref を検査(非 task-graph は not-applicable exit0・ENG-C08)
 python3 "$SKILL_DIR/scripts/validate-build-trace.py" eval-log/skill-build-trace.json
 python3 "$SKILL_DIR/scripts/validate-build-plan.py" --brief eval-log/skill-brief.json --check --skill-dir "$OUT_BASE/$SKILL_NAME"  # brief から決定論導出した必須成果物 (flags/セクション/資産) のディスク実体を突合。brief 不在は NOTE skip
 python3 scripts/lint-readme-plugin-root-portability.py  # kind=plugin / README 更新時。裸 $CLAUDE_PLUGIN_ROOT・repo相対直書き・os.environ添字を検出
@@ -310,6 +318,17 @@ score >= 80 かつ high=0 で完了。それ以外は findings を本文に反�
 
 > **Loop B (harness-creator 自己適用)**: harness-creator 自身も `plugins/harness-creator/knowledge/` を持ち、`consult_at: [build-time]` で過去ビルド知見を作成時に検索する。生成物側(Loop A)と同一機構を dogfooding する(SSOT)。
 
+### Step 10.6: task-graph engine 同梱 (phase: references, `brief.goal_seek.engine=task-graph`)
+
+`brief.goal_seek.engine=task-graph` 指定時**のみ**、with-goal-seek の task-graph 変種 engine を生成先へ同梱する条件付き prose Step。**新規 CLI flag は追加しない** — engine は brief 由来のテンプレート変数であり、`--engine=task-graph` 等の独立 flag を argparse へ足すのは A2 制約 (独立 combinator flag 新設禁止) 違反。with-feedback-loop の `apply_feedback_loop()` (CLI flag 駆動の `shutil.copytree`) とは意図的に異なる prose 方式を採る。手順:
+
+1. `brief.goal_seek.engine` が `task-graph` でなければ本 Step を skip (`inline`/`run-goal-seek` は従来どおり)。
+2. `templates/task-graph-engine/scripts/` の 4 スクリプト (`ready-set-from-checklist.py`=ENG-C01 / `self-reflect-append.py`=ENG-C02 / `extract-capability-dependency-graph.py`=ENG-C06 / `record-capability-graph-knowledge.py`=ENG-C07) を `$OUT_BASE/$SKILL_NAME/scripts/` へコピーする (生成 SKILL.md の task-graph 変種配線が参照する 4 スクリプトと一致させる)。
+3. `render-combinators.py` は default-ON の with-goal-seek 内へ既に `### ゴールシーク配線（task-graph 変種）` / `### ゴールシーク検証（task-graph 変種・機械検査）` / `### dependency graph knowledge consult` の 3 サブセクションを注入済み (engine 値 `task-graph` で有効化)。追加の combinator 適用は不要。
+4. Step 4 の lint に `lint-capability-graph-knowledge.py` を後段検査として追加する (上記 Step 4 bash に配線済み)。engine:task-graph でなければ not-applicable exit0 で無害。
+
+> **単一truth**: 本 engine 変種は別状態ファイル (task-graph.json 相当) を生成せず、`eval-log/<skill>-progress.json` の checklist を唯一の truth とする。ready 算出 (ENG-C01)・self-reflect 追記 (ENG-C02) は同一 checklist 配列を読み書きし、cross-surface dependency graph knowledge (ENG-C06/ENG-C07) は実行前判断用の派生情報として分離レイヤに置く。route C05 (= 本 skill 更新 component) 自身の `goal_seek.engine` は inline を維持する (builder skill の更新タスクは依存が自明で並列 dispatch も self-reflect も要さないため self-適用の利得がない・dogfooding 非適用は意図的判断)。
+
 ### Step 11: Notion スキル一覧 DB へ upsert (phase: notion-register, `--notion-register`)
 
 build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) に冪等登録する。**プラグイン単位 1 行**で、配下の個別 Skill はページ本文に列挙される(`scripts/notion-upsert-plugin.py` が `plugins/<plugin>/skills/` を走査)。手順:
@@ -350,5 +369,5 @@ build 完了後、量産プラグインを Notion の SSOT (スキル一覧 DB) 
 
 ## Additional Resources
 
-- 資産索引の正本は frontmatter (`manifest` / `responsibility_refs` / `template_refs` / `schema_refs` / `script_refs` / `reference_refs`) と `references/resource-map.yaml` (task category → 設計書章選択)。`examples/` = 完成例 (minimal-ref / workflow-with-evaluator)。
+- frontmatter (`manifest` / `responsibility_refs` / `template_refs` / `schema_refs` / `script_refs` / `reference_refs`) は**起動契約上の主要資産のみ**を列挙する (全資産の網羅索引ではない)。全資産の索引正本はディレクトリ実体 (`scripts/` / `schemas/` / `templates/` / `prompts/` / `references/`) そのもの。`references/resource-map.yaml` は task category → 設計書章選択の progressive disclosure 索引 (+`local_artifacts` に manifest/schemas/prompts の一部) であり、これも全資産列挙ではない。`examples/` = 完成例 (minimal-ref / workflow-with-evaluator)。
 - references/ 主要補助: `design-docs-index.md` (設計書索引) / `build-steps.md` (詳細手順) / `capability-manifest.schema.json` (Capability 7 kind 統一 Manifest 正本)。他の references/ は本文各 Step から個別参照。

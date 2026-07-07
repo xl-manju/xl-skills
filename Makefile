@@ -46,6 +46,9 @@ lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readm
 	# 焼き込みconfig (*.default.json / *.fixed.json) の内容変更が version bump を伴うか fail-closed 検査
 	#   (version 据え置き→配布キャッシュ未更新→毎回 fail-closed の再発を封じる。elegant-review 2026-07-01)
 	python3 scripts/lint-config-version-sync.py
+	# 片方向 writer: harness の task-graph consumer が producer 所有 plan (task-graph/inventory/phase/
+	#   plugin-plans) へ AST 上で直書きしないことを fail-closed 検査 (per-script test を補完・S1)
+	python3 scripts/lint-harness-plan-writeguard.py
 
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:

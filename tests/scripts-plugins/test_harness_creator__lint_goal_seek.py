@@ -461,6 +461,11 @@ _GOOD_RENDER = (
     "merged_directive_for_next drift_signal\n"
     "initial aligned compressing stagnant widening oscillating\n"
     "required_keys original_goal_hash hashlib.sha256\n"
+    # engine:task-graph 変種 (C04 check_task_graph_variant) の consumption verifier /
+    # dependency graph knowledge consult トークン。整合 fixture は task-graph 配線も携帯する。
+    "task-graph ready-set-from-checklist.py self-reflect-append.py ready_set selected_item "
+    "依存順消費 self-reflect 完了 gate extract-capability-dependency-graph.py "
+    "record-capability-graph-knowledge.py dependency graph knowledge\n"
 )
 _GOOD_PATCH = _GOOD_RENDER  # patch 側も同型で逐語一致させる
 _GOOD_RGS = "required_keys original_goal_hash hashlib.sha256\n"
@@ -468,7 +473,8 @@ _GOOD_BUILD_FLAGS = {
     "properties": {
         "with_goal_seek": {
             "properties": {
-                "engine": {"default": "inline"},
+                # engine enum は task-graph を含む (check_task_graph_variant (a))。
+                "engine": {"default": "inline", "enum": ["inline", "run-goal-seek", "task-graph"]},
                 "max_loops": {"default": 5},
             }
         }
@@ -478,6 +484,14 @@ _GOOD_LOOP_SCHEMA = {
     "properties": {
         "fork_context": {"default": "subagent"},
         "max_loops": {"default": 5},
+        # checklist item に depends_on additive フィールド (check_task_graph_variant (b))。
+        "checklist": {
+            "items": {
+                "properties": {
+                    "depends_on": {"type": "array", "default": []},
+                }
+            }
+        },
         "intermediate_artifacts": {
             "items": {
                 "required": [

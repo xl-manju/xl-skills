@@ -158,6 +158,25 @@ BUILDER_STATUS = {
 # elegant-review 4 条件 (quality_gates.elegant_review.conditions の SSOT)。
 ELEGANT_CONDITIONS = ("C1", "C2", "C3", "C4")
 
+# ─────────────────────────── task-graph (第3の射影) の語彙 SSOT (C1/C10/C13/C16) ───────────────────────────
+# task-graph.json / task-state.json / plan-ledger.json の共有語彙。derive/validate/compute-ready-set/
+# check-task-state-schema/render-task-graph-mermaid/check-plan-ledger が本定数を単一正本として参照する
+# (値域を各 script に複製しない=doc-points-to-SSOT)。
+# node.state の永続値域。ready は compute-ready-set 出力だけの computed-only 語彙。
+TASK_NODE_STATES = ("pending", "running", "done", "blocked")
+# task-state.json へ永続化される state のサブセット (ready を除いた 4 値・harness ALLOWED_TRANSITIONS と整合)。
+# ready は compute-ready-set の出力にのみ現れる派生状態で、永続 state に焼くのは非正準 (validate が拒否)。
+TASK_STATE_PERSISTED = ("pending", "running", "done", "blocked")
+# task-graph edge の型 4 種。blocks は独立宣言禁止の派生ビューゆえ列挙に含めない (schema レベルで機械強制)。
+TASK_EDGE_TYPES = ("parent_of", "depends_on", "produces", "consumes")
+# blocked node の起点区別 (GAP-FAILED-STATE-VOCAB 解消・state==blocked のとき条件付き必須の第一級 field)。
+BLOCKED_REASONS = ("origin-failure", "propagated")
+# index.md frontmatter の shape_marker 値域。既定 fixed-13-phase (task-graph-derived は C14 非劣化ゲート PASS が前提)。
+SHAPE_MARKERS = ("fixed-13-phase", "task-graph-derived")
+# plan-ledger.json の cycle_id 形式 (YYYYMMDD-<concept-slug>) と status 値域 (C13)。
+CYCLE_ID_RE = re.compile(r"^\d{8}-[a-z0-9-]+$")
+LEDGER_STATUSES = ("active", "finished", "superseded")
+
 # ─────────────────────────── 決定論ゲートの単一正本 (名称 + 起動引数・2 層命名) ───────────────────────────
 # core = plan 本体の 5 scripts / 6 invocations (matrix-coverage は --self-test と PLAN の 2 起動)。
 # extended = 入力ゲート/採否/routing/install 携帯性/dogfood の拡張ゲート。SKILL.md・golden index・
@@ -177,6 +196,7 @@ GATE_SCRIPTS = {
         ("check-requirements-coverage.py", "<PLAN_DIR>"),
         ("check-surface-inventory.py", "<PLAN_DIR>/component-inventory.json"),
         ("check-build-handoff.py", "<PLAN_DIR>/handoff-run-plugin-dev-plan.json"),
+        ("validate-task-graph.py", "<PLAN_DIR>"),
         ("check-runtime-portability.py", "<PLAN_DIR>"),
         ("check-plugin-surface-audit.py", "--plugins-dir plugins --strict-manifest --expect-plan-ready plugin-dev-planner"),
     ),
@@ -200,6 +220,7 @@ GATE_SCOPE = {
     "check-requirements-coverage.py": "plan-scoped",
     "check-surface-inventory.py": "plan-scoped",
     "check-build-handoff.py": "plan-scoped",
+    "validate-task-graph.py": "plan-scoped",
     "check-runtime-portability.py": "plan-scoped",
     "check-plugin-goal-spec.py": "input-gate",
     "check-plugin-surface-audit.py": "dogfood",
@@ -640,23 +661,40 @@ def plan_slug(name: str) -> str:
     return re.sub(r"-+", "-", s).strip("-")
 
 
-def plan_output_dir(name: str, out_dir: str | None = None, base: str = PLAN_OUTPUT_BASE) -> str:
+def plan_output_dir(
+    name: str,
+    out_dir: str | None = None,
+    base: str = PLAN_OUTPUT_BASE,
+    cycle_id: str | None = None,
+) -> str:
     """タスク仕様書の出力先 (PLAN_DIR) を決定論的に解決する (repo-root 相対)。
 
     out_dir 明示指定があればそれを使う (相対は repo-root 基準)。無ければ
     `<base>/<plan_slug(name)>` を返す。slug が空になる name は ValueError。
     既定では plugin ごとに `plugin-plans/<plugin-slug>/` (可視・永続の tracked deliverable) へ出力する。
 
+    cycle_id (C13): 省略 (None/空) 時は現行の flat 配置 (`plugin-plans/<slug>/`) を **完全不変**で返し
+    (既存の全呼び出し元は無改修)、非空指定時のみ解決済みルートの配下へ `/<cycle_id>` をスコープ化して
+    `plugin-plans/<slug>/<cycle_id>` を返す。cycle_id は `CYCLE_ID_RE` (`^\\d{8}-[a-z0-9-]+$`) に一致
+    しなければ ValueError (不正な cycle_id で build dir が黙って変わる事故を fail-closed で防ぐ)。
+
     `name` は生 plugin 名でも plan_slug 済 slug でも可 (plan_slug が冪等のため二重適用は無害)。
     戻り値は **repo-root 相対パス**。絶対化が要る場合は呼び出し側が `$CLAUDE_PROJECT_DIR`/cwd
     (repo-root 前提) で前置する責務とする (本関数は cwd を参照しない=純関数で再現性を担保)。
     """
     if out_dir is not None and str(out_dir).strip():
-        return str(out_dir).strip().rstrip("/")
-    slug = plan_slug(name)
-    if not slug:
-        raise ValueError("plan_output_dir: name から有効な slug を導出できない (--out-dir を明示指定すること)")
-    return f"{base.rstrip('/')}/{slug}"
+        root = str(out_dir).strip().rstrip("/")
+    else:
+        slug = plan_slug(name)
+        if not slug:
+            raise ValueError("plan_output_dir: name から有効な slug を導出できない (--out-dir を明示指定すること)")
+        root = f"{base.rstrip('/')}/{slug}"
+    if cycle_id is not None and str(cycle_id).strip():
+        cid = str(cycle_id).strip()
+        if not CYCLE_ID_RE.match(cid):
+            raise ValueError(f"plan_output_dir: cycle_id={cid!r} は {CYCLE_ID_RE.pattern} に不一致")
+        return f"{root}/{cid}"
+    return root
 
 
 def expected_kind_pass_tokens(component_kind: str, skill_kind: str) -> set[str]:

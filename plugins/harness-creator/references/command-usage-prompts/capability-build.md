@@ -3,12 +3,17 @@
 
 ## ① スラッシュコマンド入力
 
-まずこれを打つ(route ごとに繰り返す)。handoff の `routes[]` に含まれる route を1件ずつ消費するため、複数 route があれば `--route-id` を変えて複数回実行する。
+**まずこれを打つ (既定 = task-graph route モード)**。planner 生成 handoff は `task_graph_ref` を常時携帯するため、`--route-id` を付けない 1 回の起動で **task-graph 全体を並列 dispatch + 2 ループ (build-execution / spec-improvement) で駆動**する (依存グラフ順に自動 build し、問題点/改善点は外ループで task 仕様書へ反映)。
+
+```
+/capability-build --handoff plugin-plans/<plugin>/handoff-run-plugin-dev-plan.json
+```
+
+段階 build / デバッグで**単一 route だけ消費したい場合のみ** `--route-id` を明示する (escape hatch・route ごとに繰り返す):
 
 ```
 /capability-build --handoff plugin-plans/<plugin>/handoff-run-plugin-dev-plan.json --route-id C09
 /capability-build --handoff plugin-plans/<plugin>/handoff-run-plugin-dev-plan.json --route-id C10
-/capability-build --handoff plugin-plans/<plugin>/handoff-run-plugin-dev-plan.json --route-id C11
 ```
 
 handoff を使わない明示モード(単発生成/更新)の場合:
@@ -18,14 +23,36 @@ handoff を使わない明示モード(単発生成/更新)の場合:
 /capability-build hook guard-foo --update
 ```
 
-## ② 構造化プロンプト(説明)
+### handoff とは (route モードの前提)
+
+`handoff` = `/plugin-dev-plan` が計画の最後に出力する受け渡しファイル `handoff-run-plugin-dev-plan.json`。「計画」と「実行」をつなぐ**注文書**で、2 プラグイン (plugin-dev-planner ↔ harness-creator) はこの JSON 1 枚を介してだけ結合する (直接呼び出さない = 関心の分離)。
+
+- **中身**: `routes[]` 配列。1 route = 1 component の生成指示で、`build_kind` (種別) / `build_args` (name 等) / `build_target` (配置先) を持つ。
+- **消費**: 既定は `--handoff <path>` だけで task-graph 全体を消費し、各 route の 3 値 (`build_kind`/`build_args`/`build_target`) は自動抽出される (skill route は内部で `run-skill-create` へ、`build_kind=script` は `build-script-route.py` へ dispatch)。単一 route だけ取り出すのは `--route-id <Cxx>` 明示時のみ (escape hatch)。
+- **位置**: `/plugin-dev-plan` → `handoff-…json` (`routes[]`) → `/capability-build --handoff`。実サンプルは `plugin-dev-planner` の `examples/sample-plan/`。
+- **task-graph モード (既定)**: planner 生成 handoff は `task_graph_ref` を常時携帯するため、`--route-id` を付けない起動は**既定でこのモード**になり、単一 route 消費でなく依存グラフ全体を並列 dispatch + 2 ループ (build-execution / spec-improvement) で駆動する。外ループが問題点/改善点 (stall spec-gap・discovered-task) を planner drain 経由で task-graph へ反映し再駆動する (additive=自動反映 / structural=`--approved` 人間承認ゲート)。後方互換: `task_graph_ref` 不在 handoff・または `--route-id` 明示時は従来の単一 route 消費。詳細契約の正本は `commands/capability-build.md` の「task-graph route モード」節。
+
+### オプション
+
+`/capability-build` の全オプション（正本 = `commands/capability-build.md`）。route モード（`--handoff`）と明示モード（`<kind> <name>`）の 2 系統:
+
+| オプション | 何を入れるか | 用途 |
+|---|---|---|
+| `kind`（明示モード必須） | `skill\|agent\|hook\|command\|plugin-composition\|prompt\|workflow` の 7 種 | 作る capability の種別 |
+| `name`（明示モード必須） | capability 名（`run-`/`ref-`/`assign-` prefix 準拠） | 作る対象の名前 |
+| `--update` | フラグ | 既存を更新（明示モード） |
+| `--plugin=<name>` | plugin 名 | 配置先を明示指定（明示モード） |
+| `--handoff <path>` | handoff JSON のパス | handoff build へ切替。`task_graph_ref` があれば既定 = task-graph route モード（全体 build） |
+| `--route-id <Cxx>`（optional） | route の component id（例 route C09） | escape hatch: `--handoff` とペアで単一 route だけ消費（段階 build / デバッグ用）。省略時は task-graph 全体を build |
+
+## ② 構造化プロンプト（説明）
 
 以下は、①で build した実体（SKILL.md / agent / hook / script など）に対して**思考リセット後に30種の思考法で多角的にエレガントさ(仕様整合)を検証・改善する**ための7層構造プロンプトである。build 直後にこのまま LLM へ渡して実行する。
 
 ### Layer1: 基本定義層
 
-- **目的**: `/capability-build` が消費した route (`build_kind` / `build_args` / `build_target`) と、実際に生成された実体との**整合**を、先入観をリセットしたうえで30思考法により多角的に検証し、エレガントに改善する。
-- **対象**: 当該 route が生成/更新した実体一式(例: `SKILL.md`・`agents/*.md`・`hooks/*`・`scripts/*`)と、`eval-log/<slug>/build/route-<id>.json`・消費元 handoff の route 定義。
+- **目的**: `/capability-build` が build した実体との**整合**を、先入観をリセットしたうえで30思考法により多角的に検証し、エレガントに改善する。**既定の task-graph route モードでは 1 回の起動で依存グラフ全体 (複数 route) が build されるため、検証対象はその周回で done 化した実体一式**。単一 route モード (`--route-id` 明示) では当該 route が消費した (`build_kind` / `build_args` / `build_target`) と実体の整合が対象。
+- **対象**: build された実体一式(例: `SKILL.md`・`agents/*.md`・`hooks/*`・`scripts/*`)と、`eval-log/<slug>/build/route-<id>.json`(route-build-report)・消費元 handoff の route 定義。**task-graph route モードでは加えて `task-graph.json` の done 化状態と、外ループで反映された discovered-task も検証対象**(内ループが停滞なく完了し、問題点/改善点=spec-gap が task 仕様書=task-graph へ正しく還流したか)。
 - **リセットの定義**: リセットとは記憶の削除ではなく、直前の実装文脈・思い込みを**クリア**して白紙で対象を観察し直すことである(CONST_001)。
 
 ### Layer2: ドメイン層
@@ -118,5 +145,5 @@ handoff を使わない明示モード(単発生成/更新)の場合:
 
 ### Layer7: UserInput
 
-まず①のスラッシュコマンドをrouteごとに実行し、build された実体を得る。次に、その実体一式に対して本プロンプトのLayer1〜6に従い「思考リセット→30思考法並列分析(Agent2/3/4)→4条件検証→改善実行(Agent5)」を回す。4条件が全てPASSするまで最大3周回繰り返し、未達ならエスカレーションする。
+まず①のスラッシュコマンドを実行し (既定=task-graph route モードなら `--handoff` 1 回でグラフ全体を build・単一 route モードなら `--route-id` を route ごとに)、build された実体を得る。次に、その実体一式に対して本プロンプトのLayer1〜6に従い「思考リセット→30思考法並列分析(Agent2/3/4)→4条件検証→改善実行(Agent5)」を回す。task-graph route モードでは周回で done 化した実体群を対象にし、外ループが問題点/改善点を task-graph へ還流できたかも4条件(依存関係整合)で検証する。4条件が全てPASSするまで最大3周回繰り返し、未達ならエスカレーションする。
 次の内容を元に実行してください。@

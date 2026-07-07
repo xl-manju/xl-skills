@@ -1,7 +1,7 @@
 /plugin-dev-plan
 # /plugin-dev-plan 用途プロンプト（30思考法エレガント検証つき）
 
-> `/plugin-dev-plan` (実態: `run-plugin-dev-plan` skill) が生成した plan 成果物 (index.md / phase-01..13.md / component-inventory.json / handoff-run-plugin-dev-plan.json) を、思考リセット後に30種の思考法で多角的に検証し、component分解・依存DAG・handoff routeの歪みを4条件全PASSまで磨き上げるための用途プロンプト。①を実行してplanを作り、②をそのままagentへ渡して検証・改善を回す。
+> `/plugin-dev-plan` (実態: `run-plugin-dev-plan` skill) が生成した plan 成果物 (index.md / phase-01..13.md / component-inventory.json / **task-graph.json (デフォルト成果物)** / handoff-run-plugin-dev-plan.json) を、思考リセット後に30種の思考法で多角的に検証し、component分解・依存DAG・task-graph・handoff routeの歪みを4条件全PASSまで磨き上げるための用途プロンプト。①を実行してplanを作り、②をそのままagentへ渡して検証・改善を回す。**task-graph はデフォルト成果物**であり、handoff に `task_graph_ref` が常時付与され build は task-graph mode (依存グラフ駆動) で回る。
 
 ## ① スラッシュコマンド入力
 
@@ -19,9 +19,22 @@
 /plugin-dev-plan "<改善構想を自然文で>" --mode update --out-dir plugin-plans/<plugin-slug> --improvement-handoff <improvement-handoff.jsonのパス>
 ```
 
-いずれも `run-plugin-dev-plan` を起動し、`plugin-plans/<plugin-slug>/` 配下に `component-inventory.json` / `phase-01-requirements.md`…`phase-13-release.md` / `index.md` / `handoff-run-plugin-dev-plan.json` / `plan-findings.json` / `goal-spec.json` を生成・更新する。この生成物一式が ② の 30 思考法検証の対象であり、range外 (実プラグインの実装そのもの) は含まない。
+いずれも `run-plugin-dev-plan` を起動し、`plugin-plans/<plugin-slug>/` 配下に `component-inventory.json` / `phase-01-requirements.md`…`phase-13-release.md` / `index.md` / `task-graph.json` (**デフォルト成果物**・`derive-task-graph.py` が 13 phase §5 + inventory `depends_on` を単一 writer 射影) / `handoff-run-plugin-dev-plan.json` (`task_graph_ref` 常時付与) / `plan-findings.json` / `goal-spec.json` を生成・更新する。この生成物一式が ② の 30 思考法検証の対象であり、range外 (実プラグインの実装そのもの) は含まない。
 
-## ② 構造化プロンプト(説明)
+### オプション
+
+`/plugin-dev-plan` の全オプション（正本 = `commands/plugin-dev-plan.md`）。①では新規=`--intake-json`、更新=`--mode update`+`--improvement-handoff` の 2 典型のみ例示:
+
+| オプション | 何を入れるか | 用途 |
+|---|---|---|
+| `"<構想>"`（必須・位置引数） | プラグイン構想 or 改善構想の自然文 | 何を計画するか。曖昧でも停止せず仮 slug で進む |
+| `--mode create\|update` | 既定 `create` | `update` は既存 plan への Edit 差分のみ（全書換禁止） |
+| `--out-dir <path>` | 出力先。既定 `plugin-plans/<slug>/` | plan 成果物の置き場を上書き |
+| `--intake-json <path>` | intake.json のパス | ヒアリング結果を計画へ流し込む（新規時の入口） |
+| `--next-action-json <path>` | next-action.json のパス | 分解候補を初期分解に使う。**`--intake-json` 併用時のみ有効** |
+| `--improvement-handoff <path>` | improvement-handoff.json のパス | 改善成果を反映。**`--mode update` 時のみ有効** |
+
+## ② 構造化プロンプト（説明）
 
 > 以下 Layer1〜7 をそのまま agent に貼り付けて使う。生成直後の agent は自身の分解に確証バイアスを持つため、必ず新規 context (思考リセット) から検証を開始すること。
 
@@ -30,11 +43,11 @@
 | 項目 | 内容 |
 |---|---|
 | プロジェクトID | PLUGIN-DEV-PLAN-ELEGANT-VERIFY |
-| 最上位目的 | `/plugin-dev-plan` が生成した plan (component-inventory.json / phase-01..13.md / index.md / handoff-run-plugin-dev-plan.json) を、思考リセット後30種の思考法で多角的に検証し、component分解・依存DAG・handoff routeの歪みを4条件全PASSまで磨き上げる |
+| 最上位目的 | `/plugin-dev-plan` が生成した plan (component-inventory.json / phase-01..13.md / index.md / task-graph.json / handoff-run-plugin-dev-plan.json) を、思考リセット後30種の思考法で多角的に検証し、component分解・依存DAG・task-graph・handoff routeの歪みを4条件全PASSまで磨き上げる |
 | 背景 | plan生成は目的ドリブンの自動分解であり、過剰分割/責務重複/漏れcomponent/依存断裂/単一skillへの退化を生みやすい。生成直後のagentは自らの生成物への確証バイアスを持つため、context を新規に立て初見の観察からやり直す必要がある |
 | 期待成果 | component分解がMECEで依存DAGが閉じ、handoff routeとinventoryが1:1対応し、4条件(矛盾なし/漏れなし/整合性あり/依存関係整合)を全て満たすエレガントなplan状態 |
 | 成功基準 | 30種の思考法を全て適用したうえで4条件が全てPASSと判定される。省略・丸めは失格 |
-| スコープ | 対象=`plugin-plans/<plugin-slug>/`配下の生成物一式(component-inventory.json / phase-01..13.md / index.md / handoff-run-plugin-dev-plan.json / plan-findings.json / goal-spec.json)。範囲外=planからbuildされた実プラグイン実体の実装品質(run-build-skill系の別ゲートが担当) |
+| スコープ | 対象=`plugin-plans/<plugin-slug>/`配下の生成物一式(component-inventory.json / phase-01..13.md / index.md / task-graph.json / handoff-run-plugin-dev-plan.json / plan-findings.json / goal-spec.json)。範囲外=planからbuildされた実プラグイン実体の実装品質(run-build-skill系の別ゲートが担当) |
 
 ### Layer 2: ドメイン定義層
 
@@ -87,7 +100,7 @@
 | 矛盾なし | component間/仕様書間(phase-*.md/index.md/inventory)で相反しない |
 | 漏れなし | 構想を満たす必須componentが揃う(5種kind検討証跡込み) |
 | 整合性あり | 命名・schema・フォーマットが統一されている |
-| 依存関係整合 | component依存DAGが成立し、handoff routeとinventoryが1:1対応する |
+| 依存関係整合 | component依存DAGが成立し、handoff routeとinventoryが1:1対応し、**task-graph.json がデフォルト成果物として在り (validate-task-graph 8検査=DAG非循環/orphan 0/producer一意/非正準拒否 が exit0)・handoff に `task_graph_ref` が常時付与**されている |
 
 #### 2.4 ビジネスルール
 
@@ -105,7 +118,8 @@
 | `plugin-plans/<plugin-slug>/component-inventory.json` | component分解・依存DAG・quality_gates/harness_coverageの検証対象 |
 | `plugin-plans/<plugin-slug>/phase-01-requirements.md`…`phase-13-release.md` | ライフサイクル軸の整合検証対象 |
 | `plugin-plans/<plugin-slug>/index.md` | 目次+plugin_meta+受入確認の整合検証対象 |
-| `plugin-plans/<plugin-slug>/handoff-run-plugin-dev-plan.json` | routeとinventoryの1:1対応検証対象 |
+| `plugin-plans/<plugin-slug>/task-graph.json` | **デフォルト成果物**。依存グラフ (nodes/edges) の非循環・orphan 0・producer 一意・inventory `depends_on` 整合の検証対象 (build を task-graph mode で駆動する第一級成果物) |
+| `plugin-plans/<plugin-slug>/handoff-run-plugin-dev-plan.json` | routeとinventoryの1:1対応 + `task_graph_ref` 常時付与の検証対象 |
 | `plugin-plans/<plugin-slug>/plan-findings.json` | 既存4条件評価との突合対象 |
 | `plugin-plans/<plugin-slug>/goal-spec.json` | 構想原文(purpose/background/goal/checklist)との漏れなし照合対象 |
 
@@ -135,5 +149,5 @@
 
 ### Layer 7: UserInput層
 
-まず ① を実行し、`plugin-plans/<plugin-slug>/` に plan を生成する。生成された plan (`component-inventory.json`/`phase-01..13.md`/`index.md`/`handoff-run-plugin-dev-plan.json`) に対して、本プロンプト(②)をそのままagentへ貼り付け、思考リセット(Phase1)→30思考法並列分析(Phase2)→4条件検証→改善実行(Phase3)を回す。改善は `--mode update` で元planへEdit差分として反映し、component の大幅な統合/分割見直しはユーザー承認を得てから適用する。
+まず ① を実行し、`plugin-plans/<plugin-slug>/` に plan を生成する。生成された plan (`component-inventory.json`/`phase-01..13.md`/`index.md`/`task-graph.json`/`handoff-run-plugin-dev-plan.json`) に対して、本プロンプト(②)をそのままagentへ貼り付け、思考リセット(Phase1)→30思考法並列分析(Phase2)→4条件検証→改善実行(Phase3)を回す。task-graph はデフォルト成果物ゆえ、その欠落・非循環違反・`task_graph_ref` 未付与は依存関係整合(4条件)の不合格として扱う。改善は `--mode update` で元planへEdit差分として反映し、component の大幅な統合/分割見直しはユーザー承認を得てから適用する。
 次の内容を元に実行してください。@

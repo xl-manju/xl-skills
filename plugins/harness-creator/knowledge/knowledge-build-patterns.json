@@ -159,6 +159,82 @@
         "type": "feedback",
         "date": "2026-05-24"
       }
+    },
+    {
+      "id": "build-patterns_008",
+      "title": "task-graph実行知見はproposalでplannerへ戻し、knowledgeには蒸留して残す",
+      "intent": "Harness Creatorが依存グラフ実行中に見つけた新課題を安全にplanへ還流し、未解決課題を残したまま完了扱いにしないこと",
+      "background": "task-graph本体をHarness側が直接書くとplannerのDAG正本とruntime状態が二重writerになり、依存方向が崩れる。Harnessはdiscovered-task proposal、task-state、task-events、knowledgeだけを書き、plannerの次回updateがgraphを更新する一方向writerに分ける。knowledgeは生ログ全量ではなく依存詰まり・成果物欠落・blocked起点・解決判断をsource_ref付きで蒸留する。",
+      "keywords": [
+        "task-graph",
+        "discovered-task",
+        "knowledge-loop",
+        "completion-gate",
+        "一方向writer",
+        "Loop A",
+        "Loop B",
+        "依存DAG"
+      ],
+      "source": {
+        "file": "plugin-plans/harness-creator/goal-spec.json#C13"
+      }
+    },
+    {
+      "id": "runtime-blocked-origin_a2aef39013",
+      "title": "blocked 起点故障: task P01-x-04 が route 失敗で blocked (起点故障) となった",
+      "intent": "route 実行失敗の起点 (origin-failure) を特定し人手救済導線を残すこと",
+      "background": "task P01-x-04 が route 失敗で blocked (起点故障) となった (発生源: task_id=P01-x-04, event_id=2026-07-06T21:34:59.119113Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-origin",
+        "harness-creator"
+      ],
+      "source": {
+        "file": "eval-log/harness-creator/build/task-events.jsonl",
+        "task_id": "P01-x-04",
+        "event_id": "2026-07-06T21:34:59.119113Z"
+      }
+    },
+    {
+      "id": "runtime-blocked-origin_b65368899f",
+      "title": "blocked 起点故障: task P03 が route 失敗で blocked (起点故障) となった",
+      "intent": "route 実行失敗の起点 (origin-failure) を特定し人手救済導線を残すこと",
+      "background": "task P03 が route 失敗で blocked (起点故障) となった (発生源: task_id=P03, event_id=2026-07-06T21:34:59.209445Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-origin",
+        "harness-creator"
+      ],
+      "source": {
+        "file": "eval-log/harness-creator/build/task-events.jsonl",
+        "task_id": "P03",
+        "event_id": "2026-07-06T21:34:59.209445Z"
+      }
+    },
+    {
+      "id": "runtime-blocked-origin_32954d621b",
+      "title": "blocked 起点故障: task P03-x-02 が route 失敗で blocked (起点故障) となった",
+      "intent": "route 実行失敗の起点 (origin-failure) を特定し人手救済導線を残すこと",
+      "background": "task P03-x-02 が route 失敗で blocked (起点故障) となった (発生源: task_id=P03-x-02, event_id=2026-07-06T21:34:59.322994Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-origin",
+        "harness-creator"
+      ],
+      "source": {
+        "file": "eval-log/harness-creator/build/task-events.jsonl",
+        "task_id": "P03-x-02",
+        "event_id": "2026-07-06T21:34:59.322994Z"
+      }
     }
   ]
 }

@@ -90,13 +90,13 @@ N/A の場合は理由を必ず添えること（空欄禁止）。
    - 正本は `scripts/validate-build-trace.py` の `LAYER_YAML_PATH_PATTERNS` (slug 付き `R1-elicit.md` 形式と `.yaml`/`.md` 両拡張子を受理。項目 6 と整合)。
 6. `layer_yaml_path` のファイル名先頭 (`R<N>` 部) が `per_responsibility[].id` と一致すること (例: `R1.yaml` / `R1-elicit.md` ↔ id=R1)。拡張子は `.yaml` / `.md` の両者を受理する。
 
-## `prompt_provenance` (C09 バイパス不能性)
+## `prompt_provenance` (route C09 バイパス不能性)
 
-agents/*.md・skills/*/prompts/*.md を生成/更新した build が prompt-creator の7層契約を経由し、C02 内容 lint (`lint-agent-prompt-content.py`) を通過したことの証跡ブロック。スキーマは `schemas/skill-build-trace.schema.json#/properties/prompt_provenance`。
+agents/*.md・skills/*/prompts/*.md を生成/更新した build が prompt-creator の7層契約を経由し、route C02 内容 lint (`lint-agent-prompt-content.py`) を通過したことの証跡ブロック。スキーマは `schemas/skill-build-trace.schema.json#/properties/prompt_provenance`。
 
 - `prompt_creator_invocation` (boolean, 必須): prompt-creator 経由で本文7層を生成したか。**false は単独生成のバイパス試行として常に exit 1**。
 - `source_contract_ref` (string, 必須): 準拠した契約。agent は `subagent-hybrid-format.md`、prompt は `seven-layer-format.md` を参照する。
-- `content_lint` (object, 必須): `{mode: agent|prompt, status: PASS|FAIL|N/A, evidence?}`。C02 が exit0 でなければ status≠PASS となり生成未完了。
+- `content_lint` (object, 必須): `{mode: agent|prompt, status: PASS|FAIL|N/A, evidence?}`。route C02 が exit0 でなければ status≠PASS となり生成未完了。
 
 検証 (`_validate_prompt_provenance`):
 1. `prompt_generation_model.policy_resolution.resolved_policy == "required"` の build では `prompt_provenance` を必須化 (欠落は exit 1)。`run`/`assign` では `optional`/`skip` への降格も exit 1。`optional`/`skip` の後方互換 escape は prompt 生成非必須 kind に限る。

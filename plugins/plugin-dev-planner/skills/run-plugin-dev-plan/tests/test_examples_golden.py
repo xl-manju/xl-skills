@@ -14,6 +14,7 @@ PLAN = Path(__file__).resolve().parent.parent / "examples" / "sample-plan"
 INVENTORY = PLAN / "component-inventory.json"
 HANDOFF = PLAN / "handoff-run-plugin-dev-plan.json"
 GOAL_SPEC = PLAN / "goal-spec.json"
+TASK_GRAPH = PLAN / "task-graph.json"
 
 
 import json
@@ -30,6 +31,7 @@ def test_example_plan_dir_exists():
     assert GOAL_SPEC.is_file()
     assert INVENTORY.is_file()
     assert HANDOFF.is_file()
+    assert TASK_GRAPH.is_file(), "task-graph.json はデフォルト成果物 (§9・ゴールデンが常時携帯)"
     # per-phase 転換: index + 13 phase ファイル (P01..P13) = 14 Markdown
     specs = sorted(p.name for p in PLAN.glob("*.md"))
     assert len(specs) == 14, specs  # index.md + phase-01..13.md
@@ -71,6 +73,19 @@ def test_surface_inventory_gate(surfaces):
 
 def test_runtime_portability_gate(runtime):
     assert runtime.main([str(PLAN)]) == 0
+
+
+def test_validate_task_graph_gate(validate_task_graph):
+    """デフォルト成果物 task-graph.json が 8 検査を全通過する (§9・成果物=タスクグラフ)。"""
+    assert validate_task_graph.main([str(PLAN)]) == 0
+
+
+def test_task_graph_is_canonical_default_artifact(derive_task_graph):
+    """ゴールデンの task-graph.json が derive-task-graph の単一 writer 出力と一致する
+    (手書き drift 検出・成果物が最新の phase/inventory 射影であることの回帰固定)。"""
+    fresh = derive_task_graph.canonical_json(derive_task_graph.derive(PLAN))
+    on_disk = TASK_GRAPH.read_text(encoding="utf-8").rstrip("\n")
+    assert fresh == on_disk, "task-graph.json が derive-task-graph の canonical 出力と drift (再生成せよ)"
 
 
 def test_shared_scripts_are_plugin_root():
