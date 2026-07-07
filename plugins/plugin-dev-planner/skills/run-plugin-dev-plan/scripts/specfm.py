@@ -933,6 +933,18 @@ def validate_inventory_component(comp: dict) -> list[str]:
                     f"{prefix} [script] placement_scope=skill の build_target は親 skill 配下 "
                     f"(/skills/ と /scripts/ を含む) であること: {bt}"
                 )
+
+    # 7. couples_with (optional・接合が密な兄弟ペアの直列化宣言) の形状検査
+    #    depends_on とは別概念: 成果物ハード依存ではなく「同時 build すると統合 finding が
+    #    先送りされる密結合 (共有 contract を挟む producer↔consumer 等)」を宣言し、
+    #    derive-task-graph が直列化 depends_on を焼く根拠にする (盲目並列の代償=統合コスト前倒し)。
+    #    参照先 component の実在/直列化実現は inventory 横断で validate-task-graph (j) が検査する。
+    cw = comp.get("couples_with")
+    if cw is not None:
+        if not isinstance(cw, list) or not all(isinstance(x, str) and x.strip() for x in cw):
+            errs.append(f"{prefix} couples_with は非空文字列の list であること (現値 {cw!r})")
+        elif cid in cw:
+            errs.append(f"{prefix} couples_with に自身 {cid} を含められない (自己結合は無意味)")
     return errs
 
 

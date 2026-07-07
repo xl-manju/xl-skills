@@ -185,7 +185,7 @@ def _gate_defs(run_skill: Path, plan_dir: Path) -> list[dict]:
             "command": [py, str(scripts / "check-runtime-portability.py"), str(plan_dir)],
         },
         {
-            # デフォルト成果物 task-graph.json の 8 検査 (DAG 非循環/orphan 0/producer 一意/
+            # デフォルト成果物 task-graph.json の 10 検査 (DAG 非循環/orphan 0/producer 一意/
             # inventory 矛盾 0/dangling 端点 0/非正準拒否)。task-graph は成果物の第一級 (§9) ゆえ
             # 依存グラフ整合 (C4) に直結する plan-scoped ゲート。build-handoff(G8)/runtime(G10) と同型で、
             # 評価器が回さないと壊れた依存グラフ (循環/orphan) を持つ plan が独立評価を PASS しうる。

@@ -123,6 +123,10 @@ eval-log/*/build/.build.lock
 plugin-plans/*/run-plugin-dev-plan-progress.json
 plugin-plans/*/run-plugin-dev-plan-intermediate.jsonl
 plugin-plans/*/.goal-seek/
+# 例外1b: task-graph 駆動 build の live 状態投影 (project-task-status.py=TG-C09) は build 毎の
+# 揮発 state (completion_rate/running/blocked 等) を含み周回ごとに変わるため除外 (構造正本=task-graph.json は追跡)。
+plugin-plans/*/task-graph-status.json
+plugin-plans/*/task-progress.md
 # 例外2: 上の **/plan-*.json (notion-gmail-send PII 除外) が plan-findings.json を名前衝突で
 # 巻き込み未追跡化するため再include する (可視化の意図を守る・plan-rubric.json と同型救済)。
 !plugin-plans/**/plan-*.json

@@ -148,6 +148,65 @@ def test_additive_downstream_still_adds_default_follow_up_edge():
     assert {"type": "depends_on", "from": "T9", "to": "T1"} in out["edges"]
 
 
+def _couple_graph():
+    dtg = _load("derive-task-graph")
+    return dtg.canonicalize({
+        "schema_version": "1.0",
+        "nodes": [
+            {"id": "P02", "title": "P02", "phase_ref": "P02", "entity_ref": None,
+             "state": "pending", "write_scope": ""},
+            {"id": "T0", "title": "T0", "phase_ref": "P02", "entity_ref": None,
+             "state": "pending", "write_scope": "T0"},
+            {"id": "P02-C05-01", "title": "C05", "phase_ref": "P02", "entity_ref": "C05",
+             "state": "running", "write_scope": "x"},
+        ],
+        "edges": [
+            {"type": "parent_of", "from": "P02", "to": "T0"},
+            {"type": "parent_of", "from": "P02", "to": "P02-C05-01"},
+        ],
+    })
+
+
+def test_additive_couples_with_serializes_after_existing_sibling():
+    # 外ループ追記でも盲目並列を防ぐ: proposed_node.couples_with の同一 phase 既存兄弟 (C05) の
+    # *後* へ直列化 (from=新ノード to=兄弟)。新ノードは leaf ゆえ cycle を作らない。
+    vtg = _load("validate-task-graph")
+    graph = _couple_graph()
+    proposed = {"id": "P02-C06-01", "title": "C06", "phase_ref": "P02", "entity_ref": "C06",
+                "state": "pending", "write_scope": "y", "couples_with": ["C05"]}
+    form = {"discovering_task_id": "T0", "reason": "接合が密な新タスクを発見",
+            "discovered_at_artifact": "x", "proposed_node": proposed, "change_level": "additive"}
+    out = accept_mod.accept(form, graph)
+    assert {"type": "depends_on", "from": "P02-C06-01", "to": "P02-C05-01"} in out["edges"]  # 兄弟の後へ直列化
+    assert {"type": "depends_on", "from": "P02-C06-01", "to": "T0"} in out["edges"]           # discovering auto-edge も維持
+    assert vtg._check_dag(out["edges"]) == []                                                 # cycle なし
+
+
+def test_additive_couples_with_only_same_phase_sibling():
+    # couples_with 対象兄弟が別 phase なら直列化しない (同一 phase のみ・盲目並列 risk は同一 phase)。
+    dtg = _load("derive-task-graph")
+    graph = dtg.canonicalize({
+        "schema_version": "1.0",
+        "nodes": [
+            {"id": "P01", "title": "P01", "phase_ref": "P01", "entity_ref": None,
+             "state": "pending", "write_scope": ""},
+            {"id": "P01-C05-01", "title": "C05", "phase_ref": "P01", "entity_ref": "C05",
+             "state": "done", "write_scope": "x"},
+        ],
+        "edges": [{"type": "parent_of", "from": "P01", "to": "P01-C05-01"}],
+    })
+    proposed = {"id": "P02-C06-01", "title": "C06", "phase_ref": "P02", "entity_ref": "C06",
+                "state": "pending", "write_scope": "y", "couples_with": ["C05"]}
+    form = {"discovering_task_id": "P01-C05-01", "reason": "x", "discovered_at_artifact": "x",
+            "proposed_node": proposed, "change_level": "additive"}
+    out = accept_mod.accept(form, graph)
+    # C05 は P01・proposed は P02 ゆえ coupling 直列化は張らない (phase 順序が担う)。
+    assert {"type": "depends_on", "from": "P02-C06-01", "to": "P01-C05-01"} in out["edges"]  # これは discovering auto-edge
+    # 追加の coupling edge は 1 本のみ (discovering) で、兄弟専用の別 edge は無い
+    dep_to_c05 = [e for e in out["edges"] if e["type"] == "depends_on" and e["to"] == "P01-C05-01"]
+    assert len(dep_to_c05) == 1
+
+
 def test_discovering_task_id_absent_raises_valueerror():
     form = _form("additive", discovering="ZZZ")
     with pytest.raises(ValueError):

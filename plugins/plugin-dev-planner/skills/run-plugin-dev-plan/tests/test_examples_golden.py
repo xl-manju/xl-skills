@@ -76,7 +76,7 @@ def test_runtime_portability_gate(runtime):
 
 
 def test_validate_task_graph_gate(validate_task_graph):
-    """デフォルト成果物 task-graph.json が 8 検査を全通過する (§9・成果物=タスクグラフ)。"""
+    """デフォルト成果物 task-graph.json が 10 検査を全通過する (§9・成果物=タスクグラフ)。"""
     assert validate_task_graph.main([str(PLAN)]) == 0
 
 

@@ -19,7 +19,8 @@
 design: plugin-plans/plugin-dev-planner/phase-05-implementation.md (C2/C3/C11) +
 phase-04-test-design.md の C2 受入例。canonicalize() の再適用で非正準 (手書き編集)
 を拒否し、DAG 非循環・orphan・producer 一意・inventory 依存整合・consumes producer 実在・
-dangling edge 端点・node.state 永続4値の 8 検査を fail-soft (violations list) で返す。単一 writer=derive-task-graph.py。
+dangling edge 端点・phase 非逆走・couples_with 直列化実現・node.state 永続4値の 10 検査を
+fail-soft (violations list) で返す。単一 writer=derive-task-graph.py。
 """
 from __future__ import annotations
 
@@ -232,6 +233,76 @@ def _check_phase_dependency_direction(nodes: list[dict], edges: list[dict]) -> l
     return out
 
 
+def _check_couples(nodes: list[dict], edges: list[dict], inventory: dict) -> list[str]:
+    """(j) inventory の couples_with (接合が密な兄弟ペア) が直列化 depends_on で実現され、
+    参照先が実在 component であることを検査する ((d) inventory depends_on 実現検査の鏡像)。
+
+    couples_with は対称宣言。derive の直列化と整合させ、次を対象外にする:
+      - **推移閉包**で既に component depends_on 順序付いたペア (直接 A→B だけでなく A→C→B も)。
+        直列化済ゆえ derive は coupling を skip する (逆走 cycle 回避) — (j) も要求しない。
+      - **共有 phase を持たない** cross-phase ペア。derive は同一 phase のみ直列化し、異 phase は
+        phase 順序 edge が直列化するため coupling edge を焼かない — (j) が直接 edge を要求すると
+        偽陽性になるので skip する。
+    共有 phase を持ち未順序のペアは、その共有 phase の entity node 間 depends_on エッジ (どちらの
+    向きでも) が無ければ「宣言したのに盲目並列へ逆戻り」する silent 穴ゆえ violation とする。
+    """
+    if not isinstance(inventory, dict):
+        return []
+    comp_ids = {c.get("id") for c in inventory.get("components", []) if isinstance(c, dict)}
+    couples: set = set()
+    comp_depends: dict[str, list[str]] = {}
+    out: list[str] = []
+    for c in inventory.get("components", []) or []:
+        if not isinstance(c, dict):
+            continue
+        cid = c.get("id")
+        cw = c.get("couples_with", [])
+        if isinstance(cid, str) and isinstance(cw, list):
+            for other in cw:
+                if not isinstance(other, str) or not other or other == cid:
+                    continue
+                if other not in comp_ids:
+                    out.append(f"(j) couples_with references unknown component: {cid} -> {other}")
+                    continue
+                couples.add(frozenset((cid, other)))
+        deps = c.get("depends_on", [])
+        if isinstance(cid, str) and isinstance(deps, list):
+            comp_depends[cid] = [d for d in deps if isinstance(d, str) and d != cid]
+
+    # 推移閉包は derive の SSOT を import 再利用する (直接ペアでなく推移順序も skip 判定に使う)。
+    reach = derive_task_graph._transitive_closure(comp_depends)
+
+    nodes_by_entity: dict = {}
+    entity_phases: dict = {}
+    for n in nodes:
+        ent = n.get("entity_ref")
+        if isinstance(ent, str):
+            nodes_by_entity.setdefault(ent, set()).add(n.get("id"))
+            entity_phases.setdefault(ent, set()).add(n.get("phase_ref"))
+    dep_pairs = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "depends_on"}
+
+    for pair in sorted(couples, key=lambda p: sorted(p)):
+        a, b = sorted(pair)
+        if b in reach.get(a, set()) or a in reach.get(b, set()):
+            continue  # 推移閉包で既に順序付き=(d) が担う (逆走 cycle を封じ derive も skip)
+        a_nodes = nodes_by_entity.get(a, set())
+        b_nodes = nodes_by_entity.get(b, set())
+        if not a_nodes or not b_nodes:
+            continue  # 片方に node が無いペアは直列化不能 (component orphan は detect-unassigned が担当)
+        if not (entity_phases.get(a, set()) & entity_phases.get(b, set())):
+            continue  # 共有 phase 無し=cross-phase (phase 順序が直列化・coupling は no-op)
+        serialized = any(
+            (f in a_nodes and t in b_nodes) or (f in b_nodes and t in a_nodes)
+            for (f, t) in dep_pairs
+        )
+        if not serialized:
+            out.append(
+                f"(j) couples_with {a}<->{b} not realized by any serialization depends_on edge "
+                "(densely-coupled siblings would be blindly parallelized)"
+            )
+    return out
+
+
 def _check_canonical(graph: dict) -> list[str]:
     """(f) canonicalize() 再適用結果が入力と一致しない (手書き編集された) graph を拒否する。"""
     try:
@@ -244,7 +315,7 @@ def _check_canonical(graph: dict) -> list[str]:
 
 
 def validate(graph: dict, inventory: dict) -> list[str]:
-    """task-graph の 8 検査を fail-soft で実行し violations list を返す ((a)-(h))。"""
+    """task-graph の 10 検査を fail-soft で実行し violations list を返す ((a)-(j))。"""
     nodes = _nodes(graph)
     edges = _edges(graph)
     violations: list[str] = []
@@ -255,6 +326,7 @@ def validate(graph: dict, inventory: dict) -> list[str]:
     violations += _check_consumes(edges)
     violations += _check_edge_endpoints(nodes, edges)
     violations += _check_phase_dependency_direction(nodes, edges)
+    violations += _check_couples(nodes, edges, inventory)
     violations += _check_canonical(graph)
     violations += _check_node_states(nodes)
     return violations

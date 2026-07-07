@@ -311,6 +311,11 @@ PENDING_RENAME_PATHS = {
     "plugins/harness-creator/scripts/summarize-task-progress.py",
     "plugins/harness-creator/scripts/manage-build-lease.py",
     "plugins/harness-creator/scripts/record-task-graph-knowledge.py",
+    # project-task-status.py (TG-C09 status live 投影): task-state.json の live status を
+    # plan dir へ射影 (task-graph.json は graph_hash pin ゆえ不変設計・state は別ファイル)。
+    # 上記 task-graph consumer 族と同種で verb 'project' が ALLOWED_VERBS 外。commands/
+    # references/tests 参照の原子的更新を伴う後続 Change Governance 一括改名 PR まで PENDING。
+    "plugins/harness-creator/scripts/project-task-status.py",
     # ubm-goal-setting 初回投入: detect (registry MD5 差分検出) / check (knowledge 500 行
     # ガード) は verb pending。SKILL.md(script_refs)/workflow-manifest/tests/EVALS.json/
     # 計画書 (plugin-plans/finish) の参照整合の原子性のため、planner 群と同じ後続

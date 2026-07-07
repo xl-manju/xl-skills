@@ -390,7 +390,7 @@ def _check_task_graph_ref(data: dict, plan_dir: Path) -> list[str]:
     fail-closed で violation)。設定時は {path, schema_version} 形状を検証し、path が指す
     task-graph.json が実在する場合のみ producer task (produces エッジを持つ node) の entity_ref
     集合と routes[].id 集合の 1:1 以上対応を検証する。file 不在時は形状のみ検証する
-    (task-graph.json 実体の 8 検査は validate-task-graph.py が別ゲートで担う・責務分離)。
+    (task-graph.json 実体の 10 検査は validate-task-graph.py が別ゲートで担う・責務分離)。
     """
     tgr = data.get("task_graph_ref")
     if tgr is None:

@@ -23,7 +23,12 @@
         "entity_ref": {"type": ["string", "null"]},
         "state": {"type": "string", "enum": ["pending", "running", "done", "blocked"]},
         "write_scope": {"type": "string"},
-        "acceptance_criterion": {"type": "string"}
+        "acceptance_criterion": {"type": "string"},
+        "couples_with": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "additive optional。接合が密な既存兄弟 component の entity_ref id 群。accept-discovered-task が受理時、同一 phase の当該兄弟 node へ直列化 depends_on (from=新ノード to=兄弟=新タスクは既存兄弟の後) を張り、外ループ追記でも盲目並列 (統合 finding 先送り) を防ぐ。新ノードは leaf dependent ゆえ cycle を作らず additive のまま (既存ノードの依存は書き換えない)"
+        }
       }
     },
     "change_level": {
