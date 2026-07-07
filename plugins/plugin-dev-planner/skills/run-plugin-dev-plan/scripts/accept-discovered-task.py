@@ -125,6 +125,26 @@ def accept(form: dict, graph: dict, approved: bool = False) -> dict:
             dep_edge = {"type": "depends_on", "from": proposed_id, "to": discovering}
             if dep_edge not in updated["edges"]:
                 updated["edges"].append(dep_edge)
+        # 接合が密な既存兄弟との直列化 (proposed_node.couples_with・外ループ追記でも盲目並列を防ぐ)。
+        # plan-time の derive は両兄弟未 build ゆえ id 昇順で対称に直列化するが、外ループの新タスクは
+        # 既存兄弟が既に build 中/済ゆえ「新タスクは既存兄弟の *後*」(from=新ノード to=兄弟) が因果的に
+        # 正しい (既存の統合面を観測してから新規を build)。新ノードは leaf dependent ゆえ cycle を作らず
+        # additive のまま (既存ノードの依存は書き換えない)。同一 phase の兄弟のみ直列化する。
+        couples = proposed.get("couples_with") or []
+        proposed_phase = proposed.get("phase_ref")
+        if isinstance(couples, list) and couples:
+            existing_dep = {(e.get("from"), e.get("to")) for e in updated["edges"]
+                            if e.get("type") == "depends_on"}
+            for sib in updated["nodes"]:
+                sid = sib.get("id")
+                if sid == proposed_id:
+                    continue
+                if sib.get("entity_ref") in couples and sib.get("phase_ref") == proposed_phase:
+                    if (sid, proposed_id) in existing_dep:
+                        continue  # 逆向き (兄弟→新ノード) が既にあれば cycle 化するので張らない
+                    if (proposed_id, sid) not in existing_dep:
+                        updated["edges"].append({"type": "depends_on", "from": proposed_id, "to": sid})
+                        existing_dep.add((proposed_id, sid))
     return _dtg.canonicalize(updated)
 
 

@@ -21,7 +21,7 @@
 | 表記 | 系統 | 番号→実体の対応 | 番号正本 |
 |---|---|---|---|
 | `PB-Cxx` | パイプライン契約系 (本ファイルの境界表 C01..C11) | PB-C01=`run-plugin-dev-plan` R1 / PB-C02=`/plugin-dev-plan` / PB-C04=`check-intake-consumption.py` / PB-C05=`check-provenance-chain.py` / PB-C06=`run-skill-create` R1 (`brief_path`/`handoff` 消費) / PB-C07=`/capability-build` build 入口 / PB-C08=`check-route-component-parity.py` / PB-C09=`emit-improvement-handoff.py` / PB-C10=`plugin-dev-plan-improvement-reviewer` / PB-C11=`enforce-provenance-chain` hook | 本ファイル |
-| `TG-Cxx` | task-graph 実行系 (harness-creator `scripts/` + dispatcher) | TG-C01=`dispatch-ready-set.py` / TG-C02=`sync-task-state.py` / TG-C03=`inject-task-inputs.py` / TG-C04=`emit-discovered-task.py` / TG-C05=`summarize-task-progress.py` / TG-C06=`/capability-build` の task-graph dispatcher 拡張 (command 本文・script ではない) / TG-C07=`manage-build-lease.py` / TG-C08=`record-task-graph-knowledge.py` | 本表が正本 (歴史的導出元: 当該周回の phase-05) |
+| `TG-Cxx` | task-graph 実行系 (harness-creator `scripts/` + dispatcher) | TG-C01=`dispatch-ready-set.py` / TG-C02=`sync-task-state.py` / TG-C03=`inject-task-inputs.py` / TG-C04=`emit-discovered-task.py` / TG-C05=`summarize-task-progress.py` / TG-C06=`/capability-build` の task-graph dispatcher 拡張 (command 本文・script ではない) / TG-C07=`manage-build-lease.py` / TG-C08=`record-task-graph-knowledge.py` / TG-C09=`project-task-status.py` (live 状態の plan dir 投影・観測性) | 本表が正本 (歴史的導出元: 当該周回の phase-05) |
 | `ENG-Cxx` | 生成 harness 同梱 engine 系 (with-goal-seek `engine:task-graph` 変種) | ENG-C01=`ready-set-from-checklist.py` / ENG-C02=`self-reflect-append.py` / ENG-C06=`extract-capability-dependency-graph.py` / ENG-C07=`record-capability-graph-knowledge.py` / ENG-C08=`lint-capability-graph-knowledge.py` | `skills/run-build-skill/SKILL.md` |
 | `route Cxx` / `component Cxx` | plan-local component id (各 plan の inventory 内番号) | 接頭辞は付けず、必ず「route C09」「component C12」のように文脈語を添える | 各 `plugin-plans/<slug>/component-inventory.json` |
 
@@ -68,7 +68,7 @@ task-graph は planner が作る計画構造であり、harness-creator は buil
 
 | 項目 | writer / owner | reader / consumer | 完了ゲート | 備考 |
 |---|---|---|---|---|
-| `task-graph.json` / phase / inventory / handoff | plugin-dev-planner | harness-creator `/capability-build` | planner 側 graph/schema/gate | harness は read-only。plan 直接 mutation 禁止 |
+| `task-graph.json` / phase / inventory / handoff | plugin-dev-planner | harness-creator `/capability-build` | planner 側 graph/schema/gate | harness は read-only。plan 直接 mutation 禁止 (唯一の例外は下行 TG-C09 の gitignore 済派生投影ビュー) |
 | `task-state.json` / `task-events.jsonl` | harness-creator `sync-task-state.py` | `dispatch-ready-set.py` / `summarize-task-progress.py` / `record-task-graph-knowledge.py` | state schema + replay 整合 | state と event は同じ単一 writer |
 | discovered-task inbox | harness-creator `emit-discovered-task.py` | planner `accept-discovered-task.py` | 未処理 status があれば TG-C08 が completed 拒否 | status は `accepted` / `rejected` / `superseded` で解決済み |
 | build 成果物の周回 scope | harness-creator `resolve_build_dir(target_plugin_slug, cycle_id)` | TG-C02/TG-C05/TG-C07/TG-C08 | `cycle_id` は handoff top-level だけを消費 | `plan_dir` のパス解析は禁止 |
@@ -78,6 +78,7 @@ task-graph は planner が作る計画構造であり、harness-creator は buil
 | `.build.lock` (build 排他 lock) | harness-creator `manage-build-lease.py` (TG-C07) | TG-C07 自身 (steal/renew 判定) | lock TTL + pid 生存判定 | 中身は `{started_at, pid, host}` JSON。runtime 生成物で git 追跡外 |
 | `route-*.json` (route-build-report) | route builder (`build-script-route.py` / `run-build-skill`) | `validate-route-build-reports.py` / TG-C02 (done 照合) / TG-C05 / TG-C08 | route-build-report 契約 (PR#70・additive のみ) | `covered_task_ids` は dispatcher (TG-C06) が node→route join から決定論導出して追記する |
 | `plan-P*.json` (checklist-verification report) | harness-creator dispatcher (TG-C06) | TG-C02 (done 照合) / TG-C08 | `verified_by` + `covered_task_ids` 必須 | `entity_ref=null` ノードの plan-node-verification 証跡 |
+| `task-graph-status.json` / `task-progress.md` (live 状態投影ビュー) | harness-creator `project-task-status.py` (TG-C09) | 人間 (plan dir 観測性) | — (read-only 投影・gate 無し) | **read-only 派生ビュー**: task-graph.json(構造)+task-state.json(状態) を merge 投影するのみで SSOT を書かず graph_hash pin を温存する。harness が plan dir へ書く唯一の例外だが gitignore 追跡外 (.gitignore の投影 2 ファイル) で追跡衝突しない |
 
 handoff `routes[].status` は planner の計画時宣言のみであり、build 後も `planned` 据置が正 (実行状態の正本は task-state.json / route-build-report。parity 突合対象外)。
 
@@ -107,6 +108,7 @@ handoff `routes[].status` は planner の計画時宣言のみであり、build 
 | 内 | state write-back (done/blocked/lease) | 決定論 script (単一 writer) | `sync-task-state.py` (TG-C02) を dispatcher が直列呼出 | SubAgent は TG-C02 を呼ばない |
 | 内 | heartbeat (lock/lease 延長) | 決定論 script | TG-C07 `renew` / TG-C02 `--renew-lease` | 偽孤児回収を防ぐ |
 | 内 | 進捗集計 / 停滞判定 | 決定論 script | `summarize-task-progress.py` (TG-C05) | stall を kind 分類 |
+| 内 | live 状態の plan dir 投影 (観測性) | 決定論 script | `project-task-status.py` (TG-C09) | task-graph.json+task-state.json を **read-only** merge 投影 (SSOT 不変・plan dir へ status/progress・観測性断絶を解消) |
 | 外 | 発見タスク emit | 決定論 script (引数の 2 つのみ AI) | `emit-discovered-task.py` (TG-C04) | stall 由来は TG-C05 構造化フィールドから機械導出・`--node-title`/`--reason` のみ AI 判断 |
 | 外 | 完了ゲート (未処理 discovered-task 判定) | 決定論 script | `record-task-graph-knowledge.py` (TG-C08) | 未処理残存で completed を block |
 | 外 | handback 提示 | 決定論 script 生成 → **AI が提示** | TG-C08 `handback_command`/`next_steps` | 文面は script が生成・ユーザーへ渡すのは AI |

@@ -1,7 +1,8 @@
 """validate-task-graph.py の機能テスト (C2/C3/C11・conftest 非依存)。
 
-8 検査 (a)DAG非循環 / (b)orphan0 / (c)producer一意 / (d)inventory矛盾0 /
-(e)consumes producer実在 / (f)非正準拒否 / (g)node.state永続4値 / (h)dangling edge端点0 を、P04 C2
+10 検査 (a)DAG非循環 / (b)orphan0 / (c)producer一意 / (d)inventory矛盾0 /
+(e)consumes producer実在 / (f)非正準拒否 / (g)node.state永続4値 / (h)dangling edge端点0 /
+(i)phase非逆走 / (j)couples_with直列化実現 を、P04 C2
 受入例 (満たす例=exit0 / 満たさない例=inventory矛盾 exit1) を含めて網羅する。
 """
 from __future__ import annotations
@@ -267,3 +268,50 @@ def test_main_bad_inventory_json(tmp_path):
     _write_plan(tmp_path, _c2_graph(), inventory=None)
     (tmp_path / "component-inventory.json").write_text("{ bad", encoding="utf-8")
     assert vtg.main([str(tmp_path)]) == 2
+
+
+# ─────────────────── (j) couples_with 直列化実現 ───────────────────
+def _couple_inventory(couples=("C06",)):
+    return {"components": [
+        {"id": "C05", "depends_on": [], "couples_with": list(couples)},
+        {"id": "C06", "depends_on": []},
+    ]}
+
+
+def _couple_graph(serialized: bool):
+    """C05/C06 同一 phase 兄弟 + phase marker。serialized=True なら直列化 depends_on を含む。"""
+    nodes = [_node("P05-C05-01", "C05"), _node("P05-C06-01", "C06"), _node("P05", None)]
+    edges = [{"type": "parent_of", "from": "P05", "to": "P05-C05-01"},
+             {"type": "parent_of", "from": "P05", "to": "P05-C06-01"}]
+    if serialized:
+        edges.append({"type": "depends_on", "from": "P05-C06-01", "to": "P05-C05-01"})
+    return dtg.canonicalize({"schema_version": "1.0", "nodes": nodes, "edges": edges})
+
+
+def test_j_couples_realized_passes():
+    g = _couple_graph(True)
+    assert vtg._check_couples(vtg._nodes(g), vtg._edges(g), _couple_inventory()) == []
+
+
+def test_j_couples_unrealized_flagged():
+    g = _couple_graph(False)
+    v = vtg._check_couples(vtg._nodes(g), vtg._edges(g), _couple_inventory())
+    assert any(x.startswith("(j)") and "C05<->C06" in x for x in v)
+
+
+def test_j_couples_unknown_reference_flagged():
+    inv = {"components": [{"id": "C05", "depends_on": [], "couples_with": ["C99"]}]}
+    g = _couple_graph(True)
+    v = vtg._check_couples(vtg._nodes(g), vtg._edges(g), inv)
+    assert any("unknown component" in x and "C99" in x for x in v)
+
+
+def test_j_couples_skipped_when_component_ordered():
+    # C05 depends_on C06 で既に順序付き → (d) が担い (j) は対象外 (直列化 edge 不在でも非 violation)。
+    inv = {"components": [
+        {"id": "C05", "depends_on": ["C06"], "couples_with": ["C06"]},
+        {"id": "C06", "depends_on": []},
+    ]}
+    g = _couple_graph(False)
+    v = vtg._check_couples(vtg._nodes(g), vtg._edges(g), inv)
+    assert not any(x.startswith("(j)") for x in v)

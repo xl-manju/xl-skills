@@ -2,7 +2,7 @@
 
 C6: task_graph_ref の形状 + routes↔producer task 対応 + handoff.cycle_id↔goal-spec parity。
 task-graph はデフォルト成果物 (§9) ゆえ task_graph_ref は必須 (未設定は violation)。
-file 不在時は形状のみ検証 (実体 8 検査は validate-task-graph の責務) を固定する。
+file 不在時は形状のみ検証 (実体 10 検査は validate-task-graph の責務) を固定する。
 """
 import importlib.util
 import json

@@ -39,6 +39,7 @@
 - **component 粒度 (P02)**: 独立 builder を持つ kind (skill / sub-agent / slash-command / hook) は各実体を独立 component にする。builder を持たない script は複数 skill 共有 / 独立検証 / 280 行超のいずれか (no-split threshold) を満たす時のみ独立 component に昇格し、単一 skill 専用 script は親 skill の build へ畳む (専用 script を 1 実体ずつ component に割る水増しを防ぐ)
 - buildable 実体数 N は 5 (kind 数) でも 13 (フェーズ数) でもなく、対象プラグインが持つ実体の数に依存して変動する (input でなく output)。各 component は唯一の実 `build_target` を持つこと (build_target 無し=水増しは `detect-unassigned.py` が弾く)
 - 依存は DAG (循環禁止)。top-sort 可能な順序を保証する (inventory の component DAG は `verify-index-topsort.py` が非循環検査)
+- **接合が密な兄弟ペアは `couples_with` を宣言する (盲目並列の代償を防ぐ)**: `depends_on` (成果物ハード依存=to が先に done でないと動けない) とは別に、`couples_with: [<相手 id>]` (optional・対称) は「同一 phase の兄弟で成果物依存は無いが接合が密なペア」を宣言する。判定の目安は「片方の出力形状が他方の入力形状になる (共有 contract/schema を挟む producer↔consumer)」「同じ統合面 (join) を両側から触る」。これらを盲目に並列 build すると統合 finding が両方 build 後まで先送りされ、実 pipe で出力キー↔読取キー不一致が露見する代償が起きる (実観測済み)。`couples_with` 宣言により derive-task-graph が同一 phase 直列化 depends_on を焼き (id 昇順で先発/後発を decisive に決定)、先発の done=統合面が観測済みになってから後発を build させる。**過剰宣言しない**: 真に接合が密なペアのみ (無関係な兄弟の並列性は保つ=幅広 DAG の利点を殺さない)。宣言忘れは advisory `lint-sibling-coupling.py` がデータ流シグナルから候補提示する
 
 ### 2.3 入力契約
 
@@ -48,7 +49,7 @@
 | component_hints | text | no | ユーザー希望コンポーネント |
 
 ### 2.4 出力契約
-- 形式: コンポーネント目録 `component-inventory.json` (`{"considered_component_kinds":[...5種...],"components":[{"id","component_kind","skill_kind"(skill のみ),"name","depends_on","build_target","builder","build_kind",...品質機構}],"plugin_level_surfaces":{...}}`) + 依存 DAG + envelope 設計 (Phase02 が `<PLAN_DIR>/envelope-draft/plugin.json` の下地を確定)
+- 形式: コンポーネント目録 `component-inventory.json` (`{"considered_component_kinds":[...5種...],"components":[{"id","component_kind","skill_kind"(skill のみ),"name","depends_on","couples_with"(optional・接合密な同一phase兄弟),"build_target","builder","build_kind",...品質機構}],"plugin_level_surfaces":{...}}`) + 依存 DAG + envelope 設計 (Phase02 が `<PLAN_DIR>/envelope-draft/plugin.json` の下地を確定)
 - 必須: `considered_component_kinds` は 5 種を全列挙する (検討証跡)。`components[]` は**実際に必要な buildable component のみ**を列挙する (不要な hook/script/command を水増し生成しない)。各コンポーネントの `id` / `component_kind` / `name` / `depends_on` / `build_target` / `builder` / `build_kind` (skill は `skill_kind` sub-field も)。**`build_target` は L4 実体化先パス** (skill→`plugins/<plugin-slug>/skills/<skill>/`、sub-agent→`plugins/<plugin-slug>/agents/<name>.md`、hook→`plugins/<plugin-slug>/hooks/<name>.py`、slash-command→`plugins/<plugin-slug>/commands/<name>.md`、script→親 skill の `scripts/<name>.py`)。`detect-unassigned.py` は各 component の `build_target` 非空 (欠落で exit1) と **各 component が ≥1 phase の `entities_covered` に出現** (orphan 防止) を機械強制する (io-contract.md §9 L3→L4 追跡)。`check-surface-inventory.py` が 5 種検討証跡と plugin-level surface 採否を検査する。キー名は `name` (≠`summary`)・ゴールデン例 `examples/sample-plan/component-inventory.json` と一致させる
 
 ## Layer 3: インフラ層 (外部依存)
@@ -90,6 +91,7 @@
 - [ ] 必要な各実体を 5 種のいずれかへ写像し component_kind を確定した (同一 kind 複数実体はそれぞれ独立 component)
 - [ ] skill コンポーネントのみ `skill_kind` (run/ref/wrap/assign/delegate) を sub-field で確定した
 - [ ] 各コンポーネントの hierarchy / pattern を確定し依存 DAG を作り循環が無い (top-sort 可能) ことを確認した
+- [ ] 接合が密な同一 phase 兄弟ペア (共有 contract を挟む producer↔consumer・同一 join を両側から触る) を `couples_with` で宣言した (過剰宣言せず・無関係兄弟の並列性は保つ)。宣言は derive が直列化し `validate-task-graph` (j) が実現を強制する
 - [ ] 各コンポーネントの `name` と L4 実体化先 `build_target` + `builder` / `build_kind` を確定し目録へ記録した (R3 後の `detect-unassigned.py` が build_target 非空と phase への出現を強制するため R2 段で前倒し確定し fail-late を避ける)
 - [ ] Phase02 owner として envelope(plugin.json)設計を確定し `<PLAN_DIR>/envelope-draft/plugin.json` の下地にした
 - [ ] 不要な plugin-level surface は `plugin_level_surfaces.<surface>.omitted_reason` (正本キー一本) に根拠付きで記録した

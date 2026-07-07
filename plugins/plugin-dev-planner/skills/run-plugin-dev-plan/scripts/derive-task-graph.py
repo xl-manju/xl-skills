@@ -91,6 +91,57 @@ def _inventory_depends(plan_dir: Path) -> dict[str, list[str]]:
     return out
 
 
+def _inventory_couples(plan_dir: Path) -> set[frozenset[str]]:
+    """component 間の couples_with 宣言を無向ペア集合へ正規化する (接合密度の直列化根拠)。
+
+    couples_with は対称関係 (A couples_with B ⇔ B couples_with A) ゆえ frozenset で
+    重複排除し、片側宣言でもペアを拾う。自己結合 (A in A.couples_with) は無意味ゆえ除外。
+    depends_on と違い成果物ハード依存ではなく「同時 build で統合 finding が先送りされる密結合」
+    の宣言で、derive はこれを同一 phase 兄弟の直列化 depends_on へ機械展開する。
+    """
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.exists():
+        return set()
+    try:
+        inv = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    pairs: set[frozenset[str]] = set()
+    for comp in inv.get("components", []):
+        cid = comp.get("id")
+        cw = comp.get("couples_with", [])
+        if not isinstance(cid, str) or not isinstance(cw, list):
+            continue
+        for other in cw:
+            if isinstance(other, str) and other and other != cid:
+                pairs.add(frozenset((cid, other)))
+    return pairs
+
+
+def _transitive_closure(comp_depends: dict[str, list[str]]) -> dict[str, set[str]]:
+    """component depends_on の推移閉包 (cid -> 推移的に依存する上流 cid 集合) を返す。
+
+    coupling の直列化向き (id 昇順) が既存の推移依存と逆走して cycle 化するのを防ぐため、
+    直接ペアだけでなく推移順序 (A→C→B) を検出する土台。comp_depends 自体が循環していても
+    seen で終端する (防御的)。validate-task-graph.py が (j) で import 再利用する SSOT。
+    """
+    reach: dict[str, set[str]] = {}
+
+    def _visit(node: str, acc: set[str], seen: set[str]) -> None:
+        for up in comp_depends.get(node, []):
+            if up in seen:
+                continue
+            seen.add(up)
+            acc.add(up)
+            _visit(up, acc, seen)
+
+    for cid in comp_depends:
+        acc: set[str] = set()
+        _visit(cid, acc, set())
+        reach[cid] = acc
+    return reach
+
+
 def _phase_order(phase_ref: str) -> int:
     """P01..P13 を数値順へ写す。未知形式は末尾扱いにして既存後方互換を保つ。"""
     m = re.match(r"^P(\d+)$", str(phase_ref))
@@ -103,16 +154,22 @@ def derive(plan_dir: Path) -> dict:
     1 チェックボックス項目 = 1 task node。entities_covered が複数なら各 entity ごとに node を生成し、
     空なら entity_ref=null の component 非依存タスクとする。parent_of で phase 仮想ルートへ連結し、
     component-inventory の depends_on を entity_ref 一致 node 集合間の depends_on エッジへ反映する。
+    加えて couples_with 宣言 (接合が密な兄弟ペア) を同一 phase 兄弟の直列化 depends_on へ展開し、
+    盲目並列による統合 finding 先送りを封じる (既存順序ペアは skip・id 昇順で decisive・phase 非逆走)。
     """
     plan_dir = Path(plan_dir)
     build_targets = _inventory_build_targets(plan_dir)
     comp_depends = _inventory_depends(plan_dir)
+    couples = _inventory_couples(plan_dir)
 
     nodes: list[dict] = []
     edges: list[dict] = []
     # entity_ref -> その entity に属する node id 群 (depends_on 反映で使用)。
     nodes_by_entity: dict[str, list[str]] = {}
     phase_by_node: dict[str, int] = {}
+    # couples 直列化の「同一 phase」等値判定は raw phase_ref 文字列で行う (下記 couples ブロック)。
+    # _phase_order の int 等値は未知形式を全て 10_000 へ潰し validate(j)/accept の文字列等値と乖離するため。
+    raw_phase_by_node: dict[str, str] = {}
     produced_entities: set[str] = set()
     # phase ライフサイクル順序 edge 導出用: phase marker (root) を出現順に、
     # 各 phase の leaf node 群を root ごとに記録する。
@@ -158,6 +215,7 @@ def derive(plan_dir: Path) -> dict:
                     "write_scope": write_scope,
                 })
                 phase_by_node[node_id] = _phase_order(phase_ref)
+                raw_phase_by_node[node_id] = phase_ref
                 leaves_by_root[root_id].append(node_id)
                 edges.append({"type": "parent_of", "from": root_id, "to": node_id})
                 if isinstance(entity, str) and entity in build_targets and entity not in produced_entities:
@@ -179,6 +237,59 @@ def derive(plan_dir: Path) -> dict:
                     if phase_by_node.get(up, 10_000) > phase_by_node.get(dn, 10_000):
                         continue
                     edges.append({"type": "depends_on", "from": dn, "to": up})
+
+    # --- 接合が密な兄弟ペアの直列化 (couples_with → serialization depends_on) ---
+    # 並列 task-graph が depends_on 無しの兄弟を盲目的に同一 ready-set へ同時 dispatch すると、
+    # 接合が密なペア (共有 contract を挟む producer↔consumer 等) では統合 finding が両方 build
+    # 後まで先送りされる (実観測された代償: 出力キー↔読取キー不一致で実 pipe が壊れる)。architect が
+    # couples_with で宣言した密結合ペアを直列化し、先発の done=統合面が観測済みになってから後発を
+    # build させる。直列化の機構は既存 depends_on を流用する (consumer=compute-ready-set が depends_on
+    # を直列化するため追加 edge type/機構が不要・生成ハーネスの checklist へも depends_on として伝播)。
+    # 規則: (1) 既に component depends_on の**推移閉包**で順序付いたペアは skip (直接 A→B だけでなく
+    #           推移依存 A→C→B も含む。id 昇順向きと逆走すると cycle 化するため直列化済とみなし介入しない)。
+    #       (2) 向きは entity id 昇順で決定論固定 (小さい id を prereq=先発)。
+    #       (3) **同一 phase 兄弟のみ**直列化する (盲目並列の risk は同一 phase に限る。異 phase ペアは
+    #           phase 順序 edge が既に直列化するため無介入=redundant edge/(j) 偽陽性を避ける)。
+    comp_reach = _transitive_closure(comp_depends)
+    existing_dep_edges = {
+        (e["from"], e["to"]) for e in edges if e.get("type") == "depends_on"
+    }
+    cross_phase_declared: list[tuple[str, str]] = []
+    for pair in couples:
+        if len(pair) != 2:
+            continue
+        a, b = sorted(pair)
+        # a→…→b もしくは b→…→a の推移順序が既にあれば直列化済 (逆走 cycle を封じ介入しない)。
+        if b in comp_reach.get(a, set()) or a in comp_reach.get(b, set()):
+            continue
+        prereq, dependent = a, b  # id 昇順: 小さい id を先発 (prereq)
+        dep_nodes = nodes_by_entity.get(dependent, [])
+        pre_nodes = nodes_by_entity.get(prereq, [])
+        serialized_any = False
+        for dn in dep_nodes:
+            for up in pre_nodes:
+                if up == dn:
+                    continue
+                # 同一 phase のみ直列化。等値は **raw phase_ref 文字列**で判定し validate(j)/accept と
+                # 同一述語へ揃える (int 化 _phase_order は未知形式を潰し writer/checker を乖離させる)。
+                if raw_phase_by_node.get(up) != raw_phase_by_node.get(dn):
+                    continue  # cross-phase は phase 順序 edge が直列化する (無介入)
+                serialized_any = True
+                if (dn, up) in existing_dep_edges:
+                    continue
+                edges.append({"type": "depends_on", "from": dn, "to": up})
+                existing_dep_edges.add((dn, up))
+        # 宣言されたが同一 phase 兄弟対が無く直列化 edge が 1 本も焼かれなかった couples は
+        # cross-phase の silent no-op。宣言者が「直列化した」と誤認しないよう advisory を集める
+        # (graph 出力は不変・stderr のみ)。因果順序が要るなら depends_on を使う旨を促す。
+        if dep_nodes and pre_nodes and not serialized_any:
+            cross_phase_declared.append((a, b))
+    for a, b in cross_phase_declared:
+        print(
+            f"advisory: couples_with {a}<->{b} は異 phase 宣言のため直列化 edge を焼きません "
+            f"(phase 順序 edge に委譲)。build 順序の因果依存が必要なら depends_on を使ってください。",
+            file=sys.stderr,
+        )
 
     # --- phase ライフサイクル順序を task-graph へ焼く (event 駆動チェーンの graph 保証) ---
     # ユーザー要件「1 task が完了 → done と記述される → それが次 task の発火条件になる」を
