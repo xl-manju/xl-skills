@@ -3,11 +3,6 @@ name: run-mf-invoice-report
 description: 前月↔今月のMF掛け払い発行状況を比較して漏れレポートを手動起動したいとき、2営業日目以降に何度でも冪等再実行して専用DBへ上書きしたいときに使う。
 argument-hint: "[--target YYMM] [--apply --verified]"
 allowed-tools: Read, Bash, Skill
-kind: command
-version: 0.1.0
-owner: team-platform
-since: 2026-07-07
-source: doc/ClaudeCodeスキルの設計書/
 entrypoint: run-mf-invoice-report
 ---
 
