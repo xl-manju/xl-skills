@@ -249,6 +249,15 @@ def test_find_or_create_dry_run_does_not_create():
     assert all(not (c[0] == "POST" and c[1] == "/databases") for c in state["calls"])
 
 
+def test_placement_discloses_wrap_is_view_setting_not_api():
+    """折り返し(wrap)はビュー表示設定で API 非対応。placement が UI 手順を毎回開示する。"""
+    req, state = _make_store()
+    _, _, placement = sink.find_or_create_month_db("2607", "PAGE", "tok", req=req)
+    assert placement["wrap_all_columns_via_api"] is False
+    note = placement["view_format_note"]
+    assert "折り返し" in note and "Wrap all columns" in note   # UI 手順を明示
+
+
 def test_placement_ignores_non_report_child_databases():
     """親ページ直下のレポート以外の child_database は月順序判定から除外する。"""
     children = [_child_db("請求漏れ比較レポート 2026-07"), _child_db("その他メモDB")]

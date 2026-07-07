@@ -129,12 +129,25 @@ def test_issued_via_evidence_amount_only():
 # ---------------------------------------------------------------------------
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
-def test_new_without_lookback_is_plain_new():
+def test_new_without_lookback_flags_unverified():
+    # ルックバック未実行 (--lookback-12mo 未指定) は「未確認」を明示し silent に『新規発行』と断定しない。
+    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) ため、確認できていない事実を隠さない。
     curr = [_row("新規社", "月額", "MATCH_MONTHLY")]
     row = _classify([], curr)[0]
-    assert row["gap_check"] == "正常"
+    assert row["gap_check"] == "正常"                 # 今月あり=発行済み ゆえ発行漏れではない
     assert row["period_diff"] == "新規/年→月切替"
-    assert "新規発行" in row["comment"]
+    assert "未実行" in row["comment"] and "未確認" in row["comment"]
+
+
+def test_new_with_lookback_but_no_annual_is_true_new():
+    # ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
+    # 未実行 (上のテスト) と区別され、確認済みであることが明示される。
+    curr = [_row("真新規社", "月額", "MATCH_MONTHLY")]
+    lookback = {"別の社": [{"month": "2506", "annual": True}]}  # 対象取引先は不在=確認済み・裏付けなし
+    row = _classify([], curr, lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"
+    assert "確認したが" in row["comment"] and "真の新規" in row["comment"]
+    assert "未実行" not in row["comment"]
 
 
 def test_new_with_12mo_annual_lookback_is_switch():

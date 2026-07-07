@@ -144,6 +144,14 @@ _COLUMN_SPECS = {
 _TITLE_PREFIX = "請求漏れ比較レポート"
 _YYYYMM_RE = re.compile(r"(\d{4})-(\d{2})$")
 
+# 折り返し(wrap)/列幅はビュー format 設定で Notion 公開 API (2022-06-28) は操作不能
+# (列順は DB 作成時の properties 定義順で既定ビューへ反映できるが、wrap/幅はビュー format ゆえ
+# API 非公開=placement の append 制約と同じ能力境界)。placement で UI 手順を毎回開示する SSOT。
+_VIEW_FORMAT_NOTE = (
+    "全列の折り返し表示 (wrap) はプロパティ(スキーマ)設定でなくビュー表示設定で、"
+    "Notion 公開 API では設定できない。Notion UI でこの DB ビューの『…』メニュー→"
+    "『すべての列を折り返す (Wrap all columns)』を一度トグルすると以後ビューに永続する。")
+
 
 class SinkError(RuntimeError):
     """fail-closed で停止すべき設定/前提エラー (main が exit 2 に写像する)。"""
@@ -467,6 +475,9 @@ def find_or_create_month_db(target, parent_page_id, token, req=None, *, apply=Tr
         "column_order_note": (
             "列順は定義順=実表示順で一致 (取引先名=title を先頭に定義)。実列順は "
             "取引先名→漏れチェック(✓)→商品名→先月の金額→今月の金額→先月と今月の比較→コメント。"),
+        # 折り返し(wrap)/列幅はビュー format 設定で API 非公開 (UI で一度トグル)。SSOT=_VIEW_FORMAT_NOTE。
+        "view_format_note": _VIEW_FORMAT_NOTE,
+        "wrap_all_columns_via_api": False,
     }
 
     if found_id:
@@ -619,6 +630,9 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
                 "requested_order": "newest-on-top",
                 "api_strategy": "append-child-database",
                 "report_parent_page": _resolve_parent(cfg),
+                "column_order_defined": list(COLUMN_ORDER),
+                "view_format_note": _VIEW_FORMAT_NOTE,     # dry-run でも折り返し UI 手順を開示
+                "wrap_all_columns_via_api": False,
                 "note": "dry-run: 親ページ未走査 (書き込みなし)",
             },
         }

@@ -104,7 +104,7 @@
       "component_kind": "script",
       "name": "notion_report_sink.py",
       "script_name": "notion_report_sink.py",
-      "purpose": "月次スナップショット DB を積層する決定論 sink。当月分の DB を、指定ページ『請求書発行チェック』の指定トグル見出し2ブロック配下へ find-or-create し、newest-on-top は intended_index で開示・実配置は Notion API 制約により append fallback とした上で、先月の金額・今月の金額を並べた比較行を非破壊冪等 upsert する。同月内の 2/3 営業日目再実行は当月 DB へ日々追加(入力同定は {customer × contract_id × product}、既存ページ回収は固定7列制約により stored key=(取引先名,商品名)、契約ID違いは要対応優先で 1 行へ収束し collapsed_multi_contract に計上・重複行 0)、月跨ぎは新規 DB を append 作成し placement で newest-on-top の意図位置を開示して過去月 DB を記録として保持する(月次履歴を DB 単位で残す)。月次 DB の一意キーは target_month(YYMM) + logical_parent(report_parent_page/report_toggle_block) + title『請求漏れ比較レポート YYYY-MM』で、同一対象月の再実行では二重 DB を作らず既存 DB を再利用する。親ページ ID/トグルブロック IDは mf-kessai-config.default.json の配布既定が供給し、別出力先にしたい場合のみ .mf-kessai-config.json で上書きする。plan は論理キー(report_parent_page/report_toggle_block)のみ宣言する。DB の新規生成と 7 列スキーマ/列型写像は既存 skills/run-mf-invoice-db-setup/scripts/build_notion_db.py の build_property パターン(title/rich_text/number(yen)/date/select)を踏襲し、title(=各行=ページの作成/ページ名)プロパティ=取引先名・列順は [漏れチェック, 取引先名, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] を順序 SSOT の列定義配列として固定する(列6=先月と今月の比較はテキスト説明・金額は税抜)。行の非破壊冪等 upsert とレート間隔は既存 lib/notion_reconcile_sink.py + notion_transport を踏襲するが、当該 sink は既存 DB への行 upsert 専用で DB 生成機能を持たないため DB 生成は build_notion_db を再利用する(踏襲元の能力境界を明示=SS-F2)。upsert は非破壊マージ(以前の run で書いた行は今回入力に無くても当月 DB から削除しない=deleted 常時 0・全情報保持=以前の情報が消えない)で、手動追記の運用は無い前提ゆえ frozen 列は設けない。HTTP は notion_transport._req を単一正本とし、テストは req 引数で fake-store をモック差し替えして network 非依存で検証する(既存 test_notion_reconcile_sink の offline 契約踏襲)。配置順は target_month の YYYY-MM から newest-on-top の intended_index を算出して報告する。Notion API は child_database の任意位置 insert を提供しないため、実配置は append fallback (title YYYY-MM で識別) とし、この差分を placement に開示する",
+      "purpose": "月次スナップショット DB を積層する決定論 sink。当月分の DB を、指定ページ『請求書発行チェック』の指定トグル見出し2ブロック配下へ find-or-create し、newest-on-top は intended_index で開示・実配置は Notion API 制約により append fallback とした上で、先月の金額・今月の金額を並べた比較行を非破壊冪等 upsert する。同月内の 2/3 営業日目再実行は当月 DB へ日々追加(入力同定は {customer × contract_id × product}、既存ページ回収は固定7列制約により stored key=(取引先名,商品名)、契約ID違いは要対応優先で 1 行へ収束し collapsed_multi_contract に計上・重複行 0)、月跨ぎは新規 DB を append 作成し placement で newest-on-top の意図位置を開示して過去月 DB を記録として保持する(月次履歴を DB 単位で残す)。月次 DB の一意キーは target_month(YYMM) + logical_parent(report_parent_page/report_toggle_block) + title『請求漏れ比較レポート YYYY-MM』で、同一対象月の再実行では二重 DB を作らず既存 DB を再利用する。親ページ ID/トグルブロック IDは mf-kessai-config.default.json の配布既定が供給し、別出力先にしたい場合のみ .mf-kessai-config.json で上書きする。plan は論理キー(report_parent_page/report_toggle_block)のみ宣言する。DB の新規生成と 7 列スキーマ/列型写像は既存 skills/run-mf-invoice-db-setup/scripts/build_notion_db.py の build_property パターン(title/rich_text/number(yen)/date/select)を踏襲し、title(=各行=ページの作成/ページ名)プロパティ=取引先名・列順は [取引先名, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] を順序 SSOT の列定義配列として固定する(列6=先月と今月の比較はテキスト説明・金額は税抜)。行の非破壊冪等 upsert とレート間隔は既存 lib/notion_reconcile_sink.py + notion_transport を踏襲するが、当該 sink は既存 DB への行 upsert 専用で DB 生成機能を持たないため DB 生成は build_notion_db を再利用する(踏襲元の能力境界を明示=SS-F2)。upsert は非破壊マージ(以前の run で書いた行は今回入力に無くても当月 DB から削除しない=deleted 常時 0・全情報保持=以前の情報が消えない)で、手動追記の運用は無い前提ゆえ frozen 列は設けない。HTTP は notion_transport._req を単一正本とし、テストは req 引数で fake-store をモック差し替えして network 非依存で検証する(既存 test_notion_reconcile_sink の offline 契約踏襲)。配置順は target_month の YYYY-MM から newest-on-top の intended_index を算出して報告する。Notion API は child_database の任意位置 insert を提供しないため、実配置は append fallback (title YYYY-MM で識別) とし、この差分を placement に開示する",
       "inputs": "argv(--rows FILE --target YYMM [--apply])。親ページ/トグルブロック ID は config 解決(引数直書きしない)",
       "outputs": "stdout(upsert 結果: 当月 DB の created/updated/skipped/deleted(=0 常時・非破壊マージ) 件数 + collapsed_multi_contract + month_db_id + month_db_reused(true/false) + placement(intended_index と actual=append-child-database))/stderr(violation)",
       "exit_codes": "0/1/2",
@@ -167,7 +167,7 @@
         "全component build後にC02 sub-agentで二段確認",
         "C06 sinkでレポート DB へ冪等上書き"
       ],
-      "output_contract": "レポートテーブル(漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント の7列を『この左→右の順で固定』・Notion title プロパティ=取引先名(列順2番目・Notion title=ページ名)・列6=テキスト説明・金額は税抜) + 判定内訳サマリ。継続発行(今月あり×前月あり)も漏れチェック=正常として全行 emit し全請求書一覧を成す(非 emit は今月なし×前月なし=元々請求なしのみ)。C06 sink 経由で当月分の月次 DB へ書き、同月内の再実行は入力同定 {取引先(customer) × 契約ID(contract_id) × 商品(product)} と stored key (取引先名,商品名) で重複行を出さず日々追加し、契約ID違いは要対応優先で collapse 計上する(非破壊マージ=以前 run で書いた行は今回入力に無くても削除されない)。月跨ぎは新しい月の DB が指定トグル配下へ append 作成され、newest-on-top の意図位置が placement で開示され、過去月 DB が履歴として残る (DB 構築/配置/冪等 upsert は C06 sink が所有)",
+      "output_contract": "レポートテーブル(漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント の7列を『この左→右の順で固定』・Notion title プロパティ=取引先名(列順1番目=Notion table view は title 列を最左に固定描画するため取引先名を先頭・漏れチェック(checkbox)を2列目へ確定=ユーザー承認済み)・列6=テキスト説明・金額は税抜) + 判定内訳サマリ。継続発行(今月あり×前月あり)も漏れチェック=正常として全行 emit し全請求書一覧を成す(非 emit は今月なし×前月なし=元々請求なしのみ)。C06 sink 経由で当月分の月次 DB へ書き、同月内の再実行は入力同定 {取引先(customer) × 契約ID(contract_id) × 商品(product)} と stored key (取引先名,商品名) で重複行を出さず日々追加し、契約ID違いは要対応優先で collapse 計上する(非破壊マージ=以前 run で書いた行は今回入力に無くても削除されない)。月跨ぎは新しい月の DB が指定トグル配下へ append 作成され、newest-on-top の意図位置が placement で開示され、過去月 DB が履歴として残る (DB 構築/配置/冪等 upsert は C06 sink が所有)",
       "boundary": "入力=MF 掛け払い実績(参照専用 GET)+既存 mfk_reconcile の per-月 verdict+請求確認シート/出力=月次レポート DB(指定ページ『請求書発行チェック』のトグル見出し2配下)の冪等上書き。MF への書き込みはしない。イレギュラー分類の実体は C05 エンジン・月次 DB 構築/冪等 upsert は C06 sink に委譲し、本 skill は収集→分類呼出→二段確認→冪等描画のオーケストレーションに徹する。既存 reconcile/check スキルの再設計はしない",
       "output_language": "ja",
       "placement_candidates": [
@@ -437,14 +437,15 @@
           "direction": "readwrite",
           "title_property": "取引先名",
           "property_order": [
-            "漏れチェック",
             "取引先名",
+            "漏れチェック",
             "商品名",
             "先月の金額",
             "今月の金額",
             "先月と今月の比較",
             "コメント"
-          ]
+          ],
+          "property_order_note": "Notion は title 列 (取引先名) を table view の最左に固定描画するため、title を property_order 先頭に置いて『定義順=実表示順』を一致させる (旧案の 漏れチェック 先頭は title=取引先名 が最左固定される制約と両立しないため取引先名を1列目・漏れチェックを2列目へ確定=ユーザー承認済み)。漏れチェックは checkbox (正常=✓/要対応=☐)。折り返し(wrap)/列幅はビュー format 設定で Notion 公開 API では設定できず UI で一度トグルする (C06 の placement.view_format_note が開示)。C06 の COLUMN_ORDER がランタイム SSOT。"
         }
       ]
     }

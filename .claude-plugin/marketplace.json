@@ -94,7 +94,7 @@
       "name": "mf-kessai-invoice-check",
       "source": "./plugins/mf-kessai-invoice-check",
       "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理するプラグイン。前月発行・今月未発行の取引先を /billings/qualified の差集合で洗い出し、商品名・金額・取引先企業名を突合してNotion DBへ冪等upsert。MF APIは参照専用(PreToolUse hookで変更系を遮断)、誤検出は独立contextのsubagentで二段確認。API鍵はKeychain保管。",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "category": "productivity",
       "tags": ["money-forward", "invoice", "notion", "billing", "automation"]
     },
