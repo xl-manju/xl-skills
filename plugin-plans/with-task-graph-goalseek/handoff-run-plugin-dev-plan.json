@@ -198,7 +198,7 @@
       "owner": "plugin-scaffold",
       "status": "manual-user-gated",
       "build_target": ".claude-plugin/marketplace.json",
-      "approval_reason": "harness-creator は distributable:false(NEVER_DISTRIBUTE denylist・旧 skill-creator 由来)のため本 plan では marketplace 掲載を行わない(goal-spec constraints #4)"
+      "approval_reason": "harness-creator は distributable:false(NEVER_DISTRIBUTE denylist・改名前の旧名由来)のため本 plan では marketplace 掲載を行わない(goal-spec constraints #4)"
     }
   },
   "open_issues": [

@@ -21,7 +21,7 @@ plugin_meta:
     marketplace: false
   pkg_contract:
     applicable: false
-    reason: "harness-creator は distributable:false かつ NEVER_DISTRIBUTE denylist (旧 skill-creator 由来) 対象で PKG-001..015 の配布契約検査は非該当。本サイクルは既存スクリプト追加 (plugin-root 配置) + 既存 command (capability-build) への Edit のみで配布境界自体を変更しない"
+    reason: "harness-creator は distributable:false かつ NEVER_DISTRIBUTE denylist (改名前の旧名由来) 対象で PKG-001..015 の配布契約検査は非該当。本サイクルは既存スクリプト追加 (plugin-root 配置) + 既存 command (capability-build) への Edit のみで配布境界自体を変更しない"
   governance:
     applicable: false
     reason: "run-skill-rubric-governance が所有する評価 rubric 正本 (plan-rubric.json 等) は本サイクルで変更しない。本 plan は capability-build の dispatch 経路拡張 (task-graph consumer 化) であり rubric governance の対象外"
