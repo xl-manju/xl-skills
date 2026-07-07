@@ -1,0 +1,23 @@
+{
+  "target": {"plugin": "mf-kessai-invoice-check", "skill": "run-mf-invoice-report", "skill_md_sha256": "0334f2c195086c15534c4244e5b5fc41a4d5276e1f4341d00da16719f2447d2c"},
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-07-07T00:00:00Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "書込ゲートが prose でなく機械層で担保されている: notion_report_sink.py main() の L645-649 が `--apply` かつ `--verified` 未指定時に SinkError を送出し exit 2 する。これは SKILL frontmatter の disable-model-invocation:false + effect:external-mutation の整合根拠であり、test_main_apply_without_verified_fails_closed (tests/test_notion_report_sink.py:572) で機械検証されている。",
+      "producer↔consumer の seam キー語彙が ROW_CONTRACT (notion_report_sink.py:109-117) に SSOT 宣言され、C05 の 9 出力キー(customer/amount/prev_amount/gap_check/period_diff/product/comment/contract_id/target_month)が 7 列へ 1:1 写像。drift 検出の test_row_contract_maps_every_producer_key_to_column と実 pipe 貫通の test_seam_c05_output_populates_all_seven_columns の 2 段で担保され、盲目並列 build で起こりがちなキー不一致→列空を封鎖している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "Stop",
+    "next_action": "none"
+  },
+  "notes": "算出 SHA256=0334f2c195086c15534c4244e5b5fc41a4d5276e1f4341d00da16719f2447d2c は指定値と完全一致。pytest 実測 (tests/test_mfk_period_report.py tests/test_notion_report_sink.py): 84 passed / 0 failed / 0 error (2.45s)。末尾に『Required test coverage of 80% not reached. Total coverage: 22.30%』が出るが、これは 2 ファイルのみを走らせた subset 実行に対しプラグイン全体を coverage 母集団として測る pytest.ini の --cov-fail-under=80 が反応したアーティファクトであり、テスト失敗ではない (対象 2 スクリプトは各 97%/98%・test 失敗ゼロ)。skill の欠陥ではない。\n\n【条件1 矛盾なし=PASS】SKILL frontmatter (disable-model-invocation:false・effect:external-mutation・allowed-tools:Read/Write/Bash(python3 *)/Task) は、書込安全を dry-run 既定 + `--apply` が `--verified` 必須の機械ゲート (notion_report_sink.py:645-649) で担保する旨をコメントで明示し reconcile 同型として整合。command 側 (allowed-tools:Read/Bash/Skill・kind:command) は役割相応で矛盾なし。列定義順 SSOT (漏れチェック先頭) と Notion table view の title 最左固定描画の差は SKILL Key Rule 10 / placement.column_order_note / R4 で正直に開示 (=誇張でなく能力境界の明記) であり矛盾ではない。exit1 が失敗でない旨も SKILL Gotcha9 と manifest classify phase の fatal_exit_codes:[2] で一貫。\n\n【条件2 漏れなし=PASS】SKILL が挙げる正本パス/シンボルは全て実在: lib/mfk_reconcile.py の normalize(:195)/extract_names(:235)/has_end_basis(:303)、skills/run-mf-invoice-db-setup/scripts/build_notion_db.py の build_property(:37)、lib/notion_transport.py の _req/_notion_token/_rich_text_plain、lib/mfk_api.py の load_config(:56)。mfk_period_report.py は resolve_target_months/compare_periods/classify_period_transition/_classify_continuing を実装。未実装フラグ参照・dependency_break は無し (2 スクリプトの top-level import が全解決し 84 tests が import 段階で通る)。\n\n【条件3 整合性あり=PASS】7 列契約 [漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント] が SKILL Key Rule 10・command 表・manifest・R2/R4・COLUMN_ORDER(:92-100)・ROW_CONTRACT(:109-117) で一貫。prompts R1→R2→R3→R4 と workflow-manifest の phases(collect/classify/verify/render・dependsOn 直列)・guards(readonly/no-reinvent) が対応。R3-verify SSOT とアダプタ agents/mfk-report-verifier.md の prompt_ssot 参照も整合。\n\n【条件4 依存関係整合=PASS】argparse フラグ実在確認: C06 notion_report_sink.py=--rows/--target/--apply/--verified/--config (:635-640)、C05 mfk_period_report.py=--curr-verdicts/--prev-verdicts/--lookback-12mo/--contract-end/--target-month (:631-640)。command 実行コード例 (C05 は --target-month・C06 は --target を同一 YYMM) と一致し、不一致は run() の target_month cross-check (:582-588) で fail-closed。hook guard-mfk-no-reinvent.py の SANCTIONED_BASENAMES に mfk_period_report.py を含み (:54) 正本を allowlist。\n\n【IN1/OUT1 テスト裏付け】IN1: test_none_state_not_emitted_and_continued_all_emitted・test_continuing_gap_emitted_as_action (両月未発行 GAP を要対応 emit=5 状態目)・test_stopped_ended_no_basis_is_gap_safety_valve・test_main_gap_returns_exit1・test_upsert_creates_row_with_all_seven_columns・test_target_month_mismatch_is_fail_closed が緑。OUT1: test_reuse_is_idempotent_across_two_runs・test_idempotent_two_runs_collapse_to_one_row・test_non_destructive_merge_keeps_prior_rows (run-1={A,B}→run-2 後も残存)・test_cross_run_action_not_downgraded_by_normal・test_same_severity_action_collapse_merges_comments・test_reuse_existing_month_db_no_duplicate が緑。\n\n結論: 矛盾・未実装フラグ参照・dependency_break のいずれも無し。blocking 欠陥ゼロ。verdict=PASS。"
+}

@@ -1,0 +1,52 @@
+{
+  "purpose": "マネーフォワード掛け払いの請求書発行を、月初 2 営業日目以降(3 営業日目以降の追加取り込みを含む)に何度でも再実行しながら、前月↔今月の発行状況を比較して請求漏れがないかを一望できる比較レポートを冪等に上書き生成する。単月照合(run-mf-invoice-reconcile)では拾いにくい『前月あるが今月ない/前月ないが今月ある』の時間軸差分を、正常イレギュラー(年契約周期/年→月自動切替/トライアル完了/契約終了)と真の発行漏れに分類し、なぜ問題ないかをコメントで説明した状態を経理へ届ける。",
+  "background": "既存 run-mf-invoice-reconcile は請求確認シート基準で当月の MF 実績を双方向照合し、年間前払い抑制・契約終了最終請求・取消を判定済みだが、出力は当月の判定内訳であり『前月と今月を並べて発行状況の増減を一覧し、増減の各行がなぜ正常/漏れかをコメントで示す比較レポート』の軸を持たない。請求書は月初にまとめて発行された後、2 営業日目・3 営業日目以降も追加発行されるため、担当者はその都度チェックを回し全請求書の漏れレポートを最新状態で上書きしたい。前月あり今月なしには『年契約(年 1 回のみ請求)/トライアル完了(商品名にトライアル)/契約終了(請求確認シートに請求ナシ(YYMM 終了)記述)』の正常ケースが、前月なし今月ありには『12 ヶ月前の年契約が満了し月額へ自動切替』の正常ケースが混在し、これらを機械分類しコメント説明しないと真の漏れが埋もれる。既存の照合エンジン lib/mfk_reconcile.py と参照専用 API(lib/mfk_api.py)を土台に、時間軸比較・12 ヶ月ルックバック・イレギュラー分類の新次元を足す改善である。",
+  "goal": "run-mf-invoice-report スキルが前月と今月の発行状況を突合し、漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの列を持つレポートテーブルを生成し、12 ヶ月ルックバックで年契約周期・年→月切替・トライアル完了・契約終了を分類して各イレギュラー行になぜ問題ないかのコメントを焼き、真の発行漏れだけを漏れとして残し、独立 context の sub-agent が誤って漏れを問題ないと隠していないか二段確認し、2 営業日目以降に何度でも再実行しても同一対象月の月次 Notion DB を冪等に更新(日々追加・重複行なし)できる状態。新しい月は新しい DB として指定トグル配下の上部へ積み、MF API は参照専用を維持し、新規の比較・分類ロジックの再実装は機械的に遮断される。",
+  "artifact_class": "existing-plugin-update",
+  "target_plugin_slug": "mf-kessai-invoice-check",
+  "plan_dir": "plugin-plans/mf-kessai-invoice-check",
+  "out_dir": null,
+  "requested_count": null,
+  "checklist": [
+    {"id": "C1", "criterion": "前月↔今月の発行状況比較レポートを生成し、漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの7列を『この左→右の順で固定』したレポートテーブルを出力する(先月の金額と今月の金額を並べて比較可能にする)。Notion DB の title(=各行=ページの作成/ページ名)プロパティは取引先名(列順2番目・Notion title=ページ名)とする。列6『先月と今月の比較』はテキスト説明(例『先月比 +11,000円(新規発行)』)、金額(先月の金額/今月の金額)は税抜(既存 reconcile の期待金額=税抜と統一)。突合の論理キーは取引先×商品を基本とし、同一取引先・同一商品の複数契約がある場合のみ契約IDを disambiguator として使う", "done": false, "verify_by": "test"},
+    {"id": "C2", "criterion": "前月↔今月の差分に現れた該当取引先のみを対象に 12 ヶ月分の請求情報を遡って年契約(年 1 回請求)の周期を判定し、年契約で前月あり今月なしを正常(対象外)として発行漏れから抑制する(12 ヶ月遡りは全件でなく差分該当取引先に限定し、分類照合は取引先で候補を絞った後に契約ID・商品名単位で行う)", "done": false, "verify_by": "test"},
+    {"id": "C3", "criterion": "前月なし今月ありを『12 ヶ月前の年契約が満了し月額へ自動切替』の事情として分類し、その根拠をコメントに明記する", "done": false, "verify_by": "test"},
+    {"id": "C4", "criterion": "商品名に『トライアル』を含む契約のトライアル完了(前月あり今月なし)を、前月・数ヶ月前の状況からトライアル終了として検出しコメントに明記する", "done": false, "verify_by": "test"},
+    {"id": "C5", "criterion": "請求確認シート『確認内容』フィールドの『請求ナシ(YYMM 終了)』等の終了注記を根拠に、契約完了(前月あり今月なし)として分類しコメントに明記する。終了根拠の判定は既存 engine mfk_reconcile の has_end_basis/_END_BASIS_PAT(確認内容/備考を読む)を唯一の SSOT とし、C05 はその per-月 verdict SUPPRESS_ENDED を入力に取るのみで自由文を再パースしない。契約終了月列は has_end_basis と cross-check される二次情報で、根拠なき終了月は既存機構が REVIEW_ENDED_NO_BASIS として抑制せず漏れ隠蔽を防ぐ(この安全弁を保全する)", "done": false, "verify_by": "test"},
+    {"id": "C6", "criterion": "取引先×商品を前月集合と今月集合で突合し、今月あり×前月あり=正常:継続発行、今月あり×前月なし=12ヶ月前の年契約から月額自動切替の可能性を確認、今月なし×前月なし=対象外(元々請求なし)、今月なし×前月あり=正常な非請求事情(年契約期間内/商品名トライアル完了/請求ナシ(YYMM 終了)等の契約完了)を確認し、各イレギュラー行に『なぜ先月あって今月なくて問題ないか』の事情をコメントとして焼き、分類不能な差分は発行漏れ候補(要対応)として漏れチェックに残す", "done": false, "verify_by": "reasoning"},
+    {"id": "C7", "criterion": "2 営業日目以降(3 営業日目以降の追加取り込みを含む)に何度でも再実行でき、その都度当月 DB へ全請求書(継続発行=今月あり×前月あり行も漏れチェック=正常として全行 emit・非 emit は今月なし×前月なし=元々請求なしのみ)の漏れレポートを冪等に上書き(日々追加)再生成する(同月内の 2 回実行で重複行が出ない)", "done": false, "verify_by": "test"},
+    {"id": "C8", "criterion": "独立 context の sub-agent がレポートのイレギュラー分類を二段確認し、真の発行漏れを『問題ない』と誤って隠していないことを検証する", "done": false, "verify_by": "reasoning"},
+    {"id": "C9", "criterion": "MF 掛け払い API は参照専用を維持し、新規の前月↔今月比較・イレギュラー分類ロジックの再実装(自作 classify/compare)を PreToolUse hook で機械的に遮断する", "done": false, "verify_by": "script"},
+    {"id": "C10", "criterion": "月次で新しい Notion DB(当月分の請求漏れ比較レポート)を構築し、指定ページ『請求書発行チェック』のトグル見出し2ブロック配下へ新しい月が上部(先頭=newest-on-top)へ来る順で追加して毎月の履歴を DB 単位で残す。新しい月になれば新規 DB を上部に構築し、過去月の DB は記録として保持される", "done": false, "verify_by": "test"},
+    {"id": "C11", "criterion": "当月 DB への上書きは非破壊マージとし、以前の run で書いた行は今回入力に無くても(部分入力でも)当月 DB から削除されない(全ての情報を出力=以前の情報が消えない)。手動追記の運用は無い前提ゆえ frozen 列は設けず単純非破壊上書きとするが、run-1={A,B}→run-2={A,C} 後に当月 DB が {A,B,C} を保持することを clear-then-insert と区別できる形でテスト確認する", "done": false, "verify_by": "test"}
+  ],
+  "constraints": [
+    "既存プラグイン mf-kessai-invoice-check の改善(existing-plugin-update)。既存 lib/mfk_reconcile.py(照合エンジン)・lib/mfk_api.py(参照専用 GET)・lib/notion_reconcile_sink.py(非破壊 upsert)・lib/sheet_to_master.py(シート正規化)・請求確認シート(年月/取引先/商品/確認内容/契約終了月)を土台に再利用し、ゼロから作り直さない",
+    "MF 掛け払い API は GET 参照専用を維持する(既存 hooks/guard-mfk-readonly.py + lib/mfk_api.py の GET 専用設計の二層を保つ)。書き込みは Notion レポート DB 側のみ",
+    "レポートの月帰属は取引日(transaction.date)基準(発行日でない)。既存照合と同一の月軸に揃える",
+    "『今月』は実行日カレンダー月ではなく、月初 2 営業日目以降に確認する直近締め済みの請求対象月を指す。例: 2026-07-02 にチェックする場合、今月=2026-06分請求、先月=2026-05分請求。--target YYMM 指定時は target=今月(請求対象月)、target-1ヶ月=先月として扱う",
+    "イレギュラー分類の新 4 分類(年契約周期/年→月切替/トライアル完了/契約終了)語彙は分類エンジン C05 内を SSOT とし、既存 verdict-mapping.json(reconcile skill scope・単月 verdict)には焼かない。C05 は既存 per-月 verdict を入力に取るのみで reconcile schema へ逆依存しない(over-claim なし)",
+    "契約終了(契約完了)の一次情報源は既存 engine mfk_reconcile の has_end_basis/_END_BASIS_PAT(請求確認シート『確認内容』/『備考』の自由文から『請求ナシ』『(YYMM終了)』等の終了注記を検出)→ verdict SUPPRESS_ENDED であり、C05 はこの既存 per-月 verdict を入力に取るのみで自由文を再パースしない(終了根拠判定の SSOT は mfk_reconcile 一箇所=ユーザーの『既存の仕組みを使う』指示に合致)。構造化列『契約終了月』は has_end_basis と cross-check される二次情報で、根拠なき終了月は既存機構が REVIEW_ENDED_NO_BASIS として抑制しない(sheet_to_master._end_yymm が自由文を意図的に不採用とし請求漏れ隠蔽を防ぐ既存規律を保全)。新規の自由文パーサや backfill は追加しない",
+    "C04 は既存稼働 hook guard-mfk-no-reinvent.py への in-place 拡張(新規生成でない)。既存 R1-R3/allowlist を保全しつつ SANCTIONED へ mfk_period_report.py を追加し、この拡張を C05 エンジン生成より先行させる(C05 の build を既存 guard が遮断しないため)",
+    "秘匿情報(API キー/トークン)は Keychain のみに保存し plan 成果物・出力に書かない。Notion DB ID は論理キー宣言のみで具体値は .notion-config.json/.mf-kessai-config.json が供給する",
+    "本タスクは計画(index + 13 phase files + component-inventory.json + handoff + task-graph)のみを生成し、実コード/実プラグインは build しない(build は run-skill-create / run-build-skill へ委譲)",
+    "[決定] 出力先=月次スナップショット DB を積層。C06 sink が『毎月新しい DB』を find-or-create し、当月分の請求漏れ比較レポート行を非破壊冪等 upsert する。同月内の upsert 主キー={取引先 × 契約ID × 商品}(当月 DB へ日々追加・同月 2 回実行で重複行 0)、月次 DB の一意キーは target_month(YYMM) + logical_parent(report_parent_page/report_toggle_block) + title『請求漏れ比較レポート YYYY-MM』とし、同一対象月の再実行では二重 DB を作らず既存 DB を再利用する。月跨ぎは新規 DB を構築して月次履歴を DB 単位で保持する。既存の請求確認シート/DB2 とは混在させない",
+    "[決定] レポート DB の配置=指定ページ『請求書発行チェック』の指定トグル見出し2ブロック配下へ、新しい月が上部(先頭=newest-on-top)へ来る順で追加する。page_id/block_id は実行時 config(.notion-config.json)が供給し plan は論理キー(report_parent_page/report_toggle_block)のみ宣言する(具体 ID を plan 成果物に焼かない two-layer 分離)",
+    "[決定] レポート列は漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント の7列を『この左→右の順で固定』し先月の金額と今月の金額を並置して比較可能にする。Notion DB の title(=各行=ページの作成/ページ名)プロパティ=取引先名(列順2番目・Notion title=ページ名)。列6『先月と今月の比較』はテキスト説明(例『先月比 +11,000円(新規発行)』)、金額(先月の金額/今月の金額)は税抜(既存 reconcile の期待金額=税抜と統一)。DB スキーマ生成と列型写像は既存 skills/run-mf-invoice-db-setup/scripts/build_notion_db.py の build_property パターン(title/rich_text/number(yen)/date/select)を踏襲し独自流儀を発明しない",
+    "[決定] 年契約の正常化(前月あり今月なし)は既存 verdict SUPPRESS_ANNUAL/MATCH_ANNUAL(mfk_reconcile の elapsed 判定)を一次源とし、12 ヶ月ルックバックは verdict が付かない/コメント根拠を補強する用途に限定して既存判定を上書きしない(二源ドリフト防止・precedence 明記)",
+    "[決定] トライアル完了判定は既存 sheet_to_master.shohin_canon(業務委託費/ThinkTank/利用料等の4値へ畳む)後の商品名では『トライアル』信号が消えるため、canon 前の生商品名 or MF 明細 desc を参照する(canon 済み商品名では判定不可)",
+    "[決定] 前月集合↔今月集合の突合キー、および請求確認シート(取引先)↔MF の結合キーは既存 mfk_reconcile.normalize/extract_names を再利用して取引先名の表記揺れ(全角半角/株式会社有無)を吸収する(自作正規化を発明しない=guard R2 遵守。表記揺れで継続契約が偽の前月あり今月なしへ誤分裂するのを防ぐ)",
+    "[決定] C06 の月次 DB 配置(トグル見出し2ブロック配下・newest-on-top 先頭挿入)は Notion API 実現性が未確立(既存 build_notion_db は page 親固定・子ブロックは末尾 append)ゆえ GAP-NOTION-TOGGLE-PLACEMENT として de-risk。L4 build で spike 検証し、不可なら fallback(トグル配下に child_database ブロックを置く/月次子ページ経由/末尾 append+title YYYY-MM 識別)を採る。配置順は単純 prepend でなく target_month の YYYY-MM 昇順で安定挿入し、過去月を後追い --target 指定しても順序が壊れないようにする(F-09)。title 列位置(取引先名は Notion title=ページ名で列順2番目・漏れチェック(select)を表示先頭列にできるか)の Notion 制約も同 spike で確認",
+    "[決定] C06 は network=true だが、テストは既存 notion_transport._req を単一 HTTP 正本とし req 引数で fake-store をモック差し替えして network 非依存で検証する(既存 test_notion_reconcile_sink の offline 契約を踏襲し cover>=80 の幻テスト化を防ぐ)",
+    "[決定] guard(C04)の再発明シグネチャは def 名完全一致だと def compare_periods( 等がすり抜けるため、語幹前方一致(def\\s+\\w*(compare|period_diff|classify)\\w*\\s*\\()へ拡張するか、C05 実関数名を登録シグネチャへ byte 一致で揃える(名前ゆらぎ回帰テストを C04 完了条件に追加)",
+    "[決定] 『第2営業日に実行』は運用トリガー(手動 slash-command 起動)で担保し、対象月は前カレンダー月を既定・--target で明示上書き。営業日カレンダー(土日祝)計算は本改善の非スコープとする",
+    "[決定] 状態遷移判定フロー=取引先×商品を前月集合と今月集合で突合する。今月あり×前月ありは正常:継続発行。今月あり×前月なしは 12 ヶ月前の年契約が自動月額切替した可能性を確認しコメントする。今月なし×前月なしは対象外(元々請求なし)。今月なし×前月ありは年契約期間内/商品名トライアル完了/請求確認シートの請求ナシ(YYMM 終了)等の契約完了を正常な非請求事情として確認し、該当なしは発行漏れ候補(要対応)として漏れチェックに残す",
+    "[決定] ルックバック=12 ヶ月フル遡り。ただし全件でなく前月↔今月の差分に現れた該当取引先のみを 12 ヶ月遡る(年契約周期/年→月切替/トライアル完了の判定に必要な該当企業のみ・API 負荷最小化)。候補取得は取引先単位、最終分類とコメント根拠は取引先×商品単位で照合し、同一取引先・同一商品の複数契約がある場合のみ契約IDを disambiguator として使って混同しない"
+  ],
+  "handoff_targets": ["run-skill-create", "run-build-skill"],
+  "max_loops": 5,
+  "open_questions": [
+    "OQ-3(残): 固定7列を超える可視化列(契約ID/エンドクライアント名/対象月ラベル/実行日時/判定根拠の出典)を足すかは仕様変更ゆえ既定は7列固定。同一取引先×同一商品の複数契約はコメント列頭に契約ID/エンドクライアント名を前置して視認性を確保する(列追加が必要なら要ユーザー決定)",
+    "OQ-7(残): トライアル完了検出の遡り深さ(数ヶ月前)の具体月数は未確定。既定は差分該当取引先の 12 ヶ月ルックバック窓内で商品名『トライアル』を探索する"
+  ]
+}

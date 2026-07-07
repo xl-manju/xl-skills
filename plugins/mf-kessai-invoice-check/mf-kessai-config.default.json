@@ -12,6 +12,9 @@
     "_comment_reconcile": "月次照合 orchestrator (scripts/reconcile_invoices.py) が読む 3 DB id。請求確認シート (sheet_db_id)・契約マスタ DB1 (reconcile_db1_id)・月次チェック DB2 (reconcile_db2_id)。database_id と同じく XLOCAL 共有の本番 DB を指す値を配布既定に焼き込み済みで、導入者は設定不要でそのまま動く (これらは共有固定 DB を指す。id は資格情報ではなく、アクセスには Keychain の Notion トークン + 各 DB への integration 接続が必要で、トークン欠落時は fail-closed で停止する)。別ワークスペース/別 DB を指したい場合のみ、同階層の .mf-kessai-config.json (gitignore) に上書きを書くか、環境変数 MFK_SHEET_DB_ID / MFK_RECONCILE_DB1_ID / MFK_RECONCILE_DB2_ID、または --sheet-db/--db1/--db2 で指定する (解決順=引数 > 環境変数 > config、空文字は既定を温存)。",
     "sheet_db_id": "38a07a0c-d18c-806f-bb0d-e2a77150dbae",
     "reconcile_db1_id": "38c07a0c-d18c-81bc-afcb-f3741172b136",
-    "reconcile_db2_id": "38c07a0c-d18c-811e-acb3-cf439d8c9229"
+    "reconcile_db2_id": "38c07a0c-d18c-811e-acb3-cf439d8c9229",
+    "_comment_report": "月次発行漏れ比較レポート sink (scripts/notion_report_sink.py C06) が読む論理キー。report_parent_page=指定ページ『請求書発行チェック』の page_id・report_toggle_block=その配下のトグル見出し2ブロックの block_id。sink はこのトグルの子として対象月ごとの child_database (title『請求漏れ比較レポート YYYY-MM』) を find-or-create し、newest-on-top は intended_index で開示し実配置は Notion API 制約により append する。database_id と同じく XLOCAL 共有の本番出力先を配布既定に焼き込み済みで、導入者は設定不要でそのまま動く (ID は資格情報ではないが、書き込みには Keychain の Notion トークン + 当該ページへの integration 接続が必要で、トークン欠落時は fail-closed)。別ワークスペース/別トグルへ出力したい場合のみ、同階層の .mf-kessai-config.json (gitignore) に上書きを書く (空文字は既定を温存)。",
+    "report_parent_page": "38407a0c-d18c-80bf-b872-ce5b3db90738",
+    "report_toggle_block": "39607a0c-d18c-8010-b84f-fc3ee922a609"
   }
 }

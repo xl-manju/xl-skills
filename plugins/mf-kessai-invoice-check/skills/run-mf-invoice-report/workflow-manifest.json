@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "workflowId": "run-mf-invoice-report",
+  "skill": "run-mf-invoice-report",
+  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月 MF実績GET+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で月次レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC05・DB構築/配置/冪等upsertはC06 sinkが所有し本skillはオーケストレーションに徹する。",
+  "phases": [
+    {
+      "id": "collect",
+      "step": 1,
+      "title": "対象月決定 + 前月/今月 MF実績取得 + per-月verdict収集 (参照専用GET)",
+      "responsibility": "prompts/R1-collect.md",
+      "lib": "lib/mfk_api.py + lib/mfk_reconcile.py",
+      "context": "main",
+      "fatal_exit_codes": [2],
+      "produces": "curr-verdicts / prev-verdicts / lookback-12mo / contract-end の JSON 入力",
+      "note": "今月=直近締め済み請求対象月(例 2026-07-02 実行→2606)・先月=その1ヶ月前(2605)を決定。前月/今月の全取引先 MF発行実績を全ページGETし、既存 mfk_reconcile の per-月 verdict(SUPPRESS_ENDED/SUPPRESS_ANNUAL/MATCH_ANNUAL 等)を収集。取引先×商品で状態遷移を抽出し差分該当取引先のみ12ヶ月遡り。突合キーは mfk_reconcile.normalize/extract_names を再利用。MF変更系は hook で遮断・GETのみ。"
+    },
+    {
+      "id": "classify",
+      "step": 2,
+      "title": "前月↔今月 状態遷移分類 + 事情コメント生成",
+      "responsibility": "prompts/R2-classify.md",
+      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/mfk_period_report.py --curr-verdicts <CURR> --prev-verdicts <PREV> [--lookback-12mo <LB>] [--contract-end <CE>] [--target-month <YYMM>]",
+      "lib": "scripts/mfk_period_report.py",
+      "dependsOn": ["collect"],
+      "fatal_exit_codes": [2],
+      "produces": "分類済みレポート行 JSON (customer/amount/prev_amount/gap_check/period_diff/product/comment/contract_id/target_month)",
+      "note": "既存 per-月 verdict を入力に取り前月↔今月の発行状態遷移だけを分類する薄い差分エンジン(C05)。継続発行は全行 emit・今月なし×前月なしは非 emit。正常事情は既存 verdict を一次源に消費し自由文の終了根拠を再パースしない。根拠なき終了月は抑制せず発行漏れ候補に残す。トライアル完了は canon 前の生商品名/MF明細descで判定。分類実体はここが正本で本skillは呼び出すのみ。exit code は 0=全て正常 / 1=発行漏れ候補(要対応)あり(=正常な検出結果・非致命) / 2=fail-closed(入力欠落)。fatal は 2 のみで exit1 を失敗扱いしないこと(要対応の存在は正常な出力)。"
+    },
+    {
+      "id": "verify",
+      "step": 3,
+      "title": "二段確認 (sub-agent・独立context)",
+      "responsibility": "prompts/R3-verify.md",
+      "delegateAgent": "mfk-report-verifier",
+      "context": "fork",
+      "dependsOn": ["classify"],
+      "produces": "reinstate_ids + verification_summary",
+      "note": "dry-run の分類内訳を独立contextでレビューし、真の発行漏れを『問題ない』と誤って隠していないか(=正常イレギュラーへの誤分類で漏れチェック=正常に落ちた真の候補)を検証して差し戻す。契約終了・請求要否など API で判別できない業務判断には踏み込まない。責務本文SSOTは prompts/R3-verify.md。"
+    },
+    {
+      "id": "render",
+      "step": 4,
+      "title": "月次レポートDBへ非破壊冪等upsert",
+      "responsibility": "prompts/R4-render.md",
+      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/notion_report_sink.py --rows <ROWS> --target <YYMM> [--apply --verified] [--config <PATH>]",
+      "lib": "scripts/notion_report_sink.py",
+      "dependsOn": ["verify"],
+      "fatal_exit_codes": [2],
+      "note": "分類済みレポート行を月次レポートDB(指定ページ『請求書発行チェック』のトグル見出し2配下)へ find-or-create + 非破壊冪等 upsert する(C06)。当月DBへ日々追加((取引先,商品)ストアキーで重複行0・契約IDは7列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・月跨ぎは新しい月DBを上部(newest-on-top・YYYY-MM昇順安定挿入)に構築し過去月DBを保全。DB構築/配置/冪等upsertはここが所有。トグルブロックID未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
+    }
+  ],
+  "guards": [
+    {
+      "event": "PreToolUse",
+      "hook": "hooks/guard-mfk-readonly.py",
+      "purpose": "Bash経路のMF API変更系を遮断し、同梱GET専用クライアントと合わせて参照専用を抑止"
+    },
+    {
+      "event": "PreToolUse",
+      "hook": "hooks/guard-mfk-no-reinvent.py",
+      "purpose": "正本以外への状態遷移分類の再実装 (compare/period_diff/classify_* 語幹) と人間丸投げ注記を遮断し、分類エンジンC05への一本化を機械強制する"
+    }
+  ]
+}

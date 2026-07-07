@@ -1,0 +1,96 @@
+{
+  "plan_dir": "plugin-plans/mf-kessai-invoice-check",
+  "target_plugin_slug": "mf-kessai-invoice-check",
+  "mode": "update",
+  "artifact_class": "existing-plugin-update",
+  "verification": {
+    "process": "PLUGIN-DEV-PLAN-ELEGANT-VERIFY (30 思考法・思考リセット Phase1 → 3 並列独立分析 Phase2 → 改善実行 Phase3 → 独立二段確認)",
+    "second_pass_2026_07_07": "初回の『全RESOLVED/4条件PASS』自己申告を鵜呑みにせず思考リセットで再検証。3 独立 analyst が既存コード現物を二段確認し初回 over-claim を検出。R6 契約完了は『構造化列 契約終了月へ正規化 backfill』と誤帰属していた(現物 _end_yymm/backfill_sheet_contract_dates が自由文を意図的に拒否=cluster F の RESOLVED は要件本体を落としていた)。ユーザー確認で正しい既存機構 mfk_reconcile.has_end_basis/_END_BASIS_PAT→SUPPRESS_ENDED を特定し再帰属(新規 component 不要)。加えて R9 トグル配下 DB 生成/newest-on-top の API 実現性を GAP-NOTION-TOGGLE-PLACEMENT で de-risk、R11 非破壊を幻テスト穴(dedup≠preservation)として C11 新設+テスト追加、R2 列順を機械検証観点化、C06 の DB 生成再利用元を build_notion_db.build_property へ訂正、年契約 precedence/トライアル生名/normalize 再利用/guard 語幹一致を補強。R15(title=取引先名)・比較列=テキスト説明・金額=税抜・手動追記なし(frozen 不要)をユーザー確定し反映。全 12 決定論ゲート再緑化。",
+    "deterministic_gates": {"total": 12, "pass": 12, "fail": 0, "note": "core 5 scripts/6 invocations + 拡張ゲート 7 が全 exit0"},
+    "four_conditions": {
+      "矛盾なし": "PASS",
+      "漏れなし": "PASS",
+      "整合性あり": "PASS",
+      "依存関係整合": "PASS",
+      "verdict": "4条件PASS",
+      "approver": "独立 context evaluator (proposer≠approver・現物 Read 裏取り)"
+    }
+  },
+  "components_summary": {
+    "count": 6,
+    "by_kind": {"skill": 1, "sub-agent": 1, "slash-command": 1, "hook": 1, "script": 2},
+    "dag": "C04→C05, {C05,C06}→C01, C01→{C02,C03} (非循環・C06 は C05 を経由せず C01 へ直接依存)",
+    "list": [
+      {"id": "C01", "kind": "skill", "name": "run-mf-invoice-report", "role": "前月↔今月比較レポート生成のオーケストレータ"},
+      {"id": "C02", "kind": "sub-agent", "name": "mfk-report-verifier", "role": "イレギュラー分類の二段確認"},
+      {"id": "C03", "kind": "slash-command", "name": "run-mf-invoice-report", "role": "冪等再実行の手動起動"},
+      {"id": "C04", "kind": "hook", "name": "guard-mfk-no-reinvent", "role": "既存 guard の in-place 拡張 (新エンジン再発明遮断 + C05 build 非遮断)"},
+      {"id": "C05", "kind": "script", "name": "mfk_period_report.py", "role": "前月↔今月状態遷移の薄い差分分類エンジン (plugin-root)"},
+      {"id": "C06", "kind": "script", "name": "notion_report_sink.py", "role": "月次スナップショット DB の積層 (毎月新規 DB を指定ページ『請求書発行チェック』トグル見出し2配下の先頭=newest-on-top へ find-or-create + 同一対象月は target_month/logical_parent/title で既存 DB 再利用 + 当月 DB へ非破壊冪等 upsert=日々追加・月次履歴を DB 単位で保持)(plugin-root)"}
+    ]
+  },
+  "findings_resolved": [
+    {"cluster": "A", "severity": "critical", "detected_by": ["批判的思考", "why思考", "演繹思考"], "condition": "矛盾なし", "issue": "既存稼働 hook (C04) を新規 build 表現 → 203 行の既存 guard 上書き破壊リスク・mode=create 矛盾", "fix": "C04 を build_mode=extend-existing 化 (preserve[] 明示)・handoff mode を create→update・GAP-C04-EXTEND 起票", "status": "RESOLVED"},
+    {"cluster": "B", "severity": "high", "detected_by": ["アブダクション", "因果関係分析", "if思考"], "condition": "依存関係整合", "issue": "既存 guard が C05(def classify) の build を exit2 遮断 / C9 が compare|period_diff 語彙欠如で vacuous", "fix": "C05.depends_on=[C04] で guard SANCTIONED 拡張を C05 生成に先行させ task-graph edge に焼込・C04 に add_sanctioned_basenames/add_reinvent_signatures/add_domain_terms を宣言", "status": "RESOLVED"},
+    {"cluster": "C", "severity": "high", "detected_by": ["MECE", "水平思考", "仮説思考"], "condition": "矛盾なし/整合性あり", "issue": "『両スキル共有 SSOT でドリフト防止』がグラフ未実現 (reconcile 側に C05 消費なし)・verdict-mapping.json の skill-scope↔plugin-root 逆参照", "fix": "derivation の over-claim を撤回し独立テスト性+plugin-root 慣習に限定・C05 を既存 per-月 verdict を入力に取る薄い差分エンジンへ縮小・新 4 分類語彙は C05 内 SSOT (reconcile schema へ逆依存しない)", "status": "RESOLVED"},
+    {"cluster": "D", "severity": "high", "detected_by": ["類推思考", "抽象化思考", "価値提案思考"], "condition": "漏れなし/依存関係整合", "issue": "冪等上書き(C7/OUT1・核心)を所有する deterministic sink 実体が欠落=幻テスト・upsert 主キー未定義・report-db 生成者不在", "fix": "新 component C06 (notion_report_sink.py) を追加し find-or-create + 同月内 upsert 主キー {取引先×契約ID×商品} + 非破壊冪等 upsert を所有・C01 output_contract/OUT1 が C06 を参照", "status": "RESOLVED"},
+    {"cluster": "E", "severity": "medium", "detected_by": ["ダブル・ループ思考", "メタ思考"], "condition": "漏れなし", "issue": "メタ根: 分解軸『kind 1 個ずつ MECE』が対称性(Goodhart)駆動で sink/db-setup クラスタを構造排除・既存 hook を過大カウント", "fix": "derivation を『機能クラスタ先行 → 新規/既存改修ラベリング → 5 種へ写像』へ再 framing (script が C05/C06 の 2 実体=必要性駆動)", "status": "RESOLVED"},
+    {"cluster": "F", "severity": "medium", "detected_by": ["水平思考", "要素分解"], "condition": "整合性あり", "issue": "C05 のシート『請求ナシ(YYMM終了)』free-text parse が既存構造化列『契約終了月』+SUPPRESS_ENDED と二源ドリフト", "fix": "契約終了の一次情報源を既存構造化列『契約終了月』(sheet_to_master 正規化済)とし自由文は同列への正規化 backfill 扱い(二重判定しない)・C05 inputs を --contract-end FILE に", "status": "SUPERSEDED_BY_O", "note": "この初回 fix は誤帰属だった(現物 _end_yymm/backfill は自由文を意図的に拒否し正規化 backfill 機構は不在)。正しい既存機構=mfk_reconcile.has_end_basis→SUPPRESS_ENDED へ cluster O で再帰属"},
+    {"cluster": "A'", "severity": "medium", "detected_by": ["演繹思考", "因果関係分析"], "condition": "矛盾なし/整合性あり", "issue": "handoff mode=create 矛盾 / approval_reason が実 diff (hooks 配線) と不整合", "fix": "mode=update・approval_reason を『hooks 配線不変・実差分は entry_points 新 3 component 追加 + version bump 0.1.1→0.2.0 のみ』へ訂正", "status": "RESOLVED"},
+    {"cluster": "G", "severity": "medium", "detected_by": ["素人思考", "価値提案思考", "論点思考"], "condition": "漏れなし/整合性あり", "issue": "ユーザー指定の Notion DB プロパティ順 (漏れチェック→取引先名→商品名→先月の金額→今月の金額→先月と今月の比較→コメント) が、既存 plan の旧列順と不一致", "fix": "goal-spec / component-inventory / index / phase-01/02/04/05/07 / task-graph / plan-findings の出力契約を指定順の 7 列へ統一", "status": "RESOLVED"},
+    {"cluster": "H", "severity": "high", "detected_by": ["メタ思考", "整合性チェック", "SubAgent再検証"], "condition": "矛盾なし/整合性あり", "issue": "具体 page_id/block_id が goal-spec に焼かれ、論理キーのみ宣言する two-layer 分離と矛盾", "fix": "goal-spec/plan-findings から具体 ID を除去し、report_parent_page/report_toggle_block を .notion-config.json が供給する契約へ統一", "status": "RESOLVED"},
+    {"cluster": "I", "severity": "medium", "detected_by": ["批判的思考", "SubAgent再検証"], "condition": "矛盾なし", "issue": "goal が旧来の単一シート上書き前提を残し、月次 Notion DB 積層(C10)と矛盾", "fix": "goal を『同一対象月の月次 Notion DB を冪等更新・新しい月は新 DB』へ更新", "status": "RESOLVED"},
+    {"cluster": "J", "severity": "medium", "detected_by": ["システム思考", "因果関係分析", "SubAgent再検証"], "condition": "漏れなし/依存関係整合", "issue": "同一対象月の find-or-create 一意キーが未定義で、再実行時に二重 DB が作られる余地があった", "fix": "月次 DB 一意キー target_month(YYMM)+logical_parent(report_parent_page/report_toggle_block)+title『請求漏れ比較レポート YYYY-MM』を C06/goal-spec/phase-04/05/C01 OUT1 に焼き、month_db_id 再利用テストを追加", "status": "RESOLVED"},
+    {"cluster": "K", "severity": "medium", "detected_by": ["要素分解", "MECE", "SubAgent再検証"], "condition": "漏れなし", "issue": "12 ヶ月 lookback は取引先限定と明記された一方、行/upsert は契約ID×商品単位で、複数契約/複数商品の混同リスクが残った", "fix": "候補取得は取引先単位、最終分類とコメント根拠は契約ID・商品名単位で照合する契約を goal-spec/C05/C01/phase-04 に追加", "status": "RESOLVED"},
+    {"cluster": "L", "severity": "medium", "detected_by": ["依存関係分析", "論点思考", "SubAgent再検証"], "condition": "依存関係整合", "issue": "C01 runtime が C02 verifier を使う記述と C02.depends_on=[C01] の build 順が混同され、依存方向が曖昧だった", "fix": "C02.depends_on=[C01] は verifier prompt が C01 output contract を読むための build 順依存、runtime は全 component build 後に C02 を呼ぶ契約として index/C01.R3 に明記", "status": "RESOLVED"},
+    {"cluster": "M", "severity": "medium", "detected_by": ["垂直思考", "システム思考", "SubAgent再検証"], "condition": "依存関係整合/整合性あり", "issue": "P08 は phase file と index に存在するが task-graph へ出ておらず、P07→P08→P09 の連続性が派生成果物で欠落", "fix": "phase-08 に N/A 確認チェックを追加し derive-task-graph.py で task-graph.json を再導出、P08/P08-x-01 を graph に反映", "status": "RESOLVED"}
+    ,
+    {"cluster": "N", "severity": "high", "detected_by": ["垂直思考", "ユーザー追加フロー照合"], "condition": "漏れなし/整合性あり", "issue": "ユーザー提示 flowchart の4状態 (今月あり×前月あり/今月あり×前月なし/今月なし×前月なし/今月なし×前月あり) と、7月2日実行時の今月=6月分・先月=5月分の業務定義が plan 上で明示不足", "fix": "goal-spec constraints/C6、index ドメイン知識、C05 purpose、C01 R1、phase-04 test-design、phase-07 acceptance に状態遷移フローと対象月決定例を追加", "status": "RESOLVED"},
+    {"cluster": "O", "severity": "critical", "pass": 2, "detected_by": ["論理:アブダクション", "メタ:ダブル・ループ思考", "現物二段確認"], "condition": "矛盾なし/漏れなし/整合性あり", "issue": "R6 契約完了の一次情報源を『構造化列 契約終了月へ正規化 backfill・既存シート解析を再利用』と誤帰属。現物 sheet_to_master._end_yymm/backfill_sheet_contract_dates は自由文終了を意図的に拒否し正規化機構が不在で、自由記述しかない契約完了が真の漏れ(赤)に誤分類される=R6 未達(初回 cluster F の RESOLVED は要件本体を落としていた)", "fix": "ユーザー確認で正しい既存機構=mfk_reconcile.has_end_basis/_END_BASIS_PAT(確認内容の終了注記検出)→SUPPRESS_ENDED を特定。goal-spec C5/constraint・index イレギュラー4分類・C05 purpose・phase-04/05/07 を『C05 は既存 verdict SUPPRESS_ENDED を消費し自由文を再パースしない・根拠なき終了月は REVIEW_ENDED_NO_BASIS で抑制しない安全弁保全』へ再帰属(新規 component 不要)", "status": "RESOLVED"},
+    {"cluster": "P", "severity": "high", "pass": 2, "detected_by": ["システム:システム思考", "メタ:if思考", "現物二段確認"], "condition": "漏れなし/依存関係整合", "issue": "R9『トグル見出し2配下へ月次 DB を find-or-create+newest-on-top 先頭挿入』の Notion API 実現性が未 de-risk。既存 build_notion_db は page 親固定・子ブロックは末尾 append で block 親 DB 生成/先頭挿入の実績なし。他 3 GAP は起票済なのに最もユーザー可視な配置要件が無防備", "fix": "handoff.open_issues に GAP-NOTION-TOGGLE-PLACEMENT(medium) 起票+fallback(child_database/月次子ページ/末尾 append+title YYYY-MM)明記。配置順は YYYY-MM 昇順安定挿入で後追い --target でも順序を壊さない(F-09)。title 列位置制約も同 spike で確認", "status": "RESOLVED"},
+    {"cluster": "Q", "severity": "high", "pass": 2, "detected_by": ["論理:批判的思考", "メタ:逆説思考", "test-coverage"], "condition": "漏れなし/整合性あり", "issue": "R11『上書きで以前の情報が消えない(非破壊)』に対応する checklist/テストが無く、C06 の『2回実行で重複行0』は dedup であって非破壊を含意しない(clear-then-insert が素通り=幻テスト穴)", "fix": "goal-spec に C11(verify_by:test)新設『run-1={A,B}→run-2={A,C} 後も {A,B,C} を保持=以前行が消えない』・phase-04 に非破壊マージ観点・C06 outputs に deleted=0・index/phase-07 受入に C11 追加。手動追記なし(Q4)ゆえ frozen 列は不要", "status": "RESOLVED"},
+    {"cluster": "R", "severity": "medium", "pass": 2, "detected_by": ["論理:演繹思考", "素人思考", "ユーザー追加要件"], "condition": "漏れなし/整合性あり", "issue": "R2 の7列は散文順序のみで『順序』の機械検証テストが無い。かつ Notion title(ページ作成)プロパティ未規定", "fix": "ユーザー確定 R15=title プロパティ=取引先名。phase-04 C06 観点(6)に列位置順一致+title=取引先名、goal-spec C1/constraint・C06/C01・notion_config(title_property/property_order)・index 受入 C1 に順序 SSOT を焼く", "status": "RESOLVED"},
+    {"cluster": "S", "severity": "medium", "pass": 2, "detected_by": ["システム:プラスサム思考", "現物二段確認"], "condition": "漏れなし/依存関係整合", "issue": "C06 の中核デルタ(DB 生成+7列スキーマ)の再利用元を notion_reconcile_sink(既存 DB への行 upsert 専用・DB 生成不可)に誤限定。最近接資産 build_notion_db.py(DB 生成 POST+build_property 型写像)への言及ゼロで列スキーマ drift リスク", "fix": "C06 purpose/phase-05 に『DB 生成/列型写像は build_notion_db.build_property を踏襲・行 upsert は notion_reconcile_sink・能力境界を明示』と訂正", "status": "RESOLVED"},
+    {"cluster": "T", "severity": "medium", "pass": 2, "detected_by": ["システム:システム思考", "メタ:ダブル・ループ思考"], "condition": "整合性あり", "issue": "年契約正常化が既存 SUPPRESS_ANNUAL/MATCH_ANNUAL(elapsed) と C05 12ヶ月ルックバックの二源で precedence 未定義(cluster F 同型再発)", "fix": "goal-spec constraint/index/C05/phase-04 に『既存 verdict を一次源・遡りはコメント根拠補強に限定し既存判定を上書きしない』precedence を明記", "status": "RESOLVED"},
+    {"cluster": "U", "severity": "medium", "pass": 2, "detected_by": ["メタ:水平思考", "素人思考"], "condition": "漏れなし", "issue": "R5 トライアル信号が既存 shohin_canon の4値正規化で消える恐れ(どの層の商品名を見るか未指定)", "fix": "C05/index/phase-04 に『canon 前の生商品名/MF 明細 desc を参照』を明記", "status": "RESOLVED"},
+    {"cluster": "V", "severity": "medium", "pass": 2, "detected_by": ["メタ:if思考"], "condition": "整合性あり/依存関係整合", "issue": "前月/今月集合突合キーとシート↔MF 結合の取引先表記揺れ正規化(normalize)が C05 で未指定=偽の漏れ(赤)生成リスク", "fix": "goal-spec constraint/C05/C01 R1/phase-04 に『既存 mfk_reconcile.normalize/extract_names を再利用(自作しない)』を明記", "status": "RESOLVED"},
+    {"cluster": "W", "severity": "medium", "pass": 2, "detected_by": ["システム:why思考", "メタ:メタ思考"], "condition": "整合性あり/依存関係整合", "issue": "guard(C04)の再発明シグネチャ compare が def 名完全一致で def compare_periods( 等がすり抜け R13/C9 が名前ゆらぎに脆く vacuous 化リスク", "fix": "handoff build_args に reinvent_signature_match(語幹前方一致 def\\s+\\w*(compare|period_diff|classify)\\w*\\s*\\( or C05 実関数名 byte 一致+名前ゆらぎ回帰テスト)を明記・phase-05 に反映", "status": "RESOLVED"},
+    {"cluster": "X", "severity": "medium", "pass": 2, "detected_by": ["素人思考", "要素分解"], "condition": "漏れなし", "issue": "『全請求書』と『漏れレポート』の境界未定義で継続発行(今月あり×前月あり)行を emit するか不明", "fix": "goal-spec C7/C01 output_contract/C05/index に『継続発行も漏れチェック=正常として全 emit・非 emit は今月なし×前月なしのみ』を明記(ユーザー stated『全請求書』から導出)", "status": "RESOLVED"},
+    {"cluster": "Y", "severity": "medium", "pass": 2, "detected_by": ["メタ:メタ思考", "素人思考"], "condition": "漏れなし", "issue": "経理向け平易説明が不在(P12 未実施)でユーザーの『意味伝わりましたか』の認識ズレ不安に未応答", "fix": "index 冒頭に『運用サマリ(経理向け・平易版)』節を追加(月次 DB 積層/非破壊/日々追加冪等/イレギュラー3分類を経理言葉で要約)", "status": "RESOLVED"},
+    {"cluster": "Z", "severity": "low", "pass": 2, "detected_by": ["要素分解/MECE", "因果ループ", "KJ法"], "condition": "整合性あり/依存関係整合", "issue": "要件id(C1-C11)と component id(C01-C06)の視覚衝突・goal-spec checklist が C1-7,10,8,9 で非昇順・plan-findings dag 文字列が C06→C05 と誤読させる(機械側は正)", "fix": "goal-spec checklist を昇順(C8,C9→C10→C11)へ整列・index に id 凡例(Cn=要件/C0n=component)追加・dag 文字列を C04→C05,{C05,C06}→C01,C01→{C02,C03} へ訂正", "status": "RESOLVED"},
+    {"cluster": "F-11", "severity": "low", "pass": 2, "detected_by": ["メタ:if思考"], "condition": "整合性あり", "issue": "『第2営業日』の営業日計算/起動機構が不在(手動 slash-command 前提)", "fix": "goal-spec constraint/index に『運用トリガー(手動起動)で担保・対象月は前カレンダー月既定+--target 上書き・営業日カレンダー計算は非スコープ』と限界明記", "status": "RESOLVED"}
+  ],
+  "user_requirements_reflected": [
+    {"req": "レポート 7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント)", "reflected": true, "where": "C01.output_contract + IN1"},
+    {"req": "12 ヶ月遡りは差分該当取引先のみ (全件でない)", "reflected": true, "where": "C05.purpose/inputs + C01.R1-collect + goal-spec C2 + constraints"},
+    {"req": "トライアル完了は前月だけでなく数ヶ月前まで遡って商品名トライアル確認", "reflected": true, "where": "C05.purpose + index ドメイン知識"},
+    {"req": "契約終了(契約完了)は請求確認シート確認内容の請求ナシ(YYMM終了)記述から", "reflected": true, "where": "C05 が既存 mfk_reconcile.has_end_basis/_END_BASIS_PAT→SUPPRESS_ENDED verdict を消費(自由文を再パースせず・根拠なき終了月は REVIEW_ENDED_NO_BASIS で抑制しない安全弁保全) + goal-spec C5。初回の『構造化列へ正規化』誤帰属を第2パスで訂正(cluster O)"},
+    {"req": "3 営業日目以降も毎回全件レポートを冪等上書き再生成 (2 回実行で重複行 0)", "reflected": true, "where": "C06 sink (upsert 主キー) + C01 OUT1 + goal-spec C7"},
+    {"req": "コメントに『なぜ先月あって今月なくて問題ないか』を必ず記述", "reflected": true, "where": "C01 + C05 (各イレギュラー行の事情コメント) + goal-spec C6"},
+    {"req": "[追加要件] 月次で新しい DB を構築し指定ページ『請求書発行チェック』のトグル見出し2配下へ新しい月を上部(newest-on-top)に積み月次履歴を DB 単位で残す", "reflected": true, "where": "C06 (月次 sink) + goal-spec C10 + index 受入確認 C10・report_parent_page/report_toggle_block は .notion-config.json 供給"},
+    {"req": "[追加要件] 同一対象月の再実行では同じ月次 DB を再利用し、二重 DB を作らない", "reflected": true, "where": "goal-spec constraints + C06 purpose/outputs + C01 OUT1 + phase-04/05 tests (month_db_id reuse)"},
+    {"req": "[追加要件] DB に先月の金額と今月の金額を並べて比較可能にする", "reflected": true, "where": "C01 output_contract/IN1 (7 列: 漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) + goal-spec C1"},
+    {"req": "[追加要件] Notion DB プロパティ順を 漏れチェック→取引先名→商品名→先月の金額→今月の金額→先月と今月の比較→コメント に固定する", "reflected": true, "where": "goal-spec C1/constraints + C01 output_contract/IN1 + C06 sink の列生成契約 + index 受入確認 C1 + phase-04 観点6(位置順一致テスト)"},
+    {"req": "[追加要件・第2パス] Notion DB の title(ページ作成/ページ名)プロパティ=取引先名(列順2番目・Notion title=ページ名)", "reflected": true, "where": "goal-spec C1/constraint + component-inventory notion_config.title_property=取引先名 + C06 purpose(build_notion_db.build_property 踏襲) + phase-04 観点6 + index 受入 C1"},
+    {"req": "[追加要件・第2パス] 上書きは非破壊マージで以前 run の行が消えない(全情報を出力)", "reflected": true, "where": "goal-spec C11(verify_by:test) + C06 purpose/outputs(deleted=0) + C01 OUT1 + phase-04 観点7 + phase-07/index 受入 C11"},
+    {"req": "[追加要件・第2パス] 比較列6=テキスト説明・金額=税抜・手動追記なし(frozen不要)", "reflected": true, "where": "AskUserQuestion 確定 → goal-spec C1/constraint + C01/C05/C06 + index 受入 C1"},
+    {"req": "[追加要件] 月内は日々追加(2/3 営業日目再実行は当月 DB へ冪等)", "reflected": true, "where": "C06 upsert 主キー {取引先×契約ID×商品} + goal-spec C7 (月内冪等) + OUT1"}
+    ,
+    {"req": "[追加要件] 7月2日(第2営業日)実行時は今月=6月分請求・先月=5月分請求として比較する", "reflected": true, "where": "goal-spec constraints + index 今月/先月の業務定義 + C05 purpose + C01 R1 + phase-04/07"},
+    {"req": "[追加要件] 取引先×商品を前月集合と今月集合で突合し、継続発行/前月なし今月あり/元々請求なし/年契約期間内/トライアル完了/契約完了/発行漏れ候補を分岐する", "reflected": true, "where": "goal-spec C6/constraints + index 状態遷移判定フロー + C05 purpose + phase-04 tests"}
+  ],
+  "post_review_refinement": "初回 elegant-review(4条件PASS)後にユーザー追加要件で出力設計を『単一レポート DB の冪等上書き』→『月次スナップショット DB の積層(毎月新規 DB・指定トグル配下 newest-on-top・月内日々追加冪等・先月の金額・今月の金額並置)』へ改訂。goal-spec に C10 追加、C1/C7 を更新、C06 の purpose/inputs/write_scope と C01 の goal/output_contract/R4-render/OUT1、index、phase-01/02/04/05/07/09/11 を追随させ、全 12 決定論ゲート再緑化。",
+  "achievement_checklist": {
+    "R1_goal_spec": true,
+    "R2_decompose_components": true,
+    "R3_emit_specs_index_inventory": true,
+    "task_graph_derived": true,
+    "R4_traceability_gates": true,
+    "elegant_review_4_conditions": true
+  },
+  "open_issues": [
+    {"id": "GAP-SCRIPT-BUILDER", "severity": "medium", "text": "C05/C06 の plugin-scaffold script route は L4 で build-script-route.py が消費 (contract-only)"},
+    {"id": "GAP-ENVELOPE-001", "severity": "low", "text": "entry_points 反映 + version bump の scaffold executor は planner 外部・envelope-draft を手動適用"},
+    {"id": "GAP-C04-EXTEND", "severity": "medium", "text": "C04 は既存 hook の in-place 拡張 (Edit 差分・SANCTIONED 追加を C05 生成に先行)。L4 build で既存 203 行を保全すること"}
+  ]
+}

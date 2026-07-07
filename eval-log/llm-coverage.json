@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 47,
+  "skills_measured": 48,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -419,6 +419,21 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-06-26"
+    },
+    {
+      "plugin": "mf-kessai-invoice-check",
+      "skill": "run-mf-invoice-report",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-07"
     },
     {
       "plugin": "notion-gmail-send",
