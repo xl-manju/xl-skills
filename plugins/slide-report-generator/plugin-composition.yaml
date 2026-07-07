@@ -20,7 +20,7 @@ contract:
     - 意匠/技術層(配色/16:9/最小1.4rem/GSAP/インラインSVG2/印刷CSS/letterbox/Codex Image2/style genome/決定論レンダラ)は単一 SSOT で共有し slide/report で重複させないこと
     - コンテンツ意図層のみ output_mode で分岐する (slide=1メッセージ/chip強制/長文禁止 BP11-13、report=読み物/セクション+段落/1項目1ビジュアル)
     - Node 製レンダリング/画像/印刷/検証エンジンは vendor surface として byte 維持で携行し Python-stdlib へ書き換えないこと。skill/agent は Bash(node *) で起動する
-    - vendor byte-parity は vendor-digest-manifest.json (195 files sha256 pin) を比較基準に検証すること (移植元 live tree 非依存)
+    - vendor byte-parity は vendor-digest-manifest.json (191 files sha256 pin) を比較基準に検証すること (真 schema 4本は plugin-root schemas/ live SSOT、移植元 live tree 非依存)
     - report 新規 Node (render-report.js/mermaid-render.js) は vendor ツリーへの additive で、parity 対象外・品質は tests_min>=80 + lint で担保すること
     - sub-agent/skill 本文は prompt-creator 7 層構造 (L1 基本定義 → L7 ユーザーインタラクション) で記述すること
     - 成果物本文・ヒアリング・評価は日本語、パラメーター名・JSON キー・CLI 引数・output_mode/reportType の enum 値は英語のままとすること
@@ -59,7 +59,7 @@ capabilities:
   # === Hooks (kind=hook) ===
   - { kind: hook, ref: hooks/hook-postgen-eval.py, tier: core }
 
-  # === Scripts (kind=script) === scripts/ 実体 5 本と集合一致
+  # === Scripts (kind=script) === scripts/ 実体 6 本と集合一致
   - { kind: script, ref: scripts/validate-output-mode.py,          tier: core }
   - { kind: script, ref: scripts/lint-vendor-parity.py,           tier: core }
   - { kind: script, ref: scripts/validate-plugin-completeness.py,  tier: core }
@@ -69,6 +69,9 @@ capabilities:
   # report.html の決定論視覚ゲート (section 構造/1項目1ビジュアル/段落密度/placeholder/印刷)。
   # slide の vendor verify-slides.js/validate-print.js に対称な report 用 Python-stdlib ゲート (C7 で vendor 不可侵ゆえ plugin-root 新設)。
   - { kind: script, ref: scripts/validate-report-visual.py,        tier: core }
+  # report 経路 prose(references/prompts)↔code(render/validator/schema)の contract-drift ゲート。
+  # 散文の data-*属性名/閾値/render-fidelity class/placement field を実装と機械突合し「宣言>実装」ドリフトを封鎖 (30思考法review の amplified pattern)。
+  - { kind: script, ref: scripts/lint-contract-drift.py,           tier: core }
 
 dependencies:
   # 本 DAG は skill→agent / command→skill / hook→agent の呼出構造を全被覆する (17 agent 全列挙・欠落エッジなし)。

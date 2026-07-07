@@ -99,7 +99,14 @@ last-audited: 2026-07-05
 | zones | prose / visual / callout / caption の領域割り当て。役割を明示 |
 | readingOrder | デッキ/レポート全体で1方向に統一（既定 left-to-right。循環図のみ clockwise 例外） |
 | focalPoint | 主ビジュアルの重心を同じ高さ帯（例 縦 50〜58%）に揃える |
-| emphasis | normal / highlight / muted。強調は要所に限る |
+| emphasis | normal / highlight / muted。強調は要所に限る（1.2.0 は `emphasisZone` へ改名・下記参照） |
+
+### 配置（placement）の 1.2.0 正規化（emphasisZone 改名・placement へ readingOrder/focalPoint 移設）
+> 正本 = report-structure.schema.json の placement（=`visual.layout`）。C18 は**幾何配置の唯一 owner** として、正規化 field {grid, zones, `emphasisZone`, readingOrder, focalPoint} で出力する。**論理構造（narrative / throughLine / section.role / transition）は決めない**（C17 report-structure-designer が owner）。
+
+- **emphasis→emphasisZone 改名**: 配置の強調度 field を `emphasisZone`（enum: normal/highlight/muted）へ改名する。inline highlight `==要点==`（本文キーフレーズ強調）との字面衝突を避けるため。旧 `emphasis` は deprecated alias として温存（両指定時は emphasisZone 優先）。新規出力は `emphasisZone` を使う。
+- **readingOrder / focalPoint を placement へ移設**: 視線誘導の向き（readingOrder）と主ビジュアル重心（focalPoint）を placement（visual.layout）に持たせる。render-report.js は **readingOrder を `data-reading-order` 属性（視線方向の意味マーカ・並び替えや物理再配置はしない）** として、**focalPoint を `data-focal="x,y"` ＋ CSS 変数 `--focal`（画像 visual の object-position で実際の重心配置に効く）** として反映する。図の物理配置効果を持つのは focalPoint 側。デッキ/レポート内で1方向・同一帯に揃える（VCONST_004）。
+- **責務境界（1.2.0 で明確化）**: C18 は grid/zones/emphasisZone/readingOrder/focalPoint（幾何配置）の唯一 owner。narrative / throughLine / section.role / transition（論理構造）は C17 の責務であり C18 は決めない。
 
 ### 環境可用性の確認
 `codex-image` を選ぶ前に codex CLI の可用性を、`mermaid` を選ぶ前に mermaid（CLI/lib）の可用性を確認する。不在時は種別を現実的な代替へ寄せ、`rationale` に理由を残す（描画不能な種別を確定しない）。確認は preflight（`validate-output-mode.py --preflight`）または vendor 環境の存在確認で行う。
@@ -197,6 +204,7 @@ last-audited: 2026-07-05
 - [ ] 1セクション/スライドの非 none visual が最大1つに収まっている（VCONST_002）
 - [ ] 逐語が変わる数値・料金・コードを画像に焼き込まず本文または svg で持っている（VCONST_003 退化耐性）
 - [ ] readingOrder が1方向・focalPoint が同じ高さ帯に揃い、grid/zones/emphasis がデッキ/レポート内で一貫している（VCONST_004）
+- [ ] 1.2.0 で出力する場合、placement を正規化 field {grid, zones, `emphasisZone`, readingOrder, focalPoint} で書き、強調度は `emphasis` でなく `emphasisZone` を使っている（emphasis は deprecated alias）。readingOrder/focalPoint を placement に持たせ render-report.js の live 反映に載せ、論理構造（narrative/throughLine/role/transition）は割り当てず C17 に委ねている
 - [ ] 確定した種別が全て環境で描画可能である（codex CLI / mermaid 不在種別を残していない・VCONST_005）
 - [ ] 各 visual の spec 骨子が kind と整合している（svg→svgSpec / mermaid→mermaidSpec / codex-image→aiVisualSpec）
 - [ ] 種別と配置の決定のみを行い、実描画は後段生成器に委ねている（VCONST_006 責務境界）
