@@ -5,7 +5,7 @@
 # inputs:
 #   - argv: --discovering-task-id T --reason R --produces-ref A
 #           --node-id N --node-title TT --node-phase-ref P --node-write-scope W
-#           [--node-entity-ref E] [--node-state ST] [--node-acceptance-criterion AC]
+#           [--node-entity-ref E] [--node-state ST] [--node-acceptance-criterion AC] [--node-couples-with ENTITY_ID ...]
 #           --route-id RID [--change-level additive|structural]
 #           (--task-graph G | --plan-dir D) --target-plugin-slug S [--cycle-id C] [--output O]
 # outputs:
@@ -106,6 +106,10 @@ def build_discovered_task(args: argparse.Namespace) -> dict:
     }
     if args.node_acceptance_criterion is not None:
         proposed_node["acceptance_criterion"] = args.node_acceptance_criterion
+    if args.node_couples_with:
+        # 接合が密な既存兄弟 (entity_ref id) を宣言 → accept-discovered-task が同一 phase 兄弟の後へ
+        # 直列化し外ループ追記でも盲目並列を防ぐ (統合 finding 先送りの再発防止)。
+        proposed_node["couples_with"] = list(args.node_couples_with)
 
     # status を書かない (未設定=pending=未処理)。additionalProperties:false ゆえ余分キー禁止。
     form = {
@@ -136,6 +140,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--node-entity-ref", default=None, help="省略時 null (schema: string|null)")
     p.add_argument("--node-state", default="pending", choices=list(NODE_STATES))
     p.add_argument("--node-acceptance-criterion", default=None)
+    p.add_argument("--node-couples-with", action="append", default=[], metavar="ENTITY_ID",
+                   help="接合が密な既存兄弟 component の entity_ref id (複数可)。accept 時に同一 phase 兄弟の後へ直列化 (外ループ追記の盲目並列防止)")
     # provenance / lifecycle。
     p.add_argument("--route-id", required=True, help="provenance.route_id (呼び出し元 route id)")
     p.add_argument("--change-level", default="additive", choices=list(CHANGE_LEVELS),

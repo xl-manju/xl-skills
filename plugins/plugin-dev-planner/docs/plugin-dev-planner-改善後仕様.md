@@ -187,7 +187,7 @@ index(main) は `plugin_meta`(manifest / marketplace / cachebuster / validate_pl
 | `check-spec-matrix-coverage.py` | 46 行マトリクスの焼き先反映(--self-test で drift 検出)+ phase/inventory scope |
 | `check-surface-inventory.py` | 5 種検討証跡 + plugin-level surface 採否 |
 | `check-build-handoff.py` | L3→L4 routing(inventory 由来)/ builder / build_kind / manifest draft / `task_graph_ref` 必須 |
-| `validate-task-graph.py` | デフォルト成果物 `task-graph.json` の 8 検査(DAG 非循環/orphan 0/producer 一意/inventory 矛盾 0/非正準拒否) |
+| `validate-task-graph.py` | デフォルト成果物 `task-graph.json` の 10 検査(DAG 非循環/orphan 0/producer 一意/inventory 矛盾 0/非正準拒否) |
 | `check-runtime-portability.py` | install 携帯性: 共有 script の plugin-root hoist(P)+ build_target の plugin 内自己完結(Q) |
 | `check-plugin-surface-audit.py` | plugins/ 配下の現物 surface 横断棚卸し(dogfood) |
 

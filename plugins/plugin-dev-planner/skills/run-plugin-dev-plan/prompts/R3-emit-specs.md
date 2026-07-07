@@ -77,7 +77,7 @@
 
 - **生成手段は再実装しない**: `scripts/derive-task-graph.py <PLAN_DIR>` が 13 phase §5 完了チェックリスト項目 + `component-inventory.json` の `depends_on` を単一 writer として決定論射影し `<PLAN_DIR>/task-graph.json` を canonical serialization で書く。R3 は phase/index/inventory を確定した**後に必ずこの導出を実行**する (手書きしない=単一 writer 契約)。
 - **handoff への常時参照**: `handoff-run-plugin-dev-plan.json` の top-level に `task_graph_ref: {path: "task-graph.json", schema_version: "1.0"}` を**必ず**付与する (consumer=`/capability-build` はこれが在れば task-graph 2 ループ mode で駆動する)。省略は `check-build-handoff.py` が fail-closed で弾く。
-- **自己検証**: 生成後に `scripts/validate-task-graph.py <PLAN_DIR>` (DAG 非循環 / orphan 0 / producer 一意 / inventory 矛盾 0 / dangling 端点 0 / 非正準拒否の 8 検査) が exit0 になることを確認する。非正準・循環は R2 の inventory `depends_on` へ差し戻す。
+- **自己検証**: 生成後に `scripts/validate-task-graph.py <PLAN_DIR>` (DAG 非循環 / orphan 0 / producer 一意 / inventory 矛盾 0 / dangling 端点 0 / 非正準拒否の 10 検査) が exit0 になることを確認する。非正準・循環は R2 の inventory `depends_on` へ差し戻す。
 
 ## Layer 3: インフラ層 (外部依存)
 

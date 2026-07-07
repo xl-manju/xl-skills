@@ -192,6 +192,26 @@ def test_build_form_uses_plan_dir_default_task_graph(tmp_path):
     assert form["discovering_task_id"] == "T1"
 
 
+def test_build_form_couples_with_populates_proposed_node(tmp_path):
+    # --node-couples-with で接合が密な既存兄弟を宣言 → proposed_node.couples_with へ載る
+    # (accept 側が同一 phase 兄弟の後へ直列化・外ループ追記の盲目並列防止)。
+    g = _write_graph(tmp_path)
+    argv = _base_argv(g) + ["--node-couples-with", "C05", "--node-couples-with", "C07"]
+    form = emit.build_discovered_task(_parse(argv))
+    assert form["proposed_node"]["couples_with"] == ["C05", "C07"]
+    # schema: proposed_node.couples_with は許容キー (余剰キー違反にならない)。
+    _, _, node_required = _schema_required()
+    schema, _, _ = _schema_required()
+    allowed = set(schema["properties"]["proposed_node"]["properties"].keys())
+    assert set(form["proposed_node"].keys()) <= allowed
+
+
+def test_build_form_couples_with_omitted_when_absent(tmp_path):
+    g = _write_graph(tmp_path)
+    form = emit.build_discovered_task(_parse(_base_argv(g)))
+    assert "couples_with" not in form["proposed_node"]   # 未指定は付与しない (additive optional)
+
+
 # ─────────────────────────── main() CLI: 出力先 / exit code ───────────────────────────
 def test_main_writes_to_explicit_output_and_stdout(tmp_path, capsys):
     g = _write_graph(tmp_path)
