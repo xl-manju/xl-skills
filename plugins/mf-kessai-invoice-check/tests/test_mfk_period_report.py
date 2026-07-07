@@ -379,6 +379,22 @@ def test_main_with_lookback_and_contract_end_files(tmp_path, capsys):
     assert "年契約周期" in out[0]["period_diff"]
 
 
+def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
+    """空の --lookback-12mo ファイルでも『実質未実行』として stderr 警告する (縁ケース)。
+
+    パスは指定されているが中身が空=12ヶ月履歴なし。前月なし今月あり (新規) 行の年→月切替
+    裏付けは未確認なので、未指定時と同様に警告を出す (loaded content の真偽で判定)。
+    """
+    prev = _write(tmp_path, "prev.json", [])
+    curr = _write(tmp_path, "curr.json", [_row("新規社", "月額", "MATCH_MONTHLY")])
+    empty_lb = _write(tmp_path, "lb.json", [])   # 空ファイル (パスは指定・中身は空)
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--lookback-12mo", empty_lb, "--target-month", "2606"])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火
+
+
 def test_main_missing_file_fail_closed(tmp_path):
     prev = _write(tmp_path, "prev.json", [])
     rc = P.main(["--curr-verdicts", str(tmp_path / "nope.json"),

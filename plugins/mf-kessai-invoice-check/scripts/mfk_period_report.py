@@ -467,9 +467,10 @@ def _new_comment(row, lookback_idx, target_month, lookback_available=True):
             return (f"12ヶ月履歴に年契約一括発行あり({_rec_month(rec)})→年→月切替の可能性 "
                     "(12ヶ月履歴で確認済み)")
     if not lookback_available:
-        # ルックバック自体が未実行。年→月切替か真の新規かを未確認のまま『新規発行』と断定しない
-        # (確実性の開示)。データ源は MF 実績の12ヶ月履歴であり請求確認シートの開始月には依存しない。
-        return ("⚠️ 12ヶ月ルックバック未実行 (--lookback-12mo 未指定)→年契約からの月額切替か"
+        # ルックバック自体が未実行 (--lookback-12mo 未指定 or 空データ)。年→月切替か真の新規かを
+        # 未確認のまま『新規発行』と断定しない (確実性の開示)。データ源は MF 実績の12ヶ月履歴であり
+        # 請求確認シートの開始月には依存しない。
+        return ("⚠️ 12ヶ月ルックバック未実行 (12ヶ月履歴データなし)→年契約からの月額切替か"
                 "真の新規発行か未確認。MF実績の12ヶ月履歴を渡して再実行し裏付けを取ること")
     # ルックバックは実行したが当該取引先に年契約一括の履歴なし=真の新規発行と確認できた。
     return "新規発行 (12ヶ月履歴を確認したが年契約一括の裏付けなし=真の新規)"
@@ -685,12 +686,14 @@ def main(argv=None):
     # 12ヶ月ルックバック未実行の可視化 (ユーザー要件 C2/C3): --lookback-12mo 未指定のまま
     # 前月なし今月あり (新規/年→月切替) 行があると、年契約→月額切替の裏付けが未確認になる。
     # データ源は MF 実績の12ヶ月履歴であり請求確認シートの開始月には依存しない (源の取り違え防止)。
+    # lookback は未指定 (a.lookback なし=None) でも空ファイル ([]/{}) でも「実質未実行」として
+    # 一貫して警告する (loaded content の真偽で判定・空データ縁ケースの取りこぼしを防ぐ)。
     new_rows = sum(1 for r in report if r.get("period_diff") == "新規/年→月切替")
-    if not a.lookback and new_rows:
+    if not lookback and new_rows:
         sys.stderr.write(
-            f"[period-report] ⚠️ --lookback-12mo 未指定のまま 前月なし今月あり {new_rows} 件を分類しました。"
-            "これらの『年契約→月額切替』裏付けは未確認です。MF実績(GET)の12ヶ月履歴を "
-            "--lookback-12mo に渡して再実行してください (シート開始月とは無関係=省略しない)。\n")
+            f"[period-report] ⚠️ 12ヶ月履歴データなし (--lookback-12mo 未指定 or 空) のまま 前月なし今月あり "
+            f"{new_rows} 件を分類しました。これらの『年契約→月額切替』裏付けは未確認です。MF実績(GET)の"
+            "12ヶ月履歴を --lookback-12mo に渡して再実行してください (シート開始月とは無関係=省略しない)。\n")
 
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
