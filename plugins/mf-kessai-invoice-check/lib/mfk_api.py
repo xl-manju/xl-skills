@@ -109,11 +109,41 @@ def get(path, params=None, cfg=None, api_key=None):
         raise SystemExit(f"接続失敗 {path}: {e.reason} (base_url={base_url(cfg)} を確認)")
 
 
-def iter_all(path, params=None, cfg=None, api_key=None):
-    """カーソルページングで path の全 items を yield する (limit=200 固定)。"""
+def _record_trace(trace_sink, site, path, page, params, page_index):
+    """1 ページ分の pagination trace を trace_sink(list)へ append する(fetch fidelity 監査 C06 の入力)。
+
+    trace 1 件 = {site, path, page_index, has_next, end, total, items_count, params}。
+    C06(mfk_fetch_audit.py)がこの trace から pagination 完全性(has_next↔end)・total 件数突合・
+    issue_date 範囲・stale を機械検証する。trace_sink=None なら何もしない(iter_all 完全同一挙動を保つ)。
+    """
+    if trace_sink is None:
+        return
+    pg = page.get("pagination", {}) or {}
+    trace_sink.append({
+        "site": site or path,
+        "path": path,
+        "page_index": page_index,
+        "has_next": bool(pg.get("has_next")),
+        "end": pg.get("end"),
+        "total": pg.get("total"),
+        "items_count": len(page.get("items", []) or []),
+        # after(カーソル)は毎ページ変わる内部値ゆえ trace の params からは除外し、
+        # issue_date_from/to・status 等の request 意図だけを残す(C06 の issue_date 範囲照合用)。
+        "params": {k: v for k, v in (params or {}).items() if k != "after"},
+    })
+
+
+def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
+    """カーソルページングで path の全 items を yield する (limit=200 固定・GET 専用)。
+
+    trace_sink(list)を渡すと各ページの pagination metadata を C06 fetch fidelity 監査用に記録する。
+    trace_sink=None(既定)は従来と完全同一挙動で、既存呼出側(reconcile_invoices 等)を byte 不変に保つ。
+    """
     params = dict(params or {}, limit=200)
+    page_index = 0
     while True:
         page = get(path, params, cfg=cfg, api_key=api_key)
+        _record_trace(trace_sink, site, path, page, params, page_index)
         for item in page.get("items", []):
             yield item
         pg = page.get("pagination", {})
@@ -126,6 +156,18 @@ def iter_all(path, params=None, cfg=None, api_key=None):
                 "部分取得のまま続行しないため停止します。"
             )
         params["after"] = nxt
+        page_index += 1
+
+
+def get_with_trace(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
+    """get() の trace 変種(単一ページ GET・/customers?ids= 等の非ページング fetch site 用)。
+
+    返り値は get() と同一の JSON。trace_sink を渡すと 1 件の pagination trace を記録する
+    (customer-name 解決のような単発 GET も C06 が『取得できているか』を監査できるようにする)。GET 専用。
+    """
+    page = get(path, params, cfg=cfg, api_key=api_key)
+    _record_trace(trace_sink, site, path, page, params, 0)
+    return page
 
 
 def smoke(cfg=None):

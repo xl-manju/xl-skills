@@ -35,7 +35,7 @@ feedback_contract: # per-skill 評価基準(SSOT=scripts/feedback_contract_ssot.
       verify_by: test
     - id: OUT1
       loop_scope: outer
-      text: 同一対象月で 2 営業日目・3 営業日目相当のデータを与え連続実行しても C06 sink が指定見出しに紐づく同じ report_db_id を更新し、単一恒久 DB へ入力同定 {取引先×契約ID×商品} と stored key (対象月,取引先名,商品名) で同一行を 1 行へ収束させ (同月 2 回実行で重複行 0・日々追加・二重 DB 0・非破壊マージで run-1={A,B}→run-2={A,C} 後も DB が {A,B,C} を保持=以前 run の行が消えない/clear-then-insert と区別可能・契約ID違いは要対応優先で collapse 計上)、別月行も対象月列で同一 DB に共存すること、各イレギュラー行がなぜ先月あって今月なくて問題ないかの事情コメントを持ち分類不能な差分だけが真の発行漏れとして漏れチェックに残ることを受入テストが確認する
+      text: 同一対象月で 2 営業日目・3 営業日目相当のデータを与え連続実行しても C04 sink が指定見出しに紐づく同じ report_db_id を更新し、単一恒久 DB へ入力同定 {取引先×契約ID×商品} と stored key (対象月,取引先名,商品名) で同一行を 1 行へ収束させ (同月 2 回実行で重複行 0・日々追加・二重 DB 0・非破壊マージで run-1={A,B}→run-2={A,C} 後も DB が {A,B,C} を保持=以前 run の行が消えない/clear-then-insert と区別可能・契約ID違いは要対応優先で collapse 計上)、別月行も対象月列で同一 DB に共存すること、各イレギュラー行がなぜ先月あって今月なくて問題ないかの事情コメントを持ち分類不能な差分だけが真の発行漏れとして漏れチェックに残ることを受入テストが確認する
       verify_by: test
 ---
 
@@ -47,53 +47,56 @@ MF掛け払いの**前月↔今月の請求書発行状況を突合**し、状�
 
 **対象月の定義**: 今月=直近締め済みの請求対象月 (例: 2026-07-02 実行なら 2026-06 分=`2606`)、先月はその 1 ヶ月前 (`2605`)。実行日カレンダー月ではない。
 
-出力先は**指定見出しに紐づく単一恒久レポート DB**。C06 sink は `report_toggle_block` が指すトグル見出し/プレーン見出し2を起点に既存 DB を確認し、あれば更新、無ければ見出しの下 (ページ直下) に新規作成する。**指定見出しはこのレポート専用の器ゆえ配下 DB は表示名非依存で同定する** — ユーザーが DB を『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新し、title 列名が Notion 既定の『名前』でも実名を検出して書く (名前ドリフトによる二重作成/全行 skip を防ぐ)。新規作成はページ直下に落ちるため初回のみ UI で見出しの下へ移動すれば以後自動更新。C06 sink 経由で単一 DB へ書き、同月内の 2/3 営業日目再実行は入力同定 **{取引先(customer) × 契約ID(contract_id) × 商品(product)}** と C06 の stored key **(対象月, 取引先名, 商品名)** で重複行を出さず**日々追加**する。固定 8 列に契約ID列は無いため契約IDは永続化せず、契約ID違いは要対応優先で 1 行へ収束し `collapsed_multi_contract` に計上する。非破壊マージにより以前 run で書いた行も別月行も今回入力に無くても削除しない。DB 構築/配置/冪等 upsert は C06 sink が所有する。
+出力先は**指定見出しに紐づく単一恒久レポート DB**。C04 sink は `report_toggle_block` が指すトグル見出し/プレーン見出し2を起点に既存 DB を確認し、あれば更新、無ければ見出しの下 (ページ直下) に新規作成する。**指定見出しはこのレポート専用の器ゆえ配下 DB は表示名非依存で同定する** — ユーザーが DB を『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新し、title 列名が Notion 既定の『名前』でも実名を検出して書く (名前ドリフトによる二重作成/全行 skip を防ぐ)。新規作成はページ直下に落ちるため初回のみ UI で見出しの下へ移動すれば以後自動更新。C04 sink 経由で単一 DB へ書き、同月内の 2/3 営業日目再実行は入力同定 **{取引先(customer) × 契約ID(contract_id) × 商品(product)}** と C04 の stored key **(対象月, 取引先名, 商品名)** で重複行を出さず**日々追加**する。固定 8 列に契約ID列は無いため契約IDは永続化せず、契約ID違いは要対応優先で 1 行へ収束し `collapsed_multi_contract` に計上する。非破壊マージにより以前 run で書いた行も別月行も今回入力に無くても削除しない。DB 構築/配置/冪等 upsert は C04 sink が所有する。
 
 **入力**: `--target YYMM` (対象月・省略時は実行日から直近締め済み月を導出)。既定は dry-run (集計・分類のみ・Notion 書き込みゼロ)、レポート DB への反映を含む `--apply` は dry-run と二段確認完了を示す `--verified` を必須にする。
 **出力**: 8 列レポートテーブル (title=取引先名・列7=テキスト説明・金額税抜) + 判定内訳サマリ (継続発行/新規・年→月切替/対象外/発行漏れ候補の件数)。
 **完了条件**: dry-run で分類内訳を確認 (二段確認) し、`--apply --verified` で単一恒久レポート DB へ 8 列行が冪等 upsert され、別月/以前 run 行が履歴として残った状態。
 
 > **⚠️ AI・開発者向け — 分類/照合/冪等 upsert は実装済み・自作禁止**: 前月↔今月の状態遷移分類・事情コメント生成・単一恒久 DB への冪等 upsert は**完成・テスト済み**。**自前の比較スクリプトを書いたり、分類 (classify/compare/period_diff 相当) を新規実装したり、判定を `TODO(human)` で人間に書かせたりしてはならない**。正本は次の 3 実体:
-> - **`scripts/mfk_period_report.py`** (C05・前月↔今月分類エンジン): 既存 `lib/mfk_reconcile.py` の per-月 verdict を入力に取り、状態遷移だけを分類する薄い差分エンジン。終了根拠の一次情報源は既存 `mfk_reconcile.has_end_basis`→verdict `SUPPRESS_ENDED` であり、自由文を再パースしない。
+> - **`scripts/mfk_period_report.py`** (C03・前月↔今月分類エンジン): 既存 `lib/mfk_reconcile.py` の per-月 verdict を入力に取り、状態遷移だけを分類する薄い差分エンジン。終了根拠の一次情報源は既存 `mfk_reconcile.has_end_basis`→verdict `SUPPRESS_ENDED` であり、自由文を再パースしない。
 > - **`lib/mfk_reconcile.py`** (per-月 verdict の供給源・突合キー正規化 `normalize`/`extract_names`)。
-> - **`scripts/notion_report_sink.py`** (C06・Design D sink): 出力先 DB 解決 + 非破壊冪等 upsert。DB 生成/列型写像は `skills/run-mf-invoice-db-setup/scripts/build_notion_db.py` を再利用する。
+> - **`scripts/notion_report_sink.py`** (C04・Design D sink): 出力先 DB 解決 + 非破壊冪等 upsert。DB 生成/列型写像は `skills/run-mf-invoice-db-setup/scripts/build_notion_db.py` を再利用する。
 >
 > 自然文で頼まれたら新規実装せず `/run-mf-invoice-report --target YYMM` を **dry-run → 二段確認 (`mfk-report-verifier`) → `--apply --verified`** の順で実行する。**機械強制**: `hooks/guard-mfk-no-reinvent.py` (PreToolUse) が、正本以外への状態遷移分類の再実装 (`def compare_*`/`def period_diff`/`def classify_*` 等) と本ドメインでの `TODO(human)` 書き込みを exit 2 で遮断する (prose 指示が出力スタイルに上書きされても効く機械層)。
 
 ## End-to-End Flow
 
 ```
-[1 collect]  対象月を決定 (今月=直近締め済み請求対象月・先月=その1ヶ月前) →
-             前月/今月の全取引先 MF発行実績を参照専用GET (lib/mfk_api.py) →
-             既存 reconcile engine (lib/mfk_reconcile.py) で per-月 verdict を収集 →
-             取引先×商品で状態遷移を抽出し、差分に現れた該当取引先のみ 12ヶ月分の発行履歴を追加取得 →
-             請求確認シート由来の契約終了月も収集 →
-             curr-verdicts / prev-verdicts / lookback-12mo / contract-end の JSON 入力を組む
-[2 classify] mfk_period_report.py (C05) で前月↔今月の状態遷移をイレギュラー分類し各行の事情コメント生成
-             → 分類済みレポート行 JSON (取引先/漏れチェック/商品/先月金額/今月金額/比較/コメント)
-[3 verify]   mfk-report-verifier sub-agent (context:fork) で独立contextの二段確認。
-             真の発行漏れを『問題ない』と誤って隠していないかを検証 (誤って対象外化した候補を差し戻す)
-[4 render]   notion_report_sink.py (C06・Design D) でトグル内の単一恒久レポート DB へ非破壊冪等upsert
-             (出力先解決=トグル内DB優先・対象月列で複数月を非破壊保持・同月のみ上書き・deleted常時0)
-             ↑ MF APIは全GET / 変更系は hook(guard-mfk-readonly.py)で遮断。分類再発明は hook(guard-mfk-no-reinvent.py)で遮断
+[1 collect]     対象月を決定 (今月=直近締め済み請求対象月・先月=その1ヶ月前) →
+                前月/今月/lookback の全取引先 MF発行実績を参照専用GET (lib/mfk_api.py)・pagination trace を fetch_trace へ記録 →
+                既存 reconcile engine (lib/mfk_reconcile.py) で per-月 verdict を収集 →
+                取引先×商品で状態遷移を抽出し、差分に現れた該当取引先のみ 12ヶ月分の発行履歴を追加取得 →
+                請求確認シート由来の契約終了月も収集 →
+                curr-verdicts / prev-verdicts / lookback-12mo / contract-end / fetch_trace の JSON 入力を組む
+[2 fetch-audit] mfk_fetch_audit.py (C06) が fetch_trace を監査し fetch fidelity report を出力 (取得の完全性ゲート・MF実績起点判定の前提) →
+                exit0=OK / exit1=当月or先月 fetch NG→fail-closed (漏れ確認レポートを emit しない) / exit3=lookback 部分欠損→該当行を要確認へ降格
+[3 classify]    mfk_period_report.py (C03) で前月↔今月の状態遷移をイレギュラー分類し各行の事情コメント生成
+                (C06 の fidelity report を `--fidelity-report` で必須受領し fail-closed/要確認降格を適用・金額は MF実発行額 actual_amount 優先=D3)
+                → 分類済みレポート行 JSON (取引先/漏れチェック/商品/先月金額/今月金額/比較/コメント)
+[4 verify]      mfk-report-verifier sub-agent (context:fork) で独立contextの二段確認。
+                真の発行漏れを『問題ない』と誤って隠していないかを検証 (誤って対象外化した候補を差し戻す)
+[5 render]      notion_report_sink.py (C04・Design D) でトグル内の単一恒久レポート DB へ非破壊冪等upsert
+                (出力先解決=トグル内DB優先・対象月列で複数月を非破壊保持・同月のみ上書き・deleted常時0)
+                ↑ MF APIは全GET / 変更系は hook(guard-mfk-readonly.py)で遮断。分類再発明は hook(guard-mfk-no-reinvent.py)で遮断
 ```
 
-詳細は `workflow-manifest.json`、責務は `prompts/R1-R4`。dry-run (分類のみ) と `--apply` (Notion 書き込み) を分離し、分類内訳を確認してから適用することで二段確認を標準フローで要求する。C05/C06 は決定論 script、収集 (R1) と分類呼出→二段確認→冪等描画のオーケストレーションが本 skill の責務。
+詳細は `workflow-manifest.json`、責務は `prompts/R1-R4`。dry-run (分類のみ) と `--apply` (Notion 書き込み) を分離し、分類内訳を確認してから適用することで二段確認を標準フローで要求する。C03/C04/C06 は決定論 script (fetch-audit=C06 は収集 R1 の取得完全性ゲート)、収集 (R1)→fetch fidelity 監査→分類呼出→二段確認→冪等描画のオーケストレーションが本 skill の責務。
 
 ## DB ライフサイクル (単一恒久 DB・作り直さない・履歴保全)
 
-月次運用では **Design D**: 出力先を**指定見出し (`report_toggle_block`・トグル見出しでもプレーン見出し2でも可) に紐づく単一の恒久レポート DB** に一本化し、そこへ upsert で更新する。C06 sink は (1) 指定見出しがトグルで配下に持つ report DB、無ければ (2) プレーン見出しの**直下**(ページ兄弟・次セクション見出しの手前まで=見出しの下に置いた DB を重複と区別して同定)、無ければ (3) 親ページ (`report_parent_page`) 直下の title が『請求漏れ比較レポート』で始まる既存 report DB、どれも無ければ (4) 見出しの下 (ページ直下) へ新規作成、の順に出力先 DB を解決する (`db_location`=in-block/under-heading/page/page-created で開示)。**(1)(2) の指定トグル/見出しはこのレポート専用の器ゆえ、配下 DB は表示名に依存せず構造的位置で採用する** (ユーザーが『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新=title 前方一致は同点解消/後方互換のヒントに留め、複数併存時のみ prefix 一致→先頭で決定論選択し stderr へ警告)。(3) の親ページ直下だけは無関係 DB が同居しうるので title 前方一致で限定する。**Notion API は database を block_id (トグル) 親で『作成』できないが、ユーザーが Notion UI でトグル内に作った DB の『更新』(行 upsert・列 PATCH) はできる**ため、トグル内 DB をそのまま更新できる。単一 DB に複数月を保持するため **`対象月` 列 (YYYY-MM)** で月を区別し、行同定キー (対象月, 取引先名, 商品名) で同月の再実行のみ上書き・別月/以前行は非破壊保持する。対象月列が無い旧 DB には `_ensure_db_schema` が PATCH で対象月列を後付けし、title 列名が『取引先名』でなく Notion 既定の『名前』等でも実名を検出して行を書く (非破壊)。新規作成 DB はページ直下に落ちるため、**初回のみ Notion UI で指定見出しの下へドラッグ移動**すると以後 in-block/under-heading で自動更新される。親ページ ID・トグル ID は `mf-kessai-config.default.json` の配布既定が供給し、別出力先にしたい場合のみ `.mf-kessai-config.json` (gitignore) で上書きする。
+月次運用では **Design D**: 出力先を**指定見出し (`report_toggle_block`・トグル見出しでもプレーン見出し2でも可) に紐づく単一の恒久レポート DB** に一本化し、そこへ upsert で更新する。C04 sink は (1) 指定見出しがトグルで配下に持つ report DB、無ければ (2) プレーン見出しの**直下**(ページ兄弟・次セクション見出しの手前まで=見出しの下に置いた DB を重複と区別して同定)、無ければ (3) 親ページ (`report_parent_page`) 直下の title が『請求漏れ比較レポート』で始まる既存 report DB、どれも無ければ (4) 見出しの下 (ページ直下) へ新規作成、の順に出力先 DB を解決する (`db_location`=in-block/under-heading/page/page-created で開示)。**(1)(2) の指定トグル/見出しはこのレポート専用の器ゆえ、配下 DB は表示名に依存せず構造的位置で採用する** (ユーザーが『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新=title 前方一致は同点解消/後方互換のヒントに留め、複数併存時のみ prefix 一致→先頭で決定論選択し stderr へ警告)。(3) の親ページ直下だけは無関係 DB が同居しうるので title 前方一致で限定する。**Notion API は database を block_id (トグル) 親で『作成』できないが、ユーザーが Notion UI でトグル内に作った DB の『更新』(行 upsert・列 PATCH) はできる**ため、トグル内 DB をそのまま更新できる。単一 DB に複数月を保持するため **`対象月` 列 (YYYY-MM)** で月を区別し、行同定キー (対象月, 取引先名, 商品名) で同月の再実行のみ上書き・別月/以前行は非破壊保持する。対象月列が無い旧 DB には `_ensure_db_schema` が PATCH で対象月列を後付けし、title 列名が『取引先名』でなく Notion 既定の『名前』等でも実名を検出して行を書く (非破壊)。新規作成 DB はページ直下に落ちるため、**初回のみ Notion UI で指定見出しの下へドラッグ移動**すると以後 in-block/under-heading で自動更新される。親ページ ID・トグル ID は `mf-kessai-config.default.json` の配布既定が供給し、別出力先にしたい場合のみ `.mf-kessai-config.json` (gitignore) で上書きする。
 
 **履歴が消えない設計**: 単一 DB に `対象月` 列で複数月を保持する。行同定キーは **(対象月, 取引先名, 商品名)** で、別月の行は別キーゆえ非破壊共存し、同月内の再実行のみ 1 行へ収束 (重複行 0・日々追加)。**非破壊マージ**: 以前の run で書いた行も別月の行も今回入力に無くても削除しない (`deleted` 常時 0・clear-then-insert でない)。手動追記運用は無い前提ゆえ frozen 列は設けない。
 
-> **列順 SSOT (固定 8 列)**: [取引先名(title=ページ名), 対象月(rich_text), 漏れチェック(checkbox: 正常=✓/要対応=☐), 商品名(rich_text), 先月の金額(number/yen), 今月の金額(number/yen), 先月と今月の比較(rich_text=テキスト説明), コメント(rich_text)]。取引先名=title を先頭に置き Notion の title 最左固定と定義順を一致させる (定義順=実表示順)。金額は税抜。列型写像は build_notion_db を再利用。固定 8 列に契約ID 列は無いため、DB 内の 1 行は (対象月, 取引先名, 商品名) で回収され、契約ID は入力同定用メタとして主キーに含むが persist しない (C06 の `_stored_key` が SSOT)。
+> **列順 SSOT (固定 8 列)**: [取引先名(title=ページ名), 対象月(rich_text), 漏れチェック(checkbox: 正常=✓/要対応=☐), 商品名(rich_text), 先月の金額(number/yen), 今月の金額(number/yen), 先月と今月の比較(rich_text=テキスト説明), コメント(rich_text)]。取引先名=title を先頭に置き Notion の title 最左固定と定義順を一致させる (定義順=実表示順)。金額は税抜。列型写像は build_notion_db を再利用。固定 8 列に契約ID 列は無いため、DB 内の 1 行は (対象月, 取引先名, 商品名) で回収され、契約ID は入力同定用メタとして主キーに含むが persist しない (C04 の `_stored_key` が SSOT)。
 
 ## boundary (責務境界)
 
 - **入力**: MF掛け払い実績 (参照専用 GET) + 既存 `mfk_reconcile` の per-月 verdict + 請求確認シート (契約終了月)。
 - **出力**: 指定見出しに紐づく単一恒久レポート DB の冪等上書き。
 - **MF への書き込みはしない** (GET のみ・変更系は hook `guard-mfk-readonly.py` で遮断)。
-- イレギュラー分類の実体は **C05 エンジン**・出力先 DB 解決/冪等 upsert は **C06 sink** に委譲し、本 skill は収集→分類呼出→二段確認→冪等描画の**オーケストレーションに徹する**。
+- イレギュラー分類の実体は **C03 エンジン**・出力先 DB 解決/冪等 upsert は **C04 sink** に委譲し、本 skill は収集→分類呼出→二段確認→冪等描画の**オーケストレーションに徹する**。
 - **既存 reconcile/check スキルの再設計はしない** (単月照合=`run-mf-invoice-reconcile`、前月↔今月比較=本 skill と役割分離)。
 
 ## ゴールシーク実行
@@ -108,7 +111,7 @@ MF掛け払いの**前月↔今月の請求書発行状況を突合**し、状�
 
 各責務の**完了条件の詳細は `prompts/Rn` の L5.3 完了チェックリストを正本 (SSOT)** とする (片側更新ドリフトを避けるため SKILL 側で再定義しない)。本節は俯瞰用の責務サマリのみ示す。
 
-- **R1 collect** (`prompts/R1-collect.md`): 対象月を決定し前月/今月の全取引先 MF実績 (参照専用 GET) と per-月 verdict を収集、差分該当取引先のみ 12 ヶ月遡り、契約終了月を集め C05 入力 JSON を組む。
+- **R1 collect** (`prompts/R1-collect.md`): 対象月を決定し前月/今月の全取引先 MF実績 (参照専用 GET) と per-月 verdict を収集、差分該当取引先のみ 12 ヶ月遡り、契約終了月を集め C03 入力 JSON を組む。
 - **R2 classify** (`prompts/R2-classify.md`): `mfk_period_report.py` で状態遷移を分類し事情コメントを生成する (既存 verdict を消費・再パースしない)。
 - **R3 verify** (`prompts/R3-verify.md`): sub-agent `mfk-report-verifier` が独立 context で「真の発行漏れを問題ないと隠していないか」を二段確認する。
 - **R4 render** (`prompts/R4-render.md`): `notion_report_sink.py` で単一恒久レポート DB へ 8 列行を非破壊冪等 upsert する (既存 DB 優先解決・日々追加・別月/以前行保全)。
@@ -133,38 +136,38 @@ MF掛け払いの**前月↔今月の請求書発行状況を突合**し、状�
 ## Key Rules
 
 1. **参照専用 (二層で抑止)**: 第1層=`hooks/guard-mfk-readonly.py` (PreToolUse) が Bash 経由の MF 変更系を遮断。第2層=`lib/mfk_api.py` は GET 専用で POST/PATCH/DELETE 関数を構造的に持たない。MF へは一切書き込まない。
-2. **分類再発明の遮断**: `hooks/guard-mfk-no-reinvent.py` が正本 (`mfk_period_report.py`/`mfk_reconcile.py`/`reconcile_invoices.py`) 以外への状態遷移分類関数 (`compare`/`period_diff`/`classify_*` 語幹) の再実装と `TODO(human)` を exit 2 で遮断する。分類は C05 が正本。
-3. **対象月は直近締め済み**: 今月=実行日カレンダー月の前月 (直近締め済み請求対象月)、先月はその 1 ヶ月前。MF の月帰属は `transaction.date` (取引日・月末締め) 軸で、C05 の `resolve_target_months` が導出する。
+2. **分類再発明の遮断**: `hooks/guard-mfk-no-reinvent.py` が正本 (`mfk_period_report.py`/`mfk_reconcile.py`/`reconcile_invoices.py`) 以外への状態遷移分類関数 (`compare`/`period_diff`/`classify_*` 語幹) の再実装と `TODO(human)` を exit 2 で遮断する。分類は C03 が正本。
+3. **対象月は直近締め済み**: 今月=実行日カレンダー月の前月 (直近締め済み請求対象月)、先月はその 1 ヶ月前。MF の月帰属は `transaction.date` (取引日・月末締め) 軸で、C03 の `resolve_target_months` が導出する。
 4. **全行 emit で全請求書一覧**: 継続発行 (今月あり×前月あり) も漏れチェック=正常として全行 emit する。非 emit は今月なし×前月なしのうち今月 verdict が GAP でない (正常抑制 SUPPRESS_*/元々請求なし) 行のみ。**両月未発行でも今月 verdict=GAP の継続漏れは要対応として emit** し脱落させない (単月照合と整合・漏れを隠さない)。真の発行漏れ (単月遷移の漏れ + 継続漏れ) だけを漏れチェック=要対応に残す。
 5. **正常事情は既存 verdict を一次源に消費 (再パース禁止)**: 契約完了=`SUPPRESS_ENDED`、年契約期間内=`SUPPRESS_ANNUAL`/`MATCH_ANNUAL` を一次源にし、12 ヶ月遡りは根拠コメント補強に限定 (既存判定を上書きしない)。トライアル完了は canon 前の生商品名/MF 明細 desc の『トライアル』信号で判定。**根拠なき終了月** (`REVIEW_ENDED_NO_BASIS`) は抑制せず発行漏れ候補に残す (漏れ隠蔽防止の既存安全弁を保全)。
 6. **12 ヶ月遡りは差分該当取引先のみ**: 前月↔今月の差分に現れた取引先だけ 12 ヶ月履歴を追加取得する (全件遡らない=API 負荷最小化)。
 7. **二段確認 (dry-run + `--verified` が物理境界・機械強制)**: 既定は dry-run (分類のみ・書き込みゼロ)。レポート DB 反映を含む `--apply` は `--verified` 明示時だけ通す — これは prose の約束でなく `notion_report_sink.py` が `--apply` かつ `--verified` でなければ書込を拒否し exit 2 する**機械ゲート**である (MEMORY『保証要件は機械層で担保』)。分類内訳を dry-run で確認し、sub-agent の二段確認後にだけ `--apply --verified` を使う (誤投入防止)。
 8. **単一恒久 DB を作り直さない (Design D)**: 出力先はトグル内の report DB を最優先で解決し (無ければ見出しの下=ページ直下)、そこへ `対象月` 列付きで複数月を非破壊 upsert する。同月のみ上書き・別月/以前行は保全。新規作成は既存 DB が皆無のときだけ (見出しの下)。
 9. **非破壊冪等 upsert**: 同月再実行は入力同定 {取引先 × 契約ID × 商品} と stored key (対象月, 取引先名, 商品名) で同一行を 1 行へ収束 (重複行 0)。固定 8 列に契約IDは永続化しないため、契約ID違いは要対応優先で collapse し `collapsed_multi_contract` に計上する。以前 run の行も別月行も今回入力に無くても削除しない (`deleted` 常時 0)。
-10. **列順は固定 SSOT (定義順=実表示順)**: [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] を左→右順で固定。C06 の `COLUMN_ORDER` が正本。取引先名=title (=各行=ページ名)・対象月=rich_text・漏れチェック=checkbox (正常=✓/要対応=☐)・列7=テキスト説明・金額は税抜。**Notion table view は title 列を最左に固定描画する**ため、title (取引先名) を `COLUMN_ORDER` 先頭に定義することで定義順と実描画順を一致させている (列定義順 SSOT がそのまま実表示順=設定通り・以前あった「定義順≠実表示順」の乖離を解消)。
+10. **列順は固定 SSOT (定義順=実表示順)**: [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] を左→右順で固定。C04 の `COLUMN_ORDER` が正本。取引先名=title (=各行=ページ名)・対象月=rich_text・漏れチェック=checkbox (正常=✓/要対応=☐)・列7=テキスト説明・金額は税抜。**Notion table view は title 列を最左に固定描画する**ため、title (取引先名) を `COLUMN_ORDER` 先頭に定義することで定義順と実描画順を一致させている (列定義順 SSOT がそのまま実表示順=設定通り・以前あった「定義順≠実表示順」の乖離を解消)。
 
 ## Gotchas
 
 1. 出力先 (`notion.report_toggle_block` / `report_parent_page`) は XLOCAL 共有の本番先を `mf-kessai-config.default.json` に**焼き込み済み**で導入者は設定不要でそのまま `--apply` できる。**Design D**: sink はトグル内の report DB を最優先で更新対象にする (無ければ見出しの下=ページ直下の既存 DB / どちらも無ければ見出しの下へ新規作成)。API は database を block_id (トグル) 親で作成できないが、UI 作成のトグル内 DB の更新はできる。別ワークスペース/別ページへ出す場合のみ `.mf-kessai-config.json` (gitignore) で上書きする。`report_parent_page` を空にすると `--apply` 時に fail-closed (exit 2)。dry-run は書き込みなしで完走する。
 2. MF APIキーと Notion トークンは別 Keychain entry (`mfkessai-api-key.xl-skills` / `notion-api-key.xl-skills`、いずれも account=xl-skills)。
 3. **database は block_id (トグル) 親で『作成』できない** (POST /databases に block_id 親は 400)。ただし UI で作られたトグル内 DB の『更新』(行 upsert・列 PATCH) はできる。ゆえに Design D は新規作成のみ見出しの下 (ページ直下) に落とし、以後の更新はトグル内 DB へ行う。折り返し (wrap)/列幅はビュー format 設定で API 非公開ゆえ `placement.view_format_note` で UI 手順を開示する。
-4. 固定 8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) に契約ID 列は無い。DB 内の 1 行は (対象月, 取引先名, 商品名) で識別され、契約ID は入力同定用メタ (persist しない=既存ページから回収できない)。C05 は同一取引先・同一商品の複数契約を契約ID で別行に分離するが、C06 は契約ID列が無いため (対象月, 取引先名, 商品名) で 1 行に収束する。この収束時は **要対応 (発行漏れ候補) を正常が上書きしない safe guard** で漏れ隠蔽 (false-negative) を防ぎ、多契約 collapse 件数を stdout の `collapsed_multi_contract` に計上する (常態化すれば契約ID列追加への移行トリガ)。「多契約×同一商品は稀」という前提で 8 列固定を優先した設計判断。safe guard は **run 内 collapse だけでなく cross-run 更新にも対称に効く**: 前 run で立てた要対応行を次 run の正常が無条件上書きせず要対応を保持し、正常化した旨をコメントへ注記する。同 severity の要対応×要対応 collapse は両者のコメントを連結マージして片方の漏れ詳細を失わない。
+4. 固定 8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) に契約ID 列は無い。DB 内の 1 行は (対象月, 取引先名, 商品名) で識別され、契約ID は入力同定用メタ (persist しない=既存ページから回収できない)。C03 は同一取引先・同一商品の複数契約を契約ID で別行に分離するが、C04 は契約ID列が無いため (対象月, 取引先名, 商品名) で 1 行に収束する。この収束時は **要対応 (発行漏れ候補) を正常が上書きしない safe guard** で漏れ隠蔽 (false-negative) を防ぎ、多契約 collapse 件数を stdout の `collapsed_multi_contract` に計上する (常態化すれば契約ID列追加への移行トリガ)。「多契約×同一商品は稀」という前提で 8 列固定を優先した設計判断。safe guard は **run 内 collapse だけでなく cross-run 更新にも対称に効く**: 前 run で立てた要対応行を次 run の正常が無条件上書きせず要対応を保持し、正常化した旨をコメントへ注記する。同 severity の要対応×要対応 collapse は両者のコメントを連結マージして片方の漏れ詳細を失わない。
 5. カタカナが NFD (macOS/MF API 由来) でリテラル(NFC)と != になるため突合キーは `mfk_reconcile.normalize` (NFKC) を再利用する (自作正規化を発明しない)。
-6. per-月 verdict は既存 reconcile engine の出力を消費する。C05 は verdict を再照合・再パースしないため、上流の verdict が誤っていれば分類も従う (真の漏れ判定は R3 の二段確認で担保)。
-7. **レポート DB は機械専有 (machine-owned)**: C06 sink が冪等上書きする出力先で、経理の手動トリアージ (人間対応済み/確認メモ) は本 DB でなく単月照合の DB2 (`run-mf-invoice-reconcile` の月次チェック DB) で行う。本 DB に人が手で追記した checkbox/コメントは翌日の非破壊 upsert で機械が上書きしうる (frozen 列を持たない=手動追記運用が無い前提)。経理は本 DB を「読んで確認する」用途で使い、対応記録は reconcile DB2 側に残す。
-8. **今月の金額 (amount) の意味**: C05 は per-月 verdict を消費する薄い差分エンジンゆえ、`今月の金額` は MF 実発行額そのものでなく契約の現行単価/期待単価 (`mfk_reconcile` 由来) を優先して載せる。先月の金額と並置して増減の当たりを付ける用途で、厳密な実発行額照合は単月 `run-mf-invoice-reconcile` が担う。
+6. per-月 verdict は既存 reconcile engine の出力を消費する。C03 は verdict を再照合・再パースしないため、上流の verdict が誤っていれば分類も従う (真の漏れ判定は R3 の二段確認で担保)。
+7. **レポート DB は機械専有 (machine-owned)**: C04 sink が冪等上書きする出力先で、経理の手動トリアージ (人間対応済み/確認メモ) は本 DB でなく単月照合の DB2 (`run-mf-invoice-reconcile` の月次チェック DB) で行う。本 DB に人が手で追記した checkbox/コメントは翌日の非破壊 upsert で機械が上書きしうる (frozen 列を持たない=手動追記運用が無い前提)。経理は本 DB を「読んで確認する」用途で使い、対応記録は reconcile DB2 側に残す。
+8. **今月の金額/先月の金額 の意味 (D3・MF実発行額を常時表示)**: `今月の金額`/`先月の金額` は **MF 実発行額 (actual_amount) を常時表示**する — C05 (`mfk_actuals`・MF実績SSOT) が MF実績から焼いた carrier を C03 の `_amount_of` が**最優先**する (以前の「契約の期待単価を優先して載せる」旧仕様を D3 amount-gate 根治で**反転**した)。契約の期待額と実額が異なる場合でも**実額を表示したうえで、金額差はコメント/『先月と今月の比較』列で開示**する (期待額で実額を上書きしない)。**取消/供給なし (`supply_state`≠active) の行は金額列を空 (None) にし、取消前の額を出さない**。actual_amount carrier を持たない legacy 行や active だが実額欠落のときのみ期待額 (現行単価) へ fail-soft する。厳密な単月の実発行額照合は引き続き単月 `run-mf-invoice-reconcile` が担う。
 9. **exit 1 は失敗でない**: `mfk_period_report.py` は発行漏れ候補 (要対応) が 1 件でもあると exit 1 を返す (正常な検出結果)。CI/オーケストレーションは fatal を exit 2 のみとし exit 1 を失敗扱いしないこと (workflow-manifest の classify phase に明記)。
-10. **折り返し (wrap) は API で設定できない=UI で一度だけ**: 全列の折り返し表示 (wrap) は Notion の**ビュー表示設定**であって**プロパティ (スキーマ) 設定ではない**。Notion 公開 API (2022-06-28) はビューの format (折り返し・列幅・列順・列の固定) を一切操作できない (列順は DB 作成時の properties 定義順で既定ビューへ反映できるが、wrap/幅は不能)。全内容を折り返すには、Notion UI で当該 report DB ビューの『**…**』メニュー →『**すべての列を折り返す (Wrap all columns)**』を一度トグルする (以後そのビューに永続)。C06 はこの制約と手順を出力の `placement.view_format_note` で毎回開示する (列順・DB 配置と同じ「API 能力境界」の正直な開示)。
-11. **前月なし今月あり (新規/年→月切替) は 12ヶ月ルックバックで裏付ける**: 前月なし今月ありは「12ヶ月前の年契約一括→月額自動切替」の可能性が高い (C3)。この裏付けデータ源は **MF 実績の 12ヶ月履歴 (`transaction.date`) であり請求確認シートではない** — シートの開始月 (例 2605) は遡りの可否と無関係。`--lookback-12mo` 未指定のまま新規行を分類すると C05 は各行コメントに『⚠️ 12ヶ月ルックバック未実行→年→月切替か真の新規か未確認』を焼き stderr へ警告する (silent に『新規発行』と断定しない)。MF 実績自体が 12ヶ月前まで無い口座のときのみ、源を「MF実績が YYMM 開始のため」と正しく特定して省略する (シートと取り違えない)。
+10. **折り返し (wrap) は API で設定できない=UI で一度だけ**: 全列の折り返し表示 (wrap) は Notion の**ビュー表示設定**であって**プロパティ (スキーマ) 設定ではない**。Notion 公開 API (2022-06-28) はビューの format (折り返し・列幅・列順・列の固定) を一切操作できない (列順は DB 作成時の properties 定義順で既定ビューへ反映できるが、wrap/幅は不能)。全内容を折り返すには、Notion UI で当該 report DB ビューの『**…**』メニュー →『**すべての列を折り返す (Wrap all columns)**』を一度トグルする (以後そのビューに永続)。C04 はこの制約と手順を出力の `placement.view_format_note` で毎回開示する (列順・DB 配置と同じ「API 能力境界」の正直な開示)。
+11. **前月なし今月あり (新規/年→月切替) は 12ヶ月ルックバックで裏付ける**: 前月なし今月ありは「12ヶ月前の年契約一括→月額自動切替」の可能性が高い (C3)。この裏付けデータ源は **MF 実績の 12ヶ月履歴 (`transaction.date`) であり請求確認シートではない** — シートの開始月 (例 2605) は遡りの可否と無関係。`--lookback-12mo` 未指定のまま新規行を分類すると C03 は各行コメントに『⚠️ 12ヶ月ルックバック未実行→年→月切替か真の新規か未確認』を焼き stderr へ警告する (silent に『新規発行』と断定しない)。MF 実績自体が 12ヶ月前まで無い口座のときのみ、源を「MF実績が YYMM 開始のため」と正しく特定して省略する (シートと取り違えない)。
 
 ## Additional Resources
 
 - `workflow-manifest.json` — collect/classify/verify/render の Step 定義 + hook guard
-- `$CLAUDE_PLUGIN_ROOT/scripts/mfk_period_report.py` — 前月↔今月分類エンジン (C05・既存 per-月 verdict を消費する薄い差分エンジン・network なし)
-- `$CLAUDE_PLUGIN_ROOT/scripts/notion_report_sink.py` — 単一恒久レポート DB sink (C06・出力先 DB 解決 + 非破壊冪等 upsert)
+- `$CLAUDE_PLUGIN_ROOT/scripts/mfk_period_report.py` — 前月↔今月分類エンジン (C03・既存 per-月 verdict を消費する薄い差分エンジン・network なし)
+- `$CLAUDE_PLUGIN_ROOT/scripts/notion_report_sink.py` — 単一恒久レポート DB sink (C04・出力先 DB 解決 + 非破壊冪等 upsert)
 - `$CLAUDE_PLUGIN_ROOT/lib/mfk_reconcile.py` — per-月 verdict 供給源 + 突合キー正規化 (normalize/extract_names)
 - `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` — MF掛け払い GET 専用クライアント
-- `$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py` — DB 生成/列型写像 (C06 が再利用)
+- `$CLAUDE_PLUGIN_ROOT/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py` — DB 生成/列型写像 (C04 が再利用)
 - `prompts/R1-collect.md`〜`R4-render.md` — 責務プロンプト (7 層構造)
 - `$CLAUDE_PLUGIN_ROOT/hooks/guard-mfk-readonly.py` — 参照専用ガード / `guard-mfk-no-reinvent.py` — 分類再発明ガード
 - `$CLAUDE_PLUGIN_ROOT/agents/mfk-report-verifier.md` — 二段確認 sub-agent (責務本文 SSOT=prompts/R3-verify.md)

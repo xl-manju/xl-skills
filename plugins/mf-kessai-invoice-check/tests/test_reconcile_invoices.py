@@ -93,7 +93,7 @@ def _fake_mfk(mf_json):
     iter_all('/transactions')       : billing_id に属する明細を transaction_details 化。
     get('/customers')               : ids → name 解決。
     """
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             assert params["status"] == "invoice_issued"
             for cid, c in mf_json["customers"].items():
@@ -371,7 +371,7 @@ def test_iso_to_ym():
 
 def test_collect_mf_attributes_by_transaction_date(monkeypatch):
     """月帰属は取引日(transaction.date)。当月取引(翌月発行)を採用し前月取引(当月発行)を除外。"""
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             # 取得窓が翌月末まで広がっている (over-fetch)。
             assert params["issue_date_from"] == "2026-06-01"
@@ -414,7 +414,7 @@ def test_collect_mf_attributes_by_transaction_date(monkeypatch):
 
 def test_collect_mf_fallbacks_to_issue_date_when_txn_date_missing(monkeypatch):
     """transaction.date 欠落時は billing.issue_date へ縮退し当月発行分を取りこぼさない。"""
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-06-15",
                    "status": "invoice_issued"}
@@ -441,7 +441,7 @@ def test_collect_mf_reads_all_transaction_pages(monkeypatch):
     """各 billing の /transactions もカーソルページングで全ページ読む。"""
     calls = []
 
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         calls.append((path, dict(params or {})))
         if path == "/billings/qualified":
             yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
@@ -471,7 +471,7 @@ def test_collect_mf_reads_all_transaction_pages(monkeypatch):
 
 def test_collect_mf_carries_status_and_canceled_at(monkeypatch, capsys):
     """collect_mf は line に status/canceled_at を載せ canceled 行も lines に残す。当月取消件数を stderr 可視化。"""
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
                    "status": "invoice_issued"}
@@ -507,7 +507,7 @@ def test_collect_mf_carries_status_and_canceled_at(monkeypatch, capsys):
 
 def test_collect_mf_then_index_routes_canceled(monkeypatch):
     """collect_mf → build_mf_index で取消は services でなく inactive バケットへ振り分けられる。"""
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
                    "status": "invoice_issued"}
@@ -604,7 +604,7 @@ def test_reconcile_shows_cancellation_balance(monkeypatch, capsys):
     sheet_db = "sheetdb"
     pages = [_row_to_page(r, i) for i, r in enumerate(sheet_rows)]
 
-    def iter_all(path, params=None, cfg=None, api_key=None):
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
             yield {"id": "B1", "customer_id": "C1", "issue_date": "2026-07-02",
                    "status": "invoice_issued"}

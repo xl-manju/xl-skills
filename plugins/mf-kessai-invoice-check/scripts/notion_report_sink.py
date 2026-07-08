@@ -8,7 +8,7 @@
 #          親ページ直下へ新規作成する (page-created)。単一 DB に複数月
 #          を保持し、同一 (対象月,取引先,商品) の再実行のみ上書き・以前月の行は削除しない (deleted 0)。
 # inputs:
-#   - argv: --rows FILE (C05 分類済みレポート行 JSON list) --target YYMM [--apply --verified] [--config PATH]
+#   - argv: --rows FILE (C03 分類済みレポート行 JSON list) --target YYMM [--apply --verified] [--config PATH]
 #   - config: mf-kessai-config.default.json (配布既定) + .mf-kessai-config.json (ローカル上書き) の
 #             notion.report_toggle_block (出力先ブロック/見出し) + notion.report_parent_page (新規作成/探索先ページ)
 # outputs:
@@ -24,7 +24,7 @@
 # ///
 """前月↔今月の発行漏れ比較レポートを単一恒久 DB へ非破壊冪等 upsert する決定論 sink (Design D)。
 
-責務 (C06):
+責務 (C04):
   1. **出力先 DB の解決 (指定ブロック/見出し優先・表示名非依存)**: ``report_toggle_block`` がトグル
      ならその中の child_database、プレーン見出し2ならその見出し直下 (次見出しまで) の child_database を
      最優先で更新対象にする。**指定トグル/見出しはこのレポート専用ゆえ、配下 DB は表示名に依存せず
@@ -107,20 +107,20 @@ COLUMN_ORDER = [
     PROP_COMMENT,
 ]
 
-# C05 producer (mfk_period_report.py) が emit する行キー → 本 sink の 8 列への写像 (SEAM SSOT)。
+# C03 producer (mfk_period_report.py) が emit する行キー → 本 sink の 8 列への写像 (SEAM SSOT)。
 # producer/consumer のキー語彙をここで一元宣言し、seam 断裂 (キー名不一致で列が空になる) を防ぐ。
 # _build_row_props はこの producer キー (各値の第一 alias) を読む。ROW_CONTRACT を SSOT として
 # 実効化する担保は 2 段: (1) test_row_contract_maps_every_producer_key_to_column が本 dict の
 # 各 producer キーを _build_row_props で辿り mapped 列へ着地することを assert し drift を検出する
 # (宣言と実装の乖離を機械 fail させる)、(2) test_seam_c05_output_populates_all_seven_columns が
-# C05 実出力 → 本 sink を実 pipe で貫通して 8 列全充足を検証する (isolation では捕捉不能)。
+# C03 実出力 → 本 sink を実 pipe で貫通して 8 列全充足を検証する (isolation では捕捉不能)。
 ROW_CONTRACT = {
     "gap_check": PROP_MISSING_CHECK,   # 漏れチェック (checkbox: 正常=✓/要対応=☐)
     "customer": PROP_CUSTOMER,         # 取引先名 (title)
     "target_month": PROP_TARGET_MONTH, # 対象月 (YYYY-MM・単一 DB で月を区別)
     "product": PROP_PRODUCT,           # 商品名
     "prev_amount": PROP_PREV_AMOUNT,   # 先月の金額 (税抜)
-    "amount": PROP_CURR_AMOUNT,        # 今月の金額 (税抜・C05 の amount=当月期待/実額)
+    "amount": PROP_CURR_AMOUNT,        # 今月の金額 (税抜・C03 の amount=当月期待/実額)
     "period_diff": PROP_COMPARISON,    # 先月と今月の比較 (テキスト説明)
     "comment": PROP_COMMENT,           # コメント (事情説明)
 }
@@ -230,7 +230,7 @@ def _stored_key(target_month, customer, product):
     商品の再実行のみ 1 行へ収束する (月内冪等)。target_month は _norm で正規化する (空は '')。
 
     固定スキーマは contract_id を persist しないため (property_order に契約ID列なし)、既存ページから
-    回収できる同定キーは (対象月, 取引先名, 商品名) に限られる。contract_id は C05 が同定に使う論理
+    回収できる同定キーは (対象月, 取引先名, 商品名) に限られる。contract_id は C03 が同定に使う論理
     メタだが本 sink では persist しない (=recoverable でない)。
 
     設計判断 (記録): 同一対象月・同一取引先・同一商品に契約IDだけ異なる複数契約が同居する場合、
@@ -255,9 +255,9 @@ def _severity_rank(row):
     return 1 if check == "要対応" else 0
 
 
-# C05 が構造的正常事由 (年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
+# C03 が構造的正常事由 (年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
 # これらは「バグ由来 false-positive の権威ある訂正」であり、cross-run safe guard が前 run の
-# 要対応を無条件保持して打ち消してはならない (例: 金子金物が C05 annual fix 前に 要対応 で
+# 要対応を無条件保持して打ち消してはならない (例: 金子金物が C03 annual fix 前に 要対応 で
 # persist 済みでも、fix 後の 年契約周期 正常化を反映する=elegant-review F-D 是正)。
 _STRUCTURAL_NORMAL_MARKERS = ("年契約周期", "契約完了", "トライアル完了", "対象外")
 
@@ -272,6 +272,19 @@ def _is_structural_normal(row):
         return False
     pd = _norm(row.get("period_diff") or row.get("先月と今月の比較") or row.get("comparison"))
     return any(m in pd for m in _STRUCTURAL_NORMAL_MARKERS)
+
+
+def _is_reliable_mf_issued(row):
+    """行が MF実績由来で当月 active 発行済みか (C05 reliable_issued=True) = 権威ある実額訂正 (K4)。
+
+    _STRUCTURAL_NORMAL_MARKERS と**同格**の cross-run guard bypass 事由。前 run で要対応☐に立った行
+    でも、今 run で MF が実際に発行済み (reliable_issued=True・supply_state==active) と確認できたなら、
+    その権威ある実額訂正で正常☑へ上書きする (bare 正常=単に入力 gap_check が正常 とは区別する)。
+    C05→C03 `_emit` が report 行 top-level へ `reliable_issued` を焼くのが源。
+    """
+    if _severity_rank(row) != 0:
+        return False
+    return bool(row.get("reliable_issued"))
 
 
 def _prefer_action(a, b):
@@ -382,7 +395,7 @@ def _build_row_props(row, target=None, *, creating, title_prop=PROP_CUSTOMER):
     if tm:
         props[PROP_TARGET_MONTH] = _rt(tm)
 
-    # 漏れチェック: C05 producer は `gap_check` を emit する (SSOT=ROW_CONTRACT)。
+    # 漏れチェック: C03 producer は `gap_check` を emit する (SSOT=ROW_CONTRACT)。
     # 別名 check/漏れチェック/missing_check も後方互換で受ける。checkbox へ写像:
     # 正常=✓(True) / 要対応(発行漏れ候補)=☐(False)。checkbox は空状態を持たないため、
     # 値が判明したとき (check 非空) のみ設定し、更新で不明なら既存チェックを温存する。
@@ -403,14 +416,14 @@ def _build_row_props(row, target=None, *, creating, title_prop=PROP_CUSTOMER):
     elif not creating:
         props[PROP_PREV_AMOUNT] = {"number": None}
 
-    # 今月の金額: C05 producer は `amount` を emit する。別名 curr_amount/今月の金額も受ける。
+    # 今月の金額: C03 producer は `amount` を emit する。別名 curr_amount/今月の金額も受ける。
     curr_amount = _amount(row, "amount", "curr_amount", "今月の金額")
     if curr_amount is not None:
         props[PROP_CURR_AMOUNT] = {"number": curr_amount}
     elif not creating:
         props[PROP_CURR_AMOUNT] = {"number": None}
 
-    # 先月と今月の比較: C05 producer は `period_diff` を emit する。別名 comparison も受ける。
+    # 先月と今月の比較: C03 producer は `period_diff` を emit する。別名 comparison も受ける。
     comparison = _norm(row.get("period_diff") or row.get("comparison") or row.get("先月と今月の比較"))
     if comparison:
         props[PROP_COMPARISON] = _rt(comparison)
@@ -739,10 +752,17 @@ def upsert_report_rows(rows, report_db_id, target, token, req=None, *, title_pro
                 # 正常なら漏れチェックを要対応のまま保持し、正常化した旨を comment へ注記する
                 # (intra-run の _prefer_action と cross-run を対称化)。
                 if _page_gap_check(page) == "要対応" and _severity_rank(row) == 0:
-                    if _is_structural_normal(row):
+                    # cross-run guard の bypass 事由は 2 つ (いずれも権威ある正常訂正)。checkbox は
+                    # _build_row_props で既に True (正常) が入っているため、bypass 時は注記のみ足す。
+                    if _is_reliable_mf_issued(row):
+                        # K4: MF実績の権威ある実額訂正 (今 run で reliable MF-issued=True を確認)。
+                        # 前 run のバグ由来 要対応☐ を MF実績由来の正常☑ へ訂正する (cross-run override)。
+                        _append_comment(
+                            props, "前 run の要対応を MF実績の権威ある実額訂正で正常へ訂正 "
+                                   "(今 run で MF-issued 確認・cross-run override)")
+                    elif _is_structural_normal(row):
                         # 構造的正常事由 (年契約周期/契約完了等) は権威ある訂正ゆえ guard を bypass し
-                        # 正常へ更新する (C05 annual fix を cross-run guard が打ち消さない・F-D)。
-                        # props の checkbox は _build_row_props で既に True (正常) が入っている。
+                        # 正常へ更新する (C03 annual fix を cross-run guard が打ち消さない・F-D)。
                         _append_comment(
                             props, "前 run の要対応を構造的正常事由で訂正 (年契約/契約完了等・cross-run override)")
                     else:
@@ -758,8 +778,40 @@ def upsert_report_rows(rows, report_db_id, target, token, req=None, *, title_pro
         except Exception:  # noqa: BLE001  個別行の失敗は隔離し残りを継続する
             skipped += 1
             continue
+
+    # K6: 今回 emit(incoming=collapsed)キー集合に無い**対象月**の既存行 = 真の orphan
+    # (今月MF実績にも契約在籍にも無い旧行=旧バグ run の phantom / 誤☑)。行削除はせず残置理由を
+    # 先月と今月の比較・コメントへ注記する (非破壊・deleted は常時 0)。対象月 (key[0]==target_yyyymm)
+    # に限定し別月の行 (Design D の単一 DB 共存) には触れない。migrate_fallback (対象月空の旧 DB 未移行行)
+    # は phantom ではなく backfill 候補なので対象外 (当月行に pop 消費されなければそのまま残す)。
+    orphaned = 0
+    incoming_keys = set(collapsed)
+    _orphan_marker = "残置行 (今月の突合対象外)"
+    _orphan_note = ("今月MF実績にも契約在籍にも無い旧行 (今回の突合キーに一致せず)。"
+                    "発行漏れレポートの当月対象ではないため残置理由付きで注記 (行は非破壊で保持)")
+    for key, page in index.items():
+        if key[0] != target_yyyymm or key in incoming_keys:
+            continue
+        try:
+            # 既存の 先月と今月の比較 / コメント を**読んで追記**する (上書きしない=非破壊注記・冪等)。
+            # day1 に記録した要対応理由等を消さず末尾へ残置マーカーを足す。既注記なら再 PATCH しない。
+            existing = page.get("properties") or {}
+            props = {}
+            ex_cmp = _rich_text_plain(existing.get(PROP_COMPARISON))
+            if _orphan_marker not in ex_cmp:
+                props[PROP_COMPARISON] = _rt(f"{ex_cmp} / {_orphan_marker}" if ex_cmp else _orphan_marker)
+            ex_cmt = _rich_text_plain(existing.get(PROP_COMMENT))
+            if _orphan_note not in ex_cmt:
+                props[PROP_COMMENT] = _rt(f"{ex_cmt} / {_orphan_note}" if ex_cmt else _orphan_note)
+            if props:  # 既に残置注記済みの行は冪等 skip (再実行で注記が増殖しない)
+                req("PATCH", f"/pages/{page['id']}", token, {"properties": props})
+            orphaned += 1
+        except Exception:  # noqa: BLE001  orphan 注記の個別失敗も隔離し継続する
+            skipped += 1
+            continue
+
     return {"created": created, "updated": updated, "skipped": skipped,
-            "deleted": 0, "collapsed_multi_contract": collapsed_multi}
+            "deleted": 0, "collapsed_multi_contract": collapsed_multi, "orphaned": orphaned}
 
 
 # ---------------------------------------------------------------------------
@@ -785,7 +837,7 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
     """
     if not _valid_target(target):
         raise SinkError(f"--target は YYMM (数字4桁・月01-12) を指定してください: {target!r}")
-    # target_month cross-check (F-7): C05 が各行に付けた対象月と --target がズレたまま流すと
+    # target_month cross-check (F-7): C03 が各行に付けた対象月と --target がズレたまま流すと
     # 誤月 DB へ silent 投入され冪等・非破壊ゆえ誤混入が残存する。不一致は fail-closed で拒否。
     _t = _norm(target)
     for r in rows:
@@ -793,7 +845,7 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
         if rt and rt != _t:
             raise SinkError(
                 f"--target={target} と行の target_month={rt} が不一致です。誤った対象月の DB へ "
-                "投入するのを防ぐため中止します (C05 の --target-month と C06 の --target を揃えてください)。")
+                "投入するのを防ぐため中止します (C03 の --target-month と C04 の --target を揃えてください)。")
     valid_rows = [r for r in rows if _row_customer(r)]
 
     parent_page = _resolve_parent(cfg)
@@ -851,7 +903,7 @@ def _load_rows(path):
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="月次発行漏れ比較レポート DB へ分類済みレポート行を非破壊冪等 upsert する sink")
-    p.add_argument("--rows", required=True, help="C05 分類済みレポート行 JSON list ファイル")
+    p.add_argument("--rows", required=True, help="C03 分類済みレポート行 JSON list ファイル")
     p.add_argument("--target", required=True, help="対象月 YYMM (例 2607)")
     p.add_argument("--apply", action="store_true", help="実際に Notion へ書き込む (無指定は dry-run)")
     p.add_argument("--verified", action="store_true",

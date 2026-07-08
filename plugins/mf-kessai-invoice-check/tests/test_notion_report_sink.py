@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""notion_report_sink.py (C06・Design D) を fake-store req モックで完全オフライン検証する。
+"""notion_report_sink.py (C04・Design D) を fake-store req モックで完全オフライン検証する。
 
 Design D = 単一恒久レポート DB を **指定トグル (report_toggle_block) の中**で更新対象にする。
 Notion API は database を block_id (トグル) 親で『作成』できないが、UI で作られたトグル内 DB の
@@ -372,7 +372,7 @@ def test_upsert_creates_row_with_all_columns_incl_target_month():
              "period_diff": "継続発行", "comment": "継続発行・正常"}]
     res = sink.upsert_report_rows(rows, "db-1", "2607", "tok", req=req)
     assert res == {"created": 1, "updated": 0, "skipped": 0, "deleted": 0,
-                   "collapsed_multi_contract": 0}
+                   "collapsed_multi_contract": 0, "orphaned": 0}
     props = next(c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages")[2]["properties"]
     assert props[sink.PROP_CUSTOMER]["title"][0]["text"]["content"] == "A社"
     assert props[sink.PROP_TARGET_MONTH]["rich_text"][0]["text"]["content"] == "2026-07"   # 対象月充足
@@ -394,7 +394,7 @@ def test_row_missing_customer_is_skipped():
     req, state = _make_store()
     res = sink.upsert_report_rows([{"product": "P", "amount": 1}], "db-1", "2607", "tok", req=req)
     assert res == {"created": 0, "updated": 0, "skipped": 1, "deleted": 0,
-                   "collapsed_multi_contract": 0}
+                   "collapsed_multi_contract": 0, "orphaned": 0}
     assert all(not (c[0] == "POST" and c[1] == "/pages") for c in state["calls"])
 
 
@@ -492,7 +492,7 @@ def test_cross_run_action_not_downgraded_by_bare_normal():
 
 
 def test_cross_run_structural_normal_corrects_prior_action():
-    """F-D: 前 run の 要対応 を、今 run の構造的正常事由 (年契約周期) が訂正する (C05 fix を打ち消さない)。"""
+    """F-D: 前 run の 要対応 を、今 run の構造的正常事由 (年契約周期) が訂正する (C03 fix を打ち消さない)。"""
     req, state = _make_store()
     sink.upsert_report_rows(
         [{"gap_check": "要対応", "customer": "金子金物", "product": "利用料", "comment": "漏れ候補"}],
@@ -507,6 +507,97 @@ def test_cross_run_structural_normal_corrects_prior_action():
     note = "".join((rt.get("text") or {}).get("content", "")
                    for rt in pages[0]["properties"][sink.PROP_COMMENT]["rich_text"])
     assert "構造的正常事由で訂正" in note
+
+
+def _rt_text(prop):
+    return "".join((rt.get("text") or {}).get("content", "")
+                   for rt in (prop or {}).get("rich_text", []))
+
+
+def _page_title(props):
+    tp = sink._title_prop_value(props) or {}
+    return "".join((t.get("text") or {}).get("content", "") for t in tp.get("title", []))
+
+
+def test_cross_run_reliable_mf_issued_corrects_prior_action():
+    """K4: 前 run の 要対応 を、今 run の reliable MF-issued (C05 実額訂正) が正常へ訂正する。
+
+    bare 正常 (継続発行だが reliable_issued 無し) なら保持されるところ、reliable_issued=True の
+    権威ある実額訂正は _STRUCTURAL_NORMAL_MARKERS と同格の bypass 事由として正常☑へ訂正する。
+    """
+    req, state = _make_store()
+    sink.upsert_report_rows(
+        [{"gap_check": "要対応", "customer": "アクメ商事", "product": "P", "comment": "漏れ候補(旧バグrun)"}],
+        "db-1", "2607", "tok", req=req)
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "アクメ商事", "product": "P", "period_diff": "継続発行",
+          "reliable_issued": True, "comment": "MF実績で発行済み"}],
+        "db-1", "2607", "tok", req=req)
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    assert len(pages) == 1
+    assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is True   # 正常へ訂正
+    assert "MF実績の権威ある実額訂正" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
+
+
+def test_cross_run_bare_normal_without_reliable_flag_keeps_action():
+    """K4 の裏: reliable_issued も構造事由も無い bare 正常は前 run の 要対応 を保持する (漏れ隠蔽防止)。"""
+    req, state = _make_store()
+    sink.upsert_report_rows(
+        [{"gap_check": "要対応", "customer": "ベータ社", "product": "P", "comment": "漏れ"}],
+        "db-1", "2607", "tok", req=req)
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "ベータ社", "product": "P", "period_diff": "継続発行",
+          "reliable_issued": False, "comment": "正常"}],
+        "db-1", "2607", "tok", req=req)
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is False   # 要対応保持
+    assert "cross-run safe guard" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
+
+
+def test_k6_true_orphan_gets_residual_note_not_deleted():
+    """K6: 今回 emit に無い対象月既存行 (真 orphan=旧 phantom) へ残置理由を注記する (行削除しない)。"""
+    req, state = _make_store()
+    # run1: 2 行を作る (残る社 / 消える社)。
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "残る社", "product": "P", "reliable_issued": True},
+         {"gap_check": "要対応", "customer": "消える社", "product": "Q", "comment": "旧run phantom"}],
+        "db-1", "2607", "tok", req=req)
+    # run2: 残る社だけ emit → 消える社は今月MFにも契約在籍にも無い真 orphan。
+    res = sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "残る社", "product": "P", "reliable_issued": True}],
+        "db-1", "2607", "tok", req=req)
+    assert res["orphaned"] == 1
+    assert res["deleted"] == 0
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    assert len(pages) == 2   # 行削除しない (非破壊)
+    orphan = next(p for p in pages if _page_title(p["properties"]) == "消える社")
+    assert "残置行" in _rt_text(orphan["properties"][sink.PROP_COMPARISON])
+    cmt = _rt_text(orphan["properties"][sink.PROP_COMMENT])
+    assert "契約在籍にも無い" in cmt
+    assert "旧run phantom" in cmt          # 既存コメントを消さず追記 (非破壊注記・F10 是正)
+    # 冪等: 再 run で残置マーカーが増殖しない。
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "残る社", "product": "P", "reliable_issued": True}],
+        "db-1", "2607", "tok", req=req)
+    orphan2 = next(p for p in state["pages"].values()
+                   if p["db"] == "db-1" and _page_title(p["properties"]) == "消える社")
+    assert _rt_text(orphan2["properties"][sink.PROP_COMPARISON]).count("残置行") == 1
+
+
+def test_k6_other_month_rows_not_flagged_as_orphan():
+    """K6 境界: 別対象月の既存行 (Design D 単一 DB 共存) は当月 orphan 走査で触らない。"""
+    req, state = _make_store()
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "先月社", "product": "P", "reliable_issued": True}],
+        "db-1", "2606", "tok", req=req)   # 先月分
+    res = sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "今月社", "product": "P", "reliable_issued": True}],
+        "db-1", "2607", "tok", req=req)   # 当月分 (先月社は別月ゆえ orphan にしない)
+    assert res["orphaned"] == 0
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    senmonth = next(p for p in pages if _page_title(p["properties"]) == "先月社")
+    assert sink.PROP_COMPARISON not in senmonth["properties"] or \
+        "残置行" not in _rt_text(senmonth["properties"].get(sink.PROP_COMPARISON))
 
 
 def test_multi_contract_action_survives_collapse():
@@ -547,7 +638,7 @@ def test_failed_row_is_isolated_and_counted_as_skipped():
             {"customer": "C社", "product": "P3"}]
     res = sink.upsert_report_rows(rows, "db-1", "2607", "tok", req=req)
     assert res == {"created": 2, "updated": 0, "skipped": 1, "deleted": 0,
-                   "collapsed_multi_contract": 0}
+                   "collapsed_multi_contract": 0, "orphaned": 0}
 
 
 def test_row_contract_maps_every_producer_key_to_column():
@@ -810,7 +901,7 @@ def test_main_apply_runtime_failure_is_fail_closed_exit2(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# SEAM 統合テスト (C05 実出力 → C06 入力・8 列全充足)
+# SEAM 統合テスト (C03 実出力 → C04 入力・8 列全充足)
 # ---------------------------------------------------------------------------
 
 def test_seam_c05_output_populates_all_columns():

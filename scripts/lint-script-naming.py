@@ -230,6 +230,13 @@ PENDING_RENAME_PATHS = {
     # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING。
     "plugins/mf-kessai-invoice-check/scripts/mfk_period_report.py",
     "plugins/mf-kessai-invoice-check/scripts/notion_report_sink.py",
+    # 取得忠実性 (fidelity) 改善 で追加。mfk_actuals.py (C05・MF実績 issued/実発行額 SSOT) は
+    # mfk_period_report.py / lib/mfk_reconcile.py / tests/test_mfk_actuals.py が `import mfk_actuals`、
+    # mfk_fetch_audit.py (C06・fetch fidelity 監査器) は tests/test_mfk_fetch_audit.py が
+    # `import mfk_fetch_audit` する module のため §4.3 例外 (ハイフン不可)。許可動詞化は
+    # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_actuals.py",
+    "plugins/mf-kessai-invoice-check/scripts/mfk_fetch_audit.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの

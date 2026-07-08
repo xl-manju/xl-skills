@@ -37,15 +37,19 @@ Marketplace から install した場合の呼び出し名は通常 `/mf-kessai-i
 
 ## 実行コード
 
-スラッシュが使えない環境では、プラグイン配下の分類エンジン + sink を直接実行する (既定 dry-run)。C05 の `--target-month` と C06 の `--target` は必ず同じ対象月 (YYMM) を渡すこと。ズレていると sink が誤月行の投入を防ぐため fail-closed (exit 2) で中止する。
+スラッシュが使えない環境では、プラグイン配下の fetch fidelity 監査 (C06) → 分類エンジン (C03) → sink (C04) を直接実行する (既定 dry-run)。C03 の `--target-month` と C06/C04 の `--target` は必ず同じ対象月 (YYMM) を渡すこと。ズレていると sink が誤月行の投入を防ぐため fail-closed (exit 2) で中止する。分類 (C03) は C06 の fetch fidelity report を `--fidelity-report` で必須受領し (欠くと argparse が exit 2)、当月/先月の fetch NG は fail-closed で非 emit・lookback 部分欠損は要確認降格する。
 
 ```bash
-# 1) 前月↔今月分類 (参照専用・dry-run)。curr/prev の per-月 verdict は R1 collect が組む
+# 1) fetch fidelity 監査 (最新性の fail-closed ゲート)。fetch-trace は R1 collect が GET 時に記録する
+python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/mfk_fetch_audit.py" \
+  --fetch-trace fetch-trace.json --target 2606 --out fidelity.json
+
+# 2) 前月↔今月分類 (参照専用・dry-run)。curr/prev の per-月 verdict と fetch-trace は R1 collect が組む
 python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/mfk_period_report.py" \
-  --curr-verdicts curr.json --prev-verdicts prev.json \
+  --curr-verdicts curr.json --prev-verdicts prev.json --fidelity-report fidelity.json \
   --lookback-12mo lookback.json --contract-end ends.json --target-month 2606 > rows.json
 
-# 2) 単一恒久レポート DB へ非破壊冪等 upsert (--apply --verified で書き込み)
+# 3) 単一恒久レポート DB へ非破壊冪等 upsert (--apply --verified で書き込み)
 python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/notion_report_sink.py" \
   --rows rows.json --target 2606                # dry-run (計画のみ・書き込みゼロ)
 python3 "${CLAUDE_PLUGIN_ROOT:-plugins/mf-kessai-invoice-check}/scripts/notion_report_sink.py" \

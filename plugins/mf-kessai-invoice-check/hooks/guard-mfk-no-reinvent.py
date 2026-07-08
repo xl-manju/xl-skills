@@ -49,9 +49,16 @@ import re
 import sys
 
 # 照合/判定を実装してよい正本ファイル (これ以外への照合関数定義は再発明とみなす)。
-# mfk_period_report.py (C05) は前月↔今月の状態遷移分類エンジンの正本として追加する
+# mfk_period_report.py (C03) は前月↔今月の状態遷移分類エンジンの正本として追加する
 # (既存 per-月 verdict を消費する薄い差分エンジン・分類系関数を持つため sanction する)。
-SANCTIONED_BASENAMES = {"mfk_reconcile.py", "reconcile_invoices.py", "mfk_period_report.py"}
+# mfk_actuals.py (C05) は MF実績(取引先×商品粒度)の issued/実額抽出 SSOT、mfk_fetch_audit.py (C06) は
+# fetch fidelity 監査器。両者は既存 SSOT (mfk_reconcile.build_mf_index/find_mf_match の scoped 結果) を
+# consume して amount-gate 根治 / 最新性検証を行う正当な追加であり、再発明でないため sanction する
+# (C12: 新規シグネチャ resolve_actual/build_actuals_index/audit_fetch_trace 等を allowlist 登録)。
+SANCTIONED_BASENAMES = {
+    "mfk_reconcile.py", "reconcile_invoices.py", "mfk_period_report.py",
+    "mfk_actuals.py", "mfk_fetch_audit.py",
+}
 
 # 本 plugin 固有の照合ドメイン信号。これを含まないコンテンツ/パスには発火しない。
 # period-report ドメイン語 (先月と今月の比較 / 発行漏れレポート / mfk_period_report) を追加し、
@@ -67,7 +74,7 @@ _DOMAIN_RE = re.compile(
 # 既存の照合エンジン名 (exact) に加え、period-report 分類エンジンの語幹
 # (compare / period_diff / classify) を **語幹前方一致** (def\s+\w*(...)\w*\() で焼く。
 # 完全一致だと `compare_periods` / `classify_period_transition` / `diff_prev_curr` 等の
-# 派生名がすり抜け、C05 の再発明遮断が vacuous 化する (SS-F1)。C05 実関数名
+# 派生名がすり抜け、C03 の再発明遮断が vacuous 化する (SS-F1)。C03 実関数名
 # (compare_periods / classify_period_transition) はこの語幹一致で捕捉される
 # (名前ゆらぎ回帰テスト test_guard_mfk_no_reinvent.py で byte 一致を固定)。
 _REINVENT_DEF_RE = re.compile(
@@ -197,7 +204,7 @@ def evaluate(tool, ti):
             f"(検出: {basename})。正本は scripts/reconcile_invoices.py (orchestrator) と "
             "lib/mfk_reconcile.py (reconcile/classify/detect_orphans)、判定SSOTは "
             "schemas/verdict-mapping.json です。前月↔今月比較レポートの状態遷移分類 "
-            "(compare/period_diff/classify_*) は scripts/mfk_period_report.py (C05) が正本で、"
+            "(compare/period_diff/classify_*) は scripts/mfk_period_report.py (C03) が正本で、"
             "`/run-mf-invoice-reconcile` または `/run-mf-invoice-report` を使ってください。"
         )
 
