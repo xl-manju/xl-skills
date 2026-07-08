@@ -129,12 +129,25 @@ def test_issued_via_evidence_amount_only():
 # ---------------------------------------------------------------------------
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
-def test_new_without_lookback_is_plain_new():
+def test_new_without_lookback_flags_unverified():
+    # ルックバック未実行 (--lookback-12mo 未指定) は「未確認」を明示し silent に『新規発行』と断定しない。
+    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) ため、確認できていない事実を隠さない。
     curr = [_row("新規社", "月額", "MATCH_MONTHLY")]
     row = _classify([], curr)[0]
-    assert row["gap_check"] == "正常"
+    assert row["gap_check"] == "正常"                 # 今月あり=発行済み ゆえ発行漏れではない
     assert row["period_diff"] == "新規/年→月切替"
-    assert "新規発行" in row["comment"]
+    assert "未実行" in row["comment"] and "未確認" in row["comment"]
+
+
+def test_new_with_lookback_but_no_annual_is_true_new():
+    # ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
+    # 未実行 (上のテスト) と区別され、確認済みであることが明示される。
+    curr = [_row("真新規社", "月額", "MATCH_MONTHLY")]
+    lookback = {"別の社": [{"month": "2506", "annual": True}]}  # 対象取引先は不在=確認済み・裏付けなし
+    row = _classify([], curr, lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"
+    assert "確認したが" in row["comment"] and "真の新規" in row["comment"]
+    assert "未実行" not in row["comment"]
 
 
 def test_new_with_12mo_annual_lookback_is_switch():
@@ -364,6 +377,22 @@ def test_main_with_lookback_and_contract_end_files(tmp_path, capsys):
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert "年契約周期" in out[0]["period_diff"]
+
+
+def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
+    """空の --lookback-12mo ファイルでも『実質未実行』として stderr 警告する (縁ケース)。
+
+    パスは指定されているが中身が空=12ヶ月履歴なし。前月なし今月あり (新規) 行の年→月切替
+    裏付けは未確認なので、未指定時と同様に警告を出す (loaded content の真偽で判定)。
+    """
+    prev = _write(tmp_path, "prev.json", [])
+    curr = _write(tmp_path, "curr.json", [_row("新規社", "月額", "MATCH_MONTHLY")])
+    empty_lb = _write(tmp_path, "lb.json", [])   # 空ファイル (パスは指定・中身は空)
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--lookback-12mo", empty_lb, "--target-month", "2606"])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火
 
 
 def test_main_missing_file_fail_closed(tmp_path):

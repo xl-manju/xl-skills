@@ -21,6 +21,7 @@
 - 月次レポート DB は**対象月ごとに find-or-create**。対象月 DB が実在すれば再利用し二重 DB を作らない (`month_db_reused=true`)。月跨ぎは新しい月 DB を指定ページ『請求書発行チェック』(`notion.report_parent_page`) 直下へ append 作成し、newest-on-top の意図位置 (`intended_index`) を `placement` で開示し、過去月 DB を保全する。
 - **非破壊マージ**: 同月再実行は入力同定 {取引先 × 契約ID × 商品} と stored key (取引先名, 商品名) で同一行を 1 行へ収束 (重複行 0)。契約ID違いは要対応優先で collapse し `collapsed_multi_contract` に計上する。以前 run で書いた行は今回入力に無くても当月 DB から削除しない (`deleted` 常時 0・clear-then-insert でない)。
 - **列順 SSOT (固定 7 列)**: [取引先名(title), 漏れチェック(checkbox), 商品名(rich_text), 先月の金額(number/yen), 今月の金額(number/yen), 先月と今月の比較(rich_text), コメント(rich_text)]。金額は税抜。C06 の `COLUMN_ORDER` が正本。Notion table view は title 列を最左固定にするため、取引先名(title)を先頭に置いて定義順と表示順を一致させる。漏れチェックは checkbox で 正常=チェックあり / 要対応=チェックなし。
+- **折り返し (wrap) は API 非対応=UI で一度設定**: 全列の折り返し表示 (wrap) はビュー表示設定であってプロパティ設定でないため、Notion 公開 API (2022-06-28) では設定できない (列順は properties 定義順で反映できるが wrap/列幅は不能)。sink はこの制約と UI 手順を `placement.view_format_note` で毎回開示する。Notion UI で当該 DB ビューの『…』→『すべての列を折り返す (Wrap all columns)』を一度トグルすれば以後永続する。
 - MF掛け払い API は GET のみ。Notion 書込 (POST/PATCH/PUT/DELETE) は `notion_transport._write_gap` がレート間隔を挟む。
 - 親ページ ID (`notion.report_parent_page`) 未設定は `--apply` 時に fail-closed (exit 2)。dry-run は親ページ未走査で完走する。`report_toggle_block` は Notion API 制約により使用しない (後方互換で config に残置)。
 

@@ -107,7 +107,7 @@ _SUPPRESS_LABELS = {
     "SUPPRESS_ONESHOT": "単発発行済 (当月は対象外)",
 }
 
-# gap_check select 値。
+# gap_check の分類値 (漏れチェック checkbox の元ラベル: 正常=✓ / 要対応=☐)。
 GAP_OK = "正常"
 GAP_ACTION = "要対応"
 
@@ -448,17 +448,32 @@ def _annual_lookback_note(row, lookback_idx):
     return ""
 
 
-def _new_comment(row, lookback_idx, target_month):
-    """新規/年→月切替のコメント。12ヶ月前の年契約一括発行を裏付けに年→月切替を推定 (補強)。"""
+def _new_comment(row, lookback_idx, target_month, lookback_available=True):
+    """新規/年→月切替のコメント。12ヶ月前の年契約一括発行を裏付けに年→月切替を推定 (補強)。
+
+    lookback_available=False (12ヶ月ルックバックが未実行=--lookback-12mo 未指定) のときは、
+    「12ヶ月確認したが年契約なし=真の新規」と「そもそも確認していない=未確認」を silent に
+    同一視せず、**未確認である旨を明示**する。前月なし今月ありは年契約→月額切替の可能性が高い
+    (ユーザー要件 C3) ため、確認できていない事実を隠して『新規発行』と断定しない。
+    """
     recs = lookback_idx.get(R.normalize(_customer(row))) or []
     switch_month = _prev_year_month(target_month) if target_month else None
     for rec in recs:
         if _rec_is_annual(rec) and (switch_month is None or _rec_month(rec) == switch_month):
-            return f"12ヶ月前({_rec_month(rec)})に年契約一括発行→自動で月額切替した可能性 (年→月切替)"
+            return (f"12ヶ月前({_rec_month(rec)})に年契約一括発行→自動で月額切替した可能性 "
+                    "(年→月切替・12ヶ月履歴で確認済み)")
     for rec in recs:
         if _rec_is_annual(rec):
-            return f"12ヶ月履歴に年契約一括発行あり({_rec_month(rec)})→年→月切替の可能性"
-    return "新規発行 (12ヶ月履歴に年契約一括の裏付けなし)"
+            return (f"12ヶ月履歴に年契約一括発行あり({_rec_month(rec)})→年→月切替の可能性 "
+                    "(12ヶ月履歴で確認済み)")
+    if not lookback_available:
+        # ルックバック自体が未実行 (--lookback-12mo 未指定 or 空データ)。年→月切替か真の新規かを
+        # 未確認のまま『新規発行』と断定しない (確実性の開示)。データ源は MF 実績の12ヶ月履歴であり
+        # 請求確認シートの開始月には依存しない。
+        return ("⚠️ 12ヶ月ルックバック未実行 (12ヶ月履歴データなし)→年契約からの月額切替か"
+                "真の新規発行か未確認。MF実績の12ヶ月履歴を渡して再実行し裏付けを取ること")
+    # ルックバックは実行したが当該取引先に年契約一括の履歴なし=真の新規発行と確認できた。
+    return "新規発行 (12ヶ月履歴を確認したが年契約一括の裏付けなし=真の新規)"
 
 
 def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
@@ -550,6 +565,8 @@ def classify_period_transition(pairing, lookback=None, contract_end=None, target
     返り値 = list[dict] (I/O 契約のレポート行)。
     """
     lookback_idx = _index_lookback(lookback)
+    # 12ヶ月ルックバックのデータが 1 件でも渡されたか (未指定=未実行を STATE_NEW コメントで可視化する)。
+    lookback_available = bool(lookback)
     end_idx = _index_contract_end(contract_end)
     out = []
     for pair in pairing:
@@ -574,7 +591,7 @@ def classify_period_transition(pairing, lookback=None, contract_end=None, target
             row = _emit(customer, amount, prev_amount, GAP_OK, "継続発行",
                         product, _continued_comment(curr, prev), contract_id, target_month)
         elif state == STATE_NEW:
-            comment = _new_comment(rep, lookback_idx, target_month)
+            comment = _new_comment(rep, lookback_idx, target_month, lookback_available)
             row = _emit(customer, amount, prev_amount, GAP_OK, "新規/年→月切替",
                         product, comment, contract_id, target_month)
         else:  # STATE_STOPPED
@@ -665,6 +682,19 @@ def main(argv=None):
 
     report = build_report(curr_doc, prev_doc, lookback=lookback,
                           contract_end=contract_end, target_month=a.target_month)
+
+    # 12ヶ月ルックバック未実行の可視化 (ユーザー要件 C2/C3): --lookback-12mo 未指定のまま
+    # 前月なし今月あり (新規/年→月切替) 行があると、年契約→月額切替の裏付けが未確認になる。
+    # データ源は MF 実績の12ヶ月履歴であり請求確認シートの開始月には依存しない (源の取り違え防止)。
+    # lookback は未指定 (a.lookback なし=None) でも空ファイル ([]/{}) でも「実質未実行」として
+    # 一貫して警告する (loaded content の真偽で判定・空データ縁ケースの取りこぼしを防ぐ)。
+    new_rows = sum(1 for r in report if r.get("period_diff") == "新規/年→月切替")
+    if not lookback and new_rows:
+        sys.stderr.write(
+            f"[period-report] ⚠️ 12ヶ月履歴データなし (--lookback-12mo 未指定 or 空) のまま 前月なし今月あり "
+            f"{new_rows} 件を分類しました。これらの『年契約→月額切替』裏付けは未確認です。MF実績(GET)の"
+            "12ヶ月履歴を --lookback-12mo に渡して再実行してください (シート開始月とは無関係=省略しない)。\n")
+
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
     if any(r.get("gap_check") == GAP_ACTION for r in report):

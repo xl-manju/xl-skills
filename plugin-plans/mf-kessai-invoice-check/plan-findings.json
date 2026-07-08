@@ -71,7 +71,7 @@
     {"req": "[追加要件] 同一対象月の再実行では同じ月次 DB を再利用し、二重 DB を作らない", "reflected": true, "where": "goal-spec constraints + C06 purpose/outputs + C01 OUT1 + phase-04/05 tests (month_db_id reuse)"},
     {"req": "[追加要件] DB に先月の金額と今月の金額を並べて比較可能にする", "reflected": true, "where": "C01 output_contract/IN1 (7 列: 漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) + goal-spec C1"},
     {"req": "[追加要件] Notion DB プロパティ順を 漏れチェック→取引先名→商品名→先月の金額→今月の金額→先月と今月の比較→コメント に固定する", "reflected": true, "where": "goal-spec C1/constraints + C01 output_contract/IN1 + C06 sink の列生成契約 + index 受入確認 C1 + phase-04 観点6(位置順一致テスト)"},
-    {"req": "[追加要件・第2パス] Notion DB の title(ページ作成/ページ名)プロパティ=取引先名(列順2番目・Notion title=ページ名)", "reflected": true, "where": "goal-spec C1/constraint + component-inventory notion_config.title_property=取引先名 + C06 purpose(build_notion_db.build_property 踏襲) + phase-04 観点6 + index 受入 C1"},
+    {"req": "[追加要件・第2パス] Notion DB の title(ページ作成/ページ名)プロパティ=取引先名(列順1番目=Notion title 最左固定で取引先名を先頭・漏れチェックを2列目)", "reflected": true, "where": "goal-spec C1/constraint + component-inventory notion_config.title_property=取引先名 + C06 purpose(build_notion_db.build_property 踏襲) + phase-04 観点6 + index 受入 C1"},
     {"req": "[追加要件・第2パス] 上書きは非破壊マージで以前 run の行が消えない(全情報を出力)", "reflected": true, "where": "goal-spec C11(verify_by:test) + C06 purpose/outputs(deleted=0) + C01 OUT1 + phase-04 観点7 + phase-07/index 受入 C11"},
     {"req": "[追加要件・第2パス] 比較列6=テキスト説明・金額=税抜・手動追記なし(frozen不要)", "reflected": true, "where": "AskUserQuestion 確定 → goal-spec C1/constraint + C01/C05/C06 + index 受入 C1"},
     {"req": "[追加要件] 月内は日々追加(2/3 営業日目再実行は当月 DB へ冪等)", "reflected": true, "where": "C06 upsert 主キー {取引先×契約ID×商品} + goal-spec C7 (月内冪等) + OUT1"}
