@@ -11,7 +11,7 @@
     },
     {
       "id": "P01-C01-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C01",
       "state": "pending",
@@ -35,7 +35,7 @@
     },
     {
       "id": "P01-C02-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C02",
       "state": "pending",
@@ -59,7 +59,7 @@
     },
     {
       "id": "P01-C03-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C03",
       "state": "pending",
@@ -83,7 +83,7 @@
     },
     {
       "id": "P01-C04-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C04",
       "state": "pending",
@@ -107,7 +107,7 @@
     },
     {
       "id": "P01-C05-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C05",
       "state": "pending",
@@ -131,7 +131,7 @@
     },
     {
       "id": "P01-C06-01",
-      "title": "`goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
+      "title": "`goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。",
       "phase_ref": "P01",
       "entity_ref": "C06",
       "state": "pending",
@@ -355,7 +355,7 @@
     },
     {
       "id": "P04-C01-01",
-      "title": "C01 の criteria が purpose 由来で inner「7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) が『この左→右の順で』全行で埋まる(title=取引先名・列6=テキスト説明・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 7列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する seam 統合テストで 7列全充足を機械検証する(各 unit 緑では捕捉不能)」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・月跨ぎで新規 DB が指定トグル配下へ append 作成され newest-on-top の意図位置が intended_index で開示される」を持つ。",
+      "title": "C01 の criteria が purpose 由来で inner「8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) がこの左→右の順で全行で埋まる(title=取引先名・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 8列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する統合テストで 8列全充足を機械検証する」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・既存 report DB を in-block→under-heading→page の順に優先更新し、未存在時のみ page-created として単一恒久 DB を作成する」を持つ。",
       "phase_ref": "P04",
       "entity_ref": "C01",
       "state": "pending",
@@ -363,7 +363,7 @@
     },
     {
       "id": "P04-C01-02",
-      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。",
+      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。★curr=None×prev-verdict 各値の**分岐カバレッジ**を C05 完了条件の hard gate とする(年契約 prev=MATCH_ANNUAL→GAP_OK[金子金物型] / 契約完了 prev=MATCH_ENDED_FINAL→正常 / 隔月・単発 prev=MATCH_MONTHLY は保全テスト :242 と衝突ゆえ prev.verdict では分離せず入力層 curr-present 化で是正)。行カバレッジは既存 curr-present テストで素通りし金子金物型回帰の欠落を捕捉できないため、分岐カバレッジで幻テスト化を防ぐ(C06 の link coverage backstop と対称)。",
       "phase_ref": "P04",
       "entity_ref": "C01",
       "state": "pending",
@@ -371,7 +371,7 @@
     },
     {
       "id": "P04-C01-03",
-      "title": "C06 のテスト設計が月次新規 DB 作成・同一対象月の month_db_id 再利用(二重 DB 0)・append 配置+newest-on-top intended_index 開示・月内冪等 (入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で 2 回投入 1 行収束。7列固定に契約ID列なし=契約ID非永続ゆえ契約ID違いは要対応優先で collapse し collapsed_multi_contract に計上=漏れ隠蔽防止)・--apply は --verified 必須(未指定 exit2)・先月の金額/今月の金額列充足・列順とtitle固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
+      "title": "C06 のテスト設計が Design D として、出力先 DB 解決(in-block/under-heading/page/page-created)・既存 DB 更新優先(既存があれば POST /databases なし)・旧 7 列 DB への対象月列 PATCH 後付け・月内冪等(行キー=(対象月,取引先名,商品名)で 2 回投入 1 行収束)・別月共存・先月の金額/今月の金額列充足・8列順と title 固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
       "phase_ref": "P04",
       "entity_ref": "C01",
       "state": "pending",
@@ -387,7 +387,7 @@
     },
     {
       "id": "P04-C02-01",
-      "title": "C01 の criteria が purpose 由来で inner「7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) が『この左→右の順で』全行で埋まる(title=取引先名・列6=テキスト説明・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 7列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する seam 統合テストで 7列全充足を機械検証する(各 unit 緑では捕捉不能)」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・月跨ぎで新規 DB が指定トグル配下へ append 作成され newest-on-top の意図位置が intended_index で開示される」を持つ。",
+      "title": "C01 の criteria が purpose 由来で inner「8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) がこの左→右の順で全行で埋まる(title=取引先名・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 8列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する統合テストで 8列全充足を機械検証する」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・既存 report DB を in-block→under-heading→page の順に優先更新し、未存在時のみ page-created として単一恒久 DB を作成する」を持つ。",
       "phase_ref": "P04",
       "entity_ref": "C02",
       "state": "pending",
@@ -395,7 +395,7 @@
     },
     {
       "id": "P04-C02-02",
-      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。",
+      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。★curr=None×prev-verdict 各値の**分岐カバレッジ**を C05 完了条件の hard gate とする(年契約 prev=MATCH_ANNUAL→GAP_OK[金子金物型] / 契約完了 prev=MATCH_ENDED_FINAL→正常 / 隔月・単発 prev=MATCH_MONTHLY は保全テスト :242 と衝突ゆえ prev.verdict では分離せず入力層 curr-present 化で是正)。行カバレッジは既存 curr-present テストで素通りし金子金物型回帰の欠落を捕捉できないため、分岐カバレッジで幻テスト化を防ぐ(C06 の link coverage backstop と対称)。",
       "phase_ref": "P04",
       "entity_ref": "C02",
       "state": "pending",
@@ -403,7 +403,7 @@
     },
     {
       "id": "P04-C02-03",
-      "title": "C06 のテスト設計が月次新規 DB 作成・同一対象月の month_db_id 再利用(二重 DB 0)・append 配置+newest-on-top intended_index 開示・月内冪等 (入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で 2 回投入 1 行収束。7列固定に契約ID列なし=契約ID非永続ゆえ契約ID違いは要対応優先で collapse し collapsed_multi_contract に計上=漏れ隠蔽防止)・--apply は --verified 必須(未指定 exit2)・先月の金額/今月の金額列充足・列順とtitle固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
+      "title": "C06 のテスト設計が Design D として、出力先 DB 解決(in-block/under-heading/page/page-created)・既存 DB 更新優先(既存があれば POST /databases なし)・旧 7 列 DB への対象月列 PATCH 後付け・月内冪等(行キー=(対象月,取引先名,商品名)で 2 回投入 1 行収束)・別月共存・先月の金額/今月の金額列充足・8列順と title 固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
       "phase_ref": "P04",
       "entity_ref": "C02",
       "state": "pending",
@@ -419,7 +419,7 @@
     },
     {
       "id": "P04-C04-01",
-      "title": "C01 の criteria が purpose 由来で inner「7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) が『この左→右の順で』全行で埋まる(title=取引先名・列6=テキスト説明・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 7列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する seam 統合テストで 7列全充足を機械検証する(各 unit 緑では捕捉不能)」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・月跨ぎで新規 DB が指定トグル配下へ append 作成され newest-on-top の意図位置が intended_index で開示される」を持つ。",
+      "title": "C01 の criteria が purpose 由来で inner「8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) がこの左→右の順で全行で埋まる(title=取引先名・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 8列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する統合テストで 8列全充足を機械検証する」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・既存 report DB を in-block→under-heading→page の順に優先更新し、未存在時のみ page-created として単一恒久 DB を作成する」を持つ。",
       "phase_ref": "P04",
       "entity_ref": "C04",
       "state": "pending",
@@ -427,7 +427,7 @@
     },
     {
       "id": "P04-C04-02",
-      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。",
+      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。★curr=None×prev-verdict 各値の**分岐カバレッジ**を C05 完了条件の hard gate とする(年契約 prev=MATCH_ANNUAL→GAP_OK[金子金物型] / 契約完了 prev=MATCH_ENDED_FINAL→正常 / 隔月・単発 prev=MATCH_MONTHLY は保全テスト :242 と衝突ゆえ prev.verdict では分離せず入力層 curr-present 化で是正)。行カバレッジは既存 curr-present テストで素通りし金子金物型回帰の欠落を捕捉できないため、分岐カバレッジで幻テスト化を防ぐ(C06 の link coverage backstop と対称)。",
       "phase_ref": "P04",
       "entity_ref": "C04",
       "state": "pending",
@@ -435,7 +435,7 @@
     },
     {
       "id": "P04-C04-03",
-      "title": "C06 のテスト設計が月次新規 DB 作成・同一対象月の month_db_id 再利用(二重 DB 0)・append 配置+newest-on-top intended_index 開示・月内冪等 (入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で 2 回投入 1 行収束。7列固定に契約ID列なし=契約ID非永続ゆえ契約ID違いは要対応優先で collapse し collapsed_multi_contract に計上=漏れ隠蔽防止)・--apply は --verified 必須(未指定 exit2)・先月の金額/今月の金額列充足・列順とtitle固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
+      "title": "C06 のテスト設計が Design D として、出力先 DB 解決(in-block/under-heading/page/page-created)・既存 DB 更新優先(既存があれば POST /databases なし)・旧 7 列 DB への対象月列 PATCH 後付け・月内冪等(行キー=(対象月,取引先名,商品名)で 2 回投入 1 行収束)・別月共存・先月の金額/今月の金額列充足・8列順と title 固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
       "phase_ref": "P04",
       "entity_ref": "C04",
       "state": "pending",
@@ -451,7 +451,7 @@
     },
     {
       "id": "P04-C05-01",
-      "title": "C01 の criteria が purpose 由来で inner「7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) が『この左→右の順で』全行で埋まる(title=取引先名・列6=テキスト説明・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 7列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する seam 統合テストで 7列全充足を機械検証する(各 unit 緑では捕捉不能)」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・月跨ぎで新規 DB が指定トグル配下へ append 作成され newest-on-top の意図位置が intended_index で開示される」を持つ。",
+      "title": "C01 の criteria が purpose 由来で inner「8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) がこの左→右の順で全行で埋まる(title=取引先名・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 8列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する統合テストで 8列全充足を機械検証する」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・既存 report DB を in-block→under-heading→page の順に優先更新し、未存在時のみ page-created として単一恒久 DB を作成する」を持つ。",
       "phase_ref": "P04",
       "entity_ref": "C05",
       "state": "pending",
@@ -459,7 +459,7 @@
     },
     {
       "id": "P04-C05-02",
-      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。",
+      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。★curr=None×prev-verdict 各値の**分岐カバレッジ**を C05 完了条件の hard gate とする(年契約 prev=MATCH_ANNUAL→GAP_OK[金子金物型] / 契約完了 prev=MATCH_ENDED_FINAL→正常 / 隔月・単発 prev=MATCH_MONTHLY は保全テスト :242 と衝突ゆえ prev.verdict では分離せず入力層 curr-present 化で是正)。行カバレッジは既存 curr-present テストで素通りし金子金物型回帰の欠落を捕捉できないため、分岐カバレッジで幻テスト化を防ぐ(C06 の link coverage backstop と対称)。",
       "phase_ref": "P04",
       "entity_ref": "C05",
       "state": "pending",
@@ -467,7 +467,7 @@
     },
     {
       "id": "P04-C05-03",
-      "title": "C06 のテスト設計が月次新規 DB 作成・同一対象月の month_db_id 再利用(二重 DB 0)・append 配置+newest-on-top intended_index 開示・月内冪等 (入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で 2 回投入 1 行収束。7列固定に契約ID列なし=契約ID非永続ゆえ契約ID違いは要対応優先で collapse し collapsed_multi_contract に計上=漏れ隠蔽防止)・--apply は --verified 必須(未指定 exit2)・先月の金額/今月の金額列充足・列順とtitle固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
+      "title": "C06 のテスト設計が Design D として、出力先 DB 解決(in-block/under-heading/page/page-created)・既存 DB 更新優先(既存があれば POST /databases なし)・旧 7 列 DB への対象月列 PATCH 後付け・月内冪等(行キー=(対象月,取引先名,商品名)で 2 回投入 1 行収束)・別月共存・先月の金額/今月の金額列充足・8列順と title 固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
       "phase_ref": "P04",
       "entity_ref": "C05",
       "state": "pending",
@@ -483,7 +483,7 @@
     },
     {
       "id": "P04-C06-01",
-      "title": "C01 の criteria が purpose 由来で inner「7 列 (漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) が『この左→右の順で』全行で埋まる(title=取引先名・列6=テキスト説明・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 7列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する seam 統合テストで 7列全充足を機械検証する(各 unit 緑では捕捉不能)」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・月跨ぎで新規 DB が指定トグル配下へ append 作成され newest-on-top の意図位置が intended_index で開示される」を持つ。",
+      "title": "C01 の criteria が purpose 由来で inner「8 列 (取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメント) がこの左→右の順で全行で埋まる(title=取引先名・金額税抜)。C05 producer キー(gap_check/amount/period_diff 等)→C06 8列写像は ROW_CONTRACT SSOT で固定し、C05 実出力→C06 を実 pipe で貫通する統合テストで 8列全充足を機械検証する」・outer「同月内 2 回連続実行で重複行 0・非破壊マージで以前 run の行が消えない (日々追加・C06 sink が所有)・既存 report DB を in-block→under-heading→page の順に優先更新し、未存在時のみ page-created として単一恒久 DB を作成する」を持つ。",
       "phase_ref": "P04",
       "entity_ref": "C06",
       "state": "pending",
@@ -491,7 +491,7 @@
     },
     {
       "id": "P04-C06-02",
-      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。",
+      "title": "C05 のテスト設計が対象月決定(7月2日実行なら今月=6月分・先月=5月分)、取引先×商品集合の4状態(継続発行/前月なし今月あり/元々請求なし/前月あり今月なし)、差分該当取引先限定の 12 ヶ月遡り、年契約周期/年→月切替/トライアル完了/契約終了/発行漏れ候補(要対応)の全分岐をカバーし、契約完了=既存 has_end_basis→SUPPRESS_ENDED 消費(自由文非再パース)・年契約=既存 SUPPRESS_ANNUAL 一次源(遡りは補強のみ)・トライアル=canon 前の生商品名・突合キー=既存 normalize 再利用を含む。★curr=None×prev-verdict 各値の**分岐カバレッジ**を C05 完了条件の hard gate とする(年契約 prev=MATCH_ANNUAL→GAP_OK[金子金物型] / 契約完了 prev=MATCH_ENDED_FINAL→正常 / 隔月・単発 prev=MATCH_MONTHLY は保全テスト :242 と衝突ゆえ prev.verdict では分離せず入力層 curr-present 化で是正)。行カバレッジは既存 curr-present テストで素通りし金子金物型回帰の欠落を捕捉できないため、分岐カバレッジで幻テスト化を防ぐ(C06 の link coverage backstop と対称)。",
       "phase_ref": "P04",
       "entity_ref": "C06",
       "state": "pending",
@@ -499,7 +499,7 @@
     },
     {
       "id": "P04-C06-03",
-      "title": "C06 のテスト設計が月次新規 DB 作成・同一対象月の month_db_id 再利用(二重 DB 0)・append 配置+newest-on-top intended_index 開示・月内冪等 (入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で 2 回投入 1 行収束。7列固定に契約ID列なし=契約ID非永続ゆえ契約ID違いは要対応優先で collapse し collapsed_multi_contract に計上=漏れ隠蔽防止)・--apply は --verified 必須(未指定 exit2)・先月の金額/今月の金額列充足・列順とtitle固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
+      "title": "C06 のテスト設計が Design D として、出力先 DB 解決(in-block/under-heading/page/page-created)・既存 DB 更新優先(既存があれば POST /databases なし)・旧 7 列 DB への対象月列 PATCH 後付け・月内冪等(行キー=(対象月,取引先名,商品名)で 2 回投入 1 行収束)・別月共存・先月の金額/今月の金額列充足・8列順と title 固定(取引先名=title・build_property 踏襲)・非破壊マージ(run-1={A,B}→run-2={A,C}で{A,B,C}保持=以前行が消えない)の観点をカバーする。",
       "phase_ref": "P04",
       "entity_ref": "C06",
       "state": "pending",
@@ -547,7 +547,7 @@
     },
     {
       "id": "P05-C01-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C01",
       "state": "pending",
@@ -579,7 +579,7 @@
     },
     {
       "id": "P05-C02-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C02",
       "state": "pending",
@@ -611,7 +611,7 @@
     },
     {
       "id": "P05-C03-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C03",
       "state": "pending",
@@ -643,7 +643,7 @@
     },
     {
       "id": "P05-C04-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C04",
       "state": "pending",
@@ -675,7 +675,7 @@
     },
     {
       "id": "P05-C05-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C05",
       "state": "pending",
@@ -707,7 +707,7 @@
     },
     {
       "id": "P05-C06-04",
-      "title": "C06 が月次新規 DB を指定ページ『請求書発行チェック』のトグル見出し2配下へ append で find-or-create(既存 build_notion_db.build_property 再利用・title=取引先名・列順固定・newest-on-top の意図位置は intended_index で開示=Notion API は任意位置 insert 不可)し、同一対象月では既存 month_db_id を再利用して二重 DB を作らず、当月 DB へ入力同定 {取引先×契約ID×商品}・stored key (取引先名,商品名) で非破壊マージ日々追加(以前 run の行を消さない・7列固定に契約ID列なし=契約ID非永続で契約ID違いは要対応優先 collapse+collapsed_multi_contract 計上・--apply は --verified 必須で未指定 exit2)する実装として build されている。",
+      "title": "C06 が指定ブロック/見出し周辺の既存 report DB を in-block → under-heading → page の順に確認し、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ単一恒久 DB を page-created として作成する。DB は [取引先名, 対象月, 漏れチェック, 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント] の 8 列固定で、行キー=(対象月,取引先名,商品名) による非破壊 upsert を行い、旧 7 列 DB には対象月列を PATCH 追加する。--apply は --verified 必須で未指定 exit2 とする。",
       "phase_ref": "P05",
       "entity_ref": "C06",
       "state": "pending",
@@ -803,7 +803,7 @@
     },
     {
       "id": "P07-C01-01",
-      "title": "C1: レポートが漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの 7 列を『この左→右の順で』全行で持ち、title(=ページ作成/ページ名)プロパティ=取引先名・列6=テキスト説明・金額は税抜と判定できる (先月・今月の金額が並置され比較可能)。",
+      "title": "C1: レポートが取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの 8 列をこの左→右の順で全行で持ち、title(=ページ作成/ページ名)プロパティ=取引先名・金額は税抜と判定できる (先月・今月の金額が並置され比較可能)。",
       "phase_ref": "P07",
       "entity_ref": "C01",
       "state": "pending",
@@ -835,7 +835,7 @@
     },
     {
       "id": "P07-C01-05",
-      "title": "C10: 月次で新しい DB がトグル見出し2ブロック配下へ append 作成され newest-on-top の意図位置が intended_index で開示され、過去月の DB が記録として保持されると判定できる (Notion API は任意位置 insert 不可・C06 sink 所有)。",
+      "title": "C10: 指定ブロック/見出し周辺の既存 report DB が in-block→under-heading→page の順に確認され、存在すれば更新、無ければ指定ページ「請求書発行チェック」直下へ page-created として単一恒久 DB が作成されると判定できる。対象月列により月別履歴は同一 DB 内に保持される。",
       "phase_ref": "P07",
       "entity_ref": "C01",
       "state": "pending",
@@ -843,7 +843,7 @@
     },
     {
       "id": "P07-C01-06",
-      "title": "C11: 当月 DB への上書きが非破壊マージで、以前 run で書いた行が今回入力に無くても削除されず全情報が保持されると判定できる (run-1={A,B}→run-2={A,C}→{A,B,C}・clear-then-insert でない・C06 sink 所有)。",
+      "title": "C11: report DB への上書きが非破壊マージで、以前 run で書いた行が今回入力に無くても削除されず全情報が保持されると判定できる (run-1={A,B}→run-2={A,C}→{A,B,C}・clear-then-insert でない・C06 sink 所有)。",
       "phase_ref": "P07",
       "entity_ref": "C01",
       "state": "pending",
@@ -1067,7 +1067,15 @@
     },
     {
       "id": "P11-C01-02",
-      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の月次新規 DB の newest-on-top 積層観測 + upsert 主キー衝突ゼロ (create/update/skip 内訳付き) が第三者に再現可能な形で記録されている。",
+      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の report DB 解決結果(db_location in-block/under-heading/page/page-created) + upsert 主キー衝突ゼロ (created/updated/skipped/deleted 内訳付き) が第三者に再現可能な形で記録されている。",
+      "phase_ref": "P11",
+      "entity_ref": "C01",
+      "state": "pending",
+      "write_scope": "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-report/"
+    },
+    {
+      "id": "P11-C01-03",
+      "title": "実 Notion API の read-only/dry-run evidence と fake-store により、report_toggle_block がトグルの場合の in-block 既存 DB 検出、見出し2の場合の under-heading 既存 DB 検出、既存 DB が無い場合の page-created 新規作成方針が確認されている。Notion API は database の block_id 親作成を許さないため、新規作成は親ページ直下に限定し、link_to_page 索引方式は採用しない。",
       "phase_ref": "P11",
       "entity_ref": "C01",
       "state": "pending",
@@ -1083,7 +1091,15 @@
     },
     {
       "id": "P11-C05-02",
-      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の月次新規 DB の newest-on-top 積層観測 + upsert 主キー衝突ゼロ (create/update/skip 内訳付き) が第三者に再現可能な形で記録されている。",
+      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の report DB 解決結果(db_location in-block/under-heading/page/page-created) + upsert 主キー衝突ゼロ (created/updated/skipped/deleted 内訳付き) が第三者に再現可能な形で記録されている。",
+      "phase_ref": "P11",
+      "entity_ref": "C05",
+      "state": "pending",
+      "write_scope": "plugins/mf-kessai-invoice-check/scripts/mfk_period_report.py"
+    },
+    {
+      "id": "P11-C05-03",
+      "title": "実 Notion API の read-only/dry-run evidence と fake-store により、report_toggle_block がトグルの場合の in-block 既存 DB 検出、見出し2の場合の under-heading 既存 DB 検出、既存 DB が無い場合の page-created 新規作成方針が確認されている。Notion API は database の block_id 親作成を許さないため、新規作成は親ページ直下に限定し、link_to_page 索引方式は採用しない。",
       "phase_ref": "P11",
       "entity_ref": "C05",
       "state": "pending",
@@ -1099,7 +1115,15 @@
     },
     {
       "id": "P11-C06-02",
-      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の月次新規 DB の newest-on-top 積層観測 + upsert 主キー衝突ゼロ (create/update/skip 内訳付き) が第三者に再現可能な形で記録されている。",
+      "title": "C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の report DB 解決結果(db_location in-block/under-heading/page/page-created) + upsert 主キー衝突ゼロ (created/updated/skipped/deleted 内訳付き) が第三者に再現可能な形で記録されている。",
+      "phase_ref": "P11",
+      "entity_ref": "C06",
+      "state": "pending",
+      "write_scope": "plugins/mf-kessai-invoice-check/scripts/notion_report_sink.py"
+    },
+    {
+      "id": "P11-C06-03",
+      "title": "実 Notion API の read-only/dry-run evidence と fake-store により、report_toggle_block がトグルの場合の in-block 既存 DB 検出、見出し2の場合の under-heading 既存 DB 検出、既存 DB が無い場合の page-created 新規作成方針が確認されている。Notion API は database の block_id 親作成を許さないため、新規作成は親ページ直下に限定し、link_to_page 索引方式は採用しない。",
       "phase_ref": "P11",
       "entity_ref": "C06",
       "state": "pending",
@@ -8578,6 +8602,11 @@
     {
       "type": "depends_on",
       "from": "P11",
+      "to": "P11-C01-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11",
       "to": "P11-C05-01"
     },
     {
@@ -8588,12 +8617,22 @@
     {
       "type": "depends_on",
       "from": "P11",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11",
       "to": "P11-C06-01"
     },
     {
       "type": "depends_on",
       "from": "P11",
       "to": "P11-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11",
+      "to": "P11-C06-03"
     },
     {
       "type": "depends_on",
@@ -8813,12 +8852,22 @@
     {
       "type": "depends_on",
       "from": "P11-C01-01",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-01",
       "to": "P11-C06-01"
     },
     {
       "type": "depends_on",
       "from": "P11-C01-01",
       "to": "P11-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-01",
+      "to": "P11-C06-03"
     },
     {
       "type": "depends_on",
@@ -9038,12 +9087,257 @@
     {
       "type": "depends_on",
       "from": "P11-C01-02",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-02",
       "to": "P11-C06-01"
     },
     {
       "type": "depends_on",
       "from": "P11-C01-02",
       "to": "P11-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-02",
+      "to": "P11-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P01-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P02-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C05-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P04-C06-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C05-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P05-C06-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P06-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P09-C06-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P10"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C05-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C05-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C06-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C01-03",
+      "to": "P11-C06-03"
     },
     {
       "type": "depends_on",
@@ -9223,6 +9517,96 @@
     {
       "type": "depends_on",
       "from": "P11-C05-02",
+      "to": "P10"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P01-C04-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P01-C04-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P01-C04-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P02-C04-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P02-C04-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P02-C04-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P04-C04-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P04-C04-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P04-C04-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P04-C04-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P05-C04-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P05-C04-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P05-C04-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P05-C04-04"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P09-C04-01"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P09-C04-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
+      "to": "P09-C04-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C05-03",
       "to": "P10"
     },
     {
@@ -9233,6 +9617,11 @@
     {
       "type": "depends_on",
       "from": "P11-C06-02",
+      "to": "P10"
+    },
+    {
+      "type": "depends_on",
+      "from": "P11-C06-03",
       "to": "P10"
     },
     {
@@ -9483,6 +9872,11 @@
     {
       "type": "depends_on",
       "from": "P12-C01-01",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C01-01",
       "to": "P11-C06-01"
     },
     {
@@ -9492,6 +9886,11 @@
     },
     {
       "type": "depends_on",
+      "from": "P12-C01-01",
+      "to": "P11-C06-03"
+    },
+    {
+      "type": "depends_on",
       "from": "P12-C01-02",
       "to": "P01-C05-01"
     },
@@ -9708,12 +10107,22 @@
     {
       "type": "depends_on",
       "from": "P12-C01-02",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C01-02",
       "to": "P11-C06-01"
     },
     {
       "type": "depends_on",
       "from": "P12-C01-02",
       "to": "P11-C06-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C01-02",
+      "to": "P11-C06-03"
     },
     {
       "type": "depends_on",
@@ -9933,6 +10342,11 @@
     {
       "type": "depends_on",
       "from": "P12-C01-03",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C01-03",
       "to": "P11-C06-01"
     },
     {
@@ -9942,6 +10356,11 @@
     },
     {
       "type": "depends_on",
+      "from": "P12-C01-03",
+      "to": "P11-C06-03"
+    },
+    {
+      "type": "depends_on",
       "from": "P12-C03-01",
       "to": "P01-C01-01"
     },
@@ -10084,6 +10503,11 @@
       "type": "depends_on",
       "from": "P12-C03-01",
       "to": "P11-C01-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C03-01",
+      "to": "P11-C01-03"
     },
     {
       "type": "depends_on",
@@ -10248,6 +10672,11 @@
     {
       "type": "depends_on",
       "from": "P12-C03-02",
+      "to": "P11-C01-03"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C03-02",
       "to": "P12-C01-01"
     },
     {
@@ -10404,6 +10833,11 @@
       "type": "depends_on",
       "from": "P12-C03-03",
       "to": "P11-C01-02"
+    },
+    {
+      "type": "depends_on",
+      "from": "P12-C03-03",
+      "to": "P11-C01-03"
     },
     {
       "type": "depends_on",
@@ -11068,6 +11502,11 @@
     {
       "type": "parent_of",
       "from": "P11",
+      "to": "P11-C01-03"
+    },
+    {
+      "type": "parent_of",
+      "from": "P11",
       "to": "P11-C05-01"
     },
     {
@@ -11078,12 +11517,22 @@
     {
       "type": "parent_of",
       "from": "P11",
+      "to": "P11-C05-03"
+    },
+    {
+      "type": "parent_of",
+      "from": "P11",
       "to": "P11-C06-01"
     },
     {
       "type": "parent_of",
       "from": "P11",
       "to": "P11-C06-02"
+    },
+    {
+      "type": "parent_of",
+      "from": "P11",
+      "to": "P11-C06-03"
     },
     {
       "type": "parent_of",

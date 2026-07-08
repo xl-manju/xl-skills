@@ -83,9 +83,9 @@
 - classify 実行 (決定論 script 主体、context-fork 不要。二段確認の独立 context は R3 が担当)。
 
 ### 5.2 ゴール定義
-- 目的: R1 の per-月 verdict 入力を C05 に渡し、前月↔今月の状態遷移を 4 分類し各行の事情コメント (なぜ先月あって今月なくて問題ないか) を生成する。継続発行を全行 emit し 7 列レポートの母集合を成す。
+- 目的: R1 の per-月 verdict 入力を C05 に渡し、前月↔今月の状態遷移を 4 分類し各行の事情コメント (なぜ先月あって今月なくて問題ないか) を生成する。継続発行を全行 emit し 8 列レポートの母集合を成す。
 - 背景: 単月では見えない発行増減を一望し、正常イレギュラーと真の漏れを分離する。分類は既存 verdict を消費する薄い差分に徹し (再照合しない)、真の漏れ判定は R3 が担保する。
-- 達成ゴール: C05 が正常終了 (0 or 1) し、分類済みレポート行 JSON が 7 列 (漏れチェック/取引先/商品/先月金額/今月金額/比較/コメント) に写像可能な形で得られ、正常イレギュラー行に事情コメントが焼かれた状態。
+- 達成ゴール: C05 が正常終了 (0 or 1) し、分類済みレポート行 JSON が 8 列 (取引先名/対象月/漏れチェック/商品名/先月金額/今月金額/比較/コメント) に写像可能な形で得られ、正常イレギュラー行に事情コメントが焼かれた状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] C05 に `--curr-verdicts`/`--prev-verdicts` (+任意 lookback/contract-end/target-month) を渡して実行した
@@ -127,6 +127,6 @@ R1 が用意した per-月 verdict 入力を C05 に渡す。`python3 "$CLAUDE_P
 
 C05 は取引先×商品を前月集合と今月集合で突合し 4 分類する: 今月あり×前月あり=継続発行 (全行 emit)、今月あり×前月なし=新規/年→月切替、今月なし×前月なし=対象外 (非 emit)、今月なし×前月あり=年契約期間内/トライアル完了/契約終了の有無を既存 verdict で確認し該当なしを発行漏れ候補 (要対応) にする。正常事情は既存 verdict (SUPPRESS_ENDED / SUPPRESS_ANNUAL / MATCH_ANNUAL) を一次源に消費し、根拠なき終了月 (REVIEW_ENDED_NO_BASIS) は抑制せず発行漏れ候補に残す (漏れ隠蔽防止)。トライアル完了は canon 前の生商品名/MF明細 desc で判定する。**自前の比較・状態遷移分類を書かず C05 を呼び出すだけ**にする (hook が再発明を遮断する)。
 
-各行キーは `customer`/`amount`/`prev_amount`/`gap_check`/`period_diff`/`product`/`comment`/`contract_id`/`target_month`。これらは R4 render で 7 列 (漏れチェック=gap_check・取引先名=customer・商品名=product・先月の金額=prev_amount・今月の金額=amount・先月と今月の比較+コメント=period_diff/comment) へ写像される。exit 1 (発行漏れ候補あり) は失敗でなく R3 二段確認の対象。
+各行キーは `customer`/`amount`/`prev_amount`/`gap_check`/`period_diff`/`product`/`comment`/`contract_id`/`target_month`。これらは R4 render で 8 列 (取引先名=customer・対象月=target_month/--target・漏れチェック=gap_check・商品名=product・先月の金額=prev_amount・今月の金額=amount・先月と今月の比較=period_diff・コメント=comment) へ写像される。exit 1 (発行漏れ候補あり) は失敗でなく R3 二段確認の対象。
 
 Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。出力は 4 状態別件数サマリのみ、前置き禁止。

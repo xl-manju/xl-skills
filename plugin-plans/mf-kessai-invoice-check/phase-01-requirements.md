@@ -27,7 +27,7 @@ applicability:
 - 6 component の kind 割当 (skill×1/sub-agent×1/slash-command×1/hook×1(既存拡張)/script×2) が判明している。
 
 ## ドメイン知識
-plan 全体の用語 (2 軸直交/component_kind 5 種/月帰属/イレギュラー4分類/冪等上書き) は index `## ドメイン知識` を参照。本フェーズ固有の差分: 要件定義段階では checklist C1〜C11 それぞれがどの component に帰着するかの初期対応 (RTM) を index「受入確認」章の対応表として仮固定する。出力設計は単一レポート DB への冪等上書きではなく **月次スナップショット DB の積層** であり、C06 sink が毎月新しい DB (当月分の請求漏れ比較レポート) を指定ページ『請求書発行チェック』のトグル見出し2ブロック配下の先頭 (newest-on-top=新しい月を上部) へ find-or-create し、過去月の DB は記録として保持する (C10 要件)。レポート列は漏れチェック/取引先名/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの 7 列とし、先月の金額と今月の金額を並置して比較可能にする (C1 更新)。特に C7 (同月内の日々追加=upsert 主キー {取引先×契約ID×商品} で重複行 0) と C10 (月次 DB 積層・newest-on-top・履歴保持) は C06 sink が所有する要件であることをここで明示する。
+plan 全体の用語 (2 軸直交/component_kind 5 種/月帰属/イレギュラー4分類/冪等上書き) は index `## ドメイン知識` を参照。本フェーズ固有の差分: 要件定義段階では checklist C1〜C11 それぞれがどの component に帰着するかの初期対応 (RTM) を index「受入確認」章の対応表として仮固定する。出力設計は **単一恒久 report DB の既存確認 + 冪等上書き (Design D)** であり、C06 sink が指定ブロック/見出し周辺の既存 DB を `in-block` → `under-heading` → `page` の順で探し、存在すれば更新、無ければ指定ページ『請求書発行チェック』(report_parent_page) 直下へ新規 report DB を作成する。Notion API は database 作成の親に block_id を指定できないため新規作成はページ直下だが、UI でトグル内または見出し直下に置かれた既存 DB の更新は可能とする。レポート列は取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの 8 列とし、先月の金額と今月の金額を並置して比較可能にする (C1 更新)。特に C7 (同月内の日々追加=行キー {対象月×取引先×商品} で重複行 0) と C10 (既存 DB 優先更新・未存在時のみ新規作成) は C06 sink が所有する要件であることをここで明示する。
 
 ## 成果物
 - `goal-spec.json` (purpose/background/goal/checklist C1〜C11/constraints/handoff_targets) の確定。
@@ -40,7 +40,7 @@ plan 全体の用語 (2 軸直交/component_kind 5 種/月帰属/イレギュラ
 - 実装・build (P05 と後段 builder の責務)。
 
 ## 完了チェックリスト
-- [ ] `goal-spec.json` の checklist C1〜C11 (C10=月次 DB 積層/newest-on-top/履歴保持) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。
+- [ ] `goal-spec.json` の checklist C1〜C11 (C10=既存 report DB 優先更新・未存在時のみ新規作成) が全て非空で purpose「前月↔今月比較レポートの冪等生成」から導出されている。
 - [ ] target_plugin_slug が ASCII kebab (`mf-kessai-invoice-check`) で確定し以降のフェーズがそれを参照できる。
 - [ ] `check-plugin-goal-spec.py` が exit0 (R1 goal-spec + plugin 固有アンカー充足)。
 

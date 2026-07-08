@@ -27,7 +27,7 @@ applicability:
 - content-review を独立 context (SubAgent) で実行できる。
 
 ## ドメイン知識
-genuine verdict・P0 lint の kind 別集合・schema parity の定義は index/io-contract §10 を参照。本 plan 固有の差分: C05・C06 (script) はいずれも `lint-script-frontmatter` のみ、C04 (hook) は `validate-frontmatter`+`lint-script-frontmatter`、C02 (sub-agent) は `validate-frontmatter`+`lint-skill-description`+`lint-agent-prompt-section`、C03 (slash-command) は `validate-frontmatter`、C01 (skill) は 8 本の P0 lint が対象 (`specfm.P0_LINT_BY_KIND` が正本)。C06 は `network:true`/`write_scope:notion:monthly-report-db` を持つため、build-trace で書込み先が指定ページ『請求書発行チェック』のトグル見出し2配下の月次レポート DB に限定されていることも本 gate の確認対象に含める。
+genuine verdict・P0 lint の kind 別集合・schema parity の定義は index/io-contract §10 を参照。本 plan 固有の差分: C05・C06 (script) はいずれも `lint-script-frontmatter` のみ、C04 (hook) は `validate-frontmatter`+`lint-script-frontmatter`、C02 (sub-agent) は `validate-frontmatter`+`lint-skill-description`+`lint-agent-prompt-section`、C03 (slash-command) は `validate-frontmatter`、C01 (skill) は 8 本の P0 lint が対象 (`specfm.P0_LINT_BY_KIND` が正本)。C06 は `network:true`/`write_scope:notion:report-db-in-toggle` を持つため、build-trace で書込み先が指定見出し (`report_toggle_block`) に紐づく単一恒久 report DB の列 PATCH + 行 upsert に限定され、新規作成時のみ指定ページ『請求書発行チェック』(`report_parent_page`) 直下へ POST /databases すること(MF へ書かない)も本 gate の確認対象に含める。
 
 ## 成果物
 - 全 6 component の P0 lint / build-trace / schema parity / content-review verdict の結果一式。

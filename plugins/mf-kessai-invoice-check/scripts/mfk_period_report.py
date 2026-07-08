@@ -48,8 +48,17 @@ verdict (MATCH_* / SUPPRESS_* / GAP / REVIEW_*) を入力に取り、前月集�
              構造化列『契約終了月』に値があっても、既存判定が REVIEW_ENDED_NO_BASIS
              (終了根拠 has_end_basis なし) なら抑制せず発行漏れ候補(要対応)として残す
              (mfk_reconcile の漏れ隠蔽防止 安全弁を保全)。
-  年契約   : 既存 verdict SUPPRESS_ANNUAL / MATCH_ANNUAL を一次源にする。12ヶ月ルックバックは
-             根拠コメント補強に限定し既存判定を上書きしない (precedence: 既存 verdict > 遡り推定)。
+  年契約   : 既存 verdict SUPPRESS_ANNUAL / MATCH_ANNUAL を一次源にする。年契約の非請求月は
+             reconcile が今月行を出さず curr=None になるため、curr が非情報的なときは先月
+             (prev) の MATCH_ANNUAL / SUPPRESS_ANNUAL または 12ヶ月履歴の年契約一括を一次
+             トリガーにして年契約周期の非請求月を正常へ分類する (GAP-C05-ANNUAL-STOPPED)。
+             12ヶ月ルックバックは根拠コメント補強にも使い既存判定を上書きしない
+             (precedence: 既存 verdict > 遡り推定)。年契約 verdict は識別的なので prev 参照で
+             正常/漏れを分離できるが、隔月/単発 (prev=MATCH_MONTHLY 非識別的) には prev.verdict
+             同型化を適用しない (真の月次漏れと衝突するため)。⑤隔月/単発の curr=None の根治は
+             入力層 curr-present 化 (R1-collect が reconcile の SUPPRESS_OFFMONTH/ONESHOT を
+             --curr-verdicts に含める) を要するが**未実装**で、現状は⑤ curr=None も安全側
+             要対応へ落ちる (漏れを隠さない側)。根治は handoff GAP-R1-COLLECT-CURR-PRESENT で追跡。
   トライアル: canon 前の生商品名 or MF 明細 desc を参照して判定する (shohin_canon の4値正規化後は
              『トライアル』信号が消えるため、正規化前の生名を見る)。
 
@@ -448,6 +457,36 @@ def _annual_lookback_note(row, lookback_idx):
     return ""
 
 
+def _customer_is_annual_in_lookback(row, lookback_idx):
+    """12ヶ月履歴に当該取引先「かつ同一商品」の年契約一括発行があるか (curr=None の二次トリガー)。
+
+    年契約の非請求月は reconcile が今月行を出さず curr=None になる。今月・先月 verdict で
+    年契約と判定できない縁ケースでも、12ヶ月履歴に年契約一括 (MATCH_ANNUAL / annual フラグ) が
+    あれば年契約周期と分類する裏付けにする (GAP-C05-ANNUAL-STOPPED の (b) 二次トリガー)。
+
+    ★商品粒度で突合する (elegant-review F1 是正 + round2 残穴1 是正): 年契約性は「顧客属性」でなく
+    「契約/商品属性」ゆえ、混在契約顧客 (年契約商品A + 月次商品B) で B の真の月次漏れを A の年契約
+    履歴で誤抑制しないよう、**漏れ行に商品があるときは履歴レコードの商品が確定一致するものだけ**を
+    採用する。履歴レコードに商品が無い/不一致=年契約性を当該商品で確認不能ゆえ抑制しない (安全側=
+    漏れを隠さない)。これは「年契約履歴レコードは商品 (product/商品) を持つべき」というデータ契約を
+    含意する。漏れ行に商品が無いとき (row_product 空) のみ顧客単位 best-effort へ fail-soft する。
+    (b) は prev に dispositive verdict が無い縁ケースの best-effort トリガーであり、prev が月次
+    verdict を持つ通常経路は呼出側の `not prev_verdict` ゲートで (b) 自体が発火しない。
+    """
+    recs = lookback_idx.get(R.normalize(_customer(row))) or []
+    row_product = R.normalize(_product(row))
+    for rec in recs:
+        if not _rec_is_annual(rec):
+            continue
+        rec_product = R.normalize(str(rec.get("product") or rec.get("商品") or ""))
+        if row_product:
+            if rec_product == row_product:
+                return True  # 商品確定一致の年契約履歴のみ抑制の裏付けにする。
+            continue          # 商品が空 or 不一致=当該商品の年契約性を確認できない→抑制しない (安全側)。
+        return True          # 漏れ行に商品が無いときのみ顧客単位 best-effort。
+    return False
+
+
 def _new_comment(row, lookback_idx, target_month, lookback_available=True):
     """新規/年→月切替のコメント。12ヶ月前の年契約一括発行を裏付けに年→月切替を推定 (補強)。
 
@@ -484,6 +523,7 @@ def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
     SUPPRESS_ANNUAL / MATCH_ANNUAL) を消費するのみ。契約終了月 (構造化列) は二次情報。
     """
     verdict = (curr or {}).get("verdict")
+    prev_verdict = (prev or {}).get("verdict")
     end_month = _end_month_for(prev, curr, end_idx)
 
     # ① 契約完了 (終了根拠あり) = 既存 verdict SUPPRESS_ENDED を消費するのみ。
@@ -504,12 +544,49 @@ def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
         return GAP_ACTION, "前月あり今月なし (根拠なき終了月)", comment
 
     # ③ 年契約期間内 = 既存 verdict SUPPRESS_ANNUAL / MATCH_ANNUAL を一次源 (12ヶ月遡りは補強のみ)。
+    #    curr.verdict を優先するが、年契約の非請求月は reconcile が今月行を出さず curr=None
+    #    (verdict 欠落) になる (GAP-C05-ANNUAL-STOPPED: 金子金物型 systemic bug=全年契約の
+    #    非請求月が⑥へ誤爆)。そこで curr が非情報的 (verdict 欠落) なときは、先月 verdict
+    #    prev.verdict ∈ {MATCH_ANNUAL,SUPPRESS_ANNUAL} または 12ヶ月履歴の年契約一括
+    #    (_customer_is_annual_in_lookback) を一次トリガーにして年契約周期の非請求月を GAP_OK へ
+    #    分類する。年契約 verdict は識別的ゆえ prev 参照で正常/漏れを分離できる (⑤隔月の
+    #    prev=MATCH_MONTHLY は非識別的で「隔月正常」と「月次の真の漏れ」が curr=None 空間で
+    #    衝突するため prev.verdict 同型化は⑤へ横断適用しない。⑤の curr=None 根治は入力層
+    #    curr-present 化=未実装で、現状⑤ curr=None は⑥安全側 要対応へ落ちる=handoff
+    #    GAP-R1-COLLECT-CURR-PRESENT で追跡)。
+    annual_source = None
     if verdict in ANNUAL_NORMAL_VERDICTS:
-        comment = f"年契約期間内 (既存 verdict {verdict} を一次源)"
-        note = _annual_lookback_note(prev or curr, lookback_idx)
-        if note:
-            comment += " / " + note
+        annual_source = f"既存 verdict {verdict} を一次源"
+    elif not verdict:  # curr=None / verdict 欠落 = 年契約の非請求月の疑い (curr 単独では判定不能)
+        if prev_verdict in ANNUAL_NORMAL_VERDICTS:
+            annual_source = (f"先月 verdict {prev_verdict} を一次源 "
+                             "(今月は年契約の非請求月=行なし)")
+        # (b) 12ヶ月履歴トリガーは prev に dispositive verdict が無い (issued だが verdict 不明) ときだけ。
+        # prev=MATCH_MONTHLY 等の月次 issued verdict があるなら現在は月次発行=年→月切替後ゆえ、
+        # 12ヶ月前の旧年契約履歴で正常化してはならない (真の月次漏れの隠蔽=elegant-review F1 是正)。
+        elif not prev_verdict and _customer_is_annual_in_lookback(prev or curr, lookback_idx):
+            annual_source = "12ヶ月履歴の年契約一括を一次源 (今月は年契約の非請求月=行なし)"
+    if annual_source:
+        # 経理向け平易文を先頭に置き、内部 verdict は根拠として併記する (F7)。
+        comment = f"年間一括請求のため今月は請求なし=正常 ({annual_source})"
+        # source 自体が履歴由来でないときだけ補強 note を足す (二重掲載を避ける)。
+        if "12ヶ月履歴" not in annual_source:
+            note = _annual_lookback_note(prev or curr, lookback_idx)
+            if note:
+                comment += " / " + note
         return GAP_OK, "前月あり今月なし (年契約周期)", comment
+
+    # ③' 契約完了の curr=None 変種 = 先月が最終請求 (prev=MATCH_ENDED_FINAL=終端の識別的 verdict)・
+    #    今月行なし → 契約終了後の非請求月=正常 (elegant-review F2: plan 明示の①契約完了 curr=None
+    #    hard-gate 分岐)。年契約③と同型 (終端 issued verdict の翌月 curr=None) だが、MATCH_ENDED_FINAL
+    #    は識別的ゆえ回避可能な誤爆を正しく正常化できる。⑤隔月の非識別 MATCH_MONTHLY とは別で、
+    #    真の月次漏れ (prev=MATCH_MONTHLY・curr=None→⑥要対応) には適用しない。
+    if not verdict and prev_verdict == "MATCH_ENDED_FINAL":
+        comment = ("契約完了のため今月は請求なし=正常 "
+                   "(先月 verdict MATCH_ENDED_FINAL=最終請求済・今月は契約終了後の非請求月)")
+        if end_month:
+            comment += f" 契約終了月={end_month}"
+        return GAP_OK, "前月あり今月なし (契約完了)", comment
 
     # ④ トライアル完了 = canon 前の生商品名 / MF明細 desc の『トライアル』信号で判定。
     if _is_trial(prev) or _is_trial(curr):
@@ -528,8 +605,16 @@ def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
     # ⑥ 正常な非請求事情に該当せず (SUPPRESS_* でも年契約/契約終了でもトライアルでもない)
     #    → 発行漏れ候補 (要対応)。GAP verdict や verdict 欠落・REVIEW_* 等はここへ落ちる。
     tail = f" (既存 verdict {verdict})" if verdict else ""
-    return GAP_ACTION, "前月あり今月なし (発行漏れ候補)", \
-        "正常な非請求事情 (年契約/トライアル/契約終了/対象外抑制) に該当せず→発行漏れ候補・要対応" + tail
+    comment = ("正常な非請求事情 (年契約/トライアル/契約終了/対象外抑制) に該当せず"
+               "→発行漏れ候補・要対応" + tail)
+    # curr=None (今月行なし) の要対応は「安全側 over-report」の可能性がある。年契約初年度
+    # (prev に MATCH_ANNUAL なし・DB1 支払サイクル未配線) / 契約完了 (MATCH_MONTHLY+終了注記) /
+    # 隔月の対象外月 が収集層で curr=None に落ちた場合も⑥へ来るため、確認経路を runtime で開示する
+    # (elegant-review F8/E: 安全側 over-report は理由と補強経路を開示して初めて運用できる)。
+    if not verdict:
+        comment += (" ｜ 確認: 今月行なし(curr=None)。年契約初年度(--lookback-12mo/DB1支払サイクル)・"
+                    "契約完了(--contract-end)・隔月対象外月 の可能性は収集層 curr-present 化で切り分ける")
+    return GAP_ACTION, "前月あり今月なし (発行漏れ候補)", comment
 
 
 def _classify_continuing(pair, lookback_idx, end_idx, target_month):

@@ -241,9 +241,136 @@ def test_stopped_gap_candidate_requires_action():
 
 def test_stopped_when_curr_row_absent():
     # 今月 verdict 行が全く無い (今月なし) 継続契約 → 既定は発行漏れ候補 (要対応)。
+    # 保護不変条件: 月払い (prev=MATCH_MONTHLY) の curr=None は「真の漏れ」ゆえ要対応のまま。
+    # 年契約 fix (prev=MATCH_ANNUAL 分岐) がこの月払いの真の漏れを誤って正常化しないことを守る。
     prev = [_row("消失社", "月額", "MATCH_MONTHLY")]
     row = _classify(prev, [])[0]
     assert row["gap_check"] == "要対応"
+
+
+# ---------------------------------------------------------------------------
+# GAP-C05-ANNUAL-STOPPED: curr=None (年契約の非請求月) 分岐カバレッジ (hard gate)
+#   curr=None × prev-verdict 各値 (年契約 MATCH_ANNUAL / 月払い MATCH_MONTHLY / 12ヶ月履歴年契約 /
+#   年契約だが prev に年契約 verdict 不在=初年度縁ケース) を網羅し、金子金物型 systemic bug の
+#   再発 (全年契約の非請求月が⑥誤爆) を防ぐ。curr-present 変種は既存テストで別途素通り検証済み。
+# ---------------------------------------------------------------------------
+
+def test_stopped_annual_curr_absent_is_gap_ok_kaneko_kanamono():
+    # 金子金物型: 先月 MATCH_ANNUAL (180万・年契約一括) ・今月行なし (curr=None) → 年契約周期=正常。
+    # curr 単独では verdict=None ゆえ⑥誤爆していたのを prev.verdict MATCH_ANNUAL で正常化する。
+    prev = [_row("金子金物", "100億ThinkTank利用料", "MATCH_ANNUAL", evidence_amount=1800000)]
+    row = _classify(prev, [])[0]
+    assert row["gap_check"] == "正常"
+    assert "年契約周期" in row["period_diff"]
+    assert "先月 verdict MATCH_ANNUAL" in row["comment"]
+
+
+def test_stopped_annual_curr_absent_via_suppress_annual_prev():
+    # 先月 SUPPRESS_ANNUAL でも evidence 金額があれば発行済み扱い → curr=None は年契約周期=正常。
+    prev = [_row("年契約社B", "年額", "SUPPRESS_ANNUAL", evidence_amount=600000)]
+    row = _classify(prev, [])[0]
+    assert row["gap_check"] == "正常"
+    assert "年契約周期" in row["period_diff"]
+
+
+def test_stopped_annual_curr_absent_via_12mo_history():
+    # 先月 verdict が年契約でなくても (issued=True の裏付けのみ)、12ヶ月履歴に**同一商品**の年契約
+    # 一括があれば年契約周期=正常へ分類する (GAP-C05-ANNUAL-STOPPED (b) 二次トリガー)。
+    # データ契約: 年契約履歴レコードは商品 (product) を持つ (round2 残穴1: 商品確定一致のみ抑制)。
+    prev = [{"取引先": "履歴年契約社", "商品": "年額", "issued": True, "現行単価": 500000}]
+    lookback = {"履歴年契約社": [{"month": "2506", "annual_lump": True, "product": "年額"}]}
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"
+    assert "年契約周期" in row["period_diff"]
+    assert "12ヶ月履歴の年契約一括" in row["comment"]
+
+
+def test_stopped_annual_history_no_product_mixed_customer_not_hidden():
+    # round2 残穴1 (adversarial 検出): 履歴レコードに商品が無いと当該商品の年契約性を確認できない。
+    # 混在契約顧客 (年契約商品A・商品未記載 + 今月漏れは月次商品B) で、B の真の月次漏れを商品確認
+    # できない年契約履歴で誤抑制しない (安全側=漏れを隠さない)。
+    prev = [{"取引先": "混在社", "商品": "月次B", "issued": True, "現行単価": 30000}]
+    lookback = {"混在社": [{"month": "2506", "annual_lump": True}]}  # product 無し=確認不能
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "要対応"                     # 商品確認できない年契約で隠さない
+
+
+def test_stopped_no_product_row_falls_back_to_customer_annual():
+    # 漏れ行自体に商品が無いとき (row_product 空) のみ顧客単位 best-effort へ fail-soft する。
+    prev = [{"取引先": "商品不明社", "issued": True, "現行単価": 400000}]  # 商品なし
+    lookback = {"商品不明社": [{"month": "2506", "annual_lump": True}]}
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"                       # 行に商品が無い→顧客単位 best-effort
+    assert "年契約周期" in row["period_diff"]
+
+
+def test_stopped_monthly_curr_absent_stays_action_not_annual_leak():
+    # 分離不変条件: 月払い (prev=MATCH_MONTHLY・年契約シグナルなし) の curr=None は真の漏れ=要対応。
+    # 年契約 fix が月払いの curr=None まで正常化しない (⑤隔月への prev.verdict 同型化を排した効果)。
+    prev = [_row("月払い漏れ社", "月額", "MATCH_MONTHLY", amount=50000)]
+    row = _classify(prev, [])[0]
+    assert row["gap_check"] == "要対応"
+    assert "発行漏れ候補" in row["period_diff"]
+
+
+def test_stopped_annual_first_year_no_prev_verdict_is_action_edge_case():
+    # 縁ケース (plan 明記): 年間契約でも reconcile が MATCH_ANNUAL を未 emit (初年度/verdict 欠落) かつ
+    # 12ヶ月履歴なしだと、(a) prev.verdict も (b) 履歴も外れ・(c) DB1 支払サイクルは未配線ゆえ
+    # 抑制できず要対応へ落ちる (安全側=漏れを隠さない)。DB1 支払サイクル OR 配線は将来の補強点。
+    prev = [_row("初年度年契約社", "年額", "MATCH_MONTHLY", amount=300000)]  # 年契約だが verdict は月次相当
+    row = _classify(prev, [])[0]
+    assert row["gap_check"] == "要対応"   # 安全側 (over-report)。DB1 配線で将来是正可能。
+
+
+def test_stopped_annual_curr_present_still_wins_over_prev_inference():
+    # curr が実 verdict を持つときは curr を優先 (prev 推定に落ちない)。年契約 prev + 今月 SUPPRESS_ENDED
+    # (契約完了) は①契約完了が先に発火する (curr 情報 > prev 推定)。
+    prev = [_row("年→終了社", "年額", "MATCH_ANNUAL", evidence_amount=600000)]
+    curr = [_row("年→終了社", "年額", "SUPPRESS_ENDED", end_month="2605")]
+    row = _classify(prev, curr)[0]
+    assert row["gap_check"] == "正常"
+    assert "契約完了" in row["period_diff"]   # ③年契約でなく①契約完了 (curr 優先)
+
+
+def test_stopped_ended_final_curr_absent_is_gap_ok():
+    # ①契約完了の curr=None 変種 (plan hard-gate・elegant-review F2): 先月 MATCH_ENDED_FINAL=最終
+    # 請求済・今月行なし → 契約終了後の非請求月=正常。MATCH_ENDED_FINAL は識別的ゆえ誤爆を回避できる。
+    prev = [_row("最終請求社", "月額", "MATCH_ENDED_FINAL", amount=50000, end_month="2605")]
+    row = _classify(prev, [])[0]
+    assert row["gap_check"] == "正常"
+    assert "契約完了" in row["period_diff"]
+    assert "MATCH_ENDED_FINAL" in row["comment"] and "契約終了月=2605" in row["comment"]
+
+
+# --- elegant-review F1 是正: 年→月切替後の真の月次漏れを旧年契約履歴で隠さない (leak 封鎖) ---
+
+def test_stopped_yearmonth_switch_monthly_gap_not_hidden_by_annual_history():
+    # 年→月切替済み顧客: 12ヶ月前に年契約一括履歴があるが prev=MATCH_MONTHLY (今は月次)。
+    # 今月 curr=None は真の月次漏れ。(b) 履歴トリガーは prev に月次 verdict があると発火しない
+    # (prev.verdict=MATCH_MONTHLY で年→月切替後と判る)。旧年契約履歴で正常化してはならない。
+    prev = [_row("年→月切替社", "月額", "MATCH_MONTHLY", amount=50000)]
+    lookback = {"年→月切替社": [{"month": "2506", "annual_lump": True, "product": "月額"}]}
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "要対応"                     # 真の漏れを隠さない (false-negative 封鎖)
+    assert "発行漏れ候補" in row["period_diff"]
+
+
+def test_stopped_annual_history_wrong_product_not_hidden():
+    # 混在契約: 年契約は商品A、今月漏れは商品B (prev verdict なし)。A の年契約履歴で B を誤抑制
+    # しない (商品越境防止=_customer_is_annual_in_lookback の product 突合)。
+    prev = [{"取引先": "混在社", "商品": "月次B", "issued": True, "現行単価": 30000}]
+    lookback = {"混在社": [{"month": "2506", "annual_lump": True, "product": "年契約A"}]}
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "要対応"                     # 別商品の年契約で隠さない
+
+
+def test_stopped_annual_history_same_product_still_normal():
+    # 対称: 同一商品の年契約履歴なら (prev verdict なし・curr=None) は年契約周期=正常のまま。
+    prev = [{"取引先": "同商品社", "商品": "年額P", "issued": True, "現行単価": 600000}]
+    lookback = {"同商品社": [{"month": "2506", "annual_lump": True, "product": "年額P"}]}
+    row = _classify(prev, [], lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"
+    assert "年契約周期" in row["period_diff"]
 
 
 def test_stopped_offmonth_suppress_is_normal_not_leak():
