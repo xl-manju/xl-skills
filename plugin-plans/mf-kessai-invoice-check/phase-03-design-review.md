@@ -19,7 +19,7 @@ applicability:
 P02 の設計 (`component-inventory.json` と envelope draft) を design-gate として elegant-review C1-C4 で審査し、proposer≠approver の原則で独立レビュアが通過判定を下す。設計段階の欠陥 (単一 skill 退化・分類 SSOT の重複・C04 既存実装の破壊的上書き) を実装前に止める gate フェーズ。
 
 ## 背景
-分類ロジックを C05 という薄い差分エンジンへ、月次レポート DB の構築/配置(トグル配下 newest-on-top)/冪等 upsert を C06 sink へ分離する設計判断や、C01 がオーケストレーションに徹しこれらへ委譲する境界が適切かどうかは、実装後に見直すとレポート・sub-agent・guard の複数者を巻き込む手戻りになる。C04 は新規 build でなく既存稼働 hook への in-place 拡張 (`build_mode=extend-existing`) であるため、既存 R1-R3/allowlist を破壊しないことも本審査の対象。提案者と承認者を分離 (proposer≠approver) することで、単一 skill への退化や既存 reconcile との分類共有 over-claim を実装前に検出する。
+分類ロジックを C05 という薄い差分エンジンへ、単一恒久 report DB の既存確認/配置/冪等 upsert を C06 sink へ分離する設計判断や、C01 がオーケストレーションに徹しこれらへ委譲する境界が適切かどうかは、実装後に見直すとレポート・sub-agent・guard の複数者を巻き込む手戻りになる。C04 は新規 build でなく既存稼働 hook への in-place 拡張 (`build_mode=extend-existing`) であるため、既存 R1-R3/allowlist を破壊しないことも本審査の対象。提案者と承認者を分離 (proposer≠approver) することで、単一 skill への退化や既存 reconcile との分類共有 over-claim を実装前に検出する。
 
 ## 前提条件
 - P02 の `component-inventory.json` と `envelope-draft/plugin.json` が生成済み。

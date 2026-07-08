@@ -115,7 +115,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `run-mf-invoice-report` SKILL Step 3 (verify)。R2 (C05) の分類内訳が入力。
-- 後続 phase: render (R4=C06、`--apply` で月次レポート DB へ非破壊冪等 upsert)。
+- 後続 phase: render (R4=C06、`--apply` で単一恒久レポート DB へ非破壊冪等 upsert)。
 
 ### 6.2 ハンドオフ / 並列性
 - 提供元: R2 (C05 の分類済みレポート行)。

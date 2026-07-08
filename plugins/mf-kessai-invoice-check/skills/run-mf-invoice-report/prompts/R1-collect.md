@@ -38,6 +38,7 @@
 - **12 ヶ月遡りのデータ源は MF掛け払い API の発行実績 (`transaction.date` 履歴) であり、請求確認シートではない**。シートは `--contract-end` (契約終了月=二次情報) の源にすぎず、シートの開始月 (例: 2605 開始) は 12 ヶ月遡りの可否と無関係。前月なし今月あり (新規/年→月切替) は「12ヶ月前の年契約一括→月額自動切替」の可能性が高い (C3) ため、**シートの開始月を理由に 12 ヶ月遡りを省略しない**。MF 実績自体が 12 ヶ月前まで存在しない場合 (口座開設が新しい等) のみ遡り不可で、そのときは省略理由を「MF実績が YYMM 開始のため」と源を正しく特定して明示する (シートと取り違えない)。省略した場合、C05 は前月なし今月あり行のコメントへ『12ヶ月ルックバック未実行→年→月切替か真の新規か未確認』を焼き、stderr に警告を出す (silent skip の禁止)。
 - per-月 verdict 行の各要素は C05 が消費するキーを保持する: `verdict` / `customer` (または `取引先`) / `product` (または `商品`) / `contract_id` / `evidence`(desc/amount) / `現行単価` 等の金額 / トライアル信号のための canon 前の生商品名 (`商品生名`/`product_raw`) や `確認内容`。
 - 契約終了月 (`--contract-end`) は二次情報。C05 は `has_end_basis` 由来の既存 verdict を一次源にし、構造化列『契約終了月』は cross-check に使う (根拠なき終了月を抑制に使わない)。
+- **【既知の限界・未実装 (GAP-R1-COLLECT-CURR-PRESENT)】curr の非請求月 suppress 行の curr-present 化**: reconcile は非請求月にも `SUPPRESS_OFFMONTH`/`SUPPRESS_ONESHOT`/`SUPPRESS_ANNUAL` を算出するが、`--curr-verdicts` が DB2 スナップショット由来だとこの抑制行が persist されず落ち、C05 で `curr=None` になる。C05 は③年契約(prev=MATCH_ANNUAL 識別的)と①MATCH_ENDED_FINAL(終端識別的)を prev.verdict で症状救済済みだが、⑤隔月/単発 (prev=MATCH_MONTHLY 非識別的) の curr=None は『対象外月(正常)』と『真の月次漏れ(要対応)』が原理的に分離不能ゆえ、現状は安全側で⑥要対応へ落ちる (過剰報告)。**根治は本 R1 収集層で「reconcile が返す全 rec (SUPPRESS_* 含む) を `--curr-verdicts` に persist して curr-present 化する」ことだが未実装**。実装時の副契約: suppress 行に正金額 evidence を載せない (C05 `_is_issued` が True 化し継続発行に誤分類されるのを防ぐ)。追跡=handoff `GAP-R1-COLLECT-CURR-PRESENT`。
 - `status=canceled` かつ商品名が残る 0円明細は取消証跡として保持する (単純 0円除外にしない・`build_mf_index` が inactive へ残す)。
 
 ### 2.3 入力契約

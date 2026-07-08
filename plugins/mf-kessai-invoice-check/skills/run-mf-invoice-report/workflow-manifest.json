@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-mf-invoice-report",
   "skill": "run-mf-invoice-report",
-  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月 MF実績GET+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で月次レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC05・DB構築/配置/冪等upsertはC06 sinkが所有し本skillはオーケストレーションに徹する。",
+  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月 MF実績GET+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で単一恒久レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC05・出力先DB解決/冪等upsertはC06 sinkが所有し本skillはオーケストレーションに徹する。",
   "phases": [
     {
       "id": "collect",
@@ -42,13 +42,13 @@
     {
       "id": "render",
       "step": 4,
-      "title": "月次レポートDBへ非破壊冪等upsert",
+      "title": "単一恒久レポートDBへ非破壊冪等upsert",
       "responsibility": "prompts/R4-render.md",
       "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/notion_report_sink.py --rows <ROWS> --target <YYMM> [--apply --verified] [--config <PATH>]",
       "lib": "scripts/notion_report_sink.py",
       "dependsOn": ["verify"],
       "fatal_exit_codes": [2],
-      "note": "分類済みレポート行を月次レポートDB(指定ページ『請求書発行チェック』直下)へ find-or-create + 非破壊冪等 upsert する(C06)。Notion API 2022-06-28 は database の親に page_id/database_id のみ許容し block_id=トグル見出しを許さないため、月次DBは report_parent_page 直下に作成する。当月DBへ日々追加((取引先,商品)ストアキーで重複行0・契約IDは7列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・月跨ぎは新しい月DBを append 作成し newest-on-top の意図位置を placement で開示して過去月DBを保全。列順は [取引先名(title), 漏れチェック(checkbox), 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント]。漏れチェックは 正常=✓ / 要対応=☐。DB構築/配置/冪等upsertはここが所有。report_parent_page 未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
+      "note": "分類済みレポート行を単一恒久レポートDBへ非破壊冪等 upsert する(C06)。C06 は report_toggle_block が指す指定見出しを起点に、トグル配下 DB(in-block)・プレーン見出し直下 DB(under-heading)・ページ直下既存 DB(page) の順で既存確認し、どれも無ければ report_parent_page 直下へ新規作成(page-created)する。単一DBへ日々追加((対象月,取引先,商品)ストアキーで重複行0・契約IDは8列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・別月/以前行は対象月列で保全。列順は [取引先名(title), 対象月, 漏れチェック(checkbox), 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント]。漏れチェックは 正常=✓ / 要対応=☐。出力先DB解決/冪等upsertはここが所有。report_parent_page 未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
     }
   ],
   "guards": [

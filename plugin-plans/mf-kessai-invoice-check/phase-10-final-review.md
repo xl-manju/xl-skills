@@ -19,7 +19,7 @@ applicability:
 完成したプラグイン全体を final-gate として elegant-review C1-C4 (final) + governance で審査し、unassigned component が 0 件であることを確認する。proposer≠approver で最終承認を下すゲート。
 
 ## 背景
-個々の component (C01〜C06) が緑でも、全体として矛盾・漏れ・orphan が残りうる (例: C05 分類ロジックの一部が report skill C01 へ暗黙に重複していないか、C06 sink の月次 DB 積層契約が C01 から正しく利用されているか)。final-gate はプラグイン全域を C1-C4 (final scope) + governance で審査し、提案者と別の approver が最終承認する。`detect-unassigned` で orphan 0 件・13 フェーズ完全性を機械再確認するのがこのゲートの決定論部分。
+個々の component (C01〜C06) が緑でも、全体として矛盾・漏れ・orphan が残りうる (例: C05 分類ロジックの一部が report skill C01 へ暗黙に重複していないか、C06 sink の単一恒久 report DB 解決/更新契約が C01 から正しく利用されているか)。final-gate はプラグイン全域を C1-C4 (final scope) + governance で審査し、提案者と別の approver が最終承認する。`detect-unassigned` で orphan 0 件・13 フェーズ完全性を機械再確認するのがこのゲートの決定論部分。
 
 ## 前提条件
 - P09 の qa gate を全 component (C01〜C06) が通過している。
