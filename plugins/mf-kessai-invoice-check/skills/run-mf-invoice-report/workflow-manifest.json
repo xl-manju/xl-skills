@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-mf-invoice-report",
   "skill": "run-mf-invoice-report",
-  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月 MF実績GET+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で単一恒久レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC05・出力先DB解決/冪等upsertはC06 sinkが所有し本skillはオーケストレーションに徹する。",
+  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月/lookback MF実績GET+pagination trace記録+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→fetch-audit(mfk_fetch_audit.py で fetch_trace の取得完全性を監査し fidelity report を出力・当月/先月NGはfail-closed)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成・fidelity reportを--fidelity-reportで必須受領)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で単一恒久レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC03・fetch fidelity監査はC06・出力先DB解決/冪等upsertはC04 sinkが所有し本skillはオーケストレーションに徹する。",
   "phases": [
     {
       "id": "collect",
@@ -13,24 +13,36 @@
       "lib": "lib/mfk_api.py + lib/mfk_reconcile.py",
       "context": "main",
       "fatal_exit_codes": [2],
-      "produces": "curr-verdicts / prev-verdicts / lookback-12mo / contract-end の JSON 入力",
-      "note": "今月=直近締め済み請求対象月(例 2026-07-02 実行→2606)・先月=その1ヶ月前(2605)を決定。前月/今月の全取引先 MF発行実績を全ページGETし、既存 mfk_reconcile の per-月 verdict(SUPPRESS_ENDED/SUPPRESS_ANNUAL/MATCH_ANNUAL 等)を収集。取引先×商品で状態遷移を抽出し差分該当取引先のみ12ヶ月遡り。突合キーは mfk_reconcile.normalize/extract_names を再利用。MF変更系は hook で遮断・GETのみ。"
+      "produces": "curr-verdicts / prev-verdicts / lookback-12mo / contract-end / fetch_trace の JSON 入力",
+      "note": "今月=直近締め済み請求対象月(例 2026-07-02 実行→2606)・先月=その1ヶ月前(2605)を決定。前月/今月/lookback の全取引先 MF発行実績を全ページGETし、各GETの pagination trace(page/total/issue_date/stale)を fetch_trace へ記録して後段 fetch-audit へ渡す。既存 mfk_reconcile の per-月 verdict(SUPPRESS_ENDED/SUPPRESS_ANNUAL/MATCH_ANNUAL 等)を収集。取引先×商品で状態遷移を抽出し差分該当取引先のみ12ヶ月遡り。突合キーは mfk_reconcile.normalize/extract_names を再利用。MF変更系は hook で遮断・GETのみ。"
+    },
+    {
+      "id": "fetch-audit",
+      "step": 2,
+      "title": "fetch fidelity 監査 (取得の完全性ゲート・network なし)",
+      "responsibility": "prompts/R1-collect.md",
+      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/mfk_fetch_audit.py --fetch-trace <TRACE> [--target <YYMM>] --out <FID>",
+      "lib": "scripts/mfk_fetch_audit.py",
+      "dependsOn": ["collect"],
+      "fatal_exit_codes": [2],
+      "produces": "fetch fidelity report JSON (classify が --fidelity-report で必須消費)",
+      "note": "collect が記録した fetch_trace(pagination/total/issue_date/stale)を監査し fetch fidelity report を出力する新規 SSOT(C06 mfk_fetch_audit.py)。MF実績起点の判定は取得の最新性/完全性が前提のため、当月or先月の fetch NG(pagination.total 破棄残置・完全不在等)は exit1=fail-closed(classify が漏れ確認レポートを emit しない)、lookback(12ヶ月遡り)の部分欠損は exit3(classify が STATE_NEW 該当行を要確認へ降格)、全OKは exit0。exit code は 0=OK / 1=当月or先月 fidelity 違反(fail-closed) / 3=lookback 部分欠損(要確認降格・非致命) / 2=入力不正。fatal は 2 のみで exit1/exit3 は fidelity report 経由で classify が消費する(--out は exit コードに関わらず常に書く)。決定論/network なし。"
     },
     {
       "id": "classify",
-      "step": 2,
+      "step": 3,
       "title": "前月↔今月 状態遷移分類 + 事情コメント生成",
       "responsibility": "prompts/R2-classify.md",
-      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/mfk_period_report.py --curr-verdicts <CURR> --prev-verdicts <PREV> [--lookback-12mo <LB>] [--contract-end <CE>] [--target-month <YYMM>]",
+      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/mfk_period_report.py --curr-verdicts <CURR> --prev-verdicts <PREV> --fidelity-report <FID> [--lookback-12mo <LB>] [--contract-end <CE>] [--target-month <YYMM>]",
       "lib": "scripts/mfk_period_report.py",
-      "dependsOn": ["collect"],
+      "dependsOn": ["fetch-audit"],
       "fatal_exit_codes": [2],
       "produces": "分類済みレポート行 JSON (customer/amount/prev_amount/gap_check/period_diff/product/comment/contract_id/target_month)",
-      "note": "既存 per-月 verdict を入力に取り前月↔今月の発行状態遷移だけを分類する薄い差分エンジン(C05)。継続発行は全行 emit・今月なし×前月なしは非 emit。正常事情は既存 verdict を一次源に消費し自由文の終了根拠を再パースしない。根拠なき終了月は抑制せず発行漏れ候補に残す。トライアル完了は canon 前の生商品名/MF明細descで判定。分類実体はここが正本で本skillは呼び出すのみ。exit code は 0=全て正常 / 1=発行漏れ候補(要対応)あり(=正常な検出結果・非致命) / 2=fail-closed(入力欠落)。fatal は 2 のみで exit1 を失敗扱いしないこと(要対応の存在は正常な出力)。"
+      "note": "既存 per-月 verdict を入力に取り前月↔今月の発行状態遷移だけを分類する薄い差分エンジン(C03)。fetch-audit(C06)の fetch fidelity report を --fidelity-report で必須受領する(argparse required=True): report.exit_code==1(当月/先月 fetch NG)なら fail-closed で非emit・==3(lookback 部分欠損)なら STATE_NEW 該当行を要確認へ降格する。金額列(今月/先月の金額)は MF実発行額 actual_amount を最優先で載せる(D3・supply_state≠active の取消/供給なしは金額列を空にし取消前額を出さない・期待額との差はコメント/比較列で開示)。継続発行は全行 emit・今月なし×前月なしは非 emit。正常事情は既存 verdict を一次源に消費し自由文の終了根拠を再パースしない。根拠なき終了月は抑制せず発行漏れ候補に残す。トライアル完了は canon 前の生商品名/MF明細descで判定。分類実体はここが正本で本skillは呼び出すのみ。exit code は 0=全て正常 / 1=発行漏れ候補(要対応)あり or fetch fidelity exit1 での fail-closed 非emit / 2=fail-closed(入力欠落/fidelity-report 読込失敗)。fatal は 2 のみで exit1 を失敗扱いしないこと(要対応の存在は正常な出力)。"
     },
     {
       "id": "verify",
-      "step": 3,
+      "step": 4,
       "title": "二段確認 (sub-agent・独立context)",
       "responsibility": "prompts/R3-verify.md",
       "delegateAgent": "mfk-report-verifier",
@@ -41,14 +53,14 @@
     },
     {
       "id": "render",
-      "step": 4,
+      "step": 5,
       "title": "単一恒久レポートDBへ非破壊冪等upsert",
       "responsibility": "prompts/R4-render.md",
       "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/notion_report_sink.py --rows <ROWS> --target <YYMM> [--apply --verified] [--config <PATH>]",
       "lib": "scripts/notion_report_sink.py",
       "dependsOn": ["verify"],
       "fatal_exit_codes": [2],
-      "note": "分類済みレポート行を単一恒久レポートDBへ非破壊冪等 upsert する(C06)。C06 は report_toggle_block が指す指定見出しを起点に、トグル配下 DB(in-block)・プレーン見出し直下 DB(under-heading)・ページ直下既存 DB(page) の順で既存確認し、どれも無ければ report_parent_page 直下へ新規作成(page-created)する。単一DBへ日々追加((対象月,取引先,商品)ストアキーで重複行0・契約IDは8列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・別月/以前行は対象月列で保全。列順は [取引先名(title), 対象月, 漏れチェック(checkbox), 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント]。漏れチェックは 正常=✓ / 要対応=☐。出力先DB解決/冪等upsertはここが所有。report_parent_page 未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
+      "note": "分類済みレポート行を単一恒久レポートDBへ非破壊冪等 upsert する(C04)。C04 は report_toggle_block が指す指定見出しを起点に、トグル配下 DB(in-block)・プレーン見出し直下 DB(under-heading)・ページ直下既存 DB(page) の順で既存確認し、どれも無ければ report_parent_page 直下へ新規作成(page-created)する。単一DBへ日々追加((対象月,取引先,商品)ストアキーで重複行0・契約IDは8列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・別月/以前行は対象月列で保全。列順は [取引先名(title), 対象月, 漏れチェック(checkbox), 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント]。漏れチェックは 正常=✓ / 要対応=☐。出力先DB解決/冪等upsertはここが所有。report_parent_page 未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
     }
   ],
   "guards": [
@@ -60,7 +72,7 @@
     {
       "event": "PreToolUse",
       "hook": "hooks/guard-mfk-no-reinvent.py",
-      "purpose": "正本以外への状態遷移分類の再実装 (compare/period_diff/classify_* 語幹) と人間丸投げ注記を遮断し、分類エンジンC05への一本化を機械強制する"
+      "purpose": "正本以外への状態遷移分類の再実装 (compare/period_diff/classify_* 語幹) と人間丸投げ注記を遮断し、分類エンジンC03への一本化を機械強制する"
     }
   ]
 }

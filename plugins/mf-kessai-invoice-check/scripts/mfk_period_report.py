@@ -24,7 +24,7 @@
 # dependencies: [mfk_reconcile]
 # requires-python: ">=3.11"
 # ///
-"""前月↔今月の発行状態遷移を分類する薄い差分エンジン (C05)。
+"""前月↔今月の発行状態遷移を分類する薄い差分エンジン (C03)。
 
 本スクリプトは新しい照合ロジックを持たない。既存 lib/mfk_reconcile.py が算出した per-月
 verdict (MATCH_* / SUPPRESS_* / GAP / REVIEW_*) を入力に取り、前月集合と今月集合の
@@ -44,7 +44,7 @@ verdict (MATCH_* / SUPPRESS_* / GAP / REVIEW_*) を入力に取り、前月集�
                     正常抑制 (SUPPRESS_* / 年契約 / 契約完了 / トライアル) や curr 不在は非 emit を維持。
 
 正常事情の一次情報源 (自由文を再パースしない = SSOT 尊重):
-  契約完了 : 既存 verdict SUPPRESS_ENDED を消費するのみ。C05 は確認内容/備考を再パースしない。
+  契約完了 : 既存 verdict SUPPRESS_ENDED を消費するのみ。C03 は確認内容/備考を再パースしない。
              構造化列『契約終了月』に値があっても、既存判定が REVIEW_ENDED_NO_BASIS
              (終了根拠 has_end_basis なし) なら抑制せず発行漏れ候補(要対応)として残す
              (mfk_reconcile の漏れ隠蔽防止 安全弁を保全)。
@@ -86,6 +86,10 @@ if _LIB not in sys.path:
     sys.path.insert(0, _LIB)
 
 import mfk_reconcile as R  # noqa: E402
+
+# C05: MF実績 carrier の供給状態語彙 (SUPPLY_ACTIVE 等) を SSOT 参照する (文字列リテラルのドリフト防止)。
+# mfk_period_report は scripts/ 配下ゆえ mfk_actuals を同ディレクトリから import できる。
+import mfk_actuals as R_ACTUALS  # noqa: E402
 
 
 # ============================================================================
@@ -171,16 +175,35 @@ def _contract_id(row):
 
 
 def _amount_of(row):
-    """行の金額 (税抜 int)。期待単価を優先し evidence.amount へ fail-soft。"""
+    """行の金額 (税抜 int)。**MF実績 actual_amount を最優先**し期待額はオーバーレイ (D3 amount-gate 根治)。
+
+    現行実装は期待単価優先で evidence 欠落=金額列空白 (症状①⑥) だったのを、canonical carrier
+    `actual_amount` (MF が実発行した額・C05・active 供給限定) 優先へ**反転**する。優先順位:
+      ① actual_amount (C05 carrier を持つ行=MF実績由来の実発行額)。
+      ② actual_amount が明示 None かつ supply_state が active 以外 (取消/供給なし) → 金額列は空 (None)。
+         取消前額 (evidence.amount) も期待額も出さない (K3: 未発行/取消を金額列に出さない)。
+      ③ actual_amount carrier 非保持の legacy 行 or active だが実額欠落 → 期待額 (現行単価等) へ fail-soft。
+      ④ legacy evidence.amount fallback は supply_state==active or 未設定 (legacy) に限定 (取消前額を昇格させない)。
+    """
     if not row:
         return None
+    ss = row.get("supply_state")
+    if "actual_amount" in row:  # C05 carrier を持つ行 (MF実績由来)
+        iv = _to_int(row.get("actual_amount"))
+        if iv is not None:
+            return iv
+        # actual_amount が明示 None かつ active でない = MF未発行 (取消/供給なし)。金額列に
+        # 期待額や取消前額を出さず空にする (K3・症状②/取消の金額列非表示)。
+        if ss is not None and ss != R_ACTUALS.SUPPLY_ACTIVE:
+            return None
     for k in ("現行単価", "amount", "expected_amount", "金額", "単価"):
         iv = _to_int(row.get(k))
         if iv is not None:
             return iv
-    ev = row.get("evidence")
-    if isinstance(ev, dict):
-        return _to_int(ev.get("amount"))
+    if ss is None or ss == R_ACTUALS.SUPPLY_ACTIVE:
+        ev = row.get("evidence")
+        if isinstance(ev, dict):
+            return _to_int(ev.get("amount"))
     return None
 
 
@@ -205,14 +228,26 @@ def _is_trial(row):
 
 
 def _is_issued(row):
-    """当月に有効な MF 請求が発行されたか (既存 verdict を消費するのみ)。
+    """当月に有効な MF 請求が発行されたか。**MF実績 reliable issued を最優先**する (amount-gate 根治)。
 
-    verdict が ISSUED_VERDICTS か、evidence に正の金額があるか、明示 issued フラグが True。
+    優先順位:
+      ① 明示 issued フラグ True (後方互換)。
+      ② MF実績由来 reliable_issued True (C05: active 供給を実発行=期待額一致でなく実績)。症状③⑦根治。
+      ③ C05 carrier を持つ行で supply_state が active 以外 (inactive_canceled/pending/none) なら
+         **未発行と断定**して False を返す (verdict/evidence.amount による誤 issued を上書き=取消前額の
+         issued 化を防ぐ K3 偽陰性隔離)。
+      ④ legacy: verdict が ISSUED_VERDICTS か evidence に正の金額 (evidence.amount fallback は
+         supply_state==active or 未設定=legacy 行に限定)。
     """
     if not row:
         return False
     if row.get("issued") is True:
         return True
+    if row.get("reliable_issued") is True:
+        return True
+    ss = row.get("supply_state")
+    if ss is not None and ss != R_ACTUALS.SUPPLY_ACTIVE:
+        return False
     if row.get("verdict") in ISSUED_VERDICTS:
         return True
     ev = row.get("evidence")
@@ -417,8 +452,21 @@ def resolve_target_months(today=None):
 # ============================================================================
 # classify_period_transition — ペアリング + 既存 verdict + 12ヶ月履歴から各行を決定する純関数
 # ============================================================================
+def _row_reliable_mf_issued(row):
+    """行が MF実績由来で当月 active 発行済みか (C05 reliable_issued / supply_state==active)。
+
+    C04 notion_report_sink の cross-run guard の『権威ある正常訂正』(K4) の根拠。verdict/evidence 由来の
+    bare issued とは区別し、MF が実際に active 供給を発行した行のみ True (取消/供給なし/legacy は False)。
+    """
+    if not row:
+        return False
+    if row.get("reliable_issued") is True:
+        return True
+    return row.get("supply_state") == R_ACTUALS.SUPPLY_ACTIVE
+
+
 def _emit(customer, amount, prev_amount, gap_check, period_diff,
-          product, comment, contract_id, target_month):
+          product, comment, contract_id, target_month, reliable_issued=False):
     return {
         "customer": customer,
         "amount": amount,
@@ -429,6 +477,9 @@ def _emit(customer, amount, prev_amount, gap_check, period_diff,
         "comment": comment,
         "contract_id": contract_id,
         "target_month": target_month,
+        # C05→C04: MF実績由来で当月 active 発行済みか。cross-run guard(K4)が前 run の要対応☐を
+        # この権威ある実額訂正で正常☑へ上書きする根拠 (_STRUCTURAL_NORMAL_MARKERS と同格の bypass 事由)。
+        "reliable_issued": bool(reliable_issued),
     }
 
 
@@ -513,6 +564,32 @@ def _new_comment(row, lookback_idx, target_month, lookback_available=True):
                 "真の新規発行か未確認。MF実績の12ヶ月履歴を渡して再実行し裏付けを取ること")
     # ルックバックは実行したが当該取引先に年契約一括の履歴なし=真の新規発行と確認できた。
     return "新規発行 (12ヶ月履歴を確認したが年契約一括の裏付けなし=真の新規)"
+
+
+def _new_backing_found(row, lookback_idx):
+    """STATE_NEW (前月なし今月あり) の『年→月切替』裏付けが 12ヶ月履歴にあるか (D1 gate の判定子)。
+
+    裏付けあり=年契約→月額切替と推定でき正常☑・裏付けなし (ルックバック未実行 or 履歴なし=真の新規)
+    は D1 で要確認 (GAP_ACTION) へ flip する。
+
+    ★**商品粒度**で突合する (elegant-review F1/round2 是正を NEW 経路へ対称適用): 年契約性は「顧客属性」
+    でなく「契約/商品属性」ゆえ、混在契約顧客 (年契約商品A + 今月新規の別商品B) で B の真の新規発行を
+    A の年契約履歴で誤って正常化しない (漏れ隠蔽方向)。STOPPED 経路の `_customer_is_annual_in_lookback`
+    と同一の商品確定一致ルール (商品ありは確定一致のみ採用・商品空は顧客単位 best-effort) を再利用し、
+    STOPPED で塞いだ穴が NEW で開くのを防ぐ (SSOT 一本化)。
+    """
+    return _customer_is_annual_in_lookback(row, lookback_idx)
+
+
+def _fidelity_lookback_partial(fidelity):
+    """fetch fidelity report が lookback 部分欠損 (C06 exit3) を示すか。
+
+    exit_code==3 または overall=='lookback_partial' を lookback 部分欠損とみなす。当該時は STATE_NEW の
+    年→月切替裏付け (12ヶ月ルックバック依存) が未確定なので該当行を要確認へ降格する (安全側 over-report)。
+    """
+    if not isinstance(fidelity, dict):
+        return False
+    return fidelity.get("exit_code") == 3 or fidelity.get("overall") == "lookback_partial"
 
 
 def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
@@ -642,16 +719,20 @@ def _classify_continuing(pair, lookback_idx, end_idx, target_month):
                  "継続 (前月も今月も未発行)", product, comment, contract_id, target_month)
 
 
-def classify_period_transition(pairing, lookback=None, contract_end=None, target_month=None):
+def classify_period_transition(pairing, lookback=None, contract_end=None, target_month=None,
+                               fidelity=None):
     """ペアリング + 既存 verdict + 12ヶ月履歴 から各行の period_diff/gap_check/comment を決定する純関数。
 
     STATE_NONE (今月なし×前月なし) は原則 emit しないが、今月 curr が実 GAP verdict の継続漏れ
     なら要対応として emit する (_classify_continuing)。継続発行は全行 emit する。
+    fidelity = C06 fetch fidelity report (任意)。lookback 部分欠損 (exit3) 時は STATE_NEW 該当行を
+    要確認へ降格する (安全側 over-report・真の月次漏れは隠さない)。exit1 の fail-closed は main() 側で扱う。
     返り値 = list[dict] (I/O 契約のレポート行)。
     """
     lookback_idx = _index_lookback(lookback)
     # 12ヶ月ルックバックのデータが 1 件でも渡されたか (未指定=未実行を STATE_NEW コメントで可視化する)。
     lookback_available = bool(lookback)
+    lookback_partial = _fidelity_lookback_partial(fidelity)
     end_idx = _index_contract_end(contract_end)
     out = []
     for pair in pairing:
@@ -671,19 +752,34 @@ def classify_period_transition(pairing, lookback=None, contract_end=None, target
         contract_id = _contract_id(curr) or _contract_id(prev)
         amount = _amount_of(curr)
         prev_amount = _amount_of(prev)
+        mf_issued = _row_reliable_mf_issued(curr)  # C05→C04(K4): 当月 MF実績 active 発行の権威フラグ
 
         if state == STATE_CONTINUED:
             row = _emit(customer, amount, prev_amount, GAP_OK, "継続発行",
-                        product, _continued_comment(curr, prev), contract_id, target_month)
+                        product, _continued_comment(curr, prev), contract_id, target_month,
+                        reliable_issued=mf_issued)
         elif state == STATE_NEW:
+            # D1: 前月なし今月ありの新規は、12ヶ月ルックバックで年契約→月額切替の裏付けが取れた場合のみ
+            # 正常☑。裏付けなし (ルックバック未実行 or 実行したが年契約履歴なし=真の新規) は要確認☐へ
+            # flip する (バグでなく新規判断の分岐・症状④)。lookback 部分欠損 (fidelity exit3) 時も
+            # 裏付け未確定ゆえ要確認へ降格する (安全側)。
             comment = _new_comment(rep, lookback_idx, target_month, lookback_available)
-            row = _emit(customer, amount, prev_amount, GAP_OK, "新規/年→月切替",
-                        product, comment, contract_id, target_month)
+            backing = _new_backing_found(rep, lookback_idx)
+            if backing and lookback_partial:
+                gap = GAP_ACTION
+                comment += (" ｜ ⚠️ 12ヶ月ルックバック部分欠損 (fetch fidelity NG) のため年→月切替の"
+                            "裏付けが未確定→要確認へ降格")
+            elif backing:
+                gap = GAP_OK
+            else:
+                gap = GAP_ACTION  # 裏付けなし (未実行/真の新規) = D1 で要確認
+            row = _emit(customer, amount, prev_amount, gap, "新規/年→月切替",
+                        product, comment, contract_id, target_month, reliable_issued=mf_issued)
         else:  # STATE_STOPPED
             gap_check, period_diff, comment = _classify_stopped(
                 prev, curr, lookback_idx, end_idx, target_month)
             row = _emit(customer, amount, prev_amount, gap_check, period_diff,
-                        product, comment, contract_id, target_month)
+                        product, comment, contract_id, target_month, reliable_issued=mf_issued)
         out.append(row)
     return out
 
@@ -716,7 +812,8 @@ def _target_of(doc, fallback):
     return fallback
 
 
-def build_report(curr_doc, prev_doc, lookback=None, contract_end=None, target_month=None):
+def build_report(curr_doc, prev_doc, lookback=None, contract_end=None, target_month=None,
+                 fidelity=None):
     """パース済みドキュメントからレポート行 list を組み立てる (I/O なしの純ロジック纏め)。"""
     curr_rows = _rows_of(curr_doc)
     prev_rows = _rows_of(prev_doc)
@@ -724,7 +821,8 @@ def build_report(curr_doc, prev_doc, lookback=None, contract_end=None, target_mo
         target_month = _target_of(curr_doc, None) or resolve_target_months()[0]
     pairing = compare_periods(prev_rows, curr_rows)
     return classify_period_transition(
-        pairing, lookback=lookback, contract_end=contract_end, target_month=target_month)
+        pairing, lookback=lookback, contract_end=contract_end, target_month=target_month,
+        fidelity=fidelity)
 
 
 def main(argv=None):
@@ -738,6 +836,10 @@ def main(argv=None):
                    help="差分該当取引先のみの12ヶ月発行履歴 JSON (任意)")
     p.add_argument("--contract-end", dest="contract_end",
                    help="契約終了月データ JSON (任意・二次情報)")
+    p.add_argument("--fidelity-report", dest="fidelity_report", required=True,
+                   help="C06 mfk_fetch_audit.py の fetch fidelity report JSON (必須入力)。"
+                        "exit_code==1 (当月/先月 NG) で fail-closed 非emit・==3 (lookback 部分欠損) で "
+                        "STATE_NEW 該当行を要確認へ降格する")
     p.add_argument("--target-month", dest="target_month",
                    help="対象月 YYMM (省略時は curr-verdicts の target_month→実行日から導出)")
     a = p.parse_args(argv)
@@ -748,6 +850,20 @@ def main(argv=None):
     except (OSError, ValueError) as e:
         sys.stderr.write(f"[period-report] verdict 入力の読込に失敗 (fail-closed): {e}\n")
         return 2
+
+    # fetch fidelity report は必須入力。MF実績起点の判定は最新性が担保されて初めて成立するため、
+    # 読込失敗は fail-closed、当月/先月の fidelity 違反 (exit1) は漏れ確認処理そのものを実行しない。
+    try:
+        fidelity = _load_json(a.fidelity_report)
+    except (OSError, ValueError) as e:
+        sys.stderr.write(f"[period-report] fetch fidelity report の読込に失敗 (fail-closed): {e}\n")
+        return 2
+    if isinstance(fidelity, dict) and fidelity.get("exit_code") == 1:
+        sys.stderr.write(
+            "[period-report] ⛔ 当月/先月の fetch fidelity 違反 (C06 exit1) のため fail-closed。"
+            f"漏れ確認レポートを emit しません (overall={fidelity.get('overall')})。"
+            "最新の取得をやり直してから再実行してください。\n")
+        return 1
 
     lookback = None
     if a.lookback:
@@ -766,7 +882,8 @@ def main(argv=None):
             return 2
 
     report = build_report(curr_doc, prev_doc, lookback=lookback,
-                          contract_end=contract_end, target_month=a.target_month)
+                          contract_end=contract_end, target_month=a.target_month,
+                          fidelity=fidelity)
 
     # 12ヶ月ルックバック未実行の可視化 (ユーザー要件 C2/C3): --lookback-12mo 未指定のまま
     # 前月なし今月あり (新規/年→月切替) 行があると、年契約→月額切替の裏付けが未確認になる。

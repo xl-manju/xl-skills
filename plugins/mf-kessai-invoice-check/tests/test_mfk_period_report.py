@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""scripts/mfk_period_report.py (C05: 前月↔今月の発行状態遷移分類) の単体テスト。
+"""scripts/mfk_period_report.py (C03: 前月↔今月の発行状態遷移分類) の単体テスト。
 
 オフライン・fixture はテスト内 dict で自己完結 (network/ファイル不要。CLI は tmp_path を使う)。
-検証観点 (component-inventory C05 の criteria 由来):
+検証観点 (component-inventory C03 の criteria 由来):
   - 対象月決定 (7/2 実行なら今月=6月分・先月=5月分)。
   - 取引先×商品集合の 4 状態 (継続発行 / 前月なし今月あり / 元々請求なし / 前月あり今月なし)。
   - 差分該当取引先限定の 12ヶ月遡り (根拠コメント補強のみ・既存判定を上書きしない)。
@@ -130,24 +130,53 @@ def test_issued_via_evidence_amount_only():
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
 def test_new_without_lookback_flags_unverified():
-    # ルックバック未実行 (--lookback-12mo 未指定) は「未確認」を明示し silent に『新規発行』と断定しない。
-    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) ため、確認できていない事実を隠さない。
+    # D1: ルックバック未実行 (--lookback-12mo 未指定) = 年→月切替の裏付けなし → 要確認へ flip する。
+    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) が、裏付けが取れていない事実を要確認で
+    # 可視化する (silent に『新規発行(正常)』と断定しない・症状④の新規判断)。
     curr = [_row("新規社", "月額", "MATCH_MONTHLY")]
     row = _classify([], curr)[0]
-    assert row["gap_check"] == "正常"                 # 今月あり=発行済み ゆえ発行漏れではない
+    assert row["gap_check"] == "要対応"               # D1: 裏付けなし=新規・要確認☐
     assert row["period_diff"] == "新規/年→月切替"
     assert "未実行" in row["comment"] and "未確認" in row["comment"]
 
 
 def test_new_with_lookback_but_no_annual_is_true_new():
-    # ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
-    # 未実行 (上のテスト) と区別され、確認済みであることが明示される。
+    # D1: ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
+    # 裏付けなし (年契約→月額切替が確認できない真の新規) は要確認へ flip する。未実行 (上のテスト) と
+    # comment で区別され、確認済みであることは明示される。
     curr = [_row("真新規社", "月額", "MATCH_MONTHLY")]
     lookback = {"別の社": [{"month": "2506", "annual": True}]}  # 対象取引先は不在=確認済み・裏付けなし
     row = _classify([], curr, lookback=lookback, target="2606")[0]
-    assert row["gap_check"] == "正常"
+    assert row["gap_check"] == "要対応"               # D1: 真の新規=裏付けなし=要確認☐
     assert "確認したが" in row["comment"] and "真の新規" in row["comment"]
     assert "未実行" not in row["comment"]
+
+
+def test_new_with_annual_backing_is_normal():
+    # D1: 12ヶ月履歴に **同一商品** の年契約一括裏付けがあれば年→月切替=正常☑ (裏付けありのみ GAP_OK)。
+    curr = [_row("年→月社", "月額", "MATCH_MONTHLY")]
+    lookback = {"年→月社": [{"month": "2506", "annual": True, "product": "月額"}]}
+    row = _classify([], curr, lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "正常"
+
+
+def test_new_backing_is_product_scoped_mixed_contract():
+    # F2 是正 (NEW 経路の漏れ隠蔽封鎖): 年契約商品A の履歴があっても、今月新規の別商品B は
+    # A の年契約履歴で正常化されず要確認☐に残る (商品粒度突合・STOPPED と対称)。
+    curr = [_row("混在社", "新商品B", "MATCH_MONTHLY")]
+    lookback = {"混在社": [{"month": "2506", "annual": True, "product": "年契約商品A"}]}
+    row = _classify([], curr, lookback=lookback, target="2606")[0]
+    assert row["gap_check"] == "要対応"   # 別商品Bの年契約性は未確認=真の新規=要確認
+
+
+def test_new_backing_demoted_when_fidelity_lookback_partial():
+    # C06 exit3 (lookback 部分欠損) 時は年契約裏付けありでも未確定ゆえ要確認へ降格する (安全側)。
+    pairing = P.compare_periods([], [_row("年→月社", "月額", "MATCH_MONTHLY")])
+    rows = P.classify_period_transition(
+        pairing, lookback={"年→月社": [{"month": "2506", "annual": True, "product": "月額"}]},
+        target_month="2606", fidelity={"exit_code": 3, "overall": "lookback_partial"})
+    assert rows[0]["gap_check"] == "要対応"
+    assert "部分欠損" in rows[0]["comment"]
 
 
 def test_new_with_12mo_annual_lookback_is_switch():
@@ -375,7 +404,7 @@ def test_stopped_annual_history_same_product_still_normal():
 
 def test_stopped_offmonth_suppress_is_normal_not_leak():
     # SUPPRESS_OFFMONTH (隔月/分割の対象外月・契約開始前) は verdict-mapping SSOT で
-    # SUPPRESS_*→対象外。C05 は再判定せず正常(対象外)扱いにする (偽陽性の漏れ扱いを防ぐ)。
+    # SUPPRESS_*→対象外。C03 は再判定せず正常(対象外)扱いにする (偽陽性の漏れ扱いを防ぐ)。
     prev = [_row("隔月社", "隔月保守", "MATCH_MONTHLY")]
     curr = [_row("隔月社", "隔月保守", "SUPPRESS_OFFMONTH")]
     row = _classify(prev, curr)[0]
@@ -470,13 +499,20 @@ def _write(tmp_path, name, obj):
     return str(p)
 
 
+def _fidelity(tmp_path, exit_code=0, overall="ok", name="fid.json"):
+    """C06 fetch fidelity report の最小 fixture を書いて path を返す (--fidelity-report は必須入力)。"""
+    return _write(tmp_path, name, {"target_month": "2606", "exit_code": exit_code,
+                                   "overall": overall, "lookback": {"ng_months": []}})
+
+
 def test_main_happy_path_exit0(tmp_path, capsys):
     prev = _write(tmp_path, "prev.json",
                   [_row("継続社", "月額", "MATCH_MONTHLY")])
     curr = _write(tmp_path, "curr.json",
                   {"target_month": "2606",
                    "rows": [_row("継続社", "月額", "MATCH_MONTHLY")]})
-    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev])
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--fidelity-report", _fidelity(tmp_path)])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out[0]["customer"] == "継続社"
@@ -487,7 +523,7 @@ def test_main_gap_returns_exit1(tmp_path, capsys):
     prev = _write(tmp_path, "prev.json", [_row("漏れ社", "月額", "MATCH_MONTHLY")])
     curr = _write(tmp_path, "curr.json", [_row("漏れ社", "月額", "GAP")])
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
-                 "--target-month", "2606"])
+                 "--target-month", "2606", "--fidelity-report", _fidelity(tmp_path)])
     assert rc == 1
     out = json.loads(capsys.readouterr().out)
     assert out[0]["gap_check"] == "要対応"
@@ -500,7 +536,8 @@ def test_main_with_lookback_and_contract_end_files(tmp_path, capsys):
     lb = _write(tmp_path, "lb.json", {"年契約社": [{"month": "2512", "annual": True}]})
     ce = _write(tmp_path, "ce.json", {"records": []})
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
-                 "--lookback-12mo", lb, "--contract-end", ce, "--target-month", "2606"])
+                 "--lookback-12mo", lb, "--contract-end", ce, "--target-month", "2606",
+                 "--fidelity-report", _fidelity(tmp_path)])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert "年契約周期" in out[0]["period_diff"]
@@ -516,8 +553,10 @@ def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
     curr = _write(tmp_path, "curr.json", [_row("新規社", "月額", "MATCH_MONTHLY")])
     empty_lb = _write(tmp_path, "lb.json", [])   # 空ファイル (パスは指定・中身は空)
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
-                 "--lookback-12mo", empty_lb, "--target-month", "2606"])
-    assert rc == 0
+                 "--lookback-12mo", empty_lb, "--target-month", "2606",
+                 "--fidelity-report", _fidelity(tmp_path)])
+    # D1: 空 lookback=裏付けなしの新規は要確認へ flip するため gap_check=要対応 → rc=1。
+    assert rc == 1
     err = capsys.readouterr().err
     assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火
 
@@ -525,7 +564,7 @@ def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
 def test_main_missing_file_fail_closed(tmp_path):
     prev = _write(tmp_path, "prev.json", [])
     rc = P.main(["--curr-verdicts", str(tmp_path / "nope.json"),
-                 "--prev-verdicts", prev])
+                 "--prev-verdicts", prev, "--fidelity-report", _fidelity(tmp_path)])
     assert rc == 2
 
 
@@ -533,6 +572,7 @@ def test_main_bad_lookback_fail_closed(tmp_path):
     prev = _write(tmp_path, "prev.json", [])
     curr = _write(tmp_path, "curr.json", [])
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--fidelity-report", _fidelity(tmp_path),
                  "--lookback-12mo", str(tmp_path / "nope.json")])
     assert rc == 2
 
@@ -541,7 +581,29 @@ def test_main_bad_contract_end_fail_closed(tmp_path):
     prev = _write(tmp_path, "prev.json", [])
     curr = _write(tmp_path, "curr.json", [])
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--fidelity-report", _fidelity(tmp_path),
                  "--contract-end", str(tmp_path / "nope.json")])
+    assert rc == 2
+
+
+def test_main_fidelity_curr_fail_is_fail_closed(tmp_path, capsys):
+    # C06 exit1 (当月/先月 fetch fidelity 違反) は漏れ確認レポートを emit せず fail-closed (rc=1)。
+    prev = _write(tmp_path, "prev.json", [_row("継続社", "月額", "MATCH_MONTHLY")])
+    curr = _write(tmp_path, "curr.json", [_row("継続社", "月額", "MATCH_MONTHLY")])
+    fid = _fidelity(tmp_path, exit_code=1, overall="curr_fail")
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--target-month", "2606", "--fidelity-report", fid])
+    assert rc == 1
+    cap = capsys.readouterr()
+    assert cap.out.strip() == ""            # 非 emit (レポートを出さない)
+    assert "fail-closed" in cap.err
+
+
+def test_main_bad_fidelity_report_fail_closed(tmp_path):
+    prev = _write(tmp_path, "prev.json", [])
+    curr = _write(tmp_path, "curr.json", [])
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--fidelity-report", str(tmp_path / "nope.json")])
     assert rc == 2
 
 
@@ -549,7 +611,8 @@ def test_main_default_target_when_absent(tmp_path, capsys):
     # target 指定も file の target_month も無いとき resolve_target_months で導出する。
     prev = _write(tmp_path, "prev.json", [_row("継続社", "月額", "MATCH_MONTHLY")])
     curr = _write(tmp_path, "curr.json", [_row("継続社", "月額", "MATCH_MONTHLY")])
-    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev])
+    rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
+                 "--fidelity-report", _fidelity(tmp_path)])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert len(out[0]["target_month"]) == 4  # YYMM 導出

@@ -1,8 +1,8 @@
 {
   "name": "mf-kessai-invoice-check",
-  "version": "0.4.0",
+  "version": "0.3.0",
   "package_mode": "bundle",
-  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する。本体スキルに前月↔今月比較レポート (run-mf-invoice-report) を追加: 2営業日目以降に何度でも冪等再実行し、年契約/年→月切替/トライアル完了/契約終了のイレギュラーをコメント説明した漏れレポートを月次レポートDBへ上書き生成する。0.4.0でMF実績を第一級の真実に切替 (amount-gate 根治): 契約期待額でなくMF実発行額 (mfk_actuals) を金額列・漏れ判定の駆動源にし、fetch fidelity 監査 (mfk_fetch_audit・pagination/件数/issue_date/stale を fail-closed 検証) と D1 (新規は12ヶ月ルックバック裏取り) を追加。参照専用hook・二段確認subagent・冪等Notion upsert付き。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: harness-creator/skills/run-skill-feedback、symlink 配備)。",
+  "description": "マネーフォワード掛け払いの請求書発行漏れを月次でチェックしNotionで管理する。本体スキルに前月↔今月比較レポート (run-mf-invoice-report) を追加: 2営業日目以降に何度でも冪等再実行し、年契約/年→月切替/トライアル完了/契約終了のイレギュラーをコメント説明した漏れレポートを月次レポートDBへ上書き生成する。0.3.0: MF実績を第一級の真実として漏れチェック☑/金額列を駆動する改善 (fetch fidelity監査・amount-gate根治・D1/D2/D3判定) を追加。参照専用hook・二段確認subagent・冪等Notion upsert付き。改善要望は `/run-skill-feedback mf-kessai-invoice-check` で投入可能 (SSOT: harness-creator/skills/run-skill-feedback)。",
   "author": {
     "name": "xl-skills maintainers"
   },

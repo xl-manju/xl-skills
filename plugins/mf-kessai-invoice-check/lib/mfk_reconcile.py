@@ -41,6 +41,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import unicodedata
 from collections import Counter, defaultdict
 
@@ -61,6 +62,16 @@ from mfk_invoice_diff import (  # noqa: F401  (定数は再エクスポートし
     oneshot_active,
     split_active,
 )
+
+# C05 (MF実績 SSOT・amount-gate 根治) は scripts/ 配下。pytest.ini は既に scripts を pythonpath
+# 済だが、CLI 単体起動や他 entrypoint (reconcile_invoices 以外) からの import でも解決できるよう
+# path を通す (二重挿入は防ぐ)。resolve_actual が find_mf_match / classify の全 status 行へ
+# MF実績由来の actual_amount / reliable issued を焼く。境界解決は再発明せず本 engine が渡す。
+_SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+import mfk_actuals  # noqa: E402  (C05: MF実績由来 actual_amount/issued の SSOT)
 
 # 非月払いサイクル(契約開始日 elapsed を必須とする): 開始日空欄なら K1 でデータ不備。
 # 従量は期待額が件数依存で常に REVIEW のため elapsed 不要 → ここには含めない。
@@ -720,76 +731,78 @@ def find_mf_match(contract, mf_index, mode="monthly"):
     # (自境界の非active証跡)。cancellation_note と同一スコープを共有 (_scoped_inactive)。
     scoped_inactive = _scoped_inactive(boundary, ec_norms, expected_cats)
 
+    def _ret(status, evidence, cross_evidence=None):
+        """find_mf_match の全 verdict 経路の唯一の出口 (C05 統合)。
+
+        既存の返り (status/evidence/boundary_supply/cross_evidence) は不変に保ちつつ、MF実績由来の
+        actual(C05 resolve_actual={issued,actual_amount,supply_state,canceled_at})を additive に添付する。
+        evidence は据え置く(書き換えると reconcile_invoices.build_sink_rows 経由で別 skill の DB2
+        matched_amount が変わり温存境界を割るため)。actual は行 top-level の実額 carrier の源。
+        """
+        return {
+            "status": status, "evidence": evidence,
+            "boundary_supply": company_supply, "cross_evidence": cross_evidence,
+            "actual": mfk_actuals.resolve_actual(
+                scoped_candidates, scoped_inactive, status, evidence, expected_cats),
+        }
+
     if mode == "presence":
         if scoped_candidates:
             cust, svc = scoped_candidates[0]
-            return {"status": "match", "evidence": {"cust": cust, **svc},
-                    "boundary_supply": company_supply, "cross_evidence": None}
-        return {"status": "no_supply", "evidence": None,
-                "boundary_supply": company_supply, "cross_evidence": None}
+            return _ret("match", {"cust": cust, **svc})
+        return _ret("no_supply", None)
 
     if mode == "annual":
         year_amounts = _annual_year_amounts(contract)
         for cust, svc in scoped_candidates:
             if _is_annual_lump_supply(svc, year_amounts):
-                return {"status": "match", "evidence": {"cust": cust, **svc},
-                        "boundary_supply": company_supply, "cross_evidence": None}
+                return _ret("match", {"cust": cust, **svc})
         # 有効一括 未検出。同一境界に年額相当の非active供給があれば inactive_only(取消/未確定)。
         annual_inactive = [
             (cust, svc) for cust, svc in scoped_inactive
             if _is_annual_lump_supply(svc, year_amounts)
         ]
         if annual_inactive:
-            return _inactive_result(annual_inactive, company_supply)
+            m = _inactive_result(annual_inactive, company_supply)
+            return _ret(m["status"], m["evidence"], m["cross_evidence"])
         # lump も非active供給も無し → 呼出側で REVIEW_ANNUAL_BILLING_MONTH(E1, GAPにしない)
-        return {"status": "no_supply", "evidence": None,
-                "boundary_supply": company_supply, "cross_evidence": None}
+        return _ret("no_supply", None)
 
     # mode == 'monthly'
     primary, typo = _expected_amounts(contract)
     pset, tset = set(primary), set(typo)
     for cust, svc in scoped_candidates:
         if svc["amount"] in pset:
-            return {"status": "match", "evidence": {"cust": cust, **svc},
-                    "boundary_supply": company_supply, "cross_evidence": None}
+            return _ret("match", {"cust": cust, **svc})
     expected_count = _int(contract.get("期待明細数")) or 1
     if expected_count > 1:
         aggregate_amounts = {amount * expected_count for amount in pset}
         for cust, svc in scoped_candidates:
             if svc["amount"] in aggregate_amounts:
-                return {
-                    "status": "match",
-                    "evidence": {
-                        "cust": cust,
-                        **svc,
-                        "_aggregated_billing": True,
-                        "_aggregated_expected_count": expected_count,
-                    },
-                    "boundary_supply": company_supply,
-                    "cross_evidence": None,
-                }
+                return _ret("match", {
+                    "cust": cust,
+                    **svc,
+                    "_aggregated_billing": True,
+                    "_aggregated_expected_count": expected_count,
+                })
     for cust, svc in scoped_candidates:
         if svc["amount"] in tset:
-            return {"status": "typo", "evidence": {"cust": cust, **svc},
-                    "boundary_supply": company_supply, "cross_evidence": None}
+            return _ret("typo", {"cust": cust, **svc})
     # B1: 名寄せ供給(会社一致)が存在し金額のみ不一致 → REVIEW_AMOUNT_MISMATCH(GAPにしない)
     if scoped_candidates:
-        return {"status": "amount_mismatch", "evidence": None,
-                "boundary_supply": company_supply, "cross_evidence": None}
+        return _ret("amount_mismatch", None)
     # 有効供給ゼロ。同一境界に非active(取消/審査中/否決/停止等)供給があれば inactive_only で
     # 可視化する(no_supply/cross_client より優先 = 自境界の非active取引は最も具体的な証跡)。
     if scoped_inactive:
-        return _inactive_result(scoped_inactive, company_supply)
+        m = _inactive_result(scoped_inactive, company_supply)
+        return _ret(m["status"], m["evidence"], m["cross_evidence"])
     if company_supply and expected_cats:
-        return {"status": "no_supply", "evidence": None,
-                "boundary_supply": company_supply, "cross_evidence": None}
+        return _ret("no_supply", None)
     # 境界に会社が無い: J1 — 同名人物が別会社で請求されていないか走査
     cross = _cross_client_evidence(ec_norms, pset | tset, mf_index)
     if cross:
-        return {"status": "cross_client", "evidence": None,
-                "boundary_supply": company_supply, "cross_evidence": cross}
-    return {"status": "no_supply", "evidence": None,
-            "boundary_supply": company_supply, "cross_evidence": None}
+        return _ret("cross_client", None, cross)
+    return _ret("no_supply", None)
 
 
 def _cross_client_evidence(ec_norms, amount_set, mf_index):
@@ -863,7 +876,31 @@ def _new_row(contract, **computed):
     rec.setdefault("evidence", None)
     rec.setdefault("warning", "")
     rec.setdefault("direction", "順方向")
+    # C05: MF実績由来の carrier を全行へ用意する。find_mf_match を経由しない行 (REVIEW_PENDING/
+    # REVIEW_METERED/REVIEW_DATA_INCOMPLETE/開始前 SUPPRESS_OFFMONTH 等) は有効供給の情報を持たない
+    # ため安全側の既定 (未発行・供給なし)。find_mf_match を経由する行は _attach_actual が上書きする。
+    rec.setdefault("actual_amount", None)
+    rec.setdefault("reliable_issued", False)
+    rec.setdefault("supply_state", mfk_actuals.SUPPLY_NONE)
+    rec.setdefault("canceled_at", None)
     return rec
+
+
+def _attach_actual(rec, match):
+    """find_mf_match の返り match から MF実績 carrier を行 top-level へ焼く (C05・全 status 経路共通)。
+
+    canonical carrier は行 top-level の actual_amount 単一。reliable_issued は MF が当月に active 供給を
+    実発行したか (期待額一致でなく実績の有無)。supply_state は active/inactive_canceled/inactive_pending/
+    none。evidence は一切書き換えない (温存境界)。match に actual が無い (旧経路) 場合は既定を据え置く。
+    """
+    a = (match or {}).get("actual")
+    if not a:
+        return
+    rec["actual_amount"] = a.get("actual_amount")
+    rec["reliable_issued"] = bool(a.get("issued"))
+    rec["supply_state"] = a.get("supply_state") or mfk_actuals.SUPPLY_NONE
+    if a.get("canceled_at"):
+        rec["canceled_at"] = a.get("canceled_at")
 
 
 def _set_inactive_verdict(rec, match):
@@ -926,6 +963,7 @@ def _classify_monthly_expected(rec, contract, mf_index, elapsed):
         _set_inactive_verdict(rec, m)
     else:  # no_supply
         rec["verdict"] = "GAP"
+    _attach_actual(rec, m)  # C05: 全 status 行へ MF実績 carrier を焼く (amount-gate 根治)。
 
 
 def _classify_annual(rec, contract, mf_index, elapsed):
@@ -952,6 +990,7 @@ def _classify_annual(rec, contract, mf_index, elapsed):
             rec["verdict"] = "REVIEW_ANNUAL_BILLING_MONTH"  # E1: 当月開始だが一括未検出
         else:
             rec["verdict"] = "SUPPRESS_ANNUAL"  # 年間前払い期間中
+        _attach_actual(rec, m)  # C05: 年契約経路も MF実績 carrier を焼く。
     else:  # elapsed < 0(未開始)。None は K1 で REVIEW_DATA_INCOMPLETE 済
         rec["verdict"] = "SUPPRESS_ANNUAL"
 
@@ -967,15 +1006,18 @@ def _classify_annual_renewal(rec, contract, mf_index, elapsed):
     if m["status"] == "match":
         rec["verdict"] = "MATCH_ANNUAL"
         rec["evidence"] = m["evidence"]
+        _attach_actual(rec, m)  # C05
         return
     if m["status"] == "inactive_only":
         _set_inactive_verdict(rec, m)  # 年額相当の非active供給 → 取消/未確定で可視化
+        _attach_actual(rec, m)  # C05
         return
     period = annual_renewal_period(elapsed)  # 'lump'|'prepaid'|None
     if period == "lump":
         rec["verdict"] = "REVIEW_ANNUAL_BILLING_MONTH"  # E1: 更新月だが一括未検出
     else:  # 'prepaid'(前払い中) / None(elapsed None は K1 済 / 負は未開始)
         rec["verdict"] = "SUPPRESS_ANNUAL"
+    _attach_actual(rec, m)  # C05: lump未検出/前払い経路も MF実績 carrier を焼く。
 
 
 # 抑制verdict(対象外/終了根拠なし)に当月MFの取消注記を併記する対象。MATCH_*/REVIEW_CANCELED/
@@ -1077,6 +1119,7 @@ def classify(contracts, mf_index, target_ym):
             # 終了抑制(SUPPRESS_ENDED)/根拠なし終了(REVIEW_ENDED_NO_BASIS)は presence モードが取消を
             # 無視するため取消事実が消える。当月MFに取消があれば確認ポイントへ併記する(verdict据え置き)。
             _annotate_cancellation(rec, contract, mf_index)
+            _attach_actual(rec, pres)  # C05: 終了契約経路も MF実績 carrier を焼く (最終請求額/供給なしを判別)。
             rows.append(rec)
             continue
 

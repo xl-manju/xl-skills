@@ -230,20 +230,30 @@ def _iso_to_ym(iso_date):
     return f"{int(m.group(1)) % 100:02d}{m.group(2)}"
 
 
-def _resolve_customer_names(customer_ids, cfg):
-    """/customers?ids= を 200 件ずつ叩いて {customer_id: name} を返す (GET 専用)。"""
+def _resolve_customer_names(customer_ids, cfg, trace_sink=None):
+    """/customers?ids= を 200 件ずつ叩いて {customer_id: name} を返す (GET 専用)。
+
+    trace_sink を渡すと customer-name 解決 GET の pagination trace を C06 fetch fidelity 監査へ記録する
+    (customer-name も read-only fetch site の 1 つ)。trace_sink=None(既定)は従来と byte 不変。
+    """
     names = {}
     ids = [c for c in customer_ids if c]
     for i in range(0, len(ids), 200):
         chunk = ids[i:i + 200]
-        data = mfk_api.get("/customers", {"ids": chunk, "limit": 200}, cfg=cfg)
+        data = mfk_api.get_with_trace(
+            "/customers", {"ids": chunk, "limit": 200}, cfg=cfg,
+            trace_sink=trace_sink, site="customer_name")
         for c in data.get("items", []):
             names[c.get("id")] = c.get("name", "")
     return names
 
 
-def collect_mf(target_ym, cfg):
+def collect_mf(target_ym, cfg, trace_sink=None):
     """対象月の MF掛け払い発行実績を raw mf JSON へ畳む (参照専用・副作用なし)。
+
+    trace_sink(list)を渡すと billings/qualified・transactions(per-billing)・customer-name の全
+    read-only fetch site の pagination trace を C06 fetch fidelity 監査用に記録する。trace_sink=None
+    (既定)は従来と完全同一挙動で run-mf-invoice-reconcile 側を byte 不変に保つ (温存)。
 
     返り値 = {"customers": {customer_id: {"name", "lines": [{desc, amount, unit_price, qty,
     billing_id, txn_date, status, canceled_at}]}}, "canceled_count": int}。build_mf_index /
@@ -265,7 +275,7 @@ def collect_mf(target_ym, cfg):
     billings = list(mfk_api.iter_all(
         "/billings/qualified",
         {"issue_date_from": first, "issue_date_to": last, "status": "invoice_issued"},
-        cfg=cfg,
+        cfg=cfg, trace_sink=trace_sink, site="billings",
     ))
     customers = {}
     fallback_count = 0
@@ -275,7 +285,8 @@ def collect_mf(target_ym, cfg):
         bid = b.get("id")
         if not cid:
             continue
-        for t in mfk_api.iter_all("/transactions", {"billing_id": bid}, cfg=cfg):
+        for t in mfk_api.iter_all("/transactions", {"billing_id": bid}, cfg=cfg,
+                                  trace_sink=trace_sink, site="transactions"):
             # 月帰属 = 取引日。date 欠落時のみ発行日基準へ縮退 (当月取引が翌月へ帰属しうる)。
             txn_ym = _iso_to_ym(t.get("date"))
             if txn_ym is None:
@@ -310,7 +321,7 @@ def collect_mf(target_ym, cfg):
             f"[collect] {target_ym} の当月 canceled (取消) 取引 {canceled_count}件 を検出 "
             "(要確認(取消)で可視化、または対象外(契約終了/前払い等)の場合は確認ポイントに"
             "取消注記を併記します)。\n")
-    names = _resolve_customer_names(customers.keys(), cfg)
+    names = _resolve_customer_names(customers.keys(), cfg, trace_sink=trace_sink)
     for cid, entry in customers.items():
         entry["name"] = names.get(cid) or cid
     return {"customers": customers, "canceled_count": canceled_count}
