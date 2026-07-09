@@ -1,6 +1,6 @@
 ---
 name: mfk-report-verifier
-description: 前月↔今月比較レポートのイレギュラー分類 (年契約/年→月切替/トライアル完了/契約終了) を独立 context で二段確認し、真の発行漏れを問題ないと誤って隠していないか、MF実績で発行済みのキーがレポート行から欠落した過少報告 (under-report) がないか、および確定要因の追加軸 (C2 偽発行漏れ=curr 脱落の発行済み裏取り / C5 collapse 隠蔽 / C3 MATCH_ANNUAL 過剰要対応 / C14 個社会社名ハードコード依存の Goodhart 緑化) がないか検証したいときに使う。
+description: 前月↔今月比較レポートのイレギュラー分類 (年契約/年→月切替/トライアル完了/契約終了) を独立 context で二段確認し、真の発行漏れを問題ないと誤って隠していないか、MF実績で発行済みのキーがレポート行から欠落した過少報告 (under-report) がないか、および偽発行漏れ・collapse 隠蔽・MATCH_ANNUAL 過剰要対応・会社名ハードコード依存の Goodhart 緑化といった確定要因の追加軸がないか検証したいときに使う。
 kind: agent
 tools: Read, Bash(python3 *)
 model: sonnet

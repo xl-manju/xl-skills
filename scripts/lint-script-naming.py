@@ -237,6 +237,18 @@ PENDING_RENAME_PATHS = {
     # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
     "plugins/mf-kessai-invoice-check/scripts/mfk_actuals.py",
     "plugins/mf-kessai-invoice-check/scripts/mfk_fetch_audit.py",
+    # 照合層 根本原因 根治 (matching rootcause) で追加。mfk_verdict_export.py (C05・R1 決定論 producer=
+    # reconcile 全 row+orphans を carrier 込みで無損失直列化し LLM 手組みの curr=None を根治) は
+    # tests/test_mfk_verdict_export.py / tests/test_mfk_matching_rootcause_golden.py が
+    # `import mfk_verdict_export`、mfk_collect_status.py (C01・発行後 status 収集 SSOT) は
+    # scripts/reconcile_invoices.py / scripts/mfk_fetch_audit.py / tests が `import mfk_collect_status`、
+    # mfk_customer_id_resolve.py (顧客 ID 解決) は lib/notion_sheet_writeback.py / lib/sheet_to_master.py /
+    # tests が `import mfk_customer_id_resolve` する module のため §4.3 例外 (ハイフン不可)。
+    # mfk_verdict_export.py / mfk_collect_status.py は guard-mfk-no-reinvent.py の SANCTIONED basename
+    # でもある。許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_verdict_export.py",
+    "plugins/mf-kessai-invoice-check/scripts/mfk_collect_status.py",
+    "plugins/mf-kessai-invoice-check/scripts/mfk_customer_id_resolve.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
