@@ -149,3 +149,37 @@ def test_malformed_trace_shape_is_fail_closed():
     # curr が list でない (dict) 等の shape 不正は crash させず fail-closed (exit1)。
     r = F.audit_fetch_trace({"target_month": "2606", "curr": {"oops": 1}, "prev": []})
     assert r["exit_code"] == 1 and r["overall"] == "trace_malformed"
+
+
+# ---------------------------------------------------------------------------
+# billing_status_summary (要因C1 収集是正の可視化・additive disclosure)
+# ---------------------------------------------------------------------------
+def test_billing_status_summary_disclosed_when_present():
+    t = _ok_trace()
+    t["billings"] = {
+        "curr": [{"status": "invoice_issued"}, {"status": "account_transfer_notified"},
+                 {"status": "stopped"}],
+        "prev": [{"status": "invoice_issued"}],
+        "lookback": {"2505": [{"status": "invoice_issued"}, {"status": "invoice_issued"}]},
+    }
+    r = F.audit_fetch_trace(t)
+    assert r["exit_code"] == 0  # 既存ゲートは不変 (additive disclosure のみ)
+    assert r["billing_status_summary"]["curr"] == {
+        "invoice_issued": 1, "account_transfer_notified": 1, "stopped": 1}
+    assert r["billing_status_summary"]["prev"] == {"invoice_issued": 1}
+    assert r["billing_status_summary"]["lookback"]["2505"] == {"invoice_issued": 2}
+
+
+def test_billing_status_summary_absent_is_empty_and_gates_unaffected():
+    # 既存 trace は "billings" キーを持たない (全既存テスト共通)。空 dict で既存ゲートは無傷。
+    r = F.audit_fetch_trace(_ok_trace())
+    assert r["billing_status_summary"] == {}
+    assert r["exit_code"] == 0
+
+
+def test_billing_status_summary_malformed_is_empty_not_crash():
+    t = _ok_trace()
+    t["billings"] = "oops"
+    r = F.audit_fetch_trace(t)
+    assert r["billing_status_summary"] == {}
+    assert r["exit_code"] == 0

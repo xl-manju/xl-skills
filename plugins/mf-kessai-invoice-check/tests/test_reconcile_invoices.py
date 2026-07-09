@@ -86,6 +86,20 @@ def _fake_notion_req(sheet_db, sheet_pages, sheet_writes=None):
     return req
 
 
+def test_extract_sheet_row_carries_mf_customer_id_fields():
+    page = {
+        "id": "p1",
+        "properties": {
+            "取引先": {"title": [{"plain_text": "A社", "text": {"content": "A社"}}]},
+            "MF顧客ID": {"rich_text": [{"plain_text": "CUST-A"}]},
+            "顧客ID": {"rich_text": [{"plain_text": "LEGACY-A"}]},
+        },
+    }
+    row = O._extract_sheet_row(page)
+    assert row["MF顧客ID"] == "CUST-A"
+    assert row["顧客ID"] == "LEGACY-A"
+
+
 def _fake_mfk(mf_json):
     """mfk_api.iter_all / get を mf fixture から再構成して返す mock 群。
 
@@ -95,7 +109,8 @@ def _fake_mfk(mf_json):
     """
     def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
         if path == "/billings/qualified":
-            assert params["status"] == "invoice_issued"
+            # 要因C1根治: status ハードフィルタは外れ client 側フィルタへ移行した。
+            assert "status" not in params
             for cid, c in mf_json["customers"].items():
                 seen = []
                 for ln in c["lines"]:
@@ -789,3 +804,47 @@ def test_needs_notion():
     assert O._needs_notion({"sink"}, apply=True) is True
     assert O._needs_notion({"sink"}, apply=False) is False
     assert O._needs_notion({"collect"}, apply=True) is False
+
+
+def test_collect_mf_includes_post_issuance_billing_status(monkeypatch, capsys):
+    """発行済み後続 status (account_transfer_notified) の billing を収集し、真の停止 (stopped) は
+    除外する (要因C1回帰: paws有限会社型)。billings/qualified への status ハードフィルタも
+    外れていることを確認する。
+    """
+    def iter_all(path, params=None, cfg=None, api_key=None, trace_sink=None, site=None):
+        if path == "/billings/qualified":
+            assert "status" not in params
+            yield {"id": "B_issued", "customer_id": "C1", "issue_date": "2026-07-02",
+                   "status": "invoice_issued"}
+            yield {"id": "B_transfer", "customer_id": "C2", "issue_date": "2026-07-02",
+                   "status": "account_transfer_notified"}
+            yield {"id": "B_stopped", "customer_id": "C3", "issue_date": "2026-07-02",
+                   "status": "stopped"}
+            return
+        if path == "/transactions":
+            bid = params["billing_id"]
+            if bid == "B_stopped":
+                raise AssertionError("stopped billing の /transactions を取得してはいけない")
+            yield {"date": "2026-06-30", "status": "passed", "transaction_details": [
+                {"description": f"desc-{bid}", "amount": 55000,
+                 "unit_price": 55000, "quantity": 1}]}
+            return
+        raise AssertionError(path)
+
+    def get(path, params=None, cfg=None, api_key=None):
+        if path == "/customers":
+            return {"items": [{"id": c, "name": f"社{c}"} for c in params["ids"]]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(O.mfk_api, "iter_all", iter_all)
+    monkeypatch.setattr(O.mfk_api, "get", get)
+    raw = O.collect_mf("2606", cfg={})
+    assert "C1" in raw["customers"] and "C2" in raw["customers"]
+    assert "C3" not in raw["customers"]  # stopped は真の停止=非発行なので収集対象外
+    assert raw["customers"]["C2"]["lines"][0]["billing_status"] == "account_transfer_notified"
+    assert raw["customers"]["C1"]["lines"][0]["billing_status"] == "invoice_issued"
+    # 生の billing 一覧 (client 側フィルタ前) を canonical carrier として返す。
+    assert [b["status"] for b in raw["billings"]] == \
+        ["invoice_issued", "account_transfer_notified", "stopped"]
+    err = capsys.readouterr().err
+    assert "1件" in err  # 非issued (stopped) 1件を除外した旨の可視化

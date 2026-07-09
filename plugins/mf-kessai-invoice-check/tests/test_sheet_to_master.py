@@ -206,6 +206,57 @@ def test_content_end_note_does_not_create_contract_end():
     assert c["ステータス"] == "有効"
 
 
+def test_build_contracts_preserves_explicit_mf_customer_id():
+    rows = [{
+        "取引先": "ID明示株式会社",
+        "商品": "チイキズカン利用料（2年目以降）",
+        "確認内容": "50,000円",
+        "契約開始日": "",
+        "契約終了月": "",
+        "MF顧客ID": "CUST-EXPLICIT",
+        "page_id": "p-id",
+    }]
+    c = S.build_contracts(rows, mf_index=None, target_ym="2606")[0]
+    assert c["MF顧客ID"] == "CUST-EXPLICIT"
+
+
+def test_build_contracts_derives_unique_mf_customer_id_from_mf_names():
+    """会社名一致(完全一致 or 3文字以上包含)で一意解決できる場合のみ backfill する。
+    名前→ID 解決は mfk_customer_id_resolve(C02)へ一本化(mfk_reconcile._company_match 消費)。"""
+    rows = [{
+        "取引先": "アルファ商事株式会社",
+        "商品": "チイキズカン利用料（2年目以降）",
+        "確認内容": "50,000円",
+        "契約開始日": "",
+        "契約終了月": "",
+        "page_id": "p-alpha",
+    }]
+    mf = {"customers": {
+        "633V-AYRW": {"name": "アルファ商事株式会社", "lines": []},
+        "OTHER": {"name": "別会社株式会社", "lines": []},
+    }}
+    c = S.build_contracts(rows, mf_index=mf, target_ym="2606")[0]
+    assert c["MF顧客ID"] == "633V-AYRW"
+
+
+def test_build_contracts_ambiguous_mf_name_match_does_not_backfill():
+    """複数 MF顧客が同名境界一致する(ambiguous)場合は自動 backfill しない(誤結線回避)。"""
+    rows = [{
+        "取引先": "商事株式会社",
+        "商品": "チイキズカン利用料（2年目以降）",
+        "確認内容": "50,000円",
+        "契約開始日": "",
+        "契約終了月": "",
+        "page_id": "p-ambi",
+    }]
+    mf = {"customers": {
+        "A": {"name": "商事株式会社", "lines": []},
+        "B": {"name": "商事株式会社", "lines": []},
+    }}
+    c = S.build_contracts(rows, mf_index=mf, target_ym="2606")[0]
+    assert "MF顧客ID" not in c
+
+
 # ---------------------------------------------------------------------------
 # 純関数ユニット
 # ---------------------------------------------------------------------------

@@ -287,34 +287,139 @@ def _is_reliable_mf_issued(row):
     return bool(row.get("reliable_issued"))
 
 
+# 要対応行へ畳み込んだ発行済み (reliable_issued) 実額の累計を保持する内部標識。
+# 要対応行が source 由来で持つ「自己の今月金額」と、fold で別契約から畳み込んだ「発行済み実額」を
+# 区別するために使う (両者は同じ number 列 amount に載るため、標識なしでは own を発行済みと誤って
+# 合算してしまう)。_build_row_props は既知キーのみ読むため Notion props へは漏れない。
+_ISSUED_CARRY_KEY = "_issued_carry"
+
+
 def _prefer_action(a, b):
     """同一 (取引先,商品) 衝突時に残す行を決める (F-α safe guard)。
 
     要対応(発行漏れ候補)を正常が上書きして漏れを隠す false-negative を防ぐため、severity の
     高い方 (要対応) を保持する。両方が同 severity の要対応 (契約ID違いの複数漏れが 1 行へ
     collapse) の場合は、後着を基に両者の comment を改行連結でマージして片方の漏れ詳細が消えない
-    ようにする (F-17: 件数だけ数えて内容を捨てる情報損失を防ぐ)。正常×正常は後着を採る。
+    ようにする (F-17: 件数だけ数えて内容を捨てる情報損失を防ぐ)。正常×正常 (複数エンドクライアント/
+    契約が全て発行済み) は _merge_issued_amounts で両者の発行済み実額を合算保全する (後着だけ残して
+    先行の実額を黙って落とす=発行済み金額の過少表示を防ぐ・C5 sink側の正常×正常残穴の根治)。
+
+    C03 (要因C5 sink側): severity が異なる collapse では要対応を保持しつつ、負ける正常行が
+    発行済み (reliable_issued=True の実額) なら**その今月金額を要対応行へ Σ 引き継ぐ** (発行済み実額を
+    要対応・null 行で潰さない=K4 権威訂正の対称適用)。発行済みが複数畳み込まれるときは総額を合算し、
+    要対応が畳込順の最後でないと 2件目以降の実額が脱落する過少報告 (fold 順依存) を防ぐ (正常×正常
+    と同じ Σ 不変則の対称適用)。代理店/複数エンドクライアントが 1 商品へ collapse するとき、
+    発行済み実額保全 ∧ 漏れ隠蔽なし を両立させる。
     """
     ra, rb = _severity_rank(a), _severity_rank(b)
     if ra != rb:
-        return a if ra > rb else b
+        action, normal = (a, b) if ra > rb else (b, a)
+        return _preserve_issued_amount(action, normal)
     if ra == 1:  # 要対応×要対応 → comment をマージした後着行 (情報保全)。
         return _merge_action_comments(b, a)
-    return b  # 正常×正常 → 後着 (最新入力)。
+    return _merge_issued_amounts(b, a)  # 正常×正常 → 発行済み実額を合算保全 (後着で先行を潰さない)。
+
+
+def _preserve_issued_amount(action, normal):
+    """collapse で要対応 (action) を保持しつつ発行済み (normal) の今月金額を Σ 保全する (C03)。
+
+    代理店/複数エンドクライアントが同一 (対象月,取引先,商品) へ collapse するとき、要対応 severity は
+    保持して漏れを隠さない一方、発行済み (reliable_issued) 行の実額が要対応・null 行で上書きされ
+    今月金額=null になるのを防ぐ (実レポート: HOSONO/マルブン/芦田/野嵩商会/サクラパックス が
+    今月金額=null だった症状の sink 側根治)。**発行済みが複数畳み込まれるときは総額を Σ 合算する**:
+    要対応が畳込順の最後でないと 2件目以降の reliable 正常実額が今月金額から脱落する過少報告
+    (fold 順依存) を防ぐため、畳み込んだ発行済み実額を内部標識 `_ISSUED_CARRY_KEY` に累計し、
+    要対応行が source 由来で持つ自己金額とは区別する (自己金額は発行済み実額で上書きも合算もせず
+    別途あることのみ注記する=own amount と発行済み実額を混同しない・注記と金額列の正確性)。
+    正常×正常 `_merge_issued_amounts` の Σ 不変則を severity 混在経路へ対称適用した形。
+    """
+    action_amt = _amount(action, "amount", "curr_amount", "今月の金額")
+    normal_amt = _amount(normal, "amount", "curr_amount", "今月の金額")
+    carried = action.get(_ISSUED_CARRY_KEY)
+    if normal_amt is None or not _is_reliable_mf_issued(normal):
+        # 保全すべき発行済み実額なし → 要対応行をそのまま返す (従来挙動・行の識別性を保つ)。
+        return action
+    merged = dict(action)
+    if carried is not None:
+        # 既に発行済み実額を畳み込んだ要対応行 → 今回の実額を Σ 加算し総額を保全 (fold 順非依存)。
+        total = carried + normal_amt
+        merged["amount"] = total
+        merged[_ISSUED_CARRY_KEY] = total
+        note = (f"[複数契約の統合行] 別契約の発行済み実額を合算保全 {carried}円 + {normal_amt}円 = {total}円 "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    elif action_amt is None:
+        # 要対応行の今月金額が空 → 発行済み(別契約)の実額を今月金額へ引き継ぐ (初回 carry)。
+        merged["amount"] = normal_amt
+        merged[_ISSUED_CARRY_KEY] = normal_amt
+        note = (f"[複数契約の統合行] 別契約の発行済み実額 {normal_amt}円 を今月金額へ保全 "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    else:
+        # 要対応行が既に自己の金額 (source 由来) を持つ → 発行済み実額で上書き/合算せず別途あることのみ
+        # 注記する (own amount と発行済み実額を混同しない=注記の正確性・金額列の意味保全)。
+        note = (f"[複数契約の統合行] 別契約に発行済み実額 {normal_amt}円 あり "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    ca = _norm(merged.get("comment") or merged.get("コメント"))
+    merged["comment"] = f"{ca} / {note}" if ca else note
+    return merged
 
 
 def _merge_action_comments(base, other):
-    """base を基に other の comment を連結マージした新 row を返す (要対応 collapse の情報保全)。"""
+    """base を基に other の comment を連結マージした新 row を返す (要対応 collapse の情報保全)。
+
+    3-way 以上の collapse でも発行済み実額の保全を維持する: 先行の _preserve_issued_amount が
+    要対応行へ引き継いだ発行済み実額 (amount 非 None) を、後続の要対応×要対応マージで base 側の
+    None が上書きして潰さないよう、非 None の amount を優先継承する (F-TRADE-1: 3者衝突で
+    「発行済み実額保全 ∧ 要対応保持」の両立が処理順に依存して破れ、金額=null なのに注記だけ
+    『保全』と主張する自己矛盾行が出るのを防ぐ・順序非依存化)。
+    """
     cb = _norm(base.get("comment") or base.get("コメント"))
     co = _norm(other.get("comment") or other.get("コメント"))
     merged = dict(base)
+    base_amt = _amount(base, "amount", "curr_amount", "今月の金額")
+    other_amt = _amount(other, "amount", "curr_amount", "今月の金額")
+    if base_amt is None and other_amt is not None:
+        merged["amount"] = other_amt
+        # 畳み込んだ発行済み実額の累計標識も引き継ぐ (要対応×要対応マージ後に更に発行済みが
+        # 畳み込まれても _preserve_issued_amount の Σ 保全が継続する=4-way 経路での再脱落を防ぐ)。
+        oc = other.get(_ISSUED_CARRY_KEY)
+        if oc is not None:
+            merged[_ISSUED_CARRY_KEY] = oc
     cid_b, cid_o = _row_contract_id(base), _row_contract_id(other)
     if cid_b and cid_o and cid_b != cid_o:
-        merged["comment"] = f"[複数契約collapse] 契約{cid_b}: {cb} / 契約{cid_o}: {co}".strip()
+        merged["comment"] = f"[複数契約の統合行] 契約{cid_b}: {cb} / 契約{cid_o}: {co}".strip()
     elif cb and co and cb != co:
         merged["comment"] = f"{cb} / {co}"
     else:
         merged["comment"] = cb or co
+    return merged
+
+
+def _merge_issued_amounts(base, other):
+    """正常×正常 collapse で両行の発行済み実額を合算保全する (C03・C5 sink側の正常×正常残穴の根治)。
+
+    同一 (対象月,取引先,商品) に複数エンドクライアント/契約の発行済み (正常) 行が collapse するとき、
+    後着 base だけ残して先行 other の実額を黙って落とすと発行済み金額が過少表示される (F-TRADE-1 の
+    severity 混在修正が救わない正常×正常ケース: HOSONO 甲様 210000 + 乙様 70000 が 70000 のみ表示され
+    210000 が注記もなく消失)。両者が非 None の実額を持つなら合算し内訳を comment へ注記して、発行済み
+    金額が隠れない ∧ 実額完全性を両立する (合算=当該取引先・商品への当月発行総額)。片方のみ非 None なら
+    それを採り (後着 None で発行済み実額を上書きしない)、両者 None なら base を返す (従来挙動)。
+    左畳込 (_prefer_action の累積適用) でも 3 件以上のエンドクライアントの総額を順序非依存に保全する。
+    """
+    base_amt = _amount(base, "amount", "curr_amount", "今月の金額")
+    other_amt = _amount(other, "amount", "curr_amount", "今月の金額")
+    merged = dict(base)
+    if base_amt is None:
+        if other_amt is not None:
+            merged["amount"] = other_amt
+        return merged
+    if other_amt is None:
+        return merged
+    total = base_amt + other_amt
+    merged["amount"] = total
+    note = (f"[複数エンドクライアントの統合行] 当月発行 {other_amt}円 + {base_amt}円 = {total}円 "
+            "(同一取引先・商品の複数契約の発行済み実額を合算・発行済み金額を隠さない)")
+    cb = _norm(merged.get("comment") or merged.get("コメント"))
+    merged["comment"] = f"{cb} / {note}" if cb else note
     return merged
 
 

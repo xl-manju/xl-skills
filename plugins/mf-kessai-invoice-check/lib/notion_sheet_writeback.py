@@ -29,6 +29,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mfk_reconcile  # noqa: E402
 import sheet_to_master  # noqa: E402
 
+# C02 (MF顧客ID解決 SSOT) は scripts/ 配下。名前→ID 解決は再発明せずここへ一本化する。
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+import mfk_customer_id_resolve  # noqa: E402
+
 PROP_JUDGE = "判定"        # シート 5 値 select (本 lib が新設・管理)
 PROP_AI_CHECK = "AI確認"   # シート checkbox (既存・機械が片方向ミラー)
 PROP_NOTE = "確認ポイント"  # シート rich_text (本 lib が新設・管理): 何を確認すべきかのガイダンス
@@ -366,3 +370,78 @@ def apply_end_date_clear(clears, sheet_db_id, token, req):
         except Exception as e:  # noqa: BLE001 — 1 行失敗で全体を止めない
             failed.append({"page_id": pid, "error": str(e)[:200]})
     return {"cleared": cleared, "failed": failed, "targeted": len(clears)}
+
+
+# ===========================================================================
+# MF顧客ID backfill (独立パス・C02)
+# ===========================================================================
+# 請求確認シート 665 行全ての MF顧客ID が空(0% 充足)なため、lib/mfk_reconcile._boundary_customers
+# の「MF顧客ID優先」経路が一度も発火せず、名前一致 fallback(name-drift で false GAP)に依存して
+# いた。名前→ID解決は scripts/mfk_customer_id_resolve.py(C02)へ一本化し、一意確定分だけを
+# 空欄セルへ backfill する(既存の片方向ミラー方針=空欄のみ補完・非破壊 を継承)。
+#
+# 安全設計 (契約開始日 propagation と同型の誤結線防止):
+#   - 取引先 (normalize で表記ゆれ吸収) 単位で group。
+#   - グループ内の 1 行でも MF顧客ID が非空なら、そのグループ全体を backfill 対象外にする
+#     (既に人間確認済み/前回 backfill 済みの値を誤上書きしない)。
+#   - 一意解決(method="unique_name")できたグループのみ書く。ambiguous/none は誤結線
+#     (別会社への誤紐付け)を避けるため書かない(要マスタ登録は C02 側の可視化に委ねる)。
+
+
+PROP_MF_CUSTOMER_ID = "MF顧客ID"  # シート rich_text (既存列・人間入力 or backfill が書く)
+
+
+def plan_customer_id_backfill_writeback(sheet_rows, name_by_id):
+    """請求確認シート全行を横断し、MF顧客ID 空欄行へ C02 の一意解決結果を backfill する計画を
+    返す(純関数・副作用なし)。
+
+    sheet_rows: [{page_id, 取引先, MF顧客ID, ...}] (請求確認シート全行)。
+    name_by_id: {customer_id: 会社名} (mfk_customer_id_resolve.build_name_index の出力)。
+
+    戻り値: {"updates": {page_id: mf_customer_id}, "stats": {"groups", "resolved",
+             "skipped_explicit", "unresolved"}}
+    """
+    groups = defaultdict(list)
+    for row in sheet_rows:
+        tnorm = mfk_reconcile.normalize(row.get("取引先", ""))
+        if tnorm:
+            groups[tnorm].append(row)
+
+    updates = {}
+    resolved, skipped_explicit, unresolved = 0, 0, 0
+    for tnorm, rows in groups.items():
+        if any((r.get("MF顧客ID") or "").strip() for r in rows):
+            skipped_explicit += 1
+            continue
+        res = mfk_customer_id_resolve.resolve_customer_id(tnorm, name_by_id)
+        if not res["confirmed"]:
+            unresolved += 1
+            continue
+        resolved += 1
+        for r in rows:
+            pid = r.get("page_id")
+            if pid:
+                updates[pid] = res["mf_customer_id"]
+    return {
+        "updates": updates,
+        "stats": {"groups": len(groups), "resolved": resolved,
+                   "skipped_explicit": skipped_explicit, "unresolved": unresolved},
+    }
+
+
+def apply_customer_id_backfill(updates, sheet_db_id, token, req):
+    """plan_customer_id_backfill_writeback の updates を空欄の MF顧客ID 列へ冪等 PATCH する。
+
+    個別失敗は握りつぶさず failed に積む (silent cap 禁止)。
+    返り値: {"written", "failed"(list), "targeted"}。
+    """
+    written, failed = 0, []
+    for pid, cid in updates.items():
+        try:
+            req("PATCH", f"/pages/{pid}", token, {
+                "properties": {PROP_MF_CUSTOMER_ID: {"rich_text": [{"text": {"content": cid}}]}}
+            })
+            written += 1
+        except Exception as e:  # noqa: BLE001 — 1 行失敗で全体を止めない
+            failed.append({"page_id": pid, "error": str(e)[:200]})
+    return {"written": written, "failed": failed, "targeted": len(updates)}

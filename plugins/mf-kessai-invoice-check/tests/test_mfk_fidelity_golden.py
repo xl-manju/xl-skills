@@ -161,3 +161,35 @@ def test_out2_j1_cross_client_not_matched():
                                    "lines": [_line("月額(山田太郎)", 50000)]}})
     assert row["verdict"] == "GAP"                  # cross_client は MATCH に化けない
     assert row["reliable_issued"] is False          # 自境界に active 供給なし
+
+
+def test_category_scope_falls_back_to_company_supply_when_category_misses():
+    # 会社名は完全一致(境界確定は _company_match のみ)。商品カテゴリ不一致時に会社供給へ
+    # フォールバックする挙動を検証する(alias 非依存)。
+    row = _classify_one(_contract("セカンドコミュニティ株式会社", "チイキズカン利用料", 50000),
+                        {"c1": {"name": "セカンドコミュニティ株式会社",
+                                "lines": [_line("チイキズカン業務委託費", 50000)]}})
+    assert row["supply_state"] == "active"
+    assert row["actual_amount"] == 50000
+    assert P._amount_of(row) == 50000
+
+
+# ---------------------------------------------------------------------------
+# C14 回帰(Goodhart 防止): 会社名 alias ハードコード撤去後、name-drift(日本語⇄英語表記等)は
+# _company_match で境界一致しないが、MF顧客ID が契約へ carry されていれば境界解決できる。
+# _COMPANY_ALIAS_GROUPS 復活なしに偽発行漏れ 0 件を保つ一般解(C02)の受入テスト。
+# ---------------------------------------------------------------------------
+def test_name_drift_matches_via_mf_customer_id_only_not_company_alias():
+    notion_name, mf_name, desc, amount = (
+        "セカンドコミュニティ株式会社", "2nd Community株式会社", "チイキズカン業務委託費", 50000,
+    )
+    # 会社名だけでは境界一致しない(alias 撤去の効果そのもの・偶発的な緩和が無いことの確認)。
+    assert R._company_match(R.normalize(notion_name), R.normalize(mf_name)) is False
+
+    # MF顧客ID が契約へ carry されていれば _boundary_customers の ID優先経路で境界解決できる。
+    row = _classify_one(_contract(notion_name, "チイキズカン利用料", amount, MF顧客ID="c1"),
+                        {"c1": {"name": mf_name, "lines": [_line(desc, amount)]}})
+    assert row["verdict"] == "MATCH_MONTHLY"
+    assert row["reliable_issued"] is True
+    assert row["actual_amount"] == amount
+    assert P._amount_of(row) == amount

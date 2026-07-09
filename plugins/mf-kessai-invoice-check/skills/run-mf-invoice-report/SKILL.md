@@ -15,7 +15,7 @@ prefix: run
 effect: external-mutation
 owner: team-platform
 since: 2026-07-07
-version: 0.1.0
+version: 0.2.0
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-07-07
@@ -58,15 +58,20 @@ MF掛け払いの**前月↔今月の請求書発行状況を突合**し、状�
 > - **`lib/mfk_reconcile.py`** (per-月 verdict の供給源・突合キー正規化 `normalize`/`extract_names`)。
 > - **`scripts/notion_report_sink.py`** (C04・Design D sink): 出力先 DB 解決 + 非破壊冪等 upsert。DB 生成/列型写像は `skills/run-mf-invoice-db-setup/scripts/build_notion_db.py` を再利用する。
 >
+> - **`scripts/mfk_verdict_export.py`** (C05・R1 決定論 producer): `reconcile()` を当月/先月で回し全 row (GAP/SUPPRESS 含む) + orphans を carrier 込みで `curr-verdicts`/`prev-verdicts` へ無損失直列化する。LLM 手動直列化 (発行済み社の当月行を落とし curr=None を生む構造的主因) を置換する。R1 はこの producer を呼ぶだけで verdict を手組みしない。
+> - **`scripts/mfk_collect_status.py`** (C01・発行後 status 収集 SSOT): `collect_mf` の `/billings/qualified` 取得を `invoice_issued` 限定でなく発行後 status (`account_transfer_notified` 等) も含める client 側フィルタの判定源。
+>
 > 自然文で頼まれたら新規実装せず `/run-mf-invoice-report --target YYMM` を **dry-run → 二段確認 (`mfk-report-verifier`) → `--apply --verified`** の順で実行する。**機械強制**: `hooks/guard-mfk-no-reinvent.py` (PreToolUse) が、正本以外への状態遷移分類の再実装 (`def compare_*`/`def period_diff`/`def classify_*` 等) と本ドメインでの `TODO(human)` 書き込みを exit 2 で遮断する (prose 指示が出力スタイルに上書きされても効く機械層)。
 
 ## End-to-End Flow
 
 ```
 [1 collect]     対象月を決定 (今月=直近締め済み請求対象月・先月=その1ヶ月前) →
-                前月/今月/lookback の全取引先 MF発行実績を参照専用GET (lib/mfk_api.py)・pagination trace を fetch_trace へ記録 →
-                既存 reconcile engine (lib/mfk_reconcile.py) で per-月 verdict を収集 →
-                取引先×商品で状態遷移を抽出し、差分に現れた該当取引先のみ 12ヶ月分の発行履歴を追加取得 →
+                前月/今月/lookback の全取引先 MF発行実績を参照専用GET (lib/mfk_api.py)・pagination trace を fetch_trace へ記録
+                (collect_mf は発行後 status=account_transfer_notified 等も収集=C01・mfk_collect_status.is_issued_billing) →
+                per-月 verdict は決定論 producer mfk_verdict_export.py (C05) が reconcile() の全 row (GAP/SUPPRESS 含む)+orphans を
+                carrier 込みで無損失直列化 (LLM 手組みでなく=curr=None を出さない構造的主因の根治) →
+                取引先×商品で状態遷移を抽出し、差分に現れた該当取引先 (STATE_NEW 含む) のみ 12ヶ月分の発行履歴を追加取得 →
                 請求確認シート由来の契約終了月も収集 →
                 curr-verdicts / prev-verdicts / lookback-12mo / contract-end / fetch_trace の JSON 入力を組む
 [2 fetch-audit] mfk_fetch_audit.py (C06) が fetch_trace を監査し fetch fidelity report を出力 (取得の完全性ゲート・MF実績起点判定の前提) →
@@ -82,6 +87,8 @@ MF掛け払いの**前月↔今月の請求書発行状況を突合**し、状�
 ```
 
 詳細は `workflow-manifest.json`、責務は `prompts/R1-R4`。dry-run (分類のみ) と `--apply` (Notion 書き込み) を分離し、分類内訳を確認してから適用することで二段確認を標準フローで要求する。C03/C04/C06 は決定論 script (fetch-audit=C06 は収集 R1 の取得完全性ゲート)、収集 (R1)→fetch fidelity 監査→分類呼出→二段確認→冪等描画のオーケストレーションが本 skill の責務。
+
+> **exit1 (C05 producer の carrier 検証違反) の対処**: `mfk_verdict_export.py` は全 row の carrier (`actual_amount`/`reliable_issued`/`supply_state`/`canceled_at`) 欠落を直列化前に fail-closed 検証し、1 行でも欠落があれば exit 1 で curr/prev-verdicts を一切書き出さない (過少報告=真の漏れを隠す退行を止める意図的トレードオフ)。通常は `reconcile()` の `_new_row`/`_orphan_to_row` が全 row へ carrier 既定値を設定するため exit1 は起きないが、発生時は「レポート全体が 1 行の欠落で停止する」all-or-nothing 挙動になる。対処: stderr の `schema 違反` メッセージが指す行 (verdict) を手掛かりに、`lib/mfk_reconcile.py` 側の carrier 付与漏れ (find_mf_match を経ない新経路の追加等) を調査する。原因行を特定・修正するまで当該月のレポートは出せない (安全側)。
 
 ## DB ライフサイクル (単一恒久 DB・作り直さない・履歴保全)
 

@@ -111,8 +111,8 @@ def test_summary_snapshot(reconciled):
         "MATCH_ANNUAL": 3,
         "MATCH_ENDED_FINAL": 2,
         "SUPPRESS_ANNUAL": 12,
-        "GAP": 17,
-        "REVIEW_QTY_MISMATCH": 29,
+        "GAP": 15,
+        "REVIEW_QTY_MISMATCH": 31,
         "REVIEW_AMOUNT_MISMATCH": 5,
         "REVIEW_AMOUNT_TYPO": 3,
         "REVIEW_METERED": 1,
@@ -159,6 +159,16 @@ def test_torizen_amount_mismatch_not_gap(reconciled):
     assert _verdicts(rows) == {"REVIEW_AMOUNT_MISMATCH"}
     # GAP (供給皆無) に落ちていないこと = B1 の核
     assert "GAP" not in _verdicts(rows)
+
+
+def test_category_fallback_keeps_company_supply_visible(reconciled):
+    """カテゴリがずれても会社境界内の供給を捨てず、GAP ではなく数量差として可視化する。"""
+    rows = _find(reconciled["rows"], torihiki="モトヤ", kakunin="玉井修司",
+                 shohin="100億ThinkTank")
+    assert rows
+    assert _verdicts(rows) == {"REVIEW_QTY_MISMATCH"}
+    assert all(r["actual_amount"] == 330000 for r in rows)
+    assert all(r["supply_state"] == "active" for r in rows)
 
 
 # ============================================================================
@@ -406,6 +416,33 @@ def test_company_match_threshold():
     assert R._company_match("あさかわ", "あさかわシステムズ") is True  # 4 文字包含
     assert R._company_match("児島", "鹿児島堀口製茶") is False  # 2 文字包含は拒否
     assert R._company_match("a", "abc") is False  # 短すぎ
+
+
+def test_company_match_has_no_hardcoded_company_alias(reconciled):
+    """C14 回帰: _company_match は完全一致/3文字以上包含のみで判定し、個社の会社名を
+    frozenset/条件分岐/読み替え表へハードコードしない(対症療法の復活を機械的に担保する)。
+    name-drift(日本語⇄英語表記等)の一般解は MF顧客ID carry(C02)であり、
+    _company_match への個社リテラル追加ではない。
+
+    検査は英単語 'alias' の proxy ではなく、撤去対象だった実症状 3 社の会社名リテラル
+    (2nd Community/細野/paws とその表記ゆれ)が照合エンジンのソースへ焼かれていないという
+    真の不変条件で行う(Goodhart 防止: 説明用の docstring 語ではなく実リテラルを見る)。"""
+    assert not hasattr(R, "_COMPANY_ALIAS_GROUPS")
+    assert not hasattr(R, "_COMPANY_ALIAS_BY_NAME")
+    assert not hasattr(R, "_company_alias_group")
+    import inspect
+    # 撤去対象だった RETRACT-1 の個社会社名リテラル(表記ゆれ含む)。
+    forbidden_literals = [
+        "2ndcommunity", "secondcommunity", "セカンドコミュニティ",
+        "hosono", "細野", "paws", "パウズ", "ポーズ",
+    ]
+    for fn in (R._company_match, R._boundary_customers, R.find_mf_match):
+        src = inspect.getsource(fn).lower()
+        for lit in forbidden_literals:
+            assert lit.lower() not in src, (
+                f"{fn.__name__} に個社会社名リテラル {lit!r} がハードコード (C14 違反)")
+    # 撤去後も既存の正当な照合(fixture 実データ)が緑であることを併せて担保する。
+    assert reconciled["rows"], "golden fixture の既存照合が壊れていないこと"
 
 
 def test_canonical_cycle_two_annual_systems():
@@ -1061,7 +1098,8 @@ def test_match_monthly_not_annotated_with_cancellation():
 def test_golden_summary_unchanged_after_cancellation_annotation(reconciled):
     """取消注記の追加 (T1) は golden の verdict 分布を変えない (warning のみ追記=WARN-not-FAIL)。"""
     assert reconciled["summary"]["SUPPRESS_ANNUAL"] == 12
-    assert reconciled["summary"]["GAP"] == 17
+    assert reconciled["summary"]["GAP"] == 15
+    assert reconciled["summary"]["REVIEW_QTY_MISMATCH"] == 31
     # golden には status 列が無く inactive バケットが空のため、対象外行の warning は空のまま。
     suppress_rows = [r for r in reconciled["rows"]
                      if r["verdict"] in ("SUPPRESS_ANNUAL", "SUPPRESS_ENDED")]

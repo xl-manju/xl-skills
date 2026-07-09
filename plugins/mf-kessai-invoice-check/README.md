@@ -107,7 +107,7 @@ Claude Desktop でも**同じスラッシュコマンド**が使えます。ア�
 
 > **シートの『年月』も取引日 (月末締め) の月で記入してください** (例: 取引日 `2026/06/30` 締め → 年月 `2606`、`--target 2606` と一致)。順方向の発行漏れ検知は当月『年月』の行を期待集合とするため、**発行月 (翌月月初) で記入すると当月の期待集合から外れ、真の発行漏れを見逃します**。MF 側 (`transaction.date`) と同じ取引日(締め)月軸に揃えるのが原則です。
 
-MF 側の証跡は `/billings/qualified` の `status=invoice_issued` だけを採用します。`scheduled` / `account_transfer_notified` は予定・通知段階として、発行確認OKの証跡には使いません。
+MF 側の証跡は `/billings/qualified` の**発行済み status** を採用します — `invoice_issued` に加え、発行後に進む `account_transfer_notified` (口座振替通知済み=発行後の後続段階) も発行済みとして扱います (共有 `collect_mf` が `mfk_collect_status.is_issued_billing` で判定・実測で `account_transfer_notified` の実在発行が `status=invoice_issued` 限定取得により偽の発行漏れになっていた事象の是正)。`scheduled` (発行予定) と `stopped` (停止) は非発行として証跡には使いません。
 
 確認内容に `期間：A〜B` がある場合、その期間は「作業開始から1年間」の根拠として扱い、初年度は年間払い、2年目以降は月払いとして判定します。期間も契約開始日も未記入の契約は原則月払いとして扱い、当月請求が MF に反映されている前提で照合します。MF側で同じ会社の複数シート行が1つの請求情報・1明細にまとまる場合も、契約ID境界内で期待額合計とMF明細額が一致すれば発行確認OKとして扱います。
 
@@ -379,7 +379,7 @@ for b in data["items"]:
 
 ## 構成 (実装済み)
 
-1. **主フロー: 請求確認シート基準の双方向照合** (`run-mf-invoice-reconcile`): 請求確認シートの当月行を期待集合、MF掛け払いの `invoice_issued` 取引を実績集合として照合します。順方向で発行漏れ・金額差・対象外を、逆方向で要マスタ登録 (orphan) を検出します。
+1. **主フロー: 請求確認シート基準の双方向照合** (`run-mf-invoice-reconcile`): 請求確認シートの当月行を期待集合、MF掛け払いの発行済み取引 (`invoice_issued` に加え発行後に進む `account_transfer_notified`・共有 `collect_mf` が `mfk_collect_status.is_issued_billing` で判定) を実績集合として照合します。順方向で発行漏れ・金額差・対象外を、逆方向で要マスタ登録 (orphan) を検出します。
 2. **DB1/DB2 二層台帳** (`scripts/build_reconcile_dbs.py` / `lib/notion_reconcile_sink.py`): DB1 は契約マスタ、DB2 は月次発行チェック履歴です。月次運用では DB を作り直さず、対象年月キーで当月だけ非破壊 upsert します。
 3. **請求確認シートへの片方向ミラー** (`lib/notion_sheet_writeback.py`): DB2 の判定 SoR から、当月シート行へ `判定`・`AI確認`・`確認ポイント` を書き戻します。空欄の `契約開始日` だけ派生補完し、`契約終了月` と人間列は触りません。
 4. **二段確認** (`agents/mfk-reconcile-verifier.md`): dry-run の判定内訳を独立 context の subagent で確認してから、`--apply --verified` で反映します。`--verified` なしの sink apply は fail-closed します。

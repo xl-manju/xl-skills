@@ -1,12 +1,12 @@
 ---
 name: mfk-report-verifier
-description: 前月↔今月比較レポートのイレギュラー分類 (年契約/年→月切替/トライアル完了/契約終了) を独立 context で二段確認し、真の発行漏れを問題ないと誤って隠していないか、および MF実績で発行済みのキーがレポート行から欠落した過少報告 (under-report) がないか検証したいときに使う。
+description: 前月↔今月比較レポートのイレギュラー分類 (年契約/年→月切替/トライアル完了/契約終了) を独立 context で二段確認し、真の発行漏れを問題ないと誤って隠していないか、MF実績で発行済みのキーがレポート行から欠落した過少報告 (under-report) がないか、および確定要因の追加軸 (C2 偽発行漏れ=curr 脱落の発行済み裏取り / C5 collapse 隠蔽 / C3 MATCH_ANNUAL 過剰要対応 / C14 個社会社名ハードコード依存の Goodhart 緑化) がないか検証したいときに使う。
 kind: agent
 tools: Read, Bash(python3 *)
 model: sonnet
 isolation: fork
 phase: verify
-version: 0.1.0
+version: 0.2.0
 owner: team-platform
 prompt_ssot: ../skills/run-mf-invoice-report/prompts/R3-verify.md
 responsibility_id: R3
@@ -35,6 +35,7 @@ responsibility_id: R3
 - 独立 context (`isolation: fork`) で C03 (`mfk_period_report.py`) の分類結果をレビューし、親 context の自己肯定バイアス (「正常に分類できた」という楽観) を持ち込まない。
 - **本 agent の主眼は false-negative の摘出**: 「正常イレギュラー (年契約期間内 / 年→月切替 / トライアル完了 / 契約終了 / 対象外抑制)」として `gap_check=正常` に分類された行のうち、**正常化の根拠が本物でない行 (=真の発行漏れを『問題ない』と誤って隠している行)** を発行漏れ候補 (`要対応`) へ差し戻す (reinstate)。reconcile 側 verifier の「誤検出 (false-positive) 排除」とは方向が逆であることに注意する。
 - **第3の検出軸=過少報告 (under-report) の摘出**: 上記 false-negative (行はあるが根拠が偽) とは別カテゴリとして、R1 が今月 per-月 verdict 行 (`--curr-verdicts`) へ直列化した `reliable_issued=True` (active 発行済み・`supply_state==active`) のキー (取引先×商品) が **C01 レポート行に一件も現れない** 欠落を検出する。基準キー集合は別ファイル actuals ではなく curr-verdicts 行の carrier (`reliable_issued`/`supply_state`。C05 (`mfk_actuals.py`) が当月 MF実績から verdict 行へ焼いた値) から直接算出する。これは MF実績上は発行があるのにレポートが行を出せていない/拾えていない漏れであり、偽陽性 (両月発行済なのに漏れ扱い)・偽陰性 (今月未発行なのに正常☑) とは独立に、行そのものの欠落を突合する軸である。差し戻す行が存在しないため `under_report_keys` として報告する。
+- **確定要因の追加軸 (C2/C5/C3/C14)**: 上記に加え、(C2) 今月金額=null かつ要対応 の行が curr-verdicts で発行済み (reliable_issued=True/actual_amount) なのに R1 脱落した偽・発行漏れでないか、(C5) 複数契約 collapse で発行済み実額が要対応・null 行に潰れて今月金額が隠れていないか、(C3) `curr.verdict∈{MATCH_ANNUAL,SUPPRESS_ANNUAL}` の STATE_NEW 行が lookback 不在だけで過剰要対応化していないか、(C14) 『偽発行漏れ0件』が個社会社名ハードコード (alias mask) でなく真因修正で達成され照合エンジンにリテラルが 0 件かつ name-drift 社が MF顧客ID 経路のみで MATCH しているか、を裏取りする (詳細は SSOT の Layer 2.2)。
 - MF掛け払い API は GET のみ。請求書発行・更新・削除など変更系は行わない。Notion への書込も行わない。
 - **既存 verdict を再判定しない**: 年契約抑制 (`SUPPRESS_ANNUAL`/`MATCH_ANNUAL`)・契約完了 (`SUPPRESS_ENDED`)・対象外 (`SUPPRESS_OFFMONTH`/`SUPPRESS_ONESHOT`) は上流 reconcile engine (R2) が機械適用済み。本 agent はこれら verdict の存在=正常化の根拠を確認するのであって、verdict そのものを引き直さない。
 - R3 詳細本文は `../skills/run-mf-invoice-report/prompts/R3-verify.md` を SSOT とし、迷う場合は SSOT を優先する。

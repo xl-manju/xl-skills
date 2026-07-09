@@ -55,9 +55,20 @@ import sys
 # fetch fidelity 監査器。両者は既存 SSOT (mfk_reconcile.build_mf_index/find_mf_match の scoped 結果) を
 # consume して amount-gate 根治 / 最新性検証を行う正当な追加であり、再発明でないため sanction する
 # (C12: 新規シグネチャ resolve_actual/build_actuals_index/audit_fetch_trace 等を allowlist 登録)。
+# matching-rootcause plan (発行漏れレポート根治) の新規 SSOT を追加 sanction する:
+#   - mfk_collect_status.py (C01): 発行後 billing status の収集可否を判定する純関数 SSOT
+#     (ISSUED_BILLING_STATUSES ホワイトリスト)。既存 collect_mf の status フィルタを消費側で
+#     一元化する正当な追加であり再発明でない。
+#   - mfk_customer_id_resolve.py (C02): mf_index から 会社名→MF顧客ID 解決マップを GET 専用で
+#     構築する純関数。_boundary_customers の ID 優先経路を発火させるための解決器で、名寄せ境界
+#     (_company_match/_boundary_customers) 自体は再発明せず consume する。
+#   - mfk_verdict_export.py (C05): reconcile() の全 row+orphans を carrier 込みで curr/prev-verdicts
+#     へ無損失直列化する決定論 producer。reconcile を呼ぶだけで再実装しない (関数名は
+#     serialize_verdicts/export_curr_prev 等・classify/compare/period_diff 語幹を避ける)。
 SANCTIONED_BASENAMES = {
     "mfk_reconcile.py", "reconcile_invoices.py", "mfk_period_report.py",
     "mfk_actuals.py", "mfk_fetch_audit.py",
+    "mfk_collect_status.py", "mfk_customer_id_resolve.py", "mfk_verdict_export.py",
 }
 
 # 本 plugin 固有の照合ドメイン信号。これを含まないコンテンツ/パスには発火しない。

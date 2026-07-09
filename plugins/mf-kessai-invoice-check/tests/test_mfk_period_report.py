@@ -127,6 +127,44 @@ def test_issued_via_evidence_amount_only():
 
 
 # ---------------------------------------------------------------------------
+# C4: prev 取消の継続性 (_prev_continuity_issued は _is_issued の金額列セマンティクスと別述語)
+# ---------------------------------------------------------------------------
+def test_prev_canceled_with_continuing_curr_match_is_continued_not_new():
+    # C4: prev=REVIEW_CANCELED (supply_state=inactive_canceled かつ canceled_at あり=前月に一度発行
+    # され後に取消) + curr が継続発行 (MATCH) の契約は、継続性上 STATE_NEW でなく STATE_CONTINUED
+    # (症状=2nd Community 5月分7/3取消)。金額列は _amount_of/_is_issued の K3 セマンティクス通り
+    # (取消前額を金額列に出さない) 不変のまま。
+    prev = [{"取引先": "継続取消社", "商品": "月額", "verdict": "REVIEW_CANCELED",
+             "現行単価": 50000, "actual_amount": None,
+             "supply_state": "inactive_canceled", "canceled_at": "2026-07-03"}]
+    curr = [_row("継続取消社", "月額", "MATCH_MONTHLY", amount=50000)]
+    row = _classify(prev, curr)[0]
+    assert row["period_diff"] == "継続発行"
+    assert row["gap_check"] == "正常"
+    assert row["prev_amount"] is None  # K3: 取消前額は金額列に出さない (温存)
+
+
+def test_prev_true_unissued_none_state_stays_new_not_continued():
+    # 真の未発行 (supply_state=none) は継続性の特例対象外。prev が一度も発行されていない通常の
+    # 新規は従来通り STATE_NEW のまま (C4 の適用範囲を取消行に限定する安全弁)。
+    prev = [{"取引先": "真新規継続社", "商品": "月額", "verdict": None,
+             "supply_state": "none"}]
+    curr = [_row("真新規継続社", "月額", "MATCH_MONTHLY")]
+    pairing = P.compare_periods(prev, curr)
+    assert pairing[0]["state"] == P.STATE_NEW
+
+
+def test_prev_canceled_without_canceled_at_stays_new():
+    # inactive_canceled でも canceled_at が無ければ (前月発行の裏付けが弱い) 継続性特例は発火せず
+    # 従来通り STATE_NEW のまま (述語の厳密さを保つ)。
+    prev = [{"取引先": "取消日欠社", "商品": "月額", "verdict": "REVIEW_CANCELED",
+             "supply_state": "inactive_canceled", "canceled_at": None}]
+    curr = [_row("取消日欠社", "月額", "MATCH_MONTHLY")]
+    pairing = P.compare_periods(prev, curr)
+    assert pairing[0]["state"] == P.STATE_NEW
+
+
+# ---------------------------------------------------------------------------
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
 def test_new_without_lookback_flags_unverified():
@@ -177,6 +215,26 @@ def test_new_backing_demoted_when_fidelity_lookback_partial():
         target_month="2606", fidelity={"exit_code": 3, "overall": "lookback_partial"})
     assert rows[0]["gap_check"] == "要対応"
     assert "部分欠損" in rows[0]["comment"]
+
+
+def test_new_match_annual_verdict_is_dispositive_without_lookback():
+    # C3: 今月 verdict=MATCH_ANNUAL (年一括発行) の新規行は reconcile が既に正常判定済みゆえ、
+    # 12ヶ月ルックバックの裏付けが無くても要確認へ倒さず即正常 (症状=『100億ThinkTank利用料』等)。
+    curr = [_row("新規年契約社", "利用料", "MATCH_ANNUAL", evidence_amount=1000000)]
+    row = _classify([], curr)[0]
+    assert row["gap_check"] == "正常"
+    assert row["period_diff"] == "新規/年→月切替"
+    assert "MATCH_ANNUAL" in row["comment"]
+
+
+def test_new_suppress_annual_verdict_is_also_dispositive():
+    # C3 同型: SUPPRESS_ANNUAL (年間前払い期間中) が curr_issued (reliable_issued 等) で新規行として
+    # 現れても、ANNUAL_NORMAL_VERDICTS の一次源で即正常化する (STOPPED 側③と対称)。
+    curr = [{"取引先": "新規年契約社2", "商品": "利用料", "verdict": "SUPPRESS_ANNUAL",
+             "現行単価": 500000, "reliable_issued": True}]
+    row = _classify([], curr)[0]
+    assert row["gap_check"] == "正常"
+    assert "SUPPRESS_ANNUAL" in row["comment"]
 
 
 def test_new_with_12mo_annual_lookback_is_switch():
@@ -453,6 +511,50 @@ def test_contract_id_disambiguation_same_customer_product():
     assert by_cid["C2"]["gap_check"] == "要対応"
 
 
+def test_agency_end_client_disambiguation_prevents_silent_collapse():
+    # C5: 代理店が同一商品を複数エンドクライアント (contract_id 未設定) に契約するとき、
+    # エンドクライアント名で分離しないと (取引先,商品) の setdefault で 1 件のみ残り、他方の
+    # 状態変化 (停止) が完全に隠蔽される (HOSONO 型)。エンドクライアント名で分離すれば個別に
+    # 正しく突合される (継続 1 件・発行漏れ候補 1 件)。
+    prev = [
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様"},
+    ]
+    curr = [
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        # B様は今月停止 (curr行なし)。
+    ]
+    report = _by_customer(_classify(prev, curr), "代理店社")
+    assert len(report) == 2
+    diffs = {r["period_diff"] for r in report}
+    assert "継続発行" in diffs
+    assert any("発行漏れ候補" in d for d in diffs)  # B様の停止が可視化される (隠蔽されない)
+
+
+def test_agency_end_client_key_stable_despite_inconsistent_contract_id():
+    # C5: contract_id が今月だけ付与される等の不整合があっても、エンドクライアント名で突合キーが
+    # 安定するため両エンドクライアントとも正しく継続発行になる (contract_id 不整合由来の
+    # 幻の NEW+STOPPED を防ぐ)。
+    prev = [
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様"},
+    ]
+    curr = [
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様", "契約ID": "C-A"},
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様", "契約ID": "C-B"},
+    ]
+    report = _by_customer(_classify(prev, curr), "代理店社2")
+    assert len(report) == 2
+    assert all(r["period_diff"] == "継続発行" for r in report)
+
+
 def test_no_disambiguation_when_single_contract():
     # 単一 contract_id なら取引先×商品のみで突合 (片側に契約ID欠落でも対応付く)。
     prev = [_row("単一社", "月額", "MATCH_MONTHLY", contract_id="C9")]
@@ -478,6 +580,16 @@ def test_amount_and_int_coercion():
     assert P._amount_of({"現行単価": "12,000"}) == 12000
     assert P._amount_of({"evidence": {"amount": 900}}) == 900
     assert P._amount_of({}) is None
+
+
+def test_amount_of_allows_expected_fallback_for_supply_none():
+    row = {"actual_amount": None, "supply_state": "none", "現行単価": "50,000"}
+    assert P._amount_of(row) == 50000
+
+
+def test_amount_of_blocks_expected_fallback_for_inactive_supply():
+    row = {"actual_amount": None, "supply_state": "inactive_canceled", "現行単価": "50,000"}
+    assert P._amount_of(row) is None
 
 
 def test_lookback_index_forms():

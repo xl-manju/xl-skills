@@ -21,7 +21,7 @@
 - 月帰属の判定軸は必ず `transaction.date` (取引日・月末締め)。例: 「6月分の請求書」は取引日 `2026-06-30` の請求で、発行日が翌月月初でも 6月分として扱う。
 - 同一の取引日(締め)月軸が請求確認シートの人手入力『年月』select にも適用される (順方向 GAP 検知の期待集合キー)。シートの『年月』は取引日(月末締め)の月で記入する (例: 取引日 `2026/06/30` 締め→年月 `2606`)。発行月で記入すると当月の期待集合から外れ真の発行漏れを見逃すため、MF 側 (`transaction.date`) と軸を一致させる。
 - `/billings/qualified` は `issue_date` で取得窓を [対象月初 .. 翌月末] に広げて over-fetch し、帰属確定は `/transactions` の `transaction.date` で行う。
-- 一覧は `/billings/qualified` (`status=invoice_issued`) を使う (インボイスモードで `/billings` は空)。`scheduled` / `account_transfer_notified` は未発行または通知段階のため、発行確認OKの証跡には使わない。
+- 一覧は `/billings/qualified` を使う (インボイスモードで `/billings` は空)。発行済み status は `invoice_issued` と発行後に進む `account_transfer_notified` (口座振替通知済み=発行後の後続段階) で、両者を発行済みの証跡として採用する (共有 `collect_mf`=C01 が `mfk_collect_status.is_issued_billing` で client 側判定・`account_transfer_notified` の実在発行を落とさない)。`scheduled` (発行予定) / `stopped` (停止) は非発行のため証跡に使わない。
 
 ### 1.2 倫理ガード
 - MF APIキーは Keychain のみ。平文出力・ログ復唱をしない。
@@ -29,12 +29,12 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 対象月 (`--target YYMM`) の MF掛け払い実績を参照専用 GET で全ページ取得し、照合用 MF index を作る。具体的には `/billings/qualified` (`status=invoice_issued`、`issue_date` が対象月初〜翌月末) を over-fetch → 各 billing の `/transactions` を取得 → `transaction.date` が対象月の明細 (`transaction_details`: description/amount/unit_price/quantity/billing_id) だけを line 化 → `/customers` で顧客名を解決 → `{"customers": {customer_id: {name, lines[]}}}` を `build_mf_index` へ渡す。
+- 担当: 対象月 (`--target YYMM`) の MF掛け払い実績を参照専用 GET で全ページ取得し、照合用 MF index を作る。具体的には `/billings/qualified` (`issue_date` が対象月初〜翌月末) を over-fetch → 発行済み status (`invoice_issued`/`account_transfer_notified`・`mfk_collect_status.is_issued_billing` で client 側判定) の billing のみ採用 → 各 billing の `/transactions` を取得 → `transaction.date` が対象月の明細 (`transaction_details`: description/amount/unit_price/quantity/billing_id) だけを line 化 → `/customers` で顧客名を解決 → `{"customers": {customer_id: {name, lines[]}}}` を `build_mf_index` へ渡す。
 - 非担当: 請求確認シート→契約マスタ生成・双方向照合 (R2)、二段確認 (R3)、Notion 書込 (R4)。
 
 ### 2.2 ドメインルール
 - 月帰属の判定軸は `transaction.date` (取引日・月末締め)。一覧取得の `issue_date` は API 取得窓であり、月帰属の正本ではない。`transaction.date` 欠落時だけ `transaction.issue_date` → `billing.issue_date` に fail-safe fallback する。
-- `status=invoice_issued` だけを採用する。予定・通知段階の請求を「発行済み」と誤認すると漏れを隠すため、`scheduled` / `account_transfer_notified` は必要に応じて人が確認する対象であり、MATCH 証跡にはしない。
+- 発行済み status (`invoice_issued` と発行後に進む `account_transfer_notified`) を採用する。`account_transfer_notified` は口座振替通知済み=発行後の後続段階であり (実測: paws 型の実在発行が `status=invoice_issued` 限定取得で偽の発行漏れになっていた)、これを除外すると真の発行を漏れ扱いする。`scheduled` (発行予定・未発行) と `stopped` (停止・非発行) は「発行済み」と誤認すると逆に漏れを隠すため MATCH 証跡にしない。発行/非発行の境界判定は `scripts/mfk_collect_status.py` の `is_issued_billing` (ホワイトリスト SSOT) が担う。
 - カーソルページングは `limit=200` 固定 (レート対策)。`pagination.has_next` が true で `pagination.end` が空なら部分取得のまま続行せず停止する。
 - MF 明細は API 上で同一行が二重化されるため `(billing_id, desc, amount)` で dedup する前提 (dedup・立替/負額/0円除外は `build_mf_index` が担当)。ただし `status=canceled` かつ description/商品名が残る0円明細は、単純な0円除外ではなく取消証跡として raw line に残し、後段で `REVIEW_CANCELED` へ可視化できるようにする。
 

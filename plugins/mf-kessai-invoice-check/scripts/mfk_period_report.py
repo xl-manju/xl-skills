@@ -35,7 +35,9 @@ verdict (MATCH_* / SUPPRESS_* / GAP / REVIEW_*) を入力に取り、前月集�
 
 分類ロジック (取引先×商品を突合し発行状態で分類):
   今月あり×前月あり → 継続発行 (正常)。全行 emit する (全請求書一覧を成す)。
-  今月あり×前月なし → 新規/年→月切替 (12ヶ月前の年契約一括が月額切替した可能性を lookback で補強)。
+  今月あり×前月なし → 新規/年→月切替。今月 verdict が年契約正常 (MATCH_ANNUAL/SUPPRESS_ANNUAL)
+                    なら reconcile 判定済みとして即正常 (C3・lookback 不要)。それ以外は 12ヶ月前の
+                    年契約一括が月額切替した可能性を lookback で補強し、裏付けなしは要確認。
   今月なし×前月あり → 正常な非請求事情 (年契約期間内 / トライアル完了 / 契約終了) の有無を
                     確認し、該当なしを発行漏れ候補(要対応)として分類する。
   今月なし×前月なし → 原則 対象外 (元々請求なし)。emit しない。ただし今月 curr が実 GAP
@@ -56,15 +58,20 @@ verdict (MATCH_* / SUPPRESS_* / GAP / REVIEW_*) を入力に取り、前月集�
              (precedence: 既存 verdict > 遡り推定)。年契約 verdict は識別的なので prev 参照で
              正常/漏れを分離できるが、隔月/単発 (prev=MATCH_MONTHLY 非識別的) には prev.verdict
              同型化を適用しない (真の月次漏れと衝突するため)。⑤隔月/単発の curr=None の根治は
-             入力層 curr-present 化 (R1-collect が reconcile の SUPPRESS_OFFMONTH/ONESHOT を
-             --curr-verdicts に含める) を要するが**未実装**で、現状は⑤ curr=None も安全側
-             要対応へ落ちる (漏れを隠さない側)。根治は handoff GAP-R1-COLLECT-CURR-PRESENT で追跡。
+             入力層 curr-present 化 (reconcile の SUPPRESS_OFFMONTH/ONESHOT を --curr-verdicts に
+             含める) を要し、これは **C05 決定論 producer `mfk_verdict_export.py` が呼び出し側で
+             実装済み** (reconcile().rows 全件=SUPPRESS_* 含むを persist・GAP-R1-COLLECT-CURR-PRESENT
+             根治済み)。準拠経路 (run-mf-invoice-report R1-collect→C05) では⑤ curr=None は起きない。
+             本 script は汎用 CLI で呼び出し元の curr-present 化を保証できないため、非準拠 caller が
+             SUPPRESS_* を落として curr=None を渡した場合の**防御的 fallback** として下記の安全側
+             (⑥要対応=漏れを隠さない側) 分岐を残す (curr が来ていれば正しく分類される)。
   トライアル: canon 前の生商品名 or MF 明細 desc を参照して判定する (shohin_canon の4値正規化後は
              『トライアル』信号が消えるため、正規化前の生名を見る)。
 
 突合キーは既存 mfk_reconcile.normalize / extract_names を再利用して取引先名の表記揺れを吸収する
 (自作正規化を発明しない)。最終分類とコメント根拠は取引先×商品単位で照合し、同一取引先・同一商品に
-複数契約があるときのみ contract_id を disambiguator に使う。12ヶ月遡りは差分該当取引先のみに限定
+複数契約があるときのみ contract_id またはエンドクライアント名 (C5: 代理店が複数エンドクライアント
+契約を contract_id 無しで持つケース) を disambiguator に使う。12ヶ月遡りは差分該当取引先のみに限定
 (呼出側が --lookback-12mo に差分該当分だけを渡す前提。API 負荷最小化)。
 """
 from __future__ import annotations
@@ -174,14 +181,27 @@ def _contract_id(row):
     return str(v) if v not in (None, "") else None
 
 
+def _end_client(row):
+    """行のエンドクライアント名 (エンドクライアント名/end_client)。代理店契約の disambiguator (C5)。
+
+    代理店が同一商品を複数の末端顧客(○○様)に契約する場合、contract_id が未設定でもこの名前で
+    別契約と識別できる (lib/mfk_reconcile の『（NAME様…）』抽出と同じ語彙を消費するのみ)。
+    """
+    if not row:
+        return None
+    v = _first(row, ("エンドクライアント名", "end_client"))
+    return str(v) if v not in (None, "") else None
+
+
 def _amount_of(row):
     """行の金額 (税抜 int)。**MF実績 actual_amount を最優先**し期待額はオーバーレイ (D3 amount-gate 根治)。
 
     現行実装は期待単価優先で evidence 欠落=金額列空白 (症状①⑥) だったのを、canonical carrier
     `actual_amount` (MF が実発行した額・C05・active 供給限定) 優先へ**反転**する。優先順位:
       ① actual_amount (C05 carrier を持つ行=MF実績由来の実発行額)。
-      ② actual_amount が明示 None かつ supply_state が active 以外 (取消/供給なし) → 金額列は空 (None)。
+      ② actual_amount が明示 None かつ supply_state が inactive_* → 金額列は空 (None)。
          取消前額 (evidence.amount) も期待額も出さない (K3: 未発行/取消を金額列に出さない)。
+         supply_state=none は発行なし/GAP なので期待額 fallback を許す。
       ③ actual_amount carrier 非保持の legacy 行 or active だが実額欠落 → 期待額 (現行単価等) へ fail-soft。
       ④ legacy evidence.amount fallback は supply_state==active or 未設定 (legacy) に限定 (取消前額を昇格させない)。
     """
@@ -192,9 +212,10 @@ def _amount_of(row):
         iv = _to_int(row.get("actual_amount"))
         if iv is not None:
             return iv
-        # actual_amount が明示 None かつ active でない = MF未発行 (取消/供給なし)。金額列に
-        # 期待額や取消前額を出さず空にする (K3・症状②/取消の金額列非表示)。
-        if ss is not None and ss != R_ACTUALS.SUPPLY_ACTIVE:
+        # actual_amount が明示 None かつ inactive = 取消/未確定。金額列に期待額や取消前額を
+        # 出さず空にする。supply_state=none は GAP/供給なしなので期待額 fallback を許す。
+        if ss in {R_ACTUALS.SUPPLY_INACTIVE_CANCELED,
+                  R_ACTUALS.SUPPLY_INACTIVE_PENDING}:
             return None
     for k in ("現行単価", "amount", "expected_amount", "金額", "単価"):
         iv = _to_int(row.get(k))
@@ -256,6 +277,25 @@ def _is_issued(row):
     return False
 
 
+def _prev_continuity_issued(row):
+    """prev 行が『継続性』の観点で前月発行済み相当か (C4: 取消の継続性・_is_issued とは別述語)。
+
+    _is_issued の金額列セマンティクス (PR#85: actual_amount/reliable_issued 優先で取消前額を
+    金額列に出さない K3) はそのまま消費するのみで変更しない。本述語は compare_periods の
+    STATE_NEW/STATE_CONTINUED の分岐にのみ使う: prev が「前月に一度発行された取消行」
+    (supply_state=inactive_canceled かつ canceled_at あり=REVIEW_CANCELED 相当) なら、当月
+    curr が発行済みの継続契約を STATE_NEW と誤判定しないよう継続性上は発行済み相当として扱う。
+    真の未発行 (supply_state=none・そもそも一度も発行されていない) はこの適用外で通常の
+    _is_issued 判定に従う (安全側=真の新規と取消継続を混同しない)。
+    """
+    if _is_issued(row):
+        return True
+    if not row:
+        return False
+    return (row.get("supply_state") == R_ACTUALS.SUPPLY_INACTIVE_CANCELED
+            and bool(row.get("canceled_at")))
+
+
 # ============================================================================
 # 突合キー (取引先×商品・複数契約時のみ contract_id で disambiguate)
 # ============================================================================
@@ -265,23 +305,45 @@ def _base_key(row):
 
 
 def _needs_disambiguation(rows):
-    """同一 (取引先,商品) に複数の異なる contract_id が存在する base key 集合を返す。
+    """同一 (取引先,商品) に複数の異なる contract_id またはエンドクライアント名が存在する base key
+    を軸別に返す (C5: 代理店が同一商品を複数エンドクライアントに契約する幻遷移の封鎖)。
 
-    その base key だけ contract_id を突合キーへ足して混同を防ぐ (それ以外は取引先×商品で突合し、
-    片側に contract_id が無くても対応付く)。
+    返り値 = (cid_disambig, ec_disambig) の base key 集合ペア。エンドクライアント名の軸は
+    contract_id が未設定の代理店契約でも発火する (代理店は複数エンドクライアントを同一商品名・
+    contract_id 無しで持つことがあり、disambiguation 無しでは (取引先,商品) の setdefault で
+    1 件のみ残り、他方の状態変化が隠蔽/幻の NEW+STOPPED を生むため)。両軸が同時に成立する base key
+    は _match_key でエンドクライアント名を優先する (contract_id は月によって付与有無が揺れうる
+    構造化列だが、エンドクライアント名は契約の本質的識別子で月をまたいで安定するため)。
     """
-    groups = defaultdict(set)
+    cid_groups = defaultdict(set)
+    ec_groups = defaultdict(set)
     for r in rows:
+        base = _base_key(r)
         cid = _contract_id(r)
         if cid:
-            groups[_base_key(r)].add(cid)
-    return {k for k, ids in groups.items() if len(ids) > 1}
+            cid_groups[base].add(cid)
+        ec = _end_client(r)
+        if ec:
+            ec_groups[base].add(R.normalize(ec))
+    cid_disambig = {k for k, ids in cid_groups.items() if len(ids) > 1}
+    ec_disambig = {k for k, ecs in ec_groups.items() if len(ecs) > 1}
+    return cid_disambig, ec_disambig
 
 
 def _match_key(row, disambig):
+    """disambig = (cid_disambig, ec_disambig) (_needs_disambiguation の返り値)。
+
+    エンドクライアント名の軸を contract_id より優先する: contract_id は構造化列の入力揺れ
+    (今月だけ付与される等) で月をまたいで不整合になりうるが、エンドクライアント名は代理店契約の
+    本質的識別子で安定するため、両軸が同時に成立する base key では前者が後者の突合キー安定性を
+    壊さないようにする (C5)。
+    """
+    cid_disambig, ec_disambig = disambig
     base = _base_key(row)
-    if base in disambig:
-        return base + (str(_contract_id(row) or ""),)
+    if base in ec_disambig:
+        return base + ("ec", R.normalize(_end_client(row) or ""))
+    if base in cid_disambig:
+        return base + ("cid", str(_contract_id(row) or ""))
     return base
 
 
@@ -294,6 +356,13 @@ def compare_periods(prev_rows, curr_rows):
     返り値 = list[dict] (base key 昇順)。各要素:
       {"key", "prev", "curr", "prev_issued", "curr_issued", "state"}。
       state は STATE_CONTINUED / STATE_NEW / STATE_STOPPED / STATE_NONE。
+
+    STATE_NEW/STATE_CONTINUED の分岐は prev の『継続性』を _prev_continuity_issued で判定する
+    (C4: _is_issued の金額列セマンティクスとは別 SSOT)。prev が前月に一度発行された取消行
+    (supply_state=inactive_canceled かつ canceled_at あり) なら継続性上は発行済み相当とし、curr が
+    発行済みの継続契約を STATE_NEW と誤判定しない。STATE_STOPPED の判定 (not curr_issued and
+    prev_issued) は従来どおり _is_issued を使う (取消行は金額列同様 STOPPED 判定でも未発行=対象外
+    に留め、既存の SUPPRESS_*/年契約等の非請求事情分岐に影響を与えない)。
     """
     prev_rows = prev_rows or []
     curr_rows = curr_rows or []
@@ -311,9 +380,10 @@ def compare_periods(prev_rows, curr_rows):
         curr = curr_map.get(key)
         prev_issued = _is_issued(prev)
         curr_issued = _is_issued(curr)
-        if curr_issued and prev_issued:
+        prev_continuity = _prev_continuity_issued(prev)
+        if curr_issued and prev_continuity:
             state = STATE_CONTINUED
-        elif curr_issued and not prev_issued:
+        elif curr_issued and not prev_continuity:
             state = STATE_NEW
         elif not curr_issued and prev_issued:
             state = STATE_STOPPED
@@ -629,8 +699,8 @@ def _classify_stopped(prev, curr, lookback_idx, end_idx, target_month):
     #    分類する。年契約 verdict は識別的ゆえ prev 参照で正常/漏れを分離できる (⑤隔月の
     #    prev=MATCH_MONTHLY は非識別的で「隔月正常」と「月次の真の漏れ」が curr=None 空間で
     #    衝突するため prev.verdict 同型化は⑤へ横断適用しない。⑤の curr=None 根治は入力層
-    #    curr-present 化=未実装で、現状⑤ curr=None は⑥安全側 要対応へ落ちる=handoff
-    #    GAP-R1-COLLECT-CURR-PRESENT で追跡)。
+    #    curr-present 化=C05 producer が呼び出し側で実装済み (GAP-R1-COLLECT-CURR-PRESENT 根治済み)。
+    #    準拠経路では⑤ curr=None は起きず、本 fallback は非準拠 caller 向けの安全側 (⑥要対応))。
     annual_source = None
     if verdict in ANNUAL_NORMAL_VERDICTS:
         annual_source = f"既存 verdict {verdict} を一次源"
@@ -759,20 +829,33 @@ def classify_period_transition(pairing, lookback=None, contract_end=None, target
                         product, _continued_comment(curr, prev), contract_id, target_month,
                         reliable_issued=mf_issued)
         elif state == STATE_NEW:
-            # D1: 前月なし今月ありの新規は、12ヶ月ルックバックで年契約→月額切替の裏付けが取れた場合のみ
-            # 正常☑。裏付けなし (ルックバック未実行 or 実行したが年契約履歴なし=真の新規) は要確認☐へ
-            # flip する (バグでなく新規判断の分岐・症状④)。lookback 部分欠損 (fidelity exit3) 時も
-            # 裏付け未確定ゆえ要確認へ降格する (安全側)。
-            comment = _new_comment(rep, lookback_idx, target_month, lookback_available)
-            backing = _new_backing_found(rep, lookback_idx)
-            if backing and lookback_partial:
-                gap = GAP_ACTION
-                comment += (" ｜ ⚠️ 12ヶ月ルックバック部分欠損 (fetch fidelity NG) のため年→月切替の"
-                            "裏付けが未確定→要確認へ降格")
-            elif backing:
+            curr_verdict = (curr or {}).get("verdict")
+            if curr_verdict in ANNUAL_NORMAL_VERDICTS:
+                # C3: 今月 verdict が年契約正常 (MATCH_ANNUAL=年一括発行/SUPPRESS_ANNUAL) なら
+                # reconcile が既に当月の発行を正常と判定済み (STOPPED 側 ③ の一次源と同型)。
+                # 12ヶ月ルックバックは年→月切替の裏付け探索が目的であり、この dispositive な
+                # 既存 verdict には不要 (裏付けなしでも要確認へ落とさない・症状=100億ThinkTank利用料等)。
                 gap = GAP_OK
+                comment = (f"年間一括請求のため今月発行済み=正常 (既存 verdict {curr_verdict} を"
+                          "一次源・新規契約の初回年契約でも12ヶ月ルックバック不要)")
+                note = _annual_lookback_note(rep, lookback_idx)
+                if note:
+                    comment += " / " + note
             else:
-                gap = GAP_ACTION  # 裏付けなし (未実行/真の新規) = D1 で要確認
+                # D1: 前月なし今月ありの新規は、12ヶ月ルックバックで年契約→月額切替の裏付けが取れた
+                # 場合のみ正常☑。裏付けなし (ルックバック未実行 or 実行したが年契約履歴なし=真の新規)
+                # は要確認☐へ flip する (バグでなく新規判断の分岐・症状④)。lookback 部分欠損
+                # (fidelity exit3) 時も裏付け未確定ゆえ要確認へ降格する (安全側)。
+                comment = _new_comment(rep, lookback_idx, target_month, lookback_available)
+                backing = _new_backing_found(rep, lookback_idx)
+                if backing and lookback_partial:
+                    gap = GAP_ACTION
+                    comment += (" ｜ ⚠️ 12ヶ月ルックバック部分欠損 (fetch fidelity NG) のため年→月切替の"
+                                "裏付けが未確定→要確認へ降格")
+                elif backing:
+                    gap = GAP_OK
+                else:
+                    gap = GAP_ACTION  # 裏付けなし (未実行/真の新規) = D1 で要確認
             row = _emit(customer, amount, prev_amount, gap, "新規/年→月切替",
                         product, comment, contract_id, target_month, reliable_issued=mf_issued)
         else:  # STATE_STOPPED
@@ -812,6 +895,36 @@ def _target_of(doc, fallback):
     return fallback
 
 
+def _orphan_rows(doc, target_month):
+    """curr-verdicts の orphans (MF実績あり×請求確認シートに契約なし) を『要マスタ登録』行へ surface する。
+
+    C05 producer (mfk_verdict_export.serialize_verdicts) が curr=None を避けて可視の逆方向行
+    doc["orphans"] へ分離した要マスタ登録を、レポートへ 要対応 (要マスタ登録) 行として emit する
+    (GAP-ID-ALIAS-BACKFILL-PATH の closure: C02/C03 で寄らない残余を隠さずレポート可視化する)。
+    orphans キーを持たない doc / list 入力では空を返す (後方互換・従来 rows-only 入力を壊さない)。
+    orphan は MF が実際に発行済み (reliable_issued=True) なので発行漏れ (false-negative) ではなく、
+    シート未登録=マスタ登録の action が要る行として severity=要対応・period_diff=要マスタ登録 で示す。
+    """
+    if not isinstance(doc, dict):
+        return []
+    out = []
+    for o in doc.get("orphans", []) or []:
+        if not isinstance(o, dict):
+            continue
+        customer = o.get("customer") or o.get("cust") or o.get("取引先")
+        if not customer:
+            continue
+        product = o.get("product") or o.get("desc") or o.get("商品")
+        amount = o.get("actual_amount")
+        if amount is None:
+            amount = o.get("amount")
+        comment = ("MF実績あり×請求確認シートに契約なし=要マスタ登録 "
+                   "(シートへ契約を追加するか MF顧客ID を登録して名寄せを恒久化する)")
+        out.append(_emit(customer, amount, None, GAP_ACTION, "要マスタ登録",
+                         product, comment, None, target_month, reliable_issued=True))
+    return out
+
+
 def build_report(curr_doc, prev_doc, lookback=None, contract_end=None, target_month=None,
                  fidelity=None):
     """パース済みドキュメントからレポート行 list を組み立てる (I/O なしの純ロジック纏め)。"""
@@ -820,9 +933,13 @@ def build_report(curr_doc, prev_doc, lookback=None, contract_end=None, target_mo
     if not target_month:
         target_month = _target_of(curr_doc, None) or resolve_target_months()[0]
     pairing = compare_periods(prev_rows, curr_rows)
-    return classify_period_transition(
+    rows = classify_period_transition(
         pairing, lookback=lookback, contract_end=contract_end, target_month=target_month,
         fidelity=fidelity)
+    # C05 producer が分離した逆方向 orphans (要マスタ登録) を surface し、curr=None でなく可視化する
+    # (下流 _rows_of は rows のみ読むため build_report がここで orphans を消費する=seam の単一結線点)。
+    rows.extend(_orphan_rows(curr_doc, target_month))
+    return rows
 
 
 def main(argv=None):
