@@ -17,7 +17,9 @@ category / ym_int) と cadence 定数(lib/mfk_invoice_diff.py)を再利用し、
 """
 from __future__ import annotations
 
+import os
 import re
+import sys
 
 from mfk_invoice_diff import (
     CADENCE_ANNUAL,
@@ -34,6 +36,13 @@ from mfk_reconcile import (
     parse_amounts,
     ym_int,
 )
+
+# C02 (MF顧客ID解決 SSOT) は scripts/ 配下。名前→ID 解決は再発明せずここへ一本化する。
+_SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+from mfk_customer_id_resolve import build_name_index, resolve_customer_id  # noqa: E402
 
 # 商品 canon の正規 4 値(請求確認シートの 商品 列の表記ゆれを束ねる)。
 PROD_BIZ = "チイキズカン業務委託費"            # 月次業務委託(原則 月払い)
@@ -135,6 +144,35 @@ def _as_signals(mf_index):
     if "customers" in mf_index:
         return build_mf_signals(mf_index)
     return mf_index
+
+
+def _explicit_mf_customer_id(rows) -> str:
+    """シート/DB由来の MF 顧客IDを返す。列名ゆれはここで吸収する。"""
+    for row in rows:
+        for key in ("MF顧客ID", "顧客ID", "customer_id", "mf_customer_id"):
+            v = (row.get(key) or "").strip()
+            if v:
+                return v
+    return ""
+
+
+def _mf_customer_id_from_mf(tnorm: str, mf_index) -> str:
+    """raw MF JSON から取引先名で一意に解決できる customer_id を返す。曖昧/無一致なら空。
+
+    名前→ID 解決は scripts/mfk_customer_id_resolve.py(C02)へ一本化する(名寄せ境界=
+    mfk_reconcile.normalize/_company_match の再発明を避ける)。
+    """
+    if not mf_index or "customers" not in mf_index:
+        return ""
+    name_by_id = build_name_index(mf_index)
+    return resolve_customer_id(tnorm, name_by_id)["mf_customer_id"] or ""
+
+
+def _mf_customer_id_for(rows, tnorm: str, mf_index) -> str:
+    explicit = _explicit_mf_customer_id(rows)
+    if explicit:
+        return explicit
+    return _mf_customer_id_from_mf(tnorm, mf_index)
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +401,7 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
         # 契約を構成する当月シート全行の page_id(畳み込み元)。シート『判定』書き戻しが
         # 代表1件でなく全行へ投影するために保持する。請求確認シートID(代表1件)は DB1 監査用。
         sheet_row_ids = [r.get("page_id") for r in rows if r.get("page_id")]
+        mf_customer_id = _mf_customer_id_for(rows, tnorm, mf_index)
 
         # 枝番: 同一 (取引先, エンドクライアント, 商品) が複数契約に割れた時のみ付与。
         if base_counts[base] > 1:
@@ -372,7 +411,7 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
             suffix = ""
         cid = "/".join([x for x in [torihiki, ec, product] if x]) + suffix
 
-        contracts.append({
+        contract = {
             "契約ID": cid,
             "取引先": torihiki,
             "商品": product,
@@ -394,7 +433,10 @@ def build_contracts(sheet_rows, mf_index=None, target_ym: str = "2606"):
             #   再導出が必須 (さもなくば商品照合が代表商品へ退化する)。
             "_sheet_row_ids": sheet_row_ids,
             "_source_products": source_products,
-        })
+        }
+        if mf_customer_id:
+            contract["MF顧客ID"] = mf_customer_id
+        contracts.append(contract)
     return contracts
 
 

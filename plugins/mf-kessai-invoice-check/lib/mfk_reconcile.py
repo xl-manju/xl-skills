@@ -498,6 +498,11 @@ def _company_match(tnorm, cust_norm):
     包含一致は短名の偶発包含(例: 児島株式会社→『児島』が 鹿児島堀口製茶 に含まれ誤MATCH)を
     避けるため、含まれる側を 3 文字以上に限定する(design の orphan法『最短3文字以上を要求し
     短名の偶発包含を抑止』と一致)。完全一致は長さによらず許容する。
+
+    名前 normalize だけでは表記が食い違う会社(name-drift: 日本語⇄英語表記等)は個社の
+    会社名リテラルを条件分岐や読み替え表へ焼いて救わない(C14: 対症療法禁止)。この場合の
+    一般解は MF顧客ID を契約へ carry すること(scripts/mfk_customer_id_resolve.py が一意解決/
+    backfill を担う)。_boundary_customers の ID優先経路がその carry を消費し、本関数への依存を外す。
     """
     if len(tnorm) < 2 or len(cust_norm) < 2:
         return False
@@ -647,7 +652,7 @@ def _scoped_inactive(boundary, ec_norms, expected_cats):
         (cust, cs) for cust, cs in inactive_cands
         if not expected_cats or cs.get("category") in expected_cats
     ]
-    return inactive_category if expected_cats else inactive_cands
+    return inactive_category if inactive_category else inactive_cands
 
 
 # cancellation_note が対象外/終了根拠なし行へ付ける取消注記のマーカー語(SSOT)。
@@ -725,7 +730,7 @@ def find_mf_match(contract, mf_index, mode="monthly"):
         (cust, svc) for cust, svc in candidates
         if not expected_cats or svc.get("category") in expected_cats
     ]
-    scoped_candidates = category_candidates if expected_cats else candidates
+    scoped_candidates = category_candidates if category_candidates else candidates
 
     # 非active(取消/審査中/否決/停止等)供給も services と同じ endclient/category スコープで絞る
     # (自境界の非active証跡)。cancellation_note と同一スコープを共有 (_scoped_inactive)。

@@ -42,6 +42,10 @@
 - **presence-based を尊重**: 該当品目が当月 MF 実績に 1 件でも反映されていれば発行漏れにしない (継続発行・新規は passthrough)。
 - **過少報告 (under-report) の検出**: curr-verdicts (今月の per-月 verdict 行) で `reliable_issued=True` (=active 発行済み・`supply_state==active`) としたキー (取引先×商品) の集合と C01 レポート行を突合し、レポートが 1 行も出せていない欠落キーを『レポートが surface できていない真の漏れ』として注記する (偽陽性・偽陰性と別軸)。基準集合は別ファイル actuals ではなく curr-verdicts 行の `reliable_issued`/`supply_state` carrier (C05 (`mfk_actuals`) が verdict 行へ焼いた値) から直接算出する (別 producer を要さない)。MF実績上は発行がある=本来レポートが行を出すべき、が起点。
 - **根拠なき終了月は既に要対応**: C03 が `REVIEW_ENDED_NO_BASIS` を発行漏れ候補に残す設計。R3 はこれを『正常』へ戻さない (漏れ隠蔽防止の安全弁を尊重)。
+- **【追加軸C2=偽発行漏れ (curr 脱落の発行済み裏取り)】** 今月金額=null かつ要対応 の行が、実は当月**発行済み** (忠実 reconcile が MATCH で carrier を持つ) なのに R1 脱落 (curr=None) で偽・発行漏れになっていないかを裏取りする。curr-verdicts の当該キーに `reliable_issued=True` / `actual_amount` があれば、要対応でなく発行済み (今月金額=actual_amount) が正で、R1 producer (C05 mfk_verdict_export.py) の出力に当該行が persist されているかを確認する。決定論 producer 化で curr=None は構造的に起きないはずなので、なお今月金額=null かつ忠実発行済みが残るなら producer 配線か carrier 貫通の欠陥として要対応差し戻しでなく**配線バグとして報告**する (症状: 2nd Community/HOSONO)。
+- **【追加軸C5=collapse 隠蔽の裏取り】** 代理店/複数エンドクライアントが 1 商品 (例『チイキズカン業務委託費』) へ collapse するとき、発行済み (reliable_issued=True) 行の実額が要対応・null 行で上書きされ今月金額が隠れていないかを確認する。同一 (対象月,取引先,商品) に複数契約 (（○○様）異額) がある行で、curr-verdicts 側に発行済み実額があるのにレポート今月金額=null なら sink collapse (C03 `_prefer_action`/`_preserve_issued_amount`) の保全欠落として報告する (発行済み実額保全 ∧ 要対応 severity 保持が両立しているか=片方向に倒れていないか)。症状: HOSONO/マルブン/芦田/野嵩商会/サクラパックス。
+- **【追加軸C3=MATCH_ANNUAL 過剰要対応】** STATE_NEW (前月なし今月あり) の要対応が、`curr.verdict=MATCH_ANNUAL` (reconcile が年契約一括発行=正常と判定済) を 12ヶ月lookback 不在だけを理由に過剰要対応化していないかを確認する。curr.verdict∈{MATCH_ANNUAL,SUPPRESS_ANNUAL} の新規行は lookback 無しでも正常☑が正 (C04 の short-circuit)。なお要対応で残るなら C04 の正常化短絡が効いていない配線欠陥として報告する (症状: 100億ThinkTank利用料 等 約25件)。
+- **【追加軸C14=Goodhart 検出 (ハードコード依存の偽達成)】** 『偽発行漏れ0件』が真因修正 (C05 決定論R1 / C04 分類 / C02 MF顧客ID結合) で達成されているか、それとも個社会社名ハードコード (`_COMPANY_ALIAS_GROUPS` 等の alias mask) で緑化された偽の達成でないかを、**ハードコード非対象の name-drift 社**で裏取りする。照合エンジン (`lib/mfk_reconcile.py` の `_company_match`/`_boundary_customers`/`find_mf_match`) に個社会社名リテラルが 0 件であることを確認し、name-drift 社が MF顧客ID 経路 (C02) のみで MATCH していることを確かめる (リテラル復活で緑化していたら Goodhart として報告)。
 - 確認は憶測しない。必要なら `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` で当月・過去月の `/billings/qualified` を GET 再取得し、既存 verdict の根拠 (発行実績・終了注記) を照合する。
 - `verdict` (内部 verdict) と分類語彙は C03 / `mfk_reconcile.py` の語彙から逐語引用し、別表記を作らない。
 
@@ -101,6 +105,10 @@
 - [ ] トライアル完了正常化行の生商品名/MF明細 desc に『トライアル』信号が実在するかを確認した
 - [ ] presence-based を尊重し、当月 MF に 1 件でも反映がある継続発行/新規を差し戻していない
 - [ ] 過少報告 (under-report) を照合した: curr-verdicts (今月の per-月 verdict 行) の `reliable_issued=True` (`supply_state==active`) キー (取引先×商品) がすべて C01 レポート行に現れているか確認し、欠落キー (レポートが出せていない漏れ) を注記した
+- [ ] 【C2軸】今月金額=null かつ要対応 の行が、curr-verdicts で発行済み (reliable_issued=True/actual_amount あり) なのに R1 脱落した偽・発行漏れでないかを裏取りした (残存すれば producer 配線/carrier 貫通の欠陥として報告)
+- [ ] 【C5軸】同一 (対象月,取引先,商品) の複数契約 collapse で、発行済み実額が要対応・null 行に潰されて今月金額が隠れていないかを裏取りした (発行済み実額保全 ∧ 要対応 severity 保持の両立を確認)
+- [ ] 【C3軸】`curr.verdict∈{MATCH_ANNUAL,SUPPRESS_ANNUAL}` の STATE_NEW 行が lookback 不在だけで過剰要対応化していないかを確認した
+- [ ] 【C14軸】『偽発行漏れ0件』が真因修正で達成され、照合エンジンに個社会社名リテラルが 0 件・name-drift 社が MF顧客ID 経路のみで MATCH していることを裏取りした (ハードコード alias mask による偽の緑化=Goodhart でない)
 - [ ] 根拠なき終了月 (`REVIEW_ENDED_NO_BASIS`) を『正常』へ戻していない (安全弁を尊重)
 - [ ] MF / Notion は GET のみ・書き込みをしていない
 
@@ -148,7 +156,15 @@ C03 (`mfk_period_report.py`) の分類済みレポート行を独立 context で
 3. トライアル完了: canon 前の生商品名 / MF明細 desc に『トライアル』信号が実在するか。無ければ差し戻す。
 4. 対象外 (`SUPPRESS_OFFMONTH`/`SUPPRESS_ONESHOT` 等): 隔月/分割/単発の抑制前提が既存 verdict にあるか。
 
-必要なら `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` で当月・過去月の `/billings/qualified` を GET 再取得し事実を照合する (憶測しない)。継続発行 (今月あり×前月あり) と新規/年→月切替 (今月あり×前月なし) は当月発行がある行なので passthrough する。発行漏れ候補 (`要対応`) 行は当月未発行が事実か (名寄せ漏れで実は発行済みでないか) を presence-based で確認し、偽陽性があれば注記する。さらに **過少報告 (under-report)** を照合する: curr-verdicts (今月の per-月 verdict 行) で `reliable_issued=True` (=当月 MF実績で active 発行済み・`supply_state==active`) としたキー (取引先×商品。carrier は C05 (`mfk_actuals`) が verdict 行へ焼いた値) を集合とし、C01 レポート行に 1 行も現れないキーを『MF実績上は発行があるのにレポートが surface できていない漏れ』として注記する (偽陽性・偽陰性とは別カテゴリの第3軸)。基準集合は別ファイル actuals ではなく curr-verdicts 行から直接算出する。よって R3 は **偽陽性 / 偽陰性 / 過少報告 の3軸**で二段確認する。根拠なき終了月 (`REVIEW_ENDED_NO_BASIS`) は C03 が既に要対応に残す安全弁なので『正常』へ戻さない。
+必要なら `$CLAUDE_PLUGIN_ROOT/lib/mfk_api.py` で当月・過去月の `/billings/qualified` を GET 再取得し事実を照合する (憶測しない)。継続発行 (今月あり×前月あり) と新規/年→月切替 (今月あり×前月なし) は当月発行がある行なので passthrough する。発行漏れ候補 (`要対応`) 行は当月未発行が事実か (名寄せ漏れで実は発行済みでないか) を presence-based で確認し、偽陽性があれば注記する。さらに **過少報告 (under-report)** を照合する: curr-verdicts (今月の per-月 verdict 行) で `reliable_issued=True` (=当月 MF実績で active 発行済み・`supply_state==active`) としたキー (取引先×商品。carrier は C05 (`mfk_actuals`) が verdict 行へ焼いた値) を集合とし、C01 レポート行に 1 行も現れないキーを『MF実績上は発行があるのにレポートが surface できていない漏れ』として注記する (偽陽性・偽陰性とは別カテゴリの第3軸)。基準集合は別ファイル actuals ではなく curr-verdicts 行から直接算出する。
+
+加えて確定要因に対応する追加軸を裏取りする (詳細は Layer 2.2):
+- **C2軸 (偽発行漏れ=curr 脱落)**: 今月金額=null かつ要対応 の行が curr-verdicts で発行済み (reliable_issued=True/actual_amount あり) なのに R1 脱落した偽・発行漏れでないか。C05 producer 化で curr=None は構造的に起きないはずなので、残存するなら producer 配線/carrier 貫通の欠陥として報告する。
+- **C5軸 (collapse 隠蔽)**: 同一 (対象月,取引先,商品) の複数契約 collapse で発行済み実額が要対応・null 行に潰れて今月金額が隠れていないか (発行済み実額保全 ∧ 要対応 severity 保持の両立を確認)。
+- **C3軸 (MATCH_ANNUAL 過剰要対応)**: `curr.verdict∈{MATCH_ANNUAL,SUPPRESS_ANNUAL}` の STATE_NEW 行が lookback 不在だけで過剰要対応化していないか。
+- **C14軸 (Goodhart 検出)**: 『偽発行漏れ0件』が真因修正で達成され、照合エンジン (`_company_match`/`_boundary_customers`/`find_mf_match`) に個社会社名リテラルが 0 件・name-drift 社が MF顧客ID 経路 (C02) のみで MATCH しているか (ハードコード alias mask による偽の緑化でないか)。
+
+よって R3 は **偽陽性 / 偽陰性 / 過少報告 + 確定要因の追加軸 (C2/C5/C3/C14)** で二段確認する。根拠なき終了月 (`REVIEW_ENDED_NO_BASIS`) は C03 が既に要対応に残す安全弁なので『正常』へ戻さない。
 
 検証後、正常化の根拠が偽物で真の発行漏れを隠していると判定した行の識別子を `reinstate_ids` (contract_id、無ければ (customer, product)) として返す (発行漏れ候補=要対応へ差し戻すべき行)。隠れた漏れが無ければ空配列を返す。API 再取得が失敗して確定できない行は差し戻しも確定もせず確定不能として計上する。差し戻しの反映 (再分類・DB 反映) は後続 render phase (R4) と上流是正が担う (R3 は read-only)。verdict / 分類語彙は C03 / `mfk_reconcile.py` から逐語引用し別表記を作らない。
 

@@ -621,6 +621,132 @@ def test_same_severity_action_collapse_merges_comments():
     assert "C1" in merged["comment"] and "C2" in merged["comment"]
 
 
+# ---------------------------------------------------------------------------
+# C03 (要因C5 sink側): collapse 発行済み実額保全 ∧ 漏れ隠蔽なし
+# ---------------------------------------------------------------------------
+def test_collapse_preserves_issued_amount_and_keeps_action():
+    """代理店/複数エンドクライアントが 1 商品へ collapse するとき、要対応 severity は保持しつつ
+    発行済み (reliable_issued) 行の実額を要対応・null 行が上書きして今月金額=null に潰さない
+    (HOSONO 型症状の sink 側根治・K4 権威訂正の対称適用)。"""
+    issued = {"gap_check": "正常", "customer": "HOSONO", "product": "チイキズカン業務委託費",
+              "amount": 70000, "reliable_issued": True, "comment": "（甲様）発行済み"}
+    gap = {"gap_check": "要対応", "customer": "HOSONO", "product": "チイキズカン業務委託費",
+           "amount": None, "reliable_issued": False, "comment": "（乙様）発行漏れ候補"}
+    # どちらの順でも: 要対応 severity 保持 + 発行済み実額 70000 保全 + 漏れ注記保持。
+    for merged in (sink._prefer_action(issued, gap), sink._prefer_action(gap, issued)):
+        assert sink._severity_rank(merged) == 1, "要対応 severity を保持し漏れを隠さない"
+        assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 70000, \
+            "発行済み実額が要対応・null 行で潰されず保全される"
+        assert "発行済み実額" in (merged.get("comment") or "")
+
+
+def test_collapse_does_not_overwrite_existing_action_amount():
+    """要対応行が既に金額を持つなら発行済み実額で上書きしない (据え置き)。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True}
+    gap = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": 55000}
+    merged = sink._prefer_action(gap, issued)
+    assert sink._severity_rank(merged) == 1
+    assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 55000, "要対応行の金額を据え置く"
+
+
+def test_collapse_normal_without_issued_returns_action_unchanged():
+    """保全すべき発行済み実額が無い (bare 正常・reliable_issued 無し) なら要対応行をそのまま返す
+    (従来挙動・不要な dict コピーを避ける)。"""
+    normal = {"gap_check": "正常", "customer": "A社", "product": "P"}
+    action = {"gap_check": "要対応", "customer": "A社", "product": "P"}
+    assert sink._prefer_action(normal, action) is action
+    assert sink._prefer_action(action, normal) is action
+
+
+def test_collapse_3way_preserves_issued_amount_order_independent():
+    """F-TRADE-1 回帰: 3者衝突 (発行済み正常 + 要対応A + 要対応B) が同一キーへ collapse するとき、
+    発行済み実額が要対応×要対応マージで null に潰れず保全され続ける (順序非依存)。"""
+    issued = {"gap_check": "正常", "customer": "代理店", "product": "業務委託費",
+              "amount": 70000, "reliable_issued": True, "comment": "（甲様）発行済み"}
+    gapA = {"gap_check": "要対応", "customer": "代理店", "product": "業務委託費",
+            "amount": None, "comment": "（乙様）漏れ"}
+    gapB = {"gap_check": "要対応", "customer": "代理店", "product": "業務委託費",
+            "amount": None, "comment": "（丙様）漏れ"}
+    import itertools
+    for order in itertools.permutations([issued, gapA, gapB]):
+        acc = order[0]
+        for nxt in order[1:]:
+            acc = sink._prefer_action(acc, nxt)
+        assert sink._severity_rank(acc) == 1, f"要対応 severity 保持 (順序={[r['comment'] for r in order]})"
+        assert sink._amount(acc, "amount") == 70000, \
+            f"発行済み実額 70000 が保全される (順序={[r['comment'] for r in order]}・自己矛盾行を作らない)"
+
+
+def test_collapse_severity_mixed_sums_multiple_issued_amounts_order_independent():
+    """BUG-1 回帰: 同一(取引先,商品)に reliable 正常が2件以上 + 要対応が collapse するとき、
+    要対応が畳込順の最後でなくても発行済み実額が Σ 保全され過少報告しない (fold 順非依存)。
+    round2 H2 が塞いだ正常×正常の隣接 MECE 象限 (severity 混在) の残穴の根治。"""
+    ko = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費",
+          "amount": 210000, "reliable_issued": True, "comment": "（甲様）発行済み"}
+    otsu = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費",
+            "amount": 70000, "reliable_issued": True, "comment": "（乙様）発行済み"}
+    hei = {"gap_check": "要対応", "customer": "HOSONO", "product": "業務委託費",
+           "amount": None, "comment": "（丙様）発行漏れ候補"}
+    import itertools
+    for order in itertools.permutations([ko, otsu, hei]):
+        acc = order[0]
+        for nxt in order[1:]:
+            acc = sink._prefer_action(acc, nxt)
+        labels = [r["comment"] for r in order]
+        assert sink._severity_rank(acc) == 1, f"要対応 severity 保持 (順序={labels})"
+        assert sink._amount(acc, "amount") == 280000, \
+            f"発行済み実額 210000+70000=280000 を Σ 保全 (順序={labels}・2件目以降を脱落させない)"
+
+
+def test_severity_mixed_collapse_sums_issued_amount_through_upsert():
+    """F-S03/F-L07 closure + BUG-1 統合回帰: 実 entry point (upsert_report_rows の collapse loop)
+    を通して severity 混在 collapse の発行済み実額 Σ が number 列『今月の金額』へ着地することを
+    検証する (_prefer_action 直接呼びを迂回せず本番配線を通す=見せかけ緑を防ぐ)。"""
+    ko = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費", "amount": 210000,
+          "reliable_issued": True, "comment": "（甲様）発行済み"}
+    otsu = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費", "amount": 70000,
+            "reliable_issued": True, "comment": "（乙様）発行済み"}
+    hei = {"gap_check": "要対応", "customer": "HOSONO", "product": "業務委託費", "amount": None,
+           "comment": "（丙様）発行漏れ候補"}
+    for order in ([hei, ko, otsu], [ko, otsu, hei], [ko, hei, otsu]):   # 要対応=先頭/最後/中間
+        req, state = _make_store()
+        sink.upsert_report_rows(order, "db-1", "2606", "tok", req=req)
+        posts = [c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages"]
+        assert len(posts) == 1, "3契約が同一(取引先,商品)へ collapse し1行"
+        props = posts[0][2]["properties"]
+        assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False, "要対応を保持 (☐)"
+        assert props[sink.PROP_CURR_AMOUNT]["number"] == 280000, \
+            "発行済み実額 210000+70000 が number 列へ Σ 着地 (fold 順非依存・過少報告なし)"
+
+
+def test_preserve_note_accurate_when_action_has_own_amount():
+    """Agent2#1 回帰: 要対応行が既に自己の金額を持つ場合、発行済み実額で上書きせず、注記も
+    『保全』と誤主張しない (何も引き継いでいないのに保全と書かない=注記の正確性)。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True}
+    action_with_amt = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": 55000}
+    merged = sink._prefer_action(action_with_amt, issued)
+    assert sink._amount(merged, "amount") == 55000, "要対応行の自己金額を据え置く"
+    # 「保全」でなく「別途あり」と正確に注記する。
+    assert "別契約に発行済み実額" in (merged.get("comment") or "")
+    assert "を今月金額へ保全" not in (merged.get("comment") or "")
+
+
+def test_collapse_notes_avoid_english_jargon():
+    """F-NAIVE1 回帰: 経理担当向け成果物の注記に英 IT 用語 'collapse' を出さない (平易な日本語)。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True, "comment": "発行済み"}
+    gap = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": None,
+           "comment": "漏れ"}
+    merged = sink._prefer_action(issued, gap)
+    assert "collapse" not in (merged.get("comment") or "").lower()
+    # 要対応×要対応マージの注記も同様。
+    a = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C1", "comment": "甲"}
+    b = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C2", "comment": "乙"}
+    assert "collapse" not in (sink._prefer_action(a, b).get("comment") or "").lower()
+
+
 def test_failed_row_is_isolated_and_counted_as_skipped():
     posts = []
 
