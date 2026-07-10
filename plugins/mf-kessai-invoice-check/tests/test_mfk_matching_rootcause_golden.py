@@ -126,16 +126,28 @@ def test_c5_agency_multi_endclient_no_phantom_transition():
     assert all(p["state"] == P.STATE_CONTINUED for p in pairing), "両エンドクライアントとも継続発行"
 
 
-def test_c5_sink_collapse_preserves_issued_amount():
-    """sink 段 (C03): 同一 (対象月,取引先,商品) collapse で発行済み実額が要対応・null で潰れない。"""
+def test_c5_sink_collapse_phantom_resolves_but_distinct_preserved():
+    """sink 段 (C03・新不変則 Fix B + identity gate): 同一 (対象月,取引先,商品) collapse を
+    契約 identity で二分する。
+    (a) phantom (同一契約が ID↔名前 split・identity 一致) → reliable 発行で正常✓ (record2 根治)。
+    (b) 真の別契約 (エンドクライアント違い・identity 相違) → 要対応保持で漏れを隠さない (漏れ隠蔽封鎖)。"""
     import notion_report_sink as sink
-    issued = {"gap_check": "正常", "customer": "HOSONO", "product": "チイキズカン業務委託費",
-              "amount": 70000, "reliable_issued": True, "comment": "（乙様）発行済み"}
-    gap = {"gap_check": "要対応", "customer": "HOSONO", "product": "チイキズカン業務委託費",
-           "amount": None, "reliable_issued": False, "comment": "（丙様）漏れ"}
-    merged = sink._prefer_action(issued, gap)
-    assert sink._severity_rank(merged) == 1, "要対応 severity を保持 (漏れを隠さない)"
-    assert sink._amount(merged, "amount") == 70000, "発行済み実額を保全 (今月金額=null にしない)"
+    # (a) phantom: contract_id/エンドクライアント共に空=identity 一致 → 正常✓。
+    issued_p = {"gap_check": "正常", "customer": "ツネマツ", "product": "利用料",
+                "amount": 50000, "reliable_issued": True, "comment": "当月実発行"}
+    gap_p = {"gap_check": "要対応", "customer": "ツネマツ", "product": "利用料",
+             "amount": None, "reliable_issued": False, "comment": "継続発行漏れ候補"}
+    merged_p = sink._prefer_action(issued_p, gap_p)
+    assert sink._severity_rank(merged_p) == 0, "phantom は正常✓ (record2 根治)"
+    assert sink._amount(merged_p, "amount") == 50000, "実発行額を保全"
+    # (b) 別契約: エンドクライアント違い=identity 相違 → 要対応保持 (漏れ隠蔽しない)。
+    issued_d = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費",
+                "amount": 70000, "reliable_issued": True, "end_client": "乙様", "comment": "（乙様）発行済み"}
+    gap_d = {"gap_check": "要対応", "customer": "HOSONO", "product": "業務委託費",
+             "amount": None, "reliable_issued": False, "end_client": "丙様", "comment": "（丙様）漏れ"}
+    merged_d = sink._prefer_action(issued_d, gap_d)
+    assert sink._severity_rank(merged_d) == 1, "別契約の漏れは正常化せず要対応保持"
+    assert sink._amount(merged_d, "amount") == 70000, "発行済み実額は保全"
 
 
 def test_c5_sink_collapse_sums_both_issued_amounts():
@@ -249,3 +261,90 @@ def test_out1_no_false_issue_gap_for_issued_companies():
     issued_rows = [r for r in rows if r.get("gap_check") == P.GAP_OK]
     assert issued_rows, "発行済み社が継続発行(正常)で emit される"
     assert all(P._amount_of(r) is not None for r in issued_rows), "発行済み行は今月金額=実額 (null でない)"
+
+
+# ===========================================================================
+# 2026-07-10 実運用フィードバック根治ゴールデン (record1/record2 + 普遍不変則)
+# 症状: 「今月に金額 (実発行) があるのに漏れチェックが☐」= 発行漏れ判定が『今月実発行あり』に
+#      優先されていない。要件1 (STATE_CONTINUED) を NEW 経路 + collapse 経路へ拡張して根治する。
+# ===========================================================================
+def test_record1_new_issued_this_month_is_normal_with_empty_prev_amount():
+    """record1 (ヤマナカ/100億ThinkTank利用料): 先月未発行×今月実発行 (MATCH_MONTHLY) の新規は
+    正常✓ (今月に実発行あり=定義上『発行漏れ』でない=Fix A)。先月未発行ゆえ先月金額は空にし
+    期待額 (現行単価) を出さない (Fix C: 『先月金額あるのに新規』の自己矛盾を根治)。"""
+    prev = [{"取引先": "ヤマナカ", "商品": "100億ThinkTank利用料", "verdict": None,
+             "現行単価": 50000, "supply_state": R.mfk_actuals.SUPPLY_INACTIVE_PENDING}]  # 先月=期待額のみ・未発行
+    curr = [{"取引先": "ヤマナカ", "商品": "100億ThinkTank利用料", "verdict": "MATCH_MONTHLY",
+             "actual_amount": 50000, "reliable_issued": True,
+             "supply_state": R.mfk_actuals.SUPPLY_ACTIVE, "canceled_at": None}]
+    pairing = P.compare_periods(prev, curr)
+    assert pairing[0]["state"] == P.STATE_NEW, "先月未発行×今月発行=STATE_NEW"
+    row = P.classify_period_transition(pairing, target_month="2606")[0]
+    assert row["gap_check"] == P.GAP_OK, "今月実発行あり=正常✓ (record1 の☐根治)"
+    assert row["amount"] == 50000, "今月の実発行額を表示"
+    assert row["prev_amount"] is None, "先月未発行ゆえ先月金額は空 (期待額を出さない=矛盾根治)"
+
+
+def test_record2_reliable_issued_covers_colocated_gap():
+    """record2 (ツネマツ/チイキズカン): 同一取引先×商品に発行済み契約 (reliable) と gap 候補が
+    collapse するとき、今月実発行が当該請求を満たす → 正常✓ (Fix B・K4 の同一run 対称適用)。
+    先月空白今月実額なのに☐だった症状の根治。gap 候補の根拠はコメントへ保全して黙殺しない。"""
+    import notion_report_sink as sink
+    issued = {"gap_check": "正常", "customer": "ツネマツガス株式会社",
+              "product": "チイキズカン利用料（2年目以降）", "amount": 50000,
+              "reliable_issued": True, "comment": "当月実発行"}
+    gap = {"gap_check": "要対応", "customer": "ツネマツガス株式会社",
+           "product": "チイキズカン利用料（2年目以降）", "amount": None,
+           "reliable_issued": False, "comment": "継続発行漏れ候補"}
+    for merged in (sink._prefer_action(issued, gap), sink._prefer_action(gap, issued)):
+        assert sink._severity_rank(merged) == 0, "今月実発行が gap を充足=正常✓"
+        assert sink._amount(merged, "amount") == 50000, "今月の実発行額を保全"
+        assert "継続発行漏れ候補" in (merged.get("comment") or ""), "gap 候補の根拠を黙殺しない"
+
+
+def test_invariant_reliable_issued_implies_normal_in_classify():
+    """普遍不変則: classify_period_transition の出力で reliable_issued=True の行は必ず gap_check=正常。
+    『今月に権威ある実発行がある行は発行漏れでない』を全 state 横断で凍結する (要件1の一般化)。"""
+    prev = [
+        {"取引先": "継続社", "商品": "月額", "verdict": "MATCH_MONTHLY", "actual_amount": 30000,
+         "reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE},
+        {"取引先": "新規社", "商品": "月額", "verdict": None,
+         "supply_state": R.mfk_actuals.SUPPLY_INACTIVE_PENDING},
+    ]
+    curr = [
+        {"取引先": "継続社", "商品": "月額", "verdict": "MATCH_MONTHLY", "actual_amount": 30000,
+         "reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE},
+        {"取引先": "新規社", "商品": "月額", "verdict": "MATCH_MONTHLY", "actual_amount": 40000,
+         "reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE},
+    ]
+    rows = P.classify_period_transition(P.compare_periods(prev, curr), target_month="2606")
+    violations = [r for r in rows if r.get("reliable_issued") and r.get("gap_check") != P.GAP_OK]
+    assert violations == [], f"reliable_issued ⟹ 正常 に反する行: {violations}"
+
+
+def test_category_fallback_issuance_is_not_authoritative():
+    """安全弁 (system-strategic 検証 HIGH): category-agnostic fallback で得た非確定一致
+    (category_confirmed=False) は reliable_issued=True・supply_state=active でも権威判定から除外され、
+    cross-run guard/collapse で真の月次漏れを正常✓へ上書きしない (誤陽性の漏れ隠蔽を防ぐ)。
+    確定一致 (category_confirmed=True) は従来どおり権威。"""
+    fallback = {"reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE,
+                "category_confirmed": False}
+    confirmed = {"reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE,
+                 "category_confirmed": True}
+    legacy = {"reliable_issued": True, "supply_state": R.mfk_actuals.SUPPLY_ACTIVE}  # フィールド無し=既定 True
+    assert P._row_reliable_mf_issued(fallback) is False, "fallback 一致は権威扱いしない"
+    assert P._row_reliable_mf_issued(confirmed) is True, "category 確定一致は権威"
+    assert P._row_reliable_mf_issued(legacy) is True, "既存/未経由行 (フィールド無し) は既定 True で後方互換"
+
+
+def test_resolve_actual_marks_category_confirmed():
+    """mfk_actuals.resolve_actual が category 確定一致=True / fallback=False を carrier へ焼く。"""
+    svc = ("cust", {"desc": "月額", "category": "X", "amount": 50000})
+    confirmed = R.mfk_actuals.resolve_actual([svc], [], "match",
+                                             {"amount": 50000}, expected_cats={"X"},
+                                             category_confirmed=True)
+    fallback = R.mfk_actuals.resolve_actual([svc], [], "match",
+                                            {"amount": 50000}, expected_cats={"Y"},
+                                            category_confirmed=False)
+    assert confirmed["category_confirmed"] is True
+    assert fallback["category_confirmed"] is False and fallback["issued"] is True  # issued は据え置き

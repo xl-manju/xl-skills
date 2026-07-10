@@ -167,25 +167,25 @@ def test_prev_canceled_without_canceled_at_stays_new():
 # ---------------------------------------------------------------------------
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
-def test_new_without_lookback_flags_unverified():
-    # D1: ルックバック未実行 (--lookback-12mo 未指定) = 年→月切替の裏付けなし → 要確認へ flip する。
-    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) が、裏付けが取れていない事実を要確認で
-    # 可視化する (silent に『新規発行(正常)』と断定しない・症状④の新規判断)。
+def test_new_without_lookback_normal_but_discloses_unverified():
+    # 新不変則 (Fix A・要件1を NEW 経路へ拡張): 前月なし今月あり=**今月に実発行あり**=定義上
+    # 『発行漏れ』ではない → 漏れチェックは正常✓。旧 D1 は『発行漏れ (今月未発行)』と『内容の
+    # 未確認 (年→月切替か真の新規か)』を混同して要対応☐へ flip していた (症状①『金額あるのに
+    # チェックが入らない』の根治)。未確認は checkbox を倒さず**コメントで開示**する。
     curr = [_row("新規社", "月額", "MATCH_MONTHLY")]
     row = _classify([], curr)[0]
-    assert row["gap_check"] == "要対応"               # D1: 裏付けなし=新規・要確認☐
+    assert row["gap_check"] == "正常"                 # 今月実発行あり=正常✓ (漏れではない)
     assert row["period_diff"] == "新規/年→月切替"
-    assert "未実行" in row["comment"] and "未確認" in row["comment"]
+    assert "未実行" in row["comment"] and "未確認" in row["comment"]   # 未確認はコメントで開示
 
 
-def test_new_with_lookback_but_no_annual_is_true_new():
-    # D1: ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
-    # 裏付けなし (年契約→月額切替が確認できない真の新規) は要確認へ flip する。未実行 (上のテスト) と
-    # comment で区別され、確認済みであることは明示される。
+def test_new_with_lookback_but_no_annual_normal_true_new():
+    # 新不変則: ルックバックを実行し年契約履歴が無い「真の新規」も、今月に実発行あり=正常✓。
+    # 未実行 (上のテスト) と comment で区別され、真の新規である旨は明示される (checkbox は倒さない)。
     curr = [_row("真新規社", "月額", "MATCH_MONTHLY")]
     lookback = {"別の社": [{"month": "2506", "annual": True}]}  # 対象取引先は不在=確認済み・裏付けなし
     row = _classify([], curr, lookback=lookback, target="2606")[0]
-    assert row["gap_check"] == "要対応"               # D1: 真の新規=裏付けなし=要確認☐
+    assert row["gap_check"] == "正常"                 # 今月実発行あり=正常✓
     assert "確認したが" in row["comment"] and "真の新規" in row["comment"]
     assert "未実行" not in row["comment"]
 
@@ -198,22 +198,25 @@ def test_new_with_annual_backing_is_normal():
     assert row["gap_check"] == "正常"
 
 
-def test_new_backing_is_product_scoped_mixed_contract():
-    # F2 是正 (NEW 経路の漏れ隠蔽封鎖): 年契約商品A の履歴があっても、今月新規の別商品B は
-    # A の年契約履歴で正常化されず要確認☐に残る (商品粒度突合・STOPPED と対称)。
+def test_new_mixed_contract_product_b_normal_via_issuance_not_annual():
+    # 新不変則: 別商品Bは**今月実発行あり=正常✓** (Aの年契約履歴で正常化するのではなく B 自身の
+    # 実発行が根拠)。商品粒度突合は保持され A の年契約性を B へ誤帰属しない (漏れ隠蔽方向の是正は
+    # 維持): コメントは B の年契約裏付けを主張せず『真の新規/未確認』を開示する。
     curr = [_row("混在社", "新商品B", "MATCH_MONTHLY")]
     lookback = {"混在社": [{"month": "2506", "annual": True, "product": "年契約商品A"}]}
     row = _classify([], curr, lookback=lookback, target="2606")[0]
-    assert row["gap_check"] == "要対応"   # 別商品Bの年契約性は未確認=真の新規=要確認
+    assert row["gap_check"] == "正常"     # Bは今月実発行あり=正常 (漏れではない)
+    assert "真の新規" in row["comment"]   # Aの年契約裏付けをBへ誤帰属しない (商品粒度突合は保持)
 
 
-def test_new_backing_demoted_when_fidelity_lookback_partial():
-    # C06 exit3 (lookback 部分欠損) 時は年契約裏付けありでも未確定ゆえ要確認へ降格する (安全側)。
+def test_new_with_fidelity_partial_still_normal_issuance_confirmed():
+    # 新不変則: C06 exit3 (lookback 部分欠損) でも**今月の実発行は確認済**ゆえ正常✓。年→月切替の
+    # 裏付けのみ未確定である旨をコメントで開示する (旧: 要対応へ降格=発行済みを漏れ扱いする誤り)。
     pairing = P.compare_periods([], [_row("年→月社", "月額", "MATCH_MONTHLY")])
     rows = P.classify_period_transition(
         pairing, lookback={"年→月社": [{"month": "2506", "annual": True, "product": "月額"}]},
         target_month="2606", fidelity={"exit_code": 3, "overall": "lookback_partial"})
-    assert rows[0]["gap_check"] == "要対応"
+    assert rows[0]["gap_check"] == "正常"
     assert "部分欠損" in rows[0]["comment"]
 
 
@@ -667,10 +670,11 @@ def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
                  "--lookback-12mo", empty_lb, "--target-month", "2606",
                  "--fidelity-report", _fidelity(tmp_path)])
-    # D1: 空 lookback=裏付けなしの新規は要確認へ flip するため gap_check=要対応 → rc=1。
-    assert rc == 1
+    # 新不変則: 空 lookback でも新規は今月実発行あり=正常✓ (漏れではない) ゆえ rc=0。
+    # 年→月切替の裏付け未確認は checkbox を倒さないが stderr 警告での開示は維持する。
+    assert rc == 0
     err = capsys.readouterr().err
-    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火
+    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火 (開示は維持)
 
 
 def test_main_missing_file_fail_closed(tmp_path):
@@ -850,10 +854,12 @@ def test_B_new_annual_renewal_cycle_is_normal():
     assert _classify([], curr)[0]["gap_check"] == "正常"
 
 
-def test_B_new_monthly_without_backing_still_action():
+def test_B_new_monthly_without_backing_is_normal_issued_this_month():
+    # 新不変則: 月払いの新規契約でも**今月に実発行あり**なら正常✓ (発行漏れは今月未発行に限る)。
+    # 旧挙動 (裏付けなし月払い新規=要対応) は『発行の存在』と『内容の未確認』の混同だった。
     curr = [_issued("デルタ", "保守月額", cid="c-d", cycle="月払い",
                     amount=50000, verdict=None)]
-    assert _classify([], curr)[0]["gap_check"] == "要対応"
+    assert _classify([], curr)[0]["gap_check"] == "正常"
 
 
 # --- 要因C: 先月も今月も未発行の月払いアクティブ契約 (完了未確認) を要対応 surface ---
