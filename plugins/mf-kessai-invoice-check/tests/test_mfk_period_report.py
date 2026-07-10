@@ -760,3 +760,117 @@ def test_originally_unbilled_and_suppressed_still_dropped():
     # curr に行が無い (元々請求なし/当月の発行期待なし) も非 emit。
     prev_only = P.build_report([], [_row("退会社", "月額", "GAP")], target_month="2606")
     assert prev_only == []
+
+
+# ---------------------------------------------------------------------------
+# 要因A/B/C (2026-07-10 ユーザー確定): 月跨ぎ ID 突合 / 年契約開始✓ / 長期未発行 surface
+# ---------------------------------------------------------------------------
+def _issued(customer, product, cid=None, cycle=None, status=None,
+            amount=50000, verdict="MATCH_MONTHLY"):
+    r = {"取引先": customer, "商品": product, "verdict": verdict,
+         "reliable_issued": True, "actual_amount": amount, "supply_state": "active"}
+    if cid is not None:
+        r["MF顧客ID"] = cid
+    if cycle is not None:
+        r["支払サイクル"] = cycle
+    if status is not None:
+        r["ステータス"] = status
+    return r
+
+
+def _not_issued(customer, product, cid=None, cycle=None, status=None, verdict="GAP"):
+    r = {"取引先": customer, "商品": product, "verdict": verdict,
+         "reliable_issued": False, "supply_state": "none"}
+    if cid is not None:
+        r["MF顧客ID"] = cid
+    if cycle is not None:
+        r["支払サイクル"] = cycle
+    if status is not None:
+        r["ステータス"] = status
+    return r
+
+
+# --- 要因A: 月跨ぎ突合を MF顧客ID 第一キーにする ---
+def test_A_matches_by_customer_id_across_name_drift():
+    prev = [_issued("アルファ合同会社", "利用料", cid="cust-XYZ")]
+    curr = [_issued("アルファ合同会社(旧アルファ)", "利用料", cid="cust-XYZ")]
+    pairing = P.compare_periods(prev, curr)
+    assert len(pairing) == 1
+    assert pairing[0]["state"] == P.STATE_CONTINUED
+
+
+def test_A_name_drift_without_id_still_splits():
+    prev = [_issued("アルファ合同会社", "利用料")]
+    curr = [_issued("アルファ合同会社(旧アルファ)", "利用料")]
+    assert len(P.compare_periods(prev, curr)) == 2
+
+
+def test_A_id_bridge_inherits_when_one_month_lacks_explicit_id():
+    prev = [_issued("ベータ商事", "保守", cid="cust-B")]
+    curr = [_issued("ベータ商事", "保守")]
+    pairing = P.compare_periods(prev, curr)
+    assert len(pairing) == 1
+    assert pairing[0]["state"] == P.STATE_CONTINUED
+
+
+def test_A_different_customer_ids_do_not_merge():
+    prev = [_issued("同名社", "月額", cid="cust-1")]
+    curr = [_issued("同名社", "月額", cid="cust-2")]
+    assert len(P.compare_periods(prev, curr)) == 2
+
+
+# --- 要因B: 新規年契約開始 (支払サイクル年契約系) は 12ヶ月履歴なしでも正常✓ ---
+def test_B_new_annual_cycle_start_is_normal():
+    curr = [_issued("ガンマ", "年間ライセンス", cid="c-g", cycle="年間払い",
+                    amount=1200000, verdict=None)]
+    rows = _classify([], curr)
+    assert len(rows) == 1
+    assert rows[0]["gap_check"] == "正常"
+    assert "年契約開始" in rows[0]["comment"]
+
+
+def test_B_new_annual_renewal_cycle_is_normal():
+    curr = [_issued("シータ", "更新ライセンス", cid="c-t", cycle="年間一括更新",
+                    amount=900000, verdict=None)]
+    assert _classify([], curr)[0]["gap_check"] == "正常"
+
+
+def test_B_new_monthly_without_backing_still_action():
+    curr = [_issued("デルタ", "保守月額", cid="c-d", cycle="月払い",
+                    amount=50000, verdict=None)]
+    assert _classify([], curr)[0]["gap_check"] == "要対応"
+
+
+# --- 要因C: 先月も今月も未発行の月払いアクティブ契約 (完了未確認) を要対応 surface ---
+def test_C_both_absent_active_monthly_surfaced_as_action():
+    prev = [_not_issued("イプシロン", "保守月額", cid="c-e", cycle="月払い", status="有効")]
+    rows = _classify(prev, [])
+    assert len(rows) == 1
+    assert rows[0]["gap_check"] == "要対応"
+    assert "継続" in rows[0]["period_diff"]
+    assert "契約完了の確認が取れず" in rows[0]["comment"]
+
+
+def test_C_both_absent_completed_verdict_not_emitted():
+    prev = [_not_issued("ゼータ", "保守月額", cid="c-z", cycle="月払い", verdict="SUPPRESS_ENDED")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_status_ended_not_emitted():
+    prev = [_not_issued("イオタ", "保守月額", cid="c-i", cycle="月払い", status="終了")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_annual_cycle_not_emitted():
+    prev = [_not_issued("イータ", "年間ライセンス", cid="c-h", cycle="年間払い")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_non_monthly_cycle_not_surfaced():
+    assert _classify([_not_issued("カッパ", "従量課金", cid="c-k", cycle="従量")], []) == []
+    assert _classify([_not_issued("ラムダ", "保留商品", cid="c-l")], []) == []
+
+
+def test_C_both_absent_review_pending_not_surfaced():
+    prev = [_not_issued("ミュー", "保守月額", cid="c-m", cycle="月払い", verdict="REVIEW_PENDING")]
+    assert _classify(prev, []) == []
