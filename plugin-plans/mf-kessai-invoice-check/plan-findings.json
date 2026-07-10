@@ -17,8 +17,15 @@
       "漏れなし": "PASS",
       "整合性あり": "PASS",
       "依存関係整合": "PASS",
-      "verdict": "4条件PASS",
-      "approver": "独立 context evaluator (proposer≠approver・現物 Read 裏取り)"
+      "verdict": "4条件PASS(2026-07-08 時点)",
+      "approver": "独立 context evaluator (proposer≠approver・現物 Read 裏取り)",
+      "delta_2026_07_10": {
+        "verdict": "4条件 全 PASS(delta 再評価済み・iteration 2 で矛盾解消)",
+        "basis": "2026-07-08 の PASS を無根拠に据え置かず、2026-07-10 実運用フィードバック4要件の下流伝播 delta(build 消費 SSOT 層=handoff build_args add_fix_2026_07_10/component-inventory C01・C05/notion_config report-database-id/skill-brief-C01 再 render/phase-02・04・05・07/envelope version)を独立 approver が再評価。記録層(goal-spec/inventory purpose/phase-01/05/index RTM/task-graph)と実行層(build 消費 SSOT)が整合し、要件が fail-open で skip される断裂が解消したことを現物二段確認した。severity・ユーザー決定は覆していない。",
+        "approver": "独立 context evaluator (proposer≠approver・handoff/inventory/config/brief を現物 Read 裏取り)",
+        "iteration_2_fix": "独立 approver が『Phase3 は新 07-10 bullet を追加したが同一完了チェックリスト内の隣接する旧 無条件『無ければ新規作成』gate 文言を追随修正せず C1(矛盾なし)/C3(整合性あり)を字義上破っていた』を検出(overclaim 是正)。iteration 2 で phase-05:51・phase-04:50・phase-11:42(完了チェックリスト gate 項目)+ index:66(基本定義 purpose)+ handoff C06 build_args preserve/add_design_d(機械契約)+ inventory C06 write_scope を明示 pin/phantom 抑止/opt-in で限定し矛盾を解消。base 記述+★2026-07-10 delta の層構造(historical/derivation/chronological log)は許容様式として据置。task-graph は source phase 修正後に再導出で自己修復。",
+        "residual": "実プラグイン scripts のコード変更は GAP-2026-07-10-4REQ (RECORDED_FOR_BUILD) で後段 /capability-build へ委譲"
+      }
     }
   },
   "components_summary": {
@@ -477,6 +484,21 @@
       "issue": "年契約の非請求月が『発行漏れ候補・要対応』に誤爆する systemic bug。金子金物株式会社=商品 100億ThinkTank利用料・確認内容に『期間：2026/5/25〜2027/5/24』・契約マスタ DB1 支払サイクル=年間一括更新・reconcile DB2 は 2605=発行確認OK(MATCH_ANNUAL 180万)のみで 2606 行なし。C05 _classify_stopped(③)が年契約抑制を今月(curr)の verdict だけで判定するが、年契約の非請求月は curr verdict が出ず curr=None のため③が発火せず⑥要対応へ落ちる。年契約シグナルは先月(prev)の MATCH_ANNUAL・12ヶ月履歴・DB1 支払サイクルに残るのに一次トリガーにしていない。全年契約(年間払い/年間一括更新)の非請求月が該当",
       "fix": "真因を実データで確定(ユーザー提案の商品名キーワード検知は不要=商品/支払サイクルは既に正しく年契約認識済み・過去撤去の annual_signal 復活は却下)。要件記録のみ実施(ユーザー選択『計画に記録だけ』)=goal-spec C2 と constraint に prev.verdict/12ヶ月履歴/DB1 支払サイクルを非請求月の年契約一次トリガーにする是正要件を追加、component-inventory C05 purpose・phase-04 テスト観点(金子金物型回帰=prev MATCH_ANNUAL・curr 不在→年契約周期 GAP_OK)に反映、handoff open_issues に GAP-C05-ANNUAL-STOPPED(high・実修正は /capability-build へ委譲)を起票。実プラグイン scripts/mfk_period_report.py のコードは本 plan では未変更",
       "status": "RECORDED_FOR_BUILD"
+    },
+    {
+      "cluster": "AD",
+      "severity": "high",
+      "pass": 4,
+      "date": "2026-07-10",
+      "detected_by": [
+        "ユーザー実運用フィードバック(4要件・承認済み)",
+        "3並列独立分析の三角測量(下流伝播断裂検出)",
+        "現物二段確認(handoff/component-inventory/skill-brief/notion_config/envelope)"
+      ],
+      "condition": "漏れなし/整合性あり/依存関係整合",
+      "issue": "2026-07-10 の4要件(要件1 継続発行=権威ある正常✓ / 要件2 出力先 report_database_id pin / 要件3 要マスタ登録=正常✓ / 要件4 両月なし安全網)が要件記録層(goal-spec/inventory purpose/phase-01/05/index RTM/task-graph)には反映済だが、build 消費 SSOT 層(handoff build_args / skill-brief-C01 / notion_config / plan-findings 4条件 / phase-02・04・07 / envelope)へ未伝播で、このまま build へ渡すと 07-10 要件が fail-open で skip/未判定になる下流伝播断裂。真因は要件記録層と build 消費層の非対称(記録は追記されたが実行契約は 07-08 分のまま stale)",
+      "fix": "build 消費 SSOT 層へ4要件を additive 伝播(severity/ユーザー決定は覆さず): handoff C05/C06 route に add_fix_2026_07_10 を新設 + open_issues GAP-2026-07-10-4REQ(RECORDED_FOR_BUILD)起票・既存 GAP-C05-ANNUAL-STOPPED/GAP-C06-EXTEND の build_status に『07-10 delta は未 build』注記、component-inventory C01.output_contract/goal(phantom 抑止+pin+継続/要マスタ正常✓)・C05 purpose(要件1 period_diff『継続発行』byte一致 SSOT/要件4 _classify_both_absent 母集団入力源)・notion_config に report-database-id(explicit-pin step0)追加、skill-brief-C01 を inventory から決定論再 render、phase-02(C06 step0 pin/C05 要件設計)・phase-04(4要件 tdd-red 観点)・phase-05(既反映)・phase-07(C1〜C12 拡張+C12/要件1/要件4 受入行)、index 運用サマリ(継続/要マスタ caveat 非対称解消+要件2 bullet+id 凡例 要件↔C 写像)、goal-spec C6(判別述語)/constraints 要件4(DB1 配線依存)/open_questions(要件3 orphan 可視性・要件1 金額 drift REVIEW_* の逆説)、envelope version を実 plugin(0.6.0)追随。決定論ゲート12本 exit0 で機械整合を再確認",
+      "status": "RECORDED_FOR_BUILD"
     }
   ],
   "user_requirements_reflected": [
@@ -578,7 +600,8 @@
     "R3_emit_specs_index_inventory": true,
     "task_graph_derived": true,
     "R4_traceability_gates": true,
-    "elegant_review_4_conditions": true
+    "elegant_review_4_conditions": true,
+    "requirements_2026_07_10_reflected": true
   },
   "open_issues": [
     {
@@ -589,12 +612,17 @@
     {
       "id": "GAP-ENVELOPE-001",
       "severity": "low",
-      "text": "entry_points 反映 + version bump の scaffold executor は planner 外部・envelope-draft を手動適用"
+      "text": "entry_points は実 plugin (0.6.0) に既反映。envelope-draft の残差分は version を実 plugin 追随させることのみで、scaffold executor は planner 外部・version 追随のみ手動適用 (entry_points/hooks 配線は不変)"
     },
     {
       "id": "GAP-C04-EXTEND",
       "severity": "medium",
       "text": "C04 は既存 hook の in-place 拡張 (Edit 差分・SANCTIONED 追加を C05 生成に先行)。L4 build で既存 203 行を保全すること"
+    },
+    {
+      "id": "GAP-2026-07-10-4REQ",
+      "severity": "high",
+      "text": "2026-07-10 実運用フィードバック4要件(継続発行=正常✓/出力先 report_database_id pin/要マスタ登録=正常✓/両月なし安全網)は build 消費 SSOT 層へ伝播済で、実プラグイン scripts/mfk_period_report.py・notion_report_sink.py のコード変更は後段 /capability-build で実装 (07-08 BUILT には 07-10 delta 未含)"
     }
   ]
 }

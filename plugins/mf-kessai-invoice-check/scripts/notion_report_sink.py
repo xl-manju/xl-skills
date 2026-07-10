@@ -64,6 +64,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -255,11 +256,16 @@ def _severity_rank(row):
     return 1 if check == "要対応" else 0
 
 
-# C03 が構造的正常事由 (年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
+# C03 が構造的正常事由 (継続発行/年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
 # これらは「バグ由来 false-positive の権威ある訂正」であり、cross-run safe guard が前 run の
 # 要対応を無条件保持して打ち消してはならない (例: 金子金物が C03 annual fix 前に 要対応 で
 # persist 済みでも、fix 後の 年契約周期 正常化を反映する=elegant-review F-D 是正)。
-_STRUCTURAL_NORMAL_MARKERS = ("年契約周期", "契約完了", "トライアル完了", "対象外")
+# 『継続発行』(要件1・2026-07-10): 今月あり×前月あり=月契約の継続発行は権威ある月契約正常
+# (両月に請求=定義上の月契約であり年契約でない) ゆえ、前 run が要対応☐でも今 run の継続発行で
+# 正常✓へ訂正する。reliable_issued 未確定 (legacy/verdict-issued 行) でも確実に正常✓を反映し
+# 『金額あるのにチェックが入らない』を根治する。金額 drift (過少請求等) は REVIEW_* コメント注記
+# に留め正常✓は据え置く (主張範囲=発行の存在に限定・OQ-9)。
+_STRUCTURAL_NORMAL_MARKERS = ("継続発行", "年契約周期", "契約完了", "トライアル完了", "対象外")
 
 
 def _is_structural_normal(row):
@@ -683,11 +689,16 @@ def _ensure_db_schema(db_id, token, req):
     return list(add_props.keys()), title_prop
 
 
-def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply=True):
-    """単一恒久レポート DB を解決する (Design D)。返り値 (db_id, location, created, placement)。
+def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply=True,
+                      pinned_db_id=None, allow_create=True):
+    """単一恒久レポート DB を解決する (Design D + 明示 pin・要件2)。返り値 (db_id, location, created, placement)。
 
+    pinned_db_id = config の report_database_id (要件2・step0 の第一級解決経路)。指定時は構造同定を
+    経ずその DB を直接更新対象にする (出力先が指定先へ確実に着地=phantom 回避の核)。
     anchor_block_id = config の report_toggle_block。**トグル見出しでもプレーン見出し2でも受ける**
     (ユーザーがトグル→見出し2 に変えても対応する)。出力先の優先順:
+      0. **明示 pin (pinned_db_id)** = config report_database_id が set のとき。構造同定を経ず直接更新。
+         location='pinned'。
       1. **anchor の子の report DB** = anchor がトグル見出し (is_toggleable=true) で DB を配下に持つ場合。
          API は block_id 親 DB を『作成』できないが既存 DB の『更新』(行 upsert・列 PATCH) はできる。
          location='in-block'。
@@ -695,7 +706,9 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
          ページ直下の『見出しの下』へ移動している場合 (トグル→見出し2 変換時の実状態)。次セクション
          見出しの手前までで探し、ページ上の別 report DB (旧重複等) と区別する。location='under-heading'。
       3. **ページ直下の任意の既存 report DB** (どの見出しにも紐づかない既存)。location='page'。
-      4. どれも無く apply=True なら **見出しの下 (ページ直下) へ新規作成**。location='page-created'。
+      4. どれも無く apply=True **かつ allow_create=True** なら **見出しの下 (ページ直下) へ新規作成**。
+         location='page-created'。**allow_create=False (要件2 の既定 phantom 抑止) なら作成せず
+         (None, 'none', False) を返し、呼出側 (run) が fail-closed で停止する** (別 DB へ誤書込しない)。
       5. dry-run で未発見なら (None, 'none', False)。
     見つかった/作った DB は 対象月 列を含むスキーマへ揃える (_ensure_db_schema・apply 時のみ)。単一 DB
     に複数月を保持し、同一 (対象月,取引先,商品) の再実行のみ上書き=非破壊冪等。
@@ -721,6 +734,15 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
                           "note": note})
         return db_id, location, False, placement
 
+    # 0. 明示 pin (config report_database_id・要件2 step0): 構造同定を経ず直接更新対象にする。
+    #    出力先が指定先へ確実に着地し、report_toggle_block の構造同定のズレで別 DB(phantom)へ
+    #    書き込みチェックが本来 DB に反映されない症状を根治する。pin が不正 id なら _ensure_db_schema
+    #    の GET が例外を投げ、呼出側 (run/main) が fail-closed=exit2 で停止する (別 DB へ誤書込しない)。
+    if pinned_db_id:
+        return _resolved(pinned_db_id, "pinned",
+                         "config report_database_id で明示 pin された DB を直接更新する (step0・"
+                         "構造同定を経ない確実な着地=出力先が指定先へ着地・phantom 回避)")
+
     # 1. anchor (トグル見出し) の子の report DB (表示名非依存・指定トグルはレポート専用)。
     db_id = (_select_report_db(_child_databases_in(anchor_block_id, token, req))
              if anchor_block_id else None)
@@ -744,7 +766,17 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
     # 4/5. 新規作成 (API は block_id 親 DB を作れないため見出しの下=ページ直下へ作る)。
     if not apply:
         placement.update({"location": "none", "created": False,
-                          "note": "dry-run: 既存 report DB 未発見 (apply 時は見出しの下=ページ直下へ新規作成)"})
+                          "note": "dry-run: 既存 report DB 未発見 (apply 時は明示 pin または --allow-create でのみ新規作成)"})
+        return None, "none", False, placement
+
+    # 要件2 phantom 抑止: 明示 pin なし かつ 既存 report DB 未発見のとき、既定 (allow_create=False) は
+    # 新規作成せず (None,'none') を返し呼出側 run が fail-closed 停止する (構造同定のズレで誤って
+    # 別 DB=phantom を作り、チェックが本来 DB に反映されない症状の根治)。新規作成は明示 opt-in
+    # (--allow-create) 時のみ。初回セットアップは pin 設定 or --allow-create で行う。
+    if not allow_create:
+        placement.update({"location": "none", "created": False,
+                          "note": ("明示 pin(report_database_id)なし かつ 既存 report DB 未発見。"
+                                   "phantom DB を作らず停止 (要件2・新規作成は --allow-create opt-in 時のみ)")})
         return None, "none", False, placement
 
     res = req("POST", "/databases", token, {
@@ -935,10 +967,50 @@ def _resolve_toggle(cfg):
     return _norm((cfg.get("notion") or {}).get("report_toggle_block"))
 
 
-def run(rows, target, cfg, token, req=None, *, apply=True):
+def _extract_db_id(value):
+    """明示 pin 値 (report_database_id) から Notion database_id を取り出す (要件2・OQ-10 (c) の最小実装)。
+
+    値が (a) 生の database_id (dash 有無・32hex)、(b) DB/ビュー URL のいずれでも id を返す。
+    URL は `?` の前 (path 部) から 32hex を抽出する — ビュー URL の `?v=<view-id>` は view id で
+    実体 DB と異なるため path 側の DB id を採る。linked-database ビューの表示 id≠実体 data_source の
+    完全解決は OQ-10 (c) で後続 (当面は生 database_id 指定を推奨)。抽出不能は原値をそのまま返す
+    (呼出側 _ensure_db_schema の GET が不正 id を fail-closed で弾く)。
+    """
+    v = _norm(value)
+    if not v:
+        return ""
+    # 最終 path セグメントに限定 (ビュー URL の ?v=<view-id> は path 外ゆえ除去される)。Notion の
+    # 『リンクをコピー』は id を slug 末尾へ `-<32hex>` として付ける (notion.so/<Workspace>/<Title>-<id>)
+    # ため、まず最終 dash 後トークンが 32hex ならそれを採る (タイトル内の偶発 hex トークンと id を
+    # dash 区切りで分離=先頭マッチ誤爆の回避)。次に dashed-uuid をそのまま渡された形、最後に
+    # フォールバックで最終セグメント内の末尾寄り 32hex 連を採る。抽出不能は原値 (GET が不正 id を弾く)。
+    seg = v.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+    tail = seg.rsplit("-", 1)[-1]
+    if re.fullmatch(r"[0-9a-f]{32}", tail, re.IGNORECASE):
+        return tail
+    compact = seg.replace("-", "")
+    if re.fullmatch(r"[0-9a-f]{32}", compact, re.IGNORECASE):
+        return compact
+    ms = re.findall(r"[0-9a-f]{32}", compact, re.IGNORECASE)
+    return ms[-1] if ms else v
+
+
+def _resolve_report_db_id(cfg):
+    """明示 pin された report DB id (step0・要件2)。未設定は '' (=構造同定へ fallback)。
+
+    notion.report_database_id を第一級の解決経路にすることで、report_toggle_block の構造同定の
+    ズレで別 DB (phantom) へ書き込みチェックが本来 DB に反映されない症状を根治する。
+    """
+    return _extract_db_id((cfg.get("notion") or {}).get("report_database_id"))
+
+
+def run(rows, target, cfg, token, req=None, *, apply=True, allow_create=False):
     """単一恒久 report DB 解決 → 行 upsert を配線する (テスト可能な orchestration 本体)。
 
     apply=False (dry-run) は network を一切叩かず、計画のみを返す (書き込まない)。
+    allow_create=False (要件2 の既定・phantom 抑止): 明示 pin (notion.report_database_id) なし かつ
+    既存 report DB 未発見のとき、新規作成せず fail-closed (SinkError) で停止する。初回セットアップは
+    pin 設定 or --allow-create=True (明示 opt-in) で行う (別 DB=phantom へ誤書込しない)。
     """
     if not _valid_target(target):
         raise SinkError(f"--target は YYMM (数字4桁・月01-12) を指定してください: {target!r}")
@@ -955,6 +1027,7 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
 
     parent_page = _resolve_parent(cfg)
     toggle_block = _resolve_toggle(cfg)
+    pinned_db_id = _resolve_report_db_id(cfg)   # 要件2 step0: 明示 pin (未設定は '')
 
     if not apply:
         return {
@@ -963,26 +1036,38 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
             "planned_rows": len(valid_rows),
             "placement": {
                 "target_yyyymm": target_to_yyyymm(target),
+                "report_database_id": pinned_db_id or None,   # 要件2: 明示 pin (step0) を開示
                 "report_parent_page": parent_page,
                 "report_toggle_block": toggle_block,
                 "column_order_defined": list(COLUMN_ORDER),
                 "view_format_note": _VIEW_FORMAT_NOTE,     # dry-run でも折り返し UI 手順を開示
                 "wrap_all_columns_via_api": False,
-                "note": ("dry-run (書き込みなし)。apply 時の出力先: 指定トグル内の既存 DB があれば更新 / "
-                         "無ければ見出しの下 (ページ直下) の既存 DB / どちらも無ければ見出しの下へ新規作成 "
-                         "(単一恒久 DB・対象月列で複数月を非破壊保持)"),
+                "note": ("dry-run (書き込みなし)。apply 時の出力先: 明示 pin (report_database_id) があれば "
+                         "その DB へ直接 (step0) / 無ければ指定トグル内の既存 DB / 見出しの下 (ページ直下) の "
+                         "既存 DB の順。明示 pin なし かつ 既存未発見時は phantom を作らず停止 (新規作成は "
+                         "--allow-create 明示時のみ)。単一恒久 DB・対象月列で複数月を非破壊保持"),
             },
         }
 
-    if not parent_page:
+    # 要件2: 明示 pin があれば parent_page 不要 (pin を直接更新)。pin なしのみ従来どおり
+    # parent_page を必須にする (構造同定の探索/作成先ページが要るため)。
+    if not pinned_db_id and not parent_page:
         raise SinkError(
-            "notion.report_parent_page が未設定です。レポート DB を置く/探すページ『請求書発行チェック』の "
-            "page_id を mf-kessai-config.default.json または .mf-kessai-config.json に設定してください "
-            "(トグル内に DB が無いときの新規作成先=見出しの下=このページ直下)。")
+            "notion.report_database_id (明示 pin) も notion.report_parent_page も未設定です。"
+            "出力先 DB を pin するか、構造同定の探索/作成先ページ『請求書発行チェック』の page_id を "
+            "mf-kessai-config.default.json または .mf-kessai-config.json に設定してください。")
 
     req = req or _req
     report_db_id, location, created, placement = resolve_report_db(
-        toggle_block, parent_page, token, req, apply=True)
+        toggle_block, parent_page, token, req, apply=True,
+        pinned_db_id=pinned_db_id, allow_create=allow_create)
+    # 要件2 phantom 抑止: 明示 pin なし かつ 既存 report DB 未発見 かつ allow_create=False で停止。
+    if report_db_id is None:
+        raise SinkError(
+            "明示 pin (notion.report_database_id) 未設定 かつ 既存 report DB 未発見のため、"
+            "phantom DB を作らず停止しました (要件2)。あなたのレポート DB を config の "
+            "notion.report_database_id に設定 (ビュー/DB URL でも可) してください。初回セットアップで "
+            "新規作成したい場合のみ --allow-create を付けて再実行してください。")
     placement["target_yyyymm"] = target_to_yyyymm(target)
     counts = upsert_report_rows(rows, report_db_id, target, token, req,
                                 title_prop=placement.get("title_prop", PROP_CUSTOMER))
@@ -1014,6 +1099,10 @@ def main(argv=None):
     p.add_argument("--verified", action="store_true",
                    help="二段確認 (dry-run 内訳確認 + mfk-report-verifier) 完了の明示。--apply 時は必須")
     p.add_argument("--config", help="設定 JSON パス (省略時は既定 + ローカル上書き)")
+    p.add_argument("--allow-create", dest="allow_create", action="store_true",
+                   help="明示 pin (notion.report_database_id) なし かつ 既存 report DB 未発見時に "
+                        "新規 DB を作成する opt-in (要件2・初回セットアップ用)。無指定時は phantom を "
+                        "作らず fail-closed で停止する")
     a = p.parse_args(argv)
 
     try:
@@ -1034,7 +1123,7 @@ def main(argv=None):
                 token = _notion_token(cfg)
             except RuntimeError as e:
                 raise SinkError(f"Notion トークンが取得できません (fail-closed): {e}")
-        result = run(rows, a.target, cfg, token, apply=a.apply)
+        result = run(rows, a.target, cfg, token, apply=a.apply, allow_create=a.allow_create)
     except SinkError as e:
         sys.stderr.write(f"[notion_report_sink] {e}\n")
         return 2

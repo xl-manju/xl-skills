@@ -29,6 +29,10 @@ P01 の要件を「改善デルタが要する機能クラスタ」から 5 種�
 ## ドメイン知識
 正規化原則 (build_target/depends_on は inventory のみが保持) と kind 写像の判定核は index `## ドメイン知識` を参照。本フェーズ固有の差分: `placement_scope=plugin-root` で C05/C06 を `plugins/mf-kessai-invoice-check/scripts/` へ hoist する (独立単体テスト性の確保・既存 `scripts/reconcile_invoices.py` と同じ plugin-root 慣習)。C05 は既存 reconcile スキルとの分類共有を主張しない (reconcile 側に C05 消費 route は無い・over-claim を撤回)。C04 は `build_mode=extend-existing` として既存実装を保全しつつ SANCTIONED/`_REINVENT_DEF_RE`/`_DOMAIN_RE` を拡張する設計判断とする。C06 は親ページ ID/指定見出しブロック ID を plan 成果物へ焼かず論理キー (`report_parent_page`=探索/新規作成先ページ / `report_toggle_block`=出力先指定見出し) のみ宣言し、実行時 config(`mf-kessai-config.default.json` 配布既定 + `.notion-config.json`/`.mf-kessai-config.json` 上書き)が具体値を供給する two-layer 分離を設計する。配置は Design D の単一恒久 DB 方式で、`report_toggle_block` はトグル見出しでもプレーン見出し2でも受ける。レポート列は取引先名/対象月/漏れチェック/商品名/先月の金額/今月の金額/先月と今月の比較/コメントの 8 列とし、C06 が単一 DB へ書く際に対象月列で月を区別し先月分と今月分の金額を並置する。
 
+**2026-07-10 実運用フィードバック設計差分 (C05/C06 の後段 /capability-build へ委譲・記録層と実行層を整合)**:
+- **C06 出力先解決 (要件2)**: `resolve_report_db` に **step0 = 明示 DB pin (config `report_database_id`・ビュー/DB URL 許容)** を第一級として設計し、未設定時のみ構造同定 (in-block→under-heading→page) へ fallback する。明示 pin なし かつ 既存 report DB 未発見時は `page-created` (phantom DB) を作らず警告停止し、新規作成は明示 opt-in 時のみ許す設計とする (構造同定ズレで別 DB へ書き込む『出力先が指定先でない』の根治)。
+- **C05 分類の設計判断 (要件1/3/4)**: (要件1) `STATE_CONTINUED` (今月あり×前月あり) は権威ある月契約正常として必ず `GAP_OK` で emit し、`period_diff`『継続発行』を正規トークンで出し C06 の `_STRUCTURAL_NORMAL_MARKERS` と byte 一致させる SSOT (C05 定数=正本) を設計する。(要件3) `_orphan_rows` (MF実績あり×シート契約なし=要マスタ登録) は `gap_check` を `GAP_ACTION`→`GAP_OK` へ反転する設計とし、コメントに名寄せ恒久化指示を保持する。(要件4) 4 状態分類はユーザー提供フローチャートを SSOT とし、両月なしの `_classify_both_absent` (月払い×アクティブ×2ヶ月以上未発行) を安全網として surface する設計を維持する。
+
 ## 成果物
 - `component-inventory.json` (build 軸の唯一 SSOT・全 6 component C01〜C06)。
 - `envelope-draft/plugin.json` (manifest draft)。

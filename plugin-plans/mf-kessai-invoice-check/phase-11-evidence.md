@@ -39,7 +39,7 @@ UBM のスクショ検証を DROP し、Markdown による evidence 5 要素へ�
 ## 完了チェックリスト
 - [ ] C01/C05/C06 の evidence 5 要素が全て Markdown に記録されている。
 - [ ] C05 の 4 イレギュラー分類 + 真の発行漏れの各分岐、C06 の Design D 出力先 DB 解決 (in-block/under-heading/page/page-created) + upsert 主キー衝突ゼロ (create/update/skip 内訳付き) が第三者に再現可能な形で記録されている。
-- [ ] `report_toggle_block` がトグル見出しでもプレーン見出し2でも同じ論理キーとして扱われ、既存 DB があれば更新・無ければページ直下へ新規作成する挙動が fake-store で記録されている。実 Notion API evidence は read-only resolve または dry-run/apply 前確認の範囲で、設定済み `report_parent_page` / `report_toggle_block` が想定ページ・見出しを指すことを記録する。
+- [ ] 明示 pin (`report_database_id`) を step0 で最優先する経路、`report_toggle_block` がトグル見出しでもプレーン見出し2でも同じ論理キーとして扱われ既存 DB があれば更新する経路、および明示 pin なし かつ 既存 DB 未発見時に phantom を作らず警告停止する経路(新規作成は明示 opt-in 時のみ・要件2)が fake-store で記録されている。実 Notion API evidence は read-only resolve または dry-run/apply 前確認の範囲で、設定済み `report_database_id`(pin 時)/ `report_parent_page` / `report_toggle_block` が想定 DB・ページ・見出しを指すことを記録する。
 
 ## 参照情報
 - `references/phase-lifecycle.md` §7 (UBM スクショ→Markdown evidence の DROP 読替表)。

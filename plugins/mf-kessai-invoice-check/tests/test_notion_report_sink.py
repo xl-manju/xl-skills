@@ -162,7 +162,10 @@ def test_prefer_action_keeps_gap_over_normal():
 def test_is_structural_normal_discriminates_bare_normal():
     assert sink._is_structural_normal(
         {"gap_check": "正常", "period_diff": "前月あり今月なし (契約完了)"}) is True
-    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "継続発行"}) is False
+    # 要件1(2026-07-10): 継続発行=月契約の権威ある正常ゆえ構造的正常マーカーに含める (True へ反転)。
+    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "継続発行"}) is True
+    # 構造事由の無い bare 正常 (period_diff がマーカー非該当) は False のまま (guard 保持対象)。
+    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "新規発行"}) is False
     assert sink._is_structural_normal(
         {"gap_check": "要対応", "period_diff": "前月あり今月なし (年契約周期)"}) is False
 
@@ -540,18 +543,39 @@ def test_cross_run_reliable_mf_issued_corrects_prior_action():
 
 
 def test_cross_run_bare_normal_without_reliable_flag_keeps_action():
-    """K4 の裏: reliable_issued も構造事由も無い bare 正常は前 run の 要対応 を保持する (漏れ隠蔽防止)。"""
+    """K4 の裏: reliable_issued も構造事由も無い bare 正常は前 run の 要対応 を保持する (漏れ隠蔽防止)。
+
+    要件1 で継続発行は構造的正常マーカー入りしたため、bare 正常の例は period_diff が
+    マーカー非該当 (新規発行) の行を使う (継続発行は下の corrects テストで訂正側を検証)。
+    """
     req, state = _make_store()
     sink.upsert_report_rows(
         [{"gap_check": "要対応", "customer": "ベータ社", "product": "P", "comment": "漏れ"}],
         "db-1", "2607", "tok", req=req)
     sink.upsert_report_rows(
-        [{"gap_check": "正常", "customer": "ベータ社", "product": "P", "period_diff": "継続発行",
+        [{"gap_check": "正常", "customer": "ベータ社", "product": "P", "period_diff": "新規発行",
           "reliable_issued": False, "comment": "正常"}],
         "db-1", "2607", "tok", req=req)
     pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
     assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is False   # 要対応保持
     assert "cross-run safe guard" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
+
+
+def test_cross_run_continued_corrects_prior_action():
+    """要件1(2026-07-10): 前 run の 要対応 を、今 run の継続発行 (両月あり=権威ある月契約正常) が
+    reliable_issued 未確定でも正常✓へ訂正する (『金額あるのにチェックが入らない』の根治)。"""
+    req, state = _make_store()
+    sink.upsert_report_rows(
+        [{"gap_check": "要対応", "customer": "ガンマ社", "product": "P", "comment": "漏れ候補"}],
+        "db-1", "2607", "tok", req=req)
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "ガンマ社", "product": "P", "period_diff": "継続発行",
+          "reliable_issued": False, "comment": "継続発行 (前月・今月とも発行あり)"}],
+        "db-1", "2607", "tok", req=req)
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    assert len(pages) == 1
+    assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is True   # 正常✓へ訂正
+    assert "構造的正常事由で訂正" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
 
 
 def test_k6_true_orphan_gets_residual_note_not_deleted():
@@ -908,12 +932,68 @@ def test_run_reuse_across_two_runs_single_db():
     assert _rows_in(state, "db-tog") == {("2026-06", "A社", "P"), ("2026-07", "A社", "P")}
 
 
-def test_run_creates_below_heading_when_no_toggle_db():
-    """トグルにもページにも DB が無ければ見出しの下 (ページ直下) へ新規作成して upsert。"""
+def test_run_aborts_phantom_when_no_pin_no_existing():
+    """要件2(2026-07-10): 明示 pin なし かつ 既存 DB 未発見時は phantom を作らず fail-closed (SinkError)。"""
+    import pytest
     req, state = _make_store(block_children={"TOG": [], "PAGE": []})
-    res = sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req, apply=True)
+    with pytest.raises(sink.SinkError):
+        sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req, apply=True)
+    # phantom を作っていない (POST /databases が呼ばれていない)。
+    assert not any(m == "POST" and p == "/databases" for m, p, _ in state["calls"])
+
+
+def test_run_allow_create_creates_when_none():
+    """要件2: --allow-create 明示 opt-in 時のみ従来どおり見出しの下へ新規作成する (初回セットアップ)。"""
+    req, state = _make_store(block_children={"TOG": [], "PAGE": []})
+    res = sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req,
+                   apply=True, allow_create=True)
     assert res["db_created"] is True and res["db_location"] == "page-created"
     assert res["created"] == 1
+
+
+def test_run_pinned_db_id_writes_directly_step0():
+    """要件2 step0: config report_database_id があれば構造同定を経ずその DB へ直接 upsert (pinned)。"""
+    req, state = _make_store(dbs={"PINNED-DB": {"properties": _default_props()}})
+    cfg = {"notion": {"report_parent_page": "PAGE", "report_toggle_block": "TOG",
+                      "report_database_id": "PINNED-DB"}}
+    res = sink.run([{"customer": "A社", "product": "P", "amount": 5}], "2607", cfg, "tok",
+                   req=req, apply=True)
+    assert res["db_location"] == "pinned"
+    assert res["report_db_id"] == "PINNED-DB"
+    assert res["created"] == 1
+    # 構造同定 (トグル/ページ子ブロック探索) を経ていない=pin で直接着地。
+    assert not any("/blocks/" in p for m, p, _ in state["calls"])
+
+
+def test_run_pin_from_view_url_extracts_db_id():
+    """要件2 (OQ-10 c 最小): ビュー/DB URL の path 側 32hex を DB id として抽出し pin する。"""
+    req, state = _make_store(dbs={"39907a0cd18c81c19d61d42ee95016b0": {"properties": _default_props()}})
+    url = "https://www.notion.so/ws/39907a0cd18c81c19d61d42ee95016b0?v=39907a0cd18c81bd923e000cda89bd33"
+    cfg = {"notion": {"report_parent_page": "PAGE", "report_database_id": url}}
+    res = sink.run([{"customer": "A社", "product": "P"}], "2607", cfg, "tok", req=req, apply=True)
+    assert res["db_location"] == "pinned"
+    assert res["report_db_id"] == "39907a0cd18c81c19d61d42ee95016b0"
+
+
+def test_resolve_no_create_returns_none_when_disallowed():
+    """resolve_report_db: allow_create=False かつ 既存未発見なら (None,'none') を返す (phantom 抑止)。"""
+    req, state = _make_store(block_children={"TOG": [], "PAGE": []})
+    db_id, location, created, _ = sink.resolve_report_db(
+        "TOG", "PAGE", "tok", req=req, allow_create=False)
+    assert db_id is None and location == "none" and created is False
+
+
+def test_extract_db_id_forms():
+    """要件2 (OQ-10 c): 生 32hex / dashed uuid / ビュー URL / タイトル付き『リンクをコピー』URL / 非id。"""
+    hexid = "39907a0cd18c81c19d61d42ee95016b0"
+    assert sink._extract_db_id(hexid) == hexid
+    assert sink._extract_db_id("39907a0c-d18c-81c1-9d61-d42ee95016b0") == hexid
+    assert sink._extract_db_id(f"https://www.notion.so/ws/{hexid}?v=abc123") == hexid
+    # タイトルスラッグ付き URL: slug 末尾 dash 後の 32hex を id として採る (タイトル内 hex と分離)。
+    assert sink._extract_db_id(f"https://www.notion.so/ws/My-Report-Table-{hexid}?v=deadbeef") == hexid
+    assert sink._extract_db_id("PINNED-DB") == "PINNED-DB"   # 非 id は原値 (下流 GET が弾く)
+    assert sink._extract_db_id("") == ""
+    assert sink._extract_db_id(None) == ""
 
 
 def test_run_dry_run_touches_no_network():

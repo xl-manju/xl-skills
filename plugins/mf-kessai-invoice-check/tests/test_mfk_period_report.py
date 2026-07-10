@@ -762,6 +762,21 @@ def test_originally_unbilled_and_suppressed_still_dropped():
     assert prev_only == []
 
 
+def test_orphan_master_registration_is_normal_check():
+    # 要件3(2026-07-10): MF実績あり×シート契約なし=要マスタ登録 は正常✓ (GAP_ACTION でなく GAP_OK)。
+    # 発行自体は正常 (MF実績あり) ゆえ漏れチェックは正常、登録方法はコメントに保持し、契約なしを漏れ扱いしない。
+    curr = {"rows": [], "orphans": [
+        {"customer": "オーファン商事", "product": "月額サービス", "actual_amount": 88000}]}
+    rows = P.build_report(curr, [], target_month="2606")
+    orphan = [r for r in rows if r["period_diff"] == "要マスタ登録"]
+    assert len(orphan) == 1
+    assert orphan[0]["gap_check"] == "正常"              # 漏れチェック=正常✓ (要対応でない)
+    assert orphan[0]["customer"] == "オーファン商事"
+    assert orphan[0]["amount"] == 88000                  # MF実績額を保持
+    assert "要マスタ登録" in orphan[0]["comment"]         # 名寄せ登録の action をコメントで保持
+    assert orphan[0]["reliable_issued"] is True
+
+
 # ---------------------------------------------------------------------------
 # 要因A/B/C (2026-07-10 ユーザー確定): 月跨ぎ ID 突合 / 年契約開始✓ / 長期未発行 surface
 # ---------------------------------------------------------------------------
