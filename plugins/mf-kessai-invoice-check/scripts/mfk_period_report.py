@@ -1069,11 +1069,13 @@ def _orphan_rows(doc, target_month):
     """curr-verdicts の orphans (MF実績あり×請求確認シートに契約なし) を『要マスタ登録』行へ surface する。
 
     C05 producer (mfk_verdict_export.serialize_verdicts) が curr=None を避けて可視の逆方向行
-    doc["orphans"] へ分離した要マスタ登録を、レポートへ 要対応 (要マスタ登録) 行として emit する
+    doc["orphans"] へ分離した要マスタ登録を、レポートへ 正常✓ (要マスタ登録) 行として emit する
     (GAP-ID-ALIAS-BACKFILL-PATH の closure: C02/C03 で寄らない残余を隠さずレポート可視化する)。
     orphans キーを持たない doc / list 入力では空を返す (後方互換・従来 rows-only 入力を壊さない)。
     orphan は MF が実際に発行済み (reliable_issued=True) なので発行漏れ (false-negative) ではなく、
-    シート未登録=マスタ登録の action が要る行として severity=要対応・period_diff=要マスタ登録 で示す。
+    シート未登録=マスタ登録の action は要るが発行自体は正常ゆえ、漏れチェックは 正常✓ (GAP_OK)・
+    period_diff=要マスタ登録・コメントに登録方法を保持して示す (ユーザー確定2026-07-10・要件3:
+    請求確認シートの『契約なし』を漏れ=要対応として扱わない)。
     """
     if not isinstance(doc, dict):
         return []
@@ -1090,7 +1092,9 @@ def _orphan_rows(doc, target_month):
             amount = o.get("amount")
         comment = ("MF実績あり×請求確認シートに契約なし=要マスタ登録 "
                    "(シートへ契約を追加するか MF顧客ID を登録して名寄せを恒久化する)")
-        out.append(_emit(customer, amount, None, GAP_ACTION, "要マスタ登録",
+        # 要件3(2026-07-10): 発行自体は正常(MF実績あり)ゆえ漏れチェックは GAP_OK(正常✓)。
+        # 名寄せ登録の action はコメントで保持し、契約なしを漏れ=要対応にはしない。
+        out.append(_emit(customer, amount, None, GAP_OK, "要マスタ登録",
                          product, comment, None, target_month, reliable_issued=True))
     return out
 

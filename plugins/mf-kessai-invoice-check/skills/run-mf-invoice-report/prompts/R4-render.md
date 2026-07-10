@@ -18,14 +18,14 @@
 
 ### 1.1 不変ルール
 - **DB 構築/配置/冪等 upsert は `scripts/notion_report_sink.py` (C04) が所有**。DB 生成・行 upsert を自作しない (DB 生成は build_notion_db 再利用・行 upsert は C04 が実体)。
-- レポート DB は**単一恒久 DB (Design D)**。出力先は指定トグル (`report_toggle_block`) 内の report DB を最優先で解決し、そこへ複数月を `対象月` 列付きで非破壊 upsert する (トグル内に無ければ見出しの下=ページ直下の既存 DB / どちらも無ければ見出しの下へ新規作成)。
+- レポート DB は**単一恒久 DB (Design D + 明示 pin・要件2 2026-07-10)**。出力先は **(step0) 明示 pin `notion.report_database_id` (set ならその DB へ直接=構造同定を経ず確実に着地・ビュー/DB URL 可)** を最優先し、未設定時のみ指定トグル (`report_toggle_block`) 内の report DB → 見出しの下 (ページ直下) の既存 DB の順で解決してそこへ複数月を `対象月` 列付きで非破壊 upsert する。**明示 pin なし かつ 既存 DB 未発見時は phantom を作らず fail-closed (exit 2) で停止し、新規作成は `--allow-create` opt-in 時のみ** (構造同定のズレで別 DB=phantom へ書き込みチェックが本来 DB に反映されない症状の根治)。
 - **非破壊マージ**: 同月再実行は入力同定 {取引先 × 契約ID × 商品} と stored key (対象月, 取引先名, 商品名) で同一行を 1 行へ収束 (重複行 0)。契約ID違いは要対応優先で collapse し `collapsed_multi_contract` に計上する。以前 run で書いた行も別月行も今回入力に無くても単一 DB から削除しない (`deleted` 常時 0・clear-then-insert でない)。
 - **collapse 発行済み実額保全 (C03・要因C5 sink側)**: 固定 8 列は (対象月,取引先名,商品名) で回収するため、代理店/複数エンドクライアントが 1 商品へ複数契約を持つと 1 行へ collapse する。このとき `_prefer_action`/`_preserve_issued_amount` (C03) が **要対応 severity を保持して漏れを隠さない一方、発行済み (reliable_issued=True) 行の実額 (今月金額) を要対応・null 行で上書きさせず保全**する (発行済み実額保全 ∧ 漏れ隠蔽なし=K4 権威訂正の対称適用)。保全した旨と別契約の要対応は `コメント` へ両立注記する。冪等 upsert 骨格そのものは不変。
 - **列順 SSOT (固定 8 列)**: [取引先名(title), 対象月(rich_text), 漏れチェック(checkbox), 商品名(rich_text), 先月の金額(number/yen), 今月の金額(number/yen), 先月と今月の比較(rich_text), コメント(rich_text)]。金額は税抜。C04 の `COLUMN_ORDER` が正本。Notion table view は title 列を最左固定にするため、取引先名(title)を先頭に置いて定義順と表示順を一致させる。漏れチェックは checkbox で 正常=チェックあり / 要対応=チェックなし。
 - **金額列は MF実額 (D3=金額列常時表示・C9=既存 8 列互換)**: `先月の金額`/`今月の金額` には **MF実額** (C05 `mfk_actuals` が返す `actual_amount`=契約起点の期待額でなく MF 掛け払いの実発行額) を入れる。金額差フラグ・期待額差分・残置理由 (旧行 orphan) は**新しい物理列を足さず** `先月と今月の比較`/`コメント` に文字で書く (固定 8 列スキーマを保つ)。これにより金額列は常に表示され (D3)、8 列互換のまま冪等 sink が成立する (C9)。
 - **折り返し (wrap) は API 非対応=UI で一度設定**: 全列の折り返し表示 (wrap) はビュー表示設定であってプロパティ設定でないため、Notion 公開 API (2022-06-28) では設定できない (列順は properties 定義順で反映できるが wrap/列幅は不能)。sink はこの制約と UI 手順を `placement.view_format_note` で毎回開示する。Notion UI で当該 DB ビューの『…』→『すべての列を折り返す (Wrap all columns)』を一度トグルすれば以後永続する。
 - MF掛け払い API は GET のみ。Notion 書込 (POST/PATCH/PUT/DELETE) は `notion_transport._write_gap` がレート間隔を挟む。
-- 親ページ ID (`notion.report_parent_page`) 未設定は `--apply` 時に fail-closed (exit 2)。dry-run は親ページ未走査で完走する。`report_toggle_block` は歴史的なキー名だが Design D では**出力先の指定見出しブロック ID**で、トグル見出しでもプレーン見出し2でも受ける。C04 はこのブロック内/直下の既存 report DB を探し、無ければ親ページ直下に新規作成する。
+- **出力先未確定は fail-closed (要件2)**: 明示 pin (`notion.report_database_id`) があれば親ページ不要でその DB へ直接 upsert する。明示 pin なし かつ 親ページ ID (`notion.report_parent_page`) 未設定は `--apply` 時に fail-closed (exit 2)。明示 pin なし かつ 既存 DB 未発見時も phantom を作らず fail-closed (exit 2)=新規作成は `--allow-create` opt-in 時のみ。dry-run は書込ゼロで完走し placement に `report_database_id` (pin) を開示する。`report_toggle_block` は歴史的なキー名だが Design D では**出力先の指定見出しブロック ID**で、トグル見出しでもプレーン見出し2でも受ける。C04 は明示 pin を最優先し、無ければこのブロック内/直下の既存 report DB を探す (opt-in 時のみ親ページ直下に新規作成)。
 
 ### 1.2 倫理ガード
 - Notion トークンは Keychain のみ (MF APIキーとは別 entry)。平文出力・ログ復唱をしない。
@@ -37,7 +37,7 @@
 - 非担当: MF実績・verdict 収集 (R1)、状態遷移分類 (R2=C03)、二段確認 (R3 sub-agent)。DB スキーマ定義・列型写像は C04/build_notion_db の責務。
 
 ### 2.2 ドメインルール (C04 が実装済み・ここで再実装しない)
-- **出力先 DB 解決 (Design D)**: `resolve_report_db` が指定見出し (`report_toggle_block`・トグル/プレーン見出し2 両対応) を起点に (1) 見出しがトグルで配下に持つ child_database → (2) プレーン見出しの直下 (ページ兄弟・次セクション見出しの手前まで=見出しの下の DB を重複と区別して同定) → (3) ページ直下で title が『請求漏れ比較レポート』で始まる既存 report DB → (4) 見出しの下 (ページ直下) へ新規作成、の順で解決し `db_location` (in-block/under-heading/page/page-created) を開示する。**(1)(2) の指定トグル/見出しはレポート専用の器ゆえ配下 DB を表示名非依存で採用する** (ユーザーが『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新=title 前方一致は同点解消/後方互換ヒントに留め、複数併存時のみ prefix 一致→先頭で決定論選択し警告)。(3) の親ページ直下だけは無関係 DB が同居しうるので title 前方一致で限定。既存 DB の title 列名が『取引先名』でなく Notion 既定の『名前』でも `_ensure_db_schema` が実名を検出し行を正しい列へ書く。Notion API は database を block_id 親で作成できないが、UI 作成の DB の更新 (行 upsert・列 PATCH) は親種別に関係なくできる。
+- **出力先 DB 解決 (Design D + 明示 pin・要件2)**: `resolve_report_db` が **(step0) 明示 pin `notion.report_database_id` (set ならその DB へ直接=`db_location=pinned`)** を最優先し、未設定時のみ指定見出し (`report_toggle_block`・トグル/プレーン見出し2 両対応) を起点に (1) 見出しがトグルで配下に持つ child_database → (2) プレーン見出しの直下 (ページ兄弟・次セクション見出しの手前まで=見出しの下の DB を重複と区別して同定) → (3) ページ直下で title が『請求漏れ比較レポート』で始まる既存 report DB → **(4) 明示 pin なし かつ 既存未発見時は phantom を作らず fail-closed で停止 (新規作成は `--allow-create` opt-in 時のみ見出しの下=ページ直下)**、の順で解決し `db_location` (pinned/in-block/under-heading/page/page-created) を開示する。**(1)(2) の指定トグル/見出しはレポート専用の器ゆえ配下 DB を表示名非依存で採用する** (ユーザーが『請求漏れ確認レポート』等どんな名前で手作りしても既存として更新=title 前方一致は同点解消/後方互換ヒントに留め、複数併存時のみ prefix 一致→先頭で決定論選択し警告)。(3) の親ページ直下だけは無関係 DB が同居しうるので title 前方一致で限定。既存 DB の title 列名が『取引先名』でなく Notion 既定の『名前』でも `_ensure_db_schema` が実名を検出し行を正しい列へ書く。Notion API は database を block_id 親で作成できないが、UI 作成の DB の更新 (行 upsert・列 PATCH) は親種別に関係なくできる。
 - **対象月列で複数月を保持**: 単一 DB に `対象月` (YYYY-MM) 列を持ち、行同定キー (対象月, 取引先名, 商品名) で同月のみ上書き・別月は非破壊共存。対象月列が無い旧 DB は `_ensure_db_schema` が PATCH で後付けする。
 - **入力同定と persist**: 入力行の同定は {取引先 × 契約ID × 商品}。ただし固定 8 列に契約ID 列は無く、単一 DB 内の 1 行は (対象月, 取引先名, 商品名) で回収される (contract_id は persist しない=C04 の `_stored_key`)。同一対象月・同一取引先・同一商品は要対応優先で 1 行へ収束し、契約ID違いの collapse は stdout の `collapsed_multi_contract` で観測する。
 - **非破壊 upsert**: 既存行あり→PATCH (title は送らない)・無し→POST。入力に無い nullable 事実列は明示クリアして stale を残さないが、行そのものは削除しない (非破壊マージ)。各行は try/except で隔離し個別失敗は skipped に計上して継続する。
@@ -93,15 +93,15 @@
 ### 5.2 ゴール定義
 - 目的: 分類済みレポート行を単一恒久レポート DB へ非破壊冪等 upsert し、対象月列で月次履歴を保全する。
 - 背景: 全消し再投入や別 DB 乱立は履歴と運用導線を壊す。指定見出しに紐づく既存 DB 優先の解決 + 非破壊マージ (deleted 0) + 対象月を含む stored key 収束 (重複行 0) を機構で固定する。
-- 達成ゴール: command 実行により、既存レポート DB があればそれを更新し、無ければ見出しの下 (ページ直下) へ新規作成し、8 列行が入力同定 {取引先×契約ID×商品} と stored key (対象月,取引先名,商品名) で 1 行へ収束して非破壊 upsert され、別月/以前行が保全され、Notion 書込にレート間隔が挟まれた状態。
+- 達成ゴール: command 実行により、明示 pin (`notion.report_database_id`) があればその DB へ直接、無ければ既存レポート DB を解決してそれを更新し (明示 pin なし かつ 既存未発見時は phantom を作らず fail-closed=新規作成は `--allow-create` opt-in 時のみ)、8 列行が入力同定 {取引先×契約ID×商品} と stored key (対象月,取引先名,商品名) で 1 行へ収束して非破壊 upsert され、別月/以前行が保全され、Notion 書込にレート間隔が挟まれた状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
 - [ ] R2 の分類済みレポート行 JSON を `--rows` に渡し `--target <YYMM>` を指定して C04 を実行した
-- [ ] 指定見出しに紐づく report DB を解決した (既存があれば更新対象にする・無ければ見出しの下へ新規作成し、二重 DB を作らない)
+- [ ] 出力先 DB を解決した (明示 pin `report_database_id` があればその DB へ直接=step0 / 無ければ指定見出しに紐づく既存 report DB を更新対象にする / 明示 pin なし かつ 既存未発見時は phantom を作らず fail-closed=新規作成は `--allow-create` opt-in 時のみ・二重 DB を作らない)
 - [ ] 8 列行を入力同定 {取引先×契約ID×商品} と stored key (対象月,取引先名,商品名) で 1 行へ収束させ非破壊冪等 upsert した (重複行 0・deleted 0・契約ID違いは `collapsed_multi_contract` に計上)
 - [ ] 月跨ぎでは同一 DB 内に対象月列で別月行が共存し、以前月/以前 run の行が保全された
 - [ ] 取引先名 (title) 空の行を skip した / 個別失敗を skipped に計上して継続した
-- [ ] 親ページ ID 未設定なら `--apply` 時に exit 2 で fail-closed した
+- [ ] 明示 pin なし かつ 親ページ ID 未設定なら `--apply` 時に exit 2 で fail-closed した (明示 pin ありなら親ページ不要)。明示 pin なし かつ 既存 DB 未発見時も phantom を作らず exit 2 で停止した (`--allow-create` 未指定時)
 - [ ] `--apply` は dry-run と R3 二段確認完了 (--verified 相当) の後にだけ実行した
 - [ ] created/updated/skipped/deleted + report_db_id + db_location + placement を画面に表示した
 
@@ -112,7 +112,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: `run-mf-invoice-report` SKILL Step 4 (render)。R3 で二段確認した分類済みレポート行が入力。
-- 後続 phase: なし (ユーザー提示で終端)。
+- 後続 phase: R5 archive (`prompts/R5-archive.md`・C07)。`--apply --verified` でレポート DB への upsert に成功したら、続けて自動で `mfk_sheet_archive.py --target <YYMM> --apply --verified` を走らせ対象月シート行を月別 DB へ切り出す (レポート dry-run では R5 も dry-run)。render が dry-run/失敗のときは archive へ連鎖しない。
 
 ### 6.2 ハンドオフ / 並列性
 - 提供元: R2 (C03 分類済みレポート行) + R3 (二段確認・差し戻し反映済み)。config (report_parent_page / report_toggle_block 論理キー)。

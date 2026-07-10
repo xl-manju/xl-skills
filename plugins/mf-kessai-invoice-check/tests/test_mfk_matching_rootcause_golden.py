@@ -177,7 +177,8 @@ def test_c5_orphan_surfaced_as_master_registration():
     master_rows = [r for r in rows if r.get("period_diff") == "要マスタ登録"]
     assert master_rows, "orphan が build_report で要マスタ登録行として surface される (seam で落とさない)"
     assert any("未登録オーファン社" in str(r.get("customer")) for r in master_rows)
-    assert master_rows[0]["gap_check"] == P.GAP_ACTION, "要マスタ登録は要対応 (マスタ登録の action が要る)"
+    # 要件3(2026-07-10): 要マスタ登録は正常✓ (発行自体は MF実績あり=正常・登録 action はコメントで保持)。
+    assert master_rows[0]["gap_check"] == P.GAP_OK, "要マスタ登録は正常✓ (契約なしを漏れ=要対応にしない)"
     assert master_rows[0]["amount"] == 90000, "MF実額を要マスタ登録行の今月金額へ carry する"
 
 

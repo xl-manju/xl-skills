@@ -249,6 +249,12 @@ PENDING_RENAME_PATHS = {
     "plugins/mf-kessai-invoice-check/scripts/mfk_verdict_export.py",
     "plugins/mf-kessai-invoice-check/scripts/mfk_collect_status.py",
     "plugins/mf-kessai-invoice-check/scripts/mfk_customer_id_resolve.py",
+    # 請求書確認シート 月次アーカイブ&ロールオーバー (R5-archive・C07) で追加。
+    # mfk_sheet_archive.py (C07 CLI) は tests/test_notion_sheet_archive.py が `import mfk_sheet_archive`
+    # する module のため §4.3 例外 (ハイフン不可)。engine 本体 lib/notion_sheet_archive.py も同 test が
+    # `import notion_sheet_archive` するが lib/ 配下は本 lint の scripts 走査対象外。許可動詞化は
+    # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_sheet_archive.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
