@@ -60,7 +60,10 @@ import sheet_to_master  # noqa: E402
 from mfk_period_report import _prev_month_ym  # noqa: E402  (月計算 SSOT を再利用)
 
 # 全 row が保持すべき MF実績 carrier(C05 mfk_actuals が classify 経由で焼く)。
-CARRIER_KEYS = ("actual_amount", "reliable_issued", "supply_state", "canceled_at")
+# category_confirmed: reliable_issued が category 確定一致由来か (True) / category-agnostic fallback の
+# 非確定一致か (False)。消費側が権威判定 (要対応☐の上書き) から fallback 一致を除外する安全弁。
+CARRIER_KEYS = ("actual_amount", "reliable_issued", "supply_state", "canceled_at",
+                "category_confirmed")
 
 
 def _orphan_to_row(orphan):
@@ -77,6 +80,7 @@ def _orphan_to_row(orphan):
     row["reliable_issued"] = True
     row["supply_state"] = R.mfk_actuals.SUPPLY_ACTIVE
     row.setdefault("canceled_at", None)
+    row.setdefault("category_confirmed", True)  # orphan=MF実績集約・category 制約なし=presence 権威
     return row
 
 
@@ -88,6 +92,10 @@ def serialize_verdicts(recon):
     可視の要マスタ登録行として保持)。
     """
     rows = [dict(r) for r in recon.get("rows", [])]
+    # 安全弁 carrier の後方互換 backfill: category_confirmed 未設定の行 (legacy/外部入力/find_mf_match
+    # 未経由) は presence 権威扱いの既定 True を焼く (絶対に権威剥奪の誤爆をしない安全側)。
+    for r in rows:
+        r.setdefault("category_confirmed", True)
     orphans = [_orphan_to_row(o) for o in recon.get("orphans", [])]
     return {
         "target_month": recon.get("target_ym"),

@@ -8,7 +8,7 @@
     },
     "plugins/mf-kessai-invoice-check/mf-kessai-config.default.json": {
       "plugin": "mf-kessai-invoice-check",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "sha256": "036952498181de0b81746bf9dad2f625f3538d1a4f1c3af6f0dd339b81cbad40"
     },
     "plugins/skill-intake/notion-config.fixed.json": {

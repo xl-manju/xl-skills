@@ -70,10 +70,20 @@ def _representative_amount(scoped_candidates, expected_cats=None):
 
 
 def resolve_actual(scoped_candidates, scoped_inactive, status=None, evidence=None,
-                   expected_cats=None):
+                   expected_cats=None, category_confirmed=True):
     """MF実績 (実発行額 / issued / 供給状態) を verdict 行 top-level へ焼くための dict を返す。
 
-    返り値: {"issued": bool, "actual_amount": int|None, "supply_state": str, "canceled_at": str|None}
+    返り値: {"issued": bool, "actual_amount": int|None, "supply_state": str, "canceled_at": str|None,
+             "category_confirmed": bool}
+
+    category_confirmed (安全弁・2026-07-10): scoped_candidates が期待 category の確定一致か
+    (True) / find_mf_match の category-agnostic fallback (期待 category 一致ゼロで境界内全 active 供給へ
+    退避) で得た非確定一致か (False)。False の active 供給は「別 category/商品の供給を当該契約の発行と
+    取り違えている可能性」があり、reliable_issued を**権威ある正常訂正 (要対応☐の上書き)** に使うと真の
+    月次漏れを隠す (system-strategic 検証 HIGH)。issued 自体は据え置き (false-GAP 過剰報告を防ぐ既存の
+    presence 寛容さを保つ) が、category_confirmed=False を carrier へ透過して消費側 (_row_reliable_mf_issued)
+    が権威判定から除外できるようにする。expected_cats が無い契約は category 制約が無い=presence 権威ゆえ
+    呼出側が True を渡す。
 
     引数はいずれも find_mf_match が解決済みのもの (本 module は再照合しない):
       scoped_candidates : 境界内 active 供給 [(cust, svc)] (endclient/category スコープ済み)
@@ -98,7 +108,8 @@ def resolve_actual(scoped_candidates, scoped_inactive, status=None, evidence=Non
         if amt is None:
             amt = _representative_amount(scoped_candidates, expected_cats)
         return {"issued": True, "actual_amount": amt,
-                "supply_state": SUPPLY_ACTIVE, "canceled_at": None}
+                "supply_state": SUPPLY_ACTIVE, "canceled_at": None,
+                "category_confirmed": bool(category_confirmed)}
     if scoped_inactive:
         # 代表 inactive 明細を選ぶ。呼出側 (inactive_only) が evidence に確定した代表 (status 付き)
         # を渡していればそれを使い、verdict (REVIEW_CANCELED / REVIEW_TXN_NOT_PASSED) と supply_state /

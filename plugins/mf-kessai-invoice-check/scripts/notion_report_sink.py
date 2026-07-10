@@ -215,6 +215,37 @@ def _row_contract_id(row):
     return _norm(row.get("contract_id") or row.get("契約ID"))
 
 
+def _row_end_client(row):
+    """行のエンドクライアント名 (C03 が collapse identity 判別用に透過する非表示フィールド)。
+
+    代理店が同一 (取引先,商品) を複数エンドクライアントへ契約する場合の契約 disambiguator。
+    contract_id と対で『契約 identity』を成す (名寄せ SSOT で正規化)。
+    """
+    return _normalize_name(row.get("end_client") or row.get("エンドクライアント名") or "")
+
+
+def _contract_identity(row):
+    """行の契約 identity = (契約ID, エンドクライアント名)。collapse で phantom と別契約を判別する。
+
+    同一 (対象月,取引先,商品) へ collapse する 2 行の identity が一致すれば、それは『同一契約が
+    ID照合↔名前照合で二重化した phantom』(record2 型: contract_id/エンドクライアント共に空で一致)。
+    identity が異なれば代理店の別エンドクライアント=真の別契約 (HOSONO 甲様/乙様 型)。この判別で
+    別契約の発行漏れを発行済みで黙って正常化する漏れ隠蔽 (false-negative) を防ぐ。
+    """
+    return (_row_contract_id(row), _row_end_client(row))
+
+
+def _same_contract_identity(a, b):
+    """2 行が同一契約 (phantom 由来の二重化) か。identity 完全一致で True。
+
+    どちらも contract_id/エンドクライアント未設定 (("","")) の場合も一致=phantom 扱い。これは安全:
+    真に別契約が両方 disambiguator 無しなら C03 の compare_periods が (取引先,商品) キーの setdefault で
+    1 ペアへ既に collapse 済ゆえ、sink へ 2 行として届く同一空 identity は ID↔名前 split の phantom に
+    限られる (別契約が別々に届くのは disambiguator を持つときだけ)。
+    """
+    return _contract_identity(a) == _contract_identity(b)
+
+
 def _amount(row, *keys):
     """row から金額を取り出す (最初に見つかった非 None を返す)。0 は有効値。"""
     for k in keys:
@@ -265,7 +296,13 @@ def _severity_rank(row):
 # 正常✓へ訂正する。reliable_issued 未確定 (legacy/verdict-issued 行) でも確実に正常✓を反映し
 # 『金額あるのにチェックが入らない』を根治する。金額 drift (過少請求等) は REVIEW_* コメント注記
 # に留め正常✓は据え置く (主張範囲=発行の存在に限定・OQ-9)。
-_STRUCTURAL_NORMAL_MARKERS = ("継続発行", "年契約周期", "契約完了", "トライアル完了", "対象外")
+# 『新規/年→月切替』(2026-07-10・Fix A の cross-run 保全): 前月なし今月あり=今月に実発行あり=定義上
+# 発行漏れでない (STATE_NEW は curr_issued=True 前提) ゆえ構造的正常。要件1の原則を STATE_CONTINUED
+# から NEW 経路へ拡張した Fix A(mfk_period_report) が gap=正常✓ で emit する行を、cross-run guard が
+# reliable_issued=False(legacy/verdict-issued の新規) のとき marker 非該当で☐へ再反転させる非対称
+# (3体エレガント検証で収束検出) を解消し、record1(新規トライアル発行) が DB 上☐に残らないようにする。
+_STRUCTURAL_NORMAL_MARKERS = ("継続発行", "新規/年→月切替", "年契約周期", "契約完了",
+                              "トライアル完了", "対象外")
 
 
 def _is_structural_normal(row):
@@ -320,10 +357,41 @@ def _prefer_action(a, b):
     ra, rb = _severity_rank(a), _severity_rank(b)
     if ra != rb:
         action, normal = (a, b) if ra > rb else (b, a)
+        # K4 の同一run collapse への対称適用だが、**契約 identity で phantom と別契約を判別**する
+        # (3体エレガント検証 CRITICAL の是正)。正常化して良いのは「同一契約が ID照合↔名前照合で
+        # 二重化した phantom」(record2 型) に限る: その場合 negative(要対応) 側は実体のない重複ゆえ、
+        # 当月の権威ある実発行 (reliable_issued) で正常✓へ収束させてよい (症状②の根治)。
+        # 一方、identity が異なる=代理店の別エンドクライアント等の**真の別契約**では、負ける要対応が
+        # 本物の発行漏れでありうるため正常化せず要対応を保持する (漏れ隠蔽 false-negative を防ぐ・
+        # 「多契約×同一商品は稀」前提が HOSONO 甲様/乙様等の実データで反証されている安全側)。
+        if _is_reliable_mf_issued(normal) and _same_contract_identity(action, normal):
+            return _resolve_to_reliable_normal(normal, action)
+        # 別契約 or 非 reliable → 要対応を保持し発行済み実額を保全 (漏れを隠さず金額も失わない)。
         return _preserve_issued_amount(action, normal)
     if ra == 1:  # 要対応×要対応 → comment をマージした後着行 (情報保全)。
         return _merge_action_comments(b, a)
     return _merge_issued_amounts(b, a)  # 正常×正常 → 発行済み実額を合算保全 (後着で先行を潰さない)。
+
+
+def _resolve_to_reliable_normal(normal, action):
+    """severity 混在 collapse で MF実発行 (reliable_issued) 正常が要対応に勝つ (K4 の同一run 対称適用)。
+
+    今月に権威ある実発行がある (取引先,商品) は定義上『発行漏れ』でない → 正常✓ を採り、発行済み
+    実額 (normal の今月金額) を保全する。負けた要対応候補 (別契約ID の phantom/重複 gap の可能性が
+    高い=多契約×同一商品は稀という collapse 前提) はコメントに根拠を注記して黙殺しない (漏れ隠蔽と
+    情報損失の両方を避ける)。bare 正常 (reliable_issued 無し) は本経路に来ず _preserve_issued_amount で
+    要対応を保持するため、真の漏れが bare 正常で隠れることはない (安全側の非対称)。
+    """
+    merged = dict(normal)
+    cn = _norm(normal.get("comment") or normal.get("コメント"))
+    ca = _norm(action.get("comment") or action.get("コメント"))
+    if ca:
+        note = ("[複数契約の統合行] 当月は MF 実発行あり=正常✓ (発行漏れではない)。"
+                f"同一取引先・商品に別契約の要対応候補があったが当月実発行で充足 (候補根拠: {ca})")
+    else:
+        note = "[複数契約の統合行] 当月は MF 実発行あり=正常✓ (発行漏れではない)"
+    merged["comment"] = f"{cn} / {note}" if cn else note
+    return merged
 
 
 def _preserve_issued_amount(action, normal):
@@ -865,13 +933,17 @@ def upsert_report_rows(rows, report_db_id, target, token, req=None, *, title_pro
         if prev is None:
             collapsed[key] = row
             continue
-        # 同一 (対象月,取引先,商品) 衝突。契約IDが異なる複数契約なら multi-contract collapse を計上し、
-        # 要対応を優先保持して漏れ隠蔽 (false-negative) を防ぐ (F-α safe guard)。
-        if _row_contract_id(prev) != _row_contract_id(row):
+        # 同一 (対象月,取引先,商品) 衝突。契約 identity (契約ID+エンドクライアント) が異なる複数契約
+        # なら multi-contract collapse を計上し、要対応を優先保持して漏れ隠蔽 (false-negative) を防ぐ
+        # (F-α safe guard)。**判定は identity 差**にする: contract_id が両方空でもエンドクライアントが
+        # 違えば別契約であり、旧来の contract_id 差だけの検出では counter/stderr が発火しない
+        # 『ゼロテレメトリの漏れ隠蔽』(3体エレガント検証 abduction) を塞ぐ。identity 一致の phantom
+        # (同一契約の ID↔名前 split) は multi-contract でないため計上しない (dedup であって collapse でない)。
+        if not _same_contract_identity(prev, row):
             collapsed_multi += 1
             sys.stderr.write(
-                "[notion_report_sink] 同一(取引先,商品)に契約ID違いの複数契約を検出。"
-                f"固定列に契約ID列が無いため1行へ収束し要対応を優先保持: {key}\n")
+                "[notion_report_sink] 同一(取引先,商品)に別契約 (契約ID/エンドクライアント違い) を検出。"
+                f"固定列に識別子列が無いため1行へ収束し要対応を優先保持: {key}\n")
         collapsed[key] = _prefer_action(prev, row)
 
     for key, row in collapsed.items():
