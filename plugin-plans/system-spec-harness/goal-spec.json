@@ -1,0 +1,77 @@
+{
+  "purpose": "システム構築(Web/モバイル/タブレット/デスクトップ横断)に必要な仕様情報を、ユーザーとのヒアリングを通じて漏れなく収集し1つの仕様書へまとめるハーネス plugin の開発計画を作る",
+  "background": "DB・ログイン(認証)などの細部から UI/UX・セキュリティ・インフラ・バックエンド・フロントエンド・保守運用管理まで、システム構築に必要な情報は範囲が広く、単発の列挙やヒアリングだけでは抜け漏れが生じやすい。加えてクリーンアーキテクチャ・デザインパターン・セキュアバイデザイン・DDD・クリーンコードといった設計知識の反映や、ツール/インフラの最新公式ドキュメント取得も要求されており、対話駆動かつ網羅性を機械/人手で検証できる仕組みへ一元化する必要がある。",
+  "goal": "system-spec-harness の 13 phase ファイル + index + component-inventory + handoff が、システム構成カテゴリ×対象プラットフォームを横断する仕様網羅性を決定論ゲートで検証可能な状態になっている",
+  "artifact_class": "plugin-plan",
+  "target_plugin_slug": "system-spec-harness",
+  "plan_dir": "plugin-plans/system-spec-harness",
+  "out_dir": null,
+  "checklist": [
+    {
+      "id": "C1",
+      "criterion": "生成される仕様書が、データベース/認証(ログイン)/UI-UX/セキュリティ/インフラ/バックエンド/フロントエンド/保守運用管理を含むシステム構成カテゴリの一覧を持ち、各カテゴリについて収集状態(未着手/収集中/確定/対象外+理由)を明示している",
+      "done": false,
+      "verify_by": "human"
+    },
+    {
+      "id": "C2",
+      "criterion": "web/mobile/tablet/desktop(Windows/Linux/macOS)の各対象プラットフォームについて、仕様収集項目が個別に存在するか『対象外』の判断根拠が明示されている",
+      "done": false,
+      "verify_by": "human"
+    },
+    {
+      "id": "C3",
+      "criterion": "ユーザーへ追加質問せず停止しない前提のうえで、ユーザーとの往復ヒアリング(質問→回答→仕様反映→未確定項目の再質問)を通じて要件を掘り起こすフローが component として定義されている",
+      "done": false,
+      "verify_by": "reasoning"
+    },
+    {
+      "id": "C4",
+      "criterion": "クリーンアーキテクチャ/デザインパターン/API デザインパターン/セキュリティデザインパターン(secure by design)/DDD(リファクタリング文脈)/クリーンコードの各知識領域を仕様生成時に参照できる reference 資産が component-inventory に含まれている",
+      "done": false,
+      "verify_by": "human"
+    },
+    {
+      "id": "C5",
+      "criterion": "ツール/インフラ/フレームワーク等の最新公式ドキュメントを取得し、取得日時と参照元を記録した上で仕様書へ反映する component が定義されている",
+      "done": false,
+      "verify_by": "human"
+    },
+    {
+      "id": "C6",
+      "criterion": "収集した仕様情報を単一の出力ドキュメント(または明確に定義された関連文書群)としてまとめる出力仕様(章立て/形式)が確定している",
+      "done": false,
+      "verify_by": "human"
+    },
+    {
+      "id": "C7",
+      "criterion": "システム構成カテゴリ×対象プラットフォームの収集マトリクスの全マスが『未収集/対象外/確定』のいずれかで埋まっていることを検証する網羅性検証の仕組みが component として定義されている",
+      "done": false,
+      "verify_by": "script"
+    },
+    {
+      "id": "C8",
+      "criterion": "plugin.json manifest / marketplace policy / cachebuster 等の plugin packaging 契約を満たす component-inventory + 13 phase ファイル + handoff が生成される",
+      "done": false,
+      "verify_by": "script"
+    }
+  ],
+  "constraints": [
+    "実プラグインは生成せず L3 plan (13 phase ファイル + index + component-inventory + handoff) までに留める (R1/本 plan skill は plan 生成のみを担当し build は L4 run-skill-create へ委譲)",
+    "対象プラットフォームはユーザー追記に基づき web/mobile/tablet/desktop(Windows/Linux/macOS) の横断を必須スコープとする",
+    "構想文中に列挙されたカテゴリ(DB/ログイン/UI-UX/セキュリティ/インフラ/保守運用管理等)は『一例』と明言されているため例示として扱い、個別カテゴリの過不足でなくカテゴリ×プラットフォームの網羅マトリクス機構自体(C7)を本質要件とする",
+    "配布/packaging は Claude Code の .claude-plugin 規約 (plugin-creator-contract.md) に従う前提とする (構想内に別ツール向けマニフェスト等の明示指定なし)",
+    "ヒアリングは C3 のとおり往復フローを component 化する前提とし、本 R1 自体は追加質問をせず本構想文のみから goal-spec を確定した"
+  ],
+  "handoff_targets": [
+    "plugin-dev-plan-architect"
+  ],
+  "max_loops": 5,
+  "open_questions": [
+    "最終成果物ドキュメントの出力形式(単一 Markdown / 複数ファイル分割 / 特定テンプレート)が未指定 → phase-02-design.md 設計判断2 で確定済 (章立て複数 Markdown + index)",
+    "既存 skill-intake plugin のヒアリング機構との関係(統合して再利用するか / 独立実装するか)が未指定 → phase-02-design.md 設計判断1 で確定済 (独立実装)",
+    "最新公式ドキュメント取得の具体手段(WebFetch / MCP / 特定 API 連携)が未指定 → phase-02-design.md 設計判断3 で確定済 (WebSearch/WebFetch 既定・MCP は GAP-MCP-DOCFETCH へ保留)",
+    "本 harness の利用単位が個人利用かチーム/複数プロジェクト共通の再利用資産かが未指定",
+    "marketplace 配布可否 (distributable true/false) の判断がユーザー承認待ち"
+  ]
+}

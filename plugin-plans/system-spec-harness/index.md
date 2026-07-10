@@ -1,0 +1,141 @@
+---
+id: IDX0
+title: system-spec-harness 開発計画 index (main)
+plugin_meta:
+  manifest:
+    required: true
+    path: .claude-plugin/plugin.json
+    name_matches_folder: true
+    no_unresolved_placeholders: true
+    validate_plugin: true
+  marketplace:
+    default_personal: true
+    policy:
+      installation: NOT_AVAILABLE
+      authentication: ON_USE
+      category: Productivity
+    cachebuster_for_update: true
+  distribution:
+    distributable: false
+    bundles: []
+  pkg_contract:
+    applicable: false
+    reason: "marketplace 配布未承認 (distributable:false) のため pkg 番号は open_issues の配布判断確定後に割当てる"
+  governance:
+    runbook: required
+  ci:
+    workflow: governance-check
+  ssot_dedup:
+    lint: ssot-duplication
+    references_config_assets: tracked
+  feedback_deploy:
+    deploy: run-skill-feedback
+    enabled: true
+    notion_sink:
+      config_key: system-spec-improvement-request
+      schema_ref: doc/notion-schema/improvement-request.schema.json
+      resolution: notion_config
+    portability: repo-bundled
+  harness_eval:
+    evals_json: EVALS.json
+    mechanical: required
+    llm_eval: required
+---
+
+# system-spec-harness 開発計画 index (main)
+
+> プラグイン構想「システム構築 (Web/モバイル/タブレット/デスクトップ横断) に必要な仕様情報を、ユーザーとのヒアリングを通じて漏れなく収集し1つの仕様書へまとめるハーネス plugin」を、人間可読な 13 フェーズのライフサイクル (本 index + phase-01..13.md) と、機械可読な buildable component 目録 (`component-inventory.json`) の 2 軸直交で計画したもの。
+> ライフサイクル軸 (フェーズ) は宣言型のタスク仕様 (`specfm.PHASE_BODY_SECTIONS` の 8 節) で primary deliverable。成果物実体軸 (component) は build routing・依存 DAG・品質機構を保持する唯一の SSOT。フェーズは component id を `entities_covered` で参照するだけで build_target を再記述しない (正規化)。
+
+## 基本定義
+- **プラグイン slug**: `system-spec-harness` (plan_dir=`plugin-plans/system-spec-harness/`・同一構想は常に同一出力先=再現性アンカー)。
+- **最上位目的 (purpose)**: システム構築 (Web/モバイル/タブレット/デスクトップ横断) に必要な仕様情報を、ユーザーとのヒアリングを通じて漏れなく収集し1つの仕様書へまとめる。
+- **仕様駆動 (大前提)**: 本計画は harness-creator 仕様を基に作成される (規律の焼き先=`harness-creator-spec-reflection.md` マトリクスの引用・独自流儀の発明禁止)。要件の正本は `goal-spec.json` の checklist (C1-C8)、仕様書 (本 index + 13 phase) はその被覆であり、実装との乖離が出たら**仕様を先に更新**してから build へ戻す (spec-first)。
+- **スコープ (含む)**: index + 13 フェーズ計画 + `component-inventory.json` の生成 (計画=L3 契約)。
+- **スコープ (含まない)**: 実プラグイン/実コードの build (L4・後段 run-skill-create / run-build-skill / plugin-scaffold へ委譲)、PR/配布登録。
+
+## ドメイン知識
+- **2 軸直交**: ライフサイクル軸 (13 phase・人間可読) と成果物実体軸 (N=13 component・機械 SSOT) を二重に持たない。
+- **component_kind (5 種)**: skill / sub-agent / slash-command / hook / script。同一 kind の複数実体はそれぞれ独立 component。
+- **phase ≠ component**: 13 はフェーズ数の固定値、N=13 は buildable 実体数で独立に決まる (13=13 は偶然の一致で規約ではない)。phase は `entities_covered: [C01, ...]` の id 参照のみで component に紐づく。
+- **カテゴリは一例、マトリクスが本質**: 構想文中の DB/認証/UI-UX/セキュリティ/インフラ/バックエンド/フロントエンド/保守運用管理は「一例」。要件の核はシステム構成カテゴリ×対象プラットフォーム(web/mobile/tablet/desktop(Windows/Linux/macOS))の**網羅マトリクス機構**が全マス「未収集/対象外/確定」で埋まっていることの機械検証 (goal-spec C7・component C12)。
+- **マトリクスの状態機械 (正本)**: セル状態 3 値 (未収集/対象外/確定) が正本。goal-spec C1 のカテゴリ表示 4 値 (未着手/収集中/確定/対象外) は導出 (収集中=当該カテゴリに未収集セル残存、未着手=全セル未収集)。検証は inner=loop 中 enum 妥当性検証 / outer=終局の未収集セル 0 の二層 (C01 の IN1/OUT1 と対応)。
+- **checklist done の live 正本**: `run-plugin-dev-plan-progress.json` (goal-spec.checklist.done は R1 初期宣言で以後更新しない)。
+- **番号名前空間**: C01-C13=component id / C1-C8=goal-spec 要件 / C1-C4 (elegant)=レビュー 4 条件 — 別名前空間 (混同しない)。
+- **skill-intake との関係**: 既存 skill-intake plugin のヒアリング機構は再利用せず独立実装とする (段階ゲート/承認の設計流儀のみ着想を借用)。根拠は phase-02-design.md に明記。
+- **出力形式**: 章立ての複数 Markdown ファイル + index (`system-spec/` 配下) を既定とする (単一ファイル集約は不採用)。
+- **最新ドキュメント取得手段**: WebSearch/WebFetch を既定とし、MCP 連携は open_issues (GAP-MCP-DOCFETCH) へ保留する。
+
+## インフラ
+- **実行環境**: スクリプトは Python 標準ライブラリのみ (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。
+- **同梱決定論ゲート (2 層命名・機械正本=`specfm.GATE_SCRIPTS`)**: core 5 scripts / 6 invocations = verify-index-topsort (§9 section 床+phase 完全性+DAG) / detect-unassigned / check-spec-frontmatter / check-spec-gates / check-spec-matrix-coverage (--self-test + PLAN の 2 起動)。拡張ゲート = check-plugin-goal-spec / check-requirements-coverage / check-surface-inventory / check-build-handoff / validate-task-graph (デフォルト成果物 task-graph.json の 10 検査) / check-runtime-portability / check-plugin-surface-audit (総数の人間可読正本=io-contract §11 表)。
+- **build の始め方 (consumer 手順・宣言のみ)**: 後段 builder は `handoff-run-plugin-dev-plan.json` の routes を top-sort 順に消費する。skill route は routes[].build_args の `brief_path` (render-skill-brief.py) で inventory から skill-brief JSON を決定論射影して `run-skill-create` へ渡す (詳細手順は焼かない)。
+- **コンポーネント目録の所在**: buildable な実体 (skill×5 / sub-agent×3 / slash-command×2 / hook×1 / script×2 = 計 13) は `component-inventory.json` が唯一の SSOT。build_target・依存 DAG・quality_gates・harness_coverage・feedback_contract を目録側が保持する。
+- **Plugin-level surfaces**:
+
+  | surface | 判定 | 記録先 |
+  |---|---|---|
+  | manifest | required | `plugin_meta.manifest` |
+  | plugin-composition | required | `plugin-composition.yaml` |
+  | harness/eval | required | `EVALS.json` + `plugin_meta.harness_eval` |
+  | references/config/assets | required | `plugin_meta.ssot_dedup` |
+  | schemas | omitted | component inventory の omitted_reason (共有 script 内で検証し独立 schema 不要) |
+  | vendor | omitted | component inventory の omitted_reason (plugin-root hoist で携帯性充足) |
+  | MCP/app connector | omitted | component inventory の omitted_reason (WebSearch/WebFetch のみで完結・GAP-MCP-DOCFETCH へ保留) |
+  | notion_config | omitted | component inventory の omitted_reason (成果物は Markdown ドキュメントセットでプロジェクト固有 DB 読み書きを持たない) |
+
+## 環境ポリシー
+- **品質基準**: 全 buildable component が quality_gates (p0_lint(kind別)/build_trace/elegant_review C1-C4/content_review verdict/evaluator≥80,high0) + harness_coverage(min≥80/kind_pass) を携帯する。
+- **proposer≠approver**: 設計/最終レビューは提案者と別 context の approver が承認する (design-gate/final-gate)。
+- **現状値非焼込**: 「≥80% を満たす設計」を要件化し、harness 現状未達数値は component エントリへ焼かない (Goodhart 回避)。
+- **エスカレーション**: ゲート未達は最大 3 周で findings を反映し再実行、超過時は `open_issues` に残し差し戻す。
+
+## フェーズ一覧
+
+1. P01 — requirements (要件定義) / 未実施
+2. P02 — design (設計) / 未実施
+3. P03 — design-review (設計レビューゲート) / 未実施
+4. P04 — test-design (テスト設計) / 未実施
+5. P05 — implementation (実装) / 未実施
+6. P06 — test-run (テスト実行) / 未実施
+7. P07 — acceptance-criteria (受入基準判定) / 未実施
+8. P08 — refactoring (リファクタリング) / 未実施
+9. P09 — quality-assurance (品質保証) / 未実施
+10. P10 — final-review (最終レビューゲート) / 未実施
+11. P11 — evidence (手動テスト検証) / 未実施
+12. P12 — documentation (ドキュメント) / 未実施
+13. P13 — release (完了/PR・リリース) / 未実施
+
+## 完了チェックリスト
+- [ ] 基本定義 (plugin slug / purpose / スコープ) が宣言されている。
+- [ ] ドメイン知識 (2 軸直交 / component_kind 5 種 / カテゴリ例示とマトリクス本質の区別 / skill-intake 非再利用等の設計判断) が宣言されている。
+- [ ] インフラ (実行環境 / core scripts / 目録所在 / surface 採否) が宣言されている。
+- [ ] 環境ポリシー (品質基準 / proposer≠approver / 現状値非焼込) が宣言されている。
+- [ ] 13 フェーズ (P01..P13) が phase_number 昇順で全存在し、各 phase 本文が §5 section 床 (`specfm.PHASE_BODY_SECTIONS` の宣言型 8 節) を満たす。
+- [ ] 要件 C1: 生成される仕様書がデータベース/認証(ログイン)/UI-UX/セキュリティ/インフラ/バックエンド/フロントエンド/保守運用管理を含むシステム構成カテゴリの一覧を持ち、各カテゴリの収集状態(未着手/収集中/確定/対象外+理由)を明示する仕組みが C01/C03/C12 として定義されている。
+- [ ] 要件 C2: web/mobile/tablet/desktop(Windows/Linux/macOS)の各対象プラットフォームについて仕様収集項目が個別に存在するか対象外の判断根拠が明示される仕組みが、C01 (R1-init の必須プラットフォーム行初期化+全存在検証) と C12 (必須プラットフォーム行の全存在+カテゴリ軸床の検証) として定義されている。
+- [ ] 要件 C3: ユーザーへ追加質問せず停止しない往復ヒアリング(質問→回答→仕様反映→未確定項目の再質問)フローが C01 (run-system-spec-elicit) として component 化されている (確定済みセルの保全は C11 が担保・再オープンは C01 R4-reopen 経由)。
+- [ ] 要件 C4: クリーンアーキテクチャ/デザインパターン/API デザインパターン/セキュアバイデザイン/DDD/クリーンコードの各知識領域を参照できる reference 資産が C04 (ref-system-design-knowledge) として component-inventory に含まれている。
+- [ ] 要件 C5: ツール/インフラ/フレームワーク等の最新公式ドキュメントを取得日時と参照元記録付きで反映する component が C02 (run-system-spec-doc-fetch) として定義されている。
+- [ ] 要件 C6: 収集した仕様情報を章立て複数 Markdown ファイル+index としてまとめる出力仕様が C03 (run-system-spec-compile) として確定している。
+- [ ] 要件 C7: カテゴリ×プラットフォームの収集マトリクスの全マスが未収集/対象外/確定のいずれかで埋まっていることを検証する網羅性検証の仕組みが C12 (validate-coverage-matrix.py) として component 定義されている。
+- [ ] 要件 C8: `component-inventory.json` + 13 phase ファイル + `handoff-run-plugin-dev-plan.json` が plugin.json manifest / marketplace policy / cachebuster 等の packaging 契約を満たして生成されている (`check-spec-gates.py` / `check-build-handoff.py` が機械検査)。
+- [ ] 各 component が >=1 phase の `entities_covered` に出現する (orphan 0 件)。
+- [ ] 同梱決定論ゲート (core + 拡張・機械正本=`specfm.GATE_SCRIPTS`) が全 exit0 (goal-spec 要件の被覆は check-requirements-coverage が機械検査)。
+
+## 受入確認
+
+> 計画 (上記) が満たすのは「各 component が評価基準を携帯し決定論ゲートを通る」こと。**組み上がった実プラグインが当初 purpose を満たすか**は build 後に下記で確認する。plan は受入基準を**契約として焼く**だけで、実行は後段 build (run-skill-create の harness criteria-test)。purpose の正本 = `goal-spec.purpose`「システム構築に必要な仕様情報をヒアリングを通じて漏れなく収集し1つの仕様書へまとめる」。
+
+| 受入観点 (purpose 由来 / 要件 id) | 確認の見方 (build 後) | 焼き先 |
+|---|---|---|
+| カテゴリ一覧+収集状態明示 (C1) | 生成された仕様書の各章にカテゴリ別の収集状態(未着手/収集中/確定/対象外+理由)が明示される | compile skill (C03) の OUT criterion + evaluator (C05) |
+| プラットフォーム別収集/対象外根拠 (C2) | web/mobile/tablet/desktop(Win/Linux/macOS) の各行がマトリクスに存在し対象外セルに理由が付く | elicit skill (C01) の OUT criterion + マトリクス検証 (C12) |
+| 往復ヒアリングで停止しない (C3) | 未確定セルに対し追加質問が発火し停止しないことをサンプル対話で確認 | elicit skill (C01) の R3-reask responsibility + hearing auditor (C06) |
+| 設計知識反映 (C4) | 仕様書の該当章がクリーンアーキテクチャ等の設計知識ポインタを参照している | ref skill (C04) の output_contract + content-review |
+| 最新ドキュメント出典記録 (C5) | fetched-references.json の全エントリに取得日時+参照元 URL がある | doc-fetch skill (C02) の OUT criterion + doc freshness auditor (C08) |
+| 出力ドキュメントセットの確定 (C6) | system-spec/ 配下に章別 Markdown + index が生成される | compile skill (C03) の output_contract |
+| 網羅マトリクス検証 (C7) | 最終時: 未収集セル 0 + 対象外理由付与を validate-coverage-matrix.py が exit0 で確認する (loop 中は enum 妥当性検証) | script C12 + matrix auditor (C07) |
+| packaging 契約充足 (C8) | plugin.json manifest / marketplace policy / cachebuster が検証済み | `check-spec-gates.py` / `check-build-handoff.py` |
+
+build 後、各 component の `feedback_contract.criteria` が criteria-test として実行され、上表の受入が PASS して初めて「purpose を満たすプラグインが出来た」と確定する。`EVALS.json` の `llm_eval` はこの受入が評価系に配線されていることを宣言する。

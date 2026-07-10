@@ -1,0 +1,317 @@
+{
+  "plan_dir": "/Users/dm/dev/dev/xlocal/xl-skills/.worktrees/task-20260710-223520-wt-8/plugin-plans/system-spec-harness",
+  "evaluator": {
+    "name": "assign-plugin-plan-evaluator",
+    "version": "0.1.0",
+    "context": "fork"
+  },
+  "verdict": "PASS",
+  "conditions": {
+    "C1": {
+      "id": "no_contradiction",
+      "status": "PASS",
+      "summary": "矛盾なし: check-build-handoff exit0 (機械) + 改善後 inventory/index/handoff 間の意味突合 (LLM) で新規矛盾 0 件",
+      "evidence": [
+        "check-build-handoff exit=0",
+        "component-inventory.json C05.depends_on に C12 明示 (handoff routes[C05].depends_on と一致・progress.json iteration3 の同期修正を再確認)",
+        "envelope-draft/plugin.json の entry_points(skill5/agent3/command2)+hooks(PreToolUse) が component-inventory.json の component_kind 別内訳と1:1一致"
+      ]
+    },
+    "C2": {
+      "id": "no_missing",
+      "status": "PASS",
+      "summary": "漏れなし: detect-unassigned/check-spec-frontmatter/check-spec-gates/check-surface-inventory/check-requirements-coverage 全 exit0 (機械) + 単一 skill 退化なし (LLM)",
+      "evidence": [
+        "detect-unassigned exit=0",
+        "check-spec-frontmatter exit=0",
+        "check-spec-gates exit=0",
+        "check-surface-inventory exit=0",
+        "check-requirements-coverage exit=0",
+        "13 component の boundary は改善後も相互排他 (C01 ヒアリング/C02 doc-fetch/C03 compile が入出力契約で分離、C06-C08 sub-agent 3体が観点別に独立監査、C12/C13 は plugin-root hoist の共有 script として正当化)"
+      ]
+    },
+    "C3": {
+      "id": "consistent",
+      "status": "PASS",
+      "summary": "整合性あり: check-spec-frontmatter/check-spec-gates/check-spec-matrix-coverage(--self-test+PLAN) 全 exit0",
+      "evidence": [
+        "check-spec-frontmatter exit=0",
+        "check-spec-gates exit=0",
+        "check-spec-matrix-coverage-self-test exit=0",
+        "check-spec-matrix-coverage-plan exit=0",
+        "matrix 分類 OP=10/conditional=19/N-A=17 (計46) 全て焼き先反映済み"
+      ]
+    },
+    "C4": {
+      "id": "dependency_integrity",
+      "status": "PASS",
+      "summary": "依存関係整合: verify-index-topsort/detect-unassigned/check-build-handoff/check-runtime-portability/validate-task-graph 全 exit0。task-graph.json 再生成後も produces エッジ13件が component_inventory の build_target と1:1接地",
+      "evidence": [
+        "verify-index-topsort exit=0",
+        "detect-unassigned exit=0",
+        "check-build-handoff exit=0",
+        "check-runtime-portability exit=0",
+        "validate-task-graph exit=0",
+        "task-graph.json: nodes=291/edges=5515 (depends_on=5224/parent_of=278/produces=13)、produces targets が inventory build_target 13件と完全一致"
+      ]
+    }
+  },
+  "gate_results": [
+    {
+      "id": "G1",
+      "name": "verify-index-topsort",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/verify-index-topsort.py",
+        "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C4"],
+      "stdout": "OK: index が §9 section 床を満たし P01..P13 を昇順全列挙し component 依存 DAG が非循環",
+      "stderr": ""
+    },
+    {
+      "id": "G2",
+      "name": "detect-unassigned",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/detect-unassigned.py",
+        "--inventory", "plugin-plans/system-spec-harness/component-inventory.json",
+        "--specs-dir", "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C2", "C4"],
+      "stdout": "OK: 13 フェーズ完全・section 床充足・orphan 0 件・全 component が build_target を保持",
+      "stderr": ""
+    },
+    {
+      "id": "G3",
+      "name": "check-spec-frontmatter",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-frontmatter.py",
+        "--specs-dir", "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C2", "C3"],
+      "stdout": "OK: 13 phase frontmatter + inventory component 契約を充足",
+      "stderr": ""
+    },
+    {
+      "id": "G4",
+      "name": "check-spec-gates",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-gates.py",
+        "--specs-dir", "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C2", "C3"],
+      "stdout": "OK: inventory component gates/harness + index.plugin_meta 規律を機械強制で満たす",
+      "stderr": ""
+    },
+    {
+      "id": "G5",
+      "name": "check-spec-matrix-coverage-self-test",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
+        "--self-test"
+      ],
+      "exit_code": 0,
+      "conditions": ["C3"],
+      "stdout": "OK: 46行 table と reflection.md が一致 (id 集合/分類/焼き先層 drift なし)",
+      "stderr": ""
+    },
+    {
+      "id": "G6",
+      "name": "check-spec-matrix-coverage-plan",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-spec-matrix-coverage.py",
+        "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C3"],
+      "stdout": "matrix 分類: OP=10 / conditional=19 / N-A=17 (計 46)\nOK: 適用される全マトリクス行の焼き先が反映済み",
+      "stderr": ""
+    },
+    {
+      "id": "G7",
+      "name": "check-surface-inventory",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-surface-inventory.py",
+        "plugin-plans/system-spec-harness/component-inventory.json"
+      ],
+      "exit_code": 0,
+      "conditions": ["C2"],
+      "stdout": "OK: 5 component_kind 検討証跡 + plugin-level surface 採否が明示済み",
+      "stderr": ""
+    },
+    {
+      "id": "G8",
+      "name": "check-build-handoff",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-build-handoff.py",
+        "plugin-plans/system-spec-harness/handoff-run-plugin-dev-plan.json"
+      ],
+      "exit_code": 0,
+      "conditions": ["C1", "C4"],
+      "stdout": "OK: build handoff が 13 routes と envelope 契約を満たす",
+      "stderr": ""
+    },
+    {
+      "id": "G9",
+      "name": "check-requirements-coverage",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-requirements-coverage.py",
+        "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C2"],
+      "stdout": "OK: goal-spec checklist の全要件 id が index の完了チェックリスト/受入確認へトレース済み",
+      "stderr": ""
+    },
+    {
+      "id": "G10",
+      "name": "check-runtime-portability",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-runtime-portability.py",
+        "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C4"],
+      "stdout": "OK: 共有 script は plugin-root へ hoist 済・全 build_target が plugin 内自己完結",
+      "stderr": ""
+    },
+    {
+      "id": "G11",
+      "name": "validate-task-graph",
+      "command": [
+        "python3",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/validate-task-graph.py",
+        "plugin-plans/system-spec-harness"
+      ],
+      "exit_code": 0,
+      "conditions": ["C4"],
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "findings": [
+    {
+      "severity": "info",
+      "bucket": "C1-C4",
+      "observation": "re-evaluation: 11 本の plan-scoped 決定論ゲート (evaluate-plan.py 経由・core5/6invocations+拡張5) を本 SubAgent が直接再実行し全 exit0 を確認。加えて check-plugin-goal-spec.py (goal-spec.json 単体、rubric の deterministic_gates 対象外だが親チェックリスト C7/C8 の裏取りとして実行) も exit0 (WARN 2件は source_intake/source_improvement 不在の後方互換警告のみで none-blocking)。",
+      "evidence": [
+        "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/scripts/evaluate-plan.py --plan-dir plugin-plans/system-spec-harness (exit0)",
+        "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-plugin-goal-spec.py plugin-plans/system-spec-harness/goal-spec.json (exit0, WARN x2 non-blocking)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "stale-cache-resolution",
+      "observation": "改善前 (Phase2 12グループ改善前) の plan-findings.json は evaluate-plan.py 未実行の古い evidence (『設計判断1-3』引用および layer-b medium=26 violations) を保持していた。改善後 plan は全ファイルの mtime が旧 plan-findings.json (23:31:59) より後 (index.md/component-inventory.json/goal-spec.json/handoff は 23:58-23:59、phase-01..13.md は 00:00:19-00:01:47、task-graph.json は 00:04:03 に再生成) であることを確認し、本 SubAgent が改善後 plan に対し evaluate-plan.py と check-downstream-harness.py / check-generative-fidelity.py を再実行して genuine 再評価した。旧 evidence は本ファイルへ一切引き継いでいない (stale 解消済み)。",
+      "evidence": [
+        "旧 plan-findings.json (書換前) の layer-b finding: 'check-downstream-harness.py が phase-01..13 の全 13 phase で サブ節の欠落を検出 (exit1・26 violation)' — 改善後は解消 (下記 layer-b finding参照)",
+        "stat -f %Sm 出力: plan-findings.json(旧)=2026-07-10 23:31:59 < component-inventory.json=23:58:01 < phase-01..13.md=00:00:19-00:01:47 < task-graph.json=00:04:03"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "C1",
+      "observation": "LLM 意味判定 (契約衝突再確認): 改善で追加された R4-reopen (C01 responsibilities + C11 hook description + index.md C3 要件行)、qa_ref (C01 output_contract + C12 purpose)、軸床検証 (C12 purpose + index.md C2 要件行)、R2-delegate (C05 responsibilities) の4語彙は index.md / component-inventory.json / handoff-run-plugin-dev-plan.json / phase-05-implementation.md の間で相互参照が一貫し、旧 stale finding が指摘した builder_status 省略可の解釈 (executor-backed routes) も変更なく矛盾なし。C05.depends_on への C12 追加 (progress.json iteration3 の『handoff 同期』宣言どおり) が component-inventory.json / handoff-run-plugin-dev-plan.json 双方に反映されていることを直接突合で確認した。",
+      "evidence": [
+        "plugin-plans/system-spec-harness/component-inventory.json:64,133,141,290,11 (R4-reopen/qa_ref/軸床検証/R2-delegate)",
+        "plugin-plans/system-spec-harness/index.md:116-117",
+        "plugin-plans/system-spec-harness/handoff-run-plugin-dev-plan.json:C05.depends_on=[C01,C02,C03,C12]"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "C2",
+      "observation": "LLM 意味判定 (単一 skill 退化の有無、再確認): 改善後も 13 component の境界は実質分離を維持。C01(ヒアリング)/C02(doc-fetch)/C03(compile) は入出力契約 (spec-state.json / fetched-references.json / 仕様書ドキュメントセット) が異なり、C06-C08 の 3 sub-agent は聞き漏れ監査/マトリクス監査/出典鮮度監査という異なる観点を独立 context で担う。phase-04-test-design.md の事前解決済み判断 (非 skill kind へ feedback_contract criteria を課さない) は component-inventory.json の実装 (C06-C11 に feedback_contract フィールド無し・C04/C05 のみ skip_reason 明示) と整合し、契約と inventory 間の drift は無い。",
+      "evidence": [
+        "plugin-plans/system-spec-harness/component-inventory.json:components[].boundary",
+        "plugin-plans/system-spec-harness/phase-04-test-design.md 事前解決済み判断"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "layer-a-generative-fidelity",
+      "observation": "C8 genuine 判定 (再実施、PASS 維持): check-generative-fidelity.py は曖昧語違反0件・skeleton未カスタマイズ0件で exit0 (改善前と同じ 0 件を再確認)。改善で追加/変更された phase-01/02/04/05 の新規サブ節も含め手動精読したが、system-spec-harness 固有語彙 (validate-coverage-matrix.py/qa_ref/R4-reopen/spec-state.json 等) で具体的に埋まっており、下流 builder AI が追加質問なしに着手できない空虚な記述は見当たらない。",
+      "evidence": [
+        "check-generative-fidelity.py plugin-plans/system-spec-harness (exit0, denylist_violations=[] / uncustomized_sections=[])",
+        "plugin-plans/system-spec-harness/phase-02-design.md 設計判断1-4 (改善で内容変更なし・受入例/事前解決済み判断のみ新規追加)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "layer-b-downstream-harness",
+      "observation": "C12 genuine 判定 (FAIL→PASS へ解消を確認): 旧評価が指摘した medium (check-downstream-harness.py exit1・26 violations=全13 phase でサブ節欠落) は、全13 phase (P01-P13) へ `### 受入例 (満たす例 / 満たさない例)` と `### 事前解決済み判断` サブ節が追記されたことで機械的に 0 violations (exit0) へ解消した。genuine 判定のため P01/P02/P03/P05/P06/P07/P08/P09/P10/P11/P12/P13 を手動精読し、各サブ節が汎用テンプレ文言ではなく当該 phase 固有の分岐点 (例: P05=script route の contract-only builder 判断・C11 書込許可条件、P08=validate-coverage-matrix.py の SSOT 重複解消方針、P11=GUIスクショ DROP 判断、P13=marketplace 登録スコープ外) を具体的に記述していることを確認した。形骸化 (存在するが空虚) は検出されず、下流 builder AI の追加質問を実効的に防ぐ内容と判定する。",
+      "evidence": [
+        "check-downstream-harness.py plugin-plans/system-spec-harness (exit0: 'OK: 全 phase の完了チェックリストが受入例/事前解決済み判断サブ節契約を満たす')",
+        "plugin-plans/system-spec-harness/phase-01..13.md の ### 受入例 / ### 事前解決済み判断 サブ節 (各 phase 固有内容を目視確認)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "task-graph-semantics",
+      "observation": "S5 genuine 判定 (再実施、PASS 維持): task-graph.json は phase 本文増量 (受入例/事前解決済み判断サブ節追加) に伴い再生成され nodes=291/edges=5515 (旧: 265/4250 から増加) となったが、13 buildable component それぞれの entity 先頭 node にのみ produces エッジ1件が張られる構造 (produces=13、to は inventory build_target と1:1一致) は変わらず維持。edge type は depends_on(5224)/parent_of(278)/produces(13) の3種のみで、consumes 0件は任意 (エラーでない)。validate-task-graph.py の10検査も exit0。GAP-TASKGRAPH-P02-PROJECTION (P02 node write_scope の phase-level 項目射影、既存 low open_issue) は改善前から追跡済みの既知事項で新規劣化ではない。",
+      "evidence": [
+        "plugin-plans/system-spec-harness/task-graph.json (nodes=291, edges=5515, produces=13, 1:1 with components[])",
+        "validate-task-graph.py plugin-plans/system-spec-harness (exit0)",
+        "handoff-run-plugin-dev-plan.json open_issues: GAP-TASKGRAPH-P02-PROJECTION (severity=low, 既存追跡)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "shape-ab-comparison",
+      "observation": "S6 N/A (再確認、変更なし): 本 plan に shape_marker (task-graph-derived shape 採用宣言) は依然として存在せず、標準の fixed-13-phase shape + その決定論射影としての task-graph.json を採用している。新旧 shape の A/B 比較対象ではないため N/A skip。",
+      "evidence": [
+        "plugin-plans/system-spec-harness 配下に shape_marker/task-graph-derived 宣言なし (grep 0件)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "task-graph-consumer",
+      "observation": "S7 (再確認、変更なし): handoff-run-plugin-dev-plan.json は task_graph_ref のみを宣言し、consumer (harness-creator L4) 実装への逸脱指示 (非標準 CLI 引数要求・graph_hash 迂回等) を含まない。consumer 実装自体の一般監査は plan-scoped 評価の対象外。",
+      "evidence": [
+        "plugin-plans/system-spec-harness/handoff-run-plugin-dev-plan.json (task_graph_ref のみ宣言、consumer 実装への逸脱指示なし)"
+      ]
+    },
+    {
+      "severity": "info",
+      "bucket": "open-issues-tracked",
+      "observation": "handoff-run-plugin-dev-plan.json の open_issues (GAP-ENVELOPE-001/GAP-SCRIPT-BUILDER/GAP-MCP-DOCFETCH/GAP-DISTRIBUTION-DECISION/GAP-TASKGRAPH-P02-PROJECTION) は全て理由付きで documented されており、改善サイクルによる新規混入や無断消失は無い (5件とも改善前から追跡継続)。",
+      "evidence": [
+        "plugin-plans/system-spec-harness/handoff-run-plugin-dev-plan.json:open_issues[]"
+      ]
+    }
+  ],
+  "evaluated_inputs": [
+    {"path": "index.md", "sha256": "97b8bbaca50f65288edb79910f75e16cc4a9227b913203bb2015a392ebe8d3a0"},
+    {"path": "goal-spec.json", "sha256": "347231fa471ab45118d48f31ea0bd45e1e8f529cc9367e9a829a82f2d4e1501f"},
+    {"path": "component-inventory.json", "sha256": "0e926c5657533ae07d232d54def96601823ea72f17fccb0e23454b07ee4df83f"},
+    {"path": "handoff-run-plugin-dev-plan.json", "sha256": "34d3c0ff1f92756b1ba3ded15f3cf53ffaef9d0613e4ac491265ff4cb22824de"},
+    {"path": "task-graph.json", "sha256": "19e6a28f4691796c086765ea2330a155b5fca5166e8b5ada6bde531e92756626"},
+    {"path": "phase-01-requirements.md", "sha256": "62a677d1a9c51196384ecb213937c3a62782950456a7455210cbf275f69cc82d"},
+    {"path": "phase-02-design.md", "sha256": "407f65b2bce8f8733696351d6aaef3fcbc1b2cc0c029da6d8b1db41cb9b21295"},
+    {"path": "phase-03-design-review.md", "sha256": "8a03579389c92f5c5fdd14f5defdf7d1c98aa51b78c0784ce6e1d84938f092d2"},
+    {"path": "phase-04-test-design.md", "sha256": "0e68bb4e1d739c78d981df9d2543d259580cab3cbd1f8a78568836f37f1e87fa"},
+    {"path": "phase-05-implementation.md", "sha256": "39b46598ebca84337e9fdee32a5ea2e0f24fbff22a630377c8db9b7fc7401623"},
+    {"path": "phase-06-test-run.md", "sha256": "f19d66b6232c4fc16540483b0312b591fcb25e884c250d67e98e6cdc62678db0"},
+    {"path": "phase-07-acceptance-criteria.md", "sha256": "326b4ede5e32a31d53079a8b9ef79d00c41ebc72f0e81b399874ac96fac89a60"},
+    {"path": "phase-08-refactoring.md", "sha256": "1d16b4b5efd651f308df20d9978c77de22b06516c11b6d5329192097503a0ed0"},
+    {"path": "phase-09-quality-assurance.md", "sha256": "4bfde5008eed09ae12598855c16016e10822dcaf99bc3fd9dac6469f8fe3377a"},
+    {"path": "phase-10-final-review.md", "sha256": "c356fb7f09e63ceb25c40e80b7b90f0adba42b83a711919b56caeedf53941e84"},
+    {"path": "phase-11-evidence.md", "sha256": "8f8f4df27cb8997eec5daadec4ac4c8900b0342306b345d4d544d694dc7717cf"},
+    {"path": "phase-12-documentation.md", "sha256": "987fdd32525b61290ea4bc06e5ba13cd4701baa104626ea2bd721d15133bb0eb"},
+    {"path": "phase-13-release.md", "sha256": "4d3b6dc1018e4ff50ae859c638430eb0339bf741a65045f754f77c6ee3df3b94"}
+  ],
+  "staleness_rule": "上記 evaluated_inputs の sha256 のいずれかが現物と不一致になった時点で、本 verdict は stale として扱い R1 evaluate を再実行すること (plan 本体の再 Edit 後にキャッシュされた古い findings をそのまま信用しない)。"
+}
