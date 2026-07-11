@@ -1,0 +1,40 @@
+{
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-blueprint-apply",
+    "skill_md_sha256": "2888de3cfe1f143c0509a8601e2dd976710ed17ca6e287d0aa112dd8c4785f61"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 2
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1"
+    ],
+    "positive_feedback": [
+      "抽出(対象の忠実記述)と適用(自社判断)の責務分離が一貫。SKILL Purpose と R1/R2/R3 の担当/非担当が重複なく単一責務で、fail-closed 受理順序 (R1 verdict/hash→R2 突合→R3 self-check) が擬似コードと差し戻し経路まで明示。",
+      "共有決定論ゲート doc-emit.py --check-apply が実在し、check_apply の検査 (kind=inference・category∈{adopt,avoid,differentiate}・claim・own_context_ref・confidence・evidence_refs anchor 解決率100%) と SKILL/R3 記述・ANCHOR_KEYS/APPLY_CATEGORIES/CONFIDENCE_LEVELS 定数が完全一致。"
+    ],
+    "negative_feedback": [
+      "[medium/inconsistency] feedback_contract IN1 は verify_by:script だが、文言に含む『C02 verdict=PASS かつ draft_hash 一致の事前検証』と『network 0』は --check-apply が検査せず R1 の LLM 層依存。script が担保するのは shape/anchor/category 部分のみ (runtime edge・許容範囲だが記録)。",
+      "[low/smell] doc-emit.py _recommendations は root キーを recommendations/items/apply_recommendations の 3 種受理するが SKILL/R3 は単一規定。ゲートが prose より緩い (prose 側が厳格なので contradiction ではない)。",
+      "[low/smell] C02 verdict/draft_hash の fail-closed 受理が R1 LLM 層のみで機械強制が無く、R1 L5.2『機構的に禁じ』の語がやや強い。ローカル成果物生成のため許容範囲。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
+}

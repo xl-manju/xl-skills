@@ -1,0 +1,39 @@
+{
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-blueprint-apply",
+    "skill_md_sha256": "2888de3cfe1f143c0509a8601e2dd976710ed17ca6e287d0aa112dd8c4785f61"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1"
+    ],
+    "positive_feedback": [
+      "R1/R2/R3 が全て L1-L7 を網羅し、メタ表・reproducible 明記・出力指示の分離まで 7 層規範に準拠。単一責務 (受理検証/推奨導出/emit+self-check) が担当/非担当で明確に境界付け。",
+      "IN/OUT/完了条件/禁則を Output Contract に集約し、goal-seek は original_goal_hash 改竄検出 + eval-log を repo-root 固定 (cwd 相対禁止) で追記する再現性配線を持つ。"
+    ],
+    "negative_feedback": [
+      "[medium/inconsistency] 決定論ゲート次元: IN1(verify_by:script) が verdict 事前検証と network 0 を包含するが --check-apply の機械検査対象外で R1 LLM 層に委ねられる。担保範囲と criterion 記述範囲がずれる (blocker ではない)。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "単一責務・IN/OUT 契約・prompt 7 層・再現性の各規範を満たし決定論ゲートも実在配線。唯一 IN1 の verify_by:script が verdict 事前検証/network 0 まで機械検証する印象を与える medium inconsistency があるが runtime edge の許容範囲で high/medium 未解決 blocker は無いため PASS。"
+}

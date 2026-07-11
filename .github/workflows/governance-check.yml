@@ -267,6 +267,26 @@ jobs:
       - name: ubm-goal-setting lint plugin composition (capabilities 重複/実在 + hooks↔plugin.json 配線対応)
         run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py plugins/ubm-goal-setting/plugin-composition.yaml
         continue-on-error: false
+      # ── extract-system-blueprint conformance (harness-creator 仕様準拠) ──
+      # NOTE: extract-system-blueprint は distributable:true (marketplace-bundle) だが
+      #   marketplace 登録は manual-user-gated のため lint-plugin-lint-coverage.py の
+      #   required 集合 (marketplace 起点) にはまだ入らない。配布除外と品質検査は
+      #   独立した関心事なので conformance lint をここで明示配線する。
+      # per-plugin pytest (plugins/extract-system-blueprint/tests) は
+      #   harness-creator-kit-ci.yml の「Run plugin behavior tests (pytest, per-plugin)」
+      #   walk が plugins/**/test_*.py を全被覆するため本 workflow では重複させない。
+      - name: extract-system-blueprint validate frontmatter (commonCore + SemVer)
+        run: python3 plugins/skill-governance-lint/scripts/validate-frontmatter.py --skills-dir plugins/extract-system-blueprint/skills
+        continue-on-error: false
+      - name: extract-system-blueprint lint skill name (28章 §4)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-name.py --skills-dir plugins/extract-system-blueprint/skills
+        continue-on-error: false
+      - name: extract-system-blueprint lint skill description (03章 R1-R5)
+        run: python3 plugins/skill-governance-lint/scripts/lint-skill-description.py --skills-dir plugins/extract-system-blueprint/skills
+        continue-on-error: false
+      - name: extract-system-blueprint lint plugin composition (capabilities 重複/実在 + hooks↔plugin.json 配線対応)
+        run: python3 plugins/skill-governance-lint/scripts/lint-plugin-composition.py plugins/extract-system-blueprint/plugin-composition.yaml
+        continue-on-error: false
       # ── plugin lint 被覆メタ検査 (新 plugin 追加時の配線忘れを fail-closed 検出) ──
       - name: lint plugin lint coverage (marketplace 全 plugin の lint 被覆保証)
         run: python3 scripts/lint-plugin-lint-coverage.py

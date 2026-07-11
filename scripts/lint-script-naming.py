@@ -380,6 +380,17 @@ PENDING_RENAME_PATHS = {
     "plugins/system-spec-harness/skills/run-system-spec-compile/scripts/compile-spec-doc.py",
     "plugins/system-spec-harness/skills/run-system-spec-elicit/scripts/apply-spec-transition.py",
     "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/scripts/aggregate-completeness.py",
+    # extract-system-blueprint (新規 plugin 初回投入): ドメイン固有 verb (fetch/authz/browser/doc/
+    # mermaid/layout/emit/recount) が SKILL.md/prompts/tests/EVALS/workflow-manifest に深く参照されるため、
+    # 参照一括更新を伴う rename は後続 Change Governance PR まで PENDING 扱い (system-spec-harness と同種)。
+    "plugins/extract-system-blueprint/scripts/fetch-snapshot.py",
+    "plugins/extract-system-blueprint/scripts/authz-classify.py",
+    "plugins/extract-system-blueprint/scripts/browser-render.py",
+    "plugins/extract-system-blueprint/scripts/doc-emit.py",
+    "plugins/extract-system-blueprint/scripts/mermaid-validate.py",
+    "plugins/extract-system-blueprint/scripts/layout-template-dedup.py",
+    "plugins/extract-system-blueprint/skills/assign-blueprint-fidelity-evaluator/scripts/emit-verdict.py",
+    "plugins/extract-system-blueprint/skills/assign-blueprint-fidelity-evaluator/scripts/recount-palette-orphans.py",
     # ubm-goal-setting YouTube取込+相談グラフ初回投入: §4.3 (kebab-case) は満たすが verb が
     # ALLOWED_VERBS 外。index (成果物グラフ索引化) / consult (read-only グラフ相談) / run
     # (scheduler one-shot 実行体) / check (backfill 完全性の決定論ゲート・既存 check-* 族と同種)

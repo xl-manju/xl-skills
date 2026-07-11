@@ -18,10 +18,11 @@
 #       blocked 時 (第2段=--task-state の blocked node 残存): blocked_tasks[]{id,blocked_reason}
 #                   (origin-failure/propagated 双方・id 昇順) + next_steps 分岐指示
 #                   [人手救済 (受入基準修正→再検証), emit-discovered-task による外ループ合流]
-#       ok 時: 記録サマリ (entries_recorded + knowledge_record_status=ok|loop_a_skipped|loop_b_skipped|record_failed
-#              + store_results{loop_a,loop_b}{status,recorded[,reason]} per-store 件数)。store 不在/
-#              consult_at 未宣言は書込前に事前検知して skipped へ分類し (record_failed にしない)、
-#              書込は store 単位+entry 単位で try 隔離する (Loop A 失敗でも Loop B 継続)
+#       ok 時: 記録サマリ (entries_recorded + knowledge_record_status=ok|ok_no_lessons|loop_a_skipped|
+#              loop_b_skipped|record_failed + store_results{loop_a,loop_b}{status,recorded[,reason]}
+#              per-store 件数 + empty_reason (entries==0 の理由・それ以外 null))。store 不在/consult_at
+#              未宣言は書込前に事前検知して skipped へ分類し (record_failed にしない)、書込は store 単位+
+#              entry 単位で try 隔離する (Loop A 失敗でも Loop B 継続)。蒸留 0 件を vacuous "ok" で偽装しない
 #   - stderr: usage / Loop A 未配線・add_entry 失敗の WARN 診断
 #   - exit: 0=gate ok (knowledge 記録の成否に依らず・疎結合) / 1=gate blocked (未処理 discovered-task または blocked node 残存) / 2=usage/IO error (引数/parse のみ)
 #   - write-scope: <target-knowledge-dir> knowledge/ (Loop A) + <harness-knowledge-dir> knowledge/ (Loop B) (add_entry.py 委譲) + <task-events> task-events.jsonl (gate 判定 event append・TG-C02 append_event 再利用・--dry-run 時は書かない)
@@ -56,12 +57,22 @@ completion_gate:"blocked" とする (blocked を放置した completed 宣言を
 起票による外ループ合流] で救済経路を単体提示する。全出力形は inbox_absent (inbox ディレクトリ
 不在=外ループ未発火 と 実在+全件処理済 の区別) を携帯する。
 
+完了ゲート第3段: --task-state の実パスから上方探索した repo root に唯一の生成器
+scripts/build-claude-symlinks.py が実在する場合、--check を実行して .claude symlink drift
+(build した skill/agent/command が .claude へ未展開で Claude Code に認識されない状態) を検査し、
+drift なら completion_gate:"blocked" + fix_command (bash scripts/sync-skills-to-claude.sh --apply)
+を単体提示する (run-build-skill SKILL.md の build 完了契約「build/更新後は sync 必須」の機械層。
+宣言のみだと route 分散 build の task-graph モードで owner 不在のまま skip される実害が出た)。
+生成器不在 (テスト隔離環境・配布先) は claude_symlink_gate.status:"skipped" で fail-soft 通過する。
+
 gate ok 時のみ knowledge 記録へ進む: task-events.jsonl / stall summary / route-build-report
-handoff_notes から「依存詰まり / 成果物欠落 / blocked 伝播起点 / 再試行で解消した判断」だけを
-最大 --max-entries 件へ蒸留し (生ログ全文・全 notes は複製しない)、add_entry.py 必須6フィールド
-(id/title/intent/background/keywords/source) の entry を組んで Loop A (target harness) と
-Loop B (harness-creator) 双方の knowledge へ同 schema で追記する。source には {file, task_id,
-route_id, event_id} の参照だけを持たせる。
+handoff_notes に加え、task-state nodes の route_report 実体から deviations[] (string 配列) と
+handover/handoff_notes (string 配列形式) を読み、「依存詰まり / 成果物欠落 / blocked 伝播起点 /
+再試行で解消した判断 / 計画逸脱 / 申し送り」だけを最大 --max-entries 件へ蒸留し (生ログ全文・
+全 notes は複製しない)、add_entry.py 必須6フィールド (id/title/intent/background/keywords/source)
+の entry を組んで Loop A (target harness) と Loop B (harness-creator) 双方の knowledge へ同 schema
+で追記する。source には {file, task_id, route_id, event_id} の参照だけを持たせる。蒸留 0 件は
+knowledge_record_status=ok_no_lessons + empty_reason で明示し vacuous "ok" を出さない。
 """
 from __future__ import annotations
 
@@ -82,7 +93,7 @@ PROCESSED_STATUSES = {"accepted", "rejected", "superseded"}
 KNOWLEDGE_CATEGORY = "build-patterns"
 DEFAULT_MAX_ENTRIES = 3
 
-# 蒸留対象シグナル (4 分類) の title / intent プレフィックス。
+# 蒸留対象シグナルの title / intent プレフィックス。
 _SIGNAL_TITLE = {
     "dependency-stall": "依存詰まり (spec-gap)",
     "artifact-missing": "成果物欠落",
@@ -90,6 +101,8 @@ _SIGNAL_TITLE = {
     "blocked-propagation": "blocked 伝播",
     "retry-resolved": "再試行で解消した判断",
     "friction": "route friction note",
+    "deviation": "計画からの逸脱 (route deviation)",
+    "handover": "route 申し送り (handover)",
 }
 _SIGNAL_INTENT = {
     "dependency-stall": "task-graph 上に依存先が不在の停滞を次回 planner --mode update で解消できるよう記録すること",
@@ -98,7 +111,23 @@ _SIGNAL_INTENT = {
     "blocked-propagation": "blocked の伝播連鎖を辿り起点故障へ帰着できるよう記録すること",
     "retry-resolved": "lease 回収→再試行で解消したパターンを次回 build へ再利用すること",
     "friction": "route 実行で得た摩擦点を次回 build の判断材料として残すこと",
+    "deviation": "route 実行が計画から逸脱した判断・代替生成を次回 plan/build へ再利用できるよう記録すること",
+    "handover": "route 完了時の申し送り (次タスク前提の自然文) を次回 build の判断材料として残すこと",
 }
+
+# route report 由来 message の蒸留上限 (生 report の長文 prose を knowledge へ丸写ししない)。
+_REPORT_MESSAGE_CLIP = 200
+
+# entries==0 (蒸留レーン全滅) 時に出力 JSON へ携帯する既定理由。
+_EMPTY_REASON_NO_LESSONS = "no distillable events matched distiller lanes"
+
+
+def _clip(text: str) -> str:
+    """report 由来の長文 prose を蒸留上限で打ち切る (超過は … を付す)。"""
+    text = text.strip()
+    if len(text) <= _REPORT_MESSAGE_CLIP:
+        return text
+    return text[:_REPORT_MESSAGE_CLIP] + "…"
 
 
 # ── sibling importlib ロード (TG-C02 resolve_build_dir の SSOT 再利用) ─────────
@@ -283,12 +312,14 @@ def _classify_event(ev: dict, file: str, idx: int) -> dict | None:
     return None
 
 
-def distill_events(task_events: Path, summary: dict, limit: int = DEFAULT_MAX_ENTRIES) -> list[dict]:
-    """task-events / stall summary / handoff_notes から 4 シグナルだけを最大 limit 件へ蒸留する。
+def distill_events(task_events: Path, summary: dict, limit: int = DEFAULT_MAX_ENTRIES,
+                   report_lessons: list[dict] | None = None) -> list[dict]:
+    """task-events / stall summary / handoff_notes / route report から signal だけを最大 limit 件へ蒸留する。
 
     生ログ全文や全 notes は複製せず、依存詰まり・成果物欠落・blocked 伝播起点・再試行で解消した
-    判断へ合致するイベントのみを short な synthesized message へ要約する。(signal, message) で
-    dedupe し limit で打ち切る。
+    判断・計画逸脱 (deviation)・申し送り (handover) へ合致するものだけを short な synthesized
+    message へ要約する。(signal, message) で dedupe し limit で打ち切る。report_lessons は
+    _collect_report_lessons が route report 実体から蒸留済みの lesson 列 (省略時は空 = 後方互換)。
     """
     summary = summary or {}
     lessons: list[dict] = []
@@ -310,6 +341,9 @@ def distill_events(task_events: Path, summary: dict, limit: int = DEFAULT_MAX_EN
             lessons.append({"signal": "friction", "message": str(fp).strip(), "source_ref": dict(base_ref)})
         for wo in (hn.get("downstream_watchouts") or []):
             lessons.append({"signal": "friction", "message": str(wo).strip(), "source_ref": dict(base_ref)})
+
+    # 2b. route report 実体レーン (deviations[] / handover / handoff_notes string 配列)。
+    lessons.extend(report_lessons or [])
 
     # 3. task-events.jsonl の signal イベント。
     if task_events is not None and Path(task_events).exists():
@@ -472,6 +506,50 @@ def _collect_handoff_notes(task_state: dict) -> list[dict]:
     return notes
 
 
+# ── route report 実体レーン (task-state nodes → route_report ファイル読取) ──────
+def _collect_report_lessons(task_state: dict) -> list[dict]:
+    """task-state nodes の route_report 実体から deviations[] と handover/handoff_notes を蒸留する。
+
+    route-build-report の deviations[] (string 配列) と handover (string)、checklist-verification
+    等の handoff_notes (string 配列形式) を lesson 候補として消費する新レーン。node 内 handoff_notes
+    dict (friction_points/downstream_watchouts = _collect_handoff_notes) は不変・後方互換。
+    deviation (計画逸脱) を handover (申し送り) より先に並べ limit 打ち切りで優先させる。
+    route_report パスは task-state 記載のまま解決 (相対は cwd 基準)。report 不在・非 JSON は
+    skip する fail-soft (gate 判定へは影響させない)。
+    """
+    deviations: list[dict] = []
+    handovers: list[dict] = []
+    for n in (task_state.get("nodes", []) if isinstance(task_state, dict) else []):
+        if not isinstance(n, dict):
+            continue
+        report_path = n.get("route_report")
+        if not report_path or not Path(report_path).is_file():
+            continue
+        try:
+            report = json.loads(Path(report_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(report, dict):
+            continue
+        base_ref = {k: v for k, v in {
+            "file": str(report_path), "task_id": n.get("id"), "route_id": report.get("route_id"),
+        }.items() if v is not None}
+        for dv in report.get("deviations") or []:
+            if isinstance(dv, str) and dv.strip():
+                deviations.append({"signal": "deviation", "message": _clip(dv),
+                                   "source_ref": dict(base_ref)})
+        notes = report.get("handoff_notes")
+        note_items = [x for x in notes if isinstance(x, str) and x.strip()] \
+            if isinstance(notes, list) else []
+        handover = report.get("handover")
+        if isinstance(handover, str) and handover.strip():
+            note_items.append(handover)
+        for note in note_items:
+            handovers.append({"signal": "handover", "message": _clip(note),
+                              "source_ref": dict(base_ref)})
+    return deviations + handovers
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -520,6 +598,52 @@ def _resolve_default_paths(args) -> tuple[Path, Path | None]:
     events = Path(args.task_events) if args.task_events else (
         build_dir / "task-events.jsonl" if build_dir else None)
     return inbox, events
+
+
+_SYMLINK_GENERATOR_REL = Path("scripts") / "build-claude-symlinks.py"
+_SYMLINK_FIX_COMMAND = "bash scripts/sync-skills-to-claude.sh --apply"
+
+
+def _resolve_repo_root_for_symlink_gate(task_state_path: str | None) -> Path | None:
+    """--task-state の実パスから上方探索で repo root (生成器を持つ祖先) を解決する。
+
+    実 run の task-state は repo (worktree) 配下 eval-log/ に置かれるため必ず解決でき、
+    テスト (tmp dir) や生成器を持たない配布先では None を返して gate を fail-soft skip する
+    (cwd 非依存: dispatcher の起動位置に関わらず task-state の位置だけで決定論解決する)。
+    """
+    if not task_state_path:
+        return None
+    cur = Path(task_state_path).resolve().parent
+    for anc in (cur, *cur.parents):
+        if (anc / _SYMLINK_GENERATOR_REL).is_file():
+            return anc
+    return None
+
+
+def _check_claude_symlink_gate(task_state_path: str | None) -> dict:
+    """完了ゲート第3段: .claude symlink drift (build 実体の .claude 未展開) を検査する。
+
+    build 完了契約 (run-build-skill SKILL.md「build/更新後は sync 必須」) の機械層。宣言のみ
+    だと task-graph モード (route 分散 build) で owner 不在のまま skip される実害が出た
+    (2026-07-11 extract-system-blueprint)。drift は blocked とし fix_command を単体提示する。
+    """
+    root = _resolve_repo_root_for_symlink_gate(task_state_path)
+    if root is None:
+        return {"status": "skipped",
+                "reason": "generator-absent (--task-state 未指定 or 生成器を持つ祖先なし)"}
+    proc = subprocess.run(
+        [sys.executable, str(root / _SYMLINK_GENERATOR_REL),
+         "--plugins-dir", str(root / "plugins"),
+         "--target-dir", str(root / ".claude"), "--check"],
+        capture_output=True, text=True)
+    if proc.returncode == 0:
+        return {"status": "ok", "repo_root": str(root)}
+    return {
+        "status": "drift",
+        "repo_root": str(root),
+        "detail": (proc.stdout or proc.stderr).strip()[-400:],
+        "fix_command": _SYMLINK_FIX_COMMAND,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -588,6 +712,27 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(payload, ensure_ascii=False))
         return 1
 
+    # ── 完了ゲート第3段: .claude symlink drift (build 実体の未展開) ──
+    symlink_gate = _check_claude_symlink_gate(args.task_state)
+    if symlink_gate["status"] == "drift":
+        payload = {
+            "completion_gate": "blocked",
+            "inbox_absent": inbox_absent,
+            "claude_symlink_gate": symlink_gate,
+            "next_steps": [
+                f"{_SYMLINK_FIX_COMMAND}  # repo root: {symlink_gate['repo_root']}"
+                " (唯一の生成器 build-claude-symlinks.py を冪等呼出)",
+                "sync 後に本 TG-C08 を同一引数で再実行し completion_gate:ok を確認する",
+            ],
+        }
+        if not args.dry_run:
+            append_gate_event(task_events, {
+                "type": "build_blocked",
+                "claude_symlink_gate": "drift",
+            })
+        print(json.dumps(payload, ensure_ascii=False))
+        return 1
+
     # ── gate ok: knowledge 蒸留 → entry 構築 ──
     summary: dict = {}
     if args.summary_json:
@@ -596,13 +741,16 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, json.JSONDecodeError) as exc:
             print(f"--summary-json 読込/parse 失敗: {exc}", file=sys.stderr)
             return 2
+    report_lessons: list[dict] = []
     if task_state is not None:
         collected = _collect_handoff_notes(task_state)
         if collected:
             summary.setdefault("handoff_notes", [])
             summary["handoff_notes"].extend(collected)
+        report_lessons = _collect_report_lessons(task_state)
 
-    lessons = distill_events(task_events, summary, limit=args.max_entries)
+    lessons = distill_events(task_events, summary, limit=args.max_entries,
+                             report_lessons=report_lessons)
     entries = [
         build_knowledge_entry(l, l.get("source_ref", {}), args.target_plugin_slug or "")
         for l in lessons
@@ -616,6 +764,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({
             "completion_gate": "ok",
             "inbox_absent": inbox_absent,
+            "claude_symlink_gate": symlink_gate,
             "dry_run": True,
             "loop_a_store": loop_a_store,
             "loop_b_store": loop_b_store,
@@ -630,6 +779,7 @@ def main(argv: list[str] | None = None) -> int:
     # store 不在/consult_at 未宣言は書込前に事前検知して skipped へ分類し (record_failed にしない)、
     # 書込は store 単位+entry 単位で try 隔離する (Loop A 失敗でも Loop B 継続・per-store 件数を出力)。
     add_entry_path = Path(args.add_entry_path)
+    empty_reason = None
     stores: dict[str, dict] = {}
     for label, store in (("loop_a", loop_a_store), ("loop_b", loop_b_store)):
         if not store:
@@ -669,12 +819,16 @@ def main(argv: list[str] | None = None) -> int:
         if wrote_any:
             recorded += 1
 
-    # 総合分類: 実書込失敗のみ record_failed。事前検知 skip は loop_a/b_skipped (entries 無しは ok)。
+    # 総合分類: 実書込失敗のみ record_failed。事前検知 skip は loop_a/b_skipped。
+    # 蒸留 0 件は vacuous "ok" で偽装せず ok_no_lessons + empty_reason で明示区別する (F2)。
     if any(st["status"] == "failed" for st in stores.values()):
         record_status = "record_failed"
-    elif entries and stores["loop_a"]["status"] == "skipped":
+    elif not entries:
+        record_status = "ok_no_lessons"
+        empty_reason = _EMPTY_REASON_NO_LESSONS
+    elif stores["loop_a"]["status"] == "skipped":
         record_status = "loop_a_skipped"
-    elif entries and stores["loop_b"]["status"] == "skipped":
+    elif stores["loop_b"]["status"] == "skipped":
         record_status = "loop_b_skipped"
     else:
         record_status = "ok"
@@ -689,8 +843,10 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({
         "completion_gate": "ok",
         "inbox_absent": inbox_absent,
+        "claude_symlink_gate": symlink_gate,
         "entries_recorded": recorded,
         "knowledge_record_status": record_status,
+        "empty_reason": empty_reason,
         "loop_a_store": loop_a_store,
         "loop_b_store": loop_b_store,
         "store_results": stores,

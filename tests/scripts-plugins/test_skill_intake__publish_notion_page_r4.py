@@ -108,9 +108,10 @@ def _install_fake_render(monkeypatch, capture=None):
     """render_notion_page を stub し project_db_properties を差し替える。"""
     fake = types.ModuleType("render_notion_page")
 
-    def project_db_properties(ctx):
+    def project_db_properties(ctx, db_schema=None):
         if capture is not None:
             capture["ctx"] = ctx
+            capture["db_schema"] = db_schema
         return {"名前": {"title": [{"text": {"content": ctx.get("notion_db_properties", {}).get("名前", "")}}]}}
 
     fake.project_db_properties = project_db_properties

@@ -60,14 +60,33 @@ _NEXT_ACTION_SECTIONS = (
 )
 
 
+# purpose 本文でない「セッション envelope メタデータ」キー。skill-intake は各 section へ
+# 生成時刻・pattern/depth/tier・handoff mode・使用技法などのメタを刻む。これらは intake の
+# 実体(purpose/motivation/differentiation)でなく、goal-spec の purpose/goal へ反映される性質の
+# ものでない (timestamp や enum は原理的に反映不能)。反映判定の分母から除外し誤 FAIL を防ぐ。
+# 併せて `_`接頭辞キー (fidelity guard の `_fidelity` 等・私的名前空間) も除外する。
+_META_KEYS = frozenset({
+    "generated_at", "pattern", "workflow_pattern", "depth", "vocabulary_tier",
+    "state", "handoff_mode", "value_realized_score", "techniques_used", "rounds",
+    "agreement_loop_detected", "asset_id", "schema_version", "source_of_truth",
+    "skill_name_hint",
+})
+
+
 def _collect_strings(node: object) -> list[str]:
-    """任意ネスト構造から非空 string を再帰収集する (item 単位の反映判定素材)。"""
+    """任意ネスト構造から非空 string を再帰収集する (item 単位の反映判定素材)。
+
+    dict 走査では `_`接頭辞キー (私的名前空間) と `_META_KEYS` (セッション envelope メタ) を
+    除外し、purpose 実体だけを反映判定の対象にする (メタデータ/guard scaffolding での誤 FAIL 防止)。
+    """
     out: list[str] = []
     if isinstance(node, str):
         if node.strip():
             out.append(node)
     elif isinstance(node, dict):
-        for v in node.values():
+        for k, v in node.items():
+            if str(k).startswith("_") or str(k) in _META_KEYS:
+                continue
             out.extend(_collect_strings(v))
     elif isinstance(node, list):
         for v in node:

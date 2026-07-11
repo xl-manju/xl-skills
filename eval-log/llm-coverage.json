@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 53,
+  "skills_measured": 55,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -85,6 +85,36 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-30"
+    },
+    {
+      "plugin": "extract-system-blueprint",
+      "skill": "run-blueprint-apply",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 6,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
+    },
+    {
+      "plugin": "extract-system-blueprint",
+      "skill": "run-extract-blueprint",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
     },
     {
       "plugin": "harness-creator",

@@ -13,9 +13,17 @@ harness-creator が Capability を作成するとき (build-time) に検索し�
 
 ## SSOT の役割分担
 
-- `lessons-learned/*.md` … 失敗・落とし穴の**生ログ**が正本。`auto-record-lesson.py` が自動追記。
-- `knowledge/` … 作成時に検索する**蒸留済み知見**。`knowledge-lessons-index.json` は lessons-learned 本文をコピーせず `source.file` で参照する (索引のみ)。
+- `lessons-learned/*.md` … 失敗・落とし穴の**生ログ (散文)** が正本。`auto-record-lesson.py` が自動追記。
+- `knowledge/` … 作成時に検索する**蒸留済み知見 (JSON/JSONL)**。`knowledge-lessons-index.json` は lessons-learned 本文をコピーせず `source.file` で参照する (索引のみ)。
 - `pattern-feedback.json` / `amplified-patterns.json` … elegant-review の量産パターン蓄積 (別系統)。
+
+### 配置ルール (形式の正本・`scripts/lint-knowledge-layout.py` が fail-closed 強制)
+
+**散文の失敗ログを `knowledge/` 直下へ `.md` で置いてはいけない** (JSON ストアと混在させない)。散文は必ず `lessons-learned/*.md` に置き、`knowledge/` からは `knowledge-lessons-index.json` の `source.file` で参照する。lint が下記を機械検査する:
+
+- **K1**: `knowledge/` 直下は `*.json` / `*.jsonl` / `README.md` のみ (散文 `.md` 混入を拒否)。
+- **K2**: `knowledge-lessons-index.json` の各 `source.file` は実在必須 (dangling 参照禁止)。
+- **L1-L4**: `lessons-learned/*.md` は `YYYY-MM-DD-<slug>.md` 命名・`date:` frontmatter・種別別の必須セクション (人手記述=`## 背景`/`## 知見`/`## 適用先`・自動記録=`## observation`/`## hypothesis`/`## proposed_action`)・本文 30 行以下。
 
 ## 構成 (Index-Search型)
 

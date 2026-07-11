@@ -96,7 +96,26 @@ def build_properties(intake, args):
         )
         intake = dict(intake)
         intake['notion_db_properties'] = ndp
-    return project_db_properties(intake)
+    # 公開先 DB の live スキーマを取得し、実 DB に存在する列のみ実型で projection する
+    # (canonical notion-db-schema.json とのドリフトを非破壊で吸収)。取得不能 (offline /
+    # test / token 不在) 時は None フォールバックで従来の固定集合を送る。
+    db_schema = _fetch_db_schema(getattr(args, 'database_id', None))
+    return project_db_properties(intake, db_schema)
+
+
+def _fetch_db_schema(database_id):
+    """公開先 DB の {property_name: notion_type} を返す。取得不能なら None。"""
+    if not database_id:
+        return None
+    try:
+        from notion_http import get_database
+        info = get_database(database_id)
+        props = info.get('properties') or {}
+        return {name: (pr or {}).get('type') for name, pr in props.items()}
+    except Exception as e:
+        print(f'[publish_notion_page] live DB schema fetch skipped ({e}); '
+              'falling back to static projection', file=sys.stderr)
+        return None
 
 
 def _rt_block(kind, text):

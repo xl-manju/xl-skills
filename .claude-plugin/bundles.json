@@ -18,7 +18,8 @@
         "skill-governance-adapters",
         "skill-governance-migration",
         "skill-governance-secrets",
-        "system-spec-harness"
+        "system-spec-harness",
+        "extract-system-blueprint"
       ]
     },
     {

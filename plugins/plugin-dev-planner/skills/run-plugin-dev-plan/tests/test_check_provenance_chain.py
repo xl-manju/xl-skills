@@ -162,3 +162,73 @@ def test_marker_not_written_on_break(tmp_path, provenance_chain):
     gs.write_text(json.dumps(_gs(intake=False), ensure_ascii=False), encoding="utf-8")
     provenance_chain.main(["--goal-spec", str(gs), "--marker-dir", str(tmp_path)])
     assert not (tmp_path / ".gate" / "provenance-chain.pass").exists()
+
+
+# ─────────────────── required surface 実在 assert (surface_build_projection 宣言時) ───────────────────
+def _write_inventory(plan_dir, *, declare_projection, build_target):
+    """surface_build_projection 宣言 (任意) + required surface 1 件の inventory を plan_dir へ書く。"""
+    pls = {
+        "manifest": {
+            "required": True,
+            "builder": "plugin-scaffold",
+            "build_kind": "plugin-surface",
+            "build_target": build_target,
+            "write_scope": build_target,
+            "quality_gates": {"path_existence": {"paths": [build_target], "all": True},
+                              "checks": [], "all_pass": True},
+        },
+    }
+    if declare_projection:
+        pls["surface_build_projection"] = {
+            "schema_version": "1.0",
+            "node_id_template": "SURFACE-{surface_key}",
+            "node_kind": "plugin-surface-build",
+            "required_fields": ["builder", "build_kind", "build_target", "write_scope"],
+            "projection_rule": {"one_required_surface_one_node": True,
+                                "missing_required_field": "projection-fail"},
+        }
+    (plan_dir / "component-inventory.json").write_text(
+        json.dumps({"components": [], "plugin_level_surfaces": pls}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def test_required_surface_build_target_exists_ok(tmp_path, provenance_chain):
+    """宣言あり + build_target 実在 (絶対パス) → 断裂なし。"""
+    _write_handoff(tmp_path)
+    target = tmp_path / "plugin.json"
+    target.write_text("{}", encoding="utf-8")
+    _write_inventory(tmp_path, declare_projection=True, build_target=str(target))
+    breaks = provenance_chain.check_chain(
+        _gs(intake=True), plan_dir=tmp_path,
+        require_improvement=False, allow_missing_intake=False, resolve=False,
+    )
+    assert breaks == []
+
+
+def test_required_surface_build_target_missing_is_break(tmp_path, provenance_chain):
+    """宣言あり + build_target 不在 → SURFACE 断裂 (fail-closed exit 1)。"""
+    _write_handoff(tmp_path)
+    _write_inventory(tmp_path, declare_projection=True,
+                     build_target=str(tmp_path / "no-such-plugin.json"))
+    gs = tmp_path / "goal-spec.json"
+    gs.write_text(json.dumps(_gs(intake=True), ensure_ascii=False), encoding="utf-8")
+    rc = provenance_chain.main(["--goal-spec", str(gs), "--plan-dir", str(tmp_path)])
+    assert rc == 1
+    breaks = provenance_chain.check_chain(
+        _gs(intake=True), plan_dir=tmp_path,
+        require_improvement=False, allow_missing_intake=False, resolve=False,
+    )
+    assert any("SURFACE 断裂" in b and "manifest" in b for b in breaks)
+
+
+def test_no_projection_declaration_skips_surface_check(tmp_path, provenance_chain):
+    """宣言不在の旧 inventory では build_target 不在でも無検査 (後方互換)。"""
+    _write_handoff(tmp_path)
+    _write_inventory(tmp_path, declare_projection=False,
+                     build_target=str(tmp_path / "no-such-plugin.json"))
+    breaks = provenance_chain.check_chain(
+        _gs(intake=True), plan_dir=tmp_path,
+        require_improvement=False, allow_missing_intake=False, resolve=False,
+    )
+    assert breaks == []
