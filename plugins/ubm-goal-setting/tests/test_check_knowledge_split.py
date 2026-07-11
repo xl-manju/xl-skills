@@ -35,8 +35,16 @@ def test_over_threshold_fails(tmp_path: Path):
 
 
 def test_management_files_excluded(tmp_path: Path):
-    # 管理ファイルは500超でも対象外
-    for name in ("schema.json", "router.json", "registry.json"):
+    # 管理・生成ファイル (graph/relations/quarantine は C05/C06 の運用時生成・永続ストア) は500超でも対象外
+    for name in (
+        "schema.json",
+        "router.json",
+        "registry.json",
+        "knowledge-graph.json",
+        "harness-artifact-graph.json",
+        "knowledge-relations.json",
+        "knowledge-relations-quarantine.json",
+    ):
         (tmp_path / name).write_text("x\n" * 999, encoding="utf-8")
     (tmp_path / "principles-ok.json").write_text("x\n" * 10, encoding="utf-8")
     r = run("--dir", str(tmp_path))

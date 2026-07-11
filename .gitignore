@@ -119,6 +119,14 @@ eval-log/*/build/**
 # eval-log/*/build/** に包含されるが、将来の再 include 改変が lock を誤追跡しないよう明示除外する。
 eval-log/*/build/.build.lock
 
+# ubm-goal-setting: knowledge-graph.json / harness-artifact-graph.json は C06/C05 が
+# 運用時に書出す再生成可能な索引 snapshot、-quarantine.json は dangling 辺の退避先 (揮発)。
+# graph-consult-fallback-contract.md の「運用時生成」契約に合わせ誤コミットを防ぐ。
+# 注: knowledge-relations.json (辺の永続ストア・レビュー昇格の正本) は派生でないため追跡する。
+plugins/ubm-goal-setting/knowledge/knowledge-graph.json
+plugins/ubm-goal-setting/knowledge/harness-artifact-graph.json
+plugins/ubm-goal-setting/knowledge/knowledge-relations-quarantine.json
+
 # plugin-dev-planner: 計画成果物 plugin-plans/<slug>/ は可視・永続の tracked deliverable
 # (io-contract.md §9)。既定出力先で、レビュー可能な計画一式を git 追跡する。
 # 例外1: goal-seek の transient 作業ログ (progress/intermediate) は周回ごとに変わり git を汚すため除外。

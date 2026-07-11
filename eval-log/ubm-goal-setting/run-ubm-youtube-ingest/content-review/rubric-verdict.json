@@ -1,0 +1,40 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-youtube-ingest",
+    "skill_md_sha256": "b6f3c3354bf132eb3d66fc41603e6c3a0e5211c5ddb086b6e800eeccbae783b2"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 2
+  },
+  "reviewer": "independent-content-review-subagent-20260711-r2",
+  "reviewed_at": "2026-07-11T09:37:08Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter commonCore (name/description/disable-model-invocation/user-invocable/allowed-tools/kind=run/version/manifest/feedback_contract) 充足。kind=run サポート資産が全解決 — prompts R1-R4(L31-34)・references 5本(L50-55)・scripts 3本+共有 validate-knowledge-graph.py(L45-49)・subagent 3体 youtube-transcript-normalizer/knowledge-extractor/knowledge-relation-extractor(L35-38)・schema_refs+knowledge_loop router-registry(L39-44) を実測ディスク照合で確認。feedback_contract に IN1(inner/script)/OUT1(outer/test) の2受入基準(L60-70)を宣言し verify_by を明示。",
+      "深度 3/3: provenance を制御領域(frontmatter)/data 領域(本文)へ二分し、C01(LLM)の5要素 provenance と one-shot が決定論検査できる3要素部分集合(video_id/source_url/published_at)の非対称を normalized-source-schema.md L50 で明示。injection 封じ込め(untrusted_data_notice 必須・本文 URL 非実行・命令の制御昇格禁止)を C01/one-shot/Key Rules で一貫。冪等 sync 設計は video_id key・lease 取得直後 atomic 永続化(異常終了は TTL 失効奪取で回復)・already_ingested skip・cursor=last-run watermark(増分 discovery に使わず毎回 pagination 完走)・provenance 欠落 temporary_failure 保留(埋め合わせ禁止)を run-youtube-sync-oneshot.py が実装。content/accountability 被覆分離で除外による分母縮小 Goodhart を構造的に封じる completeness gate は横展開価値が高い。",
+      "整合(一貫性) 2.5/3: graph 更新 chain(C01→6カテゴリ→C08 read-only 候補→C06 --merge-relations 永続化+検証)が SKILL/manifest/R3 prompt/agent の4資産で drift なく一致。正規化ソース方言を normalized-source-schema.md 単一正本に固定し C01/one-shot の二重方言を封じる。低 severity smell 2件(manifest r4 dependsOn r3 の sync-mode 循環 semantics が注記依存/command と R1 の --sync 既定 framing の字面テンション)は運用挙動に矛盾を生まず adequacy を損なわない。",
+      "検証可能性 3/3: IN1 verify_by:script=check-youtube-backfill-completeness.py の stdout full_backfill_pass==true(exit0 の ACCOUNTABILITY_PASS は IN1 未達扱いに分離)。OUT1 verify_by:test=run-youtube-sync-oneshot.py 受入テスト。実測で backfill completeness 15件・one-shot 15件=計30件 pytest 緑を確認(冪等一度きり/temporary_failure→retry 回復/lease 永続化→二重起動 no-op/TTL 失効奪取/dry-run 書込0/provenance 欠落 non-ingest/pagination 完走/quota graceful stop を個別 test が被覆)。",
+      "簡潔性 3/3: SKILL.md 本文 ~83行(frontmatter 込み155行)に収め、registry/ledger schema・provider 契約・正規化方言・sync report 形式を references へ、責務詳細を prompts R1-R4 へ委譲。同義反復なし・二重定義 drift 防止を各 prompt L4.1 で明記。"
+    ],
+    "negative_feedback": [
+      "smell(low): workflow-manifest の r4 dependsOn r3 semantics が overloaded(skill セッション直列順序 vs sync-mode の取得-in-r4 循環)。SKILL.md L97/manifest sync_mode_note で解消済みだが注記依存。",
+      "smell(low): manifest の backfill_completeness_gate が r2 phase 帰属だが判定対象は post-ingest(r4後)の registry 状態で、gate 帰属 phase と判定対象 phase がずれる(note で明示済み)。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "現 SHA(b6f3c33…)の SKILL.md を read-only で genuine 採点。rubric-verdict は欠落していたため新規生成。5次元採点(各0-3): 完全性3/整合(一貫性)2.5/深度3/検証可能性3/簡潔性3 ≈ 14.5/15 = 96.7%(>=80% PASS)、全次元>=2、high severity 0件。IN1/OUT1 の frontmatter 携帯・verify_by(script/test)・関連 pytest 30件緑・全参照資産(prompts R1-R4/references 5/scripts 3+共有1/agents 3/knowledge schema+router)の実在を実測照合し dependency_break 0。検出2件は全て low-severity smell(注記で自己解消)。verdict=PASS。"
+}
