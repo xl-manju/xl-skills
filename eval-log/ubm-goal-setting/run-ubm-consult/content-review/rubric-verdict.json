@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-consult",
+    "skill_md_sha256": "250d4ccb64b82c8dd7d7e480d1cb071116400f0ee60d686e2e5280b8c618184e"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-content-review-subagent-20260711-r4",
+  "reviewed_at": "2026-07-11T10:32:08Z",
+  "iterations": 3,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter に name/description/kind=run/prefix=run/disable-model-invocation=true/effect=local-artifact/version/allowed-tools/combinators(with-goal-seek,with-feedback-contract)/goal_seek(engine=inline,fork=inline,max_loops=5)/feedback_contract(IN1 inner=test・OUT1 outer=test・OUT2 outer=live-trial)を具備。OUT2 追加で D7 ratchet(acceptance_tier=live の新規 build は loop_scope=outer × verify_by: live-trial を最低1件携帯)を充足し、本 skill は live-trial-criteria-baseline.json の exempt 外のまま lint-feedback-contract.py exit0。サポート資産をディスク実測照合で全解決: prompts R1..R4(7層+出力指示)・references consult-frames.md/session-record-format.md/resource-map.yaml・scripts consult-harness-artifact-graph.py/validate-consult-session.py・knowledge router.json/schema.json・agents phase3-coordinator.md・references/graph-consult-fallback-contract.md。",
+      "深度 3/3: 本文は無変更のままユーザー要求4軸(考え方アドバイス=R3 出典付き選択肢+適用視点/引き出し共創=R2 選択的外在化/ユーザー主導=R4 role=user provenance 機械封鎖/ゴール指向汎化=action・reflection 二 lane)の実装深度を維持し、OUT2 が静的検証(fixture)と実走 acceptance(live trial)の間にあった検証空隙を閉じる: R1→R4 完走・非処方スタンス不変条件(具体解押し付けゼロ・共同判断ターンで引き出し質問≥1・解決策の主語=ユーザー)・validate-consult-session.py exit0 という観測可能な受入条件を宣言し、consent=false 経路まで --ephemeral で被覆する。",
+      "整合 3/3: criteria→検証手段の写像が全件で成立。IN1(test)→detect_prescription_stance+test_in1_* fixture・OUT1(test)→detect_transcript_elements 4要素+test_out1_* fixture・OUT2(live-trial)→Gate D 実走 + validate-consult-session.py --ephemeral 機械検証(consent=false 完全 record の CLI 実走で --ephemeral 付き exit0/無し exit1 を実測・他検査非緩和は test_ephemeral_does_not_relax_other_checks で担保)。OUT2 のスタンス文言は本文『## スタンス不変条件』1〜3 と一致し、verify_by 'live-trial' は feedback_contract_ssot.py CRITERIA_VERIFY_BY enum に実在。テスト 50 passed(test_ubm_consult_contract.py + test_validate_consult_session.py)実走で緑。"
+    ],
+    "negative_feedback": [],
+    "iteration": 3,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 3軸(完全性3/深度3/整合3)を genuine 再判定して充足=PASS。差分は frontmatter feedback_contract への OUT2 追加のみ(本文無変更)で、既存 IN1/OUT1 の静的 test 検証と直交する live-trial behavioral acceptance を宣言し D7 ratchet を充足。--ephemeral の実在と挙動(consent 要求のみ免除・他検査同一)を CLI 実走と 50 passed テストで実測確認。live-trial verdict 実体は D13 パイロットゲート(lint-live-trial-verdict.py record-only WARN)により不在でも依存断裂なし。ペアの elegance-verdict.json も verdict=PASS(残 smell は session-record-format.md L69 例示の --ephemeral 非併記のみ・前回から継続・非ブロック)。human_review_required=false。"
+}

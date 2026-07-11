@@ -1,3 +1,7 @@
+---
+date: 2026-05-22
+---
+
 # prefix-driven internal structure
 
 ## 背景

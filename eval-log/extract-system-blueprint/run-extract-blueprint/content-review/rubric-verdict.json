@@ -1,0 +1,41 @@
+{
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-extract-blueprint",
+    "skill_md_sha256": "198db107a2fd0a276d39df1d5262723e56ceb753837bb451aaab726dfefbf7d8"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 4,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "単一責務分割 (R1 認可+取得 / R2 分析 fan-out / R3 文書化+自己検証) が明確で、各 prompt が 1 prompt=1 責務を保ち非担当を明記。",
+      "7 層プロンプト全層を備え IN/OUT 契約を表で明示、feedback_contract IN1/OUT1 が CL-* へ derived_from で追跡可能、決定論ゲート 4 種+hook が self-test 付きで exit0 判定でき、draft_hash と validate-goal-seek-anchor で再現性を担保。"
+    ],
+    "negative_feedback": [
+      "[resolved/contradiction] R3 の 7 層プロンプトが層内自己矛盾 (L1/L2 の browser-render 取得 vs L4.3/出力指示の browser 不使用) を抱えていた点を、L4.3/出力指示/完了チェックリストを browser-render 取得時 populate / ブラウザ不在時のみ observation_gap へ統一して解消 (prompt-creator 7 層の層間一貫性を回復)。",
+      "[low/inconsistency] R3 5.3 完了チェックリストの screenshot/annotated/overlay 記述と doc-emit 実装の条件分岐の粒度差 (実害なし)。"
+    ],
+    "iteration": 4,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "機械層 (authz/fetch/mermaid/doc-emit + validate-goal-seek-anchor) は self-test・lane 検査・schema parity で堅牢に採点でき exit0 到達性が高い。前回 iteration で LLM 層に検出した browser 使用有無の層間・ファイル間不整合 (medium contradiction) を当該箇所修正で根治し、残るは low/inconsistency の runtime edge のみ。high/medium 未解決 blocker なし → PASS。"
+}

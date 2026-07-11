@@ -33,6 +33,7 @@ responsibility_refs:
   - scripts/check-knowledge-split.py
 subagent_refs:
   - knowledge-extractor
+  - knowledge-relation-extractor
 schema_refs:
   - ../../knowledge/schema.json
 knowledge_loop:
@@ -42,6 +43,7 @@ knowledge_loop:
 script_refs:
   - scripts/detect-knowledge-updates.py
   - scripts/check-knowledge-split.py
+  - ../../scripts/validate-knowledge-graph.py
 reference_refs:
   - references/knowledge-sources.md
   - references/knowledge-design-principles.md
@@ -83,6 +85,9 @@ UBM ナレッジソース（YouTube 議事録・合宿記録・月報 FB・セ�
 | Phase2-extract | `knowledge-extractor` が6カテゴリへ分類し Rule A-F に従い `knowledge/*.json` + `router.json`/`registry.json` を更新。1起動あたり最大20ファイル、超過時は20件ずつ分割 | `knowledge-extractor`（Task） |
 | Phase3-split-check | `check-knowledge-split.py` がナレッジ JSON の500行閾値超過を機械検査し、knowledge-extractor が25エントリ超過時の意味単位分割を検討する | script / `knowledge-extractor` |
 | Phase4-report | 検知/抽出/分割チェックの結果（NEW/MODIFIED 件数・格納先・分割要否）をレポート | 本 skill |
+| Phase5-graph-sync（Phase2 後に分岐・split-check/report と並行） | `knowledge-relation-extractor` が全 knowledge entry から根拠付き有方向辺の**候補 JSON** を read-only で返し（knowledge へ書込しない=幻覚防止）、呼び出し側が候補を eval-log へ materialize、`validate-knowledge-graph.py --merge-relations` が canonical key (source_id,target_id,relation_type) で `knowledge/knowledge-relations.json` へ冪等 merge（既存辺は保持=first-write-wins）し、検証 PASS 時のみ relations と `knowledge-graph.json` を atomic 再生成。dry-run 時は write 禁止 | `knowledge-relation-extractor`（Task）/ `validate-knowledge-graph.py --merge-relations`（script） |
+
+Phase5 は差分 entry 起点で発火するため、**差分ゼロの周回では不発**になる。既存 corpus へ辺が一度も付いていない（`knowledge-relations.json` 不在＝edges=0 の退化グラフ）場合の初回適用は、RUNBOOK（plugin 直下 `RUNBOOK.md`）の「初回 edge backfill」手順を使う。
 
 ## ゴールシーク実行
 

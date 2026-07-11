@@ -1,0 +1,41 @@
+{
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-extract-blueprint",
+    "skill_md_sha256": "198db107a2fd0a276d39df1d5262723e56ceb753837bb451aaab726dfefbf7d8"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 4,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1",
+      "OUT2"
+    ],
+    "positive_feedback": [
+      "fact/inference/observation_gap の三値分離が schema と doc-emit の lane 検査・high-confidence 2 根拠必須で機械強制され、無言欠落や gap→inference 昇格を構造的に封じている。",
+      "proposer≠approver (C01 draft / C02 独立 verdict) と決定論ゲート SSOT 共有 (mermaid-validate.py / doc-emit.py --check-screens を生成側と評価側が同一 import で消費) が明確。",
+      "bootstrap deadlock (mkdir 単独先行) と hook env 非継承 (ESB_RUN) の罠が Gotchas に再現条件付きで具体文書化されている。"
+    ],
+    "negative_feedback": [
+      "[resolved/contradiction] 前回 iteration で検出した『browser を使わない』残置語 (SKILL.md Gotchas / R3-document.md L70,L116 / doc-emit.py コメント) が C15 browser-render(MCP 非依存 headless Chrome) の progressive-enhancement 設計と正面衝突していた点を、当該箇所を『MCP を使わない・browser 観測は browser-render 取得時に screens へ / ブラウザ不在(exit3)時のみ observation_gap』へ全て修正して根治 (grep 全走査で残置 0)。",
+      "[low/inconsistency] browser-render exit1 (ブラウザ在だがクラッシュ/timeout) が R1-fetch の fatal_exit_codes[1,2] に該当し progressive 縮退の意図 (exit3 のみ gap) に対する runtime edge。安全側 (fail-closed) への倒れで実害は限定的。"
+    ],
+    "iteration": 4,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  }
+}

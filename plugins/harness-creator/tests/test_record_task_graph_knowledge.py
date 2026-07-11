@@ -397,6 +397,112 @@ def test_distill_reads_handoff_notes(tmp_path):
     assert any(l["signal"] == "friction" for l in lessons)
 
 
+# ─────────────────────────── route report 実体レーン (deviations/handover) ───────────────────────────
+def _route_report(tmp_path, name, **fields) -> Path:
+    report = {"schema_version": "1.0.0", "plugin_slug": "acme", "route_id": "C01",
+              "component_kind": "script", "name": name, "builder": "b",
+              "build_target": "plugins/acme/scripts/x.py", "status": "success",
+              "summary": "s", "deviations": [], "evidence": [], "inputs_consumed": [],
+              "handover": None}
+    report.update(fields)
+    return _write(tmp_path / name, report)
+
+
+def test_collect_report_lessons_reads_deviations_and_handover(tmp_path):
+    """route-build-report の deviations[] (string 配列) と handover を lesson 候補へ蒸留する。"""
+    rp = _route_report(tmp_path, "route-C01.json",
+                       deviations=["evaluator ゲートは独立 context 起動不能のため自己適用した"],
+                       handover="C01 は build 済み。後続は verdict receipt を検証すること")
+    state = {"nodes": [{"id": "T1", "state": "done", "route_report": str(rp)}]}
+    lessons = rec._collect_report_lessons(state)
+    signals = [l["signal"] for l in lessons]
+    # deviation が handover より先 (limit 打ち切りで計画逸脱を優先)
+    assert signals == ["deviation", "handover"]
+    assert "自己適用" in lessons[0]["message"]
+    assert lessons[0]["source_ref"] == {"file": str(rp), "task_id": "T1", "route_id": "C01"}
+
+
+def test_collect_report_lessons_reads_string_array_handoff_notes(tmp_path):
+    """checklist-verification 等の handoff_notes (string 配列形式) も lesson 候補として消費する。"""
+    rp = _write(tmp_path / "plan-P01-x-01.json", {
+        "report_kind": "checklist-verification", "task_id": "P01-x-01", "verdict": "PASS",
+        "handoff_notes": ["purpose非空・C1-9完備・語彙導出一貫"],
+    })
+    state = {"nodes": [{"id": "P01-x-01", "state": "done", "route_report": str(rp)}]}
+    lessons = rec._collect_report_lessons(state)
+    assert len(lessons) == 1 and lessons[0]["signal"] == "handover"
+    assert "C1-9完備" in lessons[0]["message"]
+
+
+def test_collect_report_lessons_clips_long_prose(tmp_path):
+    """report 由来の長文 prose は蒸留上限で打ち切り生ログを丸写ししない。"""
+    rp = _route_report(tmp_path, "route-C02.json", deviations=["あ" * 500])
+    state = {"nodes": [{"id": "T1", "state": "done", "route_report": str(rp)}]}
+    lessons = rec._collect_report_lessons(state)
+    assert len(lessons[0]["message"]) <= rec._REPORT_MESSAGE_CLIP + 1
+    assert lessons[0]["message"].endswith("…")
+
+
+def test_collect_report_lessons_fail_soft_on_missing_or_broken_report(tmp_path):
+    """report 不在・非 JSON は skip (gate 判定へ影響させない fail-soft)。"""
+    broken = tmp_path / "route-broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    state = {"nodes": [
+        {"id": "T1", "state": "done", "route_report": str(tmp_path / "nope.json")},
+        {"id": "T2", "state": "done", "route_report": str(broken)},
+        {"id": "T3", "state": "done"},
+    ]}
+    assert rec._collect_report_lessons(state) == []
+
+
+def test_roundtrip_records_deviation_lessons_from_route_reports(tmp_path, capsys):
+    """往復 fixture: task-state → route report deviations → Loop A/B へ entry 記録 (entries_recorded>=1)。"""
+    if not _ADD_ENTRY.exists():
+        pytest.skip("add_entry.py テンプレートが見つからない")
+    loop_a = _make_store(tmp_path / "targetkb", "runtime")
+    loop_b = _make_store(tmp_path / "harnesskb", "build-time")
+    rp = _route_report(tmp_path, "route-C14.json", route_id="C14",
+                       deviations=["evaluator 独立起動不能のため rubric 観点を自己適用した"])
+    state = _task_state(tmp_path, [{"id": "P05-C14-01", "state": "done", "route_report": str(rp)}])
+    rc = rec.main([
+        "--target-plugin-slug", "acme-plugin",
+        "--discovered-inbox", str(tmp_path / "nope"),
+        "--task-events", str(tmp_path / "none.jsonl"),
+        "--task-state", str(state),
+        "--target-knowledge-dir", str(loop_a),
+        "--harness-knowledge-dir", str(loop_b),
+        "--add-entry-path", str(_ADD_ENTRY),
+    ])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["knowledge_record_status"] == "ok"
+    assert out["entries_recorded"] >= 1
+    assert out["empty_reason"] is None
+    a_cat = json.loads((loop_a / "knowledge-build-patterns.json").read_text(encoding="utf-8"))
+    assert any(i["id"].startswith("runtime-deviation_") for i in a_cat["items"])
+
+
+def test_zero_lessons_reports_ok_no_lessons_with_empty_reason(tmp_path, capsys):
+    """蒸留 0 件は vacuous "ok" でなく ok_no_lessons + entries_recorded/empty_reason を明示する。"""
+    if not _ADD_ENTRY.exists():
+        pytest.skip("add_entry.py テンプレートが見つからない")
+    loop_b = _make_store(tmp_path / "harnesskb", "build-time")
+    # noise のみの events (蒸留レーンに合致しない)
+    events = _events(tmp_path, [{"ts": "t1", "type": "lease_renewed", "task_id": "T1"}])
+    rc = rec.main([
+        "--discovered-inbox", str(tmp_path / "nope"),
+        "--task-events", str(events),
+        "--harness-knowledge-dir", str(loop_b),
+        "--add-entry-path", str(_ADD_ENTRY),
+    ])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["completion_gate"] == "ok"
+    assert out["entries_recorded"] == 0
+    assert out["knowledge_record_status"] == "ok_no_lessons"
+    assert out["empty_reason"] == "no distillable events matched distiller lanes"
+
+
 # ─────────────────────────── build_knowledge_entry ───────────────────────────
 def test_build_entry_has_six_required_fields():
     lesson = {"signal": "retry-resolved", "message": "lease 回収で再試行",
@@ -766,3 +872,64 @@ def test_never_writes_task_graph_or_plan(tmp_path, capsys):
     # plan 成果物は一切生成されない
     assert not list(build_dir.glob("phase-*.md"))
     assert not (build_dir / "component-inventory.json").exists()
+
+
+# ─────────────────────────── 完了ゲート第3段 (.claude symlink drift) ───────────────────────────
+def _fake_repo(tmp_path, generator_exit: int):
+    """唯一の生成器 scripts/build-claude-symlinks.py を持つ repo root と配下 task-state を模す。"""
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "build-claude-symlinks.py").write_text(
+        "import sys\n"
+        "print('created=0 updated=0 noop=1 conflict=0 missing=2')\n"
+        f"sys.exit({generator_exit})\n",
+        encoding="utf-8")
+    build_dir = root / "eval-log" / "p" / "build"
+    build_dir.mkdir(parents=True)
+    state = _write(build_dir / "task-state.json",
+                   {"schema_version": "1.0", "nodes": [{"id": "T1", "state": "done"}]})
+    return root, state
+
+
+def test_gate_blocked_on_claude_symlink_drift(tmp_path, capsys):
+    """inbox/blocked node 全解決でも .claude symlink drift なら blocked + fix_command 単体提示。"""
+    inbox = _inbox(tmp_path, {"a.json": _form(status="accepted")})
+    root, state = _fake_repo(tmp_path, generator_exit=1)
+    events_p = tmp_path / "task-events.jsonl"
+    rc = rec.main(["--discovered-inbox", str(inbox), "--task-events", str(events_p),
+                   "--task-state", str(state)])
+    assert rc == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["completion_gate"] == "blocked"
+    gate = out["claude_symlink_gate"]
+    assert gate["status"] == "drift"
+    assert gate["repo_root"] == str(root)
+    assert gate["fix_command"] == "bash scripts/sync-skills-to-claude.sh --apply"
+    assert any("sync-skills-to-claude.sh --apply" in s for s in out["next_steps"])
+    # gate 判定確定 event も第3段で append される
+    blocked_events = [e for e in _read_events(events_p) if e.get("type") == "build_blocked"]
+    assert len(blocked_events) == 1 and blocked_events[0]["claude_symlink_gate"] == "drift"
+
+
+def test_gate_ok_when_symlink_check_green(tmp_path, capsys):
+    """--check exit0 なら claude_symlink_gate:ok を携帯して completion_gate:ok。"""
+    inbox = _inbox(tmp_path, {"a.json": _form(status="accepted")})
+    root, state = _fake_repo(tmp_path, generator_exit=0)
+    rc = rec.main(["--discovered-inbox", str(inbox), "--task-events", str(tmp_path / "none.jsonl"),
+                   "--task-state", str(state), "--dry-run"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["completion_gate"] == "ok"
+    assert out["claude_symlink_gate"] == {"status": "ok", "repo_root": str(root)}
+
+
+def test_gate_symlink_skipped_when_generator_absent(tmp_path, capsys):
+    """生成器を持つ祖先なし (隔離環境/配布先) は fail-soft skip で完了を block しない。"""
+    inbox = _inbox(tmp_path, {"a.json": _form(status="accepted")})
+    state = _task_state(tmp_path, [{"id": "T1", "state": "done"}])
+    rc = rec.main(["--discovered-inbox", str(inbox), "--task-events", str(tmp_path / "none.jsonl"),
+                   "--task-state", str(state), "--dry-run"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["completion_gate"] == "ok"
+    assert out["claude_symlink_gate"]["status"] == "skipped"

@@ -52,6 +52,9 @@ lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readm
 	# 片方向 writer: harness の task-graph consumer が producer 所有 plan (task-graph/inventory/phase/
 	#   plugin-plans) へ AST 上で直書きしないことを fail-closed 検査 (per-script test を補完・S1)
 	python3 scripts/lint-harness-plan-writeguard.py
+	# knowledge/ (JSON ストア) ↔ lessons-learned/ (散文ログ) の役割分担を fail-closed 検査
+	#   (散文 .md の knowledge/ 直下混入・lessons-index の dangling source.file・lesson 形式。2026-07-11)
+	python3 scripts/lint-knowledge-layout.py
 
 ## vendored-ssot: plugin 同梱 SSOT (notion_config.py / feedback_contract_ssot.py) が正本と byte 一致か検証
 vendored-ssot:

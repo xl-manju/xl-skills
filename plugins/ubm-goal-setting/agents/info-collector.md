@@ -208,6 +208,29 @@ Priority 1/2 のエントリを中心に以下を実行:
 5. `consultation` から類似構造（状況→課題→アドバイス）を選択し概念を抽出
 6. `principles` から引用候補をリストアップ（`quote`+`expression` フィールド活用）
 
+###### Step 3-E: グラフ索引 consult（デュアルパス検索の追加経路・オプション）
+
+Path A/B/C の router ベース検索に加え、C06/C05 が生成した検証済みグラフが存在する場合は、`consult-harness-artifact-graph.py`（C07）を read-only で引き、Layer 1 の課題キーに関連する knowledge と、それを支える実成果物（planned/built/verified/stale）を **source refs 付き**で取得する。router のタグ一致では拾えない関係辺・依存構造を補完する経路。
+
+- **起動条件（正本＝`$CLAUDE_PLUGIN_ROOT/references/graph-consult-fallback-contract.md`）**: `knowledge-graph.json`（C06 出力）が**あれば consult する**。`harness-artifact-graph.json`（C05 出力）は**あれば `--harness-artifact-graph` に渡して併用し、無ければ引数を省略して knowledge 単独 consult に落とす**（harness graph は build/レビュー後に手動再生成する運用生成物ゆえ不在があり得る＝AND 前提にしない）。`knowledge-graph.json` が不在のときだけ本ステップを skip し Path A/B/C のみで続行する。詳細な 4 状態（consult 実行 / harness 単独不在→knowledge 単独 / knowledge 不在→skip / 破損 exit2→WARN skip）は上記正本を参照。
+- **query-type の使い分け**:
+  - `local`: Layer 1 の課題キー1つに直接マッチする knowledge/成果物と隣接辺を depth 上限まで
+  - `global`: 課題テーマがどのカテゴリ／成果物 state に広がるかの俯瞰（カテゴリ／クラスタ単位）
+  - `relationship`: 2概念間（例: `売上 -> 外交`）の関係 path 探索。topic を区切り（`->` / `::` / `|`）で割る
+- **呼び出し例**（Bash。パスは `$CLAUDE_PLUGIN_ROOT` 基点の絶対パスを使い `..` を含めない＝path traversal ガードに適合。`--harness-artifact-graph` は存在時のみ付ける）:
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/consult-harness-artifact-graph.py" \
+  --topic "外交不足" \
+  --knowledge-graph "$CLAUDE_PLUGIN_ROOT/knowledge/knowledge-graph.json" \
+  --harness-artifact-graph "$CLAUDE_PLUGIN_ROOT/knowledge/harness-artifact-graph.json" \
+  --query-type local --depth 2
+# harness-artifact-graph.json が無い場合は --harness-artifact-graph 行を省く (knowledge 単独 consult)
+```
+
+- **出力の扱い**: stdout の JSON は `zero_hit` フラグ・`hits.knowledge`（nodes/edges/associations）・`hits.harness`（nodes/edges）・`sources.knowledge_graph.sha256`・`sources.harness_artifact_graph`（併用時は `sha256`、省略時は `status:"absent"`）を含む。hit は **id/path/hash ポインタ**であり knowledge 本文ではないため、Priority 1/2 相当の関連エントリを特定したら該当 `knowledge/*.json` を別途 Read して概念抽出（Step 3-D）へ渡す。edge は逐語 evidence を返さず `evidence_count` のみ（secret/PII 本文非返却）。
+- **exit コード**: `0`=正常（zero-hit・harness 省略 含む）／`2`=usage・入力不正・壊れた index。exit2（グラフ破損など）は本ステップを skip 扱いにし、Path A/B/C の結果で続行する（正本の「破損→WARN skip」に対応）。
+
 ###### フォールバック（knowledge/router.jsonのentry_countが0または存在しない場合）
 
 1. `$UBM_VAULT_ROOT/05_Project/UBM/動画教材/` からTier 1ファイルを先頭200行読み込み
@@ -241,6 +264,22 @@ Priority 1/2 のエントリを中心に以下を実行:
 6. セクションが全て空（テンプレートのみ）のジャーナルはスキップ
 
 **完了条件**: 対象期間の行動実績・時間配分・課題・気づきがリストアップされている
+
+##### Step 3.8: 直近の相談 handoff の参照（相談→目標設定のループ辺・graceful skip）
+
+**並列実行**: Step 1/2/3/3.5/3.7 と同時に実行可能
+**目的**: `run-ubm-consult`（相談スキル）の帰結（次の一歩）を目標設定対話へ機械的に引き継ぎ、「相談で考え方を整理→目標設定で行動に落とす」ループを閉じる。
+
+1. 正本パス規約は `$CLAUDE_PLUGIN_ROOT/skills/run-ubm-consult/references/session-record-format.md`。読む入口は **`eval-log/ubm-goal-setting/run-ubm-consult/latest.json`**（session-id 別 record へのポインタ）。
+2. latest.json 不在、保存同意なし、期限切れ、`outcome != consult_completed` は正常 skip。ポインタの `path` が `sessions/<session_id>/handoff.json` 配下を外れる場合は拒否する。
+3. 有効な record から以下だけを抽出する。複数件が必要なら `index.jsonl` から同意済み・期限内の最新 N=3 を明示選択する:
+   - `issue_statement`
+   - `user_solution.text`（role=user turn provenance 検証済み）
+   - `closure.type=action` の `closure.next_step`（reflection は行動候補にしない）
+4. これらを「直近の相談からの引き継ぎ」として構造化サマリーに載せる。**あくまで文脈の引き継ぎであり、目標そのものではない**（目標設定は Phase 3 で対話生成する）。相談の次の一歩が今回の目標種別（weekly/monthly/bimonthly）に合致する場合は、行動目標の候補として Phase 3 へ渡す。
+5. read-only。本 Step は eval-log へ書き込まない（`ubm-write-path-guard` の対象外 path だが、そもそも参照専用）。
+
+**完了条件**: 同意済み・期限内の consult_completed record があれば issue_statement / user_solution / 任意の next_step が引き継がれている、または[相談履歴なし/同意なし/対象外]で skip 済みである
 
 ##### Step 3.5: UBMルート直下ファイルの確認
 
@@ -335,6 +374,11 @@ Priority 1/2 のエントリを中心に以下を実行:
   - {{money_summary}}
 - 繰り返されている課題: {{recurring_issues_from_journal}}
 - 気づき・改善アイデア: {{insights}}
+## 直近の相談からの引き継ぎ（run-ubm-consult handoff）
+- 参照した相談記録: {{consult_handoff_ref}} [自動取得] / [相談履歴なし]
+- 相談で言語化された課題: {{consult_issue_statement}}
+- ユーザー自身の言葉での解決策: {{consult_user_solution}}
+- 相談の次の一歩（今回の目標種別に合致すれば行動目標候補）: {{consult_next_step}}
 ```
 
 ---
@@ -343,12 +387,13 @@ Priority 1/2 のエントリを中心に以下を実行:
 
 ### 実行原則
 
-Step 1〜3.7 は互いに依存関係がないため、**全て並列実行**する:
+Step 1〜3.8 は互いに依存関係がないため、**全て並列実行**する:
 - Step 1: 過去目標ファイルの収集
 - Step 2: 合宿情報の収集
 - Step 3: ナレッジの参照
 - Step 3.5: UBMルート直下ファイルの確認
 - Step 3.7: ジャーナル収集（週報のみ）
+- Step 3.8: 直近の相談 handoff の参照（存在すれば・graceful skip）
 
 全ての並列処理が完了した後、Step 4（サマリー生成）を実行する。
 各Step内でも、複数ファイルのReadは並列で実行すること。
@@ -362,6 +407,7 @@ Step 1〜3.7 は互いに依存関係がないため、**全て並列実行**す
 | Step 3: ナレッジ参照 | router.json→カテゴリ特定→並列Read→事例・原則選択 | フェーズ別重点と引用可能な北原原則がリストアップされている | フェーズ別重点・戦略・引用候補 |
 | Step 3.5: ルート直下確認 | 並列Glob→並列Read→関連情報抽出 | 直近のセミナー・イベント情報を確認済み | セミナー・イベント関連情報 |
 | Step 3.7: ジャーナル収集 | 日付算出→Glob→並列Read→3観点抽出 | 対象期間の行動実績・時間配分・課題がリストアップされている（weekly以外はスキップ） | 行動実績・時間配分・課題・気づき |
+| Step 3.8: 相談 handoff 参照 | 固定パス存在確認→Read→issue/解決策/次の一歩抽出 | 相談 handoff があれば引き継ぎ済み、無ければ[相談履歴なし]で skip 済み | 直近の相談の課題・解決策・次の一歩 |
 | Step 4: サマリー生成 | 全データ統合→マーク付与→テンプレート出力 | 全セクションに[自動取得]または[要ヒアリング]マークが付いている | 構造化サマリー |
 
 ---
@@ -394,6 +440,7 @@ UBMメンバーの目標設定に必要な全データを自動収集し、
 - Step 3: ナレッジの参照（knowledge/router.json → knowledge/*.json）
 - Step 3.5: UBMルート直下ファイルの確認（Glob → Read）
 - Step 3.7: ジャーナル収集（weeklyのみ。$UBM_VAULT_ROOT/02_Configs/Daily/YYYY-MM-DD.md を動的日付検出→並列Read）
+- Step 3.8: `latest.json` から同意済み・期限内の consult_completed record を参照（不在/対象外は skip）
 各Step内の複数ファイルReadも並列で実行すること。
 全Step完了後に Step 4（構造化サマリー生成）を実行する。
 

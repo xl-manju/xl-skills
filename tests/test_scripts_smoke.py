@@ -49,9 +49,14 @@ def test_script_imports_without_error(script):
     spec = importlib.util.spec_from_file_location(mod_name, script)
     assert spec and spec.loader, f"cannot load spec for {rel}"
     mod = importlib.util.module_from_spec(spec)
+    # @dataclass + `from __future__ import annotations` を持つスクリプトは、dataclasses._is_type が
+    # sys.modules[cls.__module__].__dict__ を引くため、exec 前にモジュールを登録しておく
+    # (未登録だと Python 3.11 で AttributeError: 'NoneType' object has no attribute '__dict__')。
+    sys.modules[mod_name] = mod
     try:
         spec.loader.exec_module(mod)  # __main__ ガードにより main() は走らない
     finally:
+        sys.modules.pop(mod_name, None)
         sys.path.pop(0)
         sys.path.pop(0)
 

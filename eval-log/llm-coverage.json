@@ -1,6 +1,6 @@
 {
   "threshold": 80.0,
-  "skills_measured": 51,
+  "skills_measured": 55,
   "below_threshold": 0,
   "average_coverage_pct": 100.0,
   "reports": [
@@ -85,6 +85,36 @@
       "under_derived": true,
       "coverage_pct": 100.0,
       "since": "2026-05-30"
+    },
+    {
+      "plugin": "extract-system-blueprint",
+      "skill": "run-blueprint-apply",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 6,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
+    },
+    {
+      "plugin": "extract-system-blueprint",
+      "skill": "run-extract-blueprint",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 7,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
     },
     {
       "plugin": "harness-creator",
@@ -806,6 +836,22 @@
     },
     {
       "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-consult",
+      "criteria_total": 3,
+      "criteria_covered": 3,
+      "covered_ids": [
+        "IN1",
+        "OUT1",
+        "OUT2"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 5,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
+    },
+    {
+      "plugin": "ubm-goal-setting",
       "skill": "run-ubm-goal-setting",
       "criteria_total": 3,
       "criteria_covered": 3,
@@ -834,6 +880,21 @@
       "under_derived": false,
       "coverage_pct": 100.0,
       "since": "2026-07-04"
+    },
+    {
+      "plugin": "ubm-goal-setting",
+      "skill": "run-ubm-youtube-ingest",
+      "criteria_total": 2,
+      "criteria_covered": 2,
+      "covered_ids": [
+        "IN1",
+        "OUT1"
+      ],
+      "uncovered_ids": [],
+      "checklist_items": 6,
+      "under_derived": true,
+      "coverage_pct": 100.0,
+      "since": "2026-07-11"
     }
   ]
 }

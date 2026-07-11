@@ -89,6 +89,25 @@ def _select(value):
     return {'select': {'name': str(value)}} if value is not None else {'select': None}
 
 
+# canonical status 語彙 (intake-final-schema ステータス enum) → Notion 標準 status option。
+# status 型は select と違い未知 option を自動作成しないため、実 DB の標準 3 態へ写像する。
+_STATUS_CANON_TO_STD = {
+    '下書き': '未着手',
+    'レビュー中': '進行中',
+    'Gate A承認済み': '進行中',
+    '引き渡し済み': '進行中',
+    '構築済み': '完了',
+    'アーカイブ': '完了',
+}
+
+
+def _status(value):
+    if value is None:
+        return {'status': None}
+    name = _STATUS_CANON_TO_STD.get(str(value), str(value))
+    return {'status': {'name': name}}
+
+
 def _multi(values):
     return {'multi_select': [{'name': str(v)} for v in (values or [])]}
 
@@ -109,29 +128,71 @@ def _url(value):
     return {'url': value or None}
 
 
-def project_db_properties(ctx):
+# notion-db-schema.json (v2) 準拠の固定プロパティ projection 仕様。
+# (name, canonical_type, notion_db_properties からの取り出し key)。
+_DB_PROP_SPEC = [
+    ('名前', 'title', '名前'),
+    ('ステータス', 'select', 'ステータス'),
+    ('パターン', 'select', 'パターン'),
+    ('ワークフロー', 'select', 'ワークフロー'),
+    ('深度', 'select', '深度'),
+    ('熟練度', 'select', '熟練度'),
+    ('テーマ抽出', 'select', 'テーマ抽出'),
+    ('責務境界', 'select', '責務境界'),
+    ('配信タイミング', 'select', '配信タイミング'),
+    ('出力先', 'multi_select', '出力先'),
+    ('共有相手', 'multi_select', '共有相手'),
+    ('引き渡しモード', 'select', '引き渡しモード'),
+    ('真の課題', 'rich_text', '真の課題'),
+    ('ナレッジ資産タグ', 'multi_select', 'ナレッジ資産タグ'),
+    ('実行環境', 'select', '実行環境'),
+]
+# 送信不可 (read-only) の Notion プロパティ型。
+_READONLY_TYPES = {'created_time', 'last_edited_time', 'formula', 'rollup',
+                   'created_by', 'last_edited_by', 'unique_id'}
+
+
+def _project_value(ntype, value):
+    if ntype == 'title':
+        return _title(value if value is not None else '')
+    if ntype == 'rich_text':
+        return _rich(value if value is not None else '')
+    if ntype == 'status':
+        return _status(value)
+    if ntype == 'multi_select':
+        return _multi(value)
+    if ntype == 'date':
+        return _date(value)
+    # select 既定 (未知型も select へ寄せる: 従来挙動を保つ)
+    return _select(value)
+
+
+def project_db_properties(ctx, db_schema=None):
     """context.notion_db_properties → Notion DB properties payload。
 
-    notion-db-schema.json (v2) のキーと型に厳密に従う。
+    db_schema (name -> notion_type の実 DB スキーマ) が渡された場合、実 DB に存在する
+    プロパティのみを、その実型に合わせて projection する。これにより canonical
+    notion-db-schema.json と実際の公開先 DB とのドリフト (例: ステータス が status 型 /
+    ナレッジ資産タグ・実行環境 が非存在) を publish 時に非破壊で吸収する。
+    db_schema=None のときは notion-db-schema.json (v2) 準拠の固定集合を返す
+    (render / quality_gate の後方互換: キー・型・順序を従来と完全一致で維持)。
     """
     p = ctx.get('notion_db_properties') or {}
-    return {
-        '名前': _title(p.get('名前', '')),
-        'ステータス': _select(p.get('ステータス')),
-        'パターン': _select(p.get('パターン')),
-        'ワークフロー': _select(p.get('ワークフロー')),
-        '深度': _select(p.get('深度')),
-        '熟練度': _select(p.get('熟練度')),
-        'テーマ抽出': _select(p.get('テーマ抽出')),
-        '責務境界': _select(p.get('責務境界')),
-        '配信タイミング': _select(p.get('配信タイミング')),
-        '出力先': _multi(p.get('出力先')),
-        '共有相手': _multi(p.get('共有相手')),
-        '引き渡しモード': _select(p.get('引き渡しモード')),
-        '真の課題': _rich(p.get('真の課題', '')),
-        'ナレッジ資産タグ': _multi(p.get('ナレッジ資産タグ')),
-        '実行環境': _select(p.get('実行環境')),
-    }
+    out = {}
+    for name, canonical_type, src_key in _DB_PROP_SPEC:
+        default = '' if canonical_type in ('title', 'rich_text') else None
+        value = p.get(src_key, default)
+        if db_schema is None:
+            out[name] = _project_value(canonical_type, value)
+            continue
+        # 実 DB スキーマ適応: 非存在列は送らない / read-only 型は送らない / 実型へ coerce。
+        if name not in db_schema:
+            continue
+        actual_type = db_schema[name] or canonical_type
+        if actual_type in _READONLY_TYPES:
+            continue
+        out[name] = _project_value(actual_type, value)
+    return out
 
 
 # ===== Section diagram helper =====

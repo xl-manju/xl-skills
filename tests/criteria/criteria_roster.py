@@ -16,6 +16,9 @@ ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
     ("contract-generator", "run-contract-finalize", ("IN1", "IN2", "OUT1")),
     ("contract-generator", "run-contract-generate", ("IN1", "IN2", "OUT1")),
     ("contract-generator", "run-template-sync", ("IN1", "IN2", "OUT1")),
+    ("extract-system-blueprint", "assign-blueprint-fidelity-evaluator", ("IN1", "OUT1")),
+    ("extract-system-blueprint", "run-blueprint-apply", ("IN1", "OUT1")),
+    ("extract-system-blueprint", "run-extract-blueprint", ("IN1", "OUT1")),
     ("harness-creator", "delegate-codex-skill-review", ("IN1", "IN2", "OUT1", "OUT2")),
     ("harness-creator", "run-build-skill", ("IN1", "IN2", "IN3", "OUT1", "OUT2")),
     ("harness-creator", "run-elegant-review", ("IN1", "IN2", "OUT1", "OUT2")),
@@ -61,6 +64,8 @@ ROSTER: list[tuple[str, str, tuple[str, ...]]] = [
     ("system-spec-harness", "run-system-spec-compile", ("IN1", "OUT1")),
     ("system-spec-harness", "run-system-spec-doc-fetch", ("IN1", "OUT1")),
     ("system-spec-harness", "run-system-spec-elicit", ("IN1", "OUT1", "OUT2")),
+    ("ubm-goal-setting", "run-ubm-consult", ("IN1", "OUT1", "OUT2")),
     ("ubm-goal-setting", "run-ubm-goal-setting", ("IN1", "OUT1", "OUT2")),
     ("ubm-goal-setting", "run-ubm-knowledge-sync", ("IN1", "OUT1")),
+    ("ubm-goal-setting", "run-ubm-youtube-ingest", ("IN1", "OUT1")),
 ]
