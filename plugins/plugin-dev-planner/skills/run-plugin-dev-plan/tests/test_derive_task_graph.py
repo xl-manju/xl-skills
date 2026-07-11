@@ -429,3 +429,96 @@ def test_main_print_graph_hash_missing_arg():
 
 def test_main_not_a_directory(tmp_path):
     assert DTG.main([str(tmp_path / "nope")]) == 2
+
+
+# ─────────── surface_build_projection (required surface の build node 射影) ───────────
+def _surface_inventory(declare_projection: bool, *, drop_field: str | None = None) -> dict:
+    """required surface (manifest) + 射影宣言 (任意) の inventory dict を組む。"""
+    manifest = {
+        "required": True,
+        "builder": "plugin-scaffold",
+        "build_kind": "plugin-surface",
+        "build_target": "plugins/x/.claude-plugin/plugin.json",
+        "write_scope": "plugins/x/.claude-plugin/plugin.json",
+        "quality_gates": {"path_existence": {"paths": ["plugins/x/.claude-plugin/plugin.json"], "all": True},
+                          "checks": [{"id": "manifest-json", "kind": "json-parse"}], "all_pass": True},
+    }
+    if drop_field:
+        manifest.pop(drop_field)
+    pls = {
+        "manifest": manifest,
+        "vendor": {"required": False, "omitted_reason": "not needed"},
+    }
+    if declare_projection:
+        pls["surface_build_projection"] = {
+            "schema_version": "1.0",
+            "node_id_template": "SURFACE-{surface_key}",
+            "node_kind": "plugin-surface-build",
+            "required_fields": ["builder", "build_kind", "build_target", "write_scope",
+                                "quality_gates.path_existence", "quality_gates.checks",
+                                "quality_gates.all_pass"],
+            "projection_rule": {
+                "one_required_surface_one_node": True,
+                "done_when": ["builder completed", "all quality_gates PASS",
+                              "all declared outputs exist"],
+                "missing_required_field": "projection-fail",
+            },
+        }
+    return {"components": [{"id": "C01", "depends_on": [], "build_target": "plugins/x/scripts/a.py"}],
+            "plugin_level_surfaces": pls}
+
+
+def _surface_plan(tmp_path: Path, declare_projection: bool, *, drop_field: str | None = None):
+    _write_phase(
+        tmp_path, "phase-01-requirements.md",
+        "id: P01\nphase_name: requirements\nentities_covered: [C01]",
+        "- [ ] X を実装する\n",
+    )
+    tmp_path.joinpath("component-inventory.json").write_text(
+        json.dumps(_surface_inventory(declare_projection, drop_field=drop_field)), encoding="utf-8")
+
+
+def test_surface_projection_creates_one_node_per_required_surface(tmp_path):
+    """宣言時: required:true surface ごとに SURFACE-{key} node + produces + 最終 phase marker 依存。
+    required:false surface (vendor) は射影しない (one_required_surface_one_node)。"""
+    _surface_plan(tmp_path, declare_projection=True)
+    g = DTG.derive(tmp_path)
+    surface_nodes = [n for n in g["nodes"] if n["id"].startswith("SURFACE-")]
+    assert [n["id"] for n in surface_nodes] == ["SURFACE-manifest"]
+    node = surface_nodes[0]
+    # write_scope / phase_ref は宣言の node 契約 (phase_ref=node_kind の pseudo-phase)
+    assert node["write_scope"] == "plugins/x/.claude-plugin/plugin.json"
+    assert node["phase_ref"] == "plugin-surface-build"
+    assert node["entity_ref"] is None and node["state"] == "pending"
+    assert "quality_gates all_pass" in node["acceptance_criterion"]
+    # produces は build_target へ、depends_on は最終 phase marker へ (build 完了後に surface gate)
+    assert {"type": "produces", "from": "SURFACE-manifest",
+            "to": "plugins/x/.claude-plugin/plugin.json"} in g["edges"]
+    assert {"type": "depends_on", "from": "SURFACE-manifest", "to": "P01"} in g["edges"]
+
+
+def test_surface_projection_absent_declaration_is_byte_identical(tmp_path):
+    """宣言不在の旧 inventory: 射影は一切走らず SURFACE node ゼロ (後方互換)。"""
+    _surface_plan(tmp_path, declare_projection=False)
+    g = DTG.derive(tmp_path)
+    assert not [n for n in g["nodes"] if n["id"].startswith("SURFACE-")]
+
+
+def test_surface_projection_missing_required_field_fails_closed(tmp_path):
+    """required_fields 欠落は projection-fail (欠落 surface を黙って落とさない)。main は exit 1。"""
+    import pytest
+    _surface_plan(tmp_path, declare_projection=True, drop_field="build_target")
+    with pytest.raises(DTG.SurfaceProjectionError):
+        DTG.derive(tmp_path)
+    assert DTG.main([str(tmp_path)]) == 1
+    assert not (tmp_path / "task-graph.json").exists()
+
+
+def test_sample_plan_fixture_byte_identical_after_projection_change(tmp_path):
+    """既存 examples/sample-plan (宣言不在) の derive 再実行が committed fixture と byte 一致。"""
+    import shutil
+    sample = Path(__file__).resolve().parent.parent / "examples" / "sample-plan"
+    work = tmp_path / "sample-plan"
+    shutil.copytree(sample, work)
+    assert DTG.main([str(work)]) == 0
+    assert (work / "task-graph.json").read_bytes() == (sample / "task-graph.json").read_bytes()

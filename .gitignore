@@ -65,6 +65,10 @@ eval-log/notion-gmail-send/journal.jsonl
 
 # Session-local artifacts
 output/
+# extract-system-blueprint の実行出力 (esb-output/<domain>/): 対象サイトへの実 HTTP 取得本体
+# (out/bodies/*.body=第三者サイト応答) / snapshot / 認可トークン (.esb-authz/) / blueprint 生成物 /
+# verdict を含む run スクラッチ。ソース変更ではなく揮発成果物のため追跡しない (output/ と同扱い)。
+esb-output/
 .claude/handoff/
 # PreCompact hook はカレント作業ディレクトリ相対に .claude/handoff/ を書くため、
 # スキル配下など任意の深さで生成される handoff スナップショット (session/transcript path 含む
@@ -103,6 +107,13 @@ eval-log/plugin-dev-planner/**
 !eval-log/plugin-dev-planner/*/
 !eval-log/plugin-dev-planner/*/content-review/
 !eval-log/plugin-dev-planner/*/content-review/**
+# extract-system-blueprint: task-graph route 実行スクラッチ (route-C*/task-state/task-events/tg-*/
+# elegant-review verdict) は揮発の run ログ。content-review verdict (eval-log/<plugin>/<comp>/content-review/)
+# のみ lint-content-review.py --all が CI で要求する成果物のため追跡する (skill-intake と同じ方式)。
+eval-log/extract-system-blueprint/**
+!eval-log/extract-system-blueprint/*/
+!eval-log/extract-system-blueprint/*/content-review/
+!eval-log/extract-system-blueprint/*/content-review/**
 # プラン単位 (plan-slug キー) の elegant-review run スクラッチは eval-log/<slug>/_plan/elegant-review/
 # (harness 実装は `_plan` セグメントを出力・旧 `plan/` も後方互換で残す) に落ち、上の plugin 名キー規則
 # (eval-log/plugin-dev-planner/**) を素通りする。briefing/shared_state/snapshot/patch/diff は再現性正本でない
@@ -127,6 +138,9 @@ plugin-plans/*/.goal-seek/
 # 揮発 state (completion_rate/running/blocked 等) を含み周回ごとに変わるため除外 (構造正本=task-graph.json は追跡)。
 plugin-plans/*/task-graph-status.json
 plugin-plans/*/task-progress.md
+# 例外1c: 決定論ゲートの pass マーカー (.gate/*.pass) は run ごとに再生成される揮発状態 (計画正本は
+# phase-*.md / task-graph.json / briefs)。他 plugin-plans でも追跡していないため除外する。
+plugin-plans/*/.gate/
 # 例外2: 上の **/plan-*.json (notion-gmail-send PII 除外) が plan-findings.json を名前衝突で
 # 巻き込み未追跡化するため再include する (可視化の意図を守る・plan-rubric.json と同型救済)。
 !plugin-plans/**/plan-*.json
@@ -134,6 +148,9 @@ plugin-plans/*/task-progress.md
 # Plugin-local runtime
 plugins/skill-intake/output/
 plugins/skill-intake/.claude/
+# skill-intake の実行スクラッチ (intake-trace / db-id-resolution / notion-conflicts): 実 Notion
+# DB ID や実データを含む揮発 run 状態。content-review verdict は eval-log/skill-intake/ 側で追跡済み。
+plugins/skill-intake/eval-log/
 plugins/prompt-creator/LOGS.md
 
 # GitHub 100MB file-size limit: this local tarball cannot be pushed

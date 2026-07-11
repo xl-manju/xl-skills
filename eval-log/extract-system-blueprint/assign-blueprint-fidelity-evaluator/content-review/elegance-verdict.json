@@ -1,0 +1,29 @@
+{
+  "target": {"plugin": "extract-system-blueprint", "skill": "assign-blueprint-fidelity-evaluator", "skill_md_sha256": "2f77ac51d19dc5179e4fa25bc922e4e4cc429b01e722a36cabd7eda8727f2e35"},
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 2},
+  "reviewer": "run-elegant-review-subagent",
+  "reviewed_at": "2026-07-11T19:40:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "common-mode 破りの機構化: scripts/recount-palette-orphans.py は C11 (doc-emit._observed_colors の固定キー構造走査) を import せず、generic な color-key 正規表現+再帰走査+独立実装の色正規化 (hex3/4/6/8・rgb/rgba→hex8) で同一不変量 (観測色⊆palette) を再計数する非共有経路。smoke 実走で exit0 (孤児0)/exit1 (孤児検出・#123456→#123456ff 正規化) の文書化契約どおり動作を確認。共有=基準統一/非共有=common-mode 排除の役割分担が SKILL Key Rule 3・Gotcha 1-2・rubric CL-9・workflow-manifest P2 で同一語彙。",
+      "verdict の恣意性排除と fail-closed 一貫性: scripts/emit-verdict.py decide() が PASS 必要十分条件 (共有ゲート pass×2 / recount 孤児0+agrees_with_gate / high finding 0 / silent_gaps+key_screen_gaps 0 / load-policy 3 flag / reconstruction 3 条件) を決定論規則で導出し、FAIL でも receipt を必ず書く (fail-fast≠silent-fail)。SKILL 本文の完了条件より機械層が同方向 (fail-closed) に厳格で退行方向の乖離がない。",
+      "draft_hash 束縛 verdict 契約の全域表記一致: receipt パス `${ESB_VERDICT_DIR:-.esb-verdict}/<draft_hash>.verdict.json` と『verdict=PASS かつ draft_hash 一致』の消費条件が、C07 commands/extract-blueprint.md Step2・C08 hooks/pre-fetch-authz-guard.py (_candidate_dirs の ESB_VERDICT_DIR→.esb-verdict 探索・PASS+hash 一致以外 exit2)・C01 prompts/R4-publish.md・C14 run-blueprint-apply R1-ground (--verdict-dir 既定 .esb-verdict) の全消費者と一致。emit-verdict.py の出力ファイル名/既定 out-dir とも一致。",
+      "proposer≠approver の機構化: context:fork + allowed-tools (Read/Bash(python3 *)/Grep/Glob) に Write/Edit 不在で改変禁止を permission 層で担保。assign は runtime loop 非配線 (一発 read-only 採点) で、正本参照 ../../../harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md も実在。"
+    ],
+    "negative_feedback": [
+      "low: references/resource-map.yaml の pairs_with 注記『frontmatter pair は step7 cross-plugin 制約で prose 表現』が実態と食い違う stale コメント。実 frontmatter には pair: run-extract-blueprint が存在し (同一 plugin 内)、lint-skill-dep-step7.py はむしろ assign-*-evaluator に frontmatter pair を要求する。機械挙動への影響はないが誤誘導コメント。",
+      "low: workflow-manifest.json の P1-shared-gates.resourceIds に script-recount が含まれるが、P1 の実行体は plugin-root 共有ゲート (mermaid-validate.py/doc-emit.py) で recount は P2 の責務。skill-local resources に共有ゲートを載せられない制約があるにせよ phase↔resource 対応が不正確。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "SKILL.md 全文と参照先の実在/整合を実読確認: prompts/R1-evaluate.md (7層・E1-E9 が CL-1..CL-10 を被覆)・schemas/verdict.schema.json (assessment 6キー=emit-verdict._REQUIRED と一致・findings.criterion pattern ^CL-[0-9]+$)・scripts/emit-verdict.py・scripts/recount-palette-orphans.py・workflow-manifest.json (P1→P2→P3→P4 直列 dependsOn)・references/evaluation-rubric.md (CL-1..CL-10 1:1)・references/resource-map.yaml。plugin-root 依存 (scripts/mermaid-validate.py・scripts/doc-emit.py・hooks/pre-fetch-authz-guard.py・schemas/system-blueprint.schema.json・fact-inference-confidence.schema.json・agents/ の C03-C06/C13 実プロンプト5本) 全実在。skill-local 2 script は scratchpad で smoke 実走し exit code/出力契約 (recount 0/1・emit-verdict PASS receipt=<draft_hash>.verdict.json) を実証。frontmatter criteria (IN1/OUT1) の derived_from が CL-1..CL-10 を IN1(CL-6,CL-9)+OUT1(残8) で漏れなく分担。矛盾なし/漏れなし/整合性/依存関係整合の4条件を満たし、残 2 件は low smell (未解決 high なし) のため PASS。"
+}

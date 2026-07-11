@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-provenance-chain
-# purpose: E1-E3 を貫く provenance chain (intake.json→goal-spec→plan→build handoff→改善成果物) の追跡可能性を検証し、いずれかの provenance フィールド欠落 (chain 断裂) を fail-closed で検出する。
+# purpose: E1-E3 を貫く provenance chain (intake.json→goal-spec→plan→build handoff→改善成果物) の追跡可能性を検証し、いずれかの provenance フィールド欠落 (chain 断裂) を fail-closed で検出する。inventory が surface_build_projection を宣言する場合は required plugin_level_surfaces の build_target 実在も assert する (欠落=exit 1)。
 # inputs:
 #   - argv: --goal-spec <goal-spec.json> [--plan-dir <dir>] [--require-improvement] [--allow-missing-intake] [--resolve]
 # outputs:
@@ -21,6 +21,12 @@ goal-spec の source_intake (node1→2) と source_improvement (node4→5) の p
 および plan_dir の handoff (node3→4) の実在で chain の連続性を検査する。いずれかが欠落すると
 断裂として fail-closed で弾く。--resolve 指定時は ref 先ファイルの実在と改善サイクルの継続性
 (improvement-handoff.provenance.source_intake が goal-spec.source_intake と一致するか) も検査する。
+
+加えて plan_dir の component-inventory.json が surface_build_projection を宣言する場合、
+required:true な plugin_level_surfaces の build_target 実在を assert し、欠落を fail-closed
+(exit 1) で弾く (provenance_chain_trigger.all_required_surface_outputs_exist の機械層。
+required surface が builder 未割当のまま無言欠落した build を pass marker で緑化させない)。
+宣言不在の旧 inventory では本検査は no-op (後方互換)。goal-spec digest pin 検査は不変。
 """
 from __future__ import annotations
 
@@ -59,6 +65,50 @@ def _prov_ref(data: dict, key: str) -> str | None:
     return None
 
 
+def _check_required_surfaces(plan_dir: Path) -> list[str]:
+    """inventory が surface_build_projection を宣言する場合、required surface の build_target 実在を assert する。
+
+    plugin_level_surfaces (宣言は同 dict 内 or top-level) の required:true surface が
+    build_target を欠く/実在しない場合を断裂として列挙する (fail-closed)。宣言不在の
+    旧 inventory・inventory 不在/非 JSON は no-op (後方互換。inventory 自体の整合は
+    validate-task-graph 等の既存 gate が担う)。build_target の相対パスは repo-root 相対で
+    記録されるため cwd 基準で解決し、見つからなければ plan_dir/../.. (repo root 相当) でも試す。
+    """
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.is_file():
+        return []
+    try:
+        inv = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(inv, dict):
+        return []
+    pls = inv.get("plugin_level_surfaces")
+    pls = pls if isinstance(pls, dict) else {}
+    decl = inv.get("surface_build_projection") or pls.get("surface_build_projection")
+    if not isinstance(decl, dict):
+        return []
+    breaks: list[str] = []
+    for key in sorted(pls):
+        sf = pls[key]
+        if not isinstance(sf, dict) or sf.get("required") is not True:
+            continue
+        bt = sf.get("build_target")
+        if not isinstance(bt, str) or not bt.strip():
+            breaks.append(
+                f"SURFACE 断裂: required surface {key!r} に build_target が無い "
+                "(surface_build_projection 宣言下では builder 未割当 surface を許容しない)"
+            )
+            continue
+        p = Path(bt)
+        candidates = [p] if p.is_absolute() else [Path.cwd() / p, plan_dir.parent.parent / p]
+        if not any(c.exists() for c in candidates):
+            breaks.append(
+                f"SURFACE 断裂: required surface {key!r} の build_target が実在しない: {bt}"
+            )
+    return breaks
+
+
 def check_chain(
     goal_spec: dict,
     *,
@@ -81,6 +131,8 @@ def check_chain(
     if plan_dir is not None:
         if not (plan_dir / HANDOFF_NAME).is_file():
             breaks.append(f"E2 断裂: plan_dir に {HANDOFF_NAME} が無い (plan→build handoff link 欠落)")
+        # surface_build_projection 宣言時のみ: required surface の build_target 実在 assert (fail-closed)
+        breaks.extend(_check_required_surfaces(plan_dir))
 
     # node 4→5: 改善成果物 → 再生成 goal-spec
     improvement_ref = _prov_ref(goal_spec, "source_improvement")

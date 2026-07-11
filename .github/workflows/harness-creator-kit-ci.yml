@@ -168,6 +168,13 @@ jobs:
       - name: Verify company-master vendored deps (zero external deps)
         run: python3 scripts/lint-company-master-vendored-deps.py
 
+      # knowledge/ (JSON/JSONL 蒸留ストア) と lessons-learned/ (散文失敗ログ) の SSOT 役割分担を
+      # fail-closed 検査する。散文レッスンを knowledge/ 直下へ .md で直接置いた混在事故
+      # (2026-07-11) の恒久再発防止。lessons-index の source.file dangling・lesson 形式
+      # (命名/date frontmatter/種別別必須セクション/30 行) も同時に機械強制する。
+      - name: Verify knowledge/lessons-learned layout (SSOT role separation)
+        run: python3 scripts/lint-knowledge-layout.py
+
       # marketplace install ポータビリティ不変条件: 任意の install 先 (cwd 非依存) で
       # vendor/python の jinja2 等が __file__ 相対で import 解決でき、plugin が
       # 純ソース配布 (.pyc/.so 非同梱) であることを検証する。不特定多数のユーザーが

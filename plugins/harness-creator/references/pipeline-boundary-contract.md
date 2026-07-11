@@ -61,7 +61,7 @@ task-graph は planner が作る計画構造であり、harness-creator は buil
 
 実行は **2 つの入れ子ループ** (内=build-execution loop・TG-C06 所有 / 外=spec-improvement loop) で駆動する。dispatch 手順・stall 分岐・handback 提示などの**制御フロー正本は `commands/capability-build.md` の「task-graph route モード」節**であり、本ファイルはループ間契約の不変条件のみを定める:
 - **単一 writer**: state write-back は dispatcher (TG-C06) が直列呼出しする `sync-task-state.py` (TG-C02) のみが行う (SubAgent は state を書かない)。
-- **完了ゲート fail-closed**: `record-task-graph-knowledge.py` (TG-C08) が未処理 discovered-task 残存時に completed を機構的にブロックし、`handback_command` で外ループへ制御返却する。
+- **完了ゲート fail-closed**: `record-task-graph-knowledge.py` (TG-C08) が未処理 discovered-task 残存時に completed を機構的にブロックし、`handback_command` で外ループへ制御返却する。第2段=--task-state の blocked node 残存、第3段=build 実体の `.claude` symlink 未展開 (deploy-sync 漏れ・`--task-state` パス上方探索で repo root 解決→生成器 `--check`) も同様に block し fix_command を単体提示する (生成器不在環境は fail-soft skip)。
 - **provenance-gated repin**: 実行中の graph 差替えは accepted discovered-task の `resulting_graph_hash` と一致する場合のみ TG-C07→TG-C02 委譲で再 pin (`repinned`) し、不一致は不正混入 (F10) として `mismatch` で fail-closed 拒否する。
 
 本節が単一 writer 規約を含むループ間不変条件の唯一の正本であり、他文書・script header の同旨記述は本節への参照 (要約) である。

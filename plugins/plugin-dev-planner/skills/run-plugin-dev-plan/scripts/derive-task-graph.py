@@ -20,6 +20,11 @@ design: plugin-plans/plugin-dev-planner/phase-05-implementation.md (C2/C11/C16)�
 canonicalize() が唯一の正準形を書き、validate-task-graph.py は同一ロジックを再適用して
 非正準を拒否する (読み書き責務分離)。graph_hash() は canonical bytes の sha256 で、
 --print-graph-hash が consumer 向け read-only 契約 (argv/stdout/exit を安定固定) を担う。
+
+inventory が surface_build_projection を宣言する場合、plugin_level_surfaces の required:true
+surface ごとに SURFACE-{surface_key} build node (one_required_surface_one_node) を射影し、
+required surface の builder 未割当=構造的 build/gate 欠落 (build vs ship completeness の片翼)
+を封じる。宣言不在の旧 inventory は従来出力と byte 同一 (既存 plan の graph_hash を壊さない)。
 """
 from __future__ import annotations
 
@@ -146,6 +151,93 @@ def _phase_order(phase_ref: str) -> int:
     """P01..P13 を数値順へ写す。未知形式は末尾扱いにして既存後方互換を保つ。"""
     m = re.match(r"^P(\d+)$", str(phase_ref))
     return int(m.group(1)) if m else 10_000
+
+
+class SurfaceProjectionError(ValueError):
+    """surface_build_projection の required_fields 欠落 (missing_required_field: projection-fail)。"""
+
+
+def _dotted_get(d: dict, path: str):
+    """'quality_gates.path_existence' 形のドット path を辿って値を返す (欠落は None)。"""
+    cur = d
+    for part in str(path).split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return None
+        cur = cur[part]
+    return cur
+
+
+def _inventory_surface_projection(plan_dir: Path) -> tuple[dict, dict[str, dict]] | None:
+    """surface_build_projection 宣言と required:true な plugin_level_surfaces を返す。
+
+    宣言は plugin_level_surfaces 内 (実配置) または top-level を探す。宣言不在の旧 inventory
+    では None を返し、derive は射影を一切行わない (従来出力と byte 同一 = 後方互換)。
+    required surface の選択は source_selector 契約 `plugin_level_surfaces.*[required=true]`
+    (宣言 entry 自身は required を持たず自然に除外される)。
+    """
+    inv_path = plan_dir / "component-inventory.json"
+    if not inv_path.exists():
+        return None
+    try:
+        inv = json.loads(inv_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    pls = inv.get("plugin_level_surfaces")
+    pls = pls if isinstance(pls, dict) else {}
+    decl = inv.get("surface_build_projection") or pls.get("surface_build_projection")
+    if not isinstance(decl, dict):
+        return None
+    surfaces = {
+        key: sf for key, sf in pls.items()
+        if isinstance(sf, dict) and sf.get("required") is True
+    }
+    return decl, surfaces
+
+
+def _project_surface_nodes(decl: dict, surfaces: dict[str, dict],
+                           final_phase_root: str | None) -> tuple[list[dict], list[dict]]:
+    """required surface ごとに SURFACE-{surface_key} node を射影する (one_required_surface_one_node)。
+
+    write_scope / produces (build_target) は宣言の node 契約に従う。phase_ref は surface 宣言の
+    phase_ref、無ければ decl.node_kind (pseudo-phase。P\\d+ 非該当ゆえ phase 逆走検査 (i) の対象外)。
+    依存 (projection_rule.dependencies = surface gate が参照する component build nodes) は決定論
+    近似として最終 phase marker への depends_on で実現する (全 component build 完了後に surface を
+    build/gate する保守的上位集合。build completeness → ship completeness の順序)。
+    required_fields (ドット path) の欠落は missing_required_field 契約どおり projection-fail
+    (SurfaceProjectionError) とし、欠落 surface を黙って落とさない (fail-closed)。
+    """
+    template = str(decl.get("node_id_template") or "SURFACE-{surface_key}")
+    required_fields = decl.get("required_fields") or []
+    done_when = (decl.get("projection_rule") or {}).get("done_when") or []
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    for key in sorted(surfaces):
+        sf = surfaces[key]
+        missing = [f for f in required_fields if _dotted_get(sf, f) is None]
+        if missing:
+            raise SurfaceProjectionError(
+                f"required surface {key!r} が required_fields を欠く (projection-fail): {missing}"
+            )
+        node_id = template.replace("{surface_key}", key)
+        criterion = (
+            f"builder={sf['builder']} (build_kind={sf['build_kind']}) が "
+            f"{sf['build_target']} を build し quality_gates all_pass を満たす"
+        )
+        if done_when:
+            criterion += f" (done_when: {', '.join(str(d) for d in done_when)})"
+        nodes.append({
+            "id": node_id,
+            "title": f"required plugin surface build: {key}",
+            "phase_ref": str(sf.get("phase_ref") or decl.get("node_kind") or "plugin-surface-build"),
+            "entity_ref": None,
+            "state": "pending",
+            "write_scope": sf["write_scope"],
+            "acceptance_criterion": criterion,
+        })
+        edges.append({"type": "produces", "from": node_id, "to": sf["build_target"]})
+        if final_phase_root is not None:
+            edges.append({"type": "depends_on", "from": node_id, "to": final_phase_root})
+    return nodes, edges
 
 
 def derive(plan_dir: Path) -> dict:
@@ -308,6 +400,18 @@ def derive(plan_dir: Path) -> dict:
         for leaf in leaves_by_root.get(cur_root, []):
             edges.append({"type": "depends_on", "from": leaf, "to": prev_root})
 
+    # --- required plugin_level_surfaces の build node 射影 (surface_build_projection 宣言時のみ) ---
+    # components[] だけが build/gate を駆動し required surface (manifest/schemas/composition 等) が
+    # builder 未割当で構造的に射影対象外になる片翼を封じる (lesson-surfaces-must-be-builder-assigned)。
+    # 宣言不在の旧 inventory では本ブロックは no-op で従来出力と byte 同一 (graph_hash 不変)。
+    surface_proj = _inventory_surface_projection(plan_dir)
+    if surface_proj is not None:
+        decl, surfaces = surface_proj
+        s_nodes, s_edges = _project_surface_nodes(
+            decl, surfaces, phase_roots[-1] if phase_roots else None)
+        nodes.extend(s_nodes)
+        edges.extend(s_edges)
+
     return {"schema_version": "1.0", "nodes": nodes, "edges": edges}
 
 
@@ -377,7 +481,12 @@ def main(argv: list[str] | None = None) -> int:
     if not plan_dir.is_dir():
         print(f"not a directory: {plan_dir}", file=sys.stderr)
         return 2
-    graph = derive(plan_dir)
+    try:
+        graph = derive(plan_dir)
+    except SurfaceProjectionError as exc:
+        # missing_required_field: projection-fail — 欠落 surface を黙って落とした graph を書かない。
+        print(f"surface projection failed: {exc}", file=sys.stderr)
+        return 1
     out_path = plan_dir / "task-graph.json"
     out_path.write_text(canonical_json(graph) + "\n", encoding="utf-8")
     print(str(out_path))

@@ -1,0 +1,25 @@
+{
+  "target": {"plugin": "extract-system-blueprint", "skill": "assign-blueprint-fidelity-evaluator", "skill_md_sha256": "2f77ac51d19dc5179e4fa25bc922e4e4cc429b01e722a36cabd7eda8727f2e35"},
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "reviewer": "assign-skill-design-evaluator",
+  "reviewed_at": "2026-07-11T19:45:00+09:00",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "境界明確・責務単一: 担当=C01 draft の忠実性判定 (三値排他/被覆/anti-overfit/ペルソナ/逆テスト/低負荷 policy) のみ、非担当=生成 (C01)・修正 (差し戻し)・Notion 公開 (C01 R4)・PASS/FAIL 最終確定 (emit-verdict.py の決定論規則へ移譲) を R1-evaluate L2.1 で明示し、採点者恣意 (Goodhart) を機構で排除。allowed-tools に Write/Edit 不在で改変禁止が permission 層と一致。",
+      "検証可能性: IN1=verify_by:script は deterministic_checks (doc-emit.py/mermaid-validate.py/recount-palette-orphans.py) と一致し、skill-local 2 script の exit code 契約 (recount 0/1/2・emit-verdict 0/1/2) を smoke 実走で確認可能。OUT1=verify_by:evaluator は本 content-review で検証。criteria derived_from が完了チェックリスト CL-1..CL-10 を IN1(CL-6,CL-9)+OUT1(CL-1..5,7,8,10) で漏れ/重複なく全被覆。",
+      "SSOT 規律: 詳細手順は prompts/R1-evaluate.md、採点観点は references/evaluation-rubric.md (CL-1..CL-10 と 1:1)、receipt 構造は schemas/verdict.schema.json を正本とし、SKILL 本文は俯瞰サマリ+局面カタログに限定して二重定義を回避。assign 評価系の『runtime loop 非配線』も goal-seek-paradigm.md (実在) を正本参照。verdict 消費契約 (.esb-verdict 既定+draft_hash 束縛) が C07/C08/C01 R4/C14 の全消費者と単一表記。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "assign-skill-design-evaluator の規範次元 (目的適合/境界明確/検証可能/SSOT規律/責務単一) で SKILL.md+参照先を実読採点。目的適合: proposer≠approver (context:fork) による独立忠実性評価と C08 機械層 gate への draft_hash 束縛 verdict 供給という存在理由が Purpose/Why/ハンドオフで一貫。境界明確: pair=run-extract-blueprint (同一 plugin 内・step7 lint 準拠) との生成/評価分離、C14 への PASS 済 blueprint 受け渡しが双方向で表記一致。検証可能: PASS 必要十分条件が emit-verdict.py decide() の決定論規則として実装され SKILL 完了条件と同方向 (機械層がより fail-closed)。SSOT: kind=assign の一発 read-only 採点でループは C01 側 feedback_contract が回すという役割分担が Gotcha 4 と goal-seek-paradigm 正本で単一定義。frontmatter criteria (IN1/OUT1) が本文 Key Rules/Gotchas/採点フロー/チェックリストへ過不足なく反映され、規範違反は検出されないため PASS。"
+}
