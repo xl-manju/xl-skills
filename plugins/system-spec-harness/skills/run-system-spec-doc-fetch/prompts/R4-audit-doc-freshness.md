@@ -1,4 +1,4 @@
-# R-audit-doc-freshness 責務プロンプト (7層)
+# R4-audit-doc-freshness 責務プロンプト (7層)
 
 > 取得済み公式ドキュメント (C02 `run-system-spec-doc-fetch` が出力した `fetched-references.json`) を独立 context で公式サイトへ再照合し、鮮度・出典を監査する責務本文の SSOT。
 > 起動アダプタ = `../../agents/system-spec-doc-freshness-auditor.md` (C08)。両者の差分は本ファイルを優先する。
@@ -9,7 +9,7 @@
 |---|---|
 | name | audit-doc-freshness |
 | skill | run-system-spec-doc-fetch |
-| responsibility | R-audit-doc-freshness (公式性・現行性の独立read-only監査) |
+| responsibility | R4-audit-doc-freshness (公式性・現行性の独立read-only監査) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | tests/fixture-references-valid.json (verdict/findings 契約) |
 | reproducible | true (同一targets・取得記録・公式照合結果から同一verdictを導出) |

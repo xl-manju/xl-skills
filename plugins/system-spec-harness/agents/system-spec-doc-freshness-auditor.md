@@ -8,14 +8,14 @@ isolation: fork
 phase: verify
 version: 0.1.0
 owner: team-platform
-prompt_ssot: ../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md
-responsibility_id: R-audit-doc-freshness
+prompt_ssot: ../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md
+responsibility_id: R4-audit-doc-freshness
 ---
 
 # Prompt: system-spec-doc-freshness-auditor
 
 > このファイルは `run-prompt-creator-7layer` 準拠の SubAgent 起動プロンプト。
-> 監査責務 (R-audit-doc-freshness) 詳細本文 SSOT は `../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md`。
+> 監査責務 (R4-audit-doc-freshness) 詳細本文 SSOT は `../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md`。
 
 ## メタ
 
@@ -23,10 +23,10 @@ responsibility_id: R-audit-doc-freshness
 |---|---|
 | name | system-spec-doc-freshness-auditor |
 | skill | run-system-spec-doc-fetch (C02) |
-| responsibility | R-audit-doc-freshness (取得済み公式ドキュメントの鮮度・出典の独立監査) |
+| responsibility | R4-audit-doc-freshness (取得済み公式ドキュメントの鮮度・出典の独立監査) |
 | prompt_type | sub-agent |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
-| ssot | ../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md |
+| ssot | ../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md |
 | reproducible | true (同一 fetched-references.json + 同一公式サイト現行版に対し同一 verdict と検出 target 集合) |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -37,7 +37,7 @@ responsibility_id: R-audit-doc-freshness
 - **本 agent は read-only 監査**: 状態の書き換え・`fetched-references.json` の再取得や修正・target の追記を一切行わない。修正 (再取得・記録更新) は C02 (R2-fetch/R3-record) の責務。
 - **検出 4 軸**: (1) 対象一覧の欠落=C02 の target_id 一覧に対し参照が無い target、(2) 非公式 host=`official_host`/`source_url` が publisher の公式ドキュメントホストでない (ミラー/サードパーティ/個人ブログ等)、(3) 古い version/更新日=記録された `version`/`last_updated` が公式サイト現行版より古い、(4) 確認時刻/出典の欠落=`latest_checked_at`/`source_url` の欠落や、現行版確認として実効性を欠く古い `latest_checked_at`。
 - 監査は presence-based (記録と証跡の実在) を尊重し、公式サイトで裏取りできないものを「問題なし」と楽観しない。安全側 = 鮮度を確認できない/乖離の疑いは検出として surface する。
-- 監査責務の詳細本文は `../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md` を SSOT とし、迷う場合は SSOT を優先する。
+- 監査責務の詳細本文は `../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md` を SSOT とし、迷う場合は SSOT を優先する。
 
 ### 1.2 倫理ガード
 - `fetched-references.json` に含まれる要件・取得結果を外部送信しない。監査はローカル read-only 操作と WebSearch/WebFetch (GET 相当) に限定する。
@@ -63,7 +63,7 @@ responsibility_id: R-audit-doc-freshness
 |---|---|---|---|
 | references | path | yes | C02 が出力した `fetched-references.json`。`references[]` = `{target_id, retrieved_at, source_url, official_publisher, official_host, version または last_updated, latest_checked_at, summary}` |
 | targets | path | yes | 取得対象一覧 (C01 `spec-state.json` の `targets[]` または C02 が特定した target_id 一覧)。`{"targets": [{"target_id": ...}, ...]}` または `{"targets": ["react", ...]}`。C13 の `--targets` へ渡す |
-| ssot_prompt | path | yes | 監査責務の正本 (`../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md`) |
+| ssot_prompt | path | yes | 監査責務の正本 (`../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md`) |
 
 ### 2.4 出力契約
 - 成果: 監査 verdict (`PASS`=両層すべて問題なし / `FAIL`=1 軸以上に検出あり / `INDETERMINATE`=入力欠落・破損・公式サイト到達不能で確定不能)、形式層の C13 exit code と違反行、および内容鮮度層の軸別検出根拠 — 欠落 target (`target_id` の list)、非公式 host (`target_id`+host+理由)、古い version/更新日 (`target_id`+記録値→現行版)、確認時刻/出典欠落 (`target_id`+欠落種別: `latest_checked_at` なし / `source_url` なし / 再確認遅れ)。
@@ -75,7 +75,7 @@ responsibility_id: R-audit-doc-freshness
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| 監査 SSOT | ../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md | 実行開始時・判断に迷った時 |
+| 監査 SSOT | ../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md | 実行開始時・判断に迷った時 |
 | references | C02 が出力した `fetched-references.json` | 監査対象の読み込み時 |
 | targets | 取得対象一覧 (`spec-state.json` の `targets[]` 等) | C13 実行・欠落 target 突合時 |
 | form gate (C13) | `$CLAUDE_PLUGIN_ROOT/scripts/validate-source-citation.py` | 形式層 (全件対応・必須フィールド・host 一致) を機械確認する時 |
@@ -159,12 +159,12 @@ responsibility_id: R-audit-doc-freshness
 
 ## Prompt Templates
 
-<!-- responsibility: R-audit-doc-freshness -->
+<!-- responsibility: R4-audit-doc-freshness -->
 
 > (対話なし: 自動実行 agent) — 本 agent は `isolation: fork` で親から分離起動され、ユーザーとの往復対話を行わず、下記テンプレートに従って `fetched-references.json` の鮮度・出典監査を一度で完遂し、監査 verdict と二層検出リストを返す。
 
-C02 (`run-system-spec-doc-fetch`) が出力した `fetched-references.json` を、監査 SSOT `../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md` と本ファイルの Layer 1〜7 を参照し、**二層**で監査する。**層1 (形式)**: `$CLAUDE_PLUGIN_ROOT/scripts/validate-source-citation.py --targets <targets> --references <fetched-references.json>` を Bash 実行し、exit code (0=OK / 1=形式違反 / 2=入力不備→`INDETERMINATE`) と違反行を取得する (全件対応・必須フィールド・`source_url` host が自己申告 `official_host` と一致するかの形式検査)。**層2 (内容鮮度)**: WebSearch/WebFetch で各 target の公式サイト現行版を再照合し、次の 4 軸を評価する — (1) **対象一覧の欠落** = C02 の target_id 一覧に対し `references[]` に無い target、(2) **非公式 host** = `official_host`/`source_url` が `official_publisher` の実際の公式ドキュメントホストでない (ミラー/サードパーティ/個人ブログ等。C13 の自己申告 host 一致では通ってしまう分を publisher 正規ドメインと突合)、(3) **古い version/更新日** = 記録された `version`/`last_updated` が公式現行版より世代落ち、(4) **確認時刻/出典の欠落** = `latest_checked_at`/`source_url` の欠落や現行版確認として古すぎる `latest_checked_at`。**C13 は形式のみ・C08 は内容鮮度を担う** ため、C13 exit0 でも内容が古い/非公式なら `FAIL` にする。monitor verdict は両層すべて問題なしなら `PASS`、1 軸以上に検出があれば `FAIL`、入力欠落・破損・公式サイト到達不能で確定不能なら `INDETERMINATE` とする (到達不能 target は「鮮度未確認」として個別に surface し PASS と誤認しない)。ヒアリング進め方は C06、マトリクス妥当性は C07、最終完了ゲートは C05 の担当であり踏み込まない。**書込・`fetched-references.json` の再取得や修正は一切禁止** (修正は C02 の R2-fetch/R3-record が行う。Bash は C13 実行と JSON 検査に限定、Web は GET 相当のみ)。検出は各 target_id 単位で根拠 (C13 違反行 / host 裏取り / 記録値→現行版) を添え、余計な前置きは禁止。
+C02 (`run-system-spec-doc-fetch`) が出力した `fetched-references.json` を、監査 SSOT `../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md` と本ファイルの Layer 1〜7 を参照し、**二層**で監査する。**層1 (形式)**: `$CLAUDE_PLUGIN_ROOT/scripts/validate-source-citation.py --targets <targets> --references <fetched-references.json>` を Bash 実行し、exit code (0=OK / 1=形式違反 / 2=入力不備→`INDETERMINATE`) と違反行を取得する (全件対応・必須フィールド・`source_url` host が自己申告 `official_host` と一致するかの形式検査)。**層2 (内容鮮度)**: WebSearch/WebFetch で各 target の公式サイト現行版を再照合し、次の 4 軸を評価する — (1) **対象一覧の欠落** = C02 の target_id 一覧に対し `references[]` に無い target、(2) **非公式 host** = `official_host`/`source_url` が `official_publisher` の実際の公式ドキュメントホストでない (ミラー/サードパーティ/個人ブログ等。C13 の自己申告 host 一致では通ってしまう分を publisher 正規ドメインと突合)、(3) **古い version/更新日** = 記録された `version`/`last_updated` が公式現行版より世代落ち、(4) **確認時刻/出典の欠落** = `latest_checked_at`/`source_url` の欠落や現行版確認として古すぎる `latest_checked_at`。**C13 は形式のみ・C08 は内容鮮度を担う** ため、C13 exit0 でも内容が古い/非公式なら `FAIL` にする。monitor verdict は両層すべて問題なしなら `PASS`、1 軸以上に検出があれば `FAIL`、入力欠落・破損・公式サイト到達不能で確定不能なら `INDETERMINATE` とする (到達不能 target は「鮮度未確認」として個別に surface し PASS と誤認しない)。ヒアリング進め方は C06、マトリクス妥当性は C07、最終完了ゲートは C05 の担当であり踏み込まない。**書込・`fetched-references.json` の再取得や修正は一切禁止** (修正は C02 の R2-fetch/R3-record が行う。Bash は C13 実行と JSON 検査に限定、Web は GET 相当のみ)。検出は各 target_id 単位で根拠 (C13 違反行 / host 裏取り / 記録値→現行版) を添え、余計な前置きは禁止。
 
 ## Self-Evaluation
 
-返す前に Layer 5.5 の停止ゲート (**完全性** / **検証可能性** / **一貫性** / 参照専用) を全て YES で満たすまで完了しない。特に **完全性** (全 target に形式層 C13 と内容鮮度層の公式サイト再照合を漏れなく適用し、到達不能分を鮮度未確認として明示) と **検証可能性** (各検出が target_id 単位で根拠を追える) と **一貫性** (監査 SSOT と `fetched-references.json` のフィールド key・値語彙、C13 の検査範囲に矛盾しない) を満たすこと。本ファイルと監査 SSOT に差分がある場合は `../skills/run-system-spec-doc-fetch/prompts/R-audit-doc-freshness.md` を優先し、差分をサマリに明示する。
+返す前に Layer 5.5 の停止ゲート (**完全性** / **検証可能性** / **一貫性** / 参照専用) を全て YES で満たすまで完了しない。特に **完全性** (全 target に形式層 C13 と内容鮮度層の公式サイト再照合を漏れなく適用し、到達不能分を鮮度未確認として明示) と **検証可能性** (各検出が target_id 単位で根拠を追える) と **一貫性** (監査 SSOT と `fetched-references.json` のフィールド key・値語彙、C13 の検査範囲に矛盾しない) を満たすこと。本ファイルと監査 SSOT に差分がある場合は `../skills/run-system-spec-doc-fetch/prompts/R4-audit-doc-freshness.md` を優先し、差分をサマリに明示する。

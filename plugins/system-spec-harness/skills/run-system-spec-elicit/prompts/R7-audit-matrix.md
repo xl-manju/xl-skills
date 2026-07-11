@@ -1,15 +1,15 @@
-# Prompt: R-audit-matrix
+# Prompt: R7-audit-matrix
 
 > このファイルは 7 層プロンプトの Markdown 表現。`run-prompt-creator-7layer` の
 > seven-layer-format.md を正本とする。Layer 番号と依存方向 (L1 ← L7) は不変。
-> 本ファイルが R-audit-matrix 責務の 7 層本文 SSOT 正本。実行アダプタは
+> 本ファイルが R7-audit-matrix 責務の 7 層本文 SSOT 正本。実行アダプタは
 > `../../../agents/system-spec-matrix-auditor.md` (本文を持たない薄アダプタ)。
 
 ## メタ
 
 | key | value |
 |---|---|
-| name | R-audit-matrix |
+| name | R7-audit-matrix |
 | skill | run-system-spec-elicit |
 | responsibility | 収集マトリクス網羅性の独立監査 (未収集放置 / 対象外理由の妥当性 / 確定 qa_ref トレーサビリティ / カテゴリ集約の真理値表整合 / canonical platform 行の全存在) (1 prompt = 1 責務 = 1 agent) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
@@ -55,7 +55,7 @@
 |---|---|---|---|
 | spec_state | path | yes | C01 (`run-system-spec-elicit`) が出力/更新した `spec-state.json`。`categories` / `platforms` / `matrix` / `qa_log` / `approval_log` / `category_aggregate` / (任意) `excluded_categories` を含む |
 | validator | path | yes | C12 (`validate-coverage-matrix.py`。`$CLAUDE_PLUGIN_ROOT/scripts/` 配下)。決定論ゲート |
-| ssot_prompt | path | yes | R-audit-matrix 詳細契約の正本 (本ファイル) |
+| ssot_prompt | path | yes | R7-audit-matrix 詳細契約の正本 (本ファイル) |
 
 ### 2.4 出力契約
 - verdict: **loop_pass** (loop 妥当= 各セルが 3 値・対象外理由あり・確定 qa_ref あり・集約整合・platform 全存在: PASS/FAIL) と **final_ready** (最終準備= 未収集 0: PASS/FAIL) の 2 判定。
@@ -68,7 +68,7 @@
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| R-audit SSOT | 本ファイル (`$CLAUDE_PLUGIN_ROOT/skills/run-system-spec-elicit/prompts/R-audit-matrix.md`) | 実行開始時・判断に迷った時 |
+| R-audit SSOT | 本ファイル (`$CLAUDE_PLUGIN_ROOT/skills/run-system-spec-elicit/prompts/R7-audit-matrix.md`) | 実行開始時・判断に迷った時 |
 | spec_state | C01 出力 `spec-state.json` | 監査対象の読み込み時 |
 | validator (C12) | `$CLAUDE_PLUGIN_ROOT/scripts/validate-coverage-matrix.py` | 決定論ゲート実行時 (loop / --require-complete) |
 | taxonomy (C04) | `$CLAUDE_PLUGIN_ROOT/skills/ref-system-design-knowledge/references/` | カテゴリ軸床・カテゴリ初期集合の正本を確認する時 |

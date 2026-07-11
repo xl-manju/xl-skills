@@ -1,4 +1,4 @@
-# R-audit-hearing 責務プロンプト (7層)
+# R6-audit-hearing 責務プロンプト (7層)
 
 > 往復ヒアリング (C01 `run-system-spec-elicit`) の質問設計と回答反映を独立 context で監査する責務本文の SSOT。
 > 起動アダプタ = `$CLAUDE_PLUGIN_ROOT/agents/system-spec-hearing-auditor.md` (C06)。両者の差分は本ファイルを優先する。
@@ -9,7 +9,7 @@
 |---|---|
 | name | audit-hearing |
 | skill | run-system-spec-elicit |
-| responsibility | R-audit-hearing (聞き漏れ・誘導・早期停止・根拠切れ・上位概念遡及性の独立監査) |
+| responsibility | R6-audit-hearing (聞き漏れ・誘導・早期停止・根拠切れ・上位概念遡及性の独立監査) |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
 | output_schema | references/spec-state-contract.md (verdict/findings 契約) |
 | reproducible | true (同一spec-stateと同一監査基準から同一判定を導出) |

@@ -13,7 +13,7 @@ source-tier: internal
 last-audited: 2026-07-11
 audit-trigger: official-update
 responsibility_refs:
-  - prompts/ref-system-design-knowledge.md
+  - prompts/R1-system-design-knowledge.md
 allowed-tools:
   - Read
 ---
@@ -55,4 +55,4 @@ allowed-tools:
 
 ## 責務プロンプト
 
-- `prompts/ref-system-design-knowledge.md` — 参照要求カテゴリを受けて該当 references を案内する 7 層責務プロンプト。
+- `prompts/R1-system-design-knowledge.md` — 参照要求カテゴリを受けて該当 references を案内する 7 層責務プロンプト。

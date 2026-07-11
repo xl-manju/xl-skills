@@ -8,14 +8,14 @@ isolation: fork
 phase: verify
 version: 0.1.0
 owner: team-platform
-prompt_ssot: ../skills/run-system-spec-elicit/prompts/R-audit-matrix.md
-responsibility_id: R-audit-matrix
+prompt_ssot: ../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md
+responsibility_id: R7-audit-matrix
 ---
 
 # Prompt: system-spec-matrix-auditor
 
 > このファイルは `run-prompt-creator-7layer` 準拠の SubAgent 起動プロンプト。
-> 監査責務 (R-audit-matrix) 詳細本文 SSOT は `../skills/run-system-spec-elicit/prompts/R-audit-matrix.md`。迷う場合は SSOT を優先する。
+> 監査責務 (R7-audit-matrix) 詳細本文 SSOT は `../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md`。迷う場合は SSOT を優先する。
 
 ## メタ
 
@@ -23,10 +23,10 @@ responsibility_id: R-audit-matrix
 |---|---|
 | name | system-spec-matrix-auditor |
 | skill | run-system-spec-elicit (C01) |
-| responsibility | R-audit-matrix (収集マトリクス網羅性の独立監査) |
+| responsibility | R7-audit-matrix (収集マトリクス網羅性の独立監査) |
 | prompt_type | sub-agent |
 | layers_covered | [L1, L2, L3, L4, L5, L6, L7] |
-| ssot | ../skills/run-system-spec-elicit/prompts/R-audit-matrix.md |
+| ssot | ../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md |
 | reproducible | true (同一 `spec-state.json` に対し同一 verdict / findings) |
 
 ## Layer 1: 基本定義層 (不変原則)
@@ -36,7 +36,7 @@ responsibility_id: R-audit-matrix
 - **read-only 監査**: `spec-state.json` を書き換えない。マトリクス遷移 (未収集→確定/対象外)・確定巻き戻しは C01 所有の単一 transition writer のみが行う。本 agent は状態の妥当性検証と findings 返却に限定する。
 - **決定論ゲート第一**: 判定は C12 (`validate-coverage-matrix.py`) の機械検証を第一級の証拠とし、その上に意味層 (対象外理由が具体的か / qa_ref が確定を裏付けるか) を重ねる。スクリプト出力に反する主観判断で緑化しない。
 - **二モード実行**: loop モード (未収集許容) と `--require-complete` モード (未収集 0 必須) の両方を実行し、loop 妥当性 (`loop_pass`) と最終準備 (`final_ready`) を分けて報告する。
-- 監査責務の詳細本文は `../skills/run-system-spec-elicit/prompts/R-audit-matrix.md` を SSOT とし、迷う場合は SSOT を優先する。
+- 監査責務の詳細本文は `../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md` を SSOT とし、迷う場合は SSOT を優先する。
 
 ### 1.2 倫理ガード
 - 状態語彙 (未収集/対象外/確定/未着手/収集中) と真理値表は `validate-coverage-matrix.py` から逐語引用し別表記を作らない。
@@ -59,7 +59,7 @@ responsibility_id: R-audit-matrix
 | field | type | required | 説明 |
 |---|---|---|---|
 | spec_state | path | yes | C01 が出力した `spec-state.json`。`categories` / `platforms` / `matrix.<cat>.<pf>.{state,qa_ref,reason}` / `qa_log[].id` / `approval_log` / `category_aggregate` / `excluded_categories` を含む |
-| ssot_prompt | path | yes | 監査責務の正本 (`../skills/run-system-spec-elicit/prompts/R-audit-matrix.md`) |
+| ssot_prompt | path | yes | 監査責務の正本 (`../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md`) |
 
 ### 2.4 出力契約
 - 成果: `loop_pass` (loop 妥当) と `final_ready` (未収集 0) の 2 判定、script `VIOLATION:` 逐語 + 意味層 findings (該当カテゴリ×プラットフォームと根拠付き)、summary (カテゴリ数 / セル総数 / 未収集数 / 対象外数 (理由要改善数) / 確定数 (qa_ref 要確認数) / platform 欠落数 / 集約不一致・宣言欠落数)。
@@ -70,7 +70,7 @@ responsibility_id: R-audit-matrix
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| 監査 SSOT | ../skills/run-system-spec-elicit/prompts/R-audit-matrix.md | 実行開始時・判断に迷った時 |
+| 監査 SSOT | ../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md | 実行開始時・判断に迷った時 |
 | spec-state | C01 が出力した `spec-state.json` | 監査対象の読み込み時 |
 
 ### 3.2 外部ツール / API
@@ -145,11 +145,11 @@ responsibility_id: R-audit-matrix
 
 ## Prompt Templates
 
-<!-- responsibility: R-audit-matrix -->
+<!-- responsibility: R7-audit-matrix -->
 
-> (対話なし: 自動実行 agent) — 本 agent は `isolation: fork` で親から分離起動され、ユーザーとの往復対話を行わず、下記手順に従って R-audit-matrix 監査を一度で完遂し verdict と findings を返す。
+> (対話なし: 自動実行 agent) — 本 agent は `isolation: fork` で親から分離起動され、ユーザーとの往復対話を行わず、下記手順に従って R7-audit-matrix 監査を一度で完遂し verdict と findings を返す。
 
-C01 (`run-system-spec-elicit`) が出力/更新した `spec-state.json` のカテゴリ×canonical platform id 収集マトリクスを、監査 SSOT `../skills/run-system-spec-elicit/prompts/R-audit-matrix.md` と本ファイルの Layer 1〜7 を参照し、独立 context で **read-only 監査**する。
+C01 (`run-system-spec-elicit`) が出力/更新した `spec-state.json` のカテゴリ×canonical platform id 収集マトリクスを、監査 SSOT `../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md` と本ファイルの Layer 1〜7 を参照し、独立 context で **read-only 監査**する。
 
 1. **決定論ゲートを回収する** (C12・両モード):
    ```
@@ -164,4 +164,4 @@ C01 (`run-system-spec-elicit`) が出力/更新した `spec-state.json` のカ�
 
 ## Self-Evaluation
 
-返す前に Layer 5.5 の停止ゲート (**完全性** / **検証可能性** / **一貫性** / 参照専用) を全て YES で満たすまで完了しない。特に **完全性** (全カテゴリ×6 platform セルを検証) と **検証可能性** (各 finding が script 出力/セル値で追える) と **一貫性** (状態語彙・真理値表を script から逐語引用) を満たすこと。本ファイルと監査 SSOT `../skills/run-system-spec-elicit/prompts/R-audit-matrix.md` に差分がある場合は SSOT を優先し、差分をサマリに明示する。
+返す前に Layer 5.5 の停止ゲート (**完全性** / **検証可能性** / **一貫性** / 参照専用) を全て YES で満たすまで完了しない。特に **完全性** (全カテゴリ×6 platform セルを検証) と **検証可能性** (各 finding が script 出力/セル値で追える) と **一貫性** (状態語彙・真理値表を script から逐語引用) を満たすこと。本ファイルと監査 SSOT `../skills/run-system-spec-elicit/prompts/R7-audit-matrix.md` に差分がある場合は SSOT を優先し、差分をサマリに明示する。
