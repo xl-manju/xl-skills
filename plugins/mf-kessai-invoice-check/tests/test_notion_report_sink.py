@@ -645,6 +645,53 @@ def test_same_severity_action_collapse_merges_comments():
     assert "C1" in merged["comment"] and "C2" in merged["comment"]
 
 
+def test_action_action_collapse_preserves_prev_amount_symmetrically():
+    """K-PREV 回帰: 要対応×要対応マージも今月金額と対称に先月金額の非 None を優先継承する。"""
+    a = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C1",
+         "comment": "漏れ甲", "prev_amount": None}
+    b = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C2",
+         "comment": "漏れ乙", "prev_amount": 30000}
+    merged = sink._prefer_action(a, b)
+    assert sink._amount(merged, "prev_amount", "先月の金額") == 30000
+
+
+def test_normal_normal_collapse_sums_prev_amount_symmetrically():
+    """K-PREV 回帰: 正常×正常マージも今月金額の合算と対称に先月金額を合算保全する。"""
+    a = {"gap_check": "正常", "customer": "A社", "product": "P",
+         "amount": 100000, "prev_amount": 60000, "comment": "甲"}
+    b = {"gap_check": "正常", "customer": "A社", "product": "P",
+         "amount": 50000, "prev_amount": 40000, "comment": "乙"}
+    merged = sink._prefer_action(a, b)
+    assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 150000
+    assert sink._amount(merged, "prev_amount", "先月の金額") == 100000
+
+
+def test_action_action_collapse_sums_amount_when_both_have_own_amount():
+    """K-SUM 回帰 (ユーザー実運用報告2026-07-10・近代プラント/OWB/マルワ/ミラタップ/京浜貿易/
+    野嵩商会/マスヤ 等の「新規/年→月切替」複数契約 collapse): 要対応×要対応の両者が別契約の
+    自己実額 (55000円 + 55000円) を持つとき、従来は base 側だけ残し other 側を無言で捨てて
+    実額110,000円のところ55,000円のみ表示していた。正常×正常 (_merge_issued_amounts) と対称に
+    Σ合算し、severity=要対応は保持したまま金額の過少表示を防ぐ。"""
+    a = {"gap_check": "要対応", "customer": "近代プラント", "product": "P", "contract_id": "C1",
+         "comment": "新規/年→月切替", "amount": 55000, "prev_amount": None}
+    b = {"gap_check": "要対応", "customer": "近代プラント", "product": "P", "contract_id": "C2",
+         "comment": "新規/年→月切替", "amount": 55000, "prev_amount": None}
+    for merged in (sink._prefer_action(a, b), sink._prefer_action(b, a)):
+        assert sink._severity_rank(merged) == 1, "要対応 severity を保持"
+        assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 110000, \
+            "両契約の自己実額を Σ合算し過少表示を防ぐ (順序非依存)"
+
+
+def test_action_action_collapse_sums_prev_amount_when_both_have_own_prev_amount():
+    """K-SUM 回帰: 先月実額も今月と対称に両者非 None なら Σ合算する。"""
+    a = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C1",
+         "comment": "甲", "prev_amount": 30000}
+    b = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C2",
+         "comment": "乙", "prev_amount": 40000}
+    merged = sink._prefer_action(a, b)
+    assert sink._amount(merged, "prev_amount", "先月の金額") == 70000
+
+
 # ---------------------------------------------------------------------------
 # C03 (要因C5 sink側): collapse 発行済み実額保全 ∧ 漏れ隠蔽なし
 # ---------------------------------------------------------------------------
