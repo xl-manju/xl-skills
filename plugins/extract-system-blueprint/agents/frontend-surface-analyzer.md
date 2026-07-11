@@ -1,6 +1,6 @@
 ---
 name: frontend-surface-analyzer
-description: 参考システムの公開URLからフロント表層を静的 HTTP (WebFetch + C09 fetch-snapshot.py) と browser-render (C15・MCP 非依存の headless Chrome を Bash 経由 CLI で起動) で低負荷観測し、content/tech_signals/nonfunctional/機能アフォーダンス/security(header・静的)/compliance/サイト被覆の観測 fact と欠測を独立 context で抽出したいときに使う。JS 実行後 DOM・viewport screenshot・(取得できた範囲の) computed/rendered visual formation (色/幾何/typography) は browser-render 経由で取得を試み、ブラウザ不在 (browser-render exit 3=browser-unavailable) 時のみ observation_gap として記録する (inference は生成しない)。
+description: 参考システムの公開URLからフロント表層を静的 HTTP (WebFetch + C09 fetch-snapshot) と browser-render (C15・MCP 非依存の headless Chrome) で低負荷観測し、content・tech_signals・機能アフォーダンス・security・compliance・サイト被覆の観測 fact と欠測、及び browser-render 取得時の JS 後 DOM・screenshot・computed visual formation を独立 context で抽出したいときに使う。
 kind: agent
 version: 0.2.0
 owner: xl-skills maintainers

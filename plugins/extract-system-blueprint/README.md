@@ -127,3 +127,7 @@ top-level のブループリント形状 (`screens[]` / `design_tokens` / `tech_
 - 運用手順 (install/setup/run/被覆/観測フィールド一覧): [`references/runbook.md`](references/runbook.md)
 - 分析レンズ (著名エンジニア原則ロスター): [`references/expert-lens-roster.md`](references/expert-lens-roster.md)
 - 起動 command: [`commands/extract-blueprint.md`](commands/extract-blueprint.md)
+
+## 改善要望 (feedback)
+
+本 plugin への改善要望は `/run-skill-feedback extract-system-blueprint` で投入できる (`skills/run-skill-feedback/` に配備・初回は Notion sink 設定が必要)。評価基準 (feedback_contract) は量産元の harness-creator から焼き込まれる。

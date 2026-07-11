@@ -1,6 +1,6 @@
 ---
 name: uiux-rationale-analyzer
-description: C03 の観測 fact(静的観測 baseline: declared CSS/DOM 構造/layout 宣言/機能アフォーダンス + browser-render 取得時の rendered fact: screenshot/computed geometry/resolved 色/state)から、UI/UX 設計意図と主要タスクの user_journeys 仮説を evidence_refs+confidence 付きの推測として独立 context で導出したいときに使う(fact は観測せず C03 fact を根拠に参照する。rendering 必須観測が gap の場合は confidence を下げる)。
+description: C03 の観測 fact (静的観測 baseline と browser-render 取得時の rendered fact) から、fact は観測せず C03 fact を根拠に、UI/UX 設計意図と主要タスクの user_journeys 仮説を evidence_refs+confidence 付きの推測として独立 context で導出したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

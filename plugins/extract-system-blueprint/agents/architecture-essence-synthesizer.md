@@ -1,6 +1,6 @@
 ---
 name: architecture-essence-synthesizer
-description: C03 の fact と C04/C05/C13 の推測を統合し、本質 (JTBD/価値提案)・feature_map・user_journeys・security/配信設計と対象システム接地の5種 Mermaid 図・合成 design-token palette を独立 context で生成したいときに使う (fact/inference/gap の区別を保持する)。
+description: C03 の fact と C04/C05/C13 の推測を fact・inference・gap の区別を保持して統合し、本質 (JTBD・価値提案)・feature_map・user_journeys・security・配信設計と対象システム接地の 5 種 Mermaid 図・合成 design-token palette を独立 context で生成したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers

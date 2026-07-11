@@ -1,6 +1,6 @@
 ---
 name: backend-inference-analyzer
-description: C03 のフロント表層 fact から、想定バックエンド機構・技術スタックの named 同定・security 設計 (OWASP 受動)・delivery topology を根拠+確度つき推測として独立 context で導出し、事実と明示区別して記録したいときに使う (fact は生成しない)。
+description: C03 のフロント表層 fact から、fact は生成せず事実と明示区別しつつ、想定バックエンド機構・技術スタックの named 同定・security 設計 (OWASP 受動)・delivery topology を根拠+確度つき推測として独立 context で導出したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers
