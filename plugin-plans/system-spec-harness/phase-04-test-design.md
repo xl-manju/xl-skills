@@ -41,11 +41,16 @@ TDD の Red を先に立てることで、実装が「何を満たせば完了�
 
 ## 完了チェックリスト
 - [ ] 3 skill の criteria が purpose 由来で inner/outer を各 1 件以上持つ (汎用ゲート言い換えに退化していない)。
-- [ ] C01 は「往復ヒアリングでマトリクス全セルが確定/対象外理由付きで埋まる」、C02 は「対象ツール/インフラごとに最新ドキュメントの取得日時と参照元が記録される」、C03 は「仕様書ドキュメントセットがマトリクス確定状態と出典を含む」を outer criterion に持つ。
+- [ ] C01 は「canonical platform id 6種の全セルが確定/対象外理由付きで埋まる」ことに加え、6周超 fixture で5周目の状態保存→resumeを検証する。C02 は「対象 target_id 全件が公式host/versionまたは更新日/取得・確認時刻/参照元を持ち、C08が公式サイトの現行版と再照合する」、C03 は「仕様書ドキュメントセットがマトリクス確定状態と出典を含む」を outer criterion に持つ。
+- [ ] foundationはU1-U9が値または明示N/A理由で揃わなければconfirmedを拒否し、goal-objective-intent traceのdanglingを負例で検出する。
+- [ ] `needs_guidance` fixtureが2〜3案、無料/低コスト案、最新確認時刻/公式出典、goal fit/TCO/security/operations/lock-in、AI推奨理由/注意点を持ち、ユーザー確認前のconfirmedを拒否する。
+- [ ] C04 depth testがpointer-only referenceをFAILし、seed外knowledge candidateのdiscover/qualify/deepen lifecycleを再現する。
+- [ ] 全promptがprompt-creator validatorをPASSし、legacy `Layer5: 手順層` を負例でFAILにする。
+- [ ] C11 は Write/Edit/Bash のhook負例を持ち、protected path/spec-stateを参照するBashと曖昧な動的書換をfail-closedで拒否する。C01/C03の単一writer/transition gateの負例も別に持つ。
 - [ ] 実装前は criteria が未達 (Red) であることが確認できる。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: C01 の outer criterion が「往復ヒアリングでカテゴリ×プラットフォームマトリクスの全セルが確定または対象外理由付きで埋まる」と goal 語彙で書かれ、verify_by=test を持つ。
+- 満たす例: C01 の outer criterion が「6周超fixtureで5周目に未完了状態とnext_questionを保存し、resume後にcanonical platform id全セルが確定または対象外理由付きで埋まる」と goal 語彙で書かれ、verify_by=test を持つ。C02 は非公式host・target_id欠落・旧versionをそれぞれFAILにする。
 - 満たさない例: criterion が「lint が exit0」「C1-C4 が PASS」だけの汎用ゲート言い換えに退化し、purpose 語彙 (マトリクス/出典/章立て) を一度も参照しない。
 
 ### 事前解決済み判断

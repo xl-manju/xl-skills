@@ -40,16 +40,20 @@ applicability:
 - 受入観点の新規発明 (正本は `goal-spec.purpose`・ここでは判定のみ)。
 
 ## 完了チェックリスト
-- [ ] C01: 往復ヒアリング後にカテゴリ×プラットフォームマトリクスの全セルが確定/対象外理由付きで埋まっていると判定できる。
-- [ ] C02: 対象ツール/インフラ/フレームワークの最新公式ドキュメントに取得日時と参照元が記録されていると判定できる。
+- [ ] C01: 6周超fixtureで5周目に未完了状態+next_questionが保存され、resume後にカテゴリ×canonical platform id 6種の全セルが確定/対象外理由付きで埋まっていると判定できる。
+- [ ] C02/C13/C08: 対象target_id全件が公式publisher/host、versionまたはlast_updated、retrieved_at/latest_checked_at、参照元を持ち、C08の公式サイト再照合で現行版と判定できる。
 - [ ] C03/C05: 生成された仕様書ドキュメントセットが章立て複数 Markdown+index の形式でマトリクス確定状態・設計知識反映・出典を含み、独立評価が合格と判定できる。
-- [ ] C11: 確定済み章の上書きが hook で fail-closed に阻まれると判定できる。
-- [ ] C11: 非対象パス (仕様章以外) への Write|Edit は exit0 で即通過し誤爆しない。
+- [ ] C11: 確定済み章へのWrite/Edit、protected path/spec-state参照Bash、曖昧な動的Bash書換がhookでfail-closedに阻まれ、C01/C03単一writer/transition gateも直接巻き戻しを拒否すると判定できる。
+- [ ] C11: 非対象パス (仕様章以外) への Write|Edit と明らかなread-only Bashは exit0 で即通過し誤爆しない。
 - [ ] C05 評価は /spec-compile (C10) 完了後に自動連鎖して起動する。
 - [ ] 残り component の output_contract が満たされ受入テストが二値で PASS している。
+- [ ] C01/C12/C03: U1-U9が値または明示N/A理由で確定し、具体意図/確定セル/生成章のgoal traceがdanglingなし。
+- [ ] C01 R5/C02/C13: needs_guidanceから最新公式根拠付き2〜3案（無料/低コスト案を含む）を比較し、AI推奨理由/注意点/confidenceを提示するがユーザー確認前はconfirmedにしない。
+- [ ] C04/C05: seed外knowledge candidateを扱え、全curated referenceがdeep knowledge contractを満たしpointer-only資産を拒否する。
+- [ ] 全prompt: prompt-creator `verify-completeness.py`/`validate-prompt.py`と独立C1-C4 design reviewがPASSする。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: サンプルヒアリング応答セット (C01 所有 fixture) 投入後、マトリクスの未収集セル 0 + 対象外理由付与を validate-coverage-matrix.py の exit0 で判定できる。
+- 満たす例: 6周超のサンプルヒアリング応答セット投入後、5周目のresume tokenを経てマトリクスの未収集セル0 + 対象外理由付与を判定でき、citation fixtureの非公式host/旧version/target欠落はそれぞれFAILになる。
 - 満たさない例: lint/coverage が緑であることを根拠に AC を PASS 扱いする (品質ゲートと受入の混同) / 判定にスコアの中間値を許し二値にならない。
 
 ### 事前解決済み判断

@@ -27,13 +27,16 @@ DB・認証からUI-UX・セキュリティ・インフラ・バックエンド�
 - このフェーズは特定 component へ紐づかない (責務は goal-spec 確定・target_plugin_slug 固定)。
 
 ## ドメイン知識
-- 網羅マトリクス = システム構成カテゴリ×対象プラットフォームの全マスが「未収集/対象外/確定」のいずれかで埋まっている状態 (本 plan の goal 中核語・goal-spec C7 の実体)。
+- 網羅マトリクス = システム構成カテゴリ×canonical platform id (`web`/`mobile`/`tablet`/`desktop-windows`/`desktop-linux`/`desktop-macos`) の全マスが「未収集/対象外/確定」のいずれかで埋まっている状態 (本 plan の goal 中核語・goal-spec C7 の実体)。カテゴリ表示4値はセル状態の真理値表から導出する。
 - カテゴリ例示原則: DB/認証/UI-UX/セキュリティ/インフラ/バックエンド/フロントエンド/保守運用管理は「一例」であり、個別カテゴリの固定列挙ではなくマトリクス機構自体が要件。
 - goal-spec は全 goal-seek 周回で不変のアンカー (target_plugin_slug/plan_dir を含め以降のフェーズが書き換えない)。
+- 未決定事項は不足回答として再質問するだけでなく `needs_guidance` として扱う。最新公式根拠付き2〜3案（無料/低コスト案を含む）を目的適合で比較し、AI推奨はユーザー確認待ちにする。
+- 設計知識の列挙はseed exampleであり上限ではない。referenceの価値は名称や要点ではなく、目的・背景・解決問題・適用/非適用・trade-off・goalへの寄与まで説明できる深度で判定する。
+- 全responsibility promptはprompt-creator C1-C4/L5契約を受入対象とし、7層の見出し存在だけでPASSにしない。
 - その他の plan 全体用語 (component_kind 等) は index `## ドメイン知識` を参照。
 
 ## 成果物
-- `goal-spec.json` (purpose/background/goal/checklist(C1-C8)/constraints/handoff_targets/open_questions)。
+- `goal-spec.json` (purpose/background/goal/checklist(C1-C12)/constraints/handoff_targets/open_questions)。
 - target_plugin_slug=`system-spec-harness` と plan_dir=`plugin-plans/system-spec-harness` の確定値。
 
 ## スコープ外
@@ -42,12 +45,13 @@ DB・認証からUI-UX・セキュリティ・インフラ・バックエンド�
 - 実装・build (P05 と後段 builder の責務)。
 
 ## 完了チェックリスト
-- [ ] `goal-spec.json` が purpose を非空で保持し、受入観点 (C1-C8) が purpose 語彙から導出されている。
+- [ ] `goal-spec.json` が purpose を非空で保持し、受入観点 (C1-C12) が purpose 語彙から導出されている。
 - [ ] target_plugin_slug が ASCII kebab (`system-spec-harness`) で確定し以降のフェーズがそれを参照できる。
 - [ ] `check-plugin-goal-spec.py` が exit0 (R1 goal-spec + plugin 固有アンカー充足)。
+- [ ] goal-spec C9-C12 が上位概念、AI意思決定支援、open-world深い知識、prompt-creator準拠をそれぞれ独立criterionとして宣言する。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: goal-spec.json の checklist が C1-C8 の 8 件で、C7 が「カテゴリ×プラットフォーム収集マトリクスの全マス検証」を verify_by=script で宣言し、constraints に desktop の内訳 (Windows/Linux/macOS) が明記されている。
+- 満たす例: goal-spec.json の checklist が C1-C12 を持ち、C7のマトリクス、C9の上位概念、C10の意思決定支援、C11のdeep/open-world knowledge、C12のprompt品質が独立criterionとして明記されている。
 - 満たさない例: purpose が構想文の要約に留まり、対象プラットフォームの内訳が constraints に現れない / カテゴリ列挙が固定要件として書かれマトリクス機構 (C7) が欠落している。
 
 ### 事前解決済み判断

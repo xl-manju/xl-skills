@@ -42,21 +42,6 @@
       "status": "planned"
     },
     {
-      "id": "C11",
-      "component_kind": "hook",
-      "name": "guard-confirmed-chapter-overwrite",
-      "spec": "phase-05-implementation.md",
-      "depends_on": [],
-      "builder": "run-build-skill",
-      "build_kind": "hook",
-      "build_args": {
-        "kind": "hook",
-        "name": "guard-confirmed-chapter-overwrite"
-      },
-      "build_target": "plugins/system-spec-harness/hooks/guard-confirmed-chapter-overwrite.py",
-      "status": "planned"
-    },
-    {
       "id": "C04",
       "component_kind": "skill",
       "name": "ref-system-design-knowledge",
@@ -77,7 +62,7 @@
       "component_kind": "skill",
       "name": "run-system-spec-elicit",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C12"],
+      "depends_on": ["C04", "C12"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -89,11 +74,26 @@
       "status": "planned"
     },
     {
+      "id": "C11",
+      "component_kind": "hook",
+      "name": "guard-confirmed-chapter-overwrite",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C01"],
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "build_args": {
+        "kind": "hook",
+        "name": "guard-confirmed-chapter-overwrite"
+      },
+      "build_target": "plugins/system-spec-harness/hooks/guard-confirmed-chapter-overwrite.py",
+      "status": "planned"
+    },
+    {
       "id": "C02",
       "component_kind": "skill",
       "name": "run-system-spec-doc-fetch",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C13"],
+      "depends_on": ["C01", "C13"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -118,22 +118,6 @@
         "brief_path": "briefs/skill-brief-C03.json"
       },
       "build_target": "plugins/system-spec-harness/skills/run-system-spec-compile/",
-      "status": "planned"
-    },
-    {
-      "id": "C05",
-      "component_kind": "skill",
-      "name": "assign-system-spec-completeness-evaluator",
-      "spec": "phase-05-implementation.md",
-      "depends_on": ["C01", "C02", "C03", "C12"],
-      "builder": "run-skill-create",
-      "build_kind": "skill",
-      "build_args": {
-        "skill_name": "assign-system-spec-completeness-evaluator",
-        "kind": "assign",
-        "brief_path": "briefs/skill-brief-C05.json"
-      },
-      "build_target": "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/",
       "status": "planned"
     },
     {
@@ -182,6 +166,22 @@
       "status": "planned"
     },
     {
+      "id": "C05",
+      "component_kind": "skill",
+      "name": "assign-system-spec-completeness-evaluator",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C01", "C02", "C03", "C06", "C07", "C08", "C12"],
+      "builder": "run-skill-create",
+      "build_kind": "skill",
+      "build_args": {
+        "skill_name": "assign-system-spec-completeness-evaluator",
+        "kind": "assign",
+        "brief_path": "briefs/skill-brief-C05.json"
+      },
+      "build_target": "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/",
+      "status": "planned"
+    },
+    {
       "id": "C09",
       "component_kind": "slash-command",
       "name": "spec-hearing-start",
@@ -201,7 +201,7 @@
       "component_kind": "slash-command",
       "name": "spec-compile",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C03"],
+      "depends_on": ["C03", "C05"],
       "builder": "run-build-skill",
       "build_kind": "command",
       "build_args": {
@@ -225,18 +225,66 @@
       "status": "manual-user-gated",
       "build_target": ".claude-plugin/marketplace.json",
       "approval_reason": "marketplace 配布可否 (distributable) は goal-spec.open_questions のユーザー承認待ち。承認確定後に配布登録フローを実行する"
+    },
+    "plugin_composition": {
+      "owner": "run-build-skill",
+      "status": "planned",
+      "build_kind": "plugin-composition",
+      "build_target": "plugins/system-spec-harness/plugin-composition.yaml"
+    },
+    "harness_eval": {
+      "owner": "plugin-scaffold",
+      "status": "external_gap",
+      "build_target": "plugins/system-spec-harness/EVALS.json",
+      "gap_ref": "GAP-PLUGIN-SURFACE-BUILDER",
+      "gap_reason": "EVALS.json は required surface だが buildable component taxonomy 外。P05 preflight で scaffold owner と生成手段を確認する"
+    },
+    "references_config_assets": {
+      "owner": "C04",
+      "status": "planned",
+      "build_target": "plugins/system-spec-harness/skills/ref-system-design-knowledge/references/"
+    },
+    "governance_runbook": {
+      "owner": "plugin-scaffold",
+      "status": "planned",
+      "build_target": "plugins/system-spec-harness/RUNBOOK.md"
+    },
+    "ci_workflow": {
+      "owner": "plugin-scaffold",
+      "status": "external_gap",
+      "build_target": ".github/workflows/governance-check.yml",
+      "gap_ref": "GAP-GOVERNANCE-SURFACE-BUILDER",
+      "gap_reason": "既存 governance-check workflow への plugin job wiring は component route外。P05 preflightでownerと変更範囲を確定する"
     }
   },
   "open_issues": [
     {
       "id": "GAP-ENVELOPE-001",
       "severity": "medium",
+      "blocking": true,
+      "preflight": "P05開始前に scaffold executor の利用可能性または envelope-draft/plugin.json のmanual apply ownerを確認する",
       "text": "plugin envelope executor is external to run-plugin-dev-plan"
     },
     {
       "id": "GAP-SCRIPT-BUILDER",
       "severity": "medium",
+      "blocking": false,
+      "preflight": "P05開始前に harness-creator/scripts/build-script-route.py の実在と C12/C13 route消費可否を確認する",
       "text": "plugin-scaffold / parent-skill-build は run-build-skill の 7 capability kind ではなく planner 上の contract-only builder 語彙。script route (C12/C13) は harness-creator の build-script-route.py が消費し、gap_ref は routing 語彙の明示参照として維持する"
+    },
+    {
+      "id": "GAP-PLUGIN-SURFACE-BUILDER",
+      "severity": "medium",
+      "blocking": true,
+      "preflight": "P05開始前に EVALS.json の scaffold ownerと生成/検証コマンドを確定する",
+      "text": "required plugin-level surface EVALS.json は component route外のため、plugin-scaffold ownerが明示的に生成する"
+    },
+    {
+      "id": "GAP-GOVERNANCE-SURFACE-BUILDER",
+      "severity": "medium",
+      "blocking": true,
+      "preflight": "P05開始前に RUNBOOK.md owner と既存 governance-check workflow への非破壊job wiring手順を確定する",
+      "text": "plugin_metaでrequiredなrunbook/CI wiringはcomponent route外のため、plugin-scaffold ownerが明示的に生成・配線する"
     },
     {
       "id": "GAP-MCP-DOCFETCH",
