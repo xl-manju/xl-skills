@@ -33,6 +33,7 @@ applicability:
 
 ## 成果物
 - 全 25 component の P0 lint / build-trace / schema parity / content-review verdict の結果一式。
+- report UI quality matrixの結果一式(899/900/901/1024/1366/1600px+print、computed metrics、card overflow、hash-active、afterprint、intent bundle)。
 
 ## スコープ外
 - プラグイン全域の最終審査(P10 final-gate・本 gate は component 単位)。

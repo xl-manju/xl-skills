@@ -2,7 +2,7 @@
   "target": {
     "plugin": "slide-report-generator",
     "skill": "run-slide-report-modify",
-    "skill_md_sha256": "edddb21fef140daf6fe65582617818d204af6188b1e732c1c22d33a84358802c"
+    "skill_md_sha256": "de418213ecf6fc7383d341a3eb0afab529af838d69e9abf542c1a7aeee388de6"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -11,32 +11,37 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 2
+    "smell": 1
   },
   "reviewer": "independent-branch-subagent-rubric",
-  "reviewed_at": "2026-07-05T10:36:37+00:00",
+  "reviewed_at": "2026-07-11T00:00:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": [
-      "IN1",
-      "OUT1"
+      "single-responsibility",
+      "progressive-disclosure",
+      "package-completeness",
+      "prompt-contract",
+      "criteria-non-degradation",
+      "testability"
     ],
     "positive_feedback": [
-      "[単一責務] SKILL.md:55 / R1 Layer1.3-2.1 が責務を『局所修正』に限定し、新規生成→run-slide-report-generate・横断検証→run-cross-deck-review へ委譲。scope creep なし。",
-      "[criteria非退化] IN1=validate-output-mode 値域整合 (verify_by:script・test_validate_output_mode.py backing) / OUT1=指定箇所のみ修正+視覚崩れ0 (verify_by:test・verify-slides.js/validate-report-visual.py/deck-evaluator backing) で purpose-acceptance。",
-      "[パッケージ完全性] prompts(R1 正本+R2 worker 7層)・references(modification-rules/report-modification-rules)・schemas(modification-report)・workflow-manifest(phase/gate/fatal_exit_codes) を自己完結パッケージ化。",
-      "[progressive disclosure] agents/slide-report-modifier.md:11 prompt_ref が 7層 SSOT へ薄アダプタ化し二重定義回避。宣言参照全て実体解決・lint-prompt-contract-drift fatal0。"
+      "[単一責務 PASS] 局所修正 (in-place・output_mode 保持) に責務を限定。新規生成は run-slide-report-generate、横断整合は run-cross-deck-review へ明示委譲 (SKILL.md:55,127-128 / R1-orchestrate 1.2,2.1)。worker slide-report-modifier は Task 非保持で下流 dispatch を親へ返す境界も明確。",
+      "[progressive disclosure PASS] SKILL.md は router 粒度の要約、prompts/R1-orchestrate.md が 7 層実行 SSOT、workflow-manifest.json が phase/resource/gate を機械可読宣言、references が逐語規範 SSOT の3層構造。二重定義でなく粒度差 (R1-orchestrate.md:6 明記)。",
+      "[パッケージ完全性 PASS] validate-plugin-completeness.py PASS。lint-vendor-parity 191/191。参照全実体 (7 script, 3 schema, 2 reference, 2 prompt) 実在。lint-reference-attribution exit0。",
+      "[prompt契約 PASS] lint-contract-drift.py count=0。allowed-tools (Read/Write/Edit/Bash(node*)/Bash(python3*)/Task/Glob/Grep) と prompt 実行指示・manifest 宣言が整合。prompt_layer:7layer 準拠。",
+      "[criteria非退化 PASS] IN1 (validate-output-mode で mode/reportType 値域整合・欠落0) と OUT1 (指定箇所のみ修正・意匠/技術コア不変・視覚崩れ0 PASS) は purpose-acceptance で汎用ゲート言い換えに退化していない。verify_by=script/test で機械写像。",
+      "[テスト可能性 PASS] R3 全ゲートが exit code で判定 (LLM 自己申告 PASS 禁止・SKILL.md:136 / R1-orchestrate 4.5)。pytest 131 passed。validate-output-mode/validate-report-visual/verify-report-runtime の実 CLI フラグが記述と一致し再現可能。"
     ],
     "negative_feedback": [
-      "[smell/low, 非ブロッキング] modification-report.schema.json が prompt 出力指示に未配線 (machine-verifiable 出力契約が available-but-unused)。",
-      "[smell/low, 非ブロッキング] 下流 dispatch は elegance 側で visual-strategist mismatch を修正済み。"
+      "[smell/low, 非ブロッキング] allowed-tools の Glob/Grep が実行指示上ほぼ未使用の上位集合。最小権限観点で削減余地はあるが退化・破断ではない。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "設計品質 (単一責務/progressive disclosure/パッケージ完全性/criteria非退化/テスト可能性) を充足しハードカテゴリ 0 で PASS。smell 2 件は schema 未配線・非ブロッキング。"
+  "notes": "独立 SubAgent が rubric 6観点を実測。単一責務=局所修正限定+generate/cross-deck 委譲明示。progressive disclosure=SKILL(router)/prompt(7層SSOT)/manifest/reference の3層粒度差。パッケージ完全性=validate-plugin-completeness PASS + vendor-parity 191/191 + 全参照実在。prompt契約=lint-contract-drift count=0。criteria非退化=IN1/OUT1 が purpose-acceptance で script/test へ機械写像。テスト可能性=exit-code 判定 + pytest 131 passed + CLI フラグ (validate-report-visual --require-structure --json 等) が build_contract 再評価配線と一致。ハード4カテゴリ全0につき PASS。smell 1件は非ブロッキング。"
 }

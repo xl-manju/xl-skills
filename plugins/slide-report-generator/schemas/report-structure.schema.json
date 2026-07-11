@@ -240,7 +240,7 @@
         "footnotes": {
           "type": "array",
           "minItems": 1,
-          "description": "1.2.0。footnote ブロックの脚注引用群。根拠・出典を本文から分離し read-through の可検証性を与える。render-report.js が marker（[1] 等）を採番し section 末尾の脚注帯（role=doc-endnotes）へ描画する。注記: 本 block は本文中インライン参照アンカー（marker↔係り先の双方向リンク）を持たない section スコープの巻末注であり、本文の特定箇所に係る真のインライン脚注が要る場合は本文 text 側で明示参照する（アンカー機構は将来拡張）。",
+          "description": "1.2.0。footnote ブロックの脚注引用群。根拠・出典を本文から分離し read-through の可検証性を与える。id 付き脚注は本文 text の [^id] を上付き marker として双方向リンク化し、render-report.js が section 末尾の脚注帯（role=doc-endnotes）へ採番描画する。id を持たない脚注は section スコープの巻末注として順次採番する。",
           "items": {
             "type": "object",
             "required": ["text"],
@@ -312,7 +312,7 @@
             "tree", "mindmap", "flow", "cycle", "pyramid", "matrix", "venn",
             "network", "timeline", "roadmap", "chevron", "funnel",
             "org", "concentric", "value-stack", "snake", "wave-step",
-            "comparison", "stepper", "custom"
+            "comparison", "slope", "butterfly", "stepper", "custom"
           ]
         },
         "viewBox": { "$ref": "#/$defs/svgViewBox" },

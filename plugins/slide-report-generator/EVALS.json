@@ -12,7 +12,8 @@
       "python3 plugins/slide-report-generator/scripts/lint-vendor-parity.py",
       "node plugins/slide-report-generator/vendor/tests/test-render-report.js",
       "node plugins/slide-report-generator/vendor/tests/test-mermaid-render.js",
-      "node plugins/slide-report-generator/vendor/tests/test-cross-deck-consistency.js"
+      "node plugins/slide-report-generator/vendor/tests/test-cross-deck-consistency.js",
+      "node plugins/slide-report-generator/vendor/scripts/verify-report-runtime.js --self-test"
     ],
     "llm_eval": [
       "deck-evaluator (kind=agent, context:fork) が slide モード成果物(index.html)を 30種思考法・slide rubric(視覚崩れ/1メッセージ/chip/16:9)で区分評価する",
@@ -43,8 +44,8 @@
     "hooks": "plugin.json PostToolUse 配線 + hook-postgen-eval.py の fail-soft 挙動",
     "scripts": "tests/test_validate_output_mode.py / test_validate_report_visual.py + validate-output-mode.py / validate-report-visual.py の exit code 規約",
     "schemas": "plugin-root schemas/ が runtime SSOT。vendor/schemas-fixtures の重複 schema は持たず、lint-vendor-parity.py が root schemas を upstream digest と照合",
-    "references": "42 upstream + report 新規 4 (report-types/report-writing-rules/report-visual-strategy/mermaid-integration)",
-    "vendor": "lint-vendor-parity.py が vendor-digest-manifest.json(191 sha256) と byte 照合。真 schema 4本は plugin-root schemas/ live SSOT。additive(render-report.js/mermaid-render.js) は parity 対象外・vendor/tests で品質担保",
+    "references": "42 upstream + report 新規 5 (report-types/report-writing-rules/report-visual-strategy/mermaid-integration/report-narrative-logic)",
+    "vendor": "lint-vendor-parity.py が189 pinned fileをsha256照合し、package.json/package-lock.jsonのMermaid依存・実test配線2件をsemantic検証（合計191）。additive renderer群はvendor/testsで品質担保",
     "plugin-manifest": "scripts/validate-plugin-completeness.py (name↔folder 一致 / distributable:false 整合 / placeholder 禁止 / declared hooks 実在)",
     "harness-evals": "declarative (本 EVALS.json 自体が harness。mechanical[] の全 invocation が一次)"
   }

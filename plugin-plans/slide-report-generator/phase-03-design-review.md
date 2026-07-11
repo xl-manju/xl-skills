@@ -29,7 +29,8 @@ P02 の設計(inventory と envelope draft)を design-gate として elegant-rev
 ## ドメイン知識
 - design-gate = elegant-review C1-C4(矛盾なし/漏れなし/整合性/依存整合)を設計スコープ(inventory+envelope draft)に適用したもの(C1-C4 の定義は index `## ドメイン知識` 参照)。
 - 抜け漏れ審査の焦点: 13 agents→C04-C16 の 1:1、report 新規(C17-C19)、report 品質(C24/C25)、Codex Image2 チェーン→C14+vendor、30種思考法→C13+C20+vendor、118 templates/42 references/30 Node scripts→surface が全て対応するか。
-- report 構造化改善 (C9-C14) の設計審査焦点: schema 1.1.0 が additive で既存 paragraphs 後方互換 (body[] 優先の排他契約) を保ち slide 共通コアを無改変か、色付き強調が意匠 accent 流用で新規配色を足さないか、placement live 化が render-report.js に結線されるか、C24/C25 が C01 受入 (feedback_contract OUT2 / deterministic_checks) と handoff route/manifest に結線され baseline orphan が是正されているか、report-narrative-logic.md 等の reference SSOT が S-REFERENCES build route を持つか。
+- report 構造化改善 (C9-C15) の設計審査焦点: schema 1.1.0→1.2.0 が additive で既存 paragraphs 後方互換 (body[] 優先の排他契約・1.2.0 の section.role/throughLine/transition/文書メタ/新block型/placement 正規化を含む) を保ち slide 共通コアを無改変か、色付き強調が意匠 accent 流用で新規配色を足さないか、placement live 化が render-report.js に結線されるか、C24/C25 が C01 受入 (feedback_contract OUT2 / deterministic_checks) と handoff route/manifest に結線され baseline orphan が是正されているか、report-narrative-logic.md 等の reference SSOT が S-REFERENCES build route を持つか。
+- report UI/UX審査焦点: computed typography/card幅/hash-active/print復帰/intent bundleがC18/C19/C24/C25・S-SCHEMAS・handoff・C01/C02 briefへ同世代で伝播しているか。
 - 単一 skill 退化 = 3 skill(generate/modify/cross-deck-review)分離の妥当性、及び worker を 1 skill に畳んでいないか。
 
 ## 成果物
@@ -44,7 +45,8 @@ P02 の設計(inventory と envelope draft)を design-gate として elegant-rev
 - [ ] elegant-review C1-C4 が全 PASS し、proposer と異なる approver が設計を承認している。
 - [ ] source-inventory §5 の既存全資産が component/surface へ漏れなく対応していることが確認済み(抜け漏れ 0)。
 - [ ] Node engine が vendor 携行で stdlib 書き換えされておらず、単一 skill 退化や不要な水増しが無い。
-- [ ] report 構造化改善 (C9-C14) の additive 設計が design-gate で確認済み: schema 後方互換 (body[] 優先の排他)/slide 共通コア無改変/色付き強調の意匠 accent 流用/placement live 化の renderer 結線/C24-C25 の C01 受入・handoff route・manifest 結線 (baseline orphan 是正)/reference SSOT の build route。
+- [ ] report 構造化改善 (C9-C15) の additive 設計が design-gate で確認済み: schema 後方互換 (body[] 優先の排他・1.2.0 additive 層 [section.role/throughLine/transition/文書メタ/新block型/placement 正規化] を含む)/slide 共通コア無改変/色付き強調の意匠 accent 流用/placement live 化の renderer 結線/C24-C25 の C01 受入・handoff route・manifest 結線 (baseline orphan 是正)/reference SSOT の build route。
+- [ ] C16-C19のcomputed/runtime受入と1.3.0 intent契約がhandoff/surface/briefまで漏れなく同期されている。
 - [ ] 差し戻しが解消され後続フェーズへ進める状態になっている。
 
 ## 参照情報

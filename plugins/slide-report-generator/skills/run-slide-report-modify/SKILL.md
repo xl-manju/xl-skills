@@ -89,7 +89,7 @@ feedback_contract: # per-skill 受入基準(purpose-acceptance)。修正後の�
 
 ### R3: 再評価 (mode 分岐)
 
-`slide-report-modifier` の修正後、mode 別に再評価する (下記 deterministic_checks)。**slide**=`verify-slides.js` (＋意匠/印刷影響時 `evaluate-deck.js`／`validate-print.js`) で視覚崩れ 0。**report**=`render-report.js` 再レンダ整合 ＋ `validate-report-visual.py <report.html>` ＋ mode-aware `deck-evaluator` (report rubric)。未達なら R2 へ差し戻し、修正レポート (修正箇所一覧 ＋ 変更差分 ＋ 再評価スコア) を返す。
+`slide-report-modifier` の修正後、mode 別に再評価する (下記 deterministic_checks)。**slide**=`verify-slides.js` (＋意匠/印刷影響時 `evaluate-deck.js`／`validate-print.js`) で視覚崩れ 0。**report**=`render-report.js` 再レンダ整合 ＋ runtime bundle生成 ＋ `validate-report-visual.py <report.html> --structure <report-structure.json> --require-structure --json` ＋ mode-aware `deck-evaluator`。未達なら R2 へ差し戻す。
 
 ## 決定論チェック (deterministic_checks)
 
@@ -104,7 +104,8 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-slides.js" ./index.html --check-
 # 【report R3】report-structure.json → report.html 再レンダ整合 (正本の忠実な射影を確認)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.json> <report.html>
 # 修正後 report.html の読み物視覚検証 (section 構造欠落 / 1項目1ビジュアル逸脱 / 段落過密 / 意匠逸脱・fail-closed)
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> [--structure <report-structure.json>]
+node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-report-runtime.js" <report.html> --structure <report-structure.json> --out <runtime-bundle.json>
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> --structure <report-structure.json> --require-structure --json
 # さらに mode-aware deck-evaluator (report rubric: 可読性/図解適合/情報密度/セクション論理構造) を Task 起動して再評価
 ```
 

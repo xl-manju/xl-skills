@@ -22,7 +22,8 @@
     "validate-output-mode.py --preflight (環境 preflight: node/npm/node_modules/codex CLI 検出)",
     "validate-structure.js",
     "verify-slides.js",
-    "validate-report-visual.py (report 決定論視覚ゲート・C25・report mode 時に起動し slide の verify-slides.js/validate-print.js と対称)",
+    "validate-report-visual.py <report.html> --structure <report-structure.json> --json (report gate canonical invocation・--structure欠落はexit2)",
+    "Playwright UI matrix: 899/900/901/1024/1366/1600px + print; computed typography/card幅/hash-active/afterprint復帰",
     "evaluate-deck.js",
     "validate-ai-image-assets.js",
     "validate-print.js"
@@ -37,7 +38,8 @@
     "output_mode と reportType 確定",
     "構成設計と仕様確定ゲート通過",
     "生成(HTML/決定論/Codex画像)実行",
-    "生成後評価(30種思考法・mode-aware)PASS"
+    "生成後評価(30種思考法・mode-aware)PASS",
+    "report UI/UX bundle(report-structure.json + wide/narrow/print render + computed metrics + navigation log)がC24/C25をPASS"
   ],
   "goal": "output_mode(slide/report)を確定し意匠/技術コアを共有したまま構成設計→仕様確定ゲート→生成(HTML/決定論 render-slide.cjs/Codex 画像)→生成後評価(30種思考法)まで駆動し、slide は1スライド1メッセージ/report は読み物・1項目1ビジュアルで視覚崩れ0の成果物が出力された状態",
   "mass_production_profile": "strict",
@@ -56,7 +58,7 @@
     },
     {
       "id": "R3-generate-evaluate",
-      "summary": "HTML/決定論/Codex 画像の各経路で生成し生成後評価(deck-evaluator・mode-aware)まで駆動して成果物を返す",
+      "summary": "HTML/決定論/Codex画像を生成し、report時はC25 canonical invocation→Playwright UI matrix→C24 structure+render bundle評価の順でfail-closedに受入して成果物を返す",
       "prompt_required": true
     }
   ]

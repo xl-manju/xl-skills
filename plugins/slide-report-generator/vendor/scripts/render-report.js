@@ -127,14 +127,20 @@ function buildReportCss(spec = SPEC) {
   --font-scale: ${fs};
   --font-base: ${spec.fonts.base};
   --font-mono: ${spec.fonts.mono};
-  --fs-title: calc(2.6rem * var(--font-scale));
-  --fs-heading: calc(1.7rem * var(--font-scale));
-  --fs-subheading: calc(1.3rem * var(--font-scale));
-  --fs-body: calc(1.05rem * var(--font-scale));   /* 読み物本文・最小サイズは SPEC 準拠 */
-  --fs-small: calc(0.9rem * var(--font-scale));
+  /* report タイポは slide の --font-scale(1.3)から分離し、本文 16-18px の読み物レンジへ固定
+     (title/body 比 <=2.2)。過大な見出しと窮屈感を根治する。 */
+  --fs-title: 2.05rem;      /* ~33px */
+  --fs-heading: 1.5rem;     /* ~24px */
+  --fs-subheading: 1.2rem;  /* ~19px */
+  --fs-body: 1.0625rem;     /* ~17px (16-18px 読書レンジ) */
+  --fs-small: 0.92rem;      /* ~14.7px */
 ${spacingVars}
-  /* report ページ幅 (A4 縦) */
+  /* report ページ幅 (A4 縦・print 層の正本) */
   --report-width: 190mm;
+  /* screen 読書レイアウト。パワポ的に横空間を使い切る (空白>本文 の逆転を根治) */
+  --report-measure: 72ch;      /* プレーン段落のみの可読幅。グラフィカル block は全幅で横を使う */
+  --report-sidebar-w: 15rem;   /* sticky sidebar TOC 幅 */
+  --report-page-max: 1240px;   /* sidebar + 本文の実効利用幅 (空白>本文 の逆転防止) */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -144,16 +150,35 @@ body {
   color: var(--fg);
   font-family: var(--font-base);
   font-size: var(--fs-body);
-  line-height: 1.85;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
 }
+html { scroll-behavior: smooth; }
 
-/* ===== 読み物レイアウト (縦スクロール・A4 縦) ===== */
-.report {
-  max-width: var(--report-width);
+/* ===== 読み物レイアウト (screen: sidebar+可読幅 2 カラム / print: A4 縦 190mm 温存) ===== */
+.report-layout {
+  display: grid;
+  grid-template-columns: var(--report-sidebar-w) minmax(0, 1fr);
+  gap: var(--space-7, 3rem);
+  max-width: var(--report-page-max);
   margin: 0 auto;
-  padding: var(--space-7, 3rem) var(--space-6, 2rem) var(--space-8, 4rem);
+  padding: 0 var(--space-6, 2rem);
 }
+.report-layout--no-toc { grid-template-columns: 1fr; }
+.report-layout--no-toc .report { margin: 0 auto; }
+.report-sidebar { min-width: 0; }
+.report {
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-7, 3rem) 0 var(--space-8, 4rem);
+}
+/* プレーン段落・リストのみ可読幅に制限。グラフィカル block (narrative/stats/visual/table/keypoint 等) は
+   全幅でパワポ的に横空間を使う (窮屈=右側の空白過多を根治)。 */
+.report-section > p,
+.report-section > ul,
+.report-section > ol { max-width: var(--report-measure); }
+.report-section[id] { scroll-margin-top: var(--space-5, 1.5rem); }
 .report-header { margin-bottom: var(--space-7, 3rem); border-bottom: 3px solid var(--report-accent, var(--accent-blue-vivid)); padding-bottom: var(--space-4, 1rem); }
 .report-title { font-size: var(--fs-title); font-weight: 800; line-height: 1.25; color: var(--fg); }
 .report-subtitle { margin-top: var(--space-2, 0.5rem); font-size: var(--fs-subheading); color: var(--fg-dim); font-weight: 500; }
@@ -165,7 +190,7 @@ body {
 }
 
 /* ===== section ===== */
-.report-section { margin-bottom: var(--space-7, 3rem); }
+.report-section { margin-bottom: var(--space-8, 4rem); }
 .report-section > h2 {
   font-size: var(--fs-heading); font-weight: 700; line-height: 1.35;
   color: var(--fg);
@@ -181,15 +206,26 @@ body {
 .report-section li { font-size: var(--fs-body); margin-bottom: var(--space-2, 0.5rem); }
 
 /* ===== callouts (注記/警告/ヒント) ===== */
-.report-callout { display: block; margin: var(--space-3, 0.75rem) 0; padding: var(--space-3, 0.75rem); border-radius: 0.5rem; font-size: var(--fs-small); border-left: 0.3rem solid var(--accent-blue-vivid); background: rgba(59,125,216,0.06); }
-.report-callout--warning, .report-callout--caution { border-left-color: var(--accent-pink-vivid); background: rgba(217,75,110,0.07); }
-.report-callout--tip { border-left-color: var(--accent-yellow-vivid); background: rgba(245,166,35,0.08); }
+/* 吹き出し(左バー+ベタ塗り)を廃し、余白リッチのフラットカードへ。トーンは上端の細アクセント線で示す。 */
+.report-callout { display: block; margin: var(--space-5, 1.5rem) 0; padding: var(--space-4, 1rem) var(--space-5, 1.5rem); border-radius: 0.85rem; font-size: var(--fs-small); background: #fff; border: 1px solid rgba(67,67,108,0.12); border-top: 3px solid var(--accent-blue-vivid); box-shadow: var(--shadow-subtle); }
+.report-callout--warning, .report-callout--caution { border-top-color: var(--accent-pink-vivid); }
+.report-callout--tip { border-top-color: var(--accent-yellow-vivid); }
 
-/* ===== 1 section 1 visual ===== */
-.report-visual { margin: var(--space-5, 1.5rem) 0; text-align: center; }
-.report-visual svg { width: 100%; max-width: var(--report-width); height: auto; }
+/* ===== 本質図解 (essence diagram) — 各実質節の論理構造を一目化する主役ブロック ===== */
+/* 1.3.0: 「小さく中央浮遊の装飾」→「本文幅いっぱいの枠付き figure (読解の主役)」へ。
+   screen は本文可読幅を満たし、print は @media print 側で A4 幅 (--report-width) にキャップ。 */
+.report-visual {
+  margin: var(--space-7, 3rem) 0;
+  padding: var(--space-6, 2rem);
+  text-align: center;
+  background: #fff;
+  border: 1px solid rgba(67,67,108,0.10);
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow-subtle);
+}
+.report-visual svg { width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .report-visual img { max-width: 100%; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-medium); object-position: var(--focal, 50% 50%); }
-.report-visual figcaption { margin-top: var(--space-2, 0.5rem); font-size: var(--fs-small); color: var(--fg-dim); }
+.report-visual figcaption { margin-top: var(--space-3, 0.75rem); font-size: var(--fs-small); color: var(--fg-dim); text-align: center; }
 .report-visual--mermaid pre.mermaid {
   display: block; text-align: left; font-family: var(--font-mono); font-size: var(--fs-small);
   background: rgba(59,125,216,0.06); border: 1px solid rgba(67,67,108,0.14);
@@ -199,14 +235,25 @@ body {
 
 .report-footer { margin-top: var(--space-8, 4rem); padding-top: var(--space-3, 0.75rem); border-top: 1px solid rgba(67,67,108,0.15); font-size: var(--fs-small); color: var(--fg-dim); text-align: center; }
 
-/* ===== 印刷 (A4 縦・読み物) ===== */
+/* ===== 印刷 (A4 縦・読み物・screen 二層の print 側 = 従来 190mm 契約温存) ===== */
 @page { size: A4 portrait; margin: 18mm; }
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { background: #fff; }
-  .report { max-width: 100%; padding: 0; }
+  /* sidebar grid を解除し従来の一段組へ (sticky TOC 非適用・.report は A4 幅) */
+  .report-layout { display: block; max-width: none; padding: 0; }
+  .report-sidebar { display: none !important; }
+  .report-toc a.is-active { color: inherit; font-weight: inherit; } /* scrollspy ハイライト無効 (print) */
+  .report { max-width: 100%; margin: 0 auto; padding: 0; }
   .report-section { break-inside: avoid-page; }
   .report-visual { break-inside: avoid; }
+}
+/* ===== 狭画面 (max-width: 900px・タブレット縦含む): sidebar を解除しインライン TOC へ graceful degrade ===== */
+@media (max-width: 900px) {
+  .report-layout { display: block; max-width: 46rem; padding: 0 var(--space-4, 1rem); }
+  .report-toc--sidebar { position: static; max-height: none; overflow: visible; margin: 0 0 var(--space-6, 2rem); }
+  .report-toc--sidebar ol { columns: 2; }
+  .report { max-width: none; margin: 0 auto; padding-top: var(--space-6, 2rem); }
 }
 /* ===== 1.1.0: 構造化本文ブロック ===== */
 /* section 番号 (01, 02 …) — h2 の data-secnum を CSS ::before で前置 (h2 テキスト本体は見出しのみに保つ) */
@@ -216,14 +263,19 @@ body {
   font-variant-numeric: tabular-nums; opacity: 0.85;
 }
 /* 節内論理展開リード帯 (本質課題→解決→活用) */
+/* 節の論理アーク(本質課題→解決→活用): 外枠の吹き出しを廃し、余白の大きい独立 3 カードのパワポ図解へ。
+   各カードは白地・上端アクセント・大きめ padding で「文字敷き詰め」から「余白のある図解」へ転換。 */
 .report-narrative {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3, 0.75rem); margin: 0 0 var(--space-5, 1.5rem);
-  padding: var(--space-4, 1rem); border-radius: 0.6rem;
-  background: color-mix(in srgb, var(--section-accent, var(--accent-blue-vivid)) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--section-accent, var(--accent-blue-vivid)) 22%, transparent);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5, 1.5rem); margin: var(--space-5,1.5rem) 0 var(--space-6, 2rem);
+  padding: 0; background: none; border: 0;
 }
-.report-narrative__cell { display: flex; flex-direction: column; gap: 0.25rem; }
+.report-narrative__cell {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  background: #fff; border: 1px solid rgba(67,67,108,0.12); border-radius: 0.85rem;
+  border-top: 3px solid var(--section-accent, var(--accent-blue-vivid));
+  padding: var(--space-5,1.5rem); box-shadow: var(--shadow-subtle);
+}
 .report-narrative__label {
   font-size: var(--fs-small); font-weight: 800; letter-spacing: 0.03em;
   color: var(--section-accent, var(--accent-blue-vivid));
@@ -260,12 +312,14 @@ mark.report-hl {
 pre.report-code { background: #1f1f28; color: #dcd7ba; font-family: var(--font-mono); font-size: 0.86rem; line-height: 1.6; padding: var(--space-4,1rem); border-radius: 0.55rem; overflow-x: auto; box-shadow: var(--shadow-medium); }
 pre.report-code code { background: none; padding: 0; color: inherit; font-size: inherit; white-space: pre; }
 /* キーポイント強調ボックス (色付き・トーン別) */
-.report-keypoint { margin: var(--space-4,1rem) 0; padding: var(--space-4,1rem) var(--space-4,1rem) var(--space-4,1rem) var(--space-5,1.5rem); border-radius: 0.55rem; border-left: 0.35rem solid var(--accent-pink-vivid); background: rgba(217,75,110,0.07); }
-.report-keypoint--accent   { border-left-color: var(--accent-blue-vivid);   background: rgba(59,125,216,0.07); }
-.report-keypoint--positive { border-left-color: var(--accent-aqua-vivid);   background: rgba(46,168,143,0.08); }
-.report-keypoint--caution  { border-left-color: var(--accent-yellow-vivid); background: rgba(245,166,35,0.10); }
-.report-keypoint--neutral  { border-left-color: var(--fuji-gray);           background: rgba(103,103,108,0.07); }
-.report-keypoint__title { font-weight: 800; margin-bottom: 0.3rem; color: var(--fg); }
+/* キーポイント: 吹き出しをやめ、余白の大きい白カード + 上端アクセント + タイトル前の色ドット。 */
+.report-keypoint { margin: var(--space-5,1.5rem) 0; padding: var(--space-5,1.5rem); border-radius: 0.85rem; background: #fff; border: 1px solid rgba(67,67,108,0.12); border-top: 3px solid var(--accent-pink-vivid); box-shadow: var(--shadow-subtle); --kp-accent: var(--accent-pink-vivid); }
+.report-keypoint--accent   { border-top-color: var(--accent-blue-vivid);   --kp-accent: var(--accent-blue-vivid); }
+.report-keypoint--positive { border-top-color: var(--accent-aqua-vivid);   --kp-accent: var(--accent-aqua-vivid); }
+.report-keypoint--caution  { border-top-color: var(--accent-yellow-vivid); --kp-accent: var(--accent-yellow-vivid); }
+.report-keypoint--neutral  { border-top-color: var(--fuji-gray);           --kp-accent: var(--fuji-gray); }
+.report-keypoint__title { font-weight: 800; margin-bottom: 0.5rem; color: var(--fg); display: flex; align-items: center; gap: 0.5rem; }
+.report-keypoint__title::before { content: ""; width: 0.6rem; height: 0.6rem; border-radius: 0.2rem; background: var(--kp-accent, var(--accent-pink-vivid)); flex: none; }
 .report-keypoint__body { font-size: var(--fs-body); line-height: 1.75; }
 /* 統計タイル */
 .report-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: var(--space-3,0.75rem); margin: var(--space-5,1.5rem) 0; }
@@ -296,16 +350,26 @@ pre.report-code code { background: none; padding: 0; color: inherit; font-size: 
 .report-toc a { color: var(--fg); text-decoration: none; font-size: var(--fs-small); }
 .report-toc a:hover { color: var(--report-accent, var(--accent-blue-vivid)); }
 .report-toc__num { display: inline-block; min-width: 1.9em; color: var(--report-accent, var(--accent-blue-vivid)); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* 1.3.0: sticky sidebar TOC (スクロール追従・scrollspy 現在位置ハイライト) */
+.report-toc--sidebar {
+  position: sticky; top: var(--space-5, 1.5rem);
+  max-height: calc(100vh - var(--space-6, 2rem) * 1.5);
+  overflow-y: auto; margin: var(--space-7, 3rem) 0 0;
+}
+.report-toc--sidebar ol { columns: 1; }
+.report-toc--sidebar li { margin-bottom: 0.45rem; }
+.report-toc a.is-active { color: var(--report-accent, var(--accent-blue-vivid)); font-weight: 700; }
 @media print { pre.report-code { box-shadow: none; } .report-toc ol { columns: 2; } }
 
 /* ===== 1.2.0: 文書アーク / 節間接続 / 文書メタ / 新 block 型 ===== */
 /* 文書全体の通し筋 (throughLine) — 導入部のアーク帯 */
 .report-throughline {
-  margin: 0 0 var(--space-6, 2rem); padding: var(--space-3, 0.75rem) var(--space-5, 1.5rem);
-  border-radius: 0.6rem; font-size: var(--fs-body); line-height: 1.7; color: var(--fg);
-  background: color-mix(in srgb, var(--report-accent, var(--accent-blue-vivid)) 8%, transparent);
-  border-left: 0.35rem solid var(--report-accent, var(--accent-blue-vivid));
-  display: flex; gap: 0.7rem; align-items: baseline;
+  margin: var(--space-5,1.5rem) 0 var(--space-7, 3rem); padding: var(--space-5, 1.5rem) var(--space-6, 2rem);
+  border-radius: 0.85rem; font-size: var(--fs-body); line-height: 1.8; color: var(--fg);
+  background: #fff; border: 1px solid rgba(67,67,108,0.12);
+  border-top: 3px solid var(--report-accent, var(--accent-blue-vivid));
+  box-shadow: var(--shadow-subtle);
+  display: flex; gap: var(--space-4,1rem); align-items: baseline; flex-wrap: wrap;
 }
 .report-throughline__label { font-size: var(--fs-small); font-weight: 800; letter-spacing: 0.05em; color: var(--report-accent, var(--accent-blue-vivid)); white-space: nowrap; }
 /* part 単位 sub-arc (大規模文書の道標) */
@@ -445,6 +509,62 @@ function nodesToItems(nodes) {
   });
 }
 
+/** diagramNode[] → {label, value} 配列 (slope/butterfly 用。value は node.value か subtext 内の数値) */
+function nodesToValued(nodes) {
+  const arr = Array.isArray(nodes) ? nodes : [];
+  return arr.map((n, i) => {
+    if (n == null) return { label: '', value: 0 };
+    if (typeof n === 'string') return { label: n, value: 0 };
+    let v = n.value;
+    if (v == null && typeof n.subtext === 'string') {
+      const m = n.subtext.match(/-?\d+(?:\.\d+)?/);
+      v = m ? Number(m[0]) : 0;
+    }
+    return { label: n.label || '', value: Number(v) || 0 };
+  });
+}
+
+/**
+ * 中立 A対B 対比図 (report engine 固有・決定論)。svg-builder.buildVs が Before/After(bad/good) を
+ * 固定描画し vendor byte-parity で改変できないため、中立対比 (両列対等・group 名タイトル・bullet) を
+ * ここで描く。列色は wave-blue / wave-aqua の対等な2色。逐語値は本文表に温存し、図は対比構造を一目化する。
+ */
+function buildNeutralComparison(leftItems, rightItems, opts = {}) {
+  const colW = 540, gap = 64, leftX = 40;
+  const rightX = leftX + colW + gap;
+  const headerH = 60, itemH = 54, padX = 22, itemGap = 12, topY = 36, bottomPad = 26;
+  const L = (Array.isArray(leftItems) ? leftItems : []).slice(0, 6);
+  const R = (Array.isArray(rightItems) ? rightItems : []).slice(0, 6);
+  const maxItems = Math.max(L.length, R.length, 1);
+  const cardH = headerH + 18 + maxItems * itemH + Math.max(0, maxItems - 1) * itemGap + bottomPad;
+  const W = 1200, H = topY + cardH + 28;
+  const BLUE = "var(--wave-blue, #7E9CD8)";
+  const AQUA = "var(--wave-aqua, #7FB4CA)";
+
+  function column(x, items, color, title) {
+    const b = [];
+    b.push(`<rect x="${x}" y="${topY}" width="${colW}" height="${cardH}" rx="16" fill="#FFFFFF" stroke="#DCD7BA" stroke-width="1.5"/>`);
+    b.push(`<rect x="${x}" y="${topY}" width="${colW}" height="${headerH}" rx="16" fill="${color}" opacity="0.92"/>`);
+    b.push(`<rect x="${x}" y="${topY + headerH - 16}" width="${colW}" height="16" fill="${color}" opacity="0.92"/>`);
+    b.push(`<text x="${x + 24}" y="${topY + 38}" text-anchor="start" fill="#FFFFFF" font-size="22" font-weight="800" font-family="'Noto Sans JP', sans-serif">${escapeHtml(title)}</text>`);
+    items.forEach((it, i) => {
+      const y = topY + headerH + 16 + i * (itemH + itemGap);
+      const raw = typeof it === 'string' ? it : (it && (it.label || it.text)) || '';
+      const text = raw.length > 26 ? raw.slice(0, 26) + '…' : raw;
+      b.push(`<rect x="${x + padX}" y="${y}" width="${colW - padX * 2}" height="${itemH}" rx="10" fill="#F8F7F0" stroke="#DCD7BA" stroke-width="1"/>`);
+      b.push(`<rect x="${x + padX}" y="${y}" width="6" height="${itemH}" fill="${color}"/>`);
+      b.push(`<circle cx="${x + padX + 30}" cy="${y + itemH / 2}" r="6" fill="${color}"/>`);
+      b.push(`<text x="${x + padX + 50}" y="${y + itemH / 2 + 6}" text-anchor="start" fill="#43436c" font-size="17" font-weight="600" font-family="'Noto Sans JP', sans-serif">${escapeHtml(text)}</text>`);
+    });
+    return b.join('\n  ');
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(opts.ariaLabel || `${opts.leftTitle} と ${opts.rightTitle} の対比`)}" xmlns="http://www.w3.org/2000/svg">
+  ${column(leftX, L, BLUE, opts.leftTitle || 'A')}
+  ${column(rightX, R, AQUA, opts.rightTitle || 'B')}
+</svg>`;
+}
+
 /** svgSpec {variant, nodes[], groups?} → svg-builder への dispatch (決定論) */
 function renderSvgVisual(spec, meta) {
   const variant = spec.variant || 'flow';
@@ -458,10 +578,23 @@ function renderSvgVisual(spec, meta) {
   } else if (variant === 'network' && typeof svg.buildMindmap === 'function') {
     const center = items.length ? items[0].label : '';
     inner = svg.buildMindmap(center, items.slice(1).map((it) => it.label), opts);
-  } else if (variant === 'comparison' && typeof svg.buildVs === 'function') {
-    // nodes を左右へ決定論分割 (group 指定があれば group で二分、無ければ半々)
+  } else if (variant === 'comparison') {
+    // comparison = 中立の A対B 対比。svg-builder.buildVs は Before/After(×○/pink=bad/good) を固定描画し
+    // かつ vendor byte-parity で不可侵ゆえ使えない。report engine 側の中立レンダラ (両列対等・group 名タイトル・
+    // bullet マーカー) で描く。before→after / bad→good の対比は slope/butterfly が担当 (owner 分離)。
+    const cmpNodes = spec.nodes || [];
+    const { left, right } = splitForComparison(cmpNodes);
+    const cmpGroups = [...new Set(cmpNodes.map((n) => (n && n.group) || '').filter(Boolean))];
+    inner = buildNeutralComparison(
+      nodesToItems(left).map((i) => i.label),
+      nodesToItems(right).map((i) => i.label),
+      { leftTitle: cmpGroups[0] || 'A', rightTitle: cmpGroups[1] || 'B', ariaLabel: meta.alt },
+    );
+  } else if ((variant === 'slope' || variant === 'butterfly') && typeof svg[variant === 'slope' ? 'buildSlope' : 'buildButterfly'] === 'function') {
+    // 数値対比 (before→after / 左右量): group で二分、node.value か subtext 数値を採る
     const { left, right } = splitForComparison(spec.nodes || []);
-    inner = svg.buildVs(nodesToItems(left).map((i) => i.label), nodesToItems(right).map((i) => i.label), opts);
+    const fn = variant === 'slope' ? svg.buildSlope : svg.buildButterfly;
+    inner = fn(nodesToValued(left), nodesToValued(right), opts);
   } else if (VARIANT_SINGLE_ARG[variant] && typeof svg[VARIANT_SINGLE_ARG[variant]] === 'function') {
     inner = svg[VARIANT_SINGLE_ARG[variant]](items, opts);
   } else {
@@ -729,7 +862,150 @@ function renderToc(sections) {
     })
     .join('\n');
   if (!items) return '';
-  return `  <nav class="report-toc" aria-label="目次">\n    <div class="report-toc__title">目次</div>\n    <ol>\n${items}\n    </ol>\n  </nav>`;
+  return `  <nav class="report-toc report-toc--sidebar" aria-label="目次">\n    <div class="report-toc__title">目次</div>\n    <ol>\n${items}\n    </ol>\n  </nav>`;
+}
+
+/**
+ * sticky sidebar TOC の scrollspy (1.3.0)。
+ * 自己完結・再実行可能な controller として、初期 hash / TOC click / manual scroll /
+ * hashchange / popstate / font-ready / print lifecycle を同じ activate 経路へ収束させる。
+ * beforeprint で監視を停止し、afterprint で直前位置を復元して再起動する
+ * (ハイライトは print CSS 側でも無効化する二重化)。
+ */
+function reportScrollspyScript() {
+  return `<script>
+(function () {
+  'use strict';
+  var CONTROLLER_KEY = '__slideReportScrollspy';
+  if (window[CONTROLLER_KEY] && typeof window[CONTROLLER_KEY].destroy === 'function') {
+    window[CONTROLLER_KEY].destroy(); /* script 再評価時も listener/observer を重複させない */
+  }
+  var nav = document.querySelector('.report-toc--sidebar');
+  if (!nav) return;
+  var links = Array.prototype.slice.call(nav.querySelectorAll('a[href^="#"]'));
+  var map = {};
+  var targets = [];
+  function fragmentId(value) {
+    try { return decodeURIComponent(String(value || '').replace(/^#/, '')); }
+    catch (_) { return ''; }
+  }
+  links.forEach(function (a) {
+    var id = fragmentId(a.getAttribute('href'));
+    var el = document.getElementById(id);
+    if (el) { map[id] = { link: a, target: el }; targets.push(el); }
+  });
+  if (!targets.length) return;
+  var current = null;
+  var restoreAfterPrint = null;
+  var observer = null;
+  var scrollFrame = null;
+  var running = false;
+  var printing = !!(window.matchMedia && window.matchMedia('print').matches);
+  function activate(id) {
+    if (current === id || !map[id]) return;
+    current = id;
+    links.forEach(function (a) { a.classList.remove('is-active'); a.removeAttribute('aria-current'); });
+    map[id].link.classList.add('is-active');
+    map[id].link.setAttribute('aria-current', 'location'); /* 現在位置を支援技術へ同期 (色非依存の第2チャネル) */
+  }
+  function syncFromScroll() {
+    if (!running || printing) return;
+    var marker = Math.max(1, window.innerHeight * 0.28);
+    var candidate = targets[0];
+    targets.forEach(function (target) {
+      if (target.getBoundingClientRect().top <= marker) candidate = target;
+    });
+    activate(candidate.id);
+  }
+  function scheduleScrollSync() {
+    if (scrollFrame !== null) return;
+    scrollFrame = window.requestAnimationFrame(function () {
+      scrollFrame = null;
+      syncFromScroll();
+    });
+  }
+  function syncFromLocation(reland) {
+    var id = fragmentId(window.location.hash);
+    if (!map[id]) return false;
+    activate(id);
+    if (reland) {
+      window.requestAnimationFrame(function () {
+        if (!printing && map[id]) {
+          map[id].target.scrollIntoView({ block: 'start' });
+          activate(id);
+        }
+      });
+    }
+    return true;
+  }
+  function start() {
+    if (running || printing) return;
+    running = true;
+    window.addEventListener('scroll', scheduleScrollSync, { passive: true });
+    if (typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(scheduleScrollSync, {
+        rootMargin: '0px 0px -72% 0px', threshold: 0
+      });
+      targets.forEach(function (target) { observer.observe(target); });
+    }
+    if (!syncFromLocation(false)) syncFromScroll();
+  }
+  function stop() {
+    if (!running) return;
+    running = false;
+    window.removeEventListener('scroll', scheduleScrollSync);
+    if (observer) { observer.disconnect(); observer = null; }
+    if (scrollFrame !== null) {
+      window.cancelAnimationFrame(scrollFrame);
+      scrollFrame = null;
+    }
+  }
+  function onTocClick(event) {
+    var id = fragmentId(event.currentTarget.getAttribute('href'));
+    activate(id); /* default anchor navigation/hash update は維持し、active 状態だけ即時同期 */
+  }
+  function onHistoryNavigation() {
+    if (!printing) window.requestAnimationFrame(function () { syncFromLocation(true); });
+  }
+  function onBeforePrint() {
+    restoreAfterPrint = current;
+    printing = true;
+    stop();
+  }
+  function onAfterPrint() {
+    printing = false;
+    start();
+    var id = fragmentId(window.location.hash);
+    if (map[id]) activate(id);
+    else if (restoreAfterPrint && map[restoreAfterPrint]) activate(restoreAfterPrint);
+    else syncFromScroll();
+    restoreAfterPrint = null;
+  }
+  function destroy() {
+    stop();
+    links.forEach(function (a) { a.removeEventListener('click', onTocClick); });
+    window.removeEventListener('hashchange', onHistoryNavigation);
+    window.removeEventListener('popstate', onHistoryNavigation);
+    window.removeEventListener('beforeprint', onBeforePrint);
+    window.removeEventListener('afterprint', onAfterPrint);
+    if (window[CONTROLLER_KEY] === controller) delete window[CONTROLLER_KEY];
+  }
+  var controller = { start: start, stop: stop, destroy: destroy, sync: onHistoryNavigation };
+  window[CONTROLLER_KEY] = controller;
+  links.forEach(function (a) { a.addEventListener('click', onTocClick); });
+  window.addEventListener('hashchange', onHistoryNavigation);
+  window.addEventListener('popstate', onHistoryNavigation);
+  window.addEventListener('beforeprint', onBeforePrint);
+  window.addEventListener('afterprint', onAfterPrint);
+  start();
+  syncFromLocation(true); /* 初期 hash を observer の初回 callback より優先 */
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      if (!printing && !syncFromLocation(true)) scheduleScrollSync();
+    });
+  }
+})();
+</scr` + `ipt>`;
 }
 
 /** meta.throughLine (+ throughLineParts) → 導入部の文書アーク帯 (本質課題→解決→活用の通し筋・1.2.0) */
@@ -857,8 +1133,6 @@ ${inner}${transition ? '\n' + transition : ''}
     `<meta name="report-type" content="${escapeHtml(reportType)}">`,
     `<meta name="theme-name" content="${escapeHtml(themeName(structure && structure.theme))}">`,
     `<title>${title}</title>`,
-    '<link rel="preconnect" href="https://fonts.googleapis.com">',
-    '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">',
     `<style>\n${buildReportCss(SPEC)}\n</style>`,
     usesMermaid ? mermaidInitScript() : '',
     '</head>',
@@ -866,18 +1140,27 @@ ${inner}${transition ? '\n' + transition : ''}
     .filter(Boolean)
     .join('\n');
 
+  // 1.3.0: screen は sidebar(TOC)+本文カラムの grid、print/狭画面は CSS 側で block へ degrade。
+  // TOC が無ければ --no-toc で本文 1 カラム中央寄せ。
+  const sidebarHtml = tocHtml ? `  <aside class="report-sidebar">\n${tocHtml}\n  </aside>\n` : '';
+  const layoutClass = tocHtml ? 'report-layout' : 'report-layout report-layout--no-toc';
+  const scrollspy = tocHtml ? reportScrollspyScript() : '';
+
   return `${head}
 <body style="--report-accent: var(--${accent});">
-<main class="report">
+<div class="${layoutClass}">
+${sidebarHtml}  <main class="report">
   <header class="report-header">
     <h1 class="report-title">${title}</h1>${subtitle}${keyMessage}
     <div class="report-meta">
       ${metaBits.join('\n      ')}
     </div>
   </header>
-${throughLineHtml ? throughLineHtml + '\n' : ''}${tocHtml ? tocHtml + '\n' : ''}${sectionHtml}
+${throughLineHtml ? throughLineHtml + '\n' : ''}${sectionHtml}
   <footer class="report-footer">slide-report-generator · report mode · theme: ${escapeHtml(themeName(structure && structure.theme))}</footer>
-</main>
+  </main>
+</div>
+${scrollspy}
 </body>
 </html>
 `;

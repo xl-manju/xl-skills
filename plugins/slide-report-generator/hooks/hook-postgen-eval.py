@@ -125,9 +125,13 @@ def build_context(mode: str, deck_dir: str) -> str:
             "   (chromium 未導入なら vendor で npx playwright install chromium 後に再実行)"
         )
     else:
+        report_html = os.path.join(deck_dir, "report.html")
+        report_structure = os.path.join(deck_dir, "report-structure.json")
         mechanical = (
             "1) report 機械評価 (section 構造・1項目1ビジュアル・段落密度・placeholder・印刷):\n"
-            f'   python3 "{report_visual}" "{os.path.join(deck_dir, "report.html")}"\n'
+            f'   python3 "{report_visual}" "{report_html}" '
+            f'--structure "{report_structure}" --require-structure --json\n'
+            "   (report-structure.json 欠落時は exit 2: 構造正本無しの fail-open を禁止)\n"
             "   report では slide 用 evaluate-deck.js を必須扱いしない"
         )
     return (

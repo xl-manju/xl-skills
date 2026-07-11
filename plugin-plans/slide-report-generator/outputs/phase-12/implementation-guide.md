@@ -64,3 +64,15 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-output-mode.py" --preflight
 - [x] render-report.js が report HTML を実生成 / render-slide.cjs が slide HTML を実生成。
 - [x] plugin.json valid (name==folder・hook 実在・distributable:false 整合)。
 - [x] outputs/phase-01..12 に成果物。P11 に実 HTML + スクショ + 視覚検証。
+
+## 現ビルド追随検証 (2026-07-11 update)
+
+> 上記 v1 ガイドの一部数値は現ビルドに追随していない。以下は検証済みの事実で doc を追随させる (数値の発明なし)。旧記述は履歴として残置。
+
+- **component / vendor / pytest の追随**: 旧「23 component / vendor 195 / pytest 25」は v1。現ビルドは **25 buildable component** (3 skill + 17 sub-agent + 1 hook + 2 slash-command + 2 script)、**vendor byte-parity 191/191 PASS** (schemas subtree の真 schema 4本を plugin-root live へ移し fixture3+README=4 file 化で 195→191)、**pytest 125 passed**。
+- **schema**: report-structure 1.2.0 (真 schema 5本 = 移植4 + report-structure新設1・plugin-root schemas/ live)。
+- **機械ゲート (全緑・本セッション実測)**: lint-contract-drift findings=0、lint-reference-attribution ok、validate-plugin-completeness PASS、vendor JS test (test-render-report/test-mermaid-render/test-cross-deck-consistency) 全 PASS、C23 validate-output-mode.py coverage 92% (旧 63%)。
+- **第3次 UI/UX + 図解機構刷新 (render-report.js buildReportCss)**: screen/print 二層 CSS・sticky sidebar TOC + scrollspy・タイポ密度是正、全ブロックの吹き出しを白地フラットカードへ一括転換・本文全幅化。before/after スクショ (Chrome headless・wide 1500px / narrow 880px) で 5 指摘の解消を目視実証。旧 `report-full.png` (1800×6582) は v1 サンプルで第3次UI 反映前 (詳細: `outputs/phase-11/visual-verification.md`)。
+- **essence-visual 収束 (C8/C19)**: 本質図解を role 駆動へ収束。旧 visual.intent / schema 1.3.0 案は撤回し plan を essence-visual へ追随更新済 (schema は 1.2.0 のまま)。意味適合は C24 report-quality-reviewer が二層分離で判定。
+- **C25 validate-report-visual.py (本セッション強化)**: `_check_uiux_shape` (screen 接合トークン・sticky TOC・aria-current・before/afterprint・@media print .report 幅・狭画面 @media・grid minmax card・タイポ検査) + `--require-structure` (report gate の fail-open 封鎖=structure 欠落で exit2) を追加。現行 report で uiux-shape warn 0・exit0。
+- **plan reconcile (2026-07-11)**: goal-spec/component-inventory/handoff/index/phase-01,02,04,05,07,08/plan-findings を essence-visual へ追随、task-graph.json を derive-task-graph.py で再derive (node 908 安定・graph_hash ab24010)、planner 決定論ゲート 8種 exit0。

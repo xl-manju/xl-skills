@@ -48,18 +48,19 @@
     {
       "id": "R3-re-evaluate",
       "step": 3,
-      "title": "mode 別に修正後を再評価し修正レポートを生成、未達なら R2 へ差し戻し。slide=verify-slides.js --check-ratio (＋意匠コア/印刷影響時 evaluate-deck.js / validate-print.js) で視覚崩れ 0、report=render-report.js 再レンダ整合 ＋ validate-report-visual.py <report.html> ＋ mode-aware deck-evaluator",
+      "title": "mode 別に修正後を再評価し修正レポートを生成、未達なら R2 へ差し戻し。slide=verify-slides.js系、report=render-report.js 再レンダ整合＋verify-report-runtime.js実描画bundle＋validate-report-visual.py --structure --require-structure＋mode-aware deck-evaluator",
       "gate": "C3",
       "dependsOn": [
         "R2-local-modify"
       ],
       "entryHook": "verify-slides|render-report",
-      "exitHook": "slide:verify-slides+evaluate-deck+validate-print | report:render-report+validate-report-visual+deck-evaluator",
+      "exitHook": "slide:verify-slides+evaluate-deck+validate-print | report:render-report+verify-report-runtime+validate-report-visual+deck-evaluator",
       "resourceIds": [
         "script-verify-slides",
         "script-evaluate-deck",
         "script-validate-print",
         "script-render-report",
+        "script-verify-report-runtime",
         "script-validate-report-visual",
         "script-validate-output-mode"
       ],
@@ -154,6 +155,14 @@
       "path": "../../vendor/scripts/render-report.js",
       "phaseIds": [
         "R2-local-modify",
+        "R3-re-evaluate"
+      ]
+    },
+    {
+      "id": "script-verify-report-runtime",
+      "kind": "script",
+      "path": "../../vendor/scripts/verify-report-runtime.js",
+      "phaseIds": [
         "R3-re-evaluate"
       ]
     },

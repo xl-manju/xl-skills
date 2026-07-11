@@ -8,6 +8,25 @@
  "total_pinned_files": 191,
  "total_pinned_files_note": "本再検証 (Grp I/A4-F4・案A) で schemas subtree の真 schema 4本を plugin-root live SSOT へ移し pin 対象外化。従来 195 (scripts160+assets25+schemas8+package1+lock1) から schemas 8→4 で 4 減算し 191 (scripts160+assets25+schemas4+package1+lock1)。",
  "hash_algorithm": "sha256",
+ "additive_managed": {
+  "note": "package.json / package-lock.json は byte-pin ではなく additive-aware で照合する (plan S-VENDOR check#3)。素朴な全ファイル sha256 一致では mermaid 依存の additive 追記を許容不能なため、base pin との差分が mermaid 追記に限定される意味論を検査する。subtrees[].files の pin は package.json の base 再構築照合基準として引き続き使用する。",
+  "vendor/package.json": {
+   "strategy": "reconstruct-base",
+   "base_sha256": "9f6cf306b7b765140bef8d54e2f818fc4983aba29baf946a274b37a927caeafe",
+   "reserialize": {"indent": 2, "trailing_newline": true},
+   "strip_additive": {
+    "dependencies_remove": ["mermaid"],
+    "scripts_reset": {"test": "echo \"Error: no test specified\" && exit 1"}
+   },
+   "require_dependencies": ["mermaid", "playwright"]
+  },
+  "vendor/package-lock.json": {
+   "strategy": "semantic-additive",
+   "note": "npm generated lockfile。mermaid 追記で ~127 の推移依存 entry が増えるため byte 再構築不可。mermaid+playwright の共存と構造健全性で additive を担保する。",
+   "require_root_dependencies": {"mermaid": "11.16.0", "playwright": "^1.60.0"},
+   "require_packages": ["node_modules/mermaid", "node_modules/playwright"]
+  }
+ },
  "excluded_dirs": [
   "node_modules",
   ".git",

@@ -106,7 +106,7 @@ feedback_contract: # per-skill 受入基準(purpose-acceptance)。deck-evaluator
   - **画像明示時のみ**: `Task` で **ai-image-diagram-producer** (Codex Image2)。導線 = `build-image-prompts.js` → `generate-images-codex.js` (`meta.source=codex-image2`・PNG 署名回収＋リトライ) → `build-deck-html.js` (自己完結 index.html)。`codex` 単体は画像生成器ではなく実 backend を着手前に確認する。
   - **品質補正 (mode 別・slide/report 対称)**:
     - `slide`: 必要に応じ **layout-optimizer** (レイアウト最適化) ／ **ui-quality-reviewer** (テキスト切れ・改行・バランス) を併用 + `verify-slides.js`／`validate-print.js` の決定論視覚ゲート。
-    - `report`: **report-quality-reviewer** (読み物文体・段落密度・1 項目 1 ビジュアル整合・reportType 骨格順守) を併用 + `python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> [--structure <report-structure.json>]` の決定論視覚ゲート (report 版・slide の verify-slides に対称)。
+    - `report`: **report-quality-reviewer** (読み物文体・段落密度・1 項目 1 ビジュアル整合・reportType 骨格順守) を併用 + `python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> --structure <report-structure.json> --require-structure --json` の決定論視覚ゲート (report gate は構造正本必須・欠落 exit 2、slide の verify-slides に対称)。
 - **生成後評価 (mode-aware)**: `Task` で **deck-evaluator** を起動 (思考リセット後 30 種思考法)。`slide`=視覚崩れ／1 メッセージ、`report`=可読性／図解適合／情報密度の mode 別 rubric 次元で区分評価する。**改善→再評価は最大 3 周** (`feedback_contract.max_iterations`)。CRITICAL (視覚崩れ) が残存する場合はループ枯渇時も未完了 (hard-fail) とし、`未達指摘一覧` は非 CRITICAL に限定する。
 
 状態確認は `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/workflow-manager.js" <out-dir> --check --next` で行える。
@@ -124,8 +124,8 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-output-mode.py" --preflight
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/validate-structure.js" <structure|report-structure>
 # slide の UI 品質 (テキスト切れ・16:9 比率)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-slides.js" ./index.html --check-ratio
-# report の決定論視覚ゲート (section 構造/1項目1ビジュアル/段落密度/placeholder/印刷・0=PASS/1=崩れ検出/2=usage)
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> [--structure <report-structure.json>]
+# report の決定論視覚ゲート (構造正本必須・欠落 exit 2 / 0=PASS / 1=崩れ検出)
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> --structure <report-structure.json> --require-structure --json
 # 生成後評価オーケストレータ (D1 視覚崩れ/D2 文字サイズ/D3 ナビ/D4 仕様適合・0=PASS/4=FAIL)
 node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/evaluate-deck.js" <out-dir>
 # 画像明示時: prompt/meta/WebP 整合と style genome 反映 (PNG/WebP 署名検査)
@@ -183,7 +183,7 @@ node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/validate-print.js" <index.html>
 - `references/html-generation-rules.md` — slide HTML LLM 経路生成規範 (CONST_001-038)。owner=html-generator。
 - `references/layout-optimization-rules.md` — レイアウト最適化 (文字数・カード/フォント・印刷 pt 換算)。owner=layout-optimizer。
 - `references/ui-quality-checklist.md` — slide UI 品質 S 系観点定義・判定基準。owner=ui-quality-reviewer。
-- `references/report-quality-checklist.md` — report 品質観点 RQ1-20・RQCONST (読み物文体/段落密度/1項目1ビジュアル/reportType 骨格)。owner=report-quality-reviewer。`$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py` の決定論ゲートと対 (機械/意味を分離)。
+- `references/report-quality-checklist.md` — report 品質観点 RQ1-30・RQCONST (読み物文体/段落密度/本質図解/through-line/navigation/runtime layout)。owner=report-quality-reviewer。runtime bundle＋`validate-report-visual.py` と対 (実描画/静的shape/意味を分離)。
 - `references/deck-evaluation-rubric.md` — 生成後評価 (30 種思考法 mode-aware rubric・評価次元)。owner=deck-evaluator (hook-postgen-eval も消費)。
 - `references/ai-image-pipeline.md` — Codex Image2 全面画像/差替パイプライン規範。owner=ai-image-diagram-producer。
 - `references/resource-map.yaml` — 私有 reference の帰属 + progressive disclosure マップ (lint-reference-attribution.py の orphan/dangling 検査対象)。

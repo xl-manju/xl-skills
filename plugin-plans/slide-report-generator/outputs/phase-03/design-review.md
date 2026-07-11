@@ -34,3 +34,14 @@
 
 ## 判定
 **PASS** — 実装フェーズ (P04 test-design → P05 実装) へ進む。
+
+## 現ビルド追随検証 (2026-07-11 update)
+
+> 上記 v1 の設計審査は現ビルドに追随していなかった。以下は本セッションで検証済みの設計/reconcile 整合事実のみを追記する (数値の発明なし)。
+
+- **component 構成の更新**: 現ビルドは 25 buildable component (3 skill + 17 sub-agent + 1 hook + 2 slash-command + 2 script)。v1 の C1/C2 表・partition 表が前提とした「13 agents / 23 component」は現状と不一致 (旧記録は v1)。
+- **essence-visual への設計収束 (C8/C19)**: 本質図解は role 駆動へ収束。`validate-report-visual.py` の `_check_essence_visual` が role∈{分析/主張/課題/解決/所見/影響}(=`_ESSENCE_REQUIRED_ROLES`) の論理節に非none visual (`visual.kind!=none`) を要求する。旧 `visual.intent={kind,message}` / schema 1.3.0 案は撤回し、plan を essence-visual へ追随更新済 (schema は 1.2.0 のまま)。意味適合は C24 report-quality-reviewer が二層分離で判定。
+- **schema**: report-structure 1.2.0。真 schema は 5本 (移植4 + report-structure新設1) で plugin-root `schemas/` に live 配置。
+- **C25 fail-open 封鎖**: `validate-report-visual.py` に `--require-structure` を追加し、report gate の fail-open (structure 欠落で緑化) を exit2 で封鎖。screen 接合の構造検査 `_check_uiux_shape` も追加。
+- **reconcile 整合ゲート (全緑)**: lint-contract-drift findings=0、lint-reference-attribution ok、validate-plugin-completeness PASS。
+- **plan reconcile (2026-07-11)**: goal-spec / component-inventory / handoff / index / phase-01,02,04,05,07,08 / plan-findings の visual.intent 記述を essence-visual へ追随。task-graph.json を derive-task-graph.py で再derive (node 908 安定・graph_hash ab24010)、planner 決定論ゲート 8種 exit0。

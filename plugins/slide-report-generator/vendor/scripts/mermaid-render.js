@@ -2,12 +2,8 @@
  * mermaid-render.js — Mermaid 定義文字列 → SVG/HTML 片 (決定論)
  *
  * 契約: BUILD CONTRACT §F (C19 owner)。
- * mermaid ライブラリ/CLI が使えれば利用、無ければ `<pre class="mermaid">`
- * フォールバック片 + CDN 初期化スクリプトを決定論生成する。
- *
- * ランタイム依存はゼロ (vendor に mermaid は同梱しない = additive 追記なし)。
- * ブラウザ側で CDN の mermaid が `<pre class="mermaid">` を SVG 化する。
- * オフラインでも pre のテキストがそのまま可読フォールバックとして残る。
+ * package-lock で固定したローカル Mermaid browser bundle を HTML へ inline し、
+ * `<pre class="mermaid">` をオフラインでも SVG 化できる自己完結片を決定論生成する。
  *
  * ESM (vendor/package.json type=module)。CLI と import の両対応。
  *   - CLI:    node mermaid-render.js <in.mmd> <out.svg|html>
@@ -17,7 +13,15 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { pathToFileURL } from 'url';
 
-const CDN_ESM = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const MERMAID_BUNDLE_URL = new URL('../node_modules/mermaid/dist/mermaid.min.js', import.meta.url);
+let cachedMermaidBundle = null;
+
+function localMermaidBundle() {
+  if (cachedMermaidBundle === null) {
+    cachedMermaidBundle = readFileSync(MERMAID_BUNDLE_URL, 'utf8').replace(/<\/script/gi, '<\\/script');
+  }
+  return cachedMermaidBundle;
+}
 
 /** HTML/XML エスケープ (template-engine.cjs / svg-builder.cjs と同一方針) */
 function escape(str) {
@@ -31,16 +35,16 @@ function escape(str) {
 }
 
 /**
- * ブラウザ側 mermaid を CDN から読み込み初期化するスクリプト片。
+ * package-lock固定のローカル mermaid bundle と初期化コードを埋め込むスクリプト片。
  * report HTML の <head> に「1回だけ」差し込む想定。theme は Kanagawa 調の
  * neutral を選び startOnLoad で `.mermaid` を自動レンダリングする。
  * @returns {string} <script type="module"> ... </script>
  */
 export function mermaidInitScript() {
   return [
-    '<script type="module">',
-    `  import mermaid from '${CDN_ESM}';`,
-    "  mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'strict' });",
+    '<script>',
+    localMermaidBundle(),
+    "  globalThis.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'strict' });",
     '</script>',
   ].join('\n');
 }
