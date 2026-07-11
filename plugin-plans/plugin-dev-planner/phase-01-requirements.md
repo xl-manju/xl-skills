@@ -16,17 +16,17 @@ applicability:
 # P01 — requirements (要件定義)
 
 ## 目的
-plugin-dev-planner が生成する plan 成果物へ、13 phase 仕様書の直列消化に律速されない第 3 の射影 (型付き task-graph) を追加するという改善要求から、`goal-spec.json` (purpose/background/goal/checklist C1-C16/constraints/handoff_targets) を確定する。`target_plugin_slug: plugin-dev-planner` を固定し、既存 2 軸 (13 phase ファイル / component-inventory.json) の意味論を task-graph が置換しないことを要件レベルで明文化する。
+既存task-graph計画を更新し、`goal-spec.json`のchecklistをC1-C19へ拡張する。特に13 phase共通policy・node task spec・component routeの関係、TaskExecutionEnvelope、task-graph/task-state/status projectionの三層分離、過去cycle lineage/knowledge再利用を要件レベルで固定する。
 
 ## 背景
-現行 plan は 13 phase ファイル (ライフサイクル軸) と component-inventory.json (実体軸 depends_on DAG) の 2 軸を持つが、phase 仕様書 §5 のタスク項目が粗粒度のまま直列読み物に留まり、(1) タスク単位の依存エッジ不在による並列可能作業の直列待ち、(2) タスク完了成果物 (build_target / eval-log route-build-report) が次タスク入力として機械参照されない spec/output 間の断絶、(3) 実行中に発見された新タスクの構造化還流経路の不在、の 3 問題を抱える。ユーザーは親子関係・depends/blocks・成果物エッジを厳密に型付けした依存グラフと、discovered-task 形式での計画進化 (作りながら改善) を要求している。
+現行実装には依存graph・state writer・ready-set・discovered-task・status projection・knowledge記録が存在する。しかしSubAgentへ渡す完全なtask contractが単一schemaで閉じず、title/phase_ref/entity_refから暗黙にpromptやbuilderを推測する余地がある。さらに、利用者はcanonical graphのstateを直接更新すると誤認しやすく、完了specと蒸留knowledgeの棲み分けもplan上で弱い。
 
 ## 前提条件
 - 対象プラグイン `plugins/plugin-dev-planner/` は既に 2 skill (run-plugin-dev-plan, assign-plugin-plan-evaluator) を持つ既存プラグインであり、本 plan は `artifact_class: existing-plugin-update` として自己拡張を行う。
-- 直前の plan サイクル (`plugin-plans/finish/plugin-dev-planner/`) は generative-fidelity/downstream-harness 層 (旧 C1-C12) を対象にしており、build 済みで既存スクリプト群 (check-generative-fidelity.py 等) として現存する。本 plan の checklist C1-C16 は task-graph という別テーマであり、旧サイクルの checklist と番号が重複するが対象は異なる。
+- 直前cycleの成果物と現行実装はread-only baselineとして参照する。本planのchecklist C1-C19は現在のtask-graph改善テーマであり、過去cycleの番号空間とはplan-ledger lineageで区別する。
 
 ## ドメイン知識
-- goal-spec の checklist は 16 件 (C1-C16)。verify_by の内訳は script=9件 (C1/C2/C3/C5/C6/C9/C12/C13/C16)・test=5件 (C4/C7/C10/C11/C15)・human=2件 (C8/C14)。C14 (新旧shape非劣化ゲート) は (a)精度/(c)再現性は script 計測、(b)品質は fork evaluator の genuine 判定 (human) のため checklist 全体としては verify_by=human に分類する。C15 (graph 可視化 renderer) は byte一致 render テストで verify_by=test、C16 (実行時契約 schema SSOT) は schema 検査で verify_by=script。
+- goal-spec の checklist は19件 (C1-C19)。C17=task execution envelope、C18=状態三層分離、C19=cross-cycle lineage/knowledge reuseである。
 - constraints の中核は「task-graph は第 3 の射影であり既存 2 軸の意味論を置換しない」「メタ循環の分離: 本 plan 自体は現行 shape (13 phase ファイル) で記述する」「canonicalizer が唯一の serializer」「blocks は depends_on の逆向き導出ビューで独立宣言禁止」「L4 実 build 実行は本 plan の責務外」の 5 点。
 - handoff_targets: run-skill-create / run-build-skill / capability-build。max_loops: 5。
 
@@ -39,12 +39,16 @@ plugin-dev-planner が生成する plan 成果物へ、13 phase 仕様書の直�
 
 ## 完了チェックリスト
 - [ ] purpose/background/goal が task-graph 追加という改善要求の文脈で一貫している。
-- [ ] checklist C1-C16 それぞれに verify_by (script/test/human) が付与されている。
+- [ ] checklist C1-C19 それぞれに verify_byが付与されている。
+- [ ] 13 phaseは共通policy、node task specは実行契約、component routeはbuild写像という三層が区別されている。
+- [ ] canonical graphを状態台帳として直接編集せず、task-stateとprojectionで進捗更新要求を満たす方針が固定されている。
+- [ ] 完了cycleのimmutable artifactsと次cycleへ渡す蒸留knowledgeの棲み分けが固定されている。
 - [ ] target_plugin_slug が `plugin-dev-planner` に固定され、plan_dir が `plugin-plans/plugin-dev-planner` に固定されている。
 - [ ] constraints の 5 点 (2軸非置換/メタ循環分離/単一writer/blocks派生専用/L4責務外) が本 plan 全体の設計判断へ反映される前提が明示されている。
+- [ ] goal-spec.json の background が現サイクル前提 (既存 task-graph 機構の存在) で purpose/goal・phase-01 背景と一貫している。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: goal-spec の goal 文が「task-graph を第 3 の射影として追加し、既存 2 軸を置換しない」ことを明示し、checklist 16 件それぞれが独立した verify_by を持つ。
+- 満たす例: goal-specがphase/task/component/state/knowledgeの責務を明示し、checklist 19件が独立したverify_byを持つ。
 - 満たさない例: task-graph の目的が「グラフ機能を追加する」とだけ記され、既存 2 軸との関係 (置換か包含参照か) が未確定のまま P02 へ進む。
 
 ### 事前解決済み判断

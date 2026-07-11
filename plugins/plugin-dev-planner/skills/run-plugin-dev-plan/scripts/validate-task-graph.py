@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: validate-task-graph
-# purpose: task-graph.json を fail-soft 検査する (DAG非循環/orphan0/producer一意/inventory矛盾0/consumes producer実在/dangling edge端点0/非正準拒否)。単一 writer=derive-task-graph.py の canonicalize() を再適用して手書き編集を拒否する読み取り側検証器。
+# purpose: task-graph.json を fail-soft 検査する (DAG非循環/orphan0/producer一意/inventory矛盾0/consumes producer実在/dangling edge端点0/非正準拒否/bootstrap→target移行gate)。単一 writer=derive-task-graph.py の canonicalize() を再適用して手書き編集を拒否する読み取り側検証器。
 # inputs:
 #   - argv: <PLAN_DIR> (task-graph.json + component-inventory.json を含むディレクトリ)
 # outputs:
@@ -19,7 +19,8 @@
 design: plugin-plans/plugin-dev-planner/phase-05-implementation.md (C2/C3/C11) +
 phase-04-test-design.md の C2 受入例。canonicalize() の再適用で非正準 (手書き編集)
 を拒否し、DAG 非循環・orphan・producer 一意・inventory 依存整合・consumes producer 実在・
-dangling edge 端点・phase 非逆走・couples_with 直列化実現・node.state 永続4値の 10 検査を
+dangling edge 端点・phase 非逆走・couples_with 直列化実現・node.state pending seed 固定の 10 検査に、
+bootstrap→target shape 移行 gate (l・GAP-BOOTSTRAP-TARGET-SHAPE-001) を additive で加えた検査群を
 fail-soft (violations list) で返す。単一 writer=derive-task-graph.py。
 """
 from __future__ import annotations
@@ -47,7 +48,7 @@ derive_task_graph = _load_derive()
 
 _DAG_EDGE_TYPES = ("depends_on", "parent_of")
 _ALL_EDGE_TYPES = ("parent_of", "depends_on", "produces", "consumes")
-_PERSISTED_NODE_STATES = {"pending", "running", "done", "blocked"}
+_CANONICAL_NODE_STATE = "pending"
 
 
 def _nodes(graph: dict) -> list[dict]:
@@ -161,26 +162,86 @@ def _check_inventory(nodes: list[dict], edges: list[dict], inventory: dict) -> l
     return out
 
 
-def _check_consumes(edges: list[dict]) -> list[str]:
-    """(e) consumes エッジの from (artifact) が produces エッジの to に存在するか。"""
+def _check_consumes(nodes: list[dict], edges: list[dict]) -> list[str]:
+    """(e) consumes artifact が produces artifact に存在するか。
+
+    正本は consumes=(artifact -> consumer task)。from artifact が produces.to に存在し、
+    to が実在 task node を指すことを検査する。逆向き task -> artifact は fail-closed。
+    """
     produced = {e.get("to") for e in edges if e.get("type") == "produces"}
-    missing = sorted(
-        {e.get("from") for e in edges if e.get("type") == "consumes" and e.get("from") not in produced},
-        key=str,
-    )
-    return [f"(e) consumes references artifact with no producer: {art}" for art in missing]
+    node_ids = {n.get("id") for n in nodes}
+    out: list[str] = []
+    for edge in edges:
+        if edge.get("type") != "consumes":
+            continue
+        artifact = edge.get("from")
+        consumer = edge.get("to")
+        if artifact not in produced:
+            out.append(f"(e) consumes references artifact with no producer: {artifact}")
+        if consumer not in node_ids:
+            out.append(f"(e) consumes references missing consumer task: {consumer}")
+    return sorted(set(out))
 
 
 def _check_node_states(nodes: list[dict]) -> list[str]:
-    """(g) node.state は永続4値のみ。ready は compute-ready-set の出力語彙なので拒否する。"""
+    """(g) canonical task-graph node.state は pending seed に固定する。"""
     out: list[str] = []
     for n in nodes:
         state = n.get("state")
-        if state not in _PERSISTED_NODE_STATES:
+        if state != _CANONICAL_NODE_STATE:
             out.append(
                 f"(g) node {n.get('id')} has invalid state {state!r}; "
-                f"expected one of {sorted(_PERSISTED_NODE_STATES)} (ready is computed-only)"
+                "canonical task-graph requires pending seed; runtime states belong to task-state.json"
             )
+    return out
+
+
+def _target_shape_declared(nodes: list[dict]) -> bool:
+    """graph 内に execution_kind を携帯する node が 1 つでもあれば target shape 採用宣言とみなす。"""
+    return any(isinstance(n.get("execution_kind"), str) and n.get("execution_kind") for n in nodes)
+
+
+def _check_migration_gate(nodes: list[dict], marker: str) -> list[str]:
+    """(l) bootstrap→target shape 移行 gate (marker 非依存の additive 層・C17 風化防止)。
+
+    GAP-BOOTSTRAP-TARGET-SHAPE-001: fixed-13-phase bootstrap は execution_kind を一切携帯せず、
+    legacy join は entity_ref から route を暗黙推測する。C01 build 完了後の target shape は明示
+    route_ref parity を必須化し、legacy join は shape marker でだけ後方互換許可する。本 gate は
+    「一部 node だけ target shape へ移行した中途半端 (=最も危険) な graph」を fail-closed で拒否する。
+
+    発火条件 (どちらか成立):
+      - target shape 採用宣言 = execution_kind を携帯する node が 1 つでも存在する (marker 非依存)。
+      - shape_marker=task-graph-derived (dispatchable node に execution_kind 必須という shape 宣言)。
+    非発火 (後方互換): fixed-13-phase marker かつ execution_kind 全不在 (現行 bootstrap plan)。
+    entity_ref を持つ legacy node が多数あっても execution_kind が皆無なら発火しない。
+
+    要求 (発火時):
+      (l1) 部分携帯 fail-closed: entity_ref 非 null の全 node が execution_kind を携帯すること。
+           一部 component node だけ移行し他は legacy のまま残る中途半端 shape を拒否する。
+      (l2) 明示 route_ref parity: execution_kind==component-build の全 node が非空 route_ref を
+           携帯すること (entity_ref からの暗黙 route 推測を禁止)。direct-task/phase-gate の
+           route_ref=null は schema 通りで (l2) の対象外 ((k) が shape 別の詳細を担う)。
+    """
+    if not (_target_shape_declared(nodes) or marker == "task-graph-derived"):
+        return []
+    out: list[str] = []
+    for n in nodes:
+        entity = n.get("entity_ref")
+        kind = n.get("execution_kind")
+        if isinstance(entity, str) and entity and not (isinstance(kind, str) and kind):
+            out.append(
+                f"(l) migration gate: dispatchable node {n.get('id')} (entity_ref={entity!r}) "
+                "lacks execution_kind — partial bootstrap→target adoption is fail-closed "
+                "(GAP-BOOTSTRAP-TARGET-SHAPE-001)"
+            )
+    for n in nodes:
+        if n.get("execution_kind") == "component-build":
+            route = n.get("route_ref")
+            if not (isinstance(route, str) and route.strip()):
+                out.append(
+                    f"(l) migration gate: component-build node {n.get('id')} requires explicit "
+                    "non-empty route_ref (implicit entity_ref->route inference is forbidden)"
+                )
     return out
 
 
@@ -314,8 +375,89 @@ def _check_canonical(graph: dict) -> list[str]:
     return []
 
 
-def validate(graph: dict, inventory: dict) -> list[str]:
-    """task-graph の 10 検査を fail-soft で実行し violations list を返す ((a)-(j))。"""
+def _check_target_shape(graph: dict, plan_dir: Path | None) -> list[str]:
+    """(k) task-graph-derived の renderer 前提と phase-gate/leaf shape を fail-closed 検査する。"""
+    nodes = _nodes(graph)
+    edges = _edges(graph)
+    out: list[str] = []
+    node_ids = {n.get("id") for n in nodes}
+    parent_pairs = {
+        (e.get("from"), e.get("to")) for e in edges if e.get("type") == "parent_of"
+    }
+    producing_nodes = {
+        e.get("from") for e in edges if e.get("type") == "produces"
+    }
+    roots_by_phase: dict[str, list[dict]] = {}
+    leaves: list[dict] = []
+    for node in nodes:
+        nid = node.get("id")
+        ek = node.get("execution_kind")
+        if ek == "phase-gate":
+            roots_by_phase.setdefault(node.get("phase_ref"), []).append(node)
+            if nid != node.get("phase_ref"):
+                out.append(f"(k) phase-gate id must equal phase_ref: {nid}")
+            if node.get("route_ref") is not None or node.get("task_spec_ref") is not None:
+                out.append(f"(k) phase-gate must have null route_ref/task_spec_ref: {nid}")
+            continue
+        leaves.append(node)
+        if ek not in ("direct-task", "component-build"):
+            out.append(f"(k) executable leaf {nid} has invalid/missing execution_kind: {ek!r}")
+        task_spec_ref = node.get("task_spec_ref")
+        if not (isinstance(task_spec_ref, str) and task_spec_ref.startswith("task-specs/") and task_spec_ref.endswith(".md")):
+            out.append(f"(k) executable leaf {nid} requires task_spec_ref=task-specs/*.md")
+        if ek == "component-build" and not (
+            isinstance(node.get("route_ref"), str) and node.get("route_ref").strip()
+        ):
+            out.append(f"(k) component-build leaf {nid} requires explicit route_ref")
+        if ek == "direct-task" and node.get("route_ref") is not None:
+            out.append(f"(k) direct-task leaf {nid} must have null route_ref")
+        if not (isinstance(node.get("acceptance_criterion"), str) and node.get("acceptance_criterion").strip()):
+            out.append(f"(k) executable leaf {nid} requires non-empty acceptance_criterion")
+        if not (isinstance(node.get("write_scope"), str) and node.get("write_scope").strip()):
+            out.append(f"(k) executable leaf {nid} requires non-empty write_scope")
+        if nid not in producing_nodes:
+            out.append(f"(k) executable leaf {nid} requires at least one produces artifact")
+        phase_ref = node.get("phase_ref")
+        if (phase_ref, nid) not in parent_pairs:
+            out.append(f"(k) executable leaf {nid} is not parented by phase root {phase_ref}")
+
+        if plan_dir is not None and isinstance(task_spec_ref, str):
+            spec_path = plan_dir / task_spec_ref
+            if not spec_path.is_file():
+                out.append(f"(k) task_spec_ref does not exist for {nid}: {task_spec_ref}")
+            else:
+                try:
+                    fm = derive_task_graph.specfm.parse_frontmatter(spec_path.read_text(encoding="utf-8"))
+                except OSError as exc:
+                    out.append(f"(k) task spec unreadable for {nid}: {exc}")
+                else:
+                    if fm.get("id") != nid:
+                        out.append(f"(k) task spec id mismatch for {nid}: {fm.get('id')!r}")
+                    for field in ("objective", "verify"):
+                        if not (isinstance(fm.get(field), str) and fm.get(field).strip()):
+                            out.append(f"(k) task spec {task_spec_ref} requires non-empty {field}")
+
+    for phase_ref in sorted({n.get("phase_ref") for n in leaves}, key=str):
+        roots = roots_by_phase.get(phase_ref, [])
+        if len(roots) != 1:
+            out.append(f"(k) phase {phase_ref} requires exactly one phase-gate root (found {len(roots)})")
+    for phase_ref, roots in roots_by_phase.items():
+        if phase_ref not in {n.get("phase_ref") for n in leaves}:
+            out.append(f"(k) phase-gate has no executable leaves: {phase_ref}")
+        for root in roots:
+            if root.get("id") not in node_ids:
+                out.append(f"(k) phase-gate missing from node set: {root.get('id')}")
+    return out
+
+
+def validate(
+    graph: dict,
+    inventory: dict,
+    *,
+    marker: str = "fixed-13-phase",
+    plan_dir: Path | None = None,
+) -> list[str]:
+    """task-graph の検査を fail-soft で実行する。target shape は (k) を加える。"""
     nodes = _nodes(graph)
     edges = _edges(graph)
     violations: list[str] = []
@@ -323,12 +465,17 @@ def validate(graph: dict, inventory: dict) -> list[str]:
     violations += _check_orphans(nodes, edges)
     violations += _check_producer_unique(edges)
     violations += _check_inventory(nodes, edges, inventory)
-    violations += _check_consumes(edges)
+    violations += _check_consumes(nodes, edges)
     violations += _check_edge_endpoints(nodes, edges)
     violations += _check_phase_dependency_direction(nodes, edges)
     violations += _check_couples(nodes, edges, inventory)
     violations += _check_canonical(graph)
     violations += _check_node_states(nodes)
+    violations += _check_migration_gate(nodes, marker)
+    if marker == "task-graph-derived":
+        violations += _check_target_shape(graph, plan_dir)
+    elif marker != "fixed-13-phase":
+        violations.append(f"(k) unknown shape_marker={marker!r}")
     return violations
 
 
@@ -346,6 +493,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"not a directory: {plan_dir}", file=sys.stderr)
         return 2
 
+    try:
+        marker = derive_task_graph.shape_marker(plan_dir)
+    except ValueError as exc:
+        print(f"(k) {exc}")
+        return 1
+
     graph_path = plan_dir / "task-graph.json"
     try:
         graph = json.loads(graph_path.read_text(encoding="utf-8"))
@@ -362,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"read/parse error: {inv_path}: {exc}", file=sys.stderr)
             return 2
 
-    violations = validate(graph, inventory)
+    violations = validate(graph, inventory, marker=marker, plan_dir=plan_dir)
     if violations:
         for v in violations:
             print(v)

@@ -2,42 +2,33 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "run-plugin-dev-plan",
-    "skill_md_sha256": "d0129e0b17b6de59002fa32747c9115a339d21166ce4ccf01912c3427571834f"
+    "skill_md_sha256": "62ff263535ca42c7258c1fcf577da92d28a86c26d61bdfb35524ca5a1fc0a3fa"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
-    "inconsistency": 1,
+    "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 0
   },
-  "reviewer": "independent rubric evaluator (assign-skill-design-evaluator / ref-skill-design-rubric skill-design v1.3.0) — PR-flow stale-sha genuine 再評価 2026-07-08",
-  "reviewed_at": "2026-07-08T00:00:00+00:00",
+  "reviewer": "capability-build R2 independent rubric projection (+ PR-flow description 書式修正 独立再確認 2026-07-11)",
+  "reviewed_at": "2026-07-11T06:41:52+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "delta 二段検証(prose↔実装)-検査本数: validate-task-graph.py を精読し validate() が (a)dag/(b)orphan/(c)producer-unique/(d)inventory/(e)consumes/(h)edge-endpoints/(i)phase-direction/(j)couples/(f)canonical/(g)node-states の 10 個の check 関数を genuinely 呼ぶことを確認。couples(j)=_check_couples は inventory を渡され wired 済で、推移閉包 skip(derive._transitive_closure 再利用)・共有 phase 無し(cross-phase)skip・対称宣言・unknown component 参照検出まで実装。SKILL.md の '8 検査→10 検査 (couples(j) 追加)' は実装と一致。`python3 scripts/validate-task-graph.py examples/sample-plan` を実走し exit=0 を観測。",
-      "delta 二段検証(新規 advisory lint): lint-sibling-coupling.py を精読し header の write-scope:none / exit 0=候補0 または advisory(既定 record-only)/1=--strict かつ候補>0 の宣言どおり main() が既定で return 0・`--strict` 指定時のみ candidates>0 で return 1 であること、read-only であることを確認。`python3 scripts/lint-sibling-coupling.py examples/sample-plan` を実走し {\"candidates\":[]}・exit=0 を観測。SKILL bash 行の '`|| true` / advisory / record-only / 非ゲート / exit0' 主張と完全一致。",
-      "IN1 PASS(inner/script): index P01..P13 昇順全列挙 + DAG 非循環 + unassigned 0 を要求(SKILL.md:108)。golden で `verify-index-topsort.py examples/sample-plan` exit=0・`detect-unassigned.py --inventory … --specs-dir …` exit=0 を実走観測。task-graph delta はこの不変条件を撹乱せず derive が phase §5+inventory depends_on を射影するのみ。",
-      "IN2 PASS(inner/lint): 13 phase frontmatter(PHASE_REQUIRED)+section 床 + component_kind 別構造 + core quality_gates + harness_coverage(block) を要求(SKILL.md:112)。golden で `check-spec-frontmatter.py` exit=0・`check-spec-gates.py` exit=0・`check-spec-matrix-coverage.py --self-test`/PLAN 双方 exit=0 を実走観測。",
-      "OUT1 PASS(outer/elegant): 目的ドリブン分解が UBM 固有物のみ除外し harness-creator ネイティブ規律を伝播し C1-C4 全 PASS を要求(SKILL.md:116)。本 delta は task-graph 検査追加(couples)/advisory lint 追加という additive で C1-C4 表面を触らず regression なし(C1-C4 の genuine 実走は姉妹 elegance verdict の担当・本 rubric は design 温存を確認)。",
-      "OUT2 PASS(outer/evaluator): 各 skill component が skill-brief.schema.json 主要フィールドへ無加工写像で run-skill-create 投入可を要求(SKILL.md:120)。Rule7 schema parity(SKILL.md:172)・render-skill-brief.py 決定論射影(SKILL.md:307)は本 delta で無改変で写像性劣化なし。golden で `check-build-handoff.py` exit=0 を実走観測。",
-      "回帰網+拡張ゲート: `pytest -k 'task_graph or sibling or coupl'` 114 passed を実走観測。check-surface-inventory / check-runtime-portability も golden で exit=0。",
-      "5次元採点内訳: 完全性3(couples(j) が完了条件節と goal-seek bash 両所に反映・advisory 行の意味論明示・IN1/IN2/OUT1/OUT2 criteria 温存)/一貫性2(delta の '10 検査' 主張は実装と一致=+だが下記 main 既存の生成側↔評価側非対称で -1)/深度3(couples が (d) の鏡像設計・推移閉包/cross-phase 偽陽性回避・advisory は heuristic false-positive を理由に非ゲート配置と判断が明快)/検証可能性3(全て golden 実走 exit0 + 114 pytest で機械検証)/簡潔性2(完了条件文が極端に長い run-on + scripts/ 行が task-graph 付随 script を委譲列挙)。合計13/15(閾値>=11)・blocking 0 → PASS。"
+      "C17-C19 target/runtime contract gates and route evidence are current",
+      "target shape remains backward compatible with fixed-13-phase"
     ],
-    "negative_feedback": [
-      "[inconsistency/medium, 非ブロッキング, main既存・delta非該当] 一貫性 -1: check-downstream-harness.py が golden(examples/sample-plan)で exit=1 になることを独立実走で確認(各 phase の '## 完了チェックリスト' に '### 受入例'/'### 事前解決済み判断' サブ節を要求するが生成側 SSOT/golden が未産出)。ただし本 script は (1) goal-seek 検証 bash 12 ゲートに未配線 (2) io-contract §11 ゲート表に不在 (3) golden 回帰 test(test_examples_golden.py)非参照・単体 test は synthetic tmp_path のみ検査 (4) --self-test は exit=0 のため CI ハードゲート外の advisory 補助レイヤー。生成側指示と評価器期待の非対称という潜在 inconsistency として正直計上するが、本 PR の task-graph delta 由来ではなく非ブロッキング。",
-      "[smell/low, 非ブロッキング] 簡潔性 -1: 追加リソース scripts/ 行(SKILL.md:355)が task-graph subsystem 付随 script(apply-handoff-notes/check-plan-ledger/migrate-plan-layout/check-shape-non-regression/render-task-graph-mermaid/check-task-state-schema)を列挙せず references へ委譲(SSOT delegation として妥当だが読者は script_refs との差分を追う要)。加えて完了条件節が極端に長い run-on で couples(j) 追記で密度が更に上昇(io-contract §11 表への一段委譲で圧縮余地)。§11 表は 12 ゲートを正しく scope し本数矛盾ではない。"
-    ],
+    "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "pre-push",
+    "hook_trigger": "capability-build",
     "next_action": "none"
   },
-  "notes": "5次元 genuine 採点 (ref-skill-design-rubric skill-design v1.3.0 規範を 5 次元へ射影): 完全性3/一貫性2/深度3/検証可能性3/簡潔性2 = 合計13/15 (閾値 11 以上・blocking finding 0)。PR delta 3 点 ((1) validate-task-graph 8→10 に couples(j) 追加 (2) goal-seek bash へ lint-sibling-coupling.py advisory 行(record-only・非ゲート・exit0) (3) 完了条件節 8→10) は全て実装と一致することを二段検証で確認: validate() の 10 check 関数直読 + `validate-task-graph.py examples/sample-plan` exit=0 + lint 既定 exit=0/`--strict` のみ exit1/read-only + `lint-sibling-coupling.py` golden candidates:[] exit=0 + 114 pytest passed。10 検査主張は実装と一致するため FAIL 条件(10 検査主張の実装不一致)に非該当。二段検証で main 既存の非ブロッキング inconsistency(check-downstream-harness が golden で exit=1・生成側サブ節未伝播)を独立実走で確認し正直計上(一貫性 -1)。当該は 12 ハードゲート/§11 表/golden 回帰いずれの外の advisory で本 delta 非該当。VERDICT=PASS。"
+  "notes": "Evidence: 864 passed, 1 skipped; route reports complete; review artifact R2。[PR-flow re-pin 2026-07-11] frontmatter description を lint-skill-description の R1(トリガー≤2)/R5(末尾『使う。』) 準拠へ書式修正 (task-graph 第3射影の情報は保持・意味不変) したため sha が 6c586fb… → 62ff263… へ更新。独立 SubAgent が current SKILL.md を再確認し description 変更は cosmetic・新規 finding 0・既存 PASS 維持を genuine 判定 (呼出元も二段確認済み)。"
 }

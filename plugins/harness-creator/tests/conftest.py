@@ -15,6 +15,10 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+# templates/ 配下は byte parity の正本 dir。テストの in-place import が __pycache__ を
+# 落とすと将来の dir 単位比較で偽 drift 源になるため bytecode 生成を止める。
+sys.dont_write_bytecode = True
+
 
 def _load(stem: str) -> ModuleType:
     path = SCRIPTS_DIR / f"{stem}.py"

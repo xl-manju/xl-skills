@@ -55,7 +55,7 @@ def ready_set(graph: dict, repo_root: str | None = None) -> tuple[set[str], list
             node_by_id[n["id"]] = n
 
     depends: dict[str, list[str]] = {}          # node id -> depends_on 先 node id 群
-    consumes: dict[str, list[str]] = {}         # node id -> consumes 先 artifact id 群
+    consumes: dict[str, list[str]] = {}         # consumer node id -> consumes 先 artifact id 群
     producers_of: dict[str, list[str]] = {}     # artifact id -> それを produces する producer node id 群
     for e in edges:
         if not isinstance(e, dict):
@@ -64,7 +64,8 @@ def ready_set(graph: dict, repo_root: str | None = None) -> tuple[set[str], list
         if et == "depends_on":
             depends.setdefault(frm, []).append(to)
         elif et == "consumes":
-            consumes.setdefault(frm, []).append(to)
+            # canonical direction: artifact -> consumer task
+            consumes.setdefault(to, []).append(frm)
         elif et == "produces":
             producers_of.setdefault(to, []).append(frm)
 

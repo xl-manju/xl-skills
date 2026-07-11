@@ -80,6 +80,25 @@
       "type": "array",
       "items": {"type": "string", "minLength": 1},
       "description": "task-graph route モードの束ね done 用 (optional)。この report が done を賄う task-graph node id 群。sync-task-state.py (TG-C02) が done 遷移時に task_id ∈ covered_task_ids を照合する。不在時は単一 task 後方互換 (PR#70 契約)"
+    },
+    "discovered": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "(optional additive) emit-discovered-task.py で起票済み discovered-task form の repo-root 相対パス列。deviations 本文が discovered 報告へ言及する場合は本フィールドで form パスを実証する (validator が突合し、言及があるのに空/不在なら fail。corrections で訂正済みは除外)"
+    },
+    "corrections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "correction", "corrected_by"],
+        "properties": {
+          "target": {"type": "string", "minLength": 1, "description": "訂正対象の report 内 JSON パス (例 deviations[2])"},
+          "correction": {"type": "string", "minLength": 1, "description": "訂正内容 (原文の誤り文言は上書きせず additive に訂正を記録する)"},
+          "corrected_by": {"type": "string", "minLength": 1, "description": "訂正主体 (例 elegant-review Phase3)"}
+        }
+      },
+      "description": "(optional additive) 既存 report 本文の誤り文言への追記型訂正。evidence 改竄禁止の下で原文を保持したまま訂正を監査可能に残す"
     }
   }
 }

@@ -14,7 +14,7 @@ allowed-tools:
   - Bash(python3 *)
   - Task
 kind: assign
-version: 0.1.0
+version: 0.2.0
 effect: local-artifact
 owner: team-platform
 contract:

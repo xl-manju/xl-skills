@@ -426,13 +426,27 @@ def _check_task_graph_ref(data: dict, plan_dir: Path) -> list[str]:
             ent = node_entity.get(e.get("from"))
             if isinstance(ent, str) and ent:
                 producer_entities.add(ent)
+    # C17: target shape の component-build node は明示 route_ref で route と対応する
+    # (entity_ref 暗黙 route でなく)。producer_entities (fixed-13-phase の produces 経路) に
+    # 明示 route_ref を additive 合算し、どちらかで対応が取れれば充足とする (後方互換)。
+    explicit_routes: set[str] = set()
+    for n in graph.get("nodes", []):
+        if not isinstance(n, dict) or n.get("execution_kind") != "component-build":
+            continue
+        rr = n.get("route_ref")
+        if isinstance(rr, str) and rr.strip():
+            explicit_routes.add(rr.strip())
+    covered = producer_entities | explicit_routes
     route_ids = {
         str(r.get("id", "")).strip()
         for r in data.get("routes", [])
         if isinstance(r, dict) and str(r.get("id", "")).strip()
     }
-    for rid in sorted(rid for rid in route_ids if rid not in producer_entities):
-        errors.append(f"route {rid} が task-graph 上の producer task (produces を持つ node) に対応しない")
+    for rid in sorted(rid for rid in route_ids if rid not in covered):
+        errors.append(
+            f"route {rid} が task-graph 上の producer task (produces を持つ node) にも "
+            "component-build の明示 route_ref にも対応しない"
+        )
     return errors
 
 

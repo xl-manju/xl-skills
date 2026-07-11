@@ -241,13 +241,31 @@ def test_detect_stall_propagated_self_reason_gets_no_origin_entry():
 
 
 def test_detect_stall_build_failure_via_consumes_edge():
-    # consumes エッジも depends_on と同様に producer として扱う。
-    graph = _graph(["T1", "T2"], [{"type": "consumes", "from": "T2", "to": "T1"}])
+    # artifact->consumer を produces で producer task へ逆引きする。
+    graph = _graph(["T1", "T2"], [
+        {"type": "produces", "from": "T1", "to": "A1"},
+        {"type": "consumes", "from": "A1", "to": "T2"},
+    ])
     st = _state(_node("T1", "blocked", blocked_reason="origin-failure"), _node("T2", "pending"))
     by = {"pending": 1, "running": 0, "done": 0, "blocked": 1}
     out = stp.detect_stall(by, [], graph, st)
     diag = [d for d in out["diagnosis"] if d["task_id"] == "T2"]
     assert len(diag) == 1 and diag[0]["kind"] == "build-failure"
+
+
+def test_detect_stall_consumes_without_artifact_producer_is_spec_gap():
+    graph = _graph(["T2"], [
+        {"type": "consumes", "from": "A404", "to": "T2"},
+    ])
+    st = _state(_node("T2", "pending"))
+    by = {"pending": 1, "running": 0, "done": 0, "blocked": 0}
+    out = stp.detect_stall(by, [], graph, st)
+    assert out["has_spec_gap"] is True
+    diag = [d for d in out["diagnosis"] if d["task_id"] == "T2"]
+    assert len(diag) == 1
+    assert diag[0]["kind"] == "spec-gap"
+    assert diag[0]["missing_artifact_id"] == "A404"
+    assert "has no producer" in diag[0]["message"]
 
 
 # ─────────────────────────── detect_stall: has_spec_gap 分岐 ───────────────────────────

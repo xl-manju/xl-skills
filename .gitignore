@@ -58,10 +58,12 @@ eval-log/notion-gmail-send/journal-*.jsonl
 eval-log/notion-gmail-send/plan.json
 eval-log/notion-gmail-send/journal.jsonl
 # 例外: plugin-dev-planner の評価器ソース (plan-rubric.json=rubric SSOT /
-# plan-findings.schema.json=findings schema) は PII 非含有の追跡対象ソースだが、上の
-# **/plan-*.json (notion-gmail-send PII 除外) に名前衝突で巻き込まれ未追跡化するため再include する。
+# plan-findings.schema.json=findings schema / plan-ledger.schema.json=cycle 台帳 schema) は
+# PII 非含有の追跡対象ソースだが、上の **/plan-*.json (notion-gmail-send PII 除外) に名前衝突で
+# 巻き込まれ未追跡化するため再include する。
 !plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/references/plan-rubric.json
 !plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/schemas/plan-findings.schema.json
+!plugins/plugin-dev-planner/skills/run-plugin-dev-plan/schemas/plan-ledger.schema.json
 
 # Session-local artifacts
 output/
@@ -127,6 +129,7 @@ plugin-plans/*/.goal-seek/
 # 揮発 state (completion_rate/running/blocked 等) を含み周回ごとに変わるため除外 (構造正本=task-graph.json は追跡)。
 plugin-plans/*/task-graph-status.json
 plugin-plans/*/task-progress.md
+plugin-plans/*/task-execution-report.html
 # 例外2: 上の **/plan-*.json (notion-gmail-send PII 除外) が plan-findings.json を名前衝突で
 # 巻き込み未追跡化するため再include する (可視化の意図を守る・plan-rubric.json と同型救済)。
 !plugin-plans/**/plan-*.json

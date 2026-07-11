@@ -18,7 +18,10 @@
 #       blocked 時 (第2段=--task-state の blocked node 残存): blocked_tasks[]{id,blocked_reason}
 #                   (origin-failure/propagated 双方・id 昇順) + next_steps 分岐指示
 #                   [人手救済 (受入基準修正→再検証), emit-discovered-task による外ループ合流]
-#       ok 時: 記録サマリ (entries_recorded + knowledge_record_status=ok|loop_a_skipped|record_failed)
+#       ok 時: 記録サマリ (entries_recorded + knowledge_record_status=ok|loop_a_skipped|loop_b_skipped|record_failed
+#              + store_results{loop_a,loop_b}{status,recorded[,reason]} per-store 件数)。store 不在/
+#              consult_at 未宣言は書込前に事前検知して skipped へ分類し (record_failed にしない)、
+#              書込は store 単位+entry 単位で try 隔離する (Loop A 失敗でも Loop B 継続)
 #   - stderr: usage / Loop A 未配線・add_entry 失敗の WARN 診断
 #   - exit: 0=gate ok (knowledge 記録の成否に依らず・疎結合) / 1=gate blocked (未処理 discovered-task または blocked node 残存) / 2=usage/IO error (引数/parse のみ)
 #   - write-scope: <target-knowledge-dir> knowledge/ (Loop A) + <harness-knowledge-dir> knowledge/ (Loop B) (add_entry.py 委譲) + <task-events> task-events.jsonl (gate 判定 event append・TG-C02 append_event 再利用・--dry-run 時は書かない)
@@ -396,6 +399,36 @@ def _entry_for_store(entry: dict) -> dict:
             if k in entry}
 
 
+# ── knowledge store 事前検知 (add_entry 失敗前に skipped へ分類) ────────────────
+def check_store_ready(store_dir: Path) -> str | None:
+    """knowledge store の書込可否を add_entry 実行前に判定する (不備理由 str / 可なら None)。
+
+    add_entry.py の --dir 解決 (store/knowledge-index.json → store/knowledge/knowledge-index.json)
+    と guard_consult_at (consult_at 宣言必須 = KL-007) を書込前に再現し、store 不在・index 不在・
+    consult_at 未宣言を record_failed でなく skipped へ事前分類できるようにする。
+    """
+    store_dir = Path(store_dir)
+    if not store_dir.is_dir():
+        return "store ディレクトリ不在"
+    index_path = store_dir / "knowledge-index.json"
+    if not index_path.exists():
+        index_path = store_dir / "knowledge" / "knowledge-index.json"
+    if not index_path.exists():
+        return "knowledge-index.json 不在"
+    # consult_at 宣言 (knowledge-index.json / router.json のどちらか) の事前検査。
+    for decl_name in ("knowledge-index.json", "router.json"):
+        decl = index_path.parent / decl_name
+        if not decl.exists():
+            continue
+        try:
+            data = json.loads(decl.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return f"{decl_name} 読込/parse 失敗: {exc}"
+        if isinstance(data, dict) and "consult_at" in data:
+            return None
+    return "consult_at 未宣言 (KL-007)"
+
+
 # ── knowledge 書込 (add_entry.py subprocess 委譲・1 store 分) ──────────────────
 def write_knowledge(entry: dict, store_dir: Path, add_entry_path: Path) -> None:
     """add_entry.py --dir <store_dir> --category build-patterns --json - へ 1 entry を追記する。
@@ -594,27 +627,57 @@ def main(argv: list[str] | None = None) -> int:
     # 完了ゲート (制御クリティカル) と knowledge 記録 (ベストエフォート) を疎結合化する (F2)。
     # completion_gate:"ok" は未処理 discovered-task 不在で既に確定済み。knowledge 記録の成否
     # (Loop A 未配線 / add_entry 失敗) を完了判定へ伝播させず、build 完了を巻き込んで落とさない。
-    # Loop A store 未配線でも exit2 で block せず WARN で継続し Loop B のみ記録する。
+    # store 不在/consult_at 未宣言は書込前に事前検知して skipped へ分類し (record_failed にしない)、
+    # 書込は store 単位+entry 単位で try 隔離する (Loop A 失敗でも Loop B 継続・per-store 件数を出力)。
     add_entry_path = Path(args.add_entry_path)
-    recorded = 0
-    record_status = "ok"
-    if entries and not loop_a_store:
-        record_status = "loop_a_skipped"
-        print("warning: --target-knowledge-dir 未指定のため Loop A 追記をスキップ (Loop B のみ記録)",
-              file=sys.stderr)
+    stores: dict[str, dict] = {}
+    for label, store in (("loop_a", loop_a_store), ("loop_b", loop_b_store)):
+        if not store:
+            stores[label] = {"status": "skipped", "recorded": 0, "reason": "store 未配線"}
+            continue
+        reason = check_store_ready(Path(store))
+        stores[label] = ({"status": "skipped", "recorded": 0, "reason": reason} if reason
+                         else {"status": "ok", "recorded": 0})
+    display = {"loop_a": "Loop A", "loop_b": "Loop B"}
+    if entries:
+        for label in ("loop_a", "loop_b"):
+            if stores[label]["status"] == "skipped":
+                print(f"warning: {display[label]} 追記をスキップ ({stores[label]['reason']})",
+                      file=sys.stderr)
     # 自己 build (target==harness-creator) では Loop A/B が同一 store へ縮退するため
-    # 二重 add (決定論 id の重複拒否) を避けて 1 回だけ書く。
-    same_store = bool(loop_a_store) and Path(loop_a_store).resolve() == Path(loop_b_store).resolve()
-    try:
-        for entry in entries:
-            if loop_a_store:
-                write_knowledge(entry, Path(loop_a_store), add_entry_path)
-            if not same_store:
-                write_knowledge(entry, Path(loop_b_store), add_entry_path)
+    # 二重 add (決定論 id の重複拒否) を避けて 1 回だけ書く (loop_b 側を merged 扱い)。
+    same_store = (stores["loop_a"]["status"] != "skipped" and stores["loop_b"]["status"] != "skipped"
+                  and Path(loop_a_store).resolve() == Path(loop_b_store).resolve())
+    if same_store:
+        stores["loop_b"] = {"status": "merged_into_loop_a", "recorded": 0,
+                            "reason": "Loop A と同一 store (自己 build 縮退)"}
+    recorded = 0
+    for entry in entries:
+        wrote_any = False
+        for label, store in (("loop_a", loop_a_store), ("loop_b", loop_b_store)):
+            st = stores[label]
+            if st["status"] not in ("ok", "failed"):
+                continue
+            try:
+                write_knowledge(entry, Path(store), add_entry_path)
+                st["recorded"] += 1
+                wrote_any = True
+            except (FileNotFoundError, RuntimeError) as exc:
+                st["status"] = "failed"
+                print(f"warning: {display[label]} への knowledge 記録失敗"
+                      f" (完了は継続・他 store/entry は続行): {exc}", file=sys.stderr)
+        if wrote_any:
             recorded += 1
-    except (FileNotFoundError, RuntimeError) as exc:
+
+    # 総合分類: 実書込失敗のみ record_failed。事前検知 skip は loop_a/b_skipped (entries 無しは ok)。
+    if any(st["status"] == "failed" for st in stores.values()):
         record_status = "record_failed"
-        print(f"warning: knowledge 記録失敗 (完了は継続): {exc}", file=sys.stderr)
+    elif entries and stores["loop_a"]["status"] == "skipped":
+        record_status = "loop_a_skipped"
+    elif entries and stores["loop_b"]["status"] == "skipped":
+        record_status = "loop_b_skipped"
+    else:
+        record_status = "ok"
 
     # gate 判定確定 event (S-11): completed 到達を event 履歴へ残す (--dry-run は上で return 済)。
     append_gate_event(task_events, {
@@ -630,6 +693,7 @@ def main(argv: list[str] | None = None) -> int:
         "knowledge_record_status": record_status,
         "loop_a_store": loop_a_store,
         "loop_b_store": loop_b_store,
+        "store_results": stores,
     }, ensure_ascii=False))
     return 0
 

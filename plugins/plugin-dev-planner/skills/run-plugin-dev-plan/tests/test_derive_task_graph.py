@@ -429,3 +429,125 @@ def test_main_print_graph_hash_missing_arg():
 
 def test_main_not_a_directory(tmp_path):
     assert DTG.main([str(tmp_path / "nope")]) == 2
+
+
+# ─────────── task-graph-derived target shape (C17 producer) ───────────
+def _write_target_index(d: Path, marker="task-graph-derived"):
+    d.joinpath("index.md").write_text(
+        f"---\nid: IDX0\nshape_marker: {marker}\n---\n# target plan\n", encoding="utf-8"
+    )
+
+
+def _write_task_spec(d: Path, task_id: str, *, phase_ref: str, execution_kind: str,
+                     route_ref=None, entity_ref=None, depends_on=(), produces=(), consumes=()):
+    specs = d / "task-specs"
+    specs.mkdir(exist_ok=True)
+    lines = [
+        "---",
+        f"id: {task_id}",
+        f"title: {task_id} の検証可能成果物を生成",
+        f"phase_ref: {phase_ref}",
+        f"execution_kind: {execution_kind}",
+    ]
+    if route_ref is not None:
+        lines.append(f"route_ref: {route_ref}")
+    if entity_ref is not None:
+        lines.append(f"entity_ref: {entity_ref}")
+    lines += [
+        f"write_scope: outputs/{task_id}.json",
+        f"acceptance_criterion: outputs/{task_id}.json が検証コマンドで一致する",
+        f"objective: {task_id} の成果物を追加質問なしで生成する",
+        f"verify: pytest tests/test_{task_id.lower()}.py",
+        f"depends_on: [{', '.join(depends_on)}]",
+        f"produces: [{', '.join(produces)}]",
+        f"consumes: [{', '.join(consumes)}]",
+        "---",
+        "本文は envelope へ全文注入しない。",
+    ]
+    (specs / f"{task_id}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _target_plan(d: Path):
+    _write_target_index(d)
+    _write_phase(
+        d, "phase-02-design.md", "id: P02\nphase_name: design\nentities_covered: []", "- [ ] legacy は読まない\n"
+    )
+    _write_phase(
+        d, "phase-05-implementation.md", "id: P05\nphase_name: implementation\nentities_covered: [C01]", "- [ ] legacy は読まない\n"
+    )
+    _write_task_spec(
+        d, "T1", phase_ref="P02", execution_kind="direct-task", produces=("A1",)
+    )
+    _write_task_spec(
+        d, "T2", phase_ref="P05", execution_kind="component-build", route_ref="C01",
+        entity_ref="C01", depends_on=("T1",), produces=("A2",), consumes=("A1",),
+    )
+    d.joinpath("component-inventory.json").write_text(
+        json.dumps({"components": [{"id": "C01", "depends_on": []}]}), encoding="utf-8"
+    )
+
+
+def test_fixed_shape_explicit_marker_is_byte_compatible(tmp_path):
+    _fixture_plan(tmp_path)
+    before = DTG.canonical_json(DTG.derive(tmp_path))
+    _write_target_index(tmp_path, marker="fixed-13-phase")
+    after = DTG.canonical_json(DTG.derive(tmp_path))
+    assert after == before
+
+
+def test_target_shape_derives_one_executable_leaf_per_task_spec(tmp_path):
+    _target_plan(tmp_path)
+    graph = DTG.canonicalize(DTG.derive(tmp_path))
+    leaves = [n for n in graph["nodes"] if n.get("execution_kind") != "phase-gate"]
+    assert [n["id"] for n in leaves] == ["T1", "T2"]
+    assert all(n["task_spec_ref"] == f"task-specs/{n['id']}.md" for n in leaves)
+    assert all(n["acceptance_criterion"] and n["write_scope"] for n in leaves)
+    assert next(n for n in leaves if n["id"] == "T2")["route_ref"] == "C01"
+    assert next(n for n in leaves if n["id"] == "T1")["route_ref"] is None
+    roots = [n for n in graph["nodes"] if n.get("execution_kind") == "phase-gate"]
+    assert {n["id"] for n in roots} == {"P02", "P05"}
+    assert all(n["route_ref"] is None and n["task_spec_ref"] is None for n in roots)
+    assert {tuple(e[k] for k in ("type", "from", "to")) for e in graph["edges"]} >= {
+        ("produces", "T1", "A1"),
+        ("consumes", "A1", "T2"),
+    }
+
+
+def test_target_shape_all_leaves_satisfy_renderer_prerequisites(tmp_path):
+    rte = _load("render-task-execution-envelope")
+    _target_plan(tmp_path)
+    graph = DTG.canonicalize(DTG.derive(tmp_path))
+    for node in graph["nodes"]:
+        if node.get("execution_kind") == "phase-gate":
+            continue
+        spec = rte.load_task_spec(tmp_path, node["task_spec_ref"])
+        envelope, violations = rte.build_envelope(node, spec, graph)
+        assert violations == []
+        assert envelope["task_id"] == node["id"]
+
+
+def test_target_shape_is_deterministic(tmp_path):
+    _target_plan(tmp_path)
+    assert DTG.canonical_json(DTG.derive(tmp_path)) == DTG.canonical_json(DTG.derive(tmp_path))
+
+
+def test_unknown_shape_fails_closed(tmp_path, capsys):
+    _write_target_index(tmp_path, marker="future-shape")
+    assert DTG.main([str(tmp_path)]) == 1
+    assert "unknown shape_marker" in capsys.readouterr().err
+
+
+def test_target_component_build_without_route_fails_closed(tmp_path):
+    _write_target_index(tmp_path)
+    _write_task_spec(tmp_path, "T1", phase_ref="P05", execution_kind="component-build")
+    import pytest
+    with pytest.raises(ValueError, match="route_ref"):
+        DTG.derive(tmp_path)
+
+
+def test_target_task_without_produces_fails_closed(tmp_path):
+    _write_target_index(tmp_path)
+    _write_task_spec(tmp_path, "T1", phase_ref="P05", execution_kind="direct-task")
+    import pytest
+    with pytest.raises(ValueError, match="produces は 1 件以上必須"):
+        DTG.derive(tmp_path)

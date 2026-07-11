@@ -54,10 +54,18 @@
 - **hook**: `event`(PreToolUse|PostToolUse|Stop|UserPromptSubmit|SessionEnd)/`matcher`/`exit_semantics`(fail-closed=exit2)/`settings_wiring`/`fail_closed: true` + core 規律。
 - **script**: `script_name`/`purpose`/`inputs`/`outputs`/`exit_codes`/`network`/`write_scope` + `stdlib_only: true` + `tests_min: 80` + core 規律。
 
-**(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6/B4/B5 を焼く。feedback_deploy はコア=常時・notion_sink 契約は io-contract §9) を保持する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
+**(C) index(main)**: P01..P13 を **phase_number 昇順**で列挙した目次 + 各 status + コンポーネント目録の所在 (buildable 実体は inventory が SSOT) + Plugin-level surfaces 表 + 全体完了条件 + 受入確認 (build 後の見方) + `plugin_meta`(manifest/marketplace/distribution/pkg_contract/governance/ci/ssot_dedup/feedback_deploy = plugin-creator + F3/F4/F5/F6/A10/A7/F7/D6/B4/B5 を焼く。feedback_deploy はコア=常時・notion_sink 契約は io-contract §9) を保持する。受入確認には consumer TG-C09 が生成する `task-execution-report.html` (図解付き実行記録) を第一導線、`task-progress.md` を差分確認導線、`task-graph-status.json` を機械導線として明記する。plugin 階層横断規律は index の `plugin_meta` に集約する (phase/component に加算しない)。
 - `plugin_meta.manifest`: `required:true`、`path:.claude-plugin/plugin.json`、`name_matches_folder:true`、`no_unresolved_placeholders:true`、`validate_plugin:true` を必須にする。
 - `plugin_meta.marketplace`: `default_personal` は bool、`policy.installation` は `AVAILABLE` 既定、`policy.authentication` は `ON_INSTALL` 既定、`policy.category` は非空、`cachebuster_for_update:true` を必須にする。
 - 焼き先の正本キーは io-contract.md の表 (「焼き先はマトリクスに従う」総称ポインタでなく具体キー)。条件付き規律 (prompt_layer/knowledge_loop/combinators/goal_seek) は kind/feature/階層ゲートに従い盲目的に全 component へ焼かない。
+
+**(D) task-graph-derived の task spec** (`index.md` frontmatter の `shape_marker: task-graph-derived` 時のみ):
+- `task-specs/<task-id>.md` を実行可能 leaf の宣言正本とし、**1 spec = 1 検証可能成果物 = 1 leaf** で filename stem と `id` を一致させる。phase 完了 root は task spec として書かず、derive が phase ごとに `execution_kind=phase-gate` として生成する。
+- frontmatter 必須: `id` / `title` / `phase_ref` (`P01..P13` の単一 policy) / `execution_kind` (`direct-task|component-build`) / `write_scope` / `acceptance_criterion` / `objective` / `verify`。`depends_on` / `produces` / `consumes` は非空文字列配列とし、`produces` は 1件以上必須、`depends_on` / `consumes` は該当なしなら `[]` とする。
+- `component-build` は `route_ref` を必須にし、`entity_ref` は分類・traceability 用にだけ任意携帯する。`direct-task` は `route_ref` を書かない。builder 選択を `entity_ref` から推測しない。
+- `acceptance_criterion` は二値判定可能な 1 成果物の停止条件、`write_scope` は排他書込パス、`verify` は実行可能な確認方法を具体値で書く。renderer が使う追加の `acceptance_criteria` / `knowledge_refs` / `external_inputs` は必要時だけ additive に携帯できる。
+- `depends_on` は consumer task→producer task、`produces` は producer task→artifact、`consumes` は artifact→consumer task の向きで射影する。task spec の `consumes[]` は artifact id を列挙し、derive が正本向きへ変換する。component 依存を配下 task の直積へ展開せず、明示 task dependency または artifact join へ 1 回だけ写像する。
+- `shape_marker` 未指定は `fixed-13-phase` 既定で従来 bytes/behavior を維持する。既知値は `fixed-13-phase|task-graph-derived` のみで、未知値へ fallback せず生成・検証を fail-closed にする。
 
 ### 2.3 入力契約
 
@@ -67,7 +75,7 @@
 | goal_spec | path | yes | <PLAN_DIR>/goal-spec.json |
 
 ### 2.4 出力契約
-- 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + **task-graph.json (デフォルト成果物・下記 2.5)** + handoff-run-plugin-dev-plan.json (`task_graph_ref` 常時付与)
+- 形式: 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md`・frontmatter は io-contract.md §2 契約 + §5 本文床) + index.md(main) + component-inventory.json (品質機構を焼いた各 component エントリ) + **task-graph.json (デフォルト成果物・下記 2.5)** + handoff-run-plugin-dev-plan.json (`task_graph_ref` 常時付与)。target shape では加えて `task-specs/*.md` (D 契約) を生成する
 - 出力先: 構想専用 plan ディレクトリ (既定 `plugin-plans/<plugin-slug>/`・可視/永続の tracked deliverable。実プラグインディレクトリは作らない)
 - **envelope ドラフト (artifact_class=plugin-plan 時のみ)**: 唯一 builder を持たない plugin envelope について、`<PLAN_DIR>/envelope-draft/plugin.json` に**具体値入りの「貼れる」 manifest ドラフト** (`name`↔folder 一致・未展開 placeholder 無し・`entry_points` 雛形・`distributable` 整合) を **manual-apply artifact** として emit する。これは契約(値域宣言=`plugin_meta`)とは別の「実体ドラフト」で、利用者が build 境界 (実 `plugins/` への書込) を侵さず最後の手動ステップを完了するためのもの。実 `plugins/` には書かない
 
@@ -75,7 +83,7 @@
 
 > **原則**: plan の成果物は **task-graph を第一級**とする。13 phase 文書 + inventory は人間可読・機械 SSOT の入力であり、そこから決定論射影した `task-graph.json` を**必ず**生成し、handoff に `task_graph_ref` を**常時付与**して build を task-graph mode (依存グラフ駆動・最適手順 dispatch + discovered-task 還流) で回す。task-graph を省略した plan (linear route mode への退化) は不完全 deliverable とする。
 
-- **生成手段は再実装しない**: `scripts/derive-task-graph.py <PLAN_DIR>` が 13 phase §5 完了チェックリスト項目 + `component-inventory.json` の `depends_on` を単一 writer として決定論射影し `<PLAN_DIR>/task-graph.json` を canonical serialization で書く。R3 は phase/index/inventory を確定した**後に必ずこの導出を実行**する (手書きしない=単一 writer 契約)。
+- **生成手段は再実装しない**: `scripts/derive-task-graph.py <PLAN_DIR>` が shape marker を読み、`fixed-13-phase` は従来どおり 13 phase §5 完了チェックリスト + inventory、`task-graph-derived` は `task-specs/*.md` を正本に単一 writer で決定論射影し `<PLAN_DIR>/task-graph.json` を canonical serialization で書く。R3 は phase/index/inventory (target は task specs も) を確定した**後に必ずこの導出を実行**する (手書きしない=単一 writer 契約)。
 - **handoff への常時参照**: `handoff-run-plugin-dev-plan.json` の top-level に `task_graph_ref: {path: "task-graph.json", schema_version: "1.0"}` を**必ず**付与する (consumer=`/capability-build` はこれが在れば task-graph 2 ループ mode で駆動する)。省略は `check-build-handoff.py` が fail-closed で弾く。
 - **自己検証**: 生成後に `scripts/validate-task-graph.py <PLAN_DIR>` (DAG 非循環 / orphan 0 / producer 一意 / inventory 矛盾 0 / dangling 端点 0 / 非正準拒否の 10 検査) が exit0 になることを確認する。非正準・循環は R2 の inventory `depends_on` へ差し戻す。
 
@@ -128,6 +136,7 @@
 - [ ] 各 inventory component が ≥1 phase の `entities_covered` に出現 (orphan 0 件)
 - [ ] `check-spec-frontmatter.py` / `check-spec-gates.py` / `verify-index-topsort.py` / `detect-unassigned.py` が exit0 になった
 - [ ] `derive-task-graph.py <PLAN_DIR>` を実行し `task-graph.json` をデフォルト成果物として生成し、`validate-task-graph.py <PLAN_DIR>` が exit0 になった (2.5)
+- [ ] `shape_marker=task-graph-derived` の場合、D 契約を満たす `task-specs/*.md` を生成し、全実行可能 leaf が `execution_kind`/`task_spec_ref`/`acceptance_criterion`/`write_scope` を持ち、component-build だけが `route_ref` を持つ
 - [ ] `handoff-run-plugin-dev-plan.json` を生成し `task_graph_ref` を常時付与し、`check-build-handoff.py` が exit0 になった
 
 ### 5.4 実行方式
@@ -166,7 +175,7 @@ Layer 5.2 のゴール + 5.3 完了チェックリストを唯一の停止条件
 1. 13 phase ファイル (`phase-01-requirements.md` … `phase-13-release.md` / io-contract.md §2 frontmatter + §5 本文床を満たす)
 2. index.md (P01..P13 phase_number 昇順 + コンポーネント目録の所在 + 全体完了条件 + 受入確認 + plugin_meta)
 3. component-inventory.json (品質機構=quality_gates/harness_coverage/feedback_contract(skill loop) を焼いた各 component エントリ) と handoff-run-plugin-dev-plan.json (L3→L4 routing / builder / build_target / envelope status・routes は inventory 由来・`task_graph_ref` を常時付与)。**placement=skill の script route (builder=parent-skill-build) で build_target が親 skill の build_target 配下にあるものは、二相 build (scaffold→fill) の順序逆転を機械可読にするため `requires_parent_scaffold: <親 skill の component id>` を必ず付す** (io-contract §9・check-build-handoff.py が fail-closed 強制。plugin-root へ hoist した共有 script は親 skill 配下でないため不要)
-4. **task-graph.json (デフォルト成果物)**: phase/index/inventory 確定後に `scripts/derive-task-graph.py <PLAN_DIR>` を実行して単一 writer 射影で生成し、`scripts/validate-task-graph.py <PLAN_DIR>` exit0 を確認する (2.5・手書き禁止)
+4. **task-graph.json (デフォルト成果物)**: phase/index/inventory 確定後 (target shape は D 契約の `task-specs/*.md` 確定後) に `scripts/derive-task-graph.py <PLAN_DIR>` を実行して単一 writer 射影で生成し、`scripts/validate-task-graph.py <PLAN_DIR>` exit0 を確認する (2.5・手書き禁止)
 5. (plugin-plan 時) `<PLAN_DIR>/envelope-draft/plugin.json` = 貼れる manifest ドラフト (manual-apply artifact・実 `plugins/` には書かない)
 
 余計な前置き・後書き・思考過程出力は禁止。

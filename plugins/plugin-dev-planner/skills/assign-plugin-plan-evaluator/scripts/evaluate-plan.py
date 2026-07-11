@@ -328,7 +328,7 @@ def evaluate(plan_dir: Path, output: Path) -> tuple[int, dict]:
         "plan_dir": str(plan_dir),
         "evaluator": {
             "name": "assign-plugin-plan-evaluator",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "context": "fork",
         },
         "verdict": verdict,

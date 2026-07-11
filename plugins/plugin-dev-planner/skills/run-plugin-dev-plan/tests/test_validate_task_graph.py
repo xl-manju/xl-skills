@@ -192,6 +192,14 @@ def test_e_consumes_missing_producer():
     assert any(msg.startswith("(e)") and "A99" in msg for msg in v)
 
 
+def test_e_rejects_reversed_consumes_direction():
+    g = _c2_graph()
+    edges = list(g["edges"]) + [{"type": "consumes", "from": "T4", "to": "A1"}]
+    g2 = dtg.canonicalize({"schema_version": "1.0", "nodes": g["nodes"], "edges": edges})
+    v = vtg.validate(g2, INVENTORY)
+    assert any(msg.startswith("(e)") and "T4" in msg and "no producer" in msg for msg in v)
+
+
 # ─────────────────── (f) 非正準拒否 ───────────────────
 def test_f_non_canonical_rejected():
     g = _c2_graph()
@@ -208,7 +216,7 @@ def test_f_extra_toplevel_key_rejected():
     assert any(msg.startswith("(f)") for msg in vtg.validate(g2, INVENTORY))
 
 
-# ─────────────────── (g) node.state 永続4値 ───────────────────
+# ─────────────────── (g) canonical node.state=pending seed ───────────────────
 def test_g_ready_state_rejected():
     g = _c2_graph()
     nodes = [dict(n) for n in g["nodes"]]
@@ -216,6 +224,15 @@ def test_g_ready_state_rejected():
     g2 = dtg.canonicalize({"schema_version": "1.0", "nodes": nodes, "edges": g["edges"]})
     v = vtg.validate(g2, INVENTORY)
     assert any(msg.startswith("(g)") and "ready" in msg for msg in v)
+
+
+def test_g_done_state_rejected_from_canonical_graph():
+    g = _c2_graph()
+    nodes = [dict(n) for n in g["nodes"]]
+    nodes[0]["state"] = "done"
+    g2 = dtg.canonicalize({"schema_version": "1.0", "nodes": nodes, "edges": g["edges"]})
+    v = vtg.validate(g2, INVENTORY)
+    assert any(msg.startswith("(g)") and "task-state.json" in msg for msg in v)
 
 
 # ─────────────────── main() CLI ───────────────────
@@ -315,3 +332,200 @@ def test_j_couples_skipped_when_component_ordered():
     g = _couple_graph(False)
     v = vtg._check_couples(vtg._nodes(g), vtg._edges(g), inv)
     assert not any(x.startswith("(j)") for x in v)
+
+
+# ─────────────────── (k) task-graph-derived target shape ───────────────────
+def _target_leaf(nid="T1", *, phase="P05", kind="direct-task", route=None):
+    node = _node(nid, "C01" if kind == "component-build" else None, phase=phase)
+    node.update({
+        "acceptance_criterion": f"{nid} の成果物が verify で一致する",
+        "execution_kind": kind,
+        "route_ref": route,
+        "task_spec_ref": f"task-specs/{nid}.md",
+    })
+    return node
+
+
+def _write_target_spec(plan_dir: Path, nid="T1"):
+    specs = plan_dir / "task-specs"
+    specs.mkdir(exist_ok=True)
+    (specs / f"{nid}.md").write_text(
+        "---\n"
+        f"id: {nid}\n"
+        f"title: {nid} title\n"
+        "objective: 成果物を生成する\n"
+        "verify: pytest tests/test_target.py\n"
+        "---\n",
+        encoding="utf-8",
+    )
+
+
+def _target_graph():
+    leaf = _target_leaf()
+    root = _node("P05", None, phase="P05")
+    root.update({"execution_kind": "phase-gate", "route_ref": None, "task_spec_ref": None})
+    return dtg.canonicalize({
+        "schema_version": "1.0",
+        "nodes": [root, leaf],
+        "edges": [
+            {"type": "parent_of", "from": "P05", "to": "T1"},
+            {"type": "depends_on", "from": "P05", "to": "T1"},
+            {"type": "produces", "from": "T1", "to": "A1"},
+        ],
+    })
+
+
+def test_k_target_shape_renderer_prerequisites_pass(tmp_path):
+    _write_target_spec(tmp_path)
+    assert vtg.validate(
+        _target_graph(), {"components": []}, marker="task-graph-derived", plan_dir=tmp_path
+    ) == []
+
+
+def test_k_target_leaf_missing_acceptance_is_violation(tmp_path):
+    _write_target_spec(tmp_path)
+    graph = _target_graph()
+    leaf = next(n for n in graph["nodes"] if n["id"] == "T1")
+    leaf.pop("acceptance_criterion")
+    graph = dtg.canonicalize(graph)
+    violations = vtg.validate(
+        graph, {"components": []}, marker="task-graph-derived", plan_dir=tmp_path
+    )
+    assert any(v.startswith("(k)") and "acceptance_criterion" in v for v in violations)
+
+
+def test_k_target_leaf_without_produces_is_violation(tmp_path):
+    _write_target_spec(tmp_path)
+    graph = _target_graph()
+    graph["edges"] = [e for e in graph["edges"] if e["type"] != "produces"]
+    graph = dtg.canonicalize(graph)
+    violations = vtg.validate(
+        graph, {"components": []}, marker="task-graph-derived", plan_dir=tmp_path
+    )
+    assert any(v.startswith("(k)") and "produces artifact" in v for v in violations)
+
+
+def test_k_component_build_requires_route_ref(tmp_path):
+    _write_target_spec(tmp_path)
+    graph = _target_graph()
+    leaf = next(n for n in graph["nodes"] if n["id"] == "T1")
+    leaf["execution_kind"] = "component-build"
+    graph = dtg.canonicalize(graph)
+    violations = vtg.validate(
+        graph, {"components": []}, marker="task-graph-derived", plan_dir=tmp_path
+    )
+    assert any(v.startswith("(k)") and "route_ref" in v for v in violations)
+
+
+def test_main_unknown_shape_fails_closed(tmp_path, capsys):
+    (tmp_path / "index.md").write_text(
+        "---\nid: IDX0\nshape_marker: future-shape\n---\n", encoding="utf-8"
+    )
+    _write_plan(tmp_path, _target_graph(), {"components": []})
+    assert vtg.main([str(tmp_path)]) == 1
+    assert "unknown shape_marker" in capsys.readouterr().out
+
+
+# ─────────────────── (l) bootstrap→target shape 移行 gate ───────────────────
+# GAP-BOOTSTRAP-TARGET-SHAPE-001: fixed-13-phase bootstrap は execution_kind 全不在で
+# legacy join (entity_ref→route 暗黙推測)。target shape は明示 route_ref parity を必須化し、
+# 「一部だけ移行した中途半端 shape」を fail-closed で拒否する marker 非依存 additive 層。
+def _kinded(node, kind, route=None, spec="task-specs/x.md"):
+    node = dict(node)
+    node.update({"execution_kind": kind, "route_ref": route, "task_spec_ref": spec})
+    return node
+
+
+def test_l_full_target_shape_no_migration_violation():
+    """entity_ref 全 node が execution_kind 携帯・component-build に明示 route_ref → (l) 無し。"""
+    nodes = [
+        _kinded(_node("P05", None), "phase-gate", spec=None),
+        _kinded(_node("P05-C01-01", "C01"), "component-build", route="route/build-C01"),
+        _kinded(_node("P05-x-01", None), "direct-task"),
+    ]
+    assert vtg._check_migration_gate(nodes, "task-graph-derived") == []
+
+
+def test_l_partial_adoption_fails_closed():
+    """execution_kind 携帯 node が居るのに entity_ref node の一部が非携帯 → (l1) で拒否。"""
+    nodes = [
+        _kinded(_node("P05-C01-01", "C01"), "component-build", route="route/build-C01"),
+        _node("P05-C02-01", "C02"),  # execution_kind 非携帯の legacy 残骸
+    ]
+    v = vtg._check_migration_gate(nodes, "fixed-13-phase")
+    assert any(x.startswith("(l)") and "P05-C02-01" in x and "execution_kind" in x for x in v)
+
+
+def test_l_bootstrap_all_absent_non_firing():
+    """fixed-13-phase + execution_kind 全不在 (entity_ref node 多数あり) → 非発火 (後方互換)。"""
+    nodes = [_node("P05-C01-01", "C01"), _node("P09-C02-01", "C02"), _node("P05", None)]
+    assert vtg._check_migration_gate(nodes, "fixed-13-phase") == []
+
+
+def test_l_task_graph_derived_marker_without_execution_kind_fails():
+    """task-graph-derived marker で dispatchable node が execution_kind 非携帯 → (l1) で拒否。"""
+    nodes = [_node("P05-C01-01", "C01")]
+    v = vtg._check_migration_gate(nodes, "task-graph-derived")
+    assert any(x.startswith("(l)") and "execution_kind" in x for x in v)
+
+
+def test_l_component_build_missing_route_ref_fails():
+    """execution_kind=component-build で route_ref 空 → (l2) 明示 route parity 違反。"""
+    nodes = [_kinded(_node("P05-C01-01", "C01"), "component-build", route=None)]
+    v = vtg._check_migration_gate(nodes, "task-graph-derived")
+    assert any(x.startswith("(l)") and "route_ref" in x for x in v)
+
+
+def test_l_direct_task_with_entity_ref_allowed():
+    """direct-task は entity_ref を持ち route_ref=null でも schema 通りで (l2) 対象外 → 非違反。"""
+    nodes = [_kinded(_node("P05-C01-01", "C01"), "direct-task", route=None)]
+    assert vtg._check_migration_gate(nodes, "task-graph-derived") == []
+
+
+def test_l_validate_integration_flags_partial_under_fixed_marker():
+    """marker=fixed-13-phase でも execution_kind が混入すれば validate() 全体が (l) を返す
+    (移行 gate が marker 非依存の additive 層であることの integration 証明)。"""
+    migrated = _kinded(_node("P05-C01-01", "C01"), "component-build", route="route/build-C01",
+                       spec="task-specs/P05-C01-01.md")
+    legacy = _node("P05-C02-01", "C02")  # execution_kind 非携帯の legacy 残骸
+    g = dtg.canonicalize({"schema_version": "1.0", "nodes": [migrated, legacy], "edges": [
+        {"type": "produces", "from": "P05-C01-01", "to": "A1"},
+        {"type": "produces", "from": "P05-C02-01", "to": "A2"},
+    ]})
+    v = vtg.validate(g, {"components": []}, marker="fixed-13-phase")
+    assert any(x.startswith("(l)") and "P05-C02-01" in x for x in v)
+
+
+def test_l_validate_integration_full_target_no_l_violation(tmp_path):
+    """完全 target shape (phase-gate + direct-task leaf) は validate() 全体でも (l) を出さない。"""
+    _write_target_spec(tmp_path)
+    v = vtg.validate(
+        _target_graph(), {"components": []}, marker="task-graph-derived", plan_dir=tmp_path
+    )
+    assert not any(x.startswith("(l)") for x in v)
+
+
+_BOOTSTRAP_PLAN_DIRS = [
+    "plugin-dev-planner",
+    "harness-creator",
+    "mf-kessai-invoice-check",
+    "mf-kessai-invoice-check-fidelity",
+    "mf-kessai-invoice-check-matching-rootcause",
+    "with-task-graph-goalseek",
+]
+
+
+def test_l_bootstrap_plans_migration_gate_non_firing():
+    """既存 6 bootstrap plan は execution_kind 全不在=移行 gate 非発火 (exit code 不変で後方互換)。
+
+    task-graph.json/index.md を実配置から読み、_check_migration_gate が空を返すことを固定する。
+    他検査 (i)/(g) 等の状態に依存せず「移行 gate が bootstrap plan へ violation を 1 件も追加しない」
+    という additive 非回帰を直接証明する (plugin-plans/ は本 skill から read-only)。
+    """
+    repo_root = Path(__file__).resolve().parents[5]
+    for name in _BOOTSTRAP_PLAN_DIRS:
+        plan_dir = repo_root / "plugin-plans" / name
+        graph = json.loads((plan_dir / "task-graph.json").read_text(encoding="utf-8"))
+        marker = dtg.shape_marker(plan_dir)
+        v = vtg._check_migration_gate(vtg._nodes(graph), marker)
+        assert v == [], f"{name}: 移行 gate は bootstrap plan で非発火であるべき: {v[:3]}"

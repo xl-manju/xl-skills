@@ -4,14 +4,16 @@
 # purpose: Compose an atomic SKILL.md template from _base.md and combinator patch selections.
 # inputs:
 #   - argv: --kind, optional flags, --templates-dir, --output
+#   - argv: --brief <skill-brief.json> --materialize-task-graph-engine <skill-dir>
 # outputs:
 #   - stdout: composed SKILL.md when --output is omitted
 #   - file: composed SKILL.md when --output is provided
+#   - files: task-graph template copies + machine-readable SKILL.md profile (materialize mode)
 #   - stderr: validation errors
 #   - exit: 0=OK / 1=composition error / 2=usage error
 # contexts: [A, B, C]
 # network: false
-# write-scope: output-arg-only
+# write-scope: output-arg-only / materialize mode の <skill-dir>/{SKILL.md,scripts/*}
 # dependencies: []
 # requires-python: ">=3.10"
 # ///
@@ -24,6 +26,7 @@ kind combinator plus optional flag combinators in the documented order.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import re
 import sys
@@ -100,6 +103,13 @@ FLAG_PATCHES = {
 # goal-seek 配線を default-ON で注入する loop 実行系 kind。
 # assign(評価系=一発採点でループしない) と ref(read-only) は対象外。
 GOAL_SEEK_KINDS = ("run", "wrap", "delegate")
+
+TASK_GRAPH_ENGINE_SCRIPTS = (
+    "ready-set-from-checklist.py",
+    "self-reflect-append.py",
+    "extract-capability-dependency-graph.py",
+    "record-capability-graph-knowledge.py",
+)
 
 
 FEEDBACK_CONTRACT_KINDS = ("run", "wrap", "delegate")
@@ -183,10 +193,12 @@ KNOWLEDGE_SECTION = (
 # 重要 (self-contained): ループ本体は本 Skill 内の AI 推論で自己完結し、外部スキルへの依存を持たない。
 # run-goal-seek は「重い周回時の任意の最適化手段」であり必須ではない (with-knowledge と同じ自己完結原則)。
 GOAL_SEEK_FM_BLOCK = (
-    "# goal-seek: 固定手順を持たず Goal+Checklist へ向けて反復する。engine は外部スキル非依存(inline)で"
-    "自己完結し、反復ループは fork で分離 context に切り出し親へ最終差分のみ返す(2軸は独立)。\n"
+    "# goal-seek: 固定手順を持たず Goal+Checklist へ向けて反復する。engine 既定は task-graph (依存順駆動)。"
+    "反復ループは fork で分離 context に切り出し親へ最終差分のみ返す(2軸は独立)。\n"
     "goal_seek:\n"
-    "  engine: {{goal_seek.engine | default(\"inline\")}}      # inline(既定/自己完結・外部スキル不要) | run-goal-seek(同梱時のみ任意で使う重量オーケストレータ) | task-graph(依存順駆動+self-reflect・生成harnessに task-graph-engine 同梱)\n"
+    "  engine: {{goal_seek.engine | default(\"task-graph\")}}      # task-graph(既定/依存順駆動+self-reflect・生成harnessに task-graph-engine 同梱) | inline(opt-down/自己完結・外部スキル不要) | run-goal-seek(同梱時のみ任意で使う重量オーケストレータ)\n"
+    "  engine_profile: {{goal_seek.engine_profile | default(\"checklist-graph\")}}  # task-graph(既定)=checklist-graph 固定 (planner full task-spec graph と同等ではない) / inline・run-goal-seek=goal-loop\n"
+    "  full_task_spec_graph: false                         # 現 profile の fail-closed capability claim\n"
     "  spec: eval-log/goal-spec.json                       # 任意。あればロードして利用、無ければ AI が文脈から推定\n"
     "  progress: eval-log/{{skill_name}}-progress.json     # schemas/goal-seek-loop.schema.json 準拠\n"
     "  intermediate: eval-log/{{skill_name}}-intermediate.jsonl  # 各周回末に append: original_goal/current_goal_snapshot/delta/merged_directive (ドリフト圧縮アンカー)\n"
@@ -397,7 +409,7 @@ class ComposeError(RuntimeError):
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--kind", required=True, choices=["run", "ref", "assign", "wrap", "delegate"])
+    parser.add_argument("--kind", choices=["run", "ref", "assign", "wrap", "delegate"])
     parser.add_argument("--role-suffix", choices=["generator", "evaluator", "workflow"], default="")
     parser.add_argument("--with-evaluator", action="store_true")
     parser.add_argument("--with-hooks", action="store_true")
@@ -418,6 +430,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=Path(__file__).resolve().parents[1] / "templates",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--brief",
+        type=Path,
+        help="skill-brief JSON。--materialize-task-graph-engine の engine 判定入力",
+    )
+    parser.add_argument(
+        "--materialize-task-graph-engine",
+        type=Path,
+        metavar="SKILL_DIR",
+        help="brief.goal_seek.engine=task-graph のとき全 engine template を生成 skill scripts/ へ byte-copy",
+    )
     parser.add_argument("--trace", action="store_true", help="print applied patch names to stderr")
     # with-feedback-loop combinator (default-ON, opt-out で外す)。
     # SKILL.md 合成とは独立に target plugin へ実体コピー配備を行う副作用付きアクション。
@@ -432,7 +455,112 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="--deploy-feedback-loop を無効化 (feedback-loop 配備の opt-out)",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.kind is None and args.materialize_task_graph_engine is None:
+        parser.error("--kind または --materialize-task-graph-engine が必要")
+    if args.materialize_task_graph_engine is not None and args.brief is None:
+        parser.error("--materialize-task-graph-engine には --brief が必要")
+    return args
+
+
+def _brief_requests_task_graph(brief: dict) -> bool:
+    """brief が task-graph engine を要求するか (明示値優先・無指定 loop kind は既定 ON)。
+
+    validate-build-plan.derive_plan の defaulting と同一規則: goal_seek.engine の明示値が
+    あればそれに従い (inline/run-goal-seek は opt-out)、無指定なら loop kind (GOAL_SEEK_KINDS)
+    に対して task-graph を既定とする。--no-goal-seek opt-out 経路は build-plan が materializer
+    指示自体を出さないため本判定へ到達しない。
+    """
+    goal_seek = brief.get("goal_seek")
+    explicit = (
+        str(goal_seek.get("engine", "")).strip() if isinstance(goal_seek, dict) else ""
+    )
+    if explicit:
+        return explicit == "task-graph"
+    return str(brief.get("kind", "")).strip() in GOAL_SEEK_KINDS
+
+
+def _set_goal_seek_scalar(text: str, key: str, value: str) -> str:
+    """SKILL.md frontmatter の goal_seek.<key> を決定論的に upsert する。"""
+    lines = text.splitlines()
+    try:
+        fm_end = lines.index("---", 1)
+    except ValueError as exc:
+        raise ComposeError("generated SKILL.md frontmatter is not closed") from exc
+    parent = next(
+        (i for i in range(1, fm_end) if re.match(r"^goal_seek:\s*(?:#.*)?$", lines[i])),
+        None,
+    )
+    if parent is None:
+        raise ComposeError("generated SKILL.md has no goal_seek frontmatter block")
+    end = fm_end
+    for i in range(parent + 1, fm_end):
+        if lines[i] and not lines[i].startswith((" ", "\t", "#")):
+            end = i
+            break
+    replacement = f"  {key}: {value}"
+    for i in range(parent + 1, end):
+        if re.match(rf"^\s+{re.escape(key)}\s*:", lines[i]):
+            lines[i] = replacement
+            return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    insert_at = parent + 1
+    if key != "engine":
+        for i in range(parent + 1, end):
+            if re.match(r"^\s+engine\s*:", lines[i]):
+                insert_at = i + 1
+                break
+    lines.insert(insert_at, replacement)
+    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+
+
+def materialize_task_graph_engine(
+    brief: dict, skill_dir: Path, templates_dir: Path
+) -> list[Path]:
+    """task-graph brief の全 engine 資産と capability profile を冪等 materialize。
+
+    同一 brief + template bytes なら何度実行しても生成 bytes は同一。既に一致する
+    ファイルは書き直さず、欠落または drift だけを canonical bytes へ戻す。
+    """
+    if not _brief_requests_task_graph(brief):
+        return []
+    source_dir = templates_dir / "task-graph-engine" / "scripts"
+    dest_dir = skill_dir / "scripts"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for name in TASK_GRAPH_ENGINE_SCRIPTS:
+        source = source_dir / name
+        if not source.is_file():
+            raise ComposeError(f"missing task-graph engine template: {source}")
+        dest = dest_dir / name
+        expected = source.read_bytes()
+        if not dest.is_file() or dest.read_bytes() != expected:
+            if dest.exists() and not dest.is_file():
+                raise ComposeError(f"task-graph engine destination is not a file: {dest}")
+            dest.write_bytes(expected)
+        written.append(dest)
+
+    skill_md = skill_dir / "SKILL.md"
+    if skill_md.is_file():
+        content = skill_md.read_text(encoding="utf-8")
+        # 値だけでなく説明コメントも 1 定数として upsert し、量産物単体で claim の
+        # 意味 (checklist-graph≠planner full graph / gap の所在) が読めるようにする。
+        # 検査側 (_frontmatter_nested_value / lint check_engine_profile) は末尾
+        # コメントを除去して照合するため byte 冪等・parity とも両立する。
+        content = _set_goal_seek_scalar(content, "engine", "task-graph")
+        content = _set_goal_seek_scalar(
+            content,
+            "engine_profile",
+            "checklist-graph  # planner の full task-spec graph と非同等 (縮小 profile)",
+        )
+        content = _set_goal_seek_scalar(
+            content,
+            "full_task_spec_graph",
+            "false  # fail-closed capability claim。gap 一覧は build-plan.capability_gaps 参照",
+        )
+        if skill_md.read_text(encoding="utf-8") != content:
+            skill_md.write_text(content, encoding="utf-8")
+        written.append(skill_md)
+    return written
 
 
 def selected_patches(args: argparse.Namespace) -> list[str]:
@@ -733,6 +861,26 @@ def apply_feedback_loop(target_plugin_dir: Path) -> Path:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if args.materialize_task_graph_engine is not None:
+        try:
+            brief = json.loads(args.brief.read_text(encoding="utf-8"))
+            materialized = materialize_task_graph_engine(
+                brief, args.materialize_task_graph_engine, args.templates_dir
+            )
+            if args.trace:
+                if materialized:
+                    print(
+                        "materialized task-graph engine: "
+                        + ", ".join(str(p) for p in materialized),
+                        file=sys.stderr,
+                    )
+                else:
+                    print("task-graph engine: not requested by brief", file=sys.stderr)
+        except (OSError, json.JSONDecodeError, ComposeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if args.kind is None:
+            return 0
     # 副作用アクション: feedback-loop 配備のみのモード (SKILL.md 合成は skip 可能)。
     if args.deploy_feedback_loop and not args.no_feedback_loop:
         try:

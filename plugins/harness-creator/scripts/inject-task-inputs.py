@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: inject-task-inputs
-# purpose: task-graph 駆動 build で 1 task を SubAgent へ渡す直前に、対象 task-id の graph nodes 実在 (unknown-task-id は fail-closed 拒否・C04 discovering_task_id 検証と同型) と、その depends_on/consumes producer (edge type 集合の正本=TG-C02 sync-task-state._DEP_EDGE_TYPES を sibling import・producer ready-set の「depends_on 完了+consumes 成果物実在」と対称) が全て done であることと producer node のパス形状 write_scope 成果物 (実 producer graph の形状・produces エッジは forward-compat 副経路・非パスの id トークンは成果物なしとして skip) が実在すること (F5) を fail-closed 検査し、注入すべき成果物パスと producer node の handoff_notes (dict) を平坦化集約した有界 notes (上限は producer 所有 handoff-notes.schema.json 由来=F8・producer 単位適用) を組んで返す read-only な入力解決器 (TG-C03)。
+# purpose: task-graph 駆動 build で 1 task を SubAgent へ渡す直前に、対象 task-id の graph nodes 実在と、depends_on (consumer task→producer task) および consumes (artifact→consumer task) を produces (producer task→artifact) で逆引きした producer が全て done であること、producer 成果物が実在すること (F5) を fail-closed 検査し、注入すべき成果物パスと有界 handoff notes を返す read-only な入力解決器 (TG-C03)。
 # inputs:
 #   - argv: --task-graph G --task-state S --task-id T [--notes-schema N] [--max-notes M] [--max-note-chars C]
 # outputs:
@@ -17,13 +17,12 @@
 """task-graph 駆動 build の consumer 側入力解決器 (TG-C03・read-only)。
 
 design: plugin-plans/harness-creator/phase-05-implementation.md (TG-C03 実装設計)。
-producer=plugin-dev-planner の derive-task-graph.py は edges を parent_of/depends_on のみで
-生成し、各 task node の成果物パスを node.write_scope フィールドへ格納する (produces エッジは
-出さない)。よって成果物は producer node の write_scope から解決するのを主経路とし、produces
-エッジは存在時のみ併用する forward-compat 副経路とする。対象 task-id 自体が graph nodes に
+producer=plugin-dev-planner の derive-task-graph.py は、depends_on=consumer task→producer task、
+produces=producer task→artifact、consumes=artifact→consumer task の方向で edge を生成する。
+成果物パスは producer node.write_scope を主経路とし、パス形状の produces 先も併用する。
+対象 task-id 自体が graph nodes に
 不在なら fail-closed 拒否する (typo/stale id の素通り防止・C04 discovering_task_id 検証と同型)。
-対象 task の depends_on/consumes producer
-(edge type 集合は TG-C02 _DEP_EDGE_TYPES を SSOT として sibling import・producer ready-set と対称) が
+対象 task の depends_on producer と、consumes artifact を produces で逆引きした producer が
 全て done で、かつ write_scope 成果物が os.path.exists で実在する場合のみ注入入力を組む。
 state==done は代理述語に過ぎず成果物存在の保証にはならないため F5 で実在を別途検査する。
 F5 の対象はパス形状 ("/" を含む) の write_scope/produces 先のみ — 非パスの id トークン
@@ -70,12 +69,9 @@ def _load_sibling(stem: str):
     return mod
 
 
-# depends_on/consumes = 下流→上流 (from=consumer task, to=producer task)。edge type 集合の正本は
-# TG-C02 (sync-task-state._DEP_EDGE_TYPES)。producer ready-set (depends_on 完了+consumes 成果物実在)
-# と対称の集合を注入前検査にも使う (H-04: consumer 側で depends_on のみへ再定義しない)。
-_DEP_EDGE_TYPES = _load_sibling("sync-task-state")._DEP_EDGE_TYPES
-# produces = producer→artifact (from=producer task, to=artifact_path)。実 producer graph は
-# 出さないが schema 上有効ゆえ forward-compat の副経路として読む。
+# edge 方向の共通解決は TG-C02 の resolve_dependency_producers を再利用する。
+_sts = _load_sibling("sync-task-state")
+# produces = producer→artifact (from=producer task, to=artifact id/path)。
 _PRODUCES_EDGE_TYPE = "produces"
 # TG-C02 が producer state node へ書く handoff_notes (dict) の平坦化対象カテゴリ (固定順)。
 _HANDOFF_CATEGORIES = ("went_well", "friction_points", "downstream_watchouts")
@@ -118,16 +114,13 @@ def _bounds_from_schema(schema_path: str) -> tuple[int, int]:
 
 
 def _producers(graph: dict, task_id: str) -> list[str]:
-    """task_id の depends_on/consumes producer id を順序保持・重複排除で返す (from=task_id の to)。"""
-    out: list[str] = []
-    seen: set[str] = set()
-    for e in graph.get("edges", []):
-        if e.get("type") in _DEP_EDGE_TYPES and e.get("from") == task_id:
-            pid = e.get("to")
-            if pid is not None and pid not in seen:
-                seen.add(pid)
-                out.append(pid)
-    return out
+    """task_id の producer task id を決定論順で返す。
+
+    depends_on は task→task を直接読み、consumes は artifact→consumer task を
+    produces (producer task→artifact) で逆引きする。
+    """
+    producers, _ = _sts.resolve_dependency_producers(graph)
+    return sorted(producers.get(task_id, set()), key=str)
 
 
 def _nodes_by_id(graph: dict) -> dict[str, dict]:
@@ -228,6 +221,19 @@ def resolve_inputs(
             "rejected": True,
             "reason": f"unknown-task-id {task_id!r} が task-graph の nodes に不在",
         }
+
+    # consumes artifact の producer/consumer 解決不能は、依存なしと誤認せず fail-closed。
+    _, dependency_issues = _sts.resolve_dependency_producers(graph)
+    if dependency_issues:
+        issue = dependency_issues[0]
+        rejected = {
+            "rejected": True,
+            "reason": _sts.format_dependency_issue(issue),
+            "missing_artifact": issue.get("artifact_id"),
+        }
+        if issue.get("producer_task_id") is not None:
+            rejected["blocking_producer_task_id"] = issue["producer_task_id"]
+        return rejected
 
     producers = _producers(graph, task_id)
 

@@ -40,7 +40,13 @@ def _tg_harness(tmp_path, *, bundle=True, consult=True, store=True, bad_ref=Fals
     sk = root / "skills/run-tg"
     (sk / "scripts").mkdir(parents=True)
     body = "本文。" + ("dependency graph knowledge を consult する。" if consult else "consult なし")
-    (sk / "SKILL.md").write_text(f"---\nname: run-tg\n  engine: task-graph\n---\n{body}\n")
+    # check_engine_profile の hard gate 準拠: engine_profile / full_task_spec_graph を宣言する
+    # (未実装機構を成功扱いしない fail-closed 境界。checklist-graph は planner full graph と非同等)。
+    (sk / "SKILL.md").write_text(
+        "---\nname: run-tg\n  engine: task-graph\n"
+        "  engine_profile: checklist-graph\n  full_task_spec_graph: false\n"
+        f"---\n{body}\n"
+    )
     if bundle:
         # 同梱契約は「テンプレ原本の無改変コピー」— byte-parity 検査対象のため実バイトを複製する。
         for s in ("ready-set-from-checklist.py", "self-reflect-append.py",
@@ -96,12 +102,14 @@ def test_collect_only_task_graph(tmp_path):
 # --- check_bundling ---
 def test_bundling_ok(tmp_path):
     root = _tg_harness(tmp_path, bundle=True)
-    assert mod.check_bundling(root) == []
+    skills = mod.collect_task_graph_skills(root, None)
+    assert mod.check_bundling(skills) == []
 
 
 def test_bundling_missing(tmp_path):
     root = _tg_harness(tmp_path, bundle=False)
-    findings = mod.check_bundling(root)
+    skills = mod.collect_task_graph_skills(root, None)
+    findings = mod.check_bundling(skills)
     assert len(findings) == 4  # C01/C02/C06/C07 全4本欠落 (gate-coverage parity)
 
 
@@ -109,7 +117,8 @@ def test_bundling_byte_parity_violation(tmp_path):
     root = _tg_harness(tmp_path, bundle=True)
     tampered = root / "skills/run-tg/scripts/self-reflect-append.py"
     tampered.write_text(tampered.read_text() + "\n# 手改変\n")
-    findings = mod.check_bundling(root)
+    skills = mod.collect_task_graph_skills(root, None)
+    findings = mod.check_bundling(skills)
     assert any("byte-parity 違反" in f and "self-reflect-append.py" in f for f in findings)
 
 
