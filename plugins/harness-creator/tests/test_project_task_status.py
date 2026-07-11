@@ -1,7 +1,7 @@
 """project-task-status.py (TG-C09) の機能テスト — live 状態の plan dir 投影。
 
 task-graph.json (構造) + task-state.json (live 状態) を merge した派生ビュー
-(task-graph-status.json + task-progress.md) が完了を反映し、task-graph.json/task-state.json を
+(task-graph-status.json + task-progress.md + task-execution-report.html) が完了を反映し、task-graph.json/task-state.json を
 書き換えないこと (単一 writer 不変条件温存)、discovered inbox の未処理タスクが載ることを固定する。
 """
 from __future__ import annotations
@@ -84,6 +84,79 @@ def test_progress_md_generated_with_icons(tmp_path):
     assert "## P05" in md
     assert "凡例:" in md                     # アイコン凡例行 (人間可読性)
     assert "✗=blocked" in md                # docstring と _STATE_ICON が blocked=✗ で一致
+
+
+def test_html_report_is_self_contained_structured_and_accessible(tmp_path):
+    graph_path, state_path = _plan(tmp_path)
+    rc = pts.main(["--task-graph", str(graph_path), "--task-state", str(state_path)])
+    assert rc == 0
+    html = (tmp_path / "task-execution-report.html").read_text(encoding="utf-8")
+    assert '<html lang="ja">' in html
+    assert 'data-report-mode="report"' in html
+    assert 'id="overview-title"' in html
+    assert 'id="routes-title"' in html
+    assert 'id="tasks-title"' in html
+    assert '<svg class="donut"' in html
+    assert 'aria-label="タスク仕様書からHTML実行記録までの流れ"' in html
+    assert 'class="flow-scroll" tabindex="0"' in html
+    assert "overflow-x:auto" in html           # 狭幅は図だけを横スクロールし body overflow を防ぐ
+    assert "https://" not in html            # 外部 CDN / 外部 runtime なし
+    assert "@media print" in html
+    assert "task-progress.md" in html         # Markdown 原本への導線を維持
+
+
+def test_html_report_escapes_task_and_route_content(tmp_path):
+    graph_path, state_path = _plan(tmp_path)
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    graph["nodes"][0]["title"] = '<script>alert("task")</script>'
+    graph_path.write_text(json.dumps(graph, ensure_ascii=False), encoding="utf-8")
+    route = {
+        "route_id": "C05", "component_kind": "skill", "name": "run-safe",
+        "build_target": "plugins/x/<unsafe>", "status": "success",
+        "summary": '<img src=x onerror=alert("route")>',
+        "evidence": ["pytest <ok>"], "deviations": [], "covered_task_ids": ["P05-C05-01"],
+    }
+    (state_path.parent / "route-C05.json").write_text(
+        json.dumps(route, ensure_ascii=False), encoding="utf-8",
+    )
+    pts.main(["--task-graph", str(graph_path), "--task-state", str(state_path)])
+    html = (tmp_path / "task-execution-report.html").read_text(encoding="utf-8")
+    assert "<script>alert" not in html
+    assert "<img src=x" not in html
+    assert "&lt;script&gt;alert" in html
+    assert "&lt;img src=x" in html
+
+
+def test_html_report_includes_build_summary_route_evidence_and_is_deterministic(tmp_path):
+    graph_path, state_path = _plan(tmp_path)
+    route = {
+        "route_id": "C05", "component_kind": "skill", "name": "run-build-safe",
+        "build_target": "plugins/x/skills/run-build-safe/", "status": "success",
+        "summary": "安全な build を完了", "evidence": ["pytest 12 passed"],
+        "deviations": ["なし"], "covered_task_ids": ["P05-C05-01"],
+    }
+    (state_path.parent / "route-C05.json").write_text(
+        json.dumps(route, ensure_ascii=False), encoding="utf-8",
+    )
+    (state_path.parent / "build-summary.json").write_text(json.dumps({
+        "completion_gate": {"completion_gate": "ok"},
+        "outer_loop_rounds": [{"round": 1, "origin": "仕様差分", "result": "再導出済"}],
+    }, ensure_ascii=False), encoding="utf-8")
+
+    args = ["--task-graph", str(graph_path), "--task-state", str(state_path)]
+    assert pts.main(args) == 0
+    first = (tmp_path / "task-execution-report.html").read_bytes()
+    assert pts.main(args) == 0
+    second = (tmp_path / "task-execution-report.html").read_bytes()
+    assert first == second                       # 時刻等を埋め込まない決定論投影
+    html = first.decode("utf-8")
+    assert "C05 · run-build-safe" in html
+    assert "pytest 12 passed" in html
+    assert "completion gate ok" in html
+    assert "仕様差分" in html and "再導出済" in html
+    status = json.loads((tmp_path / "task-graph-status.json").read_text(encoding="utf-8"))
+    assert status["route_reports"][0]["route_id"] == "C05"
+    assert status["build_summary"]["completion_gate"]["completion_gate"] == "ok"
 
 
 def test_discovered_pending_listed(tmp_path):

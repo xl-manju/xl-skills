@@ -81,6 +81,27 @@ KNOWLEDGE_SCRIPTS = (
     "add_entry.py",
 )
 
+# brief.goal_seek.engine=task-graph の生成先へ無改変コピーする checklist-graph
+# engine 資産。build-plan / materializer / lint が同じファイル名集合を使い、prose の
+# Step 10.6 に依存せず欠落と byte drift を fail-closed にする。
+TASK_GRAPH_ENGINE_SCRIPTS = (
+    "ready-set-from-checklist.py",
+    "self-reflect-append.py",
+    "extract-capability-dependency-graph.py",
+    "record-capability-graph-knowledge.py",
+)
+TASK_GRAPH_TEMPLATE_PREFIX = "templates/task-graph-engine/scripts"
+
+# 現 engine は checklist depends_on を逐次消費する縮小 profile であり、planner の
+# task-spec graph / envelope / projection / 2-loop と同等ではない。この差を build-plan
+# の machine-readable negative capability として固定し、full graph 成功の誤申告を防ぐ。
+CHECKLIST_GRAPH_CAPABILITY_GAPS = (
+    "task-spec-artifact-graph",
+    "parallel-ready-set-dispatch-with-write-scope",
+    "execution-envelope-state-projection",
+    "discovered-task-spec-improvement-outer-loop",
+)
+
 HEADING_RE = re.compile(r"^(#{2,3})\s+(.*)$")
 PATCH_HEADING_RE = re.compile(r"^\+(#{2,3})\s+(.*)$")
 # テンプレート由来の未展開プレースホルダ ({{skill_name}} 等)。抽象化変数
@@ -174,10 +195,31 @@ def derive_acceptance_tier(kind: str, has_hooks: bool, allowed_tools: object) ->
     return "static"
 
 
+def derive_goal_seek_engine(brief: dict) -> str:
+    """brief.goal_seek.engine の明示値を型安全かつ決定論的に正規化する。
+
+    無指定 ("") の loop kind への task-graph defaulting は derive_plan が
+    flags 導出後 (with_goal_seek 確定後) に適用する。opt-out は brief に
+    `goal_seek.engine: inline` (または run-goal-seek) を明示するか --no-goal-seek。
+    """
+    goal_seek = brief.get("goal_seek")
+    if not isinstance(goal_seek, dict):
+        return ""
+    return str(goal_seek.get("engine", "")).strip()
+
+
 def derive_plan(brief: dict, cli_flags: dict | None = None) -> dict:
     kind = str(brief.get("kind", "")).strip()
     role_suffix = str(brief.get("role_suffix", "") or "").strip()
     flags = derive_flags(brief, cli_flags)
+    goal_seek_engine = derive_goal_seek_engine(brief)
+    # engine 既定 = task-graph: loop kind で goal-seek 配線が有効かつ brief が engine を
+    # 明示しない場合、依存順駆動 (checklist-graph) を既定で焼き込む。明示値は常に優先
+    # (inline/run-goal-seek が opt-out)。render-combinators._brief_requests_task_graph と同一規則。
+    engine_defaulted = False
+    if not goal_seek_engine and kind in LOOP_KINDS and flags["with_goal_seek"]:
+        goal_seek_engine = "task-graph"
+        engine_defaulted = True
 
     template = KIND_TEMPLATE_FALLBACK.get((kind, role_suffix if kind == "assign" else ""))
     sections = _template_headings(TEMPLATES_DIR / template) if template else []
@@ -262,6 +304,49 @@ def derive_plan(brief: dict, cli_flags: dict | None = None) -> dict:
             }
         )
 
+    if goal_seek_engine == "task-graph":
+        engine_source = (
+            "default: loop kind + with_goal_seek (engine unset in brief)"
+            if engine_defaulted
+            else "brief.goal_seek.engine"
+        )
+        deliverables.extend(
+            [
+                {
+                    "id": "frontmatter:goal_seek.engine",
+                    "type": "frontmatter-value",
+                    "path": "goal_seek.engine",
+                    "expected": "task-graph",
+                    "source": engine_source,
+                },
+                {
+                    "id": "frontmatter:goal_seek.engine_profile",
+                    "type": "frontmatter-value",
+                    "path": "goal_seek.engine_profile",
+                    "expected": "checklist-graph",
+                    "source": f"derived from goal_seek_engine=task-graph ({engine_source})",
+                },
+                {
+                    "id": "frontmatter:goal_seek.full_task_spec_graph",
+                    "type": "frontmatter-value",
+                    "path": "goal_seek.full_task_spec_graph",
+                    "expected": "false",
+                    "source": "checklist-graph capability boundary",
+                },
+            ]
+        )
+        for script in TASK_GRAPH_ENGINE_SCRIPTS:
+            deliverables.append(
+                {
+                    "id": f"task-graph-engine:{script}",
+                    "type": "template-copy",
+                    "path": f"scripts/{script}",
+                    "template": f"{TASK_GRAPH_TEMPLATE_PREFIX}/{script}",
+                    "source": f"goal_seek_engine=task-graph ({engine_source})",
+                    "verified_by": "validate-build-plan.py --check (byte parity)",
+                }
+            )
+
     notes: list[str] = []
     if brief.get("needs_independent_context") is True and not flags["with_subagent"]:
         notes.append(
@@ -280,12 +365,31 @@ def derive_plan(brief: dict, cli_flags: dict | None = None) -> dict:
             " (モデル知識で毎回再発明しない)。"
         )
 
-    return {
+    if goal_seek_engine == "task-graph":
+        notes.append(
+            "engine_profile=checklist-graph: checklist depends_on の逐次消費・self-reflect・"
+            "cross-surface knowledge を提供する縮小 engine。plugin-dev-planner の task-spec graph / "
+            "parallel dispatch / execution envelope・state projection / discovered-task spec-improvement "
+            "outer loop と同等ではなく、full task-spec graph として成功扱いしてはならない。"
+        )
+        if kind not in LOOP_KINDS or not flags.get("with_goal_seek"):
+            notes.append(
+                "FAIL-CLOSED: task-graph engine は loop kind (run/wrap/delegate) + with_goal_seek=true "
+                "でのみ実行可能。現在の brief は配線条件を満たさない。"
+            )
+
+    plan = {
         "schema": "schemas/build-plan.schema.json",
         "skill_name": brief.get("skill_name", ""),
         "kind": kind,
         "role_suffix": role_suffix,
         "template": template or "",
+        "goal_seek_engine": goal_seek_engine,
+        "engine_profile": "checklist-graph" if goal_seek_engine == "task-graph" else "",
+        "full_task_spec_graph": False if goal_seek_engine == "task-graph" else None,
+        "capability_gaps": (
+            list(CHECKLIST_GRAPH_CAPABILITY_GAPS) if goal_seek_engine == "task-graph" else []
+        ),
         "flags": flags,
         "acceptance_tier": derive_acceptance_tier(
             kind, flags["with_hooks"], brief.get("allowed_tools") or brief.get("allowed-tools")
@@ -294,6 +398,16 @@ def derive_plan(brief: dict, cli_flags: dict | None = None) -> dict:
         "required_deliverables": deliverables,
         "notes": notes,
     }
+    if goal_seek_engine == "task-graph":
+        plan["materializer"] = {
+            "tool": "scripts/render-combinators.py",
+            "command": (
+                "python3 scripts/render-combinators.py --brief <skill-brief.json> "
+                "--materialize-task-graph-engine <skill-dir>"
+            ),
+            "idempotent": True,
+        }
+    return plan
 
 
 # --- check ----------------------------------------------------------------
@@ -326,6 +440,40 @@ def _frontmatter_value(text: str, key: str) -> str:
     return ""
 
 
+def _frontmatter_nested_value(text: str, dotted_key: str) -> str:
+    """stdlib のみで 2 段 YAML scalar (例 goal_seek.engine) を読む。
+
+    build-plan が要求する machine-readable 境界値専用。複雑な YAML 解釈は行わず、
+    同一親 block 内の scalar だけを fail-closed に取得する。
+    """
+    if not text.startswith("---"):
+        return ""
+    parts = text.split("---", 2)
+    bits = dotted_key.split(".")
+    if len(parts) < 3 or len(bits) != 2:
+        return ""
+    parent, child = bits
+    in_parent = False
+    parent_indent = -1
+    for line in parts[1].splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if re.match(rf"^{re.escape(parent)}\s*:\s*(?:#.*)?$", line):
+            in_parent = True
+            parent_indent = indent
+            continue
+        if in_parent and indent <= parent_indent:
+            in_parent = False
+        if in_parent:
+            m = re.match(
+                rf"^\s+{re.escape(child)}\s*:\s*(.*?)\s*(?:#.*)?$", line
+            )
+            if m:
+                return m.group(1).strip().strip("'\"")
+    return ""
+
+
 def _body_sections(text: str) -> dict[str, int]:
     """SKILL.md 本文の ## 見出し → 見出し直下の本文行数 (非空・非見出し)。"""
     parts = text.split("---", 2)
@@ -351,6 +499,13 @@ def _body_sections(text: str) -> dict[str, int]:
 
 def check_plan(plan: dict, skill_dir: Path) -> list[str]:
     errs: list[str] = []
+    if plan.get("goal_seek_engine") == "task-graph" and not plan.get("flags", {}).get(
+        "with_goal_seek"
+    ):
+        errs.append(
+            "task-graph engine requested but with_goal_seek=false: "
+            "loop kind (run/wrap/delegate) 以外では checklist-graph を成功扱いできない"
+        )
     skill_md = skill_dir / "SKILL.md"
     if not skill_md.exists():
         return [f"SKILL.md not found: {skill_md}"]
@@ -379,6 +534,18 @@ def check_plan(plan: dict, skill_dir: Path) -> list[str]:
         if dtype == "file":
             if not (skill_dir / path).exists():
                 errs.append(f"missing deliverable: {path} (source={d.get('source')})")
+        elif dtype == "template-copy":
+            dest = skill_dir / path
+            template = SKILL_ROOT / str(d.get("template", ""))
+            if not dest.is_file():
+                errs.append(f"missing deliverable: {path} (source={d.get('source')})")
+            elif not template.is_file():
+                errs.append(f"template source not found: {template}")
+            elif dest.read_bytes() != template.read_bytes():
+                errs.append(
+                    f"byte drift: {path} != {d.get('template')} "
+                    "(task-graph engine assets must be unmodified template copies)"
+                )
         elif dtype == "dir":
             if not (skill_dir / path).is_dir():
                 errs.append(f"missing deliverable dir: {path}/ (source={d.get('source')})")
@@ -399,6 +566,14 @@ def check_plan(plan: dict, skill_dir: Path) -> list[str]:
         elif dtype == "frontmatter-key":
             if path not in fm_keys:
                 errs.append(f"missing frontmatter key: {path} (source={d.get('source')})")
+        elif dtype == "frontmatter-value":
+            actual = _frontmatter_nested_value(text, path)
+            expected = str(d.get("expected", ""))
+            if actual != expected:
+                errs.append(
+                    f"frontmatter value mismatch: {path}={actual!r}, expected {expected!r} "
+                    f"(source={d.get('source')})"
+                )
         elif dtype == "pair-skill":
             pair = _frontmatter_value(text, "pair")
             if not pair:
@@ -483,6 +658,20 @@ def _self_test() -> int:
     assert plan["acceptance_tier"] == "live"  # hook_events あり brief
     assert ref_plan["acceptance_tier"] == "static"
 
+    # task-graph brief は同一入力から checklist-graph 契約と全4資産を常に導出する。
+    tg_brief = {
+        "skill_name": "run-graph-demo",
+        "kind": "run",
+        "goal_seek": {"engine": "task-graph"},
+    }
+    tg_plan = derive_plan(tg_brief)
+    assert tg_plan == derive_plan(tg_brief)
+    assert tg_plan["engine_profile"] == "checklist-graph"
+    assert tg_plan["full_task_spec_graph"] is False
+    assert set(tg_plan["capability_gaps"]) == set(CHECKLIST_GRAPH_CAPABILITY_GAPS)
+    tg_ids = {d["id"] for d in tg_plan["required_deliverables"]}
+    assert {f"task-graph-engine:{s}" for s in TASK_GRAPH_ENGINE_SCRIPTS} <= tg_ids
+
     # prompt_creator_policy=skip で prompts 免除
     p = derive_plan({"kind": "run", "responsibilities": [{"id": "R1"}], "prompt_creator_policy": "skip"})
     assert p["flags"]["with_prompts"] is False
@@ -528,7 +717,7 @@ def _self_test() -> int:
         )
         errs = check_plan(derive_plan({"kind": "run"}), d)
         assert not any("acceptance_tier" in e for e in errs), errs
-    print("OK: validate-build-plan self-test (5 groups)")
+    print("OK: validate-build-plan self-test (6 groups)")
     return 0
 
 

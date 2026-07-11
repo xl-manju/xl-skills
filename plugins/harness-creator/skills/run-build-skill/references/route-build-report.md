@@ -39,6 +39,8 @@ python3 "$SKILL_DIR/scripts/validate-route-build-reports.py" \
 | `inputs_consumed` | 依存 route レポートの読取宣言 (depends_on 全件を被覆・validator が強制) |
 | `handover` | 後続 route への申し送り。「渡すレポート」の本体で、次 route はここを必ず読む |
 | `covered_task_ids` | (optional) task-graph route モードの束ね done 用。この report が done を賄う task-graph node id 群。**writer=dispatcher** (TG-C06 が node→route join `entity_ref==route.component_id` から決定論導出して書く・SubAgent は書かない)。`sync-task-state.py` (TG-C02) が done 遷移時に `task_id ∈ covered_task_ids` を照合する。不在時は単一 task 後方互換 (PR#70 契約) |
+| `discovered` | (optional additive) `emit-discovered-task.py` で起票済み form の repo-root 相対パス列。**deviations 本文が discovered 報告へ言及するなら本フィールドで form パスを実証する** (validator が突合し、言及があるのに空/不在なら fail。corrections で訂正済みは除外)。残差が inbox 監査経路 (TG-C08 completion gate) に実際に乗った証跡 |
+| `corrections` | (optional additive) 既存 report 本文の誤り文言への追記型訂正 `{target, correction, corrected_by}`。evidence 改竄禁止の下で原文を上書きせず訂正を監査可能に残す (例: `target: "deviations[2]"`) |
 
 ## 責務境界
 

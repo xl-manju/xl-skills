@@ -4,8 +4,8 @@
   "pins": [
     {
       "path": "plugins/harness-creator/skills/run-skill-create/schemas/skill-brief.schema.json",
-      "sha256": "5bcec1a2574cc4af00497937ba5fa85bc1e1346cfe0d07887e0adfe3f96da7c9",
-      "verified_at": "2026-07-02",
+      "sha256": "e0fda47105d37fb17e6f690921d893ec1251a10ee013a233454aab5549275b0c",
+      "verified_at": "2026-07-11",
       "matrix_rows": [
         "E1"
       ]
@@ -36,8 +36,8 @@
     },
     {
       "path": "plugins/harness-creator/skills/run-build-skill/references/goal-seek-paradigm.md",
-      "sha256": "d055b6889f671efaeb45d7ee48bd8d1179e9e6c0d69cad7b753236ebbcb34226",
-      "verified_at": "2026-07-07",
+      "sha256": "43d790fa213581582d3214280a80814b2f0e51e01c5649d2be6333267ff523e3",
+      "verified_at": "2026-07-11",
       "matrix_rows": [
         "D1"
       ]

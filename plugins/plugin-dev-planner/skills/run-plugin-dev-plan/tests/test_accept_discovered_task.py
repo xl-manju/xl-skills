@@ -461,6 +461,54 @@ def test_drain_validate_gate_rejects_invalid_graph(tmp_path):
     assert "status" not in json.loads(f.read_text())
 
 
+def test_diff_proposed_vs_existing_unit():
+    """B1: 既存不在=None / 同一=[] / 差分=フィールド名昇順 list。"""
+    graph = _base_graph()
+    assert accept_mod.diff_proposed_vs_existing(_proposed_node("T9"), graph) is None
+    same = next(n for n in graph["nodes"] if n["id"] == "T1")
+    assert accept_mod.diff_proposed_vs_existing(dict(same), graph) == []
+    changed = dict(same)
+    changed["title"] = "T1 改題"
+    changed["acceptance_criterion"] = "新規追加の受入基準"
+    diff = accept_mod.diff_proposed_vs_existing(changed, graph)
+    assert diff == ["acceptance_criterion", "title"]
+
+
+def test_drain_idempotent_skip_with_field_diff_writes_reflected_partial(tmp_path):
+    """B1: 冪等 skip (id 既存) で field 差分あり → form へ reflected=partial+差分一覧を書き戻し graph は不変。"""
+    base = _base_graph()
+    base_hash = accept_mod._dtg.graph_hash(base)
+    inbox = _inbox(tmp_path)
+    form = _form("additive", discovering="T2", node_id="T1")  # T1 は既存 (title/phase_ref が異なる)
+    f = _write(inbox / "re-emit.json", form)
+    graph, results = accept_mod.drain_inbox(inbox, base)
+    # graph は無追加・bytes/hash 不変 (冪等 skip)
+    assert accept_mod._dtg.graph_hash(graph) == base_hash
+    written = json.loads(f.read_text(encoding="utf-8"))
+    assert written["status"] == "accepted"
+    assert written["reflected"] == "partial"
+    assert written["reflected_diff_fields"] == sorted(written["reflected_diff_fields"])
+    assert "title" in written["reflected_diff_fields"]
+    assert results["accepted"][0]["reflected"] == "partial"
+    # schema 妥当性: 書き戻し後 form が additionalProperties:false 下で許可キーのみ
+    schema = json.loads((SCHEMAS / "discovered-task.schema.json").read_text(encoding="utf-8"))
+    assert set(written.keys()) <= set(schema["properties"].keys())
+
+
+def test_drain_idempotent_skip_without_diff_no_reflected(tmp_path):
+    """B1: 冪等 skip でも field 差分なしなら reflected は書かない (ノイズ抑制)。"""
+    base = _base_graph()
+    inbox = _inbox(tmp_path)
+    form = _form("additive", discovering="T2", node_id="T1")
+    form["proposed_node"] = dict(next(n for n in base["nodes"] if n["id"] == "T1"))  # 完全同一
+    f = _write(inbox / "same.json", form)
+    _graph, results = accept_mod.drain_inbox(inbox, base)
+    written = json.loads(f.read_text(encoding="utf-8"))
+    assert written["status"] == "accepted"
+    assert "reflected" not in written and "reflected_diff_fields" not in written
+    assert "reflected" not in results["accepted"][0]
+
+
 def test_drain_written_back_form_stays_schema_valid(tmp_path):
     """status/resulting_graph_hash が discovered-task.schema.json の additive field として妥当。"""
     schema = json.loads((SCHEMAS / "discovered-task.schema.json").read_text(encoding="utf-8"))

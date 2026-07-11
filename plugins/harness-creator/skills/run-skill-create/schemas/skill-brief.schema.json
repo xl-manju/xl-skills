@@ -86,6 +86,7 @@
       "type": "boolean",
       "description": "決定論的 placement hint (19章 factory 障害 #6 対応)。placement_candidates に Subagent / Agent Team を含むとき true。resolve-brief-to-category.py が agent-teams category を強制し、run-build-skill に --with-subagent を推奨する。needs_independent_context と併設する (前者=配置事実、本フィールド=build フラグ推奨シグナル)。build-flags.schema.json の object 型 with_subagent とは別物 (こちらは brief 用 boolean)。"
     },
+    "goal_seek": {"type": "object", "additionalProperties": false, "description": "goal-seek 配線の engine 選択 (省略推奨)。省略時は loop kind (run/wrap/delegate) に対し engine=task-graph (依存順駆動+self-reflect・checklist-graph profile) が既定で焼き込まれる (validate-build-plan.derive_plan / render-combinators._brief_requests_task_graph の同一 defaulting 規則)。inline / run-goal-seek の明示指定が opt-out。", "properties": {"engine": {"type": "string", "enum": ["inline", "run-goal-seek", "task-graph"], "description": "省略時は loop kind で task-graph に default。inline=自己完結 opt-down / run-goal-seek=重量オーケストレータ (同梱時のみ)"}, "max_loops": {"type": "integer", "minimum": 1}, "fork": {"type": "string", "enum": ["subagent", "agent-team", "inline"]}}},
     "with_hooks": {
       "type": "boolean",
       "description": "決定論的 placement hint (19章 factory 障害 #6 対応)。placement_candidates に Hook を含むとき true。resolve-brief-to-category.py が subagent-hook-integration category を強制し、run-build-skill に --with-hooks を推奨する。needs_lifecycle_enforcement と併設する (前者=配置事実、本フィールド=build フラグ推奨シグナル)。build-flags.schema.json の object 型 with_hooks とは別物 (こちらは brief 用 boolean)。"

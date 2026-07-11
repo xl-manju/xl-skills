@@ -352,6 +352,13 @@ PENDING_RENAME_PATHS = {
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・
     # feedback_contract_ssot.py / discover_repo_tests.py と同列)。
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/specfm.py",
+    # task-graph consumer 族 (harness-creator の project-task-status / record-task-graph-knowledge
+    # と同種) を planner 側 run-plugin-dev-plan にも同梱: project-task-status.py (TG-C09 status
+    # live 投影) は verb 'project'、check-cycle-knowledge.py (依存 closure の循環検出 knowledge
+    # ガード) は verb 'check' が ALLOWED_VERBS 外。SKILL.md(script_refs)/tests/schemas 参照の
+    # 原子的更新を伴う後続 Change Governance 一括改名 PR まで PENDING (既存 check-* 群と同種)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/project-task-status.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-cycle-knowledge.py",
     # run-skill-live-trial 初回投入 (anti-goodhart D2/D12): §4.3 (kebab-case) は満たすが
     # 接頭辞が <feature>-<role> 形 (live-trial-*) で verb が ALLOWED_VERBS 外。boot/send/
     # poll/status/verdict は trial セッションのライフサイクル語で許可動詞に対応語が無く、
@@ -364,6 +371,15 @@ PENDING_RENAME_PATHS = {
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
+    # system-spec-harness 初回投入: §4.3 (kebab-case) は満たすが verb が ALLOWED_VERBS 外。
+    # compile (収集仕様→章立て仕様書へコンパイル) / apply (spec-state 遷移適用) / aggregate
+    # (観点別 verdict を総合 verdict へ集約) は許可動詞に対応語が無い。許可動詞化は
+    # SKILL.md(script_refs)/prompts/tests/agent 参照を原子的に更新する後続 Change Governance
+    # 一括改名 PR まで PENDING (plugin-dev-planner check-* / notion-gmail-send emit-observable
+    # と同種の「新規 plugin 初回投入時の verb pending」扱い)。
+    "plugins/system-spec-harness/skills/run-system-spec-compile/scripts/compile-spec-doc.py",
+    "plugins/system-spec-harness/skills/run-system-spec-elicit/scripts/apply-spec-transition.py",
+    "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/scripts/aggregate-completeness.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

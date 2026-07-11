@@ -162,9 +162,9 @@ ELEGANT_CONDITIONS = ("C1", "C2", "C3", "C4")
 # task-graph.json / task-state.json / plan-ledger.json の共有語彙。derive/validate/compute-ready-set/
 # check-task-state-schema/render-task-graph-mermaid/check-plan-ledger が本定数を単一正本として参照する
 # (値域を各 script に複製しない=doc-points-to-SSOT)。
-# node.state の永続値域。ready は compute-ready-set 出力だけの computed-only 語彙。
-TASK_NODE_STATES = ("pending", "running", "done", "blocked")
-# task-state.json へ永続化される state のサブセット (ready を除いた 4 値・harness ALLOWED_TRANSITIONS と整合)。
+# canonical task-graph node.state の seed 値域。runtime更新は task-state.json のみ。
+TASK_NODE_STATES = ("pending",)
+# task-state.json へ永続化される runtime state 4 値 (harness ALLOWED_TRANSITIONS と整合)。
 # ready は compute-ready-set の出力にのみ現れる派生状態で、永続 state に焼くのは非正準 (validate が拒否)。
 TASK_STATE_PERSISTED = ("pending", "running", "done", "blocked")
 # task-graph edge の型 4 種。blocks は独立宣言禁止の派生ビューゆえ列挙に含めない (schema レベルで機械強制)。
@@ -176,6 +176,14 @@ SHAPE_MARKERS = ("fixed-13-phase", "task-graph-derived")
 # plan-ledger.json の cycle_id 形式 (YYYYMMDD-<concept-slug>) と status 値域 (C13)。
 CYCLE_ID_RE = re.compile(r"^\d{8}-[a-z0-9-]+$")
 LEDGER_STATUSES = ("active", "finished", "superseded")
+# task node の実行分類 (C17)。component-build だけが明示 route_ref を持ち dispatch 対象、
+# direct-task は route_ref を持たない実行タスク、phase-gate は非 dispatch の phase 完了集約点。
+# entity_ref は分類/traceability 専用であり builder 選択には使わない (暗黙 route を fail-closed 拒否)。
+EXECUTION_KINDS = ("direct-task", "component-build", "phase-gate")
+# envelope 合成 (dispatch) 対象の execution_kind (phase-gate は集約点ゆえ dispatch 対象外)。
+DISPATCHABLE_EXECUTION_KINDS = ("direct-task", "component-build")
+# task spec の knowledge_refs.decision 値域 (C19・過去 cycle 蒸留知見の採否)。
+KNOWLEDGE_DECISIONS = ("adopted", "rejected")
 
 # ─────────────────────────── 決定論ゲートの単一正本 (名称 + 起動引数・2 層命名) ───────────────────────────
 # core = plan 本体の 5 scripts / 6 invocations (matrix-coverage は --self-test と PLAN の 2 起動)。

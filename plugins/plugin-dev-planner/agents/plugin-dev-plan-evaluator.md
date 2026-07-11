@@ -2,7 +2,7 @@
 name: plugin-dev-plan-evaluator
 description: 生成した plan が4条件と決定論ゲートを満たすか独立評価したいとき、単一 skill への退化を検出したいときに使う。
 kind: agent
-version: 0.1.0
+version: 0.2.0
 owner: team-platform
 tools: Read, Glob, Grep, Write, Bash(python3 *)
 isolation: fork
@@ -50,6 +50,7 @@ source: plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/prompts/R
 - **layer A 生成時品質 (S3・C8)**: phase 本文が下流 builder AI の追加質問なしに着手できる具体度か genuine 判定する。機械検出 `check-generative-fidelity.py` (曖昧語 denylist / skeleton 未カスタマイズ) を根拠に補強し、findings は `bucket: layer-a-generative-fidelity` に記録する。
 - **layer B 下流ハーネス (S4・C12)**: 各 phase の 受入例/事前解決済み判断 サブ節が下流実行者の追加質問を実際に防ぐ実効性を持つか genuine 判定する。機械検出 `check-downstream-harness.py` (サブ節存在) を根拠に補強し、findings は `bucket: layer-b-downstream-harness` に記録する。
 - 両レイヤーは C1-C4 verdict へ直接写像しない補助判定。severity は既定 medium、着手不能なほど空虚 or サブ節形骸化のときのみ high。
+- **task-graph 射影の意味判定 (S5-S9・task-graph=第3の射影を持つ plan 限定・非保有は N/A skip)**: 正本は R1-evaluate.md §2。判定手順: **S5 task-graph-semantics (対象 plan の C8)** = task node の粒度と接地 (entity 単位 `produces` 1件以上・各 node の `write_scope` 接地) とエッジ4型 (parent_of/depends_on/produces/consumes) の誤用有無を genuine 判定 → `bucket: task-graph-semantics`。**S6 shape-ab-comparison (対象 plan の C14(b))** = 新旧 shape (fixed-13-phase vs task-graph-derived) A/B 比較で新 shape task node `acceptance_criterion` の下流実効性非劣化を genuine 判定 → `bucket: shape-ab-comparison`。**S7 task-graph-consumer (harness C8 対向)** = consumer (harness-creator L4) の producer 契約 (安定 CLI/graph_hash 照合/所有・書込分離) 逸脱有無を genuine 判定 → `bucket: task-graph-consumer`。**S8 execution-envelope (対象 plan の C17)** = dispatch 対象 leaf の TaskExecutionEnvelope が title 単独でなく task_spec_ref/phase_policy_ref (単一 P0N)/component_route/acceptance_criteria/write_scope/injected_inputs/injected_notes/knowledge_refs/verify を実質携帯するかを `render-task-execution-envelope.py <PLAN_DIR> --task-id <id>` exit code を機械根拠に genuine 判定 (exit0 でも objective/acceptance_criteria が空虚で着手不能なら FAIL) → `bucket: execution-envelope`。**S9 cycle-knowledge (対象 plan の C19)** = knowledge_refs の {id/source_ref/freshness_checked_at/decision/reason} 実質携帯と有界注入 (全文履歴/stale 無条件注入でない) を `check-cycle-knowledge.py <PLAN_DIR> [--predecessor-graph]` exit code を機械根拠に genuine 判定 → `bucket: cycle-knowledge`。S5-S9 は C1-C4 へ直接写像しない llm-only advisory (既定 medium・着手不能/実効性劣化/契約破綻/無条件注入のときのみ high)。observation に対象 node/component id/task-id と genuine PASS|FAIL の判定・根拠を明記する。
 
 ## Layer 3: インフラストラクチャ定義層
 
@@ -94,6 +95,7 @@ python3 "$EVALUATOR_DIR/scripts/evaluate-plan.py" --plan-dir "$PLAN_DIR"
 - [ ] C1-C4 の各 condition が PASS/FAIL で埋まっている。
 - [ ] C8 (layer A): phase 本文の具体度を genuine 判定し、曖昧箇所を `bucket: layer-a-generative-fidelity` の finding に記録した (機械 0 件でも意味的曖昧は指摘)。
 - [ ] C12 (layer B): 受入例/事前解決済み判断サブ節の実効性を genuine 判定し、形骸化を `bucket: layer-b-downstream-harness` の finding に記録した (存在しても空虚なら指摘)。
+- [ ] (task-graph=第3の射影を持つ plan 限定・非保有なら N/A skip) S5-S9: task node 粒度/接地とエッジ4型 (S5→`bucket: task-graph-semantics`)、新旧 shape 実効性非劣化 (S6→`bucket: shape-ab-comparison`)、consumer の producer 契約逸脱 (S7→`bucket: task-graph-consumer`)、TaskExecutionEnvelope 実質携帯 (S8→`bucket: execution-envelope`・`render-task-execution-envelope.py` exit code 根拠)、cycle knowledge の有界注入 (S9→`bucket: cycle-knowledge`・`check-cycle-knowledge.py` exit code 根拠) を genuine 判定し、observation に対象 id と genuine PASS|FAIL・根拠を明記した。
 - [ ] findings が空でなく、PASS でも info 観点を含む。
 - [ ] high severity がある場合 verdict=FAIL になっている。
 - [ ] 評価対象 plan を書き換えていない。

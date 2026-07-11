@@ -33,11 +33,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import specfm  # noqa: E402
 
 CHECKLIST_SECTION = "## 完了チェックリスト"
-# task node の固定 key 順 (canonical serialization 用)。acceptance_criterion のみ optional (存在時のみ出力)。
-_NODE_KEYS = ("id", "title", "phase_ref", "entity_ref", "state", "write_scope", "acceptance_criterion")
+# task node の固定 key 順 (canonical serialization 用)。required は全 node が携帯し、optional は
+# node に present のときだけ出力する。C17 の execution_kind/route_ref/task_spec_ref は target shape
+# だけが携帯するため present-gated 出力にして fixed-13-phase の従来出力を byte 不変に保つ。
+_NODE_REQUIRED_KEYS = ("id", "title", "phase_ref", "entity_ref", "state", "write_scope")
+_NODE_OPTIONAL_KEYS = ("acceptance_criterion", "execution_kind", "route_ref", "task_spec_ref")
+_NODE_KEYS = _NODE_REQUIRED_KEYS + _NODE_OPTIONAL_KEYS
 _EDGE_KEYS = ("type", "from", "to")
 # チェックボックス付き行のみを task 候補にする (## 完了チェックリスト 節に内包される ### 受入例 の `- ` を除外)。
 _CHECKBOX_RE = re.compile(r"^-\s+\[[ xX]\]\s+(.+)$")
+_PHASE_REF_RE = re.compile(r"^P(0[1-9]|1[0-3])$")
+_TARGET_SHAPE = "task-graph-derived"
+_FIXED_SHAPE = "fixed-13-phase"
 
 
 def _parse_checklist_items(section_body: str) -> list[str]:
@@ -53,6 +60,171 @@ def _parse_checklist_items(section_body: str) -> list[str]:
 def _phase_files(plan_dir: Path) -> list[Path]:
     """plan_dir 直下の phase-NN-*.md を phase 番号順で返す。"""
     return sorted(plan_dir.glob("phase-*.md"), key=lambda p: p.name)
+
+
+def shape_marker(plan_dir: Path) -> str:
+    """index frontmatter の shape marker を返す。未指定だけを legacy fixed shape とする。
+
+    未知値を fixed shape へ黙って縮退させると、task-spec を正本として書いた plan が旧 checklist
+    射影へ化けるため fail-closed にする。これは target shape の producer/consumer join の入口 SSOT。
+    """
+    index_path = Path(plan_dir) / "index.md"
+    if not index_path.is_file():
+        return _FIXED_SHAPE
+    try:
+        fm = specfm.parse_frontmatter(index_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"index.md を読めない: {exc}") from exc
+    marker = fm.get("shape_marker", _FIXED_SHAPE)
+    if marker not in (_FIXED_SHAPE, _TARGET_SHAPE):
+        raise ValueError(
+            f"unknown shape_marker={marker!r}; expected {_FIXED_SHAPE!r} or {_TARGET_SHAPE!r}"
+        )
+    return marker
+
+
+def _nonempty_string(value, field: str, spec_path: Path) -> str:
+    if not (isinstance(value, str) and value.strip()):
+        raise ValueError(f"{spec_path.name}: {field} は非空文字列必須")
+    return value.strip()
+
+
+def _string_list(value, field: str, spec_path: Path) -> list[str]:
+    """task spec の graph relation list を非空文字列 list として厳格に読む。"""
+    if value is None:
+        return []
+    if not isinstance(value, list) or any(not isinstance(v, str) or not v.strip() for v in value):
+        raise ValueError(f"{spec_path.name}: {field} は非空文字列の配列でなければならない")
+    return [v.strip() for v in value]
+
+
+def _phase_titles(plan_dir: Path) -> dict[str, str]:
+    """phase_ref → phase_name。target shape では phase 文書を policy label にだけ使う。"""
+    titles: dict[str, str] = {}
+    for path in _phase_files(plan_dir):
+        try:
+            fm = specfm.parse_frontmatter(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValueError(f"{path.name} を読めない: {exc}") from exc
+        phase_ref = fm.get("id")
+        if isinstance(phase_ref, str) and phase_ref:
+            title = fm.get("phase_name")
+            titles[phase_ref] = title.strip() if isinstance(title, str) and title.strip() else phase_ref
+    return titles
+
+
+def _derive_task_spec_shape(plan_dir: Path) -> dict:
+    """task-specs/*.md を正本に 1 spec = 1 dispatchable leaf として graph を導出する。
+
+    phase 文書は leaf の作成元ではなく単一 phase policy。各 phase_ref には非 dispatch の
+    phase-gate root を 1 個だけ作り、明示 depends_on/produces/consumes は task spec から写す。
+    component-build の builder join は route_ref の明示値だけを使い entity_ref から推測しない。
+    """
+    specs_dir = plan_dir / "task-specs"
+    spec_paths = sorted(specs_dir.glob("*.md"), key=lambda p: p.name) if specs_dir.is_dir() else []
+    if not spec_paths:
+        raise ValueError("shape_marker=task-graph-derived には task-specs/*.md が 1 件以上必要")
+
+    leaves: list[dict] = []
+    relations: dict[str, dict[str, list[str]]] = {}
+    seen_ids: set[str] = set()
+    phase_leaves: dict[str, list[str]] = {}
+
+    for path in spec_paths:
+        try:
+            fm = specfm.parse_frontmatter(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValueError(f"{path.name} を読めない: {exc}") from exc
+        task_id = _nonempty_string(fm.get("id"), "id", path)
+        if task_id != path.stem:
+            raise ValueError(f"{path.name}: id={task_id!r} は filename stem={path.stem!r} と一致必須")
+        if task_id in seen_ids:
+            raise ValueError(f"task id が重複: {task_id}")
+        seen_ids.add(task_id)
+
+        phase_ref = _nonempty_string(fm.get("phase_ref"), "phase_ref", path)
+        if not _PHASE_REF_RE.match(phase_ref):
+            raise ValueError(f"{path.name}: phase_ref={phase_ref!r} は P01..P13 必須")
+        execution_kind = _nonempty_string(fm.get("execution_kind"), "execution_kind", path)
+        if execution_kind not in ("direct-task", "component-build"):
+            raise ValueError(
+                f"{path.name}: execution_kind は direct-task|component-build のみ "
+                "(phase-gate は producer が phase root として導出する)"
+            )
+
+        raw_route = fm.get("route_ref")
+        route_ref = raw_route.strip() if isinstance(raw_route, str) and raw_route.strip() else None
+        if execution_kind == "component-build" and route_ref is None:
+            raise ValueError(f"{path.name}: component-build は明示 route_ref 必須")
+        if execution_kind == "direct-task" and route_ref is not None:
+            raise ValueError(f"{path.name}: direct-task は route_ref を持てない")
+
+        acceptance = fm.get("acceptance_criterion")
+        if not (isinstance(acceptance, str) and acceptance.strip()):
+            criteria = fm.get("acceptance_criteria")
+            if isinstance(criteria, list) and criteria and isinstance(criteria[0], str):
+                acceptance = criteria[0]
+        acceptance = _nonempty_string(acceptance, "acceptance_criterion", path)
+        write_scope = _nonempty_string(fm.get("write_scope"), "write_scope", path)
+        title = _nonempty_string(fm.get("title"), "title", path)
+        entity = fm.get("entity_ref")
+        entity_ref = entity.strip() if isinstance(entity, str) and entity.strip() else None
+
+        leaves.append({
+            "id": task_id,
+            "title": title,
+            "phase_ref": phase_ref,
+            "entity_ref": entity_ref,
+            "state": "pending",
+            "write_scope": write_scope,
+            "acceptance_criterion": acceptance,
+            "execution_kind": execution_kind,
+            "route_ref": route_ref,
+            "task_spec_ref": f"task-specs/{path.name}",
+        })
+        produces = _string_list(fm.get("produces"), "produces", path)
+        if not produces:
+            raise ValueError(f"{path.name}: produces は 1 件以上必須 (1 spec = 1 検証可能成果物)")
+        relations[task_id] = {
+            "depends_on": _string_list(fm.get("depends_on"), "depends_on", path),
+            "produces": produces,
+            "consumes": _string_list(fm.get("consumes"), "consumes", path),
+        }
+        phase_leaves.setdefault(phase_ref, []).append(task_id)
+
+    phase_ids = set(phase_leaves)
+    collisions = seen_ids & phase_ids
+    if collisions:
+        raise ValueError(f"task id が phase root id と衝突: {', '.join(sorted(collisions))}")
+    for task_id, rel in relations.items():
+        missing = sorted(set(rel["depends_on"]) - seen_ids)
+        if missing:
+            raise ValueError(f"{task_id}: depends_on が未知 task を参照: {', '.join(missing)}")
+
+    titles = _phase_titles(plan_dir)
+    roots = [{
+        "id": phase_ref,
+        "title": titles.get(phase_ref, phase_ref),
+        "phase_ref": phase_ref,
+        "entity_ref": None,
+        "state": "pending",
+        "write_scope": phase_ref,
+        "execution_kind": "phase-gate",
+        "route_ref": None,
+        "task_spec_ref": None,
+    } for phase_ref in sorted(phase_leaves, key=_phase_order)]
+
+    edge_keys: set[tuple[str, str, str]] = set()
+    for phase_ref, task_ids in phase_leaves.items():
+        for task_id in task_ids:
+            edge_keys.add(("parent_of", phase_ref, task_id))
+            edge_keys.add(("depends_on", phase_ref, task_id))  # root done = 全 leaf 完了
+    for task_id, rel in relations.items():
+        edge_keys.update(("depends_on", task_id, dep) for dep in rel["depends_on"])
+        edge_keys.update(("produces", task_id, artifact) for artifact in rel["produces"])
+        edge_keys.update(("consumes", artifact, task_id) for artifact in rel["consumes"])
+    edges = [{"type": typ, "from": src, "to": dst} for typ, src, dst in sorted(edge_keys)]
+    return {"schema_version": "1.0", "nodes": roots + leaves, "edges": edges}
 
 
 def _inventory_build_targets(plan_dir: Path) -> dict[str, str]:
@@ -148,7 +320,7 @@ def _phase_order(phase_ref: str) -> int:
     return int(m.group(1)) if m else 10_000
 
 
-def derive(plan_dir: Path) -> dict:
+def _derive_fixed_13_phase(plan_dir: Path) -> dict:
     """13 phase §5 タスク項目 + component-inventory.json から task-graph (未正準の生形) を導出する。
 
     1 チェックボックス項目 = 1 task node。entities_covered が複数なら各 entity ごとに node を生成し、
@@ -311,14 +483,28 @@ def derive(plan_dir: Path) -> dict:
     return {"schema_version": "1.0", "nodes": nodes, "edges": edges}
 
 
+def derive(plan_dir: Path) -> dict:
+    """shape marker で producer を分岐する。未指定=fixed は既存 bytes/behavior を維持。"""
+    plan_dir = Path(plan_dir)
+    marker = shape_marker(plan_dir)
+    if marker == _TARGET_SHAPE:
+        return _derive_task_spec_shape(plan_dir)
+    return _derive_fixed_13_phase(plan_dir)
+
+
 def _canon_node(n: dict) -> dict:
     out: dict = {}
-    for k in _NODE_KEYS:
+    for k in _NODE_REQUIRED_KEYS:
+        out[k] = n.get(k)
+    for k in _NODE_OPTIONAL_KEYS:
+        # acceptance_criterion は歴史的に None を省く (既存出力不変)。C17 の 3 キーは present なら
+        # null も出力する (direct-task の route_ref=null は「明示的に route を持たない」意味を担い
+        # 省略と区別するため)。fixed-13-phase の node はどの optional キーも持たず出力が byte 不変。
         if k == "acceptance_criterion":
             if k in n and n[k] is not None:
                 out[k] = n[k]
-        else:
-            out[k] = n.get(k)
+        elif k in n:
+            out[k] = n[k]
     return out
 
 
@@ -377,7 +563,11 @@ def main(argv: list[str] | None = None) -> int:
     if not plan_dir.is_dir():
         print(f"not a directory: {plan_dir}", file=sys.stderr)
         return 2
-    graph = derive(plan_dir)
+    try:
+        graph = derive(plan_dir)
+    except ValueError as exc:
+        print(f"derive error: {exc}", file=sys.stderr)
+        return 1
     out_path = plan_dir / "task-graph.json"
     out_path.write_text(canonical_json(graph) + "\n", encoding="utf-8")
     print(str(out_path))

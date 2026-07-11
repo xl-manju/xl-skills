@@ -90,8 +90,9 @@ def test_build_flags_engine_enum_additive():
     schema = json.loads(BUILD_FLAGS.read_text(encoding="utf-8"))
     enum = schema["properties"]["with_goal_seek"]["properties"]["engine"]["enum"]
     assert "task-graph" in enum
-    assert "inline" in enum and "run-goal-seek" in enum  # 既存維持
-    assert schema["properties"]["with_goal_seek"]["properties"]["engine"]["default"] == "inline"
+    assert "inline" in enum and "run-goal-seek" in enum  # 既存維持 (enum は additive)
+    # 量産既定を task-graph へ反転 (SKILL.md Step 10.6「engine 既定=task-graph」/ with-goal-seek.patch default 準拠)。
+    assert schema["properties"]["with_goal_seek"]["properties"]["engine"]["default"] == "task-graph"
 
 
 def test_loop_schema_depends_on_additive():
@@ -109,7 +110,8 @@ def test_loop_schema_depends_on_additive():
 def test_loop_schema_engine_additive():
     schema = json.loads(LOOP_SCHEMA.read_text(encoding="utf-8"))
     eng = schema["properties"]["engine"]
-    assert eng["default"] == "inline" and set(eng["enum"]) == {"inline", "run-goal-seek", "task-graph"}
+    # enum は additive (3値維持)・既定は量産反転で task-graph (SKILL.md Step 10.6 準拠)。
+    assert eng["default"] == "task-graph" and set(eng["enum"]) == {"inline", "run-goal-seek", "task-graph"}
 
 
 # --- consumption verifier bash の「実挙動」検査 (presence でなく behavior・§11 対応) ---

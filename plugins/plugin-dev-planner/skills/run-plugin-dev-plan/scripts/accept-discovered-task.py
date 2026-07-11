@@ -148,6 +148,22 @@ def accept(form: dict, graph: dict, approved: bool = False) -> dict:
     return _dtg.canonicalize(updated)
 
 
+def diff_proposed_vs_existing(proposed: dict, graph: dict) -> list[str] | None:
+    """proposed_node と graph 内の同 id 既存 node の field 差分を返す (既存不在なら None)。
+
+    冪等 skip (id 既存で無追加) の際、再 emit された form の field 変更 (title/acceptance_criterion
+    等) が黙って落ちるのを可視化する材料 (B1)。graph は不変のまま、両 node の key 和集合に対する
+    値不一致フィールド名を昇順 list で返す (差分なしは [])。
+    """
+    pid = proposed.get("id")
+    existing = next(
+        (n for n in graph.get("nodes", []) if isinstance(n, dict) and n.get("id") == pid), None)
+    if existing is None:
+        return None
+    keys = set(proposed) | set(existing)
+    return sorted(k for k in keys if proposed.get(k) != existing.get(k))
+
+
 def drain_inbox(inbox_dir: Path, graph: dict, approved: bool = False) -> tuple[dict, dict]:
     """discovered-task inbox を決定論順で一括ドレインし外ループ入口を閉じる (FC-6 帰路)。
 
@@ -177,6 +193,10 @@ def drain_inbox(inbox_dir: Path, graph: dict, approved: bool = False) -> tuple[d
             results["skipped"].append({"form": form_path.name, "status": form.get("status")})
             continue
         node_id = form.get("proposed_node", {}).get("id")
+        # 冪等 skip の field 差分検出 (B1): accept 前の working graph と比較する
+        # (id 既存なら accept は無追加=graph 不変で、proposed の field 変更は反映されない)。
+        proposed = form.get("proposed_node") if isinstance(form.get("proposed_node"), dict) else {}
+        diff_fields = diff_proposed_vs_existing(proposed, working)
         try:
             working = accept(form, working, approved=approved)
         except PermissionError:
@@ -190,8 +210,16 @@ def drain_inbox(inbox_dir: Path, graph: dict, approved: bool = False) -> tuple[d
             results["rejected"].append({"form": form_path.name, "node": node_id, "reason": str(exc)})
             continue
         form["status"] = "accepted"
+        entry = {"form": form_path.name, "node": node_id}
+        if diff_fields:
+            # 冪等 skip で proposed の field 変更が graph へ反映されていない (partial 反映)。
+            # graph は不変のまま form へ差分一覧を書き戻し、次周回 planner の判断材料にする (B1)。
+            form["reflected"] = "partial"
+            form["reflected_diff_fields"] = diff_fields
+            entry["reflected"] = "partial"
+            entry["diff_fields"] = diff_fields
         accepted_paths.append((form_path, form, node_id))
-        results["accepted"].append({"form": form_path.name, "node": node_id})
+        results["accepted"].append(entry)
     # fail-closed validate ゲート (MD-2): 受理を全て適用した *最終* graph が producer 不変条件
     # (DAG 非循環 / orphan 0 / producer 一意 / consumes 実在 / canonical) を破るなら、graph も
     # form status も一切コミットせず元 graph を返す。C08 完了ゲートが block を継続し外ループが

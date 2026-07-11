@@ -163,7 +163,7 @@ def test_main_integration_repo_root_resolves_relative_artifact(tmp_path, capsys)
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             {"type": "depends_on", "from": "T2", "to": "T1"},
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     gp = _write(tmp_path / "task-graph.json", graph)
@@ -172,6 +172,23 @@ def test_main_integration_repo_root_resolves_relative_artifact(tmp_path, capsys)
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["ready_batch"] == ["T2"]  # repo root 基点で成果物実在 → ready
+
+
+def test_main_consumes_without_artifact_producer_fails_closed(tmp_path, capsys, monkeypatch):
+    graph = {
+        "schema_version": "1.0",
+        "nodes": [{"id": "T2", "state": "pending", "write_scope": "a/T2"}],
+        "edges": [{"type": "consumes", "from": "A404", "to": "T2"}],
+    }
+    gp = _write(tmp_path / "task-graph.json", graph)
+    sp = _write(tmp_path / "task-state.json", _task_state())
+
+    def _must_not_run(planner_root, plan_dir, repo_root):
+        raise AssertionError("invalid consumes graph must fail before compute-ready-set")
+
+    monkeypatch.setattr(disp, "invoke_ready_set", _must_not_run)
+    assert disp.main(["--task-graph", gp, "--task-state", sp]) == 1
+    assert "has no producer" in capsys.readouterr().err
 
 
 def test_main_repo_root_default_and_override_reach_invoke(tmp_path, capsys, monkeypatch):

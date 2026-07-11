@@ -7,7 +7,7 @@ prev_phase: 8
 next_phase: 10
 status: 未実施
 gate_type: qa
-entities_covered: [C01, C02]
+entities_covered: [C02]
 applicability:
   applicable: true
   reason: ""
@@ -37,7 +37,7 @@ P0 lint (8 本)・build-trace・schema parity・content-review は既存 run-plu
 - 実測ゲート実行結果の記録 (build 後・本 plan の対象外)。
 
 ## 完了チェックリスト
-- [ ] C01/C02 双方の quality_gates が p0_lint/build_trace/elegant_review/content_review/evaluator の 5 要素を全て持つ。
+- [ ] C02 evaluator skillを更新し、C01/C02双方についてp0_lint/build_trace/elegant_review/content_review/evaluatorの5要素とC17/C19のgenuine判定を検証できる。
 
 ### 受入例
 （本 phase は縮小要件対象 (REDUCED_REQUIREMENT_PHASES) のため、見出し直下の本文は簡略形で足りる。）

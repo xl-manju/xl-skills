@@ -1,0 +1,202 @@
+{
+  "schema_version": "elegant-review-1.0",
+  "plan_dir": "plugin-plans/system-spec-harness",
+  "project_id": "PLUGIN-DEV-PLAN-ELEGANT-VERIFY",
+  "reviewed_at": "2026-07-11",
+  "context_reset": true,
+  "iteration": 1,
+  "method_count": 30,
+  "methods": {
+    "logic_structure": [
+      "批判的思考",
+      "演繹思考",
+      "帰納的思考",
+      "アブダクション",
+      "垂直思考",
+      "要素分解",
+      "MECE",
+      "2軸思考",
+      "プロセス思考"
+    ],
+    "meta_ideation": [
+      "メタ思考",
+      "抽象化思考",
+      "ダブル・ループ思考",
+      "ブレインストーミング",
+      "水平思考",
+      "逆説思考",
+      "類推思考",
+      "if思考",
+      "素人思考"
+    ],
+    "system_strategy_problem_solving": [
+      "システム思考",
+      "因果関係分析",
+      "因果ループ",
+      "トレードオン思考",
+      "プラスサム思考",
+      "価値提案思考",
+      "戦略的思考",
+      "why思考",
+      "改善思考",
+      "仮説思考",
+      "論点思考",
+      "KJ法"
+    ]
+  },
+  "verdict": "PASS",
+  "conditions": {
+    "C1": {
+      "id": "no_contradiction",
+      "status": "PASS",
+      "summary": "矛盾なし: ヒアリング継続、書込保護、配布状態、phase/inventory/handoff の意味契約を再照合し相反0件",
+      "evidence": [
+        "C01 max_loops は per-invocation chunk として state+next_question を保存し resume",
+        "C11 Write|Edit|Bash hook と C01/C03 single writer の二重防御",
+        "P12 は local/dev 導入と marketplace NOT_AVAILABLE/approval-pending を条件分岐"
+      ]
+    },
+    "C2": {
+      "id": "no_missing",
+      "status": "PASS",
+      "summary": "漏れなし: 13 componentを維持し、required surface owner、最新公式文書証拠、AC evidence matrixを補完",
+      "evidence": [
+        "plugin-composition/EVALS/C04 references/RUNBOOK/CI wiring に owner+build_target+status/preflight",
+        "target_id/official publisher+host/version or last_updated/retrieved_at/latest_checked_at と C08再照合",
+        "P11にgoal-spec C1-C8/P07 AC evidence matrix"
+      ]
+    },
+    "C3": {
+      "id": "consistent",
+      "status": "PASS",
+      "summary": "整合性あり: canonical platform id、カテゴリ状態真理値表、citation schema、surface routingを全成果物で統一",
+      "evidence": [
+        "canonical platform id=web/mobile/tablet/desktop-windows/desktop-linux/desktop-macos",
+        "カテゴリ集約状態の完全な導出規則をindex/C01/C12で共有",
+        "inventoryとhandoffの13 routes主要フィールドが1:1"
+      ]
+    },
+    "C4": {
+      "id": "dependency_integrity",
+      "status": "PASS",
+      "summary": "依存関係整合: 意味依存をDAGへ反映し、循環・未知参照・orphan・route順違反0件",
+      "evidence": [
+        "C01<-C04/C12, C02<-C01/C13, C05<-C06/C07/C08, C10<-C03/C05",
+        "check-build-handoff exit=0",
+        "validate-task-graph exit=0",
+        "detect-unassigned exit=0"
+      ]
+    }
+  },
+  "deterministic_verification": {
+    "verdict": "PASS",
+    "plan_scoped_gates": {
+      "passed": 11,
+      "total": 11,
+      "names": [
+        "verify-index-topsort",
+        "detect-unassigned",
+        "check-spec-frontmatter",
+        "check-spec-gates",
+        "check-spec-matrix-coverage-self-test",
+        "check-spec-matrix-coverage-plan",
+        "check-surface-inventory",
+        "check-build-handoff",
+        "check-requirements-coverage",
+        "check-runtime-portability",
+        "validate-task-graph"
+      ]
+    },
+    "additional_passed": [
+      "check-plugin-goal-spec",
+      "check-plugin-surface-audit",
+      "check-generative-fidelity",
+      "check-downstream-harness",
+      "check-harness-coverage-selfcheck"
+    ],
+    "warnings": [
+      "source_intake/source_improvement 不在は既存構想文直入力planとして後方互換WARN。4条件のblocking findingではない"
+    ]
+  },
+  "findings": [
+    {
+      "id": "EV-DEP-001",
+      "severity": "high",
+      "status": "RESOLVED",
+      "conditions": ["整合性あり", "依存関係整合"],
+      "detecting_methods": ["演繹思考", "因果関係分析", "システム思考", "if思考", "仮説思考"],
+      "observation": "taxonomy/spec-state/fork/自動評価の実行契約に必要なDAG edgeが不足していた",
+      "resolution": "C01<-C04、C02<-C01、C05<-C06/C07/C08、C10<-C05をinventory/handoff/task graphへ反映しtop-sort例を同期"
+    },
+    {
+      "id": "EV-SURFACE-002",
+      "severity": "high",
+      "status": "RESOLVED",
+      "conditions": ["漏れなし", "整合性あり"],
+      "detecting_methods": ["メタ思考", "システム思考", "価値提案思考", "素人思考"],
+      "observation": "requiredなplugin-composition/EVALS/references/runbook/CI wiringにbuild owner/targetが不足していた",
+      "resolution": "handoff envelopeとinventory surfaceへowner/build_target/status/gap_ref/preflightを追加"
+    },
+    {
+      "id": "EV-SOURCE-003",
+      "severity": "high",
+      "status": "RESOLVED",
+      "conditions": ["漏れなし", "整合性あり"],
+      "detecting_methods": ["垂直思考", "ダブル・ループ思考", "批判的思考", "素人思考"],
+      "observation": "最新公式文書の検証が取得日時とURLの存在確認へ縮退していた",
+      "resolution": "target全件対応・公式host・version/更新日・取得/確認時刻をC02/C13へ追加し、C08へWebSearch/WebFetchによる現行版再照合を追加"
+    },
+    {
+      "id": "EV-WRITE-004",
+      "severity": "high",
+      "status": "RESOLVED",
+      "conditions": ["矛盾なし", "漏れなし", "整合性あり"],
+      "detecting_methods": ["逆説思考", "if思考", "水平思考", "戦略的思考"],
+      "observation": "Write|Edit hookだけではBash経由の確定状態巻戻しを防げなかった",
+      "resolution": "C11/manifest matcherをWrite|Edit|Bashへ拡張しprotected path/spec-state/曖昧Bashをfail-closed、C01/C03 single writerと負例で二重化"
+    },
+    {
+      "id": "EV-LOOP-005",
+      "severity": "medium",
+      "status": "RESOLVED",
+      "conditions": ["矛盾なし", "整合性あり"],
+      "detecting_methods": ["プロセス思考", "逆説思考", "if思考"],
+      "observation": "停止しないヒアリングとmax_loops=5の関係が未定義だった",
+      "resolution": "5 loopを1 invocationのchunk上限とし、未完了state+next_question保存、resume、6周超fixtureを追加"
+    },
+    {
+      "id": "EV-MATRIX-006",
+      "severity": "medium",
+      "status": "RESOLVED",
+      "conditions": ["漏れなし", "整合性あり"],
+      "detecting_methods": ["要素分解", "MECE", "2軸思考", "抽象化思考"],
+      "observation": "desktop OS粒度とカテゴリ集約4状態の導出が曖昧だった",
+      "resolution": "canonical platform id 6種とカテゴリ状態の完全な真理値表を正本化"
+    },
+    {
+      "id": "EV-EVIDENCE-007",
+      "severity": "medium",
+      "status": "RESOLVED",
+      "conditions": ["漏れなし", "整合性あり"],
+      "detecting_methods": ["メタ思考", "抽象化思考", "ダブル・ループ思考"],
+      "observation": "P11 evidence 5要素だけではP07/goal-spec AC全件を再現証明できなかった",
+      "resolution": "C1-C8/P07 ACごとのfixture/command/artifact/verdict evidence matrixを追加"
+    },
+    {
+      "id": "EV-DISTRIBUTION-008",
+      "severity": "medium",
+      "status": "RESOLVED",
+      "conditions": ["矛盾なし", "整合性あり"],
+      "detecting_methods": ["批判的思考", "プロセス思考", "素人思考", "論点思考"],
+      "observation": "distributable:falseにもかかわらずmarketplace/CLI/Desktop installが無条件必須だった",
+      "resolution": "local/dev導入を必須、未承認surfaceをNOT_AVAILABLE/approval-pending+理由、Part1/Part2読者を分離"
+    }
+  ],
+  "structural_decision": {
+    "component_count_before": 13,
+    "component_count_after": 13,
+    "component_merge_or_split": false,
+    "user_approval_required": false,
+    "reason": "component統合/分割は行わず、既存責務の依存線・契約・surface ownerを最小修正した"
+  }
+}

@@ -127,7 +127,7 @@ def test_case5_done_but_artifact_missing(tmp_path):
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             _dep("T2", "T1"),
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     ready, conflicts = CRS.ready_set(graph)
@@ -147,7 +147,7 @@ def test_case5_artifact_present_makes_ready(tmp_path):
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             _dep("T2", "T1"),
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     ready, _ = CRS.ready_set(graph)
@@ -168,7 +168,7 @@ def test_repo_root_resolves_relative_write_scope(tmp_path):
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             _dep("T2", "T1"),
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     ready_without, _ = CRS.ready_set(graph)                            # cwd 基点 → 欠落扱い
@@ -189,7 +189,7 @@ def test_repo_root_does_not_affect_absolute_write_scope(tmp_path):
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             _dep("T2", "T1"),
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     # 無関係な repo_root を与えても絶対パスは影響を受けない。
@@ -204,7 +204,7 @@ def test_consumes_with_missing_producer_node():
         "nodes": [_node("T2", "pending", "ws/t2")],
         "edges": [
             {"type": "produces", "from": "GHOST", "to": "A1"},
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     ready, _ = CRS.ready_set(graph)
@@ -271,7 +271,7 @@ def test_main_repo_root_flag(tmp_path, capsys):
         "edges": [
             {"type": "produces", "from": "T1", "to": "A1"},
             _dep("T2", "T1"),
-            {"type": "consumes", "from": "T2", "to": "A1"},
+            {"type": "consumes", "from": "A1", "to": "T2"},
         ],
     }
     _write_graph(plan_dir, graph)

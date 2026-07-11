@@ -51,7 +51,8 @@ def _load_sibling(stem: str):
 
 # producer=plugin-dev-planner の既定 root。導出は TG-C02 (sync-task-state.resolve_planner_root)
 # を SSOT として再利用しローカル再定義しない (--planner-root 明示指定は従来通り優先)。
-_PLANNER_ROOT_DEFAULT = str(_load_sibling("sync-task-state").resolve_planner_root())
+_sts = _load_sibling("sync-task-state")
+_PLANNER_ROOT_DEFAULT = str(_sts.resolve_planner_root())
 _PLANNER_SCRIPTS_REL = ("skills", "run-plugin-dev-plan", "scripts")
 # repo root の既定 (本 script 位置から導出・cwd 非依存)。compute-ready-set の consumes 成果物
 # 実在検査 (M-02) に --repo-root として伝搬し、相対 write_scope 解決の cwd anchoring を避ける。
@@ -164,6 +165,13 @@ def main(argv: list[str] | None = None) -> int:
         n.get("id"): n for n in task_state.get("nodes", []) if isinstance(n, dict)
     }
     merged = merge_state(graph, state_by_id)
+
+    # producer compute-ready-set 呼出前に同じ 3-edge truth table を検証する。
+    # consumes artifact の producer 不在は ready=[] として沈黙させず fail-closed。
+    _, dependency_issues = _sts.resolve_dependency_producers(merged)
+    if dependency_issues:
+        print(_sts.format_dependency_issue(dependency_issues[0]), file=sys.stderr)
+        return 1
 
     # (F10) 周回 graph_hash 再検証: pin 設定済みなら不一致を fail-closed で拒否。
     pinned = task_state.get("graph_hash")

@@ -61,9 +61,6 @@ def _load_sibling(stem: str):
 # TG-C02 (sync-task-state) の resolve_build_dir を SSOT として import (独自 path 導出はしない)。
 _sts = _load_sibling("sync-task-state")
 resolve_build_dir = _sts.resolve_build_dir
-# depends_on/consumes を「下流(from)→上流(to)」と読む producer edge type。集合の正本は TG-C02
-# _DEP_EDGE_TYPES (H-04: producer ready-set「depends_on 完了+consumes 成果物実在」と対称・再定義しない)。
-_DEP_EDGE_TYPES = _sts._DEP_EDGE_TYPES
 
 
 # ── 進捗集計 ──────────────────────────────────────────────────────────────────
@@ -103,20 +100,10 @@ def summarize(task_state: dict, build_dir: Path) -> dict:
 def _producers_of(task_graph: dict) -> dict[str, set[str]]:
     """consumer(下流) node id → producer(上流) node id 集合 を返す。
 
-    producer edge `{type: depends_on|consumes, from: 下流, to: 上流}` を主とし、
-    node-level の depends_on/consumes list も補助的に読む (robustness・TG-C02 と同一)。
+    depends_on は consumer task→producer task、consumes は artifact→consumer task を
+    produces で producer task へ逆引きする。
     """
-    prod: dict[str, set[str]] = {}
-    for e in task_graph.get("edges", []) or []:
-        if e.get("type") in _DEP_EDGE_TYPES:
-            consumer, producer = e.get("from"), e.get("to")
-            if consumer is not None and producer is not None:
-                prod.setdefault(consumer, set()).add(producer)
-    for n in task_graph.get("nodes", []) or []:
-        nid = n.get("id")
-        for key in _DEP_EDGE_TYPES:
-            for producer in n.get(key, []) or []:
-                prod.setdefault(nid, set()).add(producer)
+    prod, _ = _sts.resolve_dependency_producers(task_graph)
     return prod
 
 
@@ -163,9 +150,26 @@ def detect_stall(
         n.get("id"): n.get("route_report") for n in task_state.get("nodes", []) or []
     }
     graph_node_ids = {n.get("id") for n in task_graph.get("nodes", []) or []}
-    producers = _producers_of(task_graph)
+    producers, dependency_issues = _sts.resolve_dependency_producers(task_graph)
 
     diagnosis: list[dict] = []
+    # consumes artifact producer 不在等は「依存なし」ではなく、外ループへ返す
+    # spec-gap として構造化診断する (fail-closed)。
+    for issue in dependency_issues:
+        consumer = issue.get("consumer_task_id")
+        node = next(
+            (n for n in task_graph.get("nodes", []) or [] if n.get("id") == consumer),
+            {},
+        )
+        diagnosis.append({
+            "task_id": consumer,
+            "message": _sts.format_dependency_issue(issue),
+            "kind": "spec-gap",
+            "missing_dependency_id": issue.get("producer_task_id") or issue.get("artifact_id"),
+            "missing_artifact_id": issue.get("artifact_id"),
+            "stalled_task_phase_ref": node.get("phase_ref"),
+            "stalled_task_write_scope": node.get("write_scope"),
+        })
     for node in sorted(task_graph.get("nodes", []) or [], key=lambda x: str(x.get("id"))):
         nid = node.get("id")
         state = state_map.get(nid, node.get("state", "pending"))

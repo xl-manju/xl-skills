@@ -115,6 +115,57 @@ def test_single_active_ok():
     assert cpl.validate_ledger(data) == []
 
 
+# ─────────── predecessor_cycle_id lineage (C19) ───────────
+def test_valid_predecessor_lineage_ok():
+    data = _valid_ledger()
+    # active cycle が finished cycle を先行として結ぶ (満たす例)
+    data["entries"][1]["predecessor_cycle_id"] = "20260601-task-graph"
+    assert cpl.validate_ledger(data) == []
+
+
+def test_active_predecessor_is_violation():
+    data = _valid_ledger()
+    data["entries"][0]["status"] = "superseded"
+    data["entries"].append({
+        "cycle_id": "20260706-next",
+        "status": "finished",
+        "plan_dir": "plugin-plans/plugin-dev-planner/20260706-next",
+        "summary": "next",
+        "predecessor_cycle_id": "20260705-cycle-ledger",
+    })
+    errs = cpl.validate_ledger(data)
+    assert any("active cycle" in e for e in errs)
+
+
+def test_dangling_predecessor_is_violation():
+    data = _valid_ledger()
+    data["entries"][1]["predecessor_cycle_id"] = "20250101-nonexistent"
+    errs = cpl.validate_ledger(data)
+    assert any("dangling lineage" in e for e in errs)
+
+
+def test_self_referential_predecessor_is_violation():
+    data = _valid_ledger()
+    data["entries"][1]["predecessor_cycle_id"] = data["entries"][1]["cycle_id"]
+    errs = cpl.validate_ledger(data)
+    assert any("自己参照" in e for e in errs)
+
+
+def test_predecessor_cycle_loop_is_violation():
+    data = _valid_ledger()
+    # A→B かつ B→A の閉路
+    data["entries"][0]["predecessor_cycle_id"] = data["entries"][1]["cycle_id"]
+    data["entries"][1]["predecessor_cycle_id"] = data["entries"][0]["cycle_id"]
+    errs = cpl.validate_ledger(data)
+    assert any("閉路" in e for e in errs)
+
+
+def test_null_predecessor_ok():
+    data = _valid_ledger()
+    data["entries"][1]["predecessor_cycle_id"] = None
+    assert cpl.validate_ledger(data) == []
+
+
 # ─────────── main (CLI 経路 + exit code) ───────────
 def _write(tmp_path, data) -> Path:
     p = tmp_path / "plan-ledger.json"
