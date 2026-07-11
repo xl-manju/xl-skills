@@ -64,6 +64,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -214,6 +215,37 @@ def _row_contract_id(row):
     return _norm(row.get("contract_id") or row.get("契約ID"))
 
 
+def _row_end_client(row):
+    """行のエンドクライアント名 (C03 が collapse identity 判別用に透過する非表示フィールド)。
+
+    代理店が同一 (取引先,商品) を複数エンドクライアントへ契約する場合の契約 disambiguator。
+    contract_id と対で『契約 identity』を成す (名寄せ SSOT で正規化)。
+    """
+    return _normalize_name(row.get("end_client") or row.get("エンドクライアント名") or "")
+
+
+def _contract_identity(row):
+    """行の契約 identity = (契約ID, エンドクライアント名)。collapse で phantom と別契約を判別する。
+
+    同一 (対象月,取引先,商品) へ collapse する 2 行の identity が一致すれば、それは『同一契約が
+    ID照合↔名前照合で二重化した phantom』(record2 型: contract_id/エンドクライアント共に空で一致)。
+    identity が異なれば代理店の別エンドクライアント=真の別契約 (HOSONO 甲様/乙様 型)。この判別で
+    別契約の発行漏れを発行済みで黙って正常化する漏れ隠蔽 (false-negative) を防ぐ。
+    """
+    return (_row_contract_id(row), _row_end_client(row))
+
+
+def _same_contract_identity(a, b):
+    """2 行が同一契約 (phantom 由来の二重化) か。identity 完全一致で True。
+
+    どちらも contract_id/エンドクライアント未設定 (("","")) の場合も一致=phantom 扱い。これは安全:
+    真に別契約が両方 disambiguator 無しなら C03 の compare_periods が (取引先,商品) キーの setdefault で
+    1 ペアへ既に collapse 済ゆえ、sink へ 2 行として届く同一空 identity は ID↔名前 split の phantom に
+    限られる (別契約が別々に届くのは disambiguator を持つときだけ)。
+    """
+    return _contract_identity(a) == _contract_identity(b)
+
+
 def _amount(row, *keys):
     """row から金額を取り出す (最初に見つかった非 None を返す)。0 は有効値。"""
     for k in keys:
@@ -255,11 +287,22 @@ def _severity_rank(row):
     return 1 if check == "要対応" else 0
 
 
-# C03 が構造的正常事由 (年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
+# C03 が構造的正常事由 (継続発行/年契約周期/契約完了/トライアル完了/対象外) で正常化した行の period_diff 標識。
 # これらは「バグ由来 false-positive の権威ある訂正」であり、cross-run safe guard が前 run の
 # 要対応を無条件保持して打ち消してはならない (例: 金子金物が C03 annual fix 前に 要対応 で
 # persist 済みでも、fix 後の 年契約周期 正常化を反映する=elegant-review F-D 是正)。
-_STRUCTURAL_NORMAL_MARKERS = ("年契約周期", "契約完了", "トライアル完了", "対象外")
+# 『継続発行』(要件1・2026-07-10): 今月あり×前月あり=月契約の継続発行は権威ある月契約正常
+# (両月に請求=定義上の月契約であり年契約でない) ゆえ、前 run が要対応☐でも今 run の継続発行で
+# 正常✓へ訂正する。reliable_issued 未確定 (legacy/verdict-issued 行) でも確実に正常✓を反映し
+# 『金額あるのにチェックが入らない』を根治する。金額 drift (過少請求等) は REVIEW_* コメント注記
+# に留め正常✓は据え置く (主張範囲=発行の存在に限定・OQ-9)。
+# 『新規/年→月切替』(2026-07-10・Fix A の cross-run 保全): 前月なし今月あり=今月に実発行あり=定義上
+# 発行漏れでない (STATE_NEW は curr_issued=True 前提) ゆえ構造的正常。要件1の原則を STATE_CONTINUED
+# から NEW 経路へ拡張した Fix A(mfk_period_report) が gap=正常✓ で emit する行を、cross-run guard が
+# reliable_issued=False(legacy/verdict-issued の新規) のとき marker 非該当で☐へ再反転させる非対称
+# (3体エレガント検証で収束検出) を解消し、record1(新規トライアル発行) が DB 上☐に残らないようにする。
+_STRUCTURAL_NORMAL_MARKERS = ("継続発行", "新規/年→月切替", "年契約周期", "契約完了",
+                              "トライアル完了", "対象外")
 
 
 def _is_structural_normal(row):
@@ -287,34 +330,170 @@ def _is_reliable_mf_issued(row):
     return bool(row.get("reliable_issued"))
 
 
+# 要対応行へ畳み込んだ発行済み (reliable_issued) 実額の累計を保持する内部標識。
+# 要対応行が source 由来で持つ「自己の今月金額」と、fold で別契約から畳み込んだ「発行済み実額」を
+# 区別するために使う (両者は同じ number 列 amount に載るため、標識なしでは own を発行済みと誤って
+# 合算してしまう)。_build_row_props は既知キーのみ読むため Notion props へは漏れない。
+_ISSUED_CARRY_KEY = "_issued_carry"
+
+
 def _prefer_action(a, b):
     """同一 (取引先,商品) 衝突時に残す行を決める (F-α safe guard)。
 
     要対応(発行漏れ候補)を正常が上書きして漏れを隠す false-negative を防ぐため、severity の
     高い方 (要対応) を保持する。両方が同 severity の要対応 (契約ID違いの複数漏れが 1 行へ
     collapse) の場合は、後着を基に両者の comment を改行連結でマージして片方の漏れ詳細が消えない
-    ようにする (F-17: 件数だけ数えて内容を捨てる情報損失を防ぐ)。正常×正常は後着を採る。
+    ようにする (F-17: 件数だけ数えて内容を捨てる情報損失を防ぐ)。正常×正常 (複数エンドクライアント/
+    契約が全て発行済み) は _merge_issued_amounts で両者の発行済み実額を合算保全する (後着だけ残して
+    先行の実額を黙って落とす=発行済み金額の過少表示を防ぐ・C5 sink側の正常×正常残穴の根治)。
+
+    C03 (要因C5 sink側): severity が異なる collapse では要対応を保持しつつ、負ける正常行が
+    発行済み (reliable_issued=True の実額) なら**その今月金額を要対応行へ Σ 引き継ぐ** (発行済み実額を
+    要対応・null 行で潰さない=K4 権威訂正の対称適用)。発行済みが複数畳み込まれるときは総額を合算し、
+    要対応が畳込順の最後でないと 2件目以降の実額が脱落する過少報告 (fold 順依存) を防ぐ (正常×正常
+    と同じ Σ 不変則の対称適用)。代理店/複数エンドクライアントが 1 商品へ collapse するとき、
+    発行済み実額保全 ∧ 漏れ隠蔽なし を両立させる。
     """
     ra, rb = _severity_rank(a), _severity_rank(b)
     if ra != rb:
-        return a if ra > rb else b
+        action, normal = (a, b) if ra > rb else (b, a)
+        # K4 の同一run collapse への対称適用だが、**契約 identity で phantom と別契約を判別**する
+        # (3体エレガント検証 CRITICAL の是正)。正常化して良いのは「同一契約が ID照合↔名前照合で
+        # 二重化した phantom」(record2 型) に限る: その場合 negative(要対応) 側は実体のない重複ゆえ、
+        # 当月の権威ある実発行 (reliable_issued) で正常✓へ収束させてよい (症状②の根治)。
+        # 一方、identity が異なる=代理店の別エンドクライアント等の**真の別契約**では、負ける要対応が
+        # 本物の発行漏れでありうるため正常化せず要対応を保持する (漏れ隠蔽 false-negative を防ぐ・
+        # 「多契約×同一商品は稀」前提が HOSONO 甲様/乙様等の実データで反証されている安全側)。
+        if _is_reliable_mf_issued(normal) and _same_contract_identity(action, normal):
+            return _resolve_to_reliable_normal(normal, action)
+        # 別契約 or 非 reliable → 要対応を保持し発行済み実額を保全 (漏れを隠さず金額も失わない)。
+        return _preserve_issued_amount(action, normal)
     if ra == 1:  # 要対応×要対応 → comment をマージした後着行 (情報保全)。
         return _merge_action_comments(b, a)
-    return b  # 正常×正常 → 後着 (最新入力)。
+    return _merge_issued_amounts(b, a)  # 正常×正常 → 発行済み実額を合算保全 (後着で先行を潰さない)。
+
+
+def _resolve_to_reliable_normal(normal, action):
+    """severity 混在 collapse で MF実発行 (reliable_issued) 正常が要対応に勝つ (K4 の同一run 対称適用)。
+
+    今月に権威ある実発行がある (取引先,商品) は定義上『発行漏れ』でない → 正常✓ を採り、発行済み
+    実額 (normal の今月金額) を保全する。負けた要対応候補 (別契約ID の phantom/重複 gap の可能性が
+    高い=多契約×同一商品は稀という collapse 前提) はコメントに根拠を注記して黙殺しない (漏れ隠蔽と
+    情報損失の両方を避ける)。bare 正常 (reliable_issued 無し) は本経路に来ず _preserve_issued_amount で
+    要対応を保持するため、真の漏れが bare 正常で隠れることはない (安全側の非対称)。
+    """
+    merged = dict(normal)
+    cn = _norm(normal.get("comment") or normal.get("コメント"))
+    ca = _norm(action.get("comment") or action.get("コメント"))
+    if ca:
+        note = ("[複数契約の統合行] 当月は MF 実発行あり=正常✓ (発行漏れではない)。"
+                f"同一取引先・商品に別契約の要対応候補があったが当月実発行で充足 (候補根拠: {ca})")
+    else:
+        note = "[複数契約の統合行] 当月は MF 実発行あり=正常✓ (発行漏れではない)"
+    merged["comment"] = f"{cn} / {note}" if cn else note
+    return merged
+
+
+def _preserve_issued_amount(action, normal):
+    """collapse で要対応 (action) を保持しつつ発行済み (normal) の今月金額を Σ 保全する (C03)。
+
+    代理店/複数エンドクライアントが同一 (対象月,取引先,商品) へ collapse するとき、要対応 severity は
+    保持して漏れを隠さない一方、発行済み (reliable_issued) 行の実額が要対応・null 行で上書きされ
+    今月金額=null になるのを防ぐ (実レポート: HOSONO/マルブン/芦田/野嵩商会/サクラパックス が
+    今月金額=null だった症状の sink 側根治)。**発行済みが複数畳み込まれるときは総額を Σ 合算する**:
+    要対応が畳込順の最後でないと 2件目以降の reliable 正常実額が今月金額から脱落する過少報告
+    (fold 順依存) を防ぐため、畳み込んだ発行済み実額を内部標識 `_ISSUED_CARRY_KEY` に累計し、
+    要対応行が source 由来で持つ自己金額とは区別する (自己金額は発行済み実額で上書きも合算もせず
+    別途あることのみ注記する=own amount と発行済み実額を混同しない・注記と金額列の正確性)。
+    正常×正常 `_merge_issued_amounts` の Σ 不変則を severity 混在経路へ対称適用した形。
+    """
+    action_amt = _amount(action, "amount", "curr_amount", "今月の金額")
+    normal_amt = _amount(normal, "amount", "curr_amount", "今月の金額")
+    carried = action.get(_ISSUED_CARRY_KEY)
+    if normal_amt is None or not _is_reliable_mf_issued(normal):
+        # 保全すべき発行済み実額なし → 要対応行をそのまま返す (従来挙動・行の識別性を保つ)。
+        return action
+    merged = dict(action)
+    if carried is not None:
+        # 既に発行済み実額を畳み込んだ要対応行 → 今回の実額を Σ 加算し総額を保全 (fold 順非依存)。
+        total = carried + normal_amt
+        merged["amount"] = total
+        merged[_ISSUED_CARRY_KEY] = total
+        note = (f"[複数契約の統合行] 別契約の発行済み実額を合算保全 {carried}円 + {normal_amt}円 = {total}円 "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    elif action_amt is None:
+        # 要対応行の今月金額が空 → 発行済み(別契約)の実額を今月金額へ引き継ぐ (初回 carry)。
+        merged["amount"] = normal_amt
+        merged[_ISSUED_CARRY_KEY] = normal_amt
+        note = (f"[複数契約の統合行] 別契約の発行済み実額 {normal_amt}円 を今月金額へ保全 "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    else:
+        # 要対応行が既に自己の金額 (source 由来) を持つ → 発行済み実額で上書き/合算せず別途あることのみ
+        # 注記する (own amount と発行済み実額を混同しない=注記の正確性・金額列の意味保全)。
+        note = (f"[複数契約の統合行] 別契約に発行済み実額 {normal_amt}円 あり "
+                "(この取引先・商品には要対応の契約も含むため漏れチェックは要対応のまま)")
+    ca = _norm(merged.get("comment") or merged.get("コメント"))
+    merged["comment"] = f"{ca} / {note}" if ca else note
+    return merged
 
 
 def _merge_action_comments(base, other):
-    """base を基に other の comment を連結マージした新 row を返す (要対応 collapse の情報保全)。"""
+    """base を基に other の comment を連結マージした新 row を返す (要対応 collapse の情報保全)。
+
+    3-way 以上の collapse でも発行済み実額の保全を維持する: 先行の _preserve_issued_amount が
+    要対応行へ引き継いだ発行済み実額 (amount 非 None) を、後続の要対応×要対応マージで base 側の
+    None が上書きして潰さないよう、非 None の amount を優先継承する (F-TRADE-1: 3者衝突で
+    「発行済み実額保全 ∧ 要対応保持」の両立が処理順に依存して破れ、金額=null なのに注記だけ
+    『保全』と主張する自己矛盾行が出るのを防ぐ・順序非依存化)。
+    """
     cb = _norm(base.get("comment") or base.get("コメント"))
     co = _norm(other.get("comment") or other.get("コメント"))
     merged = dict(base)
+    base_amt = _amount(base, "amount", "curr_amount", "今月の金額")
+    other_amt = _amount(other, "amount", "curr_amount", "今月の金額")
+    if base_amt is None and other_amt is not None:
+        merged["amount"] = other_amt
+        # 畳み込んだ発行済み実額の累計標識も引き継ぐ (要対応×要対応マージ後に更に発行済みが
+        # 畳み込まれても _preserve_issued_amount の Σ 保全が継続する=4-way 経路での再脱落を防ぐ)。
+        oc = other.get(_ISSUED_CARRY_KEY)
+        if oc is not None:
+            merged[_ISSUED_CARRY_KEY] = oc
     cid_b, cid_o = _row_contract_id(base), _row_contract_id(other)
     if cid_b and cid_o and cid_b != cid_o:
-        merged["comment"] = f"[複数契約collapse] 契約{cid_b}: {cb} / 契約{cid_o}: {co}".strip()
+        merged["comment"] = f"[複数契約の統合行] 契約{cid_b}: {cb} / 契約{cid_o}: {co}".strip()
     elif cb and co and cb != co:
         merged["comment"] = f"{cb} / {co}"
     else:
         merged["comment"] = cb or co
+    return merged
+
+
+def _merge_issued_amounts(base, other):
+    """正常×正常 collapse で両行の発行済み実額を合算保全する (C03・C5 sink側の正常×正常残穴の根治)。
+
+    同一 (対象月,取引先,商品) に複数エンドクライアント/契約の発行済み (正常) 行が collapse するとき、
+    後着 base だけ残して先行 other の実額を黙って落とすと発行済み金額が過少表示される (F-TRADE-1 の
+    severity 混在修正が救わない正常×正常ケース: HOSONO 甲様 210000 + 乙様 70000 が 70000 のみ表示され
+    210000 が注記もなく消失)。両者が非 None の実額を持つなら合算し内訳を comment へ注記して、発行済み
+    金額が隠れない ∧ 実額完全性を両立する (合算=当該取引先・商品への当月発行総額)。片方のみ非 None なら
+    それを採り (後着 None で発行済み実額を上書きしない)、両者 None なら base を返す (従来挙動)。
+    左畳込 (_prefer_action の累積適用) でも 3 件以上のエンドクライアントの総額を順序非依存に保全する。
+    """
+    base_amt = _amount(base, "amount", "curr_amount", "今月の金額")
+    other_amt = _amount(other, "amount", "curr_amount", "今月の金額")
+    merged = dict(base)
+    if base_amt is None:
+        if other_amt is not None:
+            merged["amount"] = other_amt
+        return merged
+    if other_amt is None:
+        return merged
+    total = base_amt + other_amt
+    merged["amount"] = total
+    note = (f"[複数エンドクライアントの統合行] 当月発行 {other_amt}円 + {base_amt}円 = {total}円 "
+            "(同一取引先・商品の複数契約の発行済み実額を合算・発行済み金額を隠さない)")
+    cb = _norm(merged.get("comment") or merged.get("コメント"))
+    merged["comment"] = f"{cb} / {note}" if cb else note
     return merged
 
 
@@ -578,11 +757,16 @@ def _ensure_db_schema(db_id, token, req):
     return list(add_props.keys()), title_prop
 
 
-def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply=True):
-    """単一恒久レポート DB を解決する (Design D)。返り値 (db_id, location, created, placement)。
+def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply=True,
+                      pinned_db_id=None, allow_create=True):
+    """単一恒久レポート DB を解決する (Design D + 明示 pin・要件2)。返り値 (db_id, location, created, placement)。
 
+    pinned_db_id = config の report_database_id (要件2・step0 の第一級解決経路)。指定時は構造同定を
+    経ずその DB を直接更新対象にする (出力先が指定先へ確実に着地=phantom 回避の核)。
     anchor_block_id = config の report_toggle_block。**トグル見出しでもプレーン見出し2でも受ける**
     (ユーザーがトグル→見出し2 に変えても対応する)。出力先の優先順:
+      0. **明示 pin (pinned_db_id)** = config report_database_id が set のとき。構造同定を経ず直接更新。
+         location='pinned'。
       1. **anchor の子の report DB** = anchor がトグル見出し (is_toggleable=true) で DB を配下に持つ場合。
          API は block_id 親 DB を『作成』できないが既存 DB の『更新』(行 upsert・列 PATCH) はできる。
          location='in-block'。
@@ -590,7 +774,9 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
          ページ直下の『見出しの下』へ移動している場合 (トグル→見出し2 変換時の実状態)。次セクション
          見出しの手前までで探し、ページ上の別 report DB (旧重複等) と区別する。location='under-heading'。
       3. **ページ直下の任意の既存 report DB** (どの見出しにも紐づかない既存)。location='page'。
-      4. どれも無く apply=True なら **見出しの下 (ページ直下) へ新規作成**。location='page-created'。
+      4. どれも無く apply=True **かつ allow_create=True** なら **見出しの下 (ページ直下) へ新規作成**。
+         location='page-created'。**allow_create=False (要件2 の既定 phantom 抑止) なら作成せず
+         (None, 'none', False) を返し、呼出側 (run) が fail-closed で停止する** (別 DB へ誤書込しない)。
       5. dry-run で未発見なら (None, 'none', False)。
     見つかった/作った DB は 対象月 列を含むスキーマへ揃える (_ensure_db_schema・apply 時のみ)。単一 DB
     に複数月を保持し、同一 (対象月,取引先,商品) の再実行のみ上書き=非破壊冪等。
@@ -616,6 +802,15 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
                           "note": note})
         return db_id, location, False, placement
 
+    # 0. 明示 pin (config report_database_id・要件2 step0): 構造同定を経ず直接更新対象にする。
+    #    出力先が指定先へ確実に着地し、report_toggle_block の構造同定のズレで別 DB(phantom)へ
+    #    書き込みチェックが本来 DB に反映されない症状を根治する。pin が不正 id なら _ensure_db_schema
+    #    の GET が例外を投げ、呼出側 (run/main) が fail-closed=exit2 で停止する (別 DB へ誤書込しない)。
+    if pinned_db_id:
+        return _resolved(pinned_db_id, "pinned",
+                         "config report_database_id で明示 pin された DB を直接更新する (step0・"
+                         "構造同定を経ない確実な着地=出力先が指定先へ着地・phantom 回避)")
+
     # 1. anchor (トグル見出し) の子の report DB (表示名非依存・指定トグルはレポート専用)。
     db_id = (_select_report_db(_child_databases_in(anchor_block_id, token, req))
              if anchor_block_id else None)
@@ -639,7 +834,17 @@ def resolve_report_db(anchor_block_id, parent_page_id, token, req=None, *, apply
     # 4/5. 新規作成 (API は block_id 親 DB を作れないため見出しの下=ページ直下へ作る)。
     if not apply:
         placement.update({"location": "none", "created": False,
-                          "note": "dry-run: 既存 report DB 未発見 (apply 時は見出しの下=ページ直下へ新規作成)"})
+                          "note": "dry-run: 既存 report DB 未発見 (apply 時は明示 pin または --allow-create でのみ新規作成)"})
+        return None, "none", False, placement
+
+    # 要件2 phantom 抑止: 明示 pin なし かつ 既存 report DB 未発見のとき、既定 (allow_create=False) は
+    # 新規作成せず (None,'none') を返し呼出側 run が fail-closed 停止する (構造同定のズレで誤って
+    # 別 DB=phantom を作り、チェックが本来 DB に反映されない症状の根治)。新規作成は明示 opt-in
+    # (--allow-create) 時のみ。初回セットアップは pin 設定 or --allow-create で行う。
+    if not allow_create:
+        placement.update({"location": "none", "created": False,
+                          "note": ("明示 pin(report_database_id)なし かつ 既存 report DB 未発見。"
+                                   "phantom DB を作らず停止 (要件2・新規作成は --allow-create opt-in 時のみ)")})
         return None, "none", False, placement
 
     res = req("POST", "/databases", token, {
@@ -728,13 +933,17 @@ def upsert_report_rows(rows, report_db_id, target, token, req=None, *, title_pro
         if prev is None:
             collapsed[key] = row
             continue
-        # 同一 (対象月,取引先,商品) 衝突。契約IDが異なる複数契約なら multi-contract collapse を計上し、
-        # 要対応を優先保持して漏れ隠蔽 (false-negative) を防ぐ (F-α safe guard)。
-        if _row_contract_id(prev) != _row_contract_id(row):
+        # 同一 (対象月,取引先,商品) 衝突。契約 identity (契約ID+エンドクライアント) が異なる複数契約
+        # なら multi-contract collapse を計上し、要対応を優先保持して漏れ隠蔽 (false-negative) を防ぐ
+        # (F-α safe guard)。**判定は identity 差**にする: contract_id が両方空でもエンドクライアントが
+        # 違えば別契約であり、旧来の contract_id 差だけの検出では counter/stderr が発火しない
+        # 『ゼロテレメトリの漏れ隠蔽』(3体エレガント検証 abduction) を塞ぐ。identity 一致の phantom
+        # (同一契約の ID↔名前 split) は multi-contract でないため計上しない (dedup であって collapse でない)。
+        if not _same_contract_identity(prev, row):
             collapsed_multi += 1
             sys.stderr.write(
-                "[notion_report_sink] 同一(取引先,商品)に契約ID違いの複数契約を検出。"
-                f"固定列に契約ID列が無いため1行へ収束し要対応を優先保持: {key}\n")
+                "[notion_report_sink] 同一(取引先,商品)に別契約 (契約ID/エンドクライアント違い) を検出。"
+                f"固定列に識別子列が無いため1行へ収束し要対応を優先保持: {key}\n")
         collapsed[key] = _prefer_action(prev, row)
 
     for key, row in collapsed.items():
@@ -830,10 +1039,50 @@ def _resolve_toggle(cfg):
     return _norm((cfg.get("notion") or {}).get("report_toggle_block"))
 
 
-def run(rows, target, cfg, token, req=None, *, apply=True):
+def _extract_db_id(value):
+    """明示 pin 値 (report_database_id) から Notion database_id を取り出す (要件2・OQ-10 (c) の最小実装)。
+
+    値が (a) 生の database_id (dash 有無・32hex)、(b) DB/ビュー URL のいずれでも id を返す。
+    URL は `?` の前 (path 部) から 32hex を抽出する — ビュー URL の `?v=<view-id>` は view id で
+    実体 DB と異なるため path 側の DB id を採る。linked-database ビューの表示 id≠実体 data_source の
+    完全解決は OQ-10 (c) で後続 (当面は生 database_id 指定を推奨)。抽出不能は原値をそのまま返す
+    (呼出側 _ensure_db_schema の GET が不正 id を fail-closed で弾く)。
+    """
+    v = _norm(value)
+    if not v:
+        return ""
+    # 最終 path セグメントに限定 (ビュー URL の ?v=<view-id> は path 外ゆえ除去される)。Notion の
+    # 『リンクをコピー』は id を slug 末尾へ `-<32hex>` として付ける (notion.so/<Workspace>/<Title>-<id>)
+    # ため、まず最終 dash 後トークンが 32hex ならそれを採る (タイトル内の偶発 hex トークンと id を
+    # dash 区切りで分離=先頭マッチ誤爆の回避)。次に dashed-uuid をそのまま渡された形、最後に
+    # フォールバックで最終セグメント内の末尾寄り 32hex 連を採る。抽出不能は原値 (GET が不正 id を弾く)。
+    seg = v.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+    tail = seg.rsplit("-", 1)[-1]
+    if re.fullmatch(r"[0-9a-f]{32}", tail, re.IGNORECASE):
+        return tail
+    compact = seg.replace("-", "")
+    if re.fullmatch(r"[0-9a-f]{32}", compact, re.IGNORECASE):
+        return compact
+    ms = re.findall(r"[0-9a-f]{32}", compact, re.IGNORECASE)
+    return ms[-1] if ms else v
+
+
+def _resolve_report_db_id(cfg):
+    """明示 pin された report DB id (step0・要件2)。未設定は '' (=構造同定へ fallback)。
+
+    notion.report_database_id を第一級の解決経路にすることで、report_toggle_block の構造同定の
+    ズレで別 DB (phantom) へ書き込みチェックが本来 DB に反映されない症状を根治する。
+    """
+    return _extract_db_id((cfg.get("notion") or {}).get("report_database_id"))
+
+
+def run(rows, target, cfg, token, req=None, *, apply=True, allow_create=False):
     """単一恒久 report DB 解決 → 行 upsert を配線する (テスト可能な orchestration 本体)。
 
     apply=False (dry-run) は network を一切叩かず、計画のみを返す (書き込まない)。
+    allow_create=False (要件2 の既定・phantom 抑止): 明示 pin (notion.report_database_id) なし かつ
+    既存 report DB 未発見のとき、新規作成せず fail-closed (SinkError) で停止する。初回セットアップは
+    pin 設定 or --allow-create=True (明示 opt-in) で行う (別 DB=phantom へ誤書込しない)。
     """
     if not _valid_target(target):
         raise SinkError(f"--target は YYMM (数字4桁・月01-12) を指定してください: {target!r}")
@@ -850,6 +1099,7 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
 
     parent_page = _resolve_parent(cfg)
     toggle_block = _resolve_toggle(cfg)
+    pinned_db_id = _resolve_report_db_id(cfg)   # 要件2 step0: 明示 pin (未設定は '')
 
     if not apply:
         return {
@@ -858,26 +1108,38 @@ def run(rows, target, cfg, token, req=None, *, apply=True):
             "planned_rows": len(valid_rows),
             "placement": {
                 "target_yyyymm": target_to_yyyymm(target),
+                "report_database_id": pinned_db_id or None,   # 要件2: 明示 pin (step0) を開示
                 "report_parent_page": parent_page,
                 "report_toggle_block": toggle_block,
                 "column_order_defined": list(COLUMN_ORDER),
                 "view_format_note": _VIEW_FORMAT_NOTE,     # dry-run でも折り返し UI 手順を開示
                 "wrap_all_columns_via_api": False,
-                "note": ("dry-run (書き込みなし)。apply 時の出力先: 指定トグル内の既存 DB があれば更新 / "
-                         "無ければ見出しの下 (ページ直下) の既存 DB / どちらも無ければ見出しの下へ新規作成 "
-                         "(単一恒久 DB・対象月列で複数月を非破壊保持)"),
+                "note": ("dry-run (書き込みなし)。apply 時の出力先: 明示 pin (report_database_id) があれば "
+                         "その DB へ直接 (step0) / 無ければ指定トグル内の既存 DB / 見出しの下 (ページ直下) の "
+                         "既存 DB の順。明示 pin なし かつ 既存未発見時は phantom を作らず停止 (新規作成は "
+                         "--allow-create 明示時のみ)。単一恒久 DB・対象月列で複数月を非破壊保持"),
             },
         }
 
-    if not parent_page:
+    # 要件2: 明示 pin があれば parent_page 不要 (pin を直接更新)。pin なしのみ従来どおり
+    # parent_page を必須にする (構造同定の探索/作成先ページが要るため)。
+    if not pinned_db_id and not parent_page:
         raise SinkError(
-            "notion.report_parent_page が未設定です。レポート DB を置く/探すページ『請求書発行チェック』の "
-            "page_id を mf-kessai-config.default.json または .mf-kessai-config.json に設定してください "
-            "(トグル内に DB が無いときの新規作成先=見出しの下=このページ直下)。")
+            "notion.report_database_id (明示 pin) も notion.report_parent_page も未設定です。"
+            "出力先 DB を pin するか、構造同定の探索/作成先ページ『請求書発行チェック』の page_id を "
+            "mf-kessai-config.default.json または .mf-kessai-config.json に設定してください。")
 
     req = req or _req
     report_db_id, location, created, placement = resolve_report_db(
-        toggle_block, parent_page, token, req, apply=True)
+        toggle_block, parent_page, token, req, apply=True,
+        pinned_db_id=pinned_db_id, allow_create=allow_create)
+    # 要件2 phantom 抑止: 明示 pin なし かつ 既存 report DB 未発見 かつ allow_create=False で停止。
+    if report_db_id is None:
+        raise SinkError(
+            "明示 pin (notion.report_database_id) 未設定 かつ 既存 report DB 未発見のため、"
+            "phantom DB を作らず停止しました (要件2)。あなたのレポート DB を config の "
+            "notion.report_database_id に設定 (ビュー/DB URL でも可) してください。初回セットアップで "
+            "新規作成したい場合のみ --allow-create を付けて再実行してください。")
     placement["target_yyyymm"] = target_to_yyyymm(target)
     counts = upsert_report_rows(rows, report_db_id, target, token, req,
                                 title_prop=placement.get("title_prop", PROP_CUSTOMER))
@@ -909,6 +1171,10 @@ def main(argv=None):
     p.add_argument("--verified", action="store_true",
                    help="二段確認 (dry-run 内訳確認 + mfk-report-verifier) 完了の明示。--apply 時は必須")
     p.add_argument("--config", help="設定 JSON パス (省略時は既定 + ローカル上書き)")
+    p.add_argument("--allow-create", dest="allow_create", action="store_true",
+                   help="明示 pin (notion.report_database_id) なし かつ 既存 report DB 未発見時に "
+                        "新規 DB を作成する opt-in (要件2・初回セットアップ用)。無指定時は phantom を "
+                        "作らず fail-closed で停止する")
     a = p.parse_args(argv)
 
     try:
@@ -929,7 +1195,7 @@ def main(argv=None):
                 token = _notion_token(cfg)
             except RuntimeError as e:
                 raise SinkError(f"Notion トークンが取得できません (fail-closed): {e}")
-        result = run(rows, a.target, cfg, token, apply=a.apply)
+        result = run(rows, a.target, cfg, token, apply=a.apply, allow_create=a.allow_create)
     except SinkError as e:
         sys.stderr.write(f"[notion_report_sink] {e}\n")
         return 2

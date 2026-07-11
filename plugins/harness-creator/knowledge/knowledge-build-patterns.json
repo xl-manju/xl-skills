@@ -292,6 +292,119 @@
         "task_id": "P05-C01-01",
         "route_id": "C01"
       }
+    },
+    {
+      "id": "runtime-blocked-origin_3d2f034c9f",
+      "title": "blocked 起点故障: task P01-x-01 が route 失敗で blocked (起点故障) となった",
+      "intent": "route 実行失敗の起点 (origin-failure) を特定し人手救済導線を残すこと",
+      "background": "task P01-x-01 が route 失敗で blocked (起点故障) となった (発生源: task_id=P01-x-01, event_id=2026-07-10T14:34:28.083936Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-origin",
+        "plugin-dev-planner"
+      ],
+      "source": {
+        "file": "eval-log/plugin-dev-planner/build/task-events.jsonl",
+        "task_id": "P01-x-01",
+        "event_id": "2026-07-10T14:34:28.083936Z"
+      }
+    },
+    {
+      "id": "runtime-blocked-propagation_bb6f011f31",
+      "title": "blocked 伝播: task P01 が origin P01-x-01 の失敗から伝播 blocked へ連鎖した",
+      "intent": "blocked の伝播連鎖を辿り起点故障へ帰着できるよう記録すること",
+      "background": "task P01 が origin P01-x-01 の失敗から伝播 blocked へ連鎖した (発生源: task_id=P01, event_id=2026-07-10T14:34:28.084094Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-propagation",
+        "plugin-dev-planner"
+      ],
+      "source": {
+        "file": "eval-log/plugin-dev-planner/build/task-events.jsonl",
+        "task_id": "P01",
+        "event_id": "2026-07-10T14:34:28.084094Z"
+      }
+    },
+    {
+      "id": "runtime-blocked-propagation_ae7f42a89b",
+      "title": "blocked 伝播: task P02 が origin P01-x-01 の失敗から伝播 blocked へ連鎖した",
+      "intent": "blocked の伝播連鎖を辿り起点故障へ帰着できるよう記録すること",
+      "background": "task P02 が origin P01-x-01 の失敗から伝播 blocked へ連鎖した (発生源: task_id=P02, event_id=2026-07-10T14:34:28.084153Z)",
+      "keywords": [
+        "task-graph",
+        "runtime",
+        "build-execution",
+        "knowledge-loop",
+        "blocked-propagation",
+        "plugin-dev-planner"
+      ],
+      "source": {
+        "file": "eval-log/plugin-dev-planner/build/task-events.jsonl",
+        "task_id": "P02",
+        "event_id": "2026-07-10T14:34:28.084153Z"
+      }
+    },
+    {
+      "id": "next-cycle-candidate_md1-checklist-verify-lightpath",
+      "title": "next-cycle-candidate (MD-1): execution_kind=checklist-verify の軽量実行経路",
+      "intent": "checkpoint/検証系 node に component-build と同一の重い dispatch 経路を使わず、軽量な checklist-verify 実行契約を設けること",
+      "background": "plugin-dev-planner build (2026-07-10) の elegant-review 30思考法 Phase2 (MD-1) で提起。entity_ref=null の plan-node-verification が component-build と同じ envelope/dispatch 機構に乗り過剰コスト。次 cycle で execution_kind へ checklist-verify 軽量経路を設計する (実装せず構造化起票)",
+      "keywords": [
+        "next-cycle-candidate",
+        "task-graph",
+        "execution_kind",
+        "checklist-verify",
+        "dispatch",
+        "plugin-dev-planner",
+        "elegant-review"
+      ],
+      "source": {
+        "file": "plugin-plans/plugin-dev-planner/elegant-review-20260710.md",
+        "route_id": "MD-1"
+      }
+    },
+    {
+      "id": "next-cycle-candidate_md8-all-dispatchable-plan-check",
+      "title": "next-cycle-candidate (MD-8): --all-dispatchable plan-time 一括検査 + knowledge_refs 必須キー",
+      "intent": "dispatch 対象全 leaf の envelope 合成可能性を plan-time に一括検査し、task spec の knowledge_refs を必須キー化して build-time 発覚を前倒しすること",
+      "background": "plugin-dev-planner build (2026-07-10) の elegant-review 30思考法 Phase2 (MD-8) で提起。render-task-execution-envelope は --task-id 単発のみで、全 leaf の合成可否は dispatch 時まで分からない。次 cycle で --all-dispatchable 一括検査と knowledge_refs 必須キー昇格を設計する (実装せず構造化起票)",
+      "keywords": [
+        "next-cycle-candidate",
+        "task-graph",
+        "execution-envelope",
+        "all-dispatchable",
+        "knowledge_refs",
+        "plugin-dev-planner",
+        "elegant-review"
+      ],
+      "source": {
+        "file": "plugin-plans/plugin-dev-planner/elegant-review-20260710.md",
+        "route_id": "MD-8"
+      }
+    },
+    {
+      "id": "next-cycle-candidate_ss5-bootstrap-target-migration-gate",
+      "title": "next-cycle-candidate (SS-5): bootstrap→target 移行 gate",
+      "intent": "自己適用 (bootstrap) で作った計画/生成物を target 運用へ切り替える境界に、移行条件を機械判定する gate を設けること",
+      "background": "plugin-dev-planner build (2026-07-10) の elegant-review 30思考法 Phase2 (SS-5) で提起。bootstrap 段階の暫定契約が target 運用へ暗黙に持ち越されるドリフト経路がある。次 cycle で bootstrap→target 移行 gate を設計する (実装せず構造化起票)",
+      "keywords": [
+        "next-cycle-candidate",
+        "bootstrap",
+        "migration-gate",
+        "self-application",
+        "plugin-dev-planner",
+        "elegant-review"
+      ],
+      "source": {
+        "file": "plugin-plans/plugin-dev-planner/elegant-review-20260710.md",
+        "route_id": "SS-5"
+      }
     }
   ]
 }

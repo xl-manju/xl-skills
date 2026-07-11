@@ -1,6 +1,6 @@
 ---
 name: run-plugin-dev-plan
-description: プラグイン構想から index+13 フェーズファイル+component-inventory.json を生成したいとき、後段のrun-skill-createへ渡す前段の開発計画を立てたいときに使う。
+description: プラグイン構想から index+13 フェーズファイル+component-inventory.json とタスク粒度の型付き依存グラフ (task-graph) を第3の射影として生成したいとき、後段のrun-skill-createへ渡す前段の開発計画を立て build 中の discovered-task を --mode update の外ループで graph へ還流したいときに使う。
 disable-model-invocation: false
 user-invocable: true
 argument-hint: "[plugin-concept?] [--mode create|update] [--out-dir <path>] [--intake-json <path>] [--next-action-json <path>] [--improvement-handoff <path>] [--discovered-inbox <dir>] [--approved]"
@@ -19,7 +19,7 @@ prefix: run
 effect: local-artifact
 owner: team-platform
 since: 2026-06-29
-version: 0.1.0
+version: 0.2.0
 source: doc/ClaudeCodeスキルの設計書/
 source-tier: internal
 last-audited: 2026-06-29
@@ -60,6 +60,9 @@ script_refs:
   - scripts/check-shape-non-regression.py
   - scripts/render-task-graph-mermaid.py
   - scripts/check-task-state-schema.py
+  - scripts/render-task-execution-envelope.py
+  - scripts/project-task-status.py
+  - scripts/check-cycle-knowledge.py
 reference_refs:
   - references/component-domain.md
   - references/phase-lifecycle.md
@@ -90,6 +93,8 @@ schema_refs:
   - schemas/handoff-notes.schema.json
   - schemas/plan-ledger.schema.json
   - schemas/task-state.schema.json
+  - schemas/task-execution-envelope.schema.json
+  - schemas/knowledge-ref.schema.json
 completeness_exempt:
   - "manifest: ゴールシークループで P1-P8 の手順を都度生成するため phase/gate 固定の workflow-manifest は適用外。フェーズ定義は references/phase-lifecycle.md を共有正本として参照する。"
 goal_seek:

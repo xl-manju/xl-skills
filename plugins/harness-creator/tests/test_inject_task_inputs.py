@@ -1,10 +1,11 @@
 """inject-task-inputs.py (TG-C03) の機能テスト — task-graph consumer 入力解決器。
 
 conftest 非依存で module-level に importlib ロードする (自己完結)。実 producer=plugin-dev-planner
-の graph 形状 (成果物パスは producer node.write_scope・edges は parent_of/depends_on のみ) と
+の graph 形状 (成果物パスは producer node.write_scope、edge は depends_on/produces/consumes) と
 TG-C02 (sync-task-state.py) が state node へ書く handoff_notes (dict) を平坦化集約する経路で緑化し、
-fail-closed の 4 種拒否 (unknown task-id / producer 未 done / 成果物欠落 / notes 上限超過=
-schema 由来数値・producer 単位適用) と、正常注入・複数 producer・consumes 対称・非パス
+fail-closed の 5 種拒否 (unknown task-id / producer 未 done / artifact producer 不在 /
+成果物欠落 / notes 上限超過=schema 由来数値・producer 単位適用) と、正常注入・複数 producer・
+consumes artifact 逆引き・非パス
 write_scope の F5 skip・依存なし・main() CLI・実 derive-task-graph.py 統合を網羅する。
 """
 from __future__ import annotations
@@ -46,9 +47,9 @@ def _dep(consumer: str, producer: str) -> dict:
     return {"type": "depends_on", "from": consumer, "to": producer}
 
 
-def _consume(consumer: str, producer: str) -> dict:
-    # consumes も depends_on と対称の依存 edge (集合の正本は TG-C02 _DEP_EDGE_TYPES・H-04)。
-    return {"type": "consumes", "from": consumer, "to": producer}
+def _consume(artifact: str, consumer: str) -> dict:
+    # canonical consumes: artifact -> consumer task。producer task は produces で逆引きする。
+    return {"type": "consumes", "from": artifact, "to": consumer}
 
 
 def _prod(producer: str, artifact: str) -> dict:
@@ -72,9 +73,10 @@ def _graph(*edges: dict, nodes=None) -> dict:
     node_list = list(nodes or [])
     ids = {n.get("id") for n in node_list}
     for e in edges:
-        if e.get("type") in ("depends_on", "consumes") and e.get("from") not in ids:
-            node_list.append(_gnode(e["from"]))
-            ids.add(e["from"])
+        endpoint = e.get("from") if e.get("type") == "depends_on" else e.get("to")
+        if e.get("type") in ("depends_on", "consumes") and endpoint not in ids:
+            node_list.append(_gnode(endpoint))
+            ids.add(endpoint)
     return {"schema_version": "1.0", "nodes": node_list, "edges": list(edges)}
 
 
@@ -216,18 +218,12 @@ def test_produces_edge_only_forward_compat(tmp_path):
     assert out["injected_inputs"] == [{"producer_task_id": "T1", "artifact_path": a}]
 
 
-def test_consumes_edge_symmetric_with_depends_on(tmp_path):
-    """consumes edge の producer も depends_on と対称に扱う (H-04: TG-C02 _DEP_EDGE_TYPES SSOT)。
-
-    集合の正本一致 (再定義しない) + done 検査/成果物実在検査/正常注入が consumes 経由でも働く。
-    """
-    # 集合の正本一致 (sync-task-state から import 再利用)。
-    sts = _load(SCRIPTS, "sync-task-state")
-    assert iji._DEP_EDGE_TYPES == sts._DEP_EDGE_TYPES == ("depends_on", "consumes")
-
-    # consumes producer 未 done → fail-closed 拒否 (depends_on と同一挙動)。
+def test_consumes_artifact_resolves_producer_and_injects(tmp_path):
+    """consumes artifact→consumer を produces producer→artifact で task へ逆引きする。"""
+    # consumes producer 未 done → fail-closed 拒否。
     art = _artifact(tmp_path, "consumed.json")
-    graph = _graph(_consume("T2", "T1"), nodes=[_gnode("T1", write_scope=art)])
+    graph = _graph(_prod("T1", "A1"), _consume("A1", "T2"),
+                   nodes=[_gnode("T1", write_scope=art)])
     out = iji.resolve_inputs(graph, {"T1": _pstate(state="pending")}, "T2")
     assert out["rejected"] is True and out["blocking_producer_task_id"] == "T1"
 
@@ -237,7 +233,8 @@ def test_consumes_edge_symmetric_with_depends_on(tmp_path):
                    "injected_notes": []}
 
     # depends_on + consumes 混在は重複排除で 1 producer に束ねられる。
-    mixed = _graph(_dep("T2", "T1"), _consume("T2", "T1"), nodes=[_gnode("T1", write_scope=art)])
+    mixed = _graph(_dep("T2", "T1"), _prod("T1", "A1"), _consume("A1", "T2"),
+                   nodes=[_gnode("T1", write_scope=art)])
     out = iji.resolve_inputs(mixed, {"T1": _pstate()}, "T2")
     assert out["injected_inputs"] == [{"producer_task_id": "T1", "artifact_path": art}]
 
@@ -245,10 +242,19 @@ def test_consumes_edge_symmetric_with_depends_on(tmp_path):
 def test_consumes_producer_artifact_missing_rejected():
     # consumes 先の成果物欠落も F5 fail-closed (done の代理述語に依存しない)。
     missing = "/no/such/dir/consumed.json"
-    graph = _graph(_consume("T2", "T1"), nodes=[_gnode("T1", write_scope=missing)])
+    graph = _graph(_prod("T1", "A1"), _consume("A1", "T2"),
+                   nodes=[_gnode("T1", write_scope=missing)])
     out = iji.resolve_inputs(graph, {"T1": _pstate()}, "T2")
     assert out == {"rejected": True, "reason": "producer artifact missing",
                    "blocking_producer_task_id": "T1", "missing_artifact": missing}
+
+
+def test_consumes_artifact_without_producer_rejected_fail_closed():
+    graph = _graph(_consume("A404", "T2"), nodes=[_gnode("T2")])
+    out = iji.resolve_inputs(graph, {}, "T2")
+    assert out["rejected"] is True
+    assert out["missing_artifact"] == "A404"
+    assert "has no producer" in out["reason"]
 
 
 def test_no_dependencies_yields_empty(tmp_path):

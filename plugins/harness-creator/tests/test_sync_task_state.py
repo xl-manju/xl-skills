@@ -54,16 +54,47 @@ def _route_report(tmp_path, name="route-r1.json", covered=None) -> str:
 
 
 def _graph() -> dict:
-    # T1 -> T2 -> T3 の直列 depends_on 鎖 + T4 が T2 を consumes (分岐下流)。
+    # T1 -> T2 -> T3 の直列 depends_on 鎖 + T2 produces A2, A2 -> T4 consumes。
     return {
         "schema_version": "1.0",
         "nodes": [{"id": f"T{i}"} for i in (1, 2, 3, 4)],
         "edges": [
             {"type": "depends_on", "from": "T2", "to": "T1"},
             {"type": "depends_on", "from": "T3", "to": "T2"},
-            {"type": "consumes", "from": "T4", "to": "T2"},
+            {"type": "produces", "from": "T2", "to": "A2"},
+            {"type": "consumes", "from": "A2", "to": "T4"},
         ],
     }
+
+
+def test_dependency_truth_table_resolves_consumes_via_produces():
+    producers, issues = sts.resolve_dependency_producers(_graph())
+    assert issues == []
+    assert producers["T2"] == {"T1"}
+    assert producers["T3"] == {"T2"}
+    assert producers["T4"] == {"T2"}
+
+
+def test_dependency_truth_table_missing_artifact_producer_is_issue():
+    graph = _graph()
+    graph["edges"] = [
+        edge for edge in graph["edges"]
+        if not (edge["type"] == "produces" and edge["to"] == "A2")
+    ]
+    _, issues = sts.resolve_dependency_producers(graph)
+    assert issues == [{
+        "kind": "missing-artifact-producer",
+        "artifact_id": "A2",
+        "consumer_task_id": "T4",
+    }]
+
+
+def test_propagate_blocked_rejects_missing_consumes_producer():
+    graph = {"nodes": [{"id": "T1"}], "edges": [
+        {"type": "consumes", "from": "A404", "to": "T1"},
+    ]}
+    with pytest.raises(ValueError, match="has no producer"):
+        sts.propagate_blocked(_state(_node("T1")), graph, "T1", T0)
 
 
 # ─────────────────────────── resolve_build_dir ───────────────────────────

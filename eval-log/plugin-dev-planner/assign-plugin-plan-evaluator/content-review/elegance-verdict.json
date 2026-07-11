@@ -2,7 +2,7 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "a0e2a2c3bdd7b378afdf197c69a0ecf2bb394d3cb7f881ae358c41c663a1802e"
+    "skill_md_sha256": "ba3b6b3636cf0a671426e46aee45d5458298fa6768ee856f6501f07b4daebdbe"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,27 +11,24 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 0
   },
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-03T22:14:11Z",
+  "reviewer": "capability-build R2 fresh-fork 3-way independent review",
+  "reviewed_at": "2026-07-11T00:00:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["C1", "C2", "C3", "C4"],
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "C4 (依存関係整合) — 追加された script_ref `../run-plugin-dev-plan/scripts/check-runtime-portability.py` (L41) が実在 (13281 bytes 相当のパスに実ファイル存在・dangling 0) し、かつ C4 ゲート行 (L84) の一次根拠列に `check-runtime-portability` として同名で登録され、script_refs 宣言とゲート写像の双方で参照が一致する。runtime portability は component 横断の依存性関心事であり、C4 (依存関係整合: index top-sort / DAG 非循環 / orphan 0) の列へ配置したのは意味論的に妥当で、frontmatter とゲート表の二辺 SSOT が drift なく整合している。",
-      "C1 (矛盾なし) — 今回の1行追加は既存契約 (contract.invariant L26-30 / Key Rules / Steps) と一切衝突しない。決定論ゲートを一次根拠とし LLM を契約間意味判定に限定する二層分離 (L29 / Key Rules #2) はゲート集合の拡張に対して開いており、新ゲート追加は設計原理と矛盾せず自然に吸収されている。",
-      "C2 (漏れなし) / C3 (整合性あり) — kind=assign の必須 frontmatter (contract.intent/interface/invariant・script_refs・rubric_refs・schema_refs・agent_refs・pair/role_suffix) は欠落なく、ゲート名の語彙 (detect-unassigned / verify-index-topsort / check-*) が本文 C1-C4 表・Steps・Gotchas を通じ同一表記で一貫。plan-scoped 決定論ゲート集合の可読正本参照 (io-contract §11) も一本化されており漏れ・語彙ゆれ 0。"
+      "S5-S9 semantic buckets were exercised by the fresh post-build review",
+      "deterministic evaluator parity tests remain green"
     ],
-    "negative_feedback": [
-      "[smell/low, 非ブロッキング, 今回変更と無関係の既存事項] Key Rules #3 (L92) が bucket 例として 'rubric id (PLAN-001 等)' を挙げるが、plan-rubric.json の実 id 体系 (C1-C4 / G / S 系) に 'PLAN-001' に対応する定義は無い。plan-findings.schema.json が bucket に任意非空文字列を許すため実害はなく本 re-review のスコープ外。将来 'C1-C4 か G/S id' 等へ是正すると読者混乱を防げる。"
-    ],
+    "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "capability-build",
     "next_action": "none"
   },
-  "notes": "現 SHA (a0e2a2c3...) の SKILL.md を read-only 逐一照合した genuine 再評価。旧 verdict sha=7eccb32 は変更前で stale。変更点 (git diff origin/main...HEAD) = script_refs に `../run-plugin-dev-plan/scripts/check-runtime-portability.py` を1行追加 (L41) し、C4 ゲート行 (L84) の一次根拠列へ `check-runtime-portability` を追記した契約整合の微修正のみ。検証: (1) 追加スクリプトが実在 (dangling 0)。(2) script_refs 宣言と C4 ゲート写像の二辺で参照名が一致し drift 0。(3) 他 refs (rubric_refs / reference_refs / schema_refs / agent_refs) 全実在・改名残存 0。30思考法×4条件で contradiction/omission/inconsistency/dependency_break=0。smell 1 (L92 PLAN-001 誤例示) は今回変更と無関係の既存 low・非ブロッキング。high 0 のため PASS。"
+  "notes": "Evidence: plan-findings.json post-build buckets and review artifact R2"
 }

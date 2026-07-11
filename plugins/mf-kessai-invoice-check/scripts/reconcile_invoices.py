@@ -59,6 +59,7 @@ _PLUGIN_ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.join(_PLUGIN_ROOT, "lib"))
 
 import mfk_api  # noqa: E402
+import mfk_collect_status  # noqa: E402
 import mfk_reconcile  # noqa: E402
 import notion_reconcile_sink  # noqa: E402
 import notion_sheet_writeback  # noqa: E402
@@ -68,7 +69,7 @@ import sheet_to_master  # noqa: E402
 ALL_STEPS = ("collect", "sync-master", "reconcile", "sink")
 
 # 請求確認シート (sheet_db) の列名 → build_contracts が読む行キー (SSOT は sheet_to_master)。
-SHEET_FIELDS = ("取引先", "商品", "確認内容", "契約開始日", "契約終了月")
+SHEET_FIELDS = ("取引先", "商品", "確認内容", "契約開始日", "契約終了月", "MF顧客ID", "顧客ID")
 
 
 # ---------------------------------------------------------------------------
@@ -256,16 +257,28 @@ def collect_mf(target_ym, cfg, trace_sink=None):
     (既定)は従来と完全同一挙動で run-mf-invoice-reconcile 側を byte 不変に保つ (温存)。
 
     返り値 = {"customers": {customer_id: {"name", "lines": [{desc, amount, unit_price, qty,
-    billing_id, txn_date, status, canceled_at}]}}, "canceled_count": int}。build_mf_index /
-    build_contracts は "customers" を消費し、orchestrator は "canceled_count" を取消バランスの
-    可視化に使う。各 line に transaction.status(passed/canceled 等)と canceled_at を載せる。
-    canceled(取消)行も lines から削除せず status を付与して残す(build_mf_signals の
-    サイクル推定入力を byte 不変に保つ)。有効/取消の振り分けは build_mf_index 側だけが行う。
+    billing_id, txn_date, status, canceled_at, billing_status}]}}, "canceled_count": int,
+    "billings": [...]}。build_mf_index / build_contracts は "customers" を消費し、
+    orchestrator は "canceled_count" を取消バランスの可視化に使う。各 line に
+    transaction.status(passed/canceled 等)と canceled_at を載せる。canceled(取消)行も
+    lines から削除せず status を付与して残す(build_mf_signals のサイクル推定入力を byte
+    不変に保つ)。有効/取消の振り分けは build_mf_index 側だけが行う。
+
+    "billing_status" は billing レベルの status (invoice_issued/account_transfer_notified 等・
+    transaction レベルの既存 "status" キーとは別レイヤ) を line へ伝播したもの。"billings" は
+    /billings/qualified から取得した生の billing dict 一覧 (client 側フィルタ前の全件) を
+    そのまま返す canonical carrier で、fetch fidelity 開示 (mfk_fetch_audit の
+    billing_status_summary) 用の唯一の情報源となる。
 
     月帰属は **取引日 (transaction.date, 月末締め) 基準**。issue_date 窓を [当月初 .. 翌月末]
-    へ広げて /billings/qualified (status=invoice_issued) を over-fetch し、各 billing の
-    /transactions を取得して **transaction.date が当月 (target_ym) の取引のみ** を line 化する
-    (当月分=取引日6/30・発行7月 を捕捉し、前月分=取引日5/31・発行6月 を除外する)。
+    へ広げて /billings/qualified を status ハードフィルタなしで over-fetch し (要因C1根治:
+    従来 status=invoice_issued で取得段からフィルタしていたため account_transfer_notified 等
+    発行後の後続 status へ進んだ billing を丸ごと落とし GAP に誤分類していた。実測:
+    2606 qualified billing 171件中 account_transfer_notified=1 = paws有限会社・実在)、
+    mfk_collect_status.is_issued_billing で **client 側フィルタ**する (stopped=真の停止は除外)。
+    issued と判定された billing のみ各 billing の /transactions を取得して
+    **transaction.date が当月 (target_ym) の取引のみ** を line 化する (当月分=取引日6/30・
+    発行7月 を捕捉し、前月分=取引日5/31・発行6月 を除外する)。
     transaction.date が欠落する場合のみ transaction.issue_date → billing.issue_date の順へ
     縮退する。この場合だけ発行日基準となるため、当月取引でも date 欠落かつ翌月発行だと翌月へ
     帰属し当月集合から外れうる (縮退は取りこぼしを防ぐ向きとは限らない)。縮退が起きた件数は
@@ -274,16 +287,23 @@ def collect_mf(target_ym, cfg, trace_sink=None):
     first, last = _month_range_iso(target_ym)
     billings = list(mfk_api.iter_all(
         "/billings/qualified",
-        {"issue_date_from": first, "issue_date_to": last, "status": "invoice_issued"},
+        {"issue_date_from": first, "issue_date_to": last},
         cfg=cfg, trace_sink=trace_sink, site="billings",
     ))
     customers = {}
     fallback_count = 0
     canceled_count = 0
+    excluded_status_count = 0
     for b in billings:
         cid = b.get("customer_id")
         bid = b.get("id")
+        billing_status = b.get("status")
         if not cid:
+            continue
+        if not mfk_collect_status.is_issued_billing(billing_status):
+            # 発行が確定した lifecycle ではない (scheduled/stopped 等) ため収集対象外。
+            # 取得段では落とさず (over-fetch 済) ここで client 側フィルタする (要因C1根治)。
+            excluded_status_count += 1
             continue
         for t in mfk_api.iter_all("/transactions", {"billing_id": bid}, cfg=cfg,
                                   trace_sink=trace_sink, site="transactions"):
@@ -311,6 +331,7 @@ def collect_mf(target_ym, cfg, trace_sink=None):
                     "txn_date": t.get("date"),
                     "status": st,
                     "canceled_at": cat,
+                    "billing_status": billing_status,
                 })
     if fallback_count:
         sys.stderr.write(
@@ -321,10 +342,16 @@ def collect_mf(target_ym, cfg, trace_sink=None):
             f"[collect] {target_ym} の当月 canceled (取消) 取引 {canceled_count}件 を検出 "
             "(要確認(取消)で可視化、または対象外(契約終了/前払い等)の場合は確認ポイントに"
             "取消注記を併記します)。\n")
+    if excluded_status_count:
+        sys.stderr.write(
+            f"[collect] {target_ym} の対象窓で billing.status が未発行 (scheduled/stopped 等) "
+            f"のため収集対象外にした billing {excluded_status_count}件 (要因C1: 過去は API 側の "
+            "status=invoice_issued ハードフィルタで取得段から丸ごと落としていたが、本バージョンは "
+            "over-fetch → client 側フィルタへ変更し可視化する)。\n")
     names = _resolve_customer_names(customers.keys(), cfg, trace_sink=trace_sink)
     for cid, entry in customers.items():
         entry["name"] = names.get(cid) or cid
-    return {"customers": customers, "canceled_count": canceled_count}
+    return {"customers": customers, "canceled_count": canceled_count, "billings": billings}
 
 
 # ---------------------------------------------------------------------------

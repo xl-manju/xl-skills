@@ -37,6 +37,7 @@ Exit 0 = OK / not-applicable, 1 = violation, 2 = usage/IO error。
 """
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -68,6 +69,13 @@ def _read(path: Path) -> str:
         return ""
 
 
+def _frontmatter(text: str) -> str:
+    if not text.startswith("---"):
+        return ""
+    parts = text.split("---", 2)
+    return parts[1] if len(parts) >= 3 else ""
+
+
 def resolve_harness_root(target: Path) -> Path:
     """入力が SKILL.md ファイルなら harness root (skills/ を持つ祖先) を、dir ならそのまま返す。"""
     if target.is_dir():
@@ -85,15 +93,7 @@ def collect_task_graph_skills(root: Path, single_file: Path | None) -> list[Path
         candidates = [single_file]
     else:
         candidates = sorted(root.glob("skills/*/SKILL.md")) + sorted(root.glob("SKILL.md"))
-    return [p for p in candidates if _CONCRETE_TASK_GRAPH_ENGINE_RE.search(_read(p))]
-
-
-def script_roots(root: Path) -> list[Path]:
-    """同梱 script を探す scripts/ ディレクトリ群 (plugin-root と各 skill 配下)。"""
-    roots = [root / "scripts"]
-    roots.extend(sorted(root.glob("skills/*/scripts")))
-    roots.extend(sorted(root.glob("skills/*/templates/task-graph-engine/scripts")))
-    return [r for r in roots if r.is_dir()]
+    return [p for p in candidates if _CONCRETE_TASK_GRAPH_ENGINE_RE.search(_frontmatter(_read(p)))]
 
 
 def _template_root() -> Path:
@@ -101,35 +101,55 @@ def _template_root() -> Path:
     return Path(__file__).resolve().parent.parent / "templates" / "task-graph-engine" / "scripts"
 
 
-def check_bundling(root: Path) -> list[str]:
-    """同梱 4 script (ENG-C01/C02/C06/C07) の実在とテンプレ原本 byte 一致を検査する。"""
+def check_bundling(skills: list[Path]) -> list[str]:
+    """task-graph 宣言 skill ごとに4 script の実在と原本 byte 一致を検査する。
+
+    別 skill や builder 自身の templates に同名資産があっても充足扱いしない。
+    """
     findings: list[str] = []
-    roots = script_roots(root)
     template_root = _template_root()
-    for name in BUNDLED_SCRIPTS:
-        copies = [r / name for r in roots if (r / name).is_file()]
-        if not copies:
-            findings.append(
-                f"同梱欠落: {name} が scripts/ 配下に不在 "
-                f"(探索先: {[str(r) for r in roots] or '(scripts dir なし)'})"
-            )
-            continue
-        original = template_root / name
-        if not original.is_file():
-            findings.append(
-                f"テンプレ原本不在: {original} (byte-parity 検査不能 — run-build-skill の "
-                "templates/task-graph-engine/scripts/ を欠く破損配置)"
-            )
-            continue
-        expected = original.read_bytes()
-        for copy in copies:
-            if copy.resolve() == original.resolve():
+    for skill in skills:
+        scripts_dir = skill.parent / "scripts"
+        for name in BUNDLED_SCRIPTS:
+            copy = scripts_dir / name
+            if not copy.is_file():
+                findings.append(
+                    f"同梱欠落: {copy} が不在 (task-graph 宣言 skill ごとの scripts/ に必須)"
+                )
                 continue
+            original = template_root / name
+            if not original.is_file():
+                findings.append(
+                    f"テンプレ原本不在: {original} (byte-parity 検査不能 — run-build-skill の "
+                    "templates/task-graph-engine/scripts/ を欠く破損配置)"
+                )
+                continue
+            expected = original.read_bytes()
             if copy.read_bytes() != expected:
                 findings.append(
                     f"byte-parity 違反: {copy} がテンプレ原本 {name} と不一致 "
                     "(同梱 script は原本の無改変コピーであること)"
                 )
+    return findings
+
+
+def check_engine_profile(skills: list[Path]) -> list[str]:
+    """full task-spec graph を誤申告しない checklist-graph 境界を hard gate。"""
+    findings: list[str] = []
+    profile_re = re.compile(r"^\s+engine_profile:\s*checklist-graph\s*(?:#.*)?$", re.MULTILINE)
+    full_re = re.compile(r"^\s+full_task_spec_graph:\s*false\s*(?:#.*)?$", re.MULTILINE)
+    for skill in skills:
+        fm = _frontmatter(_read(skill))
+        if not profile_re.search(fm):
+            findings.append(
+                f"engine profile 欠落/不正: {skill} は engine_profile: checklist-graph 必須 "
+                "(planner full task-spec graph と非同等)"
+            )
+        if not full_re.search(fm):
+            findings.append(
+                f"capability claim 欠落/不正: {skill} は full_task_spec_graph: false 必須 "
+                "(未実装機構を成功扱いしない fail-closed gate)"
+            )
     return findings
 
 
@@ -206,7 +226,8 @@ def lint(target: Path) -> tuple[list[str], list[str], bool]:
         return [], [], False  # not-applicable
 
     findings: list[str] = []
-    findings.extend(check_bundling(root))
+    findings.extend(check_engine_profile(skills))
+    findings.extend(check_bundling(skills))
     findings.extend(check_consult_tokens(skills))
     sr_findings, warnings = check_source_refs(root)
     warnings.extend(check_advisory_surface_consults(root))
@@ -220,7 +241,8 @@ def self_test() -> int:
     1. BUNDLED_SCRIPTS ↔ SKILL.md Step 10.6 の列挙 script が集合一致する
        (同梱 4 本は本 lint / Step10.6 / render 配線 prose の 3 箇所ハードコードのため、
         1 本追加時の同期漏れを機械検出する)。
-    2. _CONCRETE_TASK_GRAPH_ENGINE_RE が lint-goal-seek.py 側の同名定義と文字列一致する。
+    2. validate-build-plan / render-combinators / 本 lint の同梱4資産集合が一致する。
+    3. _CONCRETE_TASK_GRAPH_ENGINE_RE が lint-goal-seek.py 側の同名定義と文字列一致する。
     """
     findings: list[str] = []
     skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
@@ -236,6 +258,30 @@ def self_test() -> int:
             findings.append(
                 "self-test: BUNDLED_SCRIPTS と SKILL.md Step10.6 の列挙が不一致: "
                 f"lint側のみ={sorted(expected - listed)} / Step10.6側のみ={sorted(listed - expected)}"
+            )
+    for peer_name, constant_name in (
+        ("validate-build-plan.py", "TASK_GRAPH_ENGINE_SCRIPTS"),
+        ("render-combinators.py", "TASK_GRAPH_ENGINE_SCRIPTS"),
+    ):
+        peer_path = Path(__file__).resolve().parent / peer_name
+        try:
+            tree = ast.parse(_read(peer_path), filename=str(peer_path))
+            value = None
+            for node in tree.body:
+                if not isinstance(node, ast.Assign):
+                    continue
+                if any(isinstance(t, ast.Name) and t.id == constant_name for t in node.targets):
+                    value = ast.literal_eval(node.value)
+                    break
+            peer_set = set(value or ())
+        except (SyntaxError, ValueError, TypeError) as exc:
+            findings.append(f"self-test: {peer_path} の {constant_name} を読めない: {exc}")
+            continue
+        if peer_set != set(BUNDLED_SCRIPTS):
+            findings.append(
+                f"self-test: BUNDLED_SCRIPTS と {peer_name}:{constant_name} が不一致: "
+                f"lint側のみ={sorted(set(BUNDLED_SCRIPTS) - peer_set)} / "
+                f"peer側のみ={sorted(peer_set - set(BUNDLED_SCRIPTS))}"
             )
     peer = Path(__file__).resolve().parent / "lint-goal-seek.py"
     peer_src = _read(peer)
@@ -253,7 +299,9 @@ def self_test() -> int:
         for f in findings:
             sys.stderr.write(f + "\n")
         return 1
-    sys.stdout.write("OK: self-test 通過 (Step10.6 parity + regex 定義一致)\n")
+    sys.stdout.write(
+        "OK: self-test 通過 (Step10.6 + build-plan + materializer asset parity / regex 定義一致)\n"
+    )
     return 0
 
 

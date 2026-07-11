@@ -26,7 +26,7 @@ P02 で確定した component 分解 (C01/C02) と依存 DAG・plugin_level_surf
 - proposer (P02 の実行 agent) と approver (本 phase の審査 agent) が異なる context (fork) である。
 
 ## ドメイン知識
-- elegant-review C1-C4: C1=矛盾なし (constraints と component 設計の間に矛盾がないか)、C2=漏れなし (checklist C1-C16 全てが何らかの component/phase に紐づくか)、C3=整合性あり (kind/builder/build_kind の組が component-domain.md と整合するか)、C4=依存関係整合 (DAG 非循環・depends_on が実在 id を指すか)。
+- elegant-review C1-C4: C1=矛盾なし、C2=漏れなし (checklist C1-C19)、C3=整合性あり、C4=依存関係整合。C17のtask_spec_ref join、C18のgraph/state/projection parity、C19のlineageとactive DAG分離も対象に含む。
 
 ## 成果物
 - design レビュー verdict (C1-C4 各 PASS/FAIL + 指摘事項)。

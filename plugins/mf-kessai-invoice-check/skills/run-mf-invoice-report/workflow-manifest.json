@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "workflowId": "run-mf-invoice-report",
   "skill": "run-mf-invoice-report",
-  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月/lookback MF実績GET+pagination trace記録+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→fetch-audit(mfk_fetch_audit.py で fetch_trace の取得完全性を監査し fidelity report を出力・当月/先月NGはfail-closed)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成・fidelity reportを--fidelity-reportで必須受領)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で単一恒久レポートDBへ非破壊冪等upsert・--apply時のみ)。既定はdry-run(分類のみ・書き込みゼロ)。分類実体はC03・fetch fidelity監査はC06・出力先DB解決/冪等upsertはC04 sinkが所有し本skillはオーケストレーションに徹する。",
+  "description": "前月↔今月の請求書発行状況比較レポートの月次フロー定義。collect(対象月決定+前月/今月/lookback MF実績GET+pagination trace記録+per-月verdict収集+差分該当取引先のみ12ヶ月遡り+契約終了月収集・決定論/GET専用)→fetch-audit(mfk_fetch_audit.py で fetch_trace の取得完全性を監査し fidelity report を出力・当月/先月NGはfail-closed)→classify(mfk_period_report.py で状態遷移分類+事情コメント生成・fidelity reportを--fidelity-reportで必須受領)→verify(mfk-report-verifier sub-agent で独立context二段確認=真の発行漏れを隠していないか)→render(notion_report_sink.py で単一恒久レポートDBへ非破壊冪等upsert・--apply時のみ)→archive(mfk_sheet_archive.py で対象月の請求書確認シート行を月別DB『請求書確認シートYYMM』へ完全移行し検証後に元シートから削除=ロールオーバー・--apply --verified 完了後に常に自動連鎖)。既定はdry-run(分類+アーカイブ計画のみ・書き込みゼロ)。分類実体はC03・fetch fidelity監査はC06・出力先DB解決/冪等upsertはC04 sink・シート月次アーカイブはC07 engineが所有し本skillはオーケストレーションに徹する。",
   "phases": [
     {
       "id": "collect",
@@ -61,6 +61,19 @@
       "dependsOn": ["verify"],
       "fatal_exit_codes": [2],
       "note": "分類済みレポート行を単一恒久レポートDBへ非破壊冪等 upsert する(C04)。C04 は report_toggle_block が指す指定見出しを起点に、トグル配下 DB(in-block)・プレーン見出し直下 DB(under-heading)・ページ直下既存 DB(page) の順で既存確認し、どれも無ければ report_parent_page 直下へ新規作成(page-created)する。単一DBへ日々追加((対象月,取引先,商品)ストアキーで重複行0・契約IDは8列に列が無く persist しないため同一取引先×同一商品の複数契約は要対応優先で1行収束=collapsed_multi_contract に計上)・二重DB 0・deleted常時0(非破壊マージ)・別月/以前行は対象月列で保全。列順は [取引先名(title), 対象月, 漏れチェック(checkbox), 商品名, 先月の金額, 今月の金額, 先月と今月の比較, コメント]。漏れチェックは 正常=✓ / 要対応=☐。出力先DB解決/冪等upsertはここが所有。report_parent_page 未設定は fail-closed(exit 2)。--apply は --verified を機械層で必須にする(未指定は exit 2・prose でなく script ゲート)。"
+    },
+    {
+      "id": "archive",
+      "step": 6,
+      "title": "請求書確認シートの月次アーカイブ&ロールオーバー (対象月行を月別DBへ移行し元行削除)",
+      "responsibility": "prompts/R5-archive.md",
+      "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/mfk_sheet_archive.py --target <YYMM> [--apply --verified] [--parent-page-id <ID>] [--sheet-db <ID>] [--config <PATH>]",
+      "lib": "scripts/mfk_sheet_archive.py + lib/notion_sheet_archive.py",
+      "dependsOn": ["render"],
+      "runsWhen": "render が --apply --verified で成功した後に常に自動連鎖する (レポート dry-run では archive も dry-run=移行プレビューのみ)。",
+      "fatal_exit_codes": [2],
+      "produces": "月別DB『請求書確認シートYYMM』(親ページ配下・シートスキーマ完全写像+元ページID) + 元シートからの対象月行削除サマリ",
+      "note": "対象月(年月 select==YYMM)の請求書確認シート(sheet_db_id)行を、シートと同じ親ページ配下の月別DB『請求書確認シートYYMM』へ**完全移行**し、写像先ページの読み戻し検証(全写像列 plain-text 一致)に成功した行だけ元シートを Notion archive(in_trash・30日復元可) する=月次ロールオーバー(C07)。分類/照合はせず行の move/verify/delete のみ(状態遷移分類の正本は C03 で本 engine は verdict を解釈しない=guard-mfk-no-reinvent 語幹 compare/period_diff/classify/reconcile を関数名に用いない)。安全設計: 冪等(元ページID で 1:1・再実行は既存行を PATCH で重複0・archive済みは query 対象外で no-op・crash-safe 再開可)/verify-then-delete(1列でも不一致なら元行を削除せず温存=過少移行での喪失を防ぐ fail-closed)/削除は archive で可逆。写像先DB作成は Notion API 制約で page_id 親のみ=既定はシート自身の親ページ配下(兄弟DB)、親解決順は --parent-page-id>env MFK_ARCHIVE_PARENT_PAGE_ID>config notion.archive_parent_page>シート親>report_parent_page。Notion API で同型作成できない列(status/formula/rollup 等)は rich_text へ降格して plain-text 温存(降格列は summary で開示)・長文は複数 rich_text 要素へ chunk して全文保持(truncate 滞留を起こさない)。--apply は --verified を機械層で必須(未指定 exit 2・正本シートからの誤削除を物理的に拒否)。exit code は 0=OK(clean/no-op) / 1=完走したが未移行行が元シートに残存(安全・要再実行) / 2=fail-closed(--verified 欠落/target 不正/sheet-db 未解決/新規作成の親未解決)。fatal は 2 のみで exit1 を失敗扱いしない(温存された安全な残存)。MF は一切触らない(Notion のみ)。"
     }
   ],
   "guards": [

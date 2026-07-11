@@ -37,11 +37,19 @@ fetch trace の想定形 (site ごとの pagination trace 一覧を月コンテ�
     "prev":   [ ... ],
     "lookback": { "2505": [ ... ], "2506": [ ... ], ... }   # per-month・差分該当取引先のみ
   }
+
+additive (要因C1・任意): 上記に "billings": {"curr": [...], "prev": [...],
+"lookback": {YYMM: [...]}} (reconcile_invoices.collect_mf の返り値 "billings" を月コンテキスト
+で束ねた生 billing dict 一覧) を含めると、fidelity report に billing.status 別件数の内訳
+(billing_status_summary) を開示する。不在でも既存ゲート (pagination/total/issue_date/stale) は
+一切影響を受けない (純粋な additive disclosure)。
 """
 import argparse
 import json
 import re
 import sys
+
+import mfk_collect_status
 
 
 def _ym_window(month_ym):
@@ -168,12 +176,38 @@ def _prev_ym(month_ym):
     return f"{yy:02d}{mm:02d}"
 
 
+def _billing_status_summary(trace):
+    """trace の additive 'billings' (curr/prev/lookback へ束ねた収集 billing 生配列) から
+    mfk_collect_status.summarize_billing_statuses で status 別件数をグループごとに集計する
+    (要因C1 収集是正の可視化・開示専用。C11: 既存 fail-closed ゲートには一切影響しない)。
+
+    'billings' キーが無い/shape 不正なら空 dict を返す (fetch trace は元々このキーを持たない
+    ため、既存全 trace / 既存テストは常に {} = 後退させない純粋な additive disclosure)。
+    """
+    billings = trace.get("billings")
+    if not isinstance(billings, dict):
+        return {}
+    out = {}
+    for group in ("curr", "prev"):
+        items = billings.get(group)
+        if isinstance(items, list):
+            out[group] = mfk_collect_status.summarize_billing_statuses(items)
+    lookback = billings.get("lookback")
+    if isinstance(lookback, dict):
+        out["lookback"] = {
+            ym: mfk_collect_status.summarize_billing_statuses(items)
+            for ym, items in lookback.items() if isinstance(items, list)
+        }
+    return out
+
+
 def audit_fetch_trace(trace, target_month=None):
     """fetch trace 全体を監査し fidelity report + exit_code を返す (純ロジック・network なし)。
 
     exit_code: 0=OK / 1=当月or先月 fidelity 違反 or 完全不在 (fail-closed) / 3=lookback 部分欠損。
     """
     trace = trace or {}
+    billing_status_summary = _billing_status_summary(trace)
     target_month = target_month or trace.get("target_month")
     prev_month = _prev_ym(target_month)
 
@@ -195,6 +229,7 @@ def audit_fetch_trace(trace, target_month=None):
                          "ok_months": [], "ng_months": []},
             "overall": "trace_malformed",
             "exit_code": 1,
+            "billing_status_summary": billing_status_summary,
         }
 
     # trace 完全不在 (どのグループにも 1 件も trace が無い) = legacy 非trace経路 → fail-closed。
@@ -207,6 +242,7 @@ def audit_fetch_trace(trace, target_month=None):
                          "ok_months": [], "ng_months": []},
             "overall": "trace_absent",
             "exit_code": 1,
+            "billing_status_summary": billing_status_summary,
         }
 
     curr = audit_group(curr_pages, target_month)
@@ -248,6 +284,7 @@ def audit_fetch_trace(trace, target_month=None):
         "lookback": lb_report,
         "overall": overall,
         "exit_code": exit_code,
+        "billing_status_summary": billing_status_summary,
     }
 
 

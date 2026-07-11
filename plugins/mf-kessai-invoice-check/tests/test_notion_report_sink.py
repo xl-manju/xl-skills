@@ -162,7 +162,10 @@ def test_prefer_action_keeps_gap_over_normal():
 def test_is_structural_normal_discriminates_bare_normal():
     assert sink._is_structural_normal(
         {"gap_check": "正常", "period_diff": "前月あり今月なし (契約完了)"}) is True
-    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "継続発行"}) is False
+    # 要件1(2026-07-10): 継続発行=月契約の権威ある正常ゆえ構造的正常マーカーに含める (True へ反転)。
+    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "継続発行"}) is True
+    # 構造事由の無い bare 正常 (period_diff がマーカー非該当) は False のまま (guard 保持対象)。
+    assert sink._is_structural_normal({"gap_check": "正常", "period_diff": "新規発行"}) is False
     assert sink._is_structural_normal(
         {"gap_check": "要対応", "period_diff": "前月あり今月なし (年契約周期)"}) is False
 
@@ -540,18 +543,39 @@ def test_cross_run_reliable_mf_issued_corrects_prior_action():
 
 
 def test_cross_run_bare_normal_without_reliable_flag_keeps_action():
-    """K4 の裏: reliable_issued も構造事由も無い bare 正常は前 run の 要対応 を保持する (漏れ隠蔽防止)。"""
+    """K4 の裏: reliable_issued も構造事由も無い bare 正常は前 run の 要対応 を保持する (漏れ隠蔽防止)。
+
+    要件1 で継続発行は構造的正常マーカー入りしたため、bare 正常の例は period_diff が
+    マーカー非該当 (新規発行) の行を使う (継続発行は下の corrects テストで訂正側を検証)。
+    """
     req, state = _make_store()
     sink.upsert_report_rows(
         [{"gap_check": "要対応", "customer": "ベータ社", "product": "P", "comment": "漏れ"}],
         "db-1", "2607", "tok", req=req)
     sink.upsert_report_rows(
-        [{"gap_check": "正常", "customer": "ベータ社", "product": "P", "period_diff": "継続発行",
+        [{"gap_check": "正常", "customer": "ベータ社", "product": "P", "period_diff": "新規発行",
           "reliable_issued": False, "comment": "正常"}],
         "db-1", "2607", "tok", req=req)
     pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
     assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is False   # 要対応保持
     assert "cross-run safe guard" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
+
+
+def test_cross_run_continued_corrects_prior_action():
+    """要件1(2026-07-10): 前 run の 要対応 を、今 run の継続発行 (両月あり=権威ある月契約正常) が
+    reliable_issued 未確定でも正常✓へ訂正する (『金額あるのにチェックが入らない』の根治)。"""
+    req, state = _make_store()
+    sink.upsert_report_rows(
+        [{"gap_check": "要対応", "customer": "ガンマ社", "product": "P", "comment": "漏れ候補"}],
+        "db-1", "2607", "tok", req=req)
+    sink.upsert_report_rows(
+        [{"gap_check": "正常", "customer": "ガンマ社", "product": "P", "period_diff": "継続発行",
+          "reliable_issued": False, "comment": "継続発行 (前月・今月とも発行あり)"}],
+        "db-1", "2607", "tok", req=req)
+    pages = [p for p in state["pages"].values() if p["db"] == "db-1"]
+    assert len(pages) == 1
+    assert pages[0]["properties"][sink.PROP_MISSING_CHECK]["checkbox"] is True   # 正常✓へ訂正
+    assert "構造的正常事由で訂正" in _rt_text(pages[0]["properties"][sink.PROP_COMMENT])
 
 
 def test_k6_true_orphan_gets_residual_note_not_deleted():
@@ -619,6 +643,147 @@ def test_same_severity_action_collapse_merges_comments():
     merged = sink._prefer_action(a, b)
     assert "漏れ甲" in merged["comment"] and "漏れ乙" in merged["comment"]
     assert "C1" in merged["comment"] and "C2" in merged["comment"]
+
+
+# ---------------------------------------------------------------------------
+# C03 (要因C5 sink側): collapse 発行済み実額保全 ∧ 漏れ隠蔽なし
+# ---------------------------------------------------------------------------
+def test_collapse_phantom_same_identity_resolves_to_normal():
+    """新不変則 (Fix B・identity gate): 同一契約が ID照合↔名前照合で二重化した **phantom**
+    (contract_id/エンドクライアント一致=identity 同一) が発行済み×gap で collapse するとき、今月の
+    権威ある実発行が当月請求を満たす → 正常✓ (record2 ツネマツ型の根治)。gap 候補根拠はコメント保全。
+    別契約でなく重複ゆえ漏れ隠蔽にならない。"""
+    issued = {"gap_check": "正常", "customer": "ツネマツ", "product": "利用料（2年目以降）",
+              "amount": 50000, "reliable_issued": True, "comment": "当月実発行"}   # identity=("","")
+    gap = {"gap_check": "要対応", "customer": "ツネマツ", "product": "利用料（2年目以降）",
+           "amount": None, "reliable_issued": False, "comment": "継続発行漏れ候補"}  # identity=("","") 同一
+    for merged in (sink._prefer_action(issued, gap), sink._prefer_action(gap, issued)):
+        assert sink._severity_rank(merged) == 0, "phantom は今月実発行で正常✓ (record2 根治)"
+        assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 50000, "実発行額を保全"
+        assert "継続発行漏れ候補" in (merged.get("comment") or ""), "重複候補の根拠を黙殺しない"
+
+
+def test_collapse_distinct_endclient_preserves_action_no_hiding():
+    """漏れ隠蔽の封鎖 (3体エレガント検証 CRITICAL の是正): 代理店の別エンドクライアント=**真の別契約**
+    (identity 相違) が発行済み×gap で collapse するとき、gap は本物の発行漏れでありうるため正常化せず
+    要対応を保持する (漏れ隠蔽 false-negative を防ぐ)。発行済み実額は今月金額へ保全し金額も失わない。"""
+    issued = {"gap_check": "正常", "customer": "HOSONO", "product": "チイキズカン業務委託費",
+              "amount": 70000, "reliable_issued": True, "end_client": "乙様", "comment": "（乙様）発行済み"}
+    gap = {"gap_check": "要対応", "customer": "HOSONO", "product": "チイキズカン業務委託費",
+           "amount": None, "reliable_issued": False, "end_client": "丙様", "comment": "（丙様）発行漏れ候補"}
+    for merged in (sink._prefer_action(issued, gap), sink._prefer_action(gap, issued)):
+        assert sink._severity_rank(merged) == 1, "別契約(エンドクライアント違い)の漏れを隠さず要対応を保持"
+        assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 70000, \
+            "発行済み実額は今月金額へ保全 (金額も失わない)"
+        assert "発行済み実額" in (merged.get("comment") or "")
+
+
+def test_collapse_normal_without_issued_returns_action_unchanged():
+    """保全すべき発行済み実額が無い (bare 正常・reliable_issued 無し) なら要対応行をそのまま返す
+    (従来挙動・不要な dict コピーを避ける)。"""
+    normal = {"gap_check": "正常", "customer": "A社", "product": "P"}
+    action = {"gap_check": "要対応", "customer": "A社", "product": "P"}
+    assert sink._prefer_action(normal, action) is action
+    assert sink._prefer_action(action, normal) is action
+
+
+def test_collapse_distinct_does_not_overwrite_action_own_amount():
+    """別契約 (エンドクライアント違い) で要対応行が既に金額を持つなら発行済み実額で上書きしない (据え置き)。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True, "end_client": "甲"}
+    gap = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": 55000, "end_client": "乙"}
+    merged = sink._prefer_action(gap, issued)
+    assert sink._severity_rank(merged) == 1
+    assert sink._amount(merged, "amount", "curr_amount", "今月の金額") == 55000, "要対応行の金額を据え置く"
+
+
+def test_collapse_3way_distinct_preserves_issued_amount_order_independent():
+    """F-TRADE-1 回帰: 別契約3者衝突 (発行済み正常 + 要対応A + 要対応B・全て別エンドクライアント) が
+    同一キーへ collapse するとき、発行済み実額が要対応×要対応マージで null に潰れず保全され続ける
+    (順序非依存)。別契約ゆえ要対応 severity は保持し漏れを隠さない。"""
+    issued = {"gap_check": "正常", "customer": "代理店", "product": "業務委託費",
+              "amount": 70000, "reliable_issued": True, "end_client": "甲", "comment": "（甲様）発行済み"}
+    gapA = {"gap_check": "要対応", "customer": "代理店", "product": "業務委託費",
+            "amount": None, "end_client": "乙", "comment": "（乙様）漏れ"}
+    gapB = {"gap_check": "要対応", "customer": "代理店", "product": "業務委託費",
+            "amount": None, "end_client": "丙", "comment": "（丙様）漏れ"}
+    import itertools
+    for order in itertools.permutations([issued, gapA, gapB]):
+        acc = order[0]
+        for nxt in order[1:]:
+            acc = sink._prefer_action(acc, nxt)
+        assert sink._severity_rank(acc) == 1, f"別契約は要対応 severity 保持 (順序={[r['comment'] for r in order]})"
+        assert sink._amount(acc, "amount") == 70000, \
+            f"発行済み実額 70000 が保全される (順序={[r['comment'] for r in order]}・自己矛盾行を作らない)"
+
+
+def test_collapse_distinct_severity_mixed_sums_multiple_issued_amounts_order_independent():
+    """BUG-1 回帰: 別契約 (異エンドクライアント) の reliable 正常2件以上 + 要対応が collapse するとき、
+    要対応が畳込順の最後でなくても発行済み実額が Σ 保全され過少報告しない (fold 順非依存)。別契約ゆえ
+    要対応 severity を保持しつつ発行済み総額を今月金額へ保全する。"""
+    ko = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費",
+          "amount": 210000, "reliable_issued": True, "end_client": "甲", "comment": "（甲様）発行済み"}
+    otsu = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費",
+            "amount": 70000, "reliable_issued": True, "end_client": "乙", "comment": "（乙様）発行済み"}
+    hei = {"gap_check": "要対応", "customer": "HOSONO", "product": "業務委託費",
+           "amount": None, "end_client": "丙", "comment": "（丙様）発行漏れ候補"}
+    import itertools
+    for order in itertools.permutations([ko, otsu, hei]):
+        acc = order[0]
+        for nxt in order[1:]:
+            acc = sink._prefer_action(acc, nxt)
+        labels = [r["comment"] for r in order]
+        assert sink._severity_rank(acc) == 1, f"別契約は要対応 severity 保持 (順序={labels})"
+        assert sink._amount(acc, "amount") == 280000, \
+            f"発行済み実額 210000+70000=280000 を Σ 保全 (順序={labels}・2件目以降を脱落させない)"
+
+
+def test_distinct_severity_mixed_collapse_through_upsert_keeps_action():
+    """実 entry point (upsert_report_rows) を通して、別契約 (異エンドクライアント) の severity 混在
+    collapse が要対応☐ を保持し発行済み実額 Σ を number 列『今月の金額』へ着地させる (漏れを隠さず
+    金額も失わない・本番配線)。identity 相違で multi-contract counter も発火する。"""
+    ko = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費", "amount": 210000,
+          "reliable_issued": True, "end_client": "甲", "comment": "（甲様）発行済み"}
+    otsu = {"gap_check": "正常", "customer": "HOSONO", "product": "業務委託費", "amount": 70000,
+            "reliable_issued": True, "end_client": "乙", "comment": "（乙様）発行済み"}
+    hei = {"gap_check": "要対応", "customer": "HOSONO", "product": "業務委託費", "amount": None,
+           "end_client": "丙", "comment": "（丙様）発行漏れ候補"}
+    for order in ([hei, ko, otsu], [ko, otsu, hei], [ko, hei, otsu]):   # 要対応=先頭/最後/中間
+        req, state = _make_store()
+        result = sink.upsert_report_rows(order, "db-1", "2606", "tok", req=req)
+        posts = [c for c in state["calls"] if c[0] == "POST" and c[1] == "/pages"]
+        assert len(posts) == 1, "3契約が同一(取引先,商品)へ collapse し1行"
+        props = posts[0][2]["properties"]
+        assert props[sink.PROP_MISSING_CHECK]["checkbox"] is False, "別契約の漏れを隠さず要対応☐ を保持"
+        assert props[sink.PROP_CURR_AMOUNT]["number"] == 280000, \
+            "発行済み実額 210000+70000 が number 列へ Σ 着地 (fold 順非依存・過少報告なし)"
+        assert result["collapsed_multi_contract"] >= 1, "別契約 collapse を可観測化 (ゼロテレメトリ封鎖)"
+
+
+def test_collapse_distinct_preserves_action_when_action_has_own_amount():
+    """別契約で要対応行が自己金額を持つ場合、発行済み実額で上書きせず据え置き、要対応を保持する。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True, "end_client": "甲"}
+    action_with_amt = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": 55000,
+                       "end_client": "乙"}
+    merged = sink._prefer_action(action_with_amt, issued)
+    assert sink._severity_rank(merged) == 1, "別契約の要対応を保持"
+    assert sink._amount(merged, "amount") == 55000, "要対応行の自己金額を据え置く"
+    assert "別契約に発行済み実額" in (merged.get("comment") or "")
+
+
+def test_collapse_notes_avoid_english_jargon():
+    """F-NAIVE1 回帰: 経理担当向け成果物の注記に英 IT 用語 'collapse' を出さない (平易な日本語)。"""
+    issued = {"gap_check": "正常", "customer": "A社", "product": "P", "amount": 70000,
+              "reliable_issued": True, "comment": "発行済み"}
+    gap = {"gap_check": "要対応", "customer": "A社", "product": "P", "amount": None,
+           "comment": "漏れ"}
+    merged = sink._prefer_action(issued, gap)
+    assert "collapse" not in (merged.get("comment") or "").lower()
+    # 要対応×要対応マージの注記も同様。
+    a = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C1", "comment": "甲"}
+    b = {"gap_check": "要対応", "customer": "A社", "product": "P", "contract_id": "C2", "comment": "乙"}
+    assert "collapse" not in (sink._prefer_action(a, b).get("comment") or "").lower()
 
 
 def test_failed_row_is_isolated_and_counted_as_skipped():
@@ -782,12 +947,68 @@ def test_run_reuse_across_two_runs_single_db():
     assert _rows_in(state, "db-tog") == {("2026-06", "A社", "P"), ("2026-07", "A社", "P")}
 
 
-def test_run_creates_below_heading_when_no_toggle_db():
-    """トグルにもページにも DB が無ければ見出しの下 (ページ直下) へ新規作成して upsert。"""
+def test_run_aborts_phantom_when_no_pin_no_existing():
+    """要件2(2026-07-10): 明示 pin なし かつ 既存 DB 未発見時は phantom を作らず fail-closed (SinkError)。"""
+    import pytest
     req, state = _make_store(block_children={"TOG": [], "PAGE": []})
-    res = sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req, apply=True)
+    with pytest.raises(sink.SinkError):
+        sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req, apply=True)
+    # phantom を作っていない (POST /databases が呼ばれていない)。
+    assert not any(m == "POST" and p == "/databases" for m, p, _ in state["calls"])
+
+
+def test_run_allow_create_creates_when_none():
+    """要件2: --allow-create 明示 opt-in 時のみ従来どおり見出しの下へ新規作成する (初回セットアップ)。"""
+    req, state = _make_store(block_children={"TOG": [], "PAGE": []})
+    res = sink.run([{"customer": "A社", "product": "P"}], "2607", _cfg(), "tok", req=req,
+                   apply=True, allow_create=True)
     assert res["db_created"] is True and res["db_location"] == "page-created"
     assert res["created"] == 1
+
+
+def test_run_pinned_db_id_writes_directly_step0():
+    """要件2 step0: config report_database_id があれば構造同定を経ずその DB へ直接 upsert (pinned)。"""
+    req, state = _make_store(dbs={"PINNED-DB": {"properties": _default_props()}})
+    cfg = {"notion": {"report_parent_page": "PAGE", "report_toggle_block": "TOG",
+                      "report_database_id": "PINNED-DB"}}
+    res = sink.run([{"customer": "A社", "product": "P", "amount": 5}], "2607", cfg, "tok",
+                   req=req, apply=True)
+    assert res["db_location"] == "pinned"
+    assert res["report_db_id"] == "PINNED-DB"
+    assert res["created"] == 1
+    # 構造同定 (トグル/ページ子ブロック探索) を経ていない=pin で直接着地。
+    assert not any("/blocks/" in p for m, p, _ in state["calls"])
+
+
+def test_run_pin_from_view_url_extracts_db_id():
+    """要件2 (OQ-10 c 最小): ビュー/DB URL の path 側 32hex を DB id として抽出し pin する。"""
+    req, state = _make_store(dbs={"39907a0cd18c81c19d61d42ee95016b0": {"properties": _default_props()}})
+    url = "https://www.notion.so/ws/39907a0cd18c81c19d61d42ee95016b0?v=39907a0cd18c81bd923e000cda89bd33"
+    cfg = {"notion": {"report_parent_page": "PAGE", "report_database_id": url}}
+    res = sink.run([{"customer": "A社", "product": "P"}], "2607", cfg, "tok", req=req, apply=True)
+    assert res["db_location"] == "pinned"
+    assert res["report_db_id"] == "39907a0cd18c81c19d61d42ee95016b0"
+
+
+def test_resolve_no_create_returns_none_when_disallowed():
+    """resolve_report_db: allow_create=False かつ 既存未発見なら (None,'none') を返す (phantom 抑止)。"""
+    req, state = _make_store(block_children={"TOG": [], "PAGE": []})
+    db_id, location, created, _ = sink.resolve_report_db(
+        "TOG", "PAGE", "tok", req=req, allow_create=False)
+    assert db_id is None and location == "none" and created is False
+
+
+def test_extract_db_id_forms():
+    """要件2 (OQ-10 c): 生 32hex / dashed uuid / ビュー URL / タイトル付き『リンクをコピー』URL / 非id。"""
+    hexid = "39907a0cd18c81c19d61d42ee95016b0"
+    assert sink._extract_db_id(hexid) == hexid
+    assert sink._extract_db_id("39907a0c-d18c-81c1-9d61-d42ee95016b0") == hexid
+    assert sink._extract_db_id(f"https://www.notion.so/ws/{hexid}?v=abc123") == hexid
+    # タイトルスラッグ付き URL: slug 末尾 dash 後の 32hex を id として採る (タイトル内 hex と分離)。
+    assert sink._extract_db_id(f"https://www.notion.so/ws/My-Report-Table-{hexid}?v=deadbeef") == hexid
+    assert sink._extract_db_id("PINNED-DB") == "PINNED-DB"   # 非 id は原値 (下流 GET が弾く)
+    assert sink._extract_db_id("") == ""
+    assert sink._extract_db_id(None) == ""
 
 
 def test_run_dry_run_touches_no_network():

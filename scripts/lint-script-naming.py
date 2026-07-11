@@ -237,6 +237,24 @@ PENDING_RENAME_PATHS = {
     # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
     "plugins/mf-kessai-invoice-check/scripts/mfk_actuals.py",
     "plugins/mf-kessai-invoice-check/scripts/mfk_fetch_audit.py",
+    # 照合層 根本原因 根治 (matching rootcause) で追加。mfk_verdict_export.py (C05・R1 決定論 producer=
+    # reconcile 全 row+orphans を carrier 込みで無損失直列化し LLM 手組みの curr=None を根治) は
+    # tests/test_mfk_verdict_export.py / tests/test_mfk_matching_rootcause_golden.py が
+    # `import mfk_verdict_export`、mfk_collect_status.py (C01・発行後 status 収集 SSOT) は
+    # scripts/reconcile_invoices.py / scripts/mfk_fetch_audit.py / tests が `import mfk_collect_status`、
+    # mfk_customer_id_resolve.py (顧客 ID 解決) は lib/notion_sheet_writeback.py / lib/sheet_to_master.py /
+    # tests が `import mfk_customer_id_resolve` する module のため §4.3 例外 (ハイフン不可)。
+    # mfk_verdict_export.py / mfk_collect_status.py は guard-mfk-no-reinvent.py の SANCTIONED basename
+    # でもある。許可動詞化は reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_verdict_export.py",
+    "plugins/mf-kessai-invoice-check/scripts/mfk_collect_status.py",
+    "plugins/mf-kessai-invoice-check/scripts/mfk_customer_id_resolve.py",
+    # 請求書確認シート 月次アーカイブ&ロールオーバー (R5-archive・C07) で追加。
+    # mfk_sheet_archive.py (C07 CLI) は tests/test_notion_sheet_archive.py が `import mfk_sheet_archive`
+    # する module のため §4.3 例外 (ハイフン不可)。engine 本体 lib/notion_sheet_archive.py も同 test が
+    # `import notion_sheet_archive` するが lib/ 配下は本 lint の scripts 走査対象外。許可動詞化は
+    # reconcile_invoices.py と同時の後続 Change Governance PR まで PENDING (既存 mfk_* と同じ扱い)。
+    "plugins/mf-kessai-invoice-check/scripts/mfk_sheet_archive.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/verify_db_schema.py",
     "plugins/mf-kessai-invoice-check/skills/run-mf-invoice-db-setup/scripts/build_notion_db.py",
     # run-mf-initial-month-enrich (取得担当向け任意スキル): MFクラウド請求書 OAuth エンリッチの
@@ -334,6 +352,13 @@ PENDING_RENAME_PATHS = {
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・
     # feedback_contract_ssot.py / discover_repo_tests.py と同列)。
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/specfm.py",
+    # task-graph consumer 族 (harness-creator の project-task-status / record-task-graph-knowledge
+    # と同種) を planner 側 run-plugin-dev-plan にも同梱: project-task-status.py (TG-C09 status
+    # live 投影) は verb 'project'、check-cycle-knowledge.py (依存 closure の循環検出 knowledge
+    # ガード) は verb 'check' が ALLOWED_VERBS 外。SKILL.md(script_refs)/tests/schemas 参照の
+    # 原子的更新を伴う後続 Change Governance 一括改名 PR まで PENDING (既存 check-* 群と同種)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/project-task-status.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-cycle-knowledge.py",
     # run-skill-live-trial 初回投入 (anti-goodhart D2/D12): §4.3 (kebab-case) は満たすが
     # 接頭辞が <feature>-<role> 形 (live-trial-*) で verb が ALLOWED_VERBS 外。boot/send/
     # poll/status/verdict は trial セッションのライフサイクル語で許可動詞に対応語が無く、
@@ -346,6 +371,15 @@ PENDING_RENAME_PATHS = {
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
+    # system-spec-harness 初回投入: §4.3 (kebab-case) は満たすが verb が ALLOWED_VERBS 外。
+    # compile (収集仕様→章立て仕様書へコンパイル) / apply (spec-state 遷移適用) / aggregate
+    # (観点別 verdict を総合 verdict へ集約) は許可動詞に対応語が無い。許可動詞化は
+    # SKILL.md(script_refs)/prompts/tests/agent 参照を原子的に更新する後続 Change Governance
+    # 一括改名 PR まで PENDING (plugin-dev-planner check-* / notion-gmail-send emit-observable
+    # と同種の「新規 plugin 初回投入時の verb pending」扱い)。
+    "plugins/system-spec-harness/skills/run-system-spec-compile/scripts/compile-spec-doc.py",
+    "plugins/system-spec-harness/skills/run-system-spec-elicit/scripts/apply-spec-transition.py",
+    "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/scripts/aggregate-completeness.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

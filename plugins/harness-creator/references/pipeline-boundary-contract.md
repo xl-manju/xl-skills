@@ -68,7 +68,7 @@ task-graph は planner が作る計画構造であり、harness-creator は buil
 
 | 項目 | writer / owner | reader / consumer | 完了ゲート | 備考 |
 |---|---|---|---|---|
-| `task-graph.json` / phase / inventory / handoff | plugin-dev-planner | harness-creator `/capability-build` | planner 側 graph/schema/gate | harness は read-only。plan 直接 mutation 禁止 (唯一の例外は下行 TG-C09 の gitignore 済派生投影ビュー) |
+| `task-graph.json` / phase / inventory / handoff | plugin-dev-planner | harness-creator `/capability-build` | planner 側 graph/schema/gate | harness は read-only。plan 直接 mutation 禁止 (例外は下行 TG-C09 の gitignore 済派生投影ビューと、`reports/` 行のリッチ版納品物の 2 write class のみ) |
 | `task-state.json` / `task-events.jsonl` | harness-creator `sync-task-state.py` | `dispatch-ready-set.py` / `summarize-task-progress.py` / `record-task-graph-knowledge.py` | state schema + replay 整合 | state と event は同じ単一 writer |
 | discovered-task inbox | harness-creator `emit-discovered-task.py` | planner `accept-discovered-task.py` | 未処理 status があれば TG-C08 が completed 拒否 | status は `accepted` / `rejected` / `superseded` で解決済み |
 | build 成果物の周回 scope | harness-creator `resolve_build_dir(target_plugin_slug, cycle_id)` | TG-C02/TG-C05/TG-C07/TG-C08 | `cycle_id` は handoff top-level だけを消費 | `plan_dir` のパス解析は禁止 |
@@ -78,9 +78,10 @@ task-graph は planner が作る計画構造であり、harness-creator は buil
 | `.build.lock` (build 排他 lock) | harness-creator `manage-build-lease.py` (TG-C07) | TG-C07 自身 (steal/renew 判定) | lock TTL + pid 生存判定 | 中身は `{started_at, pid, host}` JSON。runtime 生成物で git 追跡外 |
 | `route-*.json` (route-build-report) | route builder (`build-script-route.py` / `run-build-skill`) | `validate-route-build-reports.py` / TG-C02 (done 照合) / TG-C05 / TG-C08 | route-build-report 契約 (PR#70・additive のみ) | `covered_task_ids` は dispatcher (TG-C06) が node→route join から決定論導出して追記する |
 | `plan-P*.json` (checklist-verification report) | harness-creator dispatcher (TG-C06) | TG-C02 (done 照合) / TG-C08 | `verified_by` + `covered_task_ids` 必須 | `entity_ref=null` ノードの plan-node-verification 証跡 |
-| `task-graph-status.json` / `task-progress.md` (live 状態投影ビュー) | harness-creator `project-task-status.py` (TG-C09) | 人間 (plan dir 観測性) | — (read-only 投影・gate 無し) | **read-only 派生ビュー**: task-graph.json(構造)+task-state.json(状態) を merge 投影するのみで SSOT を書かず graph_hash pin を温存する。harness が plan dir へ書く唯一の例外だが gitignore 追跡外 (.gitignore の投影 2 ファイル) で追跡衝突しない |
+| `task-graph-status.json` / `task-progress.md` / `task-execution-report.html` (live 状態・実行記録投影ビュー) | harness-creator `project-task-status.py` (TG-C09) | 人間 (plan dir 観測性) / 機械 (status JSON) | HTML は self-contained/escape/決定論テスト。最終 `build-summary.json` 保存後に再投影 | **read-only 派生ビュー**: task-graph.json(構造)+task-state.json(状態)+route reports/build-summary(証跡) を merge 投影するのみで SSOT を書かず graph_hash pin を温存する。HTML は slide-report-generator の report 原則を採用し進捗/フロー図/route 証跡/外ループを構造化表示する。3 ファイルとも gitignore 追跡外で追跡衝突しない (plan dir write 例外 class その1) |
+| `plugin-plans/<slug>/reports/<run-id>/` (リッチ版実行記録レポート・任意) | slide-report-generator `run-slide-report-generate` (capability-build 手順 5 の委譲先) | 人間 (納品閲覧) | slide-report-generator 側の R3.5/RQ 検証 | **tracked 納品物** (毎回上書きしない point-in-time 記録・gitignore しない)。オンライン閲覧想定で web font 等の外部資産を許容する — 自己完結の正本は上行 TG-C09 決定論版。plan dir write 例外 class その2 |
 
-handoff `routes[].status` は planner の計画時宣言のみであり、build 後も `planned` 据置が正 (実行状態の正本は task-state.json / route-build-report。parity 突合対象外)。
+handoff `routes[].status` は planner の計画時宣言のみであり、build 後も `planned` 据置が正 (実行状態の正本は task-state.json / route-build-report。parity 突合対象外)。この意味論は planner 側 `references/io-contract.md` の handoff 契約にも同旨を明記する (誤読が起きる成果物の近くに置く)。
 
 ### 実行時契約の既定値表 (正本)
 
@@ -92,6 +93,14 @@ handoff `routes[].status` は planner の計画時宣言のみであり、build 
 | knowledge max-entries | 3 (`--max-entries`) | TG-C08 | 周回あたりの knowledge 肥大を防ぎ bounded summary への蒸留を強制する (constraints #11) |
 
 `record-task-graph-knowledge.py` は completion gate と knowledge 記録の owner だが、task-graph の owner ではない。未処理 discovered-task が残る限り completed を出さず、全 proposal が `accepted` / `rejected` / `superseded` のいずれかになった後で、task-events/stall summary/route-build-report handoff_notes から必要最小限の lesson を蒸留する。
+
+### task-state 損失時の再導出手順 (runbook)
+
+`task-state.json` は eval-log 配下の ephemeral 成果物 (gitignore) であり、損失・破損は設計上起こりうる。復旧は次の決定論手順のみを正とし、**handoff `routes[].status` を実行状態として読まない** ("planned" 据置は計画時宣言 — 誤読して route を再 build すると `--mode update` の Edit 差分が二重適用され非冪等):
+1. 同 build dir の `route-*.json` (route-build-report) と `plan-P*.json` (checklist-verification report) から各 node の done/blocked を再導出する (`covered_task_ids` が node→報告の決定論 join)。
+2. 再導出した state の `graph_hash` を canonical `task-graph.json` の `derive-task-graph.graph_hash()` 算出値と突合して pin する。
+3. `check-task-state-schema.py --task-state <path> --task-graph <canonical>` の exit0 で schema + pin を確認する。
+4. producer 側 parity 検査 (planner `project-task-status.py`・C18) の exit0 で graph/state/projection の 3 面一致を確認して完了。部分損失 (node 集合不一致) は同検査が exit1 で捕捉するため、欠落 node のみ手順 1 から再導出する。
 
 ## 2 ループの actor 責務分離 (AI orchestrator / 決定論 script / 独立 SubAgent / 人間承認)
 
@@ -108,7 +117,7 @@ handoff `routes[].status` は planner の計画時宣言のみであり、build 
 | 内 | state write-back (done/blocked/lease) | 決定論 script (単一 writer) | `sync-task-state.py` (TG-C02) を dispatcher が直列呼出 | SubAgent は TG-C02 を呼ばない |
 | 内 | heartbeat (lock/lease 延長) | 決定論 script | TG-C07 `renew` / TG-C02 `--renew-lease` | 偽孤児回収を防ぐ |
 | 内 | 進捗集計 / 停滞判定 | 決定論 script | `summarize-task-progress.py` (TG-C05) | stall を kind 分類 |
-| 内 | live 状態の plan dir 投影 (観測性) | 決定論 script | `project-task-status.py` (TG-C09) | task-graph.json+task-state.json を **read-only** merge 投影 (SSOT 不変・plan dir へ status/progress・観測性断絶を解消) |
+| 内 | live 状態の plan dir 投影 (観測性) | 決定論 script | `project-task-status.py` (TG-C09) | task-graph.json+task-state.json を **read-only** merge 投影 (SSOT 不変・plan dir へ status JSON / progress md / execution-report HTML の 3 成果物・観測性断絶を解消) |
 | 外 | 発見タスク emit | 決定論 script (引数の 2 つのみ AI) | `emit-discovered-task.py` (TG-C04) | stall 由来は TG-C05 構造化フィールドから機械導出・`--node-title`/`--reason` のみ AI 判断 |
 | 外 | 完了ゲート (未処理 discovered-task 判定) | 決定論 script | `record-task-graph-knowledge.py` (TG-C08) | 未処理残存で completed を block |
 | 外 | handback 提示 | 決定論 script 生成 → **AI が提示** | TG-C08 `handback_command`/`next_steps` | 文面は script が生成・ユーザーへ渡すのは AI |
@@ -129,8 +138,9 @@ build 実行中に発見した残件・欠陥・改善点を「どこへ還流�
 | 他 plugin の欠陥 (cross-plugin 依存・pin drift 等) | **E3 improvement-handoff** | `emit-improvement-handoff.py --source-kind manual` → 相手 plugin plan | upstream pin bump (`goal-seek-paradigm.md` sha 追随) |
 | doc-only 軽微 (次 route が読めば足りる申し送り) | route-build-report の `handover` / `handoff_notes` | builder が report へ記録 | 命名ラベルの不精確など |
 | build 中に已むを得ず out-of-band 修正した項目 | **knowledge Loop B 記録を必須**とする | `record-task-graph-knowledge.py` (TG-C08) の蒸留対象 | schema 未知キー拒否→additive 拡張の判断 |
+| **post-build review の structural 発見** (elegant/content review が検出した能力境界・plan 設計変更級の残件) | **E3 improvement-handoff** | `emit-improvement-handoff.py --source-kind elegant-review` → 境界を所有する plan | full task-spec graph の生成ハーネス同梱 (with-task-graph-goalseek 境界変更) の承認判断 |
 
-原則: **build-failure のみの stall (仕様は正しいが route 失敗) は emit せず人手救済**、**spec-gap を含む stall は structural emit して外ループへ合流**。out-of-band 修正を knowledge へ残さないと次周回で同じ調査をやり直すため、TG-C08 の完了ゲートは out-of-band 修正の Loop B 記録有無を報告する。
+原則: **build-failure のみの stall (仕様は正しいが route 失敗) は emit せず人手救済**、**spec-gap を含む stall は structural emit して外ループへ合流**。post-build review の発見は build 内ループの外で生まれるため TG-C08 inbox 監視に乗らない — review 散文へ書くだけでは人間記憶依存になるため、structural 級は必ず E3 handoff として第一級成果物化する (review artifact は source_ref として紐づく)。out-of-band 修正を knowledge へ残さないと次周回で同じ調査をやり直すため、TG-C08 の完了ゲートは out-of-band 修正の Loop B 記録有無を報告する。
 
 ## 片方向 writer の逆説 (なぜ harness が task-graph を直接書かないか)
 

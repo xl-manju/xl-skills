@@ -27,8 +27,8 @@ def test_active_match_uses_evidence_amount():
     # match/typo は一致明細 (evidence.amount) を実額に採る。
     a = A.resolve_actual([("acme", _svc(55000))], [], status="match",
                          evidence={"cust": "acme", "amount": 55000})
-    assert a == {"issued": True, "actual_amount": 55000,
-                 "supply_state": "active", "canceled_at": None}
+    assert a == {"issued": True, "actual_amount": 55000, "supply_state": "active",
+                 "canceled_at": None, "category_confirmed": True}
 
 
 def test_amount_mismatch_uses_representative_not_expected():

@@ -127,27 +127,65 @@ def test_issued_via_evidence_amount_only():
 
 
 # ---------------------------------------------------------------------------
+# C4: prev 取消の継続性 (_prev_continuity_issued は _is_issued の金額列セマンティクスと別述語)
+# ---------------------------------------------------------------------------
+def test_prev_canceled_with_continuing_curr_match_is_continued_not_new():
+    # C4: prev=REVIEW_CANCELED (supply_state=inactive_canceled かつ canceled_at あり=前月に一度発行
+    # され後に取消) + curr が継続発行 (MATCH) の契約は、継続性上 STATE_NEW でなく STATE_CONTINUED
+    # (症状=2nd Community 5月分7/3取消)。金額列は _amount_of/_is_issued の K3 セマンティクス通り
+    # (取消前額を金額列に出さない) 不変のまま。
+    prev = [{"取引先": "継続取消社", "商品": "月額", "verdict": "REVIEW_CANCELED",
+             "現行単価": 50000, "actual_amount": None,
+             "supply_state": "inactive_canceled", "canceled_at": "2026-07-03"}]
+    curr = [_row("継続取消社", "月額", "MATCH_MONTHLY", amount=50000)]
+    row = _classify(prev, curr)[0]
+    assert row["period_diff"] == "継続発行"
+    assert row["gap_check"] == "正常"
+    assert row["prev_amount"] is None  # K3: 取消前額は金額列に出さない (温存)
+
+
+def test_prev_true_unissued_none_state_stays_new_not_continued():
+    # 真の未発行 (supply_state=none) は継続性の特例対象外。prev が一度も発行されていない通常の
+    # 新規は従来通り STATE_NEW のまま (C4 の適用範囲を取消行に限定する安全弁)。
+    prev = [{"取引先": "真新規継続社", "商品": "月額", "verdict": None,
+             "supply_state": "none"}]
+    curr = [_row("真新規継続社", "月額", "MATCH_MONTHLY")]
+    pairing = P.compare_periods(prev, curr)
+    assert pairing[0]["state"] == P.STATE_NEW
+
+
+def test_prev_canceled_without_canceled_at_stays_new():
+    # inactive_canceled でも canceled_at が無ければ (前月発行の裏付けが弱い) 継続性特例は発火せず
+    # 従来通り STATE_NEW のまま (述語の厳密さを保つ)。
+    prev = [{"取引先": "取消日欠社", "商品": "月額", "verdict": "REVIEW_CANCELED",
+             "supply_state": "inactive_canceled", "canceled_at": None}]
+    curr = [_row("取消日欠社", "月額", "MATCH_MONTHLY")]
+    pairing = P.compare_periods(prev, curr)
+    assert pairing[0]["state"] == P.STATE_NEW
+
+
+# ---------------------------------------------------------------------------
 # 状態: 前月なし今月あり (新規 / 年→月切替)
 # ---------------------------------------------------------------------------
-def test_new_without_lookback_flags_unverified():
-    # D1: ルックバック未実行 (--lookback-12mo 未指定) = 年→月切替の裏付けなし → 要確認へ flip する。
-    # 前月なし今月ありは年契約→月額切替の可能性が高い (C3) が、裏付けが取れていない事実を要確認で
-    # 可視化する (silent に『新規発行(正常)』と断定しない・症状④の新規判断)。
+def test_new_without_lookback_normal_but_discloses_unverified():
+    # 新不変則 (Fix A・要件1を NEW 経路へ拡張): 前月なし今月あり=**今月に実発行あり**=定義上
+    # 『発行漏れ』ではない → 漏れチェックは正常✓。旧 D1 は『発行漏れ (今月未発行)』と『内容の
+    # 未確認 (年→月切替か真の新規か)』を混同して要対応☐へ flip していた (症状①『金額あるのに
+    # チェックが入らない』の根治)。未確認は checkbox を倒さず**コメントで開示**する。
     curr = [_row("新規社", "月額", "MATCH_MONTHLY")]
     row = _classify([], curr)[0]
-    assert row["gap_check"] == "要対応"               # D1: 裏付けなし=新規・要確認☐
+    assert row["gap_check"] == "正常"                 # 今月実発行あり=正常✓ (漏れではない)
     assert row["period_diff"] == "新規/年→月切替"
-    assert "未実行" in row["comment"] and "未確認" in row["comment"]
+    assert "未実行" in row["comment"] and "未確認" in row["comment"]   # 未確認はコメントで開示
 
 
-def test_new_with_lookback_but_no_annual_is_true_new():
-    # D1: ルックバックを実行し当該取引先に年契約履歴が無ければ「確認したが裏付けなし=真の新規」。
-    # 裏付けなし (年契約→月額切替が確認できない真の新規) は要確認へ flip する。未実行 (上のテスト) と
-    # comment で区別され、確認済みであることは明示される。
+def test_new_with_lookback_but_no_annual_normal_true_new():
+    # 新不変則: ルックバックを実行し年契約履歴が無い「真の新規」も、今月に実発行あり=正常✓。
+    # 未実行 (上のテスト) と comment で区別され、真の新規である旨は明示される (checkbox は倒さない)。
     curr = [_row("真新規社", "月額", "MATCH_MONTHLY")]
     lookback = {"別の社": [{"month": "2506", "annual": True}]}  # 対象取引先は不在=確認済み・裏付けなし
     row = _classify([], curr, lookback=lookback, target="2606")[0]
-    assert row["gap_check"] == "要対応"               # D1: 真の新規=裏付けなし=要確認☐
+    assert row["gap_check"] == "正常"                 # 今月実発行あり=正常✓
     assert "確認したが" in row["comment"] and "真の新規" in row["comment"]
     assert "未実行" not in row["comment"]
 
@@ -160,23 +198,46 @@ def test_new_with_annual_backing_is_normal():
     assert row["gap_check"] == "正常"
 
 
-def test_new_backing_is_product_scoped_mixed_contract():
-    # F2 是正 (NEW 経路の漏れ隠蔽封鎖): 年契約商品A の履歴があっても、今月新規の別商品B は
-    # A の年契約履歴で正常化されず要確認☐に残る (商品粒度突合・STOPPED と対称)。
+def test_new_mixed_contract_product_b_normal_via_issuance_not_annual():
+    # 新不変則: 別商品Bは**今月実発行あり=正常✓** (Aの年契約履歴で正常化するのではなく B 自身の
+    # 実発行が根拠)。商品粒度突合は保持され A の年契約性を B へ誤帰属しない (漏れ隠蔽方向の是正は
+    # 維持): コメントは B の年契約裏付けを主張せず『真の新規/未確認』を開示する。
     curr = [_row("混在社", "新商品B", "MATCH_MONTHLY")]
     lookback = {"混在社": [{"month": "2506", "annual": True, "product": "年契約商品A"}]}
     row = _classify([], curr, lookback=lookback, target="2606")[0]
-    assert row["gap_check"] == "要対応"   # 別商品Bの年契約性は未確認=真の新規=要確認
+    assert row["gap_check"] == "正常"     # Bは今月実発行あり=正常 (漏れではない)
+    assert "真の新規" in row["comment"]   # Aの年契約裏付けをBへ誤帰属しない (商品粒度突合は保持)
 
 
-def test_new_backing_demoted_when_fidelity_lookback_partial():
-    # C06 exit3 (lookback 部分欠損) 時は年契約裏付けありでも未確定ゆえ要確認へ降格する (安全側)。
+def test_new_with_fidelity_partial_still_normal_issuance_confirmed():
+    # 新不変則: C06 exit3 (lookback 部分欠損) でも**今月の実発行は確認済**ゆえ正常✓。年→月切替の
+    # 裏付けのみ未確定である旨をコメントで開示する (旧: 要対応へ降格=発行済みを漏れ扱いする誤り)。
     pairing = P.compare_periods([], [_row("年→月社", "月額", "MATCH_MONTHLY")])
     rows = P.classify_period_transition(
         pairing, lookback={"年→月社": [{"month": "2506", "annual": True, "product": "月額"}]},
         target_month="2606", fidelity={"exit_code": 3, "overall": "lookback_partial"})
-    assert rows[0]["gap_check"] == "要対応"
+    assert rows[0]["gap_check"] == "正常"
     assert "部分欠損" in rows[0]["comment"]
+
+
+def test_new_match_annual_verdict_is_dispositive_without_lookback():
+    # C3: 今月 verdict=MATCH_ANNUAL (年一括発行) の新規行は reconcile が既に正常判定済みゆえ、
+    # 12ヶ月ルックバックの裏付けが無くても要確認へ倒さず即正常 (症状=『100億ThinkTank利用料』等)。
+    curr = [_row("新規年契約社", "利用料", "MATCH_ANNUAL", evidence_amount=1000000)]
+    row = _classify([], curr)[0]
+    assert row["gap_check"] == "正常"
+    assert row["period_diff"] == "新規/年→月切替"
+    assert "MATCH_ANNUAL" in row["comment"]
+
+
+def test_new_suppress_annual_verdict_is_also_dispositive():
+    # C3 同型: SUPPRESS_ANNUAL (年間前払い期間中) が curr_issued (reliable_issued 等) で新規行として
+    # 現れても、ANNUAL_NORMAL_VERDICTS の一次源で即正常化する (STOPPED 側③と対称)。
+    curr = [{"取引先": "新規年契約社2", "商品": "利用料", "verdict": "SUPPRESS_ANNUAL",
+             "現行単価": 500000, "reliable_issued": True}]
+    row = _classify([], curr)[0]
+    assert row["gap_check"] == "正常"
+    assert "SUPPRESS_ANNUAL" in row["comment"]
 
 
 def test_new_with_12mo_annual_lookback_is_switch():
@@ -453,6 +514,50 @@ def test_contract_id_disambiguation_same_customer_product():
     assert by_cid["C2"]["gap_check"] == "要対応"
 
 
+def test_agency_end_client_disambiguation_prevents_silent_collapse():
+    # C5: 代理店が同一商品を複数エンドクライアント (contract_id 未設定) に契約するとき、
+    # エンドクライアント名で分離しないと (取引先,商品) の setdefault で 1 件のみ残り、他方の
+    # 状態変化 (停止) が完全に隠蔽される (HOSONO 型)。エンドクライアント名で分離すれば個別に
+    # 正しく突合される (継続 1 件・発行漏れ候補 1 件)。
+    prev = [
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様"},
+    ]
+    curr = [
+        {"取引先": "代理店社", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        # B様は今月停止 (curr行なし)。
+    ]
+    report = _by_customer(_classify(prev, curr), "代理店社")
+    assert len(report) == 2
+    diffs = {r["period_diff"] for r in report}
+    assert "継続発行" in diffs
+    assert any("発行漏れ候補" in d for d in diffs)  # B様の停止が可視化される (隠蔽されない)
+
+
+def test_agency_end_client_key_stable_despite_inconsistent_contract_id():
+    # C5: contract_id が今月だけ付与される等の不整合があっても、エンドクライアント名で突合キーが
+    # 安定するため両エンドクライアントとも正しく継続発行になる (contract_id 不整合由来の
+    # 幻の NEW+STOPPED を防ぐ)。
+    prev = [
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様"},
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様"},
+    ]
+    curr = [
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 30000, "エンドクライアント名": "A様", "契約ID": "C-A"},
+        {"取引先": "代理店社2", "商品": "業務委託費", "verdict": "MATCH_MONTHLY",
+         "現行単価": 50000, "エンドクライアント名": "B様", "契約ID": "C-B"},
+    ]
+    report = _by_customer(_classify(prev, curr), "代理店社2")
+    assert len(report) == 2
+    assert all(r["period_diff"] == "継続発行" for r in report)
+
+
 def test_no_disambiguation_when_single_contract():
     # 単一 contract_id なら取引先×商品のみで突合 (片側に契約ID欠落でも対応付く)。
     prev = [_row("単一社", "月額", "MATCH_MONTHLY", contract_id="C9")]
@@ -478,6 +583,16 @@ def test_amount_and_int_coercion():
     assert P._amount_of({"現行単価": "12,000"}) == 12000
     assert P._amount_of({"evidence": {"amount": 900}}) == 900
     assert P._amount_of({}) is None
+
+
+def test_amount_of_allows_expected_fallback_for_supply_none():
+    row = {"actual_amount": None, "supply_state": "none", "現行単価": "50,000"}
+    assert P._amount_of(row) == 50000
+
+
+def test_amount_of_blocks_expected_fallback_for_inactive_supply():
+    row = {"actual_amount": None, "supply_state": "inactive_canceled", "現行単価": "50,000"}
+    assert P._amount_of(row) is None
 
 
 def test_lookback_index_forms():
@@ -555,10 +670,11 @@ def test_main_empty_lookback_file_still_warns_unverified(tmp_path, capsys):
     rc = P.main(["--curr-verdicts", curr, "--prev-verdicts", prev,
                  "--lookback-12mo", empty_lb, "--target-month", "2606",
                  "--fidelity-report", _fidelity(tmp_path)])
-    # D1: 空 lookback=裏付けなしの新規は要確認へ flip するため gap_check=要対応 → rc=1。
-    assert rc == 1
+    # 新不変則: 空 lookback でも新規は今月実発行あり=正常✓ (漏れではない) ゆえ rc=0。
+    # 年→月切替の裏付け未確認は checkbox を倒さないが stderr 警告での開示は維持する。
+    assert rc == 0
     err = capsys.readouterr().err
-    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火
+    assert "12ヶ月履歴データなし" in err and "未確認" in err   # 空でも警告発火 (開示は維持)
 
 
 def test_main_missing_file_fail_closed(tmp_path):
@@ -648,3 +764,134 @@ def test_originally_unbilled_and_suppressed_still_dropped():
     # curr に行が無い (元々請求なし/当月の発行期待なし) も非 emit。
     prev_only = P.build_report([], [_row("退会社", "月額", "GAP")], target_month="2606")
     assert prev_only == []
+
+
+def test_orphan_master_registration_is_normal_check():
+    # 要件3(2026-07-10): MF実績あり×シート契約なし=要マスタ登録 は正常✓ (GAP_ACTION でなく GAP_OK)。
+    # 発行自体は正常 (MF実績あり) ゆえ漏れチェックは正常、登録方法はコメントに保持し、契約なしを漏れ扱いしない。
+    curr = {"rows": [], "orphans": [
+        {"customer": "オーファン商事", "product": "月額サービス", "actual_amount": 88000}]}
+    rows = P.build_report(curr, [], target_month="2606")
+    orphan = [r for r in rows if r["period_diff"] == "要マスタ登録"]
+    assert len(orphan) == 1
+    assert orphan[0]["gap_check"] == "正常"              # 漏れチェック=正常✓ (要対応でない)
+    assert orphan[0]["customer"] == "オーファン商事"
+    assert orphan[0]["amount"] == 88000                  # MF実績額を保持
+    assert "要マスタ登録" in orphan[0]["comment"]         # 名寄せ登録の action をコメントで保持
+    assert orphan[0]["reliable_issued"] is True
+
+
+# ---------------------------------------------------------------------------
+# 要因A/B/C (2026-07-10 ユーザー確定): 月跨ぎ ID 突合 / 年契約開始✓ / 長期未発行 surface
+# ---------------------------------------------------------------------------
+def _issued(customer, product, cid=None, cycle=None, status=None,
+            amount=50000, verdict="MATCH_MONTHLY"):
+    r = {"取引先": customer, "商品": product, "verdict": verdict,
+         "reliable_issued": True, "actual_amount": amount, "supply_state": "active"}
+    if cid is not None:
+        r["MF顧客ID"] = cid
+    if cycle is not None:
+        r["支払サイクル"] = cycle
+    if status is not None:
+        r["ステータス"] = status
+    return r
+
+
+def _not_issued(customer, product, cid=None, cycle=None, status=None, verdict="GAP"):
+    r = {"取引先": customer, "商品": product, "verdict": verdict,
+         "reliable_issued": False, "supply_state": "none"}
+    if cid is not None:
+        r["MF顧客ID"] = cid
+    if cycle is not None:
+        r["支払サイクル"] = cycle
+    if status is not None:
+        r["ステータス"] = status
+    return r
+
+
+# --- 要因A: 月跨ぎ突合を MF顧客ID 第一キーにする ---
+def test_A_matches_by_customer_id_across_name_drift():
+    prev = [_issued("アルファ合同会社", "利用料", cid="cust-XYZ")]
+    curr = [_issued("アルファ合同会社(旧アルファ)", "利用料", cid="cust-XYZ")]
+    pairing = P.compare_periods(prev, curr)
+    assert len(pairing) == 1
+    assert pairing[0]["state"] == P.STATE_CONTINUED
+
+
+def test_A_name_drift_without_id_still_splits():
+    prev = [_issued("アルファ合同会社", "利用料")]
+    curr = [_issued("アルファ合同会社(旧アルファ)", "利用料")]
+    assert len(P.compare_periods(prev, curr)) == 2
+
+
+def test_A_id_bridge_inherits_when_one_month_lacks_explicit_id():
+    prev = [_issued("ベータ商事", "保守", cid="cust-B")]
+    curr = [_issued("ベータ商事", "保守")]
+    pairing = P.compare_periods(prev, curr)
+    assert len(pairing) == 1
+    assert pairing[0]["state"] == P.STATE_CONTINUED
+
+
+def test_A_different_customer_ids_do_not_merge():
+    prev = [_issued("同名社", "月額", cid="cust-1")]
+    curr = [_issued("同名社", "月額", cid="cust-2")]
+    assert len(P.compare_periods(prev, curr)) == 2
+
+
+# --- 要因B: 新規年契約開始 (支払サイクル年契約系) は 12ヶ月履歴なしでも正常✓ ---
+def test_B_new_annual_cycle_start_is_normal():
+    curr = [_issued("ガンマ", "年間ライセンス", cid="c-g", cycle="年間払い",
+                    amount=1200000, verdict=None)]
+    rows = _classify([], curr)
+    assert len(rows) == 1
+    assert rows[0]["gap_check"] == "正常"
+    assert "年契約開始" in rows[0]["comment"]
+
+
+def test_B_new_annual_renewal_cycle_is_normal():
+    curr = [_issued("シータ", "更新ライセンス", cid="c-t", cycle="年間一括更新",
+                    amount=900000, verdict=None)]
+    assert _classify([], curr)[0]["gap_check"] == "正常"
+
+
+def test_B_new_monthly_without_backing_is_normal_issued_this_month():
+    # 新不変則: 月払いの新規契約でも**今月に実発行あり**なら正常✓ (発行漏れは今月未発行に限る)。
+    # 旧挙動 (裏付けなし月払い新規=要対応) は『発行の存在』と『内容の未確認』の混同だった。
+    curr = [_issued("デルタ", "保守月額", cid="c-d", cycle="月払い",
+                    amount=50000, verdict=None)]
+    assert _classify([], curr)[0]["gap_check"] == "正常"
+
+
+# --- 要因C: 先月も今月も未発行の月払いアクティブ契約 (完了未確認) を要対応 surface ---
+def test_C_both_absent_active_monthly_surfaced_as_action():
+    prev = [_not_issued("イプシロン", "保守月額", cid="c-e", cycle="月払い", status="有効")]
+    rows = _classify(prev, [])
+    assert len(rows) == 1
+    assert rows[0]["gap_check"] == "要対応"
+    assert "継続" in rows[0]["period_diff"]
+    assert "契約完了の確認が取れず" in rows[0]["comment"]
+
+
+def test_C_both_absent_completed_verdict_not_emitted():
+    prev = [_not_issued("ゼータ", "保守月額", cid="c-z", cycle="月払い", verdict="SUPPRESS_ENDED")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_status_ended_not_emitted():
+    prev = [_not_issued("イオタ", "保守月額", cid="c-i", cycle="月払い", status="終了")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_annual_cycle_not_emitted():
+    prev = [_not_issued("イータ", "年間ライセンス", cid="c-h", cycle="年間払い")]
+    assert _classify(prev, []) == []
+
+
+def test_C_both_absent_non_monthly_cycle_not_surfaced():
+    assert _classify([_not_issued("カッパ", "従量課金", cid="c-k", cycle="従量")], []) == []
+    assert _classify([_not_issued("ラムダ", "保留商品", cid="c-l")], []) == []
+
+
+def test_C_both_absent_review_pending_not_surfaced():
+    prev = [_not_issued("ミュー", "保守月額", cid="c-m", cycle="月払い", verdict="REVIEW_PENDING")]
+    assert _classify(prev, []) == []

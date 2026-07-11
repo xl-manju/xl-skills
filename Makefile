@@ -38,6 +38,9 @@ lint: contract-intake vendored-ssot legacy-plugin-name runtime-portability readm
 	python3 scripts/lint-skill-name.py --skills-dir plugins/notion-gmail-send/skills
 	python3 scripts/lint-skill-description.py --skills-dir plugins/notion-gmail-send/skills
 	python3 scripts/validate-frontmatter.py --skills-dir plugins/notion-gmail-send/skills
+	python3 scripts/lint-skill-name.py --skills-dir plugins/system-spec-harness/skills
+	python3 scripts/lint-skill-description.py --skills-dir plugins/system-spec-harness/skills
+	python3 scripts/validate-frontmatter.py --skills-dir plugins/system-spec-harness/skills
 	python3 scripts/lint-plugin-lint-coverage.py
 	# repo 全域の全 test が CI のテスト実行で到達することを fail-closed 検査 (elegant-review 2026-06-30)
 	python3 scripts/lint-test-discovery-coverage.py

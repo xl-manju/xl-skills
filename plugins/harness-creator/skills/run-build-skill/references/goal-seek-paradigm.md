@@ -167,7 +167,7 @@ evaluator は一度の採点で完結する read-only 工程。ループは回�
 
 ## engine 変種 (task-graph): 依存順駆動 + self-reflect
 
-`goal_seek.engine` の opt-in 値 `task-graph`（既定 `inline`・独立 combinator flag は新設しない＝H5）。checklist の `depends_on`（additive・`goal-seek-loop.schema.json`）を依存充足順に消費し、実行中に発見した新規タスクを self-reflect で checklist 末尾へ追記する engine 変種。
+`goal_seek.engine` の値 `task-graph`（**loop kind の既定**: brief が engine を明示しない場合に defaulting される。opt-out は `engine: inline`/`run-goal-seek` の明示。独立 combinator flag は新設しない＝H5）。checklist の `depends_on`（additive・`goal-seek-loop.schema.json`）を依存充足順に消費し、実行中に発見した新規タスクを self-reflect で checklist 末尾へ追記する engine 変種。
 
 ### 単一truth設計（別状態ファイルを新設しない・H3）
 task-graph 変種は **別状態ファイル（task-graph.json 相当）を一切新設せず**、既存の `eval-log/<skill>-progress.json` の checklist と `intermediate.jsonl` のみを唯一の真実源とする。

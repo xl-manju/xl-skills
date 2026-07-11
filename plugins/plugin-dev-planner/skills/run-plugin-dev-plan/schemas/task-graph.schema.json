@@ -21,12 +21,50 @@
           "entity_ref": {"type": ["string", "null"], "description": "component id (entities_covered 由来)。component 非依存タスクは null"},
           "state": {
             "type": "string",
-            "enum": ["pending", "running", "done", "blocked"],
-            "description": "永続 4 値。ready は compute-ready-set が都度導出する computed-only 派生状態であり、task-graph.json の node.state へ焼かない"
+            "const": "pending",
+            "description": "canonical graph の immutable seed。running/done/blocked は task-state.json にのみ記録し、ready は都度導出する"
           },
-          "write_scope": {"type": "string", "description": "この task が排他的に書き込む成果物パス (並列衝突判定キー)。2 用法: entity 紐づき node は build_target の排他書込パス / checkpoint node (entity_ref=null の task・phase 仮想ルート) は自 node id の擬似 scope (定義上他 node と衝突しない)"},
-          "acceptance_criterion": {"type": "string", "description": "1 検証可能成果物に対応する受入基準 (C14 携帯率計測対象・optional)"}
-        }
+          "write_scope": {"type": "string", "minLength": 1, "description": "この task が排他的に書き込む成果物パス (並列衝突判定キー)。2 用法: entity 紐づき node は build_target の排他書込パス / checkpoint node (entity_ref=null の task・phase 仮想ルート) は自 node id の擬似 scope (定義上他 node と衝突しない)"},
+          "acceptance_criterion": {"type": "string", "minLength": 1, "description": "1 検証可能成果物に対応する受入基準 (C14 携帯率計測対象・fixed shape では optional、task-graph-derived の実行可能 leaf では validator が必須化)"},
+          "execution_kind": {
+            "type": "string",
+            "enum": ["direct-task", "component-build", "phase-gate"],
+            "description": "task node の実行分類 (C17・optional additive)。component-build だけが明示 route_ref を持ち dispatch 対象、direct-task は route_ref を持たない実行タスク、phase-gate は非 dispatch の phase 完了集約点。未携帯 (fixed-13-phase bootstrap) は legacy 直列解釈へ後方互換 fallback"
+          },
+          "route_ref": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "description": "execution_kind==component-build のとき必須の明示 route id (C17)。entity_ref を builder 選択へ流用する暗黙 route は fail-closed 拒否 (render-task-execution-envelope.py)。direct-task/phase-gate は null"
+          },
+          "task_spec_ref": {
+            "type": ["string", "null"],
+            "pattern": "^task-specs/[^/]+\\.md$",
+            "description": "可変 task spec (task-specs/<task-id>.md) への参照 (C17)。dispatch 対象 leaf は非 null 必須。phase-gate は集約点ゆえ null 可"
+          }
+        },
+        "allOf": [
+          {
+            "if": {"required": ["execution_kind"], "properties": {"execution_kind": {"const": "component-build"}}},
+            "then": {
+              "required": ["route_ref", "task_spec_ref"],
+              "properties": {"route_ref": {"type": "string", "minLength": 1}, "task_spec_ref": {"type": "string"}}
+            }
+          },
+          {
+            "if": {"required": ["execution_kind"], "properties": {"execution_kind": {"const": "direct-task"}}},
+            "then": {
+              "required": ["route_ref", "task_spec_ref"],
+              "properties": {"route_ref": {"type": "null"}, "task_spec_ref": {"type": "string"}}
+            }
+          },
+          {
+            "if": {"required": ["execution_kind"], "properties": {"execution_kind": {"const": "phase-gate"}}},
+            "then": {
+              "required": ["route_ref", "task_spec_ref"],
+              "properties": {"route_ref": {"type": "null"}, "task_spec_ref": {"type": "null"}}
+            }
+          }
+        ]
       }
     },
     "edges": {

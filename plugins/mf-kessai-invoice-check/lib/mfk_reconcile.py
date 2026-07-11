@@ -498,6 +498,11 @@ def _company_match(tnorm, cust_norm):
     包含一致は短名の偶発包含(例: 児島株式会社→『児島』が 鹿児島堀口製茶 に含まれ誤MATCH)を
     避けるため、含まれる側を 3 文字以上に限定する(design の orphan法『最短3文字以上を要求し
     短名の偶発包含を抑止』と一致)。完全一致は長さによらず許容する。
+
+    名前 normalize だけでは表記が食い違う会社(name-drift: 日本語⇄英語表記等)は個社の
+    会社名リテラルを条件分岐や読み替え表へ焼いて救わない(C14: 対症療法禁止)。この場合の
+    一般解は MF顧客ID を契約へ carry すること(scripts/mfk_customer_id_resolve.py が一意解決/
+    backfill を担う)。_boundary_customers の ID優先経路がその carry を消費し、本関数への依存を外す。
     """
     if len(tnorm) < 2 or len(cust_norm) < 2:
         return False
@@ -647,7 +652,7 @@ def _scoped_inactive(boundary, ec_norms, expected_cats):
         (cust, cs) for cust, cs in inactive_cands
         if not expected_cats or cs.get("category") in expected_cats
     ]
-    return inactive_category if expected_cats else inactive_cands
+    return inactive_category if inactive_category else inactive_cands
 
 
 # cancellation_note が対象外/終了根拠なし行へ付ける取消注記のマーカー語(SSOT)。
@@ -725,7 +730,12 @@ def find_mf_match(contract, mf_index, mode="monthly"):
         (cust, svc) for cust, svc in candidates
         if not expected_cats or svc.get("category") in expected_cats
     ]
-    scoped_candidates = category_candidates if expected_cats else candidates
+    scoped_candidates = category_candidates if category_candidates else candidates
+    # 安全弁: 期待 category があり、その確定一致が取れたか (True) / 一致ゼロで境界内全 active 供給へ
+    # category-agnostic fallback したか (False)。False の active 一致は別 category/商品の供給を当該契約の
+    # 発行と取り違えている可能性があり、reliable_issued を権威ある正常訂正に使うと真の月次漏れを隠す
+    # (system-strategic 検証 HIGH)。expected_cats 無し=category 制約なし=presence 権威ゆえ True。
+    category_confirmed = (not expected_cats) or bool(category_candidates)
 
     # 非active(取消/審査中/否決/停止等)供給も services と同じ endclient/category スコープで絞る
     # (自境界の非active証跡)。cancellation_note と同一スコープを共有 (_scoped_inactive)。
@@ -743,7 +753,8 @@ def find_mf_match(contract, mf_index, mode="monthly"):
             "status": status, "evidence": evidence,
             "boundary_supply": company_supply, "cross_evidence": cross_evidence,
             "actual": mfk_actuals.resolve_actual(
-                scoped_candidates, scoped_inactive, status, evidence, expected_cats),
+                scoped_candidates, scoped_inactive, status, evidence, expected_cats,
+                category_confirmed=category_confirmed),
         }
 
     if mode == "presence":
@@ -883,6 +894,9 @@ def _new_row(contract, **computed):
     rec.setdefault("reliable_issued", False)
     rec.setdefault("supply_state", mfk_actuals.SUPPLY_NONE)
     rec.setdefault("canceled_at", None)
+    # 安全弁: 既定 True (category 制約なし/未経由行は presence 権威扱い)。find_mf_match 経由行は
+    # _attach_actual が category-agnostic fallback 一致のとき False へ更新する。
+    rec.setdefault("category_confirmed", True)
     return rec
 
 
@@ -898,6 +912,9 @@ def _attach_actual(rec, match):
         return
     rec["actual_amount"] = a.get("actual_amount")
     rec["reliable_issued"] = bool(a.get("issued"))
+    # 安全弁: category-agnostic fallback で得た active 一致は非確定 (category_confirmed=False)。
+    # 消費側 (_row_reliable_mf_issued) が reliable_issued を権威判定 (要対応☐の上書き) から除外する。
+    rec["category_confirmed"] = bool(a.get("category_confirmed", True))
     rec["supply_state"] = a.get("supply_state") or mfk_actuals.SUPPLY_NONE
     if a.get("canceled_at"):
         rec["canceled_at"] = a.get("canceled_at")

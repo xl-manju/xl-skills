@@ -34,8 +34,8 @@
     "engine": {
       "type": "string",
       "enum": ["inline", "run-goal-seek", "task-graph"],
-      "default": "inline",
-      "description": "この周回状態を回している goal-seek engine (frontmatter goal_seek.engine と一致)。additive/後方互換 (既定 inline)。engine==task-graph の周回状態は intermediate.jsonl へ ready_set/selected_item トレースを必須で追記し、機械検査 (task-graph 変種) が『トレース不在=拘束違反 (exit1)』として絶対検査する — 沈黙による依存順消費の回避を封鎖する (absence-as-violation)。"
+      "default": "task-graph",
+      "description": "この周回状態を回している goal-seek engine (frontmatter goal_seek.engine と一致)。additive/後方互換 (既定 task-graph・build-flags schema の engine 既定と一致)。engine==task-graph の周回状態は intermediate.jsonl へ ready_set/selected_item トレースを必須で追記し、機械検査 (task-graph 変種) が『トレース不在=拘束違反 (exit1)』として絶対検査する — 沈黙による依存順消費の回避を封鎖する (absence-as-violation)。"
     },
     "fork_context": {
       "type": "string",

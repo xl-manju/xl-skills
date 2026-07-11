@@ -681,6 +681,95 @@ def test_entries_loop_a_unwired_warns_and_records_loop_b_only(tmp_path, capsys):
     assert len(b_cat["items"]) == 1
 
 
+def test_loop_a_store_absent_precheck_classifies_skipped(tmp_path, capsys):
+    """store ディレクトリ不在は事前検知で loop_a_skipped へ分類 (record_failed にしない)。"""
+    if not _ADD_ENTRY.exists():
+        pytest.skip("add_entry.py テンプレートが見つからない")
+    loop_b = _make_store(tmp_path / "harnesskb", "build-time")
+    events = _events(tmp_path, [{"ts": "t1", "type": "lease_reaped", "task_id": "T1"}])
+    rc = rec.main([
+        "--discovered-inbox", str(tmp_path / "nope"),
+        "--task-events", str(events),
+        "--target-knowledge-dir", str(tmp_path / "no_such_store"),
+        "--harness-knowledge-dir", str(loop_b),
+        "--add-entry-path", str(_ADD_ENTRY),
+    ])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["knowledge_record_status"] == "loop_a_skipped"
+    assert out["store_results"]["loop_a"]["status"] == "skipped"
+    assert "不在" in out["store_results"]["loop_a"]["reason"]
+    # Loop B は per-store 隔離で記録される
+    assert out["store_results"]["loop_b"] == {"status": "ok", "recorded": 1}
+    assert out["entries_recorded"] == 1
+
+
+def test_loop_a_store_without_consult_at_classifies_skipped(tmp_path, capsys):
+    """consult_at 未宣言 store は事前検知で loop_a_skipped へ分類 (KL-007 事前検査)。"""
+    if not _ADD_ENTRY.exists():
+        pytest.skip("add_entry.py テンプレートが見つからない")
+    loop_a = tmp_path / "targetkb"
+    loop_a.mkdir()
+    (loop_a / "knowledge-index.json").write_text(
+        json.dumps({"version": "1.0.0", "categories": []}), encoding="utf-8")
+    loop_b = _make_store(tmp_path / "harnesskb", "build-time")
+    events = _events(tmp_path, [{"ts": "t1", "type": "lease_reaped", "task_id": "T1"}])
+    rc = rec.main([
+        "--discovered-inbox", str(tmp_path / "nope"),
+        "--task-events", str(events),
+        "--target-knowledge-dir", str(loop_a),
+        "--harness-knowledge-dir", str(loop_b),
+        "--add-entry-path", str(_ADD_ENTRY),
+    ])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["knowledge_record_status"] == "loop_a_skipped"
+    assert "consult_at" in out["store_results"]["loop_a"]["reason"]
+    assert out["store_results"]["loop_b"]["recorded"] == 1
+
+
+def test_loop_a_write_failure_does_not_abort_loop_b(tmp_path, capsys):
+    """Loop A の実書込失敗 (store 単位 try 隔離) でも Loop B へは全 entry 記録される。"""
+    if not _ADD_ENTRY.exists():
+        pytest.skip("add_entry.py テンプレートが見つからない")
+    loop_a = _make_store(tmp_path / "targetkb", "runtime")
+    # 事前検知は通る (index+consult_at あり) が add_entry が category file 破損で失敗する
+    (loop_a / "knowledge-build-patterns.json").write_text("{broken json", encoding="utf-8")
+    loop_b = _make_store(tmp_path / "harnesskb", "build-time")
+    events = _events(tmp_path, [{"ts": "t1", "type": "lease_reaped", "task_id": "T1"}])
+    rc = rec.main([
+        "--discovered-inbox", str(tmp_path / "nope"),
+        "--task-events", str(events),
+        "--target-knowledge-dir", str(loop_a),
+        "--harness-knowledge-dir", str(loop_b),
+        "--add-entry-path", str(_ADD_ENTRY),
+    ])
+    assert rc == 0  # 記録失敗を完了へ伝播させない
+    out = json.loads(capsys.readouterr().out)
+    assert out["knowledge_record_status"] == "record_failed"
+    assert out["store_results"]["loop_a"]["status"] == "failed"
+    assert out["store_results"]["loop_a"]["recorded"] == 0
+    # per-store 隔離: Loop B は巻き込まれず記録される
+    assert out["store_results"]["loop_b"] == {"status": "ok", "recorded": 1}
+    assert out["entries_recorded"] == 1
+    b_cat = json.loads((loop_b / "knowledge-build-patterns.json").read_text(encoding="utf-8"))
+    assert len(b_cat["items"]) == 1
+
+
+def test_check_store_ready_reasons(tmp_path):
+    """check_store_ready の事前検知 3 分類 (dir 不在 / index 不在 / consult_at 未宣言)。"""
+    assert "不在" in rec.check_store_ready(tmp_path / "nope")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert "knowledge-index.json" in rec.check_store_ready(empty)
+    undeclared = tmp_path / "undeclared"
+    undeclared.mkdir()
+    (undeclared / "knowledge-index.json").write_text("{}", encoding="utf-8")
+    assert "consult_at" in rec.check_store_ready(undeclared)
+    ready = _make_store(tmp_path / "ready", "runtime")
+    assert rec.check_store_ready(ready) is None
+
+
 def test_knowledge_write_failure_does_not_block_completion(tmp_path, capsys):
     """F2: add_entry 不在で knowledge 記録が失敗しても完了ゲートは ok を維持 (exit0)。"""
     loop_a = _make_store(tmp_path / "targetkb", "runtime")

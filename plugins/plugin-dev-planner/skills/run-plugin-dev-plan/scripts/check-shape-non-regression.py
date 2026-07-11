@@ -15,10 +15,10 @@
 # ///
 """新旧shape 非劣化ゲート (C14 (a) 精度携帯率 / (c) 再現性)。
 
-(a) acceptance_attachment_rate(nodes, edges): 新shape task node のうち検証可能な
+(a) acceptance_attachment_rate(nodes, edges): 新shape の実行可能 leaf のうち検証可能な
     acceptance_criterion (検証不能自然文は除外) を携帯し、かつ検証可能成果物 (produces) を
-    指す node の割合。legacy_baseline_rate(phase_files): 旧shape §5 項目のうち検証可能な
-    outcome を文中携帯する率 (散文アクション項目は 0)。前者が後者を下回れば劣化。
+    指す node の割合。legacy_baseline_rate(phase_files): 旧shape §5 は定義上 1項目=1受入単位
+    なので、項目が存在する場合の基準線を 1.0 とする。前者が後者を下回れば劣化。
 (c) check_reproducibility(plan_dir): derive-task-graph.derive() を同一入力に 2 回適用し
     canonical_json() の byte 一致 + node id 集合一致を検証する。
 (b) 品質 A/B genuine 判定は本 script の責務外 (C02 R1-evaluate.md 側)。C10⇔C14 相互参照:
@@ -38,11 +38,6 @@ import specfm  # noqa: E402
 
 # acceptance_criterion が「検証可能」であることの簡易素片 (具体語シグナル)。
 _CONCRETE_RE = re.compile(r"[A-Za-z]{3,}|[0-9]|[≥≤=]|一致|検証|テスト|exit")
-# 旧shape §5 項目が「検証可能な outcome を携帯する」ことの簡易素片。散文アクション
-# (「〜を実装する」等) を 0 とみなすため、期待結果を表す語のみを signal にする
-# (「検証する」等のアクション動詞は含めない=二層分離のヒューリスティック層)。
-_LEGACY_OUTCOME_RE = re.compile(r"一致|exit\s*0|を満たす|以上|≥|≤|等しい|expected")
-
 _DTG_CACHE = None
 
 
@@ -93,7 +88,11 @@ def acceptance_attachment_rate(nodes, edges=None, criterion_key: str = "acceptan
     produces field も無い場合は produces 要件を課さず acceptance_criterion 非空 (かつ検証可能) の
     みで判定する (P04 C14 精度受入例)。検証不能な自然文 ("がんばる" 等) は携帯カウントから除外。
     """
-    if not nodes:
+    candidates = [
+        n for n in nodes
+        if isinstance(n, dict) and n.get("execution_kind") != "phase-gate"
+    ]
+    if not candidates:
         return 0.0
     producers: set = set()
     if edges:
@@ -101,9 +100,7 @@ def acceptance_attachment_rate(nodes, edges=None, criterion_key: str = "acceptan
             if isinstance(e, dict) and e.get("type") == "produces":
                 producers.add(e.get("from"))
     attached = 0
-    for n in nodes:
-        if not isinstance(n, dict):
-            continue
+    for n in candidates:
         crit = n.get(criterion_key)
         if not (isinstance(crit, str) and crit.strip()):
             continue
@@ -114,16 +111,11 @@ def acceptance_attachment_rate(nodes, edges=None, criterion_key: str = "acceptan
         if requires_produces and not _node_has_produces(n, producers):
             continue
         attached += 1
-    return attached / len(nodes)
+    return attached / len(candidates)
 
 
 def legacy_baseline_rate(phase_files) -> float:
-    """旧shape §5 完了チェックリスト項目のうち検証可能な outcome を文中携帯する率。
-
-    §5 項目は定義上受入基準を兼ねるが、旧shape の散文アクション項目 (「〜を実装する」) は
-    検証可能成果物/受入基準を文中に携帯しないため 0 とカウントする (P04 C14 精度受入例:
-    旧shape fixture の携帯率 0/1=0% を基準線とする)。項目が 1 件も無ければ 0.0。
-    """
+    """旧shape §5 の暗黙受入単位を基準化する (項目あり=1.0、無し=0.0)。"""
     dtg = _load_derive_task_graph()
     items: list[str] = []
     for pf in phase_files:
@@ -136,16 +128,25 @@ def legacy_baseline_rate(phase_files) -> float:
         items.extend(dtg._parse_checklist_items(body))
     if not items:
         return 0.0
-    carried = sum(1 for it in items if _LEGACY_OUTCOME_RE.search(str(it)))
-    return carried / len(items)
+    # fixed-13-phase の §5 項目は定義上 1 項目=1 受入単位。新shape は暗黙性を
+    # 許さず、同じ 100% を明示 criterion+artifact で満たす必要がある。
+    return 1.0
 
 
 def check_reproducibility(plan_dir) -> list[str]:
-    """同一 plan_dir で derive を 2 回実行し canonical byte 一致 + node id 集合一致を検証する。"""
+    """同一 plan_dir で derive を 2 回実行し byte/node/spec-file集合一致を検証する。"""
     dtg = _load_derive_task_graph()
     plan_dir = Path(plan_dir)
+    def spec_files() -> set[str]:
+        paths = list(plan_dir.glob("phase-*.md"))
+        paths.extend((plan_dir / "task-specs").glob("*.md") if (plan_dir / "task-specs").is_dir() else [])
+        return {str(path.relative_to(plan_dir)) for path in paths}
+
+    files_before = spec_files()
     run1 = dtg.derive(plan_dir)
+    files_between = spec_files()
     run2 = dtg.derive(plan_dir)
+    files_after = spec_files()
     violations: list[str] = []
     j1 = dtg.canonical_json(run1).encode("utf-8")
     j2 = dtg.canonical_json(run2).encode("utf-8")
@@ -155,6 +156,11 @@ def check_reproducibility(plan_dir) -> list[str]:
     ids2 = {n.get("id") for n in dtg.canonicalize(run2).get("nodes", [])}
     if ids1 != ids2:
         violations.append(f"再現性違反: node id 集合が両実行で不一致 (差分={sorted(ids1 ^ ids2)})")
+    if not (files_before == files_between == files_after):
+        violations.append(
+            "再現性違反: 2 回の derive 前後で仕様ファイル集合が不一致 "
+            f"(差分={sorted((files_before ^ files_between) | (files_between ^ files_after))})"
+        )
     return violations
 
 
@@ -183,6 +189,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"not a directory: {plan_dir}", file=sys.stderr)
         return 2
 
+    dtg = _load_derive_task_graph()
+    try:
+        marker = dtg.shape_marker(plan_dir)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    if marker == "fixed-13-phase":
+        try:
+            repro = check_reproducibility(plan_dir)
+        except ValueError as exc:
+            repro = [f"再現性検査不能: {exc}"]
+        if repro:
+            for violation in repro:
+                print(violation)
+            return 1
+        print("not-applicable: fixed-13-phase (C14 adoption gate は task-graph-derived のみ)")
+        return 0
+
     nodes: list = []
     edges = None
     tg_path = plan_dir / "task-graph.json"
@@ -199,7 +223,10 @@ def main(argv: list[str] | None = None) -> int:
     attach = acceptance_attachment_rate(nodes, edges=edges)
     phase_files = sorted(plan_dir.glob("phase-*.md"), key=lambda p: p.name)
     baseline = legacy_baseline_rate(phase_files)
-    repro = check_reproducibility(plan_dir)
+    try:
+        repro = check_reproducibility(plan_dir)
+    except ValueError as exc:
+        repro = [f"再現性検査不能: {exc}"]
 
     violations: list[str] = []
     if attach < baseline:
