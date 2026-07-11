@@ -380,6 +380,19 @@ PENDING_RENAME_PATHS = {
     "plugins/system-spec-harness/skills/run-system-spec-compile/scripts/compile-spec-doc.py",
     "plugins/system-spec-harness/skills/run-system-spec-elicit/scripts/apply-spec-transition.py",
     "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/scripts/aggregate-completeness.py",
+    # ubm-goal-setting YouTube取込+相談グラフ初回投入: §4.3 (kebab-case) は満たすが verb が
+    # ALLOWED_VERBS 外。index (成果物グラフ索引化) / consult (read-only グラフ相談) / run
+    # (scheduler one-shot 実行体) / check (backfill 完全性の決定論ゲート・既存 check-* 族と同種)
+    # は許可動詞に対応語が無い。youtube_provider.py は run-youtube-sync-oneshot.py / tests が
+    # `import youtube_provider` する provider I/F 共有 module のためハイフン不可 (§4.3 例外・
+    # company-master notion_config.py と同列の underscore 許容)。許可動詞化は SKILL.md
+    # (script_refs)/workflow-manifest/tests/EVALS.json 参照を原子的に更新する後続
+    # Change Governance 一括改名 PR まで PENDING。
+    "plugins/ubm-goal-setting/scripts/index-harness-artifact-graph.py",
+    "plugins/ubm-goal-setting/scripts/consult-harness-artifact-graph.py",
+    "plugins/ubm-goal-setting/skills/run-ubm-youtube-ingest/scripts/run-youtube-sync-oneshot.py",
+    "plugins/ubm-goal-setting/skills/run-ubm-youtube-ingest/scripts/check-youtube-backfill-completeness.py",
+    "plugins/ubm-goal-setting/skills/run-ubm-youtube-ingest/scripts/youtube_provider.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

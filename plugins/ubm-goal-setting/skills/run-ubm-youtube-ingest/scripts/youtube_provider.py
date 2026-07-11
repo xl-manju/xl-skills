@@ -22,9 +22,11 @@
 取得契約・自動性・fallback を skill 内で確定し、具体 provider 製品だけを late-bind する
 (boundary 指示)。caption を第一取得源とし、caption 不在で承認済み ASR にフォールバックする
 判断は provider 実装が origin=caption|asr として返し、本 I/F はそれを不変で運ぶ。
-"""
-from __future__ import annotations
 
+注: `from __future__ import annotations` は使わない。dataclass 定義があるこのモジュールは
+smoke テストが importlib (sys.modules 非登録) でロードするため、文字列アノテーション化すると
+dataclasses の InitVar 判定が cls.__module__ 解決で AttributeError になる。
+"""
 import json
 from dataclasses import dataclass, field
 from pathlib import Path

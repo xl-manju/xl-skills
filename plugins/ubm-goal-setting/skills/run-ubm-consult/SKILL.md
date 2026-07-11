@@ -71,6 +71,10 @@ feedback_contract:
       loop_scope: outer
       text: 相談セッション transcript で考え方提示・引き出し質問・ユーザー自身の言葉での解決策言語化・ゴール指向の次の一歩の 4 要素を検出する。
       verify_by: test
+    - id: OUT2
+      loop_scope: outer
+      text: 実相談の live trial で、非処方スタンス不変条件(具体解押し付けゼロ・共同判断ターンで引き出し質問≥1・解決策の主語=ユーザー)を守ったまま R1→R4 を完走し、セッション記録を validate-consult-session.py (persistence_consent=false 時は --ephemeral) が exit 0 で機械検証する。
+      verify_by: live-trial
 ---
 
 # run-ubm-consult

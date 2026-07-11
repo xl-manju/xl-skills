@@ -122,7 +122,7 @@ def harness_graph(*, drop_nodes: bool = False, dangling: bool = False) -> dict:
     return g
 
 
-def setup(tmp_path: Path, *, secret=None, kg_dangling=False, hg_drop=False, hg_dangling=False) -> dict:
+def _setup(tmp_path: Path, *, secret=None, kg_dangling=False, hg_drop=False, hg_dangling=False) -> dict:
     kg = tmp_path / "knowledge-graph.json"
     hg = tmp_path / "harness-artifact-graph.json"
     write_json(kg, knowledge_graph(secret=secret, dangling=kg_dangling))
@@ -142,7 +142,7 @@ def consult(ctx: dict, topic: str, query_type: str = "local", depth: str = "2",
 # ---- known-hit (local) -----------------------------------------------------
 
 def test_local_known_hit_returns_knowledge_edge_and_harness_artifact(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -163,7 +163,7 @@ def test_local_known_hit_returns_knowledge_edge_and_harness_artifact(tmp_path: P
 
 def test_local_edges_are_pointers_not_verbatim_evidence(tmp_path: Path):
     # hit の evidence は id/path/hash まで (逐語 evidence 本文は返さない)
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "1")
     out = json.loads(r.stdout)
     for e in out["hits"]["knowledge"]["edges"]:
@@ -173,7 +173,7 @@ def test_local_edges_are_pointers_not_verbatim_evidence(tmp_path: Path):
 
 
 def test_local_harness_nodes_carry_report_refs(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "1")
     out = json.loads(r.stdout)
     c01 = next(n for n in out["hits"]["harness"]["nodes"] if n["id"] == "C01")
@@ -185,7 +185,7 @@ def test_local_harness_nodes_carry_report_refs(tmp_path: Path):
 # ---- zero-hit --------------------------------------------------------------
 
 def test_zero_hit_topic_mismatch_exit0_empty(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "zzz-no-such-topic", "local", "2")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -198,28 +198,28 @@ def test_zero_hit_topic_mismatch_exit0_empty(tmp_path: Path):
 # ---- broken index (schema invalid / dangling) -> exit2 ---------------------
 
 def test_broken_index_missing_nodes_exit2(tmp_path: Path):
-    ctx = setup(tmp_path, hg_drop=True)
+    ctx = _setup(tmp_path, hg_drop=True)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 2, r.stdout + r.stderr
     assert "broken" in (r.stderr.lower() + r.stdout.lower())
 
 
 def test_broken_index_dangling_knowledge_edge_exit2(tmp_path: Path):
-    ctx = setup(tmp_path, kg_dangling=True)
+    ctx = _setup(tmp_path, kg_dangling=True)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 2, r.stdout + r.stderr
 
 
 def test_broken_index_dangling_harness_edge_exit2(tmp_path: Path):
-    ctx = setup(tmp_path, hg_dangling=True)
+    ctx = _setup(tmp_path, hg_dangling=True)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 2, r.stdout + r.stderr
 
 
 def test_broken_index_distinguished_from_zero_hit(tmp_path: Path):
     # 壊れた index は exit2、正しい zero-hit は exit0 — 明確に区別される
-    broken = setup(tmp_path / "b", hg_drop=True)
-    ok = setup(tmp_path / "o")
+    broken = _setup(tmp_path / "b", hg_drop=True)
+    ok = _setup(tmp_path / "o")
     assert consult(broken, "alpha", "local", "1").returncode == 2
     assert consult(ok, "zzz", "local", "1").returncode == 0
 
@@ -227,7 +227,7 @@ def test_broken_index_distinguished_from_zero_hit(tmp_path: Path):
 # ---- path traversal --------------------------------------------------------
 
 def test_path_traversal_rejected_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = run("--topic", "alpha", "--knowledge-graph", "../../../etc/passwd",
             "--harness-artifact-graph", ctx["hg"], "--query-type", "local", "--depth", "1")
     assert r.returncode == 2, r.stdout + r.stderr
@@ -235,7 +235,7 @@ def test_path_traversal_rejected_exit2(tmp_path: Path):
 
 
 def test_path_traversal_rejected_in_harness_arg_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = run("--topic", "alpha", "--knowledge-graph", ctx["kg"],
             "--harness-artifact-graph", "graphs/../../secret.json", "--query-type", "local", "--depth", "1")
     assert r.returncode == 2, r.stdout + r.stderr
@@ -245,7 +245,7 @@ def test_path_traversal_rejected_in_harness_arg_exit2(tmp_path: Path):
 
 def test_secret_not_returned(tmp_path: Path):
     secret = "ghp_" + "A1b2C3d4E5f6G7h8I9j0" + "KLMNOP"
-    ctx = setup(tmp_path, secret=secret)
+    ctx = _setup(tmp_path, secret=secret)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 0, r.stdout + r.stderr
     assert secret not in r.stdout
@@ -257,7 +257,7 @@ def test_secret_not_returned(tmp_path: Path):
 # ---- depth 上限 ------------------------------------------------------------
 
 def test_depth_bounds_traversal(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     # PR-001(alpha) --supports--> PR-002 --supports--> PR-003 --supports--> PR-004
     d1 = json.loads(consult(ctx, "alpha", "local", "1").stdout)
     ids1 = {n["id"] for n in d1["hits"]["knowledge"]["nodes"]}
@@ -271,7 +271,7 @@ def test_depth_bounds_traversal(tmp_path: Path):
 # ---- global ----------------------------------------------------------------
 
 def test_global_category_cluster_summary(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "principle", "global", "1")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -283,7 +283,7 @@ def test_global_category_cluster_summary(tmp_path: Path):
 
 
 def test_global_harness_by_state(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "harness", "global", "1")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -295,7 +295,7 @@ def test_global_harness_by_state(tmp_path: Path):
 # ---- relationship ----------------------------------------------------------
 
 def test_relationship_path_between_two_concepts(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha -> gamma", "relationship", "3")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -310,7 +310,7 @@ def test_relationship_path_between_two_concepts(tmp_path: Path):
 
 
 def test_relationship_no_path_zero_hit(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha -> zzz-nomatch", "relationship", "3")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -319,7 +319,7 @@ def test_relationship_no_path_zero_hit(tmp_path: Path):
 
 
 def test_relationship_requires_separator_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "relationship", "3")
     assert r.returncode == 2, r.stdout + r.stderr
 
@@ -343,7 +343,7 @@ def test_knowledge_edges_empty_recorded_in_warnings(tmp_path: Path):
 
 def test_warnings_empty_when_knowledge_edges_present(tmp_path: Path):
     # 辺が載っている graph では warnings は空 (誤検知しない)。
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "1")
     assert r.returncode == 0, r.stdout + r.stderr
     assert json.loads(r.stdout)["warnings"] == []
@@ -352,7 +352,7 @@ def test_warnings_empty_when_knowledge_edges_present(tmp_path: Path):
 # ---- 決定論 ----------------------------------------------------------------
 
 def test_deterministic_stdout(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     a = consult(ctx, "alpha", "local", "2").stdout
     b = consult(ctx, "alpha", "local", "2").stdout
     assert a == b
@@ -362,7 +362,7 @@ def test_deterministic_stdout(tmp_path: Path):
 
 def test_harness_absent_knowledge_only_consult_exit0(tmp_path: Path):
     # --harness-artifact-graph を省略しても knowledge graph 単独で consult できる
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "2", with_harness=False)
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -379,7 +379,7 @@ def test_harness_absent_knowledge_only_consult_exit0(tmp_path: Path):
 
 def test_harness_absent_zero_hit_still_exit0(tmp_path: Path):
     # harness 省略かつ topic 不一致でも zero-hit は正常 (exit0)
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "zzz-no-such-topic", "local", "2", with_harness=False)
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
@@ -389,7 +389,7 @@ def test_harness_absent_zero_hit_still_exit0(tmp_path: Path):
 
 def test_harness_absent_global_and_relationship_exit0(tmp_path: Path):
     # global / relationship も harness 省略で成立する (knowledge 側のみ)
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     g = consult(ctx, "principle", "global", "1", with_harness=False)
     assert g.returncode == 0, g.stdout + g.stderr
     assert json.loads(g.stdout)["hits"]["global"]["harness"]["by_state"] == []
@@ -410,25 +410,25 @@ def test_knowledge_graph_still_required_when_harness_absent_exit2(tmp_path: Path
 
 def test_usage_missing_knowledge_graph_exit2(tmp_path: Path):
     # 今も必須の --knowledge-graph 欠落は argparse が exit2
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = run("--topic", "alpha", "--harness-artifact-graph", ctx["hg"], "--query-type", "local")
     assert r.returncode == 2
 
 
 def test_usage_bad_query_type_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "sideways", "1")
     assert r.returncode == 2
 
 
 def test_usage_depth_out_of_range_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = consult(ctx, "alpha", "local", "9")
     assert r.returncode == 2
 
 
 def test_usage_graph_absent_exit2(tmp_path: Path):
-    ctx = setup(tmp_path)
+    ctx = _setup(tmp_path)
     r = run("--topic", "alpha", "--knowledge-graph", str(tmp_path / "nope.json"),
             "--harness-artifact-graph", ctx["hg"], "--query-type", "local", "--depth", "1")
     assert r.returncode == 2
