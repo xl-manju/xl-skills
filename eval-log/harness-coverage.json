@@ -3,11 +3,11 @@
   "spec_met": false,
   "axes_total": 12,
   "axes_instrumented": 12,
-  "axes_met": 9,
+  "axes_met": 8,
   "sections": [
     {
       "type": "scripts",
-      "count": 292,
+      "count": 310,
       "mechanical": {
         "instrumented": true,
         "coverage_pct": 85.6,
@@ -16,14 +16,14 @@
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 70.5,
+        "coverage_pct": 66.8,
         "met": false,
         "note": "code-review verdict(eval-log/coverage/scripts) PASS の script 割合"
       }
     },
     {
       "type": "skills",
-      "count": 67,
+      "count": 73,
       "mechanical": {
         "instrumented": true,
         "coverage_pct": 100.0,
@@ -39,32 +39,32 @@
     },
     {
       "type": "agents",
-      "count": 48,
+      "count": 52,
       "mechanical": {
         "instrumented": true,
-        "coverage_pct": 81.2,
-        "met": true,
+        "coverage_pct": 75.0,
+        "met": false,
         "note": "agents: tests 参照 or coverage レコード mechanical=true の割合"
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 75.0,
+        "coverage_pct": 69.2,
         "met": false,
         "note": "agents: coverage レコード llm_eval verdict=PASS の割合"
       }
     },
     {
       "type": "commands",
-      "count": 21,
+      "count": 24,
       "mechanical": {
         "instrumented": true,
-        "coverage_pct": 95.2,
+        "coverage_pct": 95.8,
         "met": true,
         "note": "commands: tests 参照 or coverage レコード mechanical=true の割合"
       },
       "llm_eval": {
         "instrumented": true,
-        "coverage_pct": 61.9,
+        "coverage_pct": 54.2,
         "met": false,
         "note": "commands: coverage レコード llm_eval verdict=PASS の割合"
       }
