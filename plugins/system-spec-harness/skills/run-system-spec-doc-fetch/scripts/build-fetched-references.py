@@ -74,7 +74,9 @@ def norm_host(host: str) -> str:
     """host を小文字化し先頭 www. を落として比較用に正規化する。"""
     if not host:
         return ""
-    return host.lower().lstrip("www.")
+    # lstrip("www.") は文字集合 {w,.} の先頭剥がしで `web.dev`->`eb.dev` / `wix.com`->`ix.com`
+    # のように別 host を破壊するため removeprefix を使う (C13 validate-source-citation.py の F6 と同一)。
+    return host.lower().removeprefix("www.")
 
 
 def host_of(url: str) -> str:

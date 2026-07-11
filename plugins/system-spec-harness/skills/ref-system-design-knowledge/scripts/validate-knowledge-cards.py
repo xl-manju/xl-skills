@@ -4,7 +4,7 @@
 # version: 0.1.0
 # purpose: C04 の deep knowledge card 深度・catalog parity・open-world 契約を検証する決定論ゲート (要件 C11)。pointer-only の浅いカードを拒否し、実体ある本文・一次資料 locator・鮮度データ・seed/open-world 宣言を要求する。
 # inputs:
-#   - argv: [--catalog FILE] [--references-dir DIR]
+#   - argv: [--root DIR]   # 既定 = 本 skill root (references/ を配下に持つ)
 # outputs:
 #   - stdout: OK summary
 #   - stderr: violation 一覧
@@ -112,7 +112,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
     args = parser.parse_args(argv)
-    errors = validate_root(args.root)
+    try:
+        errors = validate_root(args.root)
+    except OSError as exc:
+        print(f"入力ファイル読取失敗: {exc}", file=sys.stderr)
+        return 2
+    except json.JSONDecodeError as exc:
+        print(f"knowledge-catalog.json の JSON parse 失敗: {exc}", file=sys.stderr)
+        return 2
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
