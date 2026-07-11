@@ -4,7 +4,8 @@
   "llm_eval": {
     "required": true,
     "wiring": "C05が/spec-compile完了後に自動連鎖し、上位概念trace/意思決定支援/matrix/deep knowledge/最新出典/prompt品質を独立contextでfail-closed評価する。criteria-testは受入C1-C12を検証する。",
-    "acceptance_criteria_ref": "plugin-plans/system-spec-harness/phase-07-acceptance-criteria.md"
+    "acceptance_criteria_ref": "docs/evidence.md",
+    "acceptance_criteria_ref_repo_only": "plugin-plans/system-spec-harness/phase-07-acceptance-criteria.md (計画正本・repo 内でのみ解決可。配布物には含まれないため plugin 内正本は docs/evidence.md の C1-C12 受入 Matrix)"
   },
   "mechanical_eval": {
     "required": true,

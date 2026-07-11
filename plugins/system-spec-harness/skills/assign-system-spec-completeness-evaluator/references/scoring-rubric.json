@@ -66,6 +66,7 @@
       "component": "C05",
       "primary_input": "plugins/system-spec-harness/**/prompts/*.md",
       "deterministic_gate": "verify-completeness.py + validate-prompt.py",
+      "deterministic_gate_dependency": "外部 plugin prompt-creator が verify-completeness.py / validate-prompt.py を提供する。依存 prompt-creator が解決できない単独 install 環境ではこの機械ゲートのみを skip し、INDETERMINATE を FAIL に倒さない (意味層 pass_criteria と独立 design findings は引き続き必須評価)。repo/CI 環境では両 validator を必須実行する",
       "pass_criteria": ["C1-C4/L7→L1/l5-contract v2.0を満たす", "客観的停止条件と実質深度を持つ", "独立design findingsにhighなし"]
     }
   },
@@ -75,6 +76,7 @@
     "high_max": 0,
     "notes": [
       "1 観点でも FAIL/INDETERMINATE なら総合 FAIL",
+      "例外: prompt_quality の外部 prompt-creator 機械ゲート (verify-completeness.py/validate-prompt.py) が依存 plugin 不在で解決不能な単独 install 環境では、当該機械ゲートのみ skip し INDETERMINATE を FAIL に倒さない (deterministic_gate_dependency 参照)。意味層 pass_criteria が FAIL なら従来どおり総合 FAIL",
       "全観点を過不足なく網羅していなければ総合FAIL (監査観点の取りこぼし防止)",
       "総合判定は aggregate-completeness.aggregate_verdict で再導出でき、レポートの verdict と一致すること (Goodhart 防止)"
     ]

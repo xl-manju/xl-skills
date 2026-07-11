@@ -81,10 +81,13 @@ def _build_spec(*, reopen_cell: tuple[str, str] | None = None) -> dict:
 
 
 def _materialize(tmp_path: Path, spec: dict, docset: dict[str, str]) -> Path:
-    """spec-state.json + compile 済み章群を tmp/system-spec/ へ配置し root を返す。"""
-    (tmp_path / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    """正本 spec-state.json + compile 済み章群を tmp/system-spec/ へ配置し root を返す。
+
+    正本位置は <root>/system-spec/spec-state.json の 1 経路のみ (spec-state-contract.md「正本位置」節)。
+    """
     ss = tmp_path / "system-spec"
     ss.mkdir()
+    (ss / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
     for name, content in docset.items():
         (ss / name).write_text(content if content.endswith("\n") else content + "\n", encoding="utf-8")
     return tmp_path
@@ -126,11 +129,11 @@ def test_compiled_reopened_chapter_write_passes(tmp_path):
 
 
 def test_compiled_edit_spec_state_blocked(tmp_path):
-    """確定セルを含む spec-state.json への直接 Edit は exit2。"""
+    """確定セルを含む正本 spec-state.json への直接 Edit は exit2。"""
     spec = _build_spec()
     docset = c.compile_docset(spec, {"references": []})
     root = _materialize(tmp_path, spec, docset)
-    code, _ = g.decide(_ed(str(root / "spec-state.json")), root)
+    code, _ = g.decide(_ed(str(root / "system-spec" / "spec-state.json")), root)
     assert code == 2
 
 

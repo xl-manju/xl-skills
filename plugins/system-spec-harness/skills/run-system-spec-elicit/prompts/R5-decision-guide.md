@@ -26,6 +26,7 @@
 - 必須比較軸はgoal fit、総保有コストTCO、security、lock-in、operations burdenであり、writer契約では`goal_fit`/`cost_model`/`free_tier_limits`/`pros`/`cons`/`risks`/`lock_in`/`ops_burden`へ記録する。
 - 無料または低コストの実用候補を必ず含める。ただし最安であることだけを採用理由にしない。
 - C04 の現在の知識は seed であり固定上限ではない。目的に必要な未知知識を追加探索候補として扱う。
+- **未知知識 producer (要件 open-world)**: 比較検討中に既知 seed (C04 の 6 枚) に無い未知の設計領域・技術・パターン (新しい方式・製品・アーキテクチャ等) を検出したら、`set-knowledge-candidate` op で `status=discovered` として `spec-state` へ記録する (id は安定 kebab-case・`topic`・`problem`・実在 goal を指す `serves_goals` を付与)。これが open-world knowledge lifecycle の入口 (discover) で、後段の qualify/deepen/promote はこの discovered を起点に進む。
 - 候補数は比較可能性を保つ2〜3案とする。
 
 ## Layer 3: インフラ層
@@ -37,7 +38,7 @@
   - `id`
   - `question`
   - `status`: `needs_guidance` / `recommended_pending_confirmation` / `confirmed`
-  - `options[]`: `id`、`label`、`cost_model`、`free_tier_limits`、`goal_fit`、`pros`、`cons`、`risks`、`lock_in`、`ops_burden`、`evidence_refs`
+  - `options[]`: `id`、`label`、`cost_model`、`free_tier_limits`、`goal_fit`、`security_fit`、`pros`、`cons`、`risks`、`lock_in`、`ops_burden`、`evidence_refs`
   - `recommendation`: `option_id`、`rationale`、`caveats`、`confidence`、`latest_checked_at`
   - `serves_goals`
   - `user_decision`: ユーザー確認前はnull、確認後のみ`option_id`と`confirmed_at`
@@ -72,6 +73,7 @@
 - [ ] 無料または低コスト候補が一案以上存在する
 - [ ] 全候補に goal fit 評価がある
 - [ ] 全候補の`cost_model`と`free_tier_limits`からTCOを判定できる
+- [ ] 全候補に`security_fit`評価があり空でない
 - [ ] 全候補の`risks`からsecurity上の許容可否を判定できる
 - [ ] 全候補に lock-in 評価がある
 - [ ] 全候補に operations burden 評価がある
@@ -82,6 +84,7 @@
 - [ ] recommendationに`confidence`がある
 - [ ] 出力`status`が`recommended_pending_confirmation`である
 - [ ] ユーザー確認前の`user_decision`がnullである
+- [ ] seedに無い未知の設計領域/技術/パターンを検出した場合`set-knowledge-candidate`(status=discovered)で記録されている
 
 ### 5.4 実行方式
 
@@ -105,4 +108,4 @@
 
 ## 出力指示
 
-`needs_guidance` の論点をfoundationとconstraintsに照らし、C04をseedとしたopen-world knowledgeと最新公式一次情報から2〜3案を比較する。無料または低コスト案を必ず含めるが最安を自動採用せず、writer契約の`id/status/options/recommendation/serves_goals/user_decision`語彙でdecision recordを返す。AI推奨時は`status: recommended_pending_confirmation`かつ`user_decision: null`とし、ユーザー明示選択後だけ`status: confirmed`を許す。
+`needs_guidance` の論点をfoundationとconstraintsに照らし、C04をseedとしたopen-world knowledgeと最新公式一次情報から2〜3案を比較する。無料または低コスト案を必ず含めるが最安を自動採用せず、各optionは`goal_fit`と`security_fit`(いずれも非空)を持たせ、writer契約の`id/status/options/recommendation/serves_goals/user_decision`語彙でdecision recordを返す。比較検討中にseedに無い未知の設計領域/技術/パターンを検出したら`set-knowledge-candidate`(status=discovered)で記録する。AI推奨時は`status: recommended_pending_confirmation`かつ`user_decision: null`とし、ユーザー明示選択後だけ`status: confirmed`を許す。

@@ -284,6 +284,44 @@ def test_c13_empty_targets_and_empty_refs_is_ok():
     assert c13.validate({"targets": []}, {"references": []}) == []
 
 
+# ── F3: spec-state 採択済み decision があるのに targets 空 → vacuous-green を warning surface ──
+def test_c13_state_target_warnings_helper():
+    adopted = {"decisions": [{"id": "D1", "user_decision": {"option_id": "x", "confirmed_at": "y"}}]}
+    # 採択済み decision があり targets 空 → warning
+    assert c13.state_target_warnings({"targets": []}, adopted)
+    # targets があれば warning なし
+    assert c13.state_target_warnings({"targets": ["react"]}, adopted) == []
+    # user_decision 未採択なら warning なし (推奨提示のみは対象外)
+    assert c13.state_target_warnings({"targets": []}, {"decisions": [{"id": "D1"}]}) == []
+    assert c13.state_target_warnings({"targets": []}, {"decisions": []}) == []
+
+
+def test_c13_main_state_warns_but_exit0(tmp_path, capsys):
+    adopted = {"decisions": [{"id": "D1", "user_decision": {"option_id": "x", "confirmed_at": "y"}}]}
+    tp = write(tmp_path, "t.json", {"targets": []})
+    rp = write(tmp_path, "r.json", {"references": []})
+    sp = write(tmp_path, "s.json", adopted)
+    # vacuous-green (targets 空∧references 空) だが採択技術あり → exit0 のまま warning surface
+    assert c13.main(["--targets", tp, "--references", rp, "--state", sp]) == 0
+    assert "WARNING" in capsys.readouterr().err
+
+
+def test_c13_main_state_no_warning_when_targets_present(tmp_path, capsys):
+    adopted = {"decisions": [{"id": "D1", "user_decision": {"option_id": "x", "confirmed_at": "y"}}]}
+    t, r = _valid_citation()
+    tp = write(tmp_path, "t.json", t)
+    rp = write(tmp_path, "r.json", r)
+    sp = write(tmp_path, "s.json", adopted)
+    assert c13.main(["--targets", tp, "--references", rp, "--state", sp]) == 0
+    assert "WARNING" not in capsys.readouterr().err
+
+
+def test_c13_main_state_missing_file_returns_2(tmp_path):
+    tp = write(tmp_path, "t.json", {"targets": []})
+    rp = write(tmp_path, "r.json", {"references": []})
+    assert c13.main(["--targets", tp, "--references", rp, "--state", str(tmp_path / "nope.json")]) == 2
+
+
 def test_c13_empty_targets_but_refs_present_is_violation():
     # targets 空だが references 非空 (orphan) は従来どおり違反。
     _, r = _valid_citation()

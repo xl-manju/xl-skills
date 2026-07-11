@@ -6,6 +6,7 @@
     "path": "task-graph.json",
     "schema_version": "1.0"
   },
+  "routes_status_note": "routes[].status は plan 時点の宣言 (planned) であり、実行状態の正本ではない。build 実行状態の正本は eval-log の route build report / task-state (build-summary done=418) を参照する (goal-spec.checklist.done=false と同型の宣言/実状態の分離)。",
   "routes": [
     {
       "id": "C12",
@@ -294,7 +295,9 @@
     {
       "id": "GAP-DISTRIBUTION-DECISION",
       "severity": "medium",
-      "text": "marketplace 配布可否 (distributable) は goal-spec.open_questions の未確定事項。利用単位 (個人利用かチーム/複数プロジェクト共通の再利用資産か) の判断を含む。現状は distributable:false で計画し、ユーザー承認後に envelope-draft/plugin.json と index.plugin_meta.distribution を true へ更新する"
+      "status": "resolved",
+      "resolution": "ユーザー承認により distributable:true 確定 (commit 00cf8f7)。plugin.json / index.plugin_meta.distribution / envelope-draft/plugin.json を true 化し、.claude-plugin/marketplace.json と xl-skills-full bundle へ登録済み",
+      "text": "marketplace 配布可否 (distributable) は goal-spec.open_questions の未確定事項だった。利用単位 (個人利用かチーム/複数プロジェクト共通の再利用資産か) の判断を含む。当初は distributable:false で計画していたが、ユーザー承認により distributable:true で確定した"
     },
     {
       "id": "GAP-TASKGRAPH-P02-PROJECTION",

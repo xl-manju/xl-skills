@@ -45,8 +45,8 @@
 
 ### 導入手順
 - **local / dev**: 本リポジトリを clone 済みなら `plugins/system-spec-harness/` がそのまま利用可能。skill/command は `.claude/` symlink 経由で有効化 (`build-claude-symlinks.py` + `make sync`)。hook 配線は `.claude-plugin/plugin.json` の `hooks.PreToolUse` を settings へ反映。
-- **marketplace**: `NOT_AVAILABLE (distributable:false・承認待ち)`。利用単位 (個人 / チーム共通再利用資産) の判断が未確定のため配布登録していない (`plugin-plans/system-spec-harness/` の open_issues `GAP-DISTRIBUTION-DECISION`)。承認後に `envelope-draft/plugin.json` と index の distribution を true 化し配布フローへ進む。
-- **CLI / Desktop**: marketplace 未配布のため `approval-pending` (配布承認後に案内)。
+- **marketplace**: `AVAILABLE (distributable:true)`。ユーザー承認により配布可能を確定済み (commit `00cf8f7`)。`.claude-plugin/marketplace.json` へ登録され、`xl-skills-full` bundle に含まれる (`plugin.json` の `bundles` / `bundle_targets`)。導入は marketplace 追加後に `/plugin install system-spec-harness` で有効化する。
+- **CLI / Desktop**: marketplace 配布済みのため、marketplace を追加した CLI / Desktop から同一手順でインストールできる。
 
 ### 検証
 `python3 -m pytest -q plugins/system-spec-harness` (293 passed)。決定論ゲートは `plugins/system-spec-harness/scripts/validate-coverage-matrix.py` / `plugins/system-spec-harness/scripts/validate-source-citation.py` / deep knowledge validator / prompt-creator validators。詳細は `RUNBOOK.md` / `docs/evidence.md`。

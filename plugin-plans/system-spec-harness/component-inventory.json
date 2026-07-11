@@ -64,9 +64,13 @@
       "description": "確定済み仕様章への Write/Edit/Bash を遮断する defense-in-depth の fail-closed hook。判定ソース = spec-state.json の confirmed セル状態 + system-spec/ 章メタ (frontmatter の確定マーカー)。Bashはprotected path/spec-state参照を検査し、曖昧な動的書換コマンドも安全側で拒否する。全書換経路の正本防御は C01/C03 が所有する単一 writer/transition gate で、確定セル/対象外理由の巻き戻しを拒否する。spec-state.json 上で該当章対応セルが再オープン状態 (C01 R4-reopen 経由) の場合のみ writer が書込を許可する。要件 C3 (往復ヒアリングの確定状態保全) の派生安全要件",
       "event": "PreToolUse",
       "matcher": "Write|Edit|Bash",
-      "exit_semantics": "fail-closed-exit2",
+      "exit_semantics": "層別: spec-state.json の動的書換 (Bash sed -i/リダイレクト等の spec-state 参照書換) は fail-closed で exit2 遮断。確定章 (system-spec/ frontmatter status:confirmed) の Write/Edit 判定は誤爆回避を優先し、判定不能な曖昧ケースは通す (hook は補助防御であり正本ではない)。確定セル/対象外理由の巻き戻し拒否という正本防御は C01/C03 所有の単一 writer/transition gate (apply-spec-transition.py) が担う",
       "settings_wiring": "settings.json",
-      "fail_closed": true,
+      "fail_closed": {
+        "spec_state_dynamic_write": "exit2 (fail-closed)",
+        "confirmed_chapter_decision": "誤爆回避優先 (曖昧なら通す)",
+        "canonical_defense": "単一 writer/transition gate (C01/C03 apply-spec-transition.py)"
+      },
       "depends_on": ["C01"],
       "couples_with": ["C01"],
       "build_target": "plugins/system-spec-harness/hooks/guard-confirmed-chapter-overwrite.py",

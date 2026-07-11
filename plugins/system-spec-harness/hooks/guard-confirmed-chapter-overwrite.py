@@ -2,48 +2,60 @@
 # /// script
 # name: guard-confirmed-chapter-overwrite
 # version: 0.1.0
-# purpose: 確定済み仕様章 (system-spec/ の status:confirmed 章 かつ spec-state.json の
-#          対応セルが『確定』・非再オープン) と spec-state.json 自身への Write/Edit/Bash 動的書換を
-#          PreToolUse で遮断する defense-in-depth の fail-closed hook (要件 C3 の派生安全要件)。
+# purpose: 確定済み仕様章 (system-spec/ の status:confirmed 章 かつ 正本 spec-state.json の
+#          対応セルが『確定』・非再オープン) と 正本 spec-state.json 自身への Write/Edit/Bash 動的書換を
+#          PreToolUse で遮断する defense-in-depth の層別 fail-closed hook (要件 C3 の派生安全要件)。
 #          正本防御は C01/C03 の単一 writer/transition gate。本 hook は二重化の補助防御。
+#          正本位置は spec-state-contract.md「正本位置」節で確定した
+#          $CLAUDE_PROJECT_DIR/system-spec/spec-state.json の 1 経路のみ (配下 rglob 探索は持たない)。
 # inputs:
 #   - stdin: PreToolUse hook JSON ({tool_name, tool_input{file_path|command}})
-#   - env: CLAUDE_PROJECT_DIR (spec-state.json / system-spec/ 探索起点。未設定時は cwd)
+#   - env: CLAUDE_PROJECT_DIR (正本 system-spec/spec-state.json の探索起点。未設定時は cwd)
 # outputs:
-#   - exit: 0=許可 / 2=ブロック(stderr に理由)。判定不能で明確に protected でないものは通す
-#           (誤爆回避)。spec-state 参照の危険な動的 Bash 書換のみ安全側で 2 (fail-closed)。
+#   - exit: 0=許可 / 2=ブロック(stderr に理由)。判定は層別:
+#           (1) 正本 spec-state.json への直接/動的書換は fail-closed (確定巻き戻し防御)。
+#           (2) status:confirmed 章 Write/Edit かつ 正本 spec-state 解決不能は confirmed 章限定で fail-closed。
+#           (3) それ以外の章判定は誤爆回避優先 (明確に protected でないものは通す)。
 # contexts: [E]
 # network: false
 # write-scope: none
 # dependencies: []
 # requires-python: ">=3.9"
 # ///
-"""PreToolUse(Write|Edit|Bash) 確定章 / spec-state.json 保護ガード。
+"""PreToolUse(Write|Edit|Bash) 確定章 / 正本 spec-state.json 保護ガード。
 
 判定ソース (章保護 = 2 系統の論理積・章粒度の集約):
   1. system-spec/ 配下の章 Markdown の frontmatter 確定マーカー `status: confirmed`
+     (対象パス自身を load して判定する。別ファイルの内容には依存しない)
   2. C03 実出力 frontmatter の `spec_cells:[<cat>.<pf>, ...]` (後方互換で単一
      `cell`/`cell_id`/`spec_cell` や `category`+`platform` も可) が指す全対応セルが
-     spec-state.json 上で終端状態 (確定 or 対象外) かつ再オープン対象を含まないこと
+     正本 spec-state.json 上で終端状態 (確定 or 対象外) かつ再オープン対象を含まないこと
+
+正本位置 (SSOT): `spec-state.json` の判定ソースは `<root>/system-spec/spec-state.json` の 1 経路のみ。
+  配下 rglob フォールバックは持たない (同梱 fixture 等を判定ソースに拾う交差汚染を構造的に排除)。
 
 Write|Edit:
-  (a) file_path が spec-state.json かつ確定 (非再オープン) セルを含むなら exit2
-      (Bash 経路と同格の直接書換/確定巻き戻し防御)。
-  (b) file_path が上記 2 条件をともに満たす確定章のときも exit2。
-  それ以外 (通常ファイル・未確定/再オープン章・新規章・確定セルなき spec-state) は
-  exit0 で素通し。
+  (a) file_path が正本 spec-state.json (実パス一致) かつ確定 (非再オープン) セルを含むなら exit2
+      (Bash 経路と同格の直接書換/確定巻き戻し防御)。別位置の同名 spec-state.json は正本でなく通す。
+  (b) file_path が status:confirmed 章 かつ 上記 2 条件を満たす確定章なら exit2。
+  (c) file_path が status:confirmed 章 だが 正本 spec-state を解決できない (load 不能) ときは
+      confirmed 章限定で安全側 exit2 (F3 層別 fail-closed。誤爆範囲は confirmed 章に限定)。
+  それ以外 (通常ファイル・未確定/再オープン章・新規章・確定セルなき spec-state) は exit0 で素通し。
 
 Bash:
   読み取り専用コマンド (cat/grep/ls 等・書込指標なし) は保護パス参照でも exit0。
   書込コマンド (リダイレクト/sed -i/tee/cp/mv/rm/dd/truncate/python の open(...,'w') 等) が
-    - spec-state.json を書換対象にする
+    - 正本 spec-state.json (system-spec/spec-state.json) を書換対象にする
     - 解決可能な確定章を書換対象にする
-    - system-spec/ or spec-state.json を参照する曖昧な動的書換 (glob/変数/find 経由) である
+    - 保護領域 (system-spec/ 配下・パス境界一致) を参照する曖昧な動的書換 (glob/変数/find 経由) である
   いずれかなら安全側で exit2。再オープン章・新規章への具体的書込は通す。
+  判定は `system-spec/` をパス境界 (完全なパスセグメント) として扱い、自plugin パスの
+  `system-spec-harness/` 等を部分文字列で誤検出しない。
 
-fail-closed 方針: 「対象が明確に protected と判定できないなら通す」を基本とし、spec-state を
-参照する危険な動的 Bash 書換のみ安全側で拒否する (計画 C11 exit_semantics=fail-closed-exit2)。
-全書換経路の正本防御は C01/C03 の単一 writer/transition gate が担う。本 hook は補助 (二重化)。
+fail-closed 方針 (層別): 正本 spec-state を参照する危険な動的 Bash 書換 と、正本 spec-state 解決不能な
+confirmed 章 Write/Edit のみ安全側で拒否する (計画 C11 exit_semantics=fail-closed-exit2)。それ以外の章判定は
+「明確に protected と判定できないなら通す」を基本にする (誤爆回避優先)。全書換経路の正本防御は
+C01/C03 の単一 writer/transition gate が担う。本 hook は補助 (二重化)。
 """
 from __future__ import annotations
 
@@ -55,6 +67,11 @@ from pathlib import Path
 
 CONFIRMED = "確定"
 GUARD_NAME = "guard-confirmed-chapter-overwrite"
+# 正本位置 (spec-state-contract.md「正本位置」節): <root>/system-spec/spec-state.json の 1 経路のみ。
+SPEC_DIR = "system-spec"
+SPEC_STATE_NAME = "spec-state.json"
+# Bash コマンド内で正本 spec-state を参照しているかの判定に使う末尾構造 (system-spec/spec-state.json)。
+_CANONICAL_SUFFIX = f"{SPEC_DIR}/{SPEC_STATE_NAME}"
 # 章保護の終端セル状態 (確定 or 対象外)。両者とも settled であり確定章に含まれ得る
 # (例: security 章 = web/mobile/tablet 確定 + desktop×3 対象外 の混在でも status:confirmed)。
 TERMINAL_STATES = {"確定", "対象外"}
@@ -87,16 +104,19 @@ _PY_WRITE = re.compile(
 _REDIRECT = re.compile(r"""\d*>>?\s*(?!&)("[^"]*"|'[^']*'|[^\s;|&>]+)""")
 # 曖昧な動的書換 (target を静的に列挙できない) を示す指標。
 _DYNAMIC = re.compile(r"[*?\[]|\$|`|\bfind\b|\bxargs\b")
+# 保護領域 (system-spec/ ディレクトリ) をパス境界 (完全なパスセグメント) で参照しているか。
+# 前後をデリミタ/末尾で束ねるため、自plugin パスの `system-spec-harness` (直後が '-') には発火しない。
+_PROTECTED_SEG = re.compile(r"""(?:^|[\s;|&<>()'"=/])system-spec(?:/|[\s;|&<>()'"]|$)""")
 
 
 # ── パス種別判定 ────────────────────────────────────────────────────────────
 def _is_system_spec_md(p: Path) -> bool:
-    """system-spec/ 配下の .md か。"""
-    return p.suffix == ".md" and "system-spec" in p.parts
+    """system-spec/ 配下の .md か (system-spec を完全なパスセグメントとして判定)。"""
+    return p.suffix == ".md" and SPEC_DIR in p.parts
 
 
 def project_root() -> Path:
-    """spec-state.json / system-spec/ の探索起点。env 優先・無ければ cwd。"""
+    """正本 system-spec/spec-state.json の探索起点。env 優先・無ければ cwd。"""
     env = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
     if env and Path(env).is_dir():
         return Path(env)
@@ -181,17 +201,25 @@ def _extract_cell_refs(fm: dict) -> list[tuple[str, str]]:
     return refs
 
 
+def canonical_spec_state_path(root: Path) -> Path:
+    """正本 spec-state.json の絶対想定パス (<root>/system-spec/spec-state.json)。"""
+    return root / SPEC_DIR / SPEC_STATE_NAME
+
+
 def load_spec_state(root: Path) -> dict | None:
-    """spec-state.json を root 直下優先で読む。無ければ配下を 1 件探索。"""
-    cand = root / "spec-state.json"
-    paths = [cand] if cand.exists() else sorted(root.rglob("spec-state.json"))[:1]
-    for p in paths:
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else None
-        except (OSError, json.JSONDecodeError):
-            return None
-    return None
+    """正本位置 <root>/system-spec/spec-state.json のみを判定ソースに読む。
+
+    配下 rglob フォールバックは持たない (同梱 fixture 等の別 spec-state.json を
+    判定ソースに拾う交差汚染を構造的に排除する。spec-state-contract.md「正本位置」節)。
+    """
+    p = canonical_spec_state_path(root)
+    if not p.exists():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def _resolve_cell(spec: dict, category: str, platform: str):
@@ -225,55 +253,86 @@ def _cell_terminal(cell) -> bool:
     return cell.get("state") in TERMINAL_STATES
 
 
-def chapter_protected(p: Path, root: Path) -> bool:
-    """章ファイル p が確定章 (章粒度の集約で保護対象) か。
+# ── 確定章の層別判定 ────────────────────────────────────────────────────────
+# chapter_verdict の戻り値 enum。
+_V_PASS = "pass"                       # 明確に protected でない → 通す (誤爆回避優先)
+_V_PROTECTED = "protected"             # status:confirmed かつ全対応セル終端・非再オープン → exit2
+_V_CONFIRMED_UNRESOLVED = "confirmed_unresolved"  # confirmed だが正本 spec-state 解決不能 → 安全側 exit2
 
-    保護条件 (全て満たすときのみ True):
-      1. system-spec/ 配下の .md でファイルが存在する
-      2. frontmatter が status: confirmed
-      3. frontmatter の対応セル (spec_cells list / 後方互換単一キー) が 1 つ以上解決でき、
-         その全てが spec-state 上で終端状態 (確定 or 対象外) かつ再オープン対象を含まない
 
-    ファイル不在 (新規 Write) / frontmatter 未確定 / セル解決不能 / 非終端・再オープンセルを
-    含む章 / spec-state 不在は「明確に protected と判定できない」ため False (通す・誤爆回避)。
-    security 章のような 確定+対象外 混在でも status:confirmed なら (全セル終端ゆえ) 保護する。
+def chapter_verdict(p: Path, root: Path) -> str:
+    """章ファイル p の確定章判定を層別に返す (対象パス自身を load して判定)。
+
+    - `pass`: system-spec 外 / 新規 (ファイル不在) / draft / 再オープン・未終端セルを含む章。
+       誤爆回避優先で通す。
+    - `protected`: status:confirmed かつ対応セルが 1 つ以上解決でき、その全てが正本 spec-state 上で
+       終端状態 (確定 or 対象外) かつ再オープン対象を含まない。security 章のような 確定+対象外 混在も
+       status:confirmed なら (全セル終端ゆえ) 保護する。
+    - `confirmed_unresolved`: status:confirmed だが 正本 spec-state を load できない (F3 層別
+       fail-closed)。誤爆範囲は confirmed 章に限定される。
+
+    章の確定マーカー (status:confirmed) は対象パス自身の frontmatter から読む。spec-state は
+    再オープン/未終端で保護を「緩める」ためだけに参照する (保護を作り出すのは章自身の confirmed)。
     """
     if not _is_system_spec_md(p):
-        return False
+        return _V_PASS
     fpath = p if p.is_absolute() else (root / p)
     if not fpath.is_file():
-        return False
+        return _V_PASS  # 新規 Write
     try:
         text = fpath.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return False
+        return _V_PASS
     fm = parse_frontmatter(text)
     if fm.get("status") != "confirmed":
-        return False
-    refs = _extract_cell_refs(fm)
-    if not refs:
-        return False
+        return _V_PASS  # draft 等
+    # ここから status:confirmed。正本 spec-state が解決できないなら confirmed 章限定で fail-closed。
     spec = load_spec_state(root)
     if spec is None:
-        return False
+        return _V_CONFIRMED_UNRESOLVED
+    refs = _extract_cell_refs(fm)
+    if not refs:
+        return _V_PASS  # 対応セル不明 (00-requirements 等) は誤爆回避で通す
     # 章粒度の集約: 全対応セルが終端かつ非再オープンのときだけ保護。1 つでも
     # 非終端 / 再オープン / 解決不能セルがあれば「明確に protected」でない → 通す。
     for cat, plat in refs:
         if not _cell_terminal(_resolve_cell(spec, cat, plat)):
-            return False
-    return True
+            return _V_PASS
+    return _V_PROTECTED
 
 
-# ── spec-state.json 直接書換ガード ──────────────────────────────────────────
-def _is_spec_state_path(p: Path) -> bool:
-    """対象が spec-state.json 自身か (ディレクトリ位置は問わずファイル名で判定)。"""
-    return p.name == "spec-state.json"
+def chapter_protected(p: Path, root: Path) -> bool:
+    """章 p が確定章 (全対応セル終端で保護対象) か。Bash 経路の確定章遮断に使う。
+
+    Write/Edit 経路の層別 fail-closed (`confirmed_unresolved`) は `chapter_verdict` を直接使う。
+    """
+    return chapter_verdict(p, root) == _V_PROTECTED
+
+
+# ── 正本 spec-state.json 直接書換ガード ─────────────────────────────────────
+def _is_canonical_spec_state(p: Path, root: Path) -> bool:
+    """対象が正本 spec-state.json (<root>/system-spec/spec-state.json) 自身か。
+
+    実パス一致でのみ True。別位置の同名 spec-state.json (テスト fixture 等) は正本でないため
+    False (交差汚染回避)。判定対象と判定ソースが常に同一ファイルになる。
+    """
+    canon = canonical_spec_state_path(root)
+    try:
+        return p.resolve() == canon.resolve()
+    except OSError:
+        return False
+
+
+def _token_is_canonical_spec_state(token: str) -> bool:
+    """Bash トークンが正本 spec-state.json (system-spec/spec-state.json) を末尾構造で指すか。"""
+    p = Path(token)
+    return p.name == SPEC_STATE_NAME and len(p.parts) >= 2 and p.parts[-2] == SPEC_DIR
 
 
 def spec_state_has_confirmed_cell(root: Path) -> bool:
-    """spec-state.json に確定 (非再オープン) セルが 1 つでもあるか。
+    """正本 spec-state.json に確定 (非再オープン) セルが 1 つでもあるか。
 
-    True のとき spec-state.json は確定巻き戻しの温床になり得るため直接 Write/Edit を遮断する。
+    True のとき正本 spec-state.json は確定巻き戻しの温床になり得るため直接 Write/Edit を遮断する。
     確定セルなし (init 直後・全 未収集/対象外) は通す (新規作成/初期化を妨げない)。
     """
     spec = load_spec_state(root)
@@ -302,16 +361,35 @@ def _redirect_targets(cmd: str) -> list[str]:
 
 
 def _system_spec_md_tokens(cmd: str) -> list[str]:
-    """コマンド中の system-spec/ 配下 .md らしきトークンを抽出。"""
+    """コマンド中の system-spec/ 配下 .md らしきトークンを抽出 (パス境界判定)。
+
+    system-spec を完全なパスセグメントとして持つトークンのみを拾い、自plugin パスの
+    `system-spec-harness/...md` (system-spec が独立セグメントでない) は拾わない。
+    """
     toks = []
     for raw in re.split(r"[\s;|&<>()'\"]+", cmd):
-        if raw and "system-spec" in raw and raw.endswith(".md"):
+        if not raw or not raw.endswith(".md"):
+            continue
+        if SPEC_DIR in Path(raw).parts:
             toks.append(raw)
     return toks
 
 
 def _token_is_protected_chapter(token: str, root: Path) -> bool:
     return chapter_protected(Path(token), root)
+
+
+def _refs_canonical_spec_state(cmd: str) -> bool:
+    """コマンドが正本 spec-state (system-spec/spec-state.json) を参照するか。"""
+    return _CANONICAL_SUFFIX in cmd
+
+
+def _refs_protected_area(cmd: str) -> bool:
+    """コマンドが保護領域 (system-spec/ ディレクトリ) をパス境界付きで参照するか。
+
+    `system-spec-harness/` 等の自plugin パス部分文字列では発火しない (パスセグメント境界一致)。
+    """
+    return bool(_PROTECTED_SEG.search(cmd))
 
 
 def bash_decision(cmd: str, root: Path) -> tuple[int, str]:
@@ -324,18 +402,18 @@ def bash_decision(cmd: str, root: Path) -> tuple[int, str]:
         # 書込指標なし = read-only。保護パス参照でも通す (cat/grep/ls 等)。
         return 0, ""
 
-    refs_spec_state = "spec-state.json" in cmd
+    refs_spec_state = _refs_canonical_spec_state(cmd)
 
-    # 1) リダイレクト先が保護対象
+    # 1) リダイレクト先が保護対象 (正本 spec-state / 確定章)
     for t in redirects:
-        if "spec-state.json" in t:
-            return 2, f"spec-state.json への出力リダイレクト ('{t}') を遮断"
+        if _token_is_canonical_spec_state(t):
+            return 2, f"正本 spec-state.json への出力リダイレクト ('{t}') を遮断"
         if _token_is_protected_chapter(t, root):
             return 2, f"確定章への出力リダイレクト ('{t}') を遮断"
 
-    # 2) in-place / python 書込が spec-state.json を対象
+    # 2) in-place / python 書込が正本 spec-state.json を対象
     if refs_spec_state and (mutation or py_write):
-        return 2, "spec-state.json への動的書換 (in-place/python) を遮断"
+        return 2, "正本 spec-state.json への動的書換 (in-place/python) を遮断"
 
     # 3) in-place / python 書込が解決可能な確定章を対象
     if mutation or py_write:
@@ -343,9 +421,9 @@ def bash_decision(cmd: str, root: Path) -> tuple[int, str]:
             if _token_is_protected_chapter(t, root):
                 return 2, f"確定章 '{t}' への動的書換を遮断"
 
-    # 4) 曖昧な動的書換が保護領域を参照 (glob/変数/find 経由) → 安全側で遮断
-    if ("system-spec" in cmd or refs_spec_state) and _DYNAMIC.search(cmd):
-        return 2, "保護領域 (system-spec/ または spec-state.json) を参照する曖昧な動的書換を安全側で遮断"
+    # 4) 曖昧な動的書換が保護領域 (system-spec/ 配下・パス境界一致) を参照 → 安全側で遮断
+    if (_refs_protected_area(cmd) or refs_spec_state) and _DYNAMIC.search(cmd):
+        return 2, "保護領域 (system-spec/ 配下 または 正本 spec-state.json) を参照する曖昧な動的書換を安全側で遮断"
 
     return 0, ""
 
@@ -360,15 +438,22 @@ def decide(payload: dict, root: Path) -> tuple[int, str]:
         if not fp:
             return 0, ""
         path = Path(fp)
-        # (a) spec-state.json 自身への直接書換 (確定セルあり) は Bash 経路と同格に遮断。
-        if _is_spec_state_path(path) and spec_state_has_confirmed_cell(root):
+        # (a) 正本 spec-state.json 自身への直接書換 (確定セルあり) は Bash 経路と同格に遮断。
+        #     別位置の同名 spec-state.json (fixture 等) は正本でなく通す (交差汚染回避)。
+        if _is_canonical_spec_state(path, root) and spec_state_has_confirmed_cell(root):
             return 2, (
-                f"spec-state.json '{fp}' への直接 {tool} を遮断 "
+                f"正本 spec-state.json '{fp}' への直接 {tool} を遮断 "
                 "(確定セルを含む。確定変更は apply-spec-transition の R4-reopen 経由のみ)"
             )
-        # (b) 確定章への書換を遮断。
-        if chapter_protected(path, root):
+        # (b)(c) 確定章判定 (層別 fail-closed)。
+        verdict = chapter_verdict(path, root)
+        if verdict == _V_PROTECTED:
             return 2, f"確定済み仕様章 '{fp}' への {tool} を遮断 (再オープン経由でのみ変更可)"
+        if verdict == _V_CONFIRMED_UNRESOLVED:
+            return 2, (
+                f"status:confirmed 章 '{fp}' への {tool} を遮断 "
+                "(正本 spec-state.json を解決できず確定状態を確認不能。confirmed 章限定の層別 fail-closed)"
+            )
         return 0, ""
     if tool == "Bash":
         cmd = ti.get("command") or ""
@@ -386,7 +471,7 @@ def main() -> int:
     if code == 2:
         sys.stderr.write(
             f"[{GUARD_NAME}] BLOCKED: {reason}。\n"
-            "  確定済み仕様章 / spec-state.json は C01/C03 の単一 writer (根拠付き R4-reopen) 経由でのみ変更してください。\n"
+            "  確定済み仕様章 / 正本 spec-state.json は C01/C03 の単一 writer (根拠付き R4-reopen) 経由でのみ変更してください。\n"
         )
     return code
 

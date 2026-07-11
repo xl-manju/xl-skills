@@ -98,7 +98,7 @@
     "最終成果物ドキュメントの出力形式(単一 Markdown / 複数ファイル分割 / 特定テンプレート)が未指定 → phase-02-design.md 設計判断2 で確定済 (章立て複数 Markdown + index)",
     "既存 skill-intake plugin のヒアリング機構との関係(統合して再利用するか / 独立実装するか)が未指定 → phase-02-design.md 設計判断1 で確定済 (独立実装)",
     "最新公式ドキュメント取得の具体手段(WebFetch / MCP / 特定 API 連携)が未指定 → phase-02-design.md 設計判断3 で確定済 (WebSearch/WebFetch 既定・MCP は GAP-MCP-DOCFETCH へ保留)",
-    "本 harness の利用単位が個人利用かチーム/複数プロジェクト共通の再利用資産かが未指定",
-    "marketplace 配布可否 (distributable true/false) の判断がユーザー承認待ち"
+    "本 harness の利用単位が個人利用かチーム/複数プロジェクト共通の再利用資産かが未指定 → ユーザー承認により再利用資産として配布 (distributable:true) を確定済",
+    "marketplace 配布可否 (distributable true/false) の判断がユーザー承認待ち → 確定済 (distributable:true・commit 00cf8f7・xl-skills-full bundle + marketplace 登録)"
   ]
 }

@@ -33,6 +33,8 @@
 - **platform 一括判断を優先**: 非対象 platform は一括承認 (approval_log) で列を `対象外` にし turn 数を圧縮する。
 - 対象 platform だけ各カテゴリ要件を確定する。
 - 1 turn = 質問→回答→反映。反映は writer の `chunk` / `apply` で行う。
+- **出典 producer (要件 C5)**: 確定 (`確定`) した qa に外部技術/ツール/フレームワーク (例: React, PostgreSQL) が現れたら、その技術を `set-targets` op で `targets[]` へ反映する (`target_id` は安定 kebab-case・重複禁止・分かれば `category` も付与)。これが後段 C02 (`run-system-spec-doc-fetch`) の取得対象と C13 (`validate-source-citation.py`) の全件突合の発生源になる。
+- **未知知識 producer (要件 open-world)**: ヒアリング中に既知 seed (clean-arch / DDD 等 C04 の 6 枚) に無い未知の設計領域・技術・パターンを検出したら、`set-knowledge-candidate` op で `status=discovered` として `spec-state` へ記録する (id は安定 kebab-case・`topic`・`problem`・実在 goal を指す `serves_goals` を付与)。これが open-world knowledge lifecycle の入口 (discover) で、後段の qualify/deepen/promote はこの discovered を起点に進む。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
@@ -53,7 +55,9 @@
 
 ### 3.2 外部ツール
 - `AskUserQuestion` / `Task`: 対話ヒアリング。
-- `Bash`: `python3 scripts/apply-spec-transition.py chunk --state spec-state.json --turns <turns.json> --max-loops 5`
+- `Bash`: セル反映 `python3 scripts/apply-spec-transition.py chunk --state spec-state.json --turns <turns.json> --max-loops 5`
+- `Bash`: 出典対象反映 `python3 scripts/apply-spec-transition.py set-targets --state spec-state.json --targets '[{"target_id":"<id>","category":"<category_id>"}]'`
+- `Bash`: 未知知識記録 `python3 scripts/apply-spec-transition.py set-knowledge-candidate --state spec-state.json --candidate <candidate.json>` (`status=discovered`)
 
 ## Layer 4: 共通ポリシー
 
@@ -84,6 +88,8 @@
 - [ ] 非対象platformの全セルがapproval_refまたは具体的reason付きの`対象外`である
 - [ ] 対象platformの回答済みセルがqa_ref付きの`確定`である
 - [ ] `確定`/`対象外` の付帯 (qa_ref / reason) が全て埋まっている
+- [ ] 確定qaに現れた外部技術/ツール/フレームワークが`set-targets`で`targets[]`へ反映されている
+- [ ] seedに無い未知の設計領域/技術/パターンを検出した場合`set-knowledge-candidate`(status=discovered)で記録されている
 - [ ] `validate-coverage-matrix.py` (loop) が exit0
 
 ### 5.4 実行方式
@@ -109,4 +115,4 @@
 
 ## 出力指示
 
-references/elicit-question-bank.md に沿って未収集セルへ質問し、回答を turn 列にまとめて `python3 scripts/apply-spec-transition.py chunk --state spec-state.json --turns <turns.json> --max-loops 5` で反映する。反映後 `validate-coverage-matrix.py` (loop) の exit0 を確認する。確定セルの変更が要るときは R4-reopen を使う。余計な前置き・思考過程出力は禁止。
+references/elicit-question-bank.md に沿って未収集セルへ質問し、回答を turn 列にまとめて `python3 scripts/apply-spec-transition.py chunk --state spec-state.json --turns <turns.json> --max-loops 5` で反映する。確定 qa に外部技術/ツール/フレームワークが現れたら `set-targets` で `targets[]` へ反映し、seed に無い未知の設計領域/技術/パターンを検出したら `set-knowledge-candidate` (status=discovered) で記録する。反映後 `validate-coverage-matrix.py` (loop) の exit0 を確認する。確定セルの変更が要るときは R4-reopen を使う。余計な前置き・思考過程出力は禁止。

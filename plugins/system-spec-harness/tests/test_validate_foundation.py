@@ -62,6 +62,7 @@ def _valid_foundation() -> dict:
         "constraints": ["社内 k8s"],
         "concrete_intents": [{"id": "I1", "text": "日次バックアップ", "serves": ["G1"]}],
         "confirmed": True,
+        "approval_ref": "appr-foundation",
     }
 
 
@@ -77,6 +78,7 @@ def _valid_state() -> dict:
                 "web": {"state": "確定", "qa_ref": "q", "serves_goals": ["G2", "G1"]},
             },
         },
+        "approval_log": [{"id": "appr-foundation", "note": "上位概念をユーザーと合意した"}],
         "requirements_foundation": _valid_foundation(),
         "decisions": [],
     }
@@ -151,6 +153,29 @@ def test_foundation_requires_confirmed_true():
     assert any("confirmed=true" in f for f in c12.validate_foundation(d))
 
 
+# F1: confirmed はユーザー合意の approval_ref (approval_log 実在) を必須にする (writer と同一契約)
+def test_foundation_confirmed_requires_approval_ref():
+    d = _valid_state()
+    del d["requirements_foundation"]["approval_ref"]
+    assert any("approval_ref" in f and "空" in f for f in c12.validate_foundation(d))
+
+
+def test_foundation_dangling_approval_ref():
+    d = _valid_state()
+    d["requirements_foundation"]["approval_ref"] = "appr-nonexistent"
+    assert any("approval_log に不在" in f for f in c12.validate_foundation(d))
+
+
+# F2: U1-U3 (essential_purpose/background/goals) は N/A 不可 (値必須)。明示 N/A でも finding が立つ
+def test_foundation_u1_u3_reject_explicit_na():
+    for field in ("essential_purpose", "background", "goals"):
+        d = _valid_state()
+        d["requirements_foundation"][field] = {
+            "status": "not_applicable", "reason": "N/A 不可のはず"
+        }
+        assert any(field in f for f in c12.validate_foundation(d))
+
+
 def test_foundation_goal_missing_id():
     d = _valid_state()
     d["requirements_foundation"]["goals"] = [{"text": "id 無し"}]
@@ -197,7 +222,7 @@ def _full_valid_matrix() -> dict:
         "platforms": PLATFORMS,
         "matrix": matrix,
         "qa_log": [{"id": "qa-001", "question": "q", "answer": "a"}],
-        "approval_log": [{"id": "appr-001"}],
+        "approval_log": [{"id": "appr-001"}, {"id": "appr-foundation"}],
         "requirements_foundation": _valid_foundation(),
         "decisions": [],
     }

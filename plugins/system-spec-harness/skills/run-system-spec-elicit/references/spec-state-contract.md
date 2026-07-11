@@ -2,6 +2,14 @@
 
 `run-system-spec-elicit` が生成・更新するヒアリング状態ファイル。C01/C03/C11/C12 が同一形状を前提にする。**状態書込は `scripts/apply-spec-transition.py` の一経路のみ**が行う (単一 transition writer)。
 
+## 正本位置 (canonical location・SSOT)
+
+`spec-state.json` の正本は **`$CLAUDE_PROJECT_DIR/system-spec/spec-state.json`** の 1 経路のみ。commands (C05/C06)・writer (`apply-spec-transition.py`)・consumer (C03/C11/C13) はこの単一の正本パスを読み書きする。取得資料の記録ファイル `fetched-references.json` も同ディレクトリ配下 **`$CLAUDE_PROJECT_DIR/system-spec/fetched-references.json`** に置く。生成物 (章 Markdown・index) も同じ `system-spec/` に集約するため、`plugin.json` の `permissions.filesystem: $CLAUDE_PROJECT_DIR/system-spec/**` が正本・生成物・記録の全てを被覆する (F4: 追加 permission 不要)。
+
+- **暗黙前提の禁止**: 「cwd 直下」「repo root 直下」「配下を rglob で探索」などの位置前提を各 component が独自に持ってはならない。位置は本節の正本パスに一意固定する。
+- **判定ソースの一意性**: C11 保護 hook (`guard-confirmed-chapter-overwrite.py`) は判定ソースとしてこの正本パスのみを読む。配下 rglob フォールバックは持たない。これにより同梱 fixture (`skills/run-system-spec-compile/fixtures/spec-state.json` など、別の確定セルを含むテストデータ) を判定ソースへ誤って拾う交差汚染が構造的に発生しない。
+- **正本の書換防御**: 正本 `spec-state.json` への直接書換 (Write/Edit/Bash) は hook が遮断し、変更は単一 writer 経由 (根拠付き R4-reopen) のみ許す。別位置に存在する同名 `spec-state.json` (fixture 等) は正本でないため保護対象外 (遮断しない)。
+
 ## 形状
 
 ```json
@@ -199,5 +207,5 @@ python3 scripts/apply-spec-transition.py set-knowledge-candidate \
 
 ## 検証 (deterministic gate)
 
-- loop 中: `python3 ../../scripts/validate-coverage-matrix.py --matrix spec-state.json` (exit0)。
+- loop 中: `python3 $CLAUDE_PLUGIN_ROOT/scripts/validate-coverage-matrix.py --matrix spec-state.json` (exit0)。
 - 最終: 同コマンド `--require-complete` (未収集0 必須, exit0)。

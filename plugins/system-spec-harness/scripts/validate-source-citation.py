@@ -18,7 +18,9 @@
 """取得対象一覧と fetched-references.json の出典記録を機械検証する。
 
 内容が現行最新版かの意味判定は C08 (doc-freshness-auditor) が公式サイトを再確認して担う。
-本 script は形式・全件対応・host 一致のみを決定論検証する。
+本 script は形式・全件対応・host 一致のみを決定論検証する。任意の --state (spec-state.json) を
+渡すと、user_decision で採択済みの decision があるのに targets が空という drift
+(「targets 空∧references 空 → OK」の vacuous-green) を warning surface する (exit は不変)。
 
 targets ファイルの期待形状:
 {"targets": [{"target_id": "react", ...}, {"target_id": "postgres", ...}]}
@@ -70,6 +72,37 @@ def _norm_host(host: str) -> str:
     # 先頭が "www." のときだけ除去する。lstrip("www.") は文字集合 {w,.} の先頭除去で
     # `web.dev` -> `eb.dev` のように別 host を潰すため removeprefix を使う (F6)。
     return host.lower().removeprefix("www.") if host else ""
+
+
+def _adopted_decision_ids(state_data: dict) -> list[str]:
+    """spec-state の decisions[] から user_decision で採択済みの decision id を返す。
+
+    採択済み技術は出典取得対象 (targets) の源泉であり、これが空でないのに targets が空なら
+    「targets 空∧references 空 → OK」の vacuous-green を疑える (F3 の決定論可能な部分)。
+    """
+    decisions = state_data.get("decisions")
+    if not isinstance(decisions, list):
+        return []
+    return [
+        d.get("id")
+        for d in decisions
+        if isinstance(d, dict) and isinstance(d.get("user_decision"), dict)
+    ]
+
+
+def state_target_warnings(targets_data: dict, state_data: dict) -> list[str]:
+    """採択技術があるのに targets が空という drift を surface する (F3・warning surface)。
+
+    exit は変えない (既定の緑を壊さないため surface のみ)。決定論可能な範囲=user_decision で
+    採択済みの decision が存在するのに取得対象が未登録、に限定する。
+    """
+    adopted = _adopted_decision_ids(state_data)
+    if adopted and not _target_ids(targets_data):
+        return [
+            f"採択済み decision {adopted} が存在するが targets が空 "
+            "(採択技術の出典取得対象が未登録・vacuous-green の疑い)"
+        ]
+    return []
 
 
 def validate(targets_data: dict, refs_data: dict) -> list[str]:
@@ -150,6 +183,10 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="出典記録の決定論検証 (goal-spec C5)")
     ap.add_argument("--targets", required=True, help="取得対象一覧 JSON のパス")
     ap.add_argument("--references", required=True, help="fetched-references.json のパス")
+    ap.add_argument(
+        "--state",
+        help="spec-state.json (任意)。採択済み decision があるのに targets 空の drift を warning surface (F3)",
+    )
     args = ap.parse_args(argv)
 
     targets_data, rc = _load(args.targets, "targets")
@@ -158,6 +195,13 @@ def main(argv: list[str]) -> int:
     refs_data, rc = _load(args.references, "references")
     if rc:
         return rc
+
+    if args.state:
+        state_data, rc = _load(args.state, "state")
+        if rc:
+            return rc
+        for warning in state_target_warnings(targets_data, state_data):
+            print(f"WARNING: {warning}", file=sys.stderr)
 
     findings = validate(targets_data, refs_data)
     if findings:

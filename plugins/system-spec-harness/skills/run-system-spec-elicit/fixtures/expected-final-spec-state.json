@@ -322,6 +322,10 @@
     {
       "id": "appr-001",
       "note": "ユーザー一括承認: 非 Web プラットフォームは全カテゴリで対象外"
+    },
+    {
+      "id": "appr-foundation",
+      "note": "上位概念 U1-U9 をユーザーと確認し合意した"
     }
   ],
   "reopen_log": [],
@@ -382,7 +386,8 @@
         ]
       }
     ],
-    "confirmed": true
+    "confirmed": true,
+    "approval_ref": "appr-foundation"
   },
   "decisions": [],
   "knowledge_candidates": [],

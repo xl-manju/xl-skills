@@ -29,8 +29,9 @@ Marketplace から install した場合の呼び出し名は通常 `/system-spec
 
 ```bash
 SSH="${CLAUDE_PLUGIN_ROOT:-plugins/system-spec-harness}"
+SPEC_DIR="${CLAUDE_PROJECT_DIR:-.}/system-spec"  # spec-state.json の正本位置 (SSOT・hook 保護対象と同一)
 # 収集マトリクスの網羅性を機械確認 (loop 判定: 未収集セルは許容)
-python3 "$SSH/scripts/validate-coverage-matrix.py" --matrix spec-state.json
+python3 "$SSH/scripts/validate-coverage-matrix.py" --matrix "$SPEC_DIR/spec-state.json"
 ```
 
 - exit0 = 現時点の充足条件を満たす (loop モード)。`--require-complete` を付ければ「未収集セル 0」を最終条件として追加確認できる。

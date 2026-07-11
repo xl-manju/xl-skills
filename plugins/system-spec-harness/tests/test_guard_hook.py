@@ -1,7 +1,7 @@
 # /// script
 # name: test-guard-hook
 # version: 0.1.0
-# purpose: C11 guard-confirmed-chapter-overwrite hook の負例/正例を Write/Edit/Bash × 確定章(C03実出力形状)/対象外混在確定章/再オープン章/新規章/spec-state.json直接書換/read-only の判定分岐で網羅検証する pytest (in-process decide() + subprocess で stdin→exit を確認)。フィクスチャは C03 実 frontmatter (category + spec_cells list) と writer 正本 reopen キー (reopened_from/reopen_reason) に整合。
+# purpose: C11 guard-confirmed-chapter-overwrite hook の負例/正例を Write/Edit/Bash × 確定章(C03実出力形状)/対象外混在確定章/再オープン章/新規章/正本spec-state.json直接書換/正本位置外spec-state(交差汚染回避)/自pluginパス誤爆回避(system-spec境界)/正本解決不能confirmed章の層別fail-closed/read-only の判定分岐で網羅検証する pytest (in-process decide() + subprocess で stdin→exit を確認)。正本位置は system-spec/spec-state.json の1経路のみ。フィクスチャは C03 実 frontmatter (category + spec_cells list) と writer 正本 reopen キー (reopened_from/reopen_reason) に整合。
 # inputs:
 #   - argv: pytest 経由 (直接 argv は取らない)
 # outputs:
@@ -89,10 +89,11 @@ def _make_project(tmp_path: Path, *, reopen: str | None = None, security_mixed: 
         spec["matrix"]["auth"]["mobile"] = {
             "state": "確定", "qa_ref": "qa-001", "reopened_from": "確定", "reopen_reason": "R4-reopen",
         }
-    (tmp_path / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
 
     ss = tmp_path / "system-spec"
     ss.mkdir()
+    # 正本位置: <root>/system-spec/spec-state.json (spec-state-contract.md「正本位置」節)
+    (ss / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
     # 確定章 (全セル確定)
     (ss / "database.md").write_text(_chapter("confirmed", "database"), encoding="utf-8")
     # 再オープン対象を含み得る章 (frontmatter は confirmed のまま・セル側で再オープン)
@@ -180,71 +181,128 @@ def test_write_missing_file_path_passes(tmp_path):
     assert code == 0
 
 
-def test_confirmed_chapter_passes_when_spec_state_absent(tmp_path):
-    """spec-state.json 不在時は「明確に protected と判定不能」→ 通す (誤爆回避)。"""
+def test_confirmed_chapter_blocked_when_spec_state_unresolved(tmp_path):
+    """F3 層別 fail-closed: status:confirmed 章 かつ 正本 spec-state 解決不能 → confirmed 章限定で exit2。
+
+    正本 system-spec/spec-state.json が不在で確定状態を確認できないため、confirmed を宣言する章に
+    限って安全側へ倒す (誤爆範囲は confirmed 章のみ)。
+    """
     ss = tmp_path / "system-spec"
     ss.mkdir()
     (ss / "database.md").write_text(_chapter("confirmed", "database"), encoding="utf-8")
     code, _ = g.decide(_wr(str(ss / "database.md")), tmp_path)
+    assert code == 2
+
+
+def test_draft_chapter_passes_when_spec_state_unresolved(tmp_path):
+    """draft 章は spec-state 不在でも fail-closed の対象外 (誤爆回避優先で通す)。"""
+    ss = tmp_path / "system-spec"
+    ss.mkdir()
+    (ss / "ui-ux.md").write_text(_chapter("draft", "ui-ux", aggregate="収集中"), encoding="utf-8")
+    code, _ = g.decide(_wr(str(ss / "ui-ux.md")), tmp_path)
     assert code == 0
 
 
-# ── Write / Edit (spec-state.json 直接書換ガード・D-2/F3) ─────────────────────
+# ── Write / Edit (正本 spec-state.json 直接書換ガード・D-2/F3) ────────────────
 def test_write_spec_state_direct_blocked(tmp_path):
-    """確定セルを含む spec-state.json への直接 Write を Bash 経路と同格に遮断。"""
+    """確定セルを含む正本 spec-state.json への直接 Write を Bash 経路と同格に遮断。"""
     root = _make_project(tmp_path)
-    code, _ = g.decide(_wr(str(root / "spec-state.json")), root)
+    code, _ = g.decide(_wr(str(root / "system-spec" / "spec-state.json")), root)
     assert code == 2
 
 
 def test_edit_spec_state_direct_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_ed(str(root / "spec-state.json")), root)
+    code, _ = g.decide(_ed(str(root / "system-spec" / "spec-state.json")), root)
     assert code == 2
 
 
+def test_edit_noncanonical_spec_state_passes_despite_canonical_confirmed(tmp_path):
+    """別位置の同名 spec-state.json (同梱 fixture 等) の Edit は、正本に確定セルがあっても遮断しない。
+
+    load_spec_state が rglob フォールバックを持たず正本のみを読むため、別の確定 spec-state を
+    判定ソースに拾う交差汚染が起きない (F2(b)(c))。
+    """
+    root = _make_project(tmp_path)  # 正本 system-spec/spec-state.json は確定セルあり
+    fixtures = tmp_path / "skills" / "run-system-spec-compile" / "fixtures"
+    fixtures.mkdir(parents=True)
+    (fixtures / "spec-state.json").write_text(json.dumps(_spec_state(), ensure_ascii=False), encoding="utf-8")
+    code, _ = g.decide(_ed(str(fixtures / "spec-state.json")), root)
+    assert code == 0
+
+
 def test_write_spec_state_no_confirmed_cell_passes(tmp_path):
-    """確定セルの無い (init 直後・全未収集) spec-state.json への Write は通す (初期化を妨げない)。"""
+    """確定セルの無い (init 直後・全未収集) 正本 spec-state.json への Write は通す (初期化を妨げない)。"""
     spec = {
         "categories": [{"id": c, "label": c} for c in CATEGORIES],
         "platforms": PLATFORMS,
         "matrix": {c: {p: {"state": "未収集"} for p in PLATFORMS} for c in CATEGORIES},
         "qa_log": [],
     }
-    (tmp_path / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
-    code, _ = g.decide(_wr(str(tmp_path / "spec-state.json")), tmp_path)
+    ss = tmp_path / "system-spec"
+    ss.mkdir()
+    (ss / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    code, _ = g.decide(_wr(str(ss / "spec-state.json")), tmp_path)
     assert code == 0
 
 
 # ── Bash ────────────────────────────────────────────────────────────────────
 def test_bash_sed_inplace_spec_state_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("sed -i 's/確定/未収集/' spec-state.json"), root)
+    code, _ = g.decide(_bash("sed -i 's/確定/未収集/' system-spec/spec-state.json"), root)
     assert code == 2
 
 
 def test_bash_redirect_append_spec_state_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash('echo "{}" >> spec-state.json'), root)
+    code, _ = g.decide(_bash('echo "{}" >> system-spec/spec-state.json'), root)
     assert code == 2
 
 
 def test_bash_redirect_overwrite_spec_state_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("echo x > spec-state.json"), root)
+    code, _ = g.decide(_bash("echo x > system-spec/spec-state.json"), root)
     assert code == 2
 
 
 def test_bash_tee_spec_state_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("echo x | tee spec-state.json"), root)
+    code, _ = g.decide(_bash("echo x | tee system-spec/spec-state.json"), root)
     assert code == 2
 
 
 def test_bash_python_open_write_spec_state_blocked(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("python3 -c \"open('spec-state.json','w').write('{}')\""), root)
+    code, _ = g.decide(_bash("python3 -c \"open('system-spec/spec-state.json','w').write('{}')\""), root)
     assert code == 2
+
+
+def test_bash_bare_spec_state_not_canonical_passes(tmp_path):
+    """root 直下 (非正本) の bare spec-state.json への書換は正本でないため遮断しない。
+
+    正本位置は system-spec/spec-state.json の 1 経路のみ (spec-state-contract.md「正本位置」節)。
+    """
+    root = _make_project(tmp_path)
+    code, _ = g.decide(_bash("echo x > spec-state.json"), root)
+    assert code == 0
+
+
+def test_bash_self_plugin_pycache_rm_passes(tmp_path):
+    """自plugin パス (system-spec-harness) を含む rm は保護領域 (system-spec/) 参照でないため通す。
+
+    部分文字列 'system-spec' ではなく system-spec/ のパスセグメント境界で判定するため
+    system-spec-harness/** の __pycache__ 掃除等を誤遮断しない (F2(a))。
+    """
+    root = _make_project(tmp_path)
+    code, _ = g.decide(_bash("rm -rf plugins/system-spec-harness/**/__pycache__"), root)
+    assert code == 0
+
+
+def test_bash_self_plugin_md_sed_passes(tmp_path):
+    """自plugin 内 .md への sed -i は system-spec/ 保護領域外なので通す (パス境界判定)。"""
+    root = _make_project(tmp_path)
+    code, _ = g.decide(_bash("sed -i 's/a/b/' plugins/system-spec-harness/README.md"), root)
+    assert code == 0
 
 
 def test_bash_redirect_confirmed_chapter_blocked(tmp_path):
@@ -261,7 +319,7 @@ def test_bash_ambiguous_glob_over_system_spec_blocked(tmp_path):
 
 def test_bash_cat_spec_state_passes(tmp_path):
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("cat spec-state.json"), root)
+    code, _ = g.decide(_bash("cat system-spec/spec-state.json"), root)
     assert code == 0
 
 
@@ -272,16 +330,16 @@ def test_bash_grep_chapter_passes(tmp_path):
 
 
 def test_bash_read_spec_state_write_elsewhere_passes(tmp_path):
-    """spec-state.json を読み、非保護先へリダイレクトするのは通す (リダイレクト先で判定)。"""
+    """正本 spec-state を読み、非保護先へリダイレクトするのは通す (リダイレクト先で判定)。"""
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("grep 確定 spec-state.json > /tmp/out.txt"), root)
+    code, _ = g.decide(_bash("grep 確定 system-spec/spec-state.json > /tmp/out.txt"), root)
     assert code == 0
 
 
 def test_bash_stderr_redirect_read_only_passes(tmp_path):
     """2>&1 は fd 複製で書込指標にならない (cat の read-only を維持)。"""
     root = _make_project(tmp_path)
-    code, _ = g.decide(_bash("cat spec-state.json 2>&1"), root)
+    code, _ = g.decide(_bash("cat system-spec/spec-state.json 2>&1"), root)
     assert code == 0
 
 
@@ -394,7 +452,9 @@ def test_spec_state_has_confirmed_cell_false_when_all_reopened(tmp_path):
         "matrix": {"database": {p: {"state": "確定", "reopened_from": "確定", "reopen_reason": "r"} for p in PLATFORMS}},
         "qa_log": [],
     }
-    (tmp_path / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    ss = tmp_path / "system-spec"
+    ss.mkdir()
+    (ss / "spec-state.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
     assert g.spec_state_has_confirmed_cell(tmp_path) is False
 
 
@@ -407,7 +467,17 @@ def test_load_spec_state_absent(tmp_path):
 
 
 def test_load_spec_state_bad_json(tmp_path):
-    (tmp_path / "spec-state.json").write_text("{not json", encoding="utf-8")
+    ss = tmp_path / "system-spec"
+    ss.mkdir()
+    (ss / "spec-state.json").write_text("{not json", encoding="utf-8")
+    assert g.load_spec_state(tmp_path) is None
+
+
+def test_load_spec_state_ignores_noncanonical(tmp_path):
+    """正本 (system-spec/spec-state.json) が無ければ、配下の別 spec-state.json は読まない (rglob 廃止)。"""
+    fixtures = tmp_path / "skills" / "fixtures"
+    fixtures.mkdir(parents=True)
+    (fixtures / "spec-state.json").write_text(json.dumps(_spec_state(), ensure_ascii=False), encoding="utf-8")
     assert g.load_spec_state(tmp_path) is None
 
 
@@ -416,9 +486,32 @@ def test_resolve_cell_missing_row():
     assert g._resolve_cell({}, "database", "web") is None
 
 
-def test_is_spec_state_path():
-    assert g._is_spec_state_path(Path("/x/spec-state.json")) is True
-    assert g._is_spec_state_path(Path("system-spec/database.md")) is False
+def test_is_canonical_spec_state(tmp_path):
+    ss = tmp_path / "system-spec"
+    ss.mkdir()
+    (ss / "spec-state.json").write_text("{}", encoding="utf-8")
+    # 正本 (root/system-spec/spec-state.json) のみ True
+    assert g._is_canonical_spec_state(ss / "spec-state.json", tmp_path) is True
+    # root 直下・別ディレクトリの同名は正本でない
+    assert g._is_canonical_spec_state(tmp_path / "spec-state.json", tmp_path) is False
+    assert g._is_canonical_spec_state(tmp_path / "other" / "spec-state.json", tmp_path) is False
+    assert g._is_canonical_spec_state(ss / "database.md", tmp_path) is False
+
+
+def test_token_is_canonical_spec_state():
+    assert g._token_is_canonical_spec_state("system-spec/spec-state.json") is True
+    assert g._token_is_canonical_spec_state("/abs/system-spec/spec-state.json") is True
+    assert g._token_is_canonical_spec_state("spec-state.json") is False  # bare = 非正本
+    assert g._token_is_canonical_spec_state("fixtures/spec-state.json") is False
+    assert g._token_is_canonical_spec_state("system-spec/database.md") is False
+
+
+def test_refs_protected_area_path_boundary():
+    """system-spec/ をパスセグメント境界で判定し、system-spec-harness には発火しない。"""
+    assert g._refs_protected_area("echo x > system-spec/a.md") is True
+    assert g._refs_protected_area("find system-spec -name '*.md'") is True
+    assert g._refs_protected_area("rm -rf plugins/system-spec-harness/**/__pycache__") is False
+    assert g._refs_protected_area("sed -i s/a/b/ plugins/system-spec-harness/README.md") is False
 
 
 def test_bash_sed_inplace_confirmed_chapter_blocked(tmp_path):
@@ -467,12 +560,12 @@ def test_main_block_via_stdin(tmp_path):
 
 def test_main_block_spec_state_via_stdin(tmp_path):
     root = _make_project(tmp_path)
-    assert _run_main(_ed(str(root / "spec-state.json")), root) == 2
+    assert _run_main(_ed(str(root / "system-spec" / "spec-state.json")), root) == 2
 
 
 def test_main_pass_via_stdin(tmp_path):
     root = _make_project(tmp_path)
-    assert _run_main(_bash("cat spec-state.json"), root) == 0
+    assert _run_main(_bash("cat system-spec/spec-state.json"), root) == 0
 
 
 def test_main_bad_stdin_passes(tmp_path):

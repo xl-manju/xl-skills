@@ -11,7 +11,7 @@ plugin_meta:
   marketplace:
     default_personal: true
     policy:
-      installation: NOT_AVAILABLE
+      installation: AVAILABLE
       authentication: ON_USE
       category: Productivity
     cachebuster_for_update: true
@@ -36,7 +36,7 @@ plugin_meta:
       config_key: system-spec-improvement-request
       schema_ref: doc/notion-schema/improvement-request.schema.json
       resolution: notion_config
-    portability: repo-bundled
+    portability: vendored
   harness_eval:
     evals_json: EVALS.json
     mechanical: required

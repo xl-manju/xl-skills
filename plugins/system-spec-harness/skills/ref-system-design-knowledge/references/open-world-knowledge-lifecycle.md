@@ -23,22 +23,40 @@
 
 ## Project candidate 最小形
 
+project candidate は C01 の project-local state (`spec-state.json`) の `knowledge_candidates[]` へ保存し、書込は `apply-spec-transition.py set-knowledge-candidate` のみが行う。**形状の正本は C01 の `references/spec-state-contract.md`「KNOWLEDGE_CANDIDATES_EXTENSION_C」であり、writer が受理する実形状に忠実であること** (本節はその要約。lifecycle 語彙と writer の status enum を取り違えると writer が全拒否する)。
+
+必須共通項目は kebab-case `id` / stable `topic` / `status` / `problem` / 実在 goal を指す `serves_goals` / `source_refs` (配列)。`status` は writer の 4 値 enum `discovered → qualified → deepened → promoted` で、一段階前進のみ (巻き戻し・飛び級・topic 変更は禁止)。`discovered` 段階の最小形:
+
 ```json
 {
-  "knowledge_id": "candidate-example",
-  "status": "project-candidate",
-  "discovery_signal": "未決定の認証方式",
-  "goal_ids": ["G1"],
-  "constraint_ids": ["budget-zero"],
-  "card": {"$ref": "knowledge-card.schema.json"},
-  "qualification": {
-    "official_or_primary": true,
-    "checked_at": "RFC3339",
-    "evidence_refs": ["target-id"]
-  },
-  "promotion": {"decision": "pending", "reviewer": null}
+  "id": "offline-first-conflict-resolution",
+  "topic": "offline-first conflict resolution",
+  "status": "discovered",
+  "problem": "複数端末のオフライン更新競合を解決する必要がある",
+  "serves_goals": ["G1"],
+  "source_refs": []
 }
 ```
+
+status が進むごとに writer が追加フィールドを強制する:
+
+- `qualified` 以降: `source_refs[]` は各 `{url (HTTPS), official_or_primary: true, checked_at}` を持つ非空配列 (二次ブログのみは不可)。qualification 担当は C02。
+- `deepened` 以降: `card` が deep-card 必須意味項目 (`purpose/background/problems/core_concepts/applies_when/does_not_apply_when/tradeoffs/failure_modes/goal_contribution/primary_sources/freshness`) を全て持ち、`card.primary_sources[].locator` は HTTPS。
+- `promoted`: 保守担当の承認・curated 配置を指す `curation_ref` が必須 (自動昇格しない)。
+
+### Lifecycle 7 段階 → writer status 4 値の対応
+
+| Lifecycle 段階 | writer status | writer が強制する形状 |
+|---|---|---|
+| 1. Discover | `discovered` | 必須共通項目 (`source_refs` は空可) |
+| 2. Qualify | `qualified` | `source_refs[]` を公式/一次 HTTPS + `checked_at` 付き非空へ |
+| 3. Deepen | `deepened` | `card` 必須意味項目を全充足 (`primary_sources[].locator` HTTPS) |
+| 4. Goal map | (status 横断) | `serves_goals` を実在 goal へ結ぶ (全 status で必須共通) |
+| 5. Project candidate | `discovered`/`qualified` | C01 `knowledge_candidates[]` へ `set-knowledge-candidate` で保存 |
+| 6. Curated promotion | `promoted` | `curation_ref` (承認・curated 配置) 必須・自動昇格禁止 |
+| 7. Freshness audit | (status 不変) | `card.freshness` / `source_refs[].checked_at` を再照合 |
+
+Goal map と Freshness audit は独立した status を持たず、それぞれ全 status で必須の `serves_goals` 付与と、既存 candidate の鮮度再照合という横断的規律。Project candidate は保存という行為で、その時点の status (`discovered` か `qualified`) を保つ。
 
 ## 停止条件
 

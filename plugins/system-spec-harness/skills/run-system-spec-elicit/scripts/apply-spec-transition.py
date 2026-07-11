@@ -28,9 +28,11 @@ spec-state.json 形状は plugin 共有契約 (SKILL.md / validate-coverage-matr
 要件 C9 (上位概念 anchor): top-level ``requirements_foundation`` (本質的目的 U1 / 背景 U2 /
 ゴール U3 / 目標 U4 / 成功基準 U5 / ステークホルダー U6 / スコープ U7 / 制約 U8 /
 具体的やりたいこと U9) をカテゴリ×platform マトリクス収集の**手前**で確定する。書込は
-``set-foundation`` op の一経路のみ (U1-U9 が値あり、または明示 N/A+理由であることが確定条件)。各確定
-セルは ``serves_goals: [<goal_id>, ...]`` (confirm 付随 or ``set-serves`` op) で上位概念へトレース
-(anchor) し、どのゴールにも資さない収集を drift として検証側 (validate) が surface する。
+``set-foundation`` op の一経路のみ。確定条件は (1) U1-U3 は値必須・U4-U9 は値または明示 N/A+理由、
+かつ (2) ユーザー合意の機械証跡として ``approval_ref`` が ``approval_log`` に実在すること
+(cell exclude の approval_ref と対称)。各確定セルは ``serves_goals: [<goal_id>, ...]``
+(confirm 付随 or ``set-serves`` op) で上位概念へトレース (anchor) し、どのゴールにも資さない収集を
+drift として検証側 (validate) が surface する。
 """
 from __future__ import annotations
 
@@ -61,8 +63,8 @@ PLATFORM_LABELS = {
 CELL_STATES = {"未収集", "対象外", "確定"}
 MAX_LOOPS_DEFAULT = 5
 
-# 要件 C9: requirements_foundation (上位概念) の許容キー。set-foundation の未知キーを弾く。
-FOUNDATION_KEYS = (
+# 要件 C9: requirements_foundation (上位概念) の U1-U9 実体キー。
+FOUNDATION_U_KEYS = (
     "essential_purpose",  # U1 本質的目的
     "background",         # U2 背景
     "goals",              # U3 ゴール
@@ -72,8 +74,11 @@ FOUNDATION_KEYS = (
     "scope",              # U7 スコープ (in/out)
     "constraints",        # U8 制約
     "concrete_intents",   # U9 具体的にやりたいこと
-    "confirmed",          # 上位概念の確定フラグ
 )
+# U1-U3 (本質的目的/背景/ゴール) は N/A 不可 (値必須)。"目的が N/A のシステム" を弾く。
+FOUNDATION_NA_FORBIDDEN = ("essential_purpose", "background", "goals")
+# set-foundation が受理する全キー: U1-U9 + 確定フラグ + ユーザー合意の承認参照。未知キーは弾く。
+FOUNDATION_KEYS = FOUNDATION_U_KEYS + ("confirmed", "approval_ref")
 DECISION_STATUSES = {
     "needs_guidance",
     "recommended_pending_confirmation",
@@ -395,11 +400,11 @@ def _is_explicit_na(value) -> bool:
 
 
 def _foundation_missing_fields(foundation: dict) -> list[str]:
-    """U1-U9 の値なし・明示 N/A なしを列挙する。"""
+    """U1-U9 の値なし・明示 N/A なしを列挙する。U1-U3 は N/A 不可 (値必須)。"""
     missing: list[str] = []
-    for key in FOUNDATION_KEYS[:-1]:
+    for key in FOUNDATION_U_KEYS:
         value = foundation.get(key)
-        if _is_explicit_na(value):
+        if key not in FOUNDATION_NA_FORBIDDEN and _is_explicit_na(value):
             continue
         if key in ("essential_purpose", "background"):
             present = isinstance(value, str) and bool(value.strip())
@@ -422,14 +427,27 @@ def set_foundation(state: dict, foundation: dict) -> None:
 
     - 既存 requirements_foundation へ渡された field をマージ (部分更新可・未知キーは拒否)。
     - goals は id 必須・重複禁止。concrete_intents.serves は実在 goal を指す (dangling 拒否)。
-    - `confirmed: true` を要求するときは essential_purpose / background / goals が
-      いずれも非空であることを確定条件として強制する (上位概念のブレを機械で防ぐ)。
+    - `confirmed: true` の確定条件 (上位概念のブレを機械で防ぐ):
+        1. U1-U9 が値あり (U1-U3 は N/A 不可)、U4-U9 は明示 N/A+理由でも可。
+        2. ユーザー合意の機械証跡として approval_ref が非空で approval_log に実在する
+           (cell exclude の approval_ref と対称。承認なき確定を弾く)。
+      approval_note を伴うときは approval_log へ idempotent 登録する (apply_turn と同じ機構)。
+      approval_note はログ登録専用で requirements_foundation へは保存しない (本文は approval_log)。
 
     apply-spec-transition.py 以外は spec-state を書き換えない不変則を保つため、
     requirements_foundation も本経路経由でのみ設定する。
     """
     if not isinstance(foundation, dict):
         raise TransitionError(f"requirements_foundation は object でない: {foundation!r}")
+    foundation = dict(foundation)
+    # ユーザー合意の承認を approval_log へ idempotent 登録 (apply_turn の approval_id と同じ機構)。
+    approval_note = foundation.pop("approval_note", None)
+    approval_ref = foundation.get("approval_ref")
+    if approval_ref and approval_note is not None:
+        appr_log = state.setdefault("approval_log", [])
+        if not _has_entry(appr_log, approval_ref):
+            appr_log.append({"id": approval_ref, "note": approval_note})
+
     merged = dict(state.get("requirements_foundation") or empty_foundation())
     for k, v in foundation.items():
         if k not in FOUNDATION_KEYS:
@@ -464,14 +482,23 @@ def set_foundation(state: dict, foundation: dict) -> None:
                     f"concrete_intent {intent.get('id')!r} の serves={gid!r} が実在 goal を指さない"
                 )
 
-    # 確定条件: U1-U9 の全項目が値あり、または明示 N/A+理由 (上位概念ブレ防止の要)
+    # 確定条件: U1-U9 (U1-U3 は値必須) かつ ユーザー合意の approval_log 参照 (上位概念ブレ防止の要)
     confirmed = bool(merged.get("confirmed"))
     if confirmed:
         missing = _foundation_missing_fields(merged)
         if missing:
             raise TransitionError(
-                "確定条件不足: U1-U9 は値ありまたは明示 N/A+理由が必須: "
+                "確定条件不足: U1-U3 は値必須・U4-U9 は値または明示 N/A+理由が必須: "
                 + ", ".join(missing)
+            )
+        appr = merged.get("approval_ref")
+        if not (isinstance(appr, str) and appr.strip()):
+            raise TransitionError(
+                "確定条件不足: confirmed には approval_ref (ユーザー合意の approval_log 参照) が必須"
+            )
+        if not _has_entry(state.get("approval_log") or [], appr):
+            raise TransitionError(
+                f"確定条件不足: approval_ref={appr!r} が approval_log に不在 (承認証跡なし)"
             )
     merged["confirmed"] = confirmed
     state["requirements_foundation"] = merged

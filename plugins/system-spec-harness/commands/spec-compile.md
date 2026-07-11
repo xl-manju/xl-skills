@@ -26,7 +26,7 @@ Marketplace から install した場合の呼び出し名は通常 `/system-spec
 
 ### 1 段目: 入力健全性の確認 → 仕様書ドキュメントセット生成 (C03)
 
-1. **入力健全性ゲート (生成前・read-only)**: 収集マトリクスと出典記録が生成に足る状態かを決定論検証する。違反 (exit1) があればコンパイルへ進まず、`spec-hearing-start` での追加収集を案内して停止する (壊れた入力で章立てを組まない fail-closed)。下記「入力健全性ゲートの実行コード」を参照。
+1. **入力健全性ゲート (生成前・read-only)**: 収集マトリクスと**上位概念 (requirements_foundation U1-U9)・意思決定 (decisions)・出典記録**が生成に足る状態かを決定論検証する。違反 (exit1) があればコンパイルへ進まず、`spec-hearing-start` での追加収集 (foundation 未確定なら R0-foundation の完了) を案内して停止する (壊れた入力で章立てを組まない fail-closed)。下記「入力健全性ゲートの実行コード」を参照。
 2. **コンパイル本体**: `Skill(run-system-spec-compile, args="$ARGUMENTS")` を呼ぶ。C03 が確定済みマトリクスと出典を章立て構造 (`system-spec/*.md` + 目次 `index.md`) へ写像し、各章に出典参照 (`fetched-references.json` の source_url) を紐づける。章立ての構造・出典差込み・書込みの正本ロジックはすべて C03 が所有し、本 command は引数受け渡しと 2 段連鎖の指揮のみを担う。`--out-dir DIR` はそのまま `$ARGUMENTS` として C03 へ渡り、出力先ディレクトリを差し替える。
 
 ### 2 段目: 完成度評価の自動連鎖起動 (C05)
@@ -44,14 +44,20 @@ Marketplace から install した場合の呼び出し名は通常 `/system-spec
 
 ```bash
 SSH="${CLAUDE_PLUGIN_ROOT:-plugins/system-spec-harness}"
-# 収集マトリクスの網羅性 (未収集セル 0 を最終条件に要求)
-python3 "$SSH/scripts/validate-coverage-matrix.py" --matrix spec-state.json --require-complete
+SPEC_DIR="${CLAUDE_PROJECT_DIR:-.}/system-spec"  # spec-state.json の正本位置 (SSOT・hook 保護対象と同一)
+# 収集マトリクスの網羅性 (未収集セル 0) + 上位概念 U1-U9・decisions・goalトレース (C9/C10) を一括検証
+# --require-foundation は requirements_foundation の U1-U9 (値ありまたは明示 N/A) と
+# validate_decisions (options 2-3件・free/low-cost 1件以上・user_decision 契約・goalトレース) も走らせる
+python3 "$SSH/scripts/validate-coverage-matrix.py" --matrix "$SPEC_DIR/spec-state.json" --require-complete --require-foundation
 # 取得対象一覧 ↔ fetched-references.json の出典を全件突合 (形式・全件・host 一致)
-python3 "$SSH/scripts/validate-source-citation.py" --targets spec-state.json --references fetched-references.json
+python3 "$SSH/scripts/validate-source-citation.py" --targets "$SPEC_DIR/spec-state.json" --references "$SPEC_DIR/fetched-references.json"
 ```
 
-- 両者 exit0 = 章立てコンパイルに足る入力健全性を満たす。1 段目のコンパイル本体 (C03) へ進む。
-- coverage gate exit1 = 収集不足。`spec-hearing-start` での追加収集を案内してコンパイルを中止する (C03 は起動しない)。
+- 両者 exit0 = 章立てコンパイルに足る入力健全性 (網羅性 + 上位概念確定 + 意思決定契約 + 出典突合) を満たす。1 段目のコンパイル本体 (C03) へ進む。
+- coverage/foundation gate exit1 (`VIOLATION:` あり):
+  - `requirements_foundation:` 系違反 = 上位概念 (U1-U9) が未確定または未承認 (`confirmed` でない)。`spec-hearing-start` で **R0-foundation** を完了 (U1-U9 を値または明示 N/A で確定・U1/U2/U3 は値必須・ユーザー承認 `approval_ref` 付き) してから再実行するよう案内してコンパイルを中止する (C03 は起動しない)。
+  - `decisions:` 系違反 = 意思決定 (C10) の options 2-3件/free・low-cost 候補/user_decision 契約違反。R5-decision-guide で decision record を整えてから再実行を案内する。
+  - 未収集セル残り (matrix 系違反) = 収集不足。`spec-hearing-start` での追加収集を案内してコンパイルを中止する (C03 は起動しない)。
 - citation gate exit1 (`VIOLATION:` あり):
   - `対象 target_id の参照欠落` = commandがC02を自動起動して取得し、再ゲートする。
   - `targets: 対象 target_id が空` (references は非空) = orphan 参照 → `spec-state.json` の `targets[]` を `apply-spec-transition.py set-targets` で整備するか、不要な参照を除去する。
@@ -68,5 +74,5 @@ python3 "$SSH/scripts/validate-source-citation.py" --targets spec-state.json --r
 ## 注意
 
 - 本commandはC02自動準備→C03コンパイル→C05評価を指揮する。
-- 入力健全性ゲートはどのモードでも副作用なし (read-only)。`spec-state.json` 未生成なら先に `spec-hearing-start` で往復ヒアリングを完了させ、`fetched-references.json` 未生成 (かつ `targets` あり) なら先に `run-system-spec-doc-fetch` で出典を取得する旨を案内する (`targets` 空なら空 references で継続)。
+- 入力健全性ゲートはどのモードでも副作用なし (read-only)。`spec-state.json` 未生成なら先に `spec-hearing-start` で往復ヒアリングを完了させ、上位概念 (U1-U9) が未確定なら R0-foundation を先に確定させ、`fetched-references.json` 未生成 (かつ `targets` あり) なら先に `run-system-spec-doc-fetch` で出典を取得する旨を案内する (`targets` 空なら空 references で継続)。
 - 完成度評価 (C05) はコンパイル成功時のみ自動起動する。生成物が無い状態で評価を走らせない (fail-closed)。

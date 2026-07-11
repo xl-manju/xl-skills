@@ -2,7 +2,7 @@
 # /// script
 # name: aggregate-completeness
 # version: 0.1.0
-# purpose: C05 完成度評価レポートの形状検証と 3 観点スコア→総合 PASS/FAIL の決定論集約 (Goodhart 防止の fail-closed 集約器)
+# purpose: C05 完成度評価レポートの形状検証と全 6 観点スコア→総合 PASS/FAIL の決定論集約 (Goodhart 防止の fail-closed 集約器)
 # inputs:
 #   - argv: --report FILE / --matrix FILE [--require-complete]
 # outputs:
@@ -19,12 +19,13 @@
 2 つの決定論部品を純関数として提供する (LLM の主観判定から機械層を切り出す)。
 
 1. `validate_report(report)`  — 評価レポートの形状 (観点別スコア + 総合判定 + 不足事項一覧)
-   と、総合判定が 3 観点 verdict + high finding 数から fail-closed に再導出した値と一致するか
+   と、総合判定が全観点 verdict + high finding 数から fail-closed に再導出した値と一致するか
    (Goodhart 防止の整合検査) を検証し、違反文字列のリストを返す。
-2. `aggregate_verdict(aspect_verdicts, high_count)` — 3 観点 (マトリクス網羅性 / 設計知識反映 /
-   最新ドキュメント出典) の verdict と high severity finding 数から総合 PASS/FAIL を導出する。
-   fail-closed: 3 観点すべて PASS かつ high 0 のときだけ PASS。1 観点でも FAIL/INDETERMINATE、
-   または high finding が 1 件でもあれば FAIL。観点の取りこぼし (3 観点未充足) も FAIL。
+2. `aggregate_verdict(aspect_verdicts, high_count)` — 全 6 観点 (ASPECTS の全キー: foundation_trace /
+   decision_guidance / matrix_coverage / design_knowledge_reflection / doc_freshness / prompt_quality)
+   の verdict と high severity finding 数から総合 PASS/FAIL を導出する。
+   fail-closed: 全観点 PASS かつ high 0 のときだけ PASS。1 観点でも FAIL/INDETERMINATE、
+   または high finding が 1 件でもあれば FAIL。観点の取りこぼし (観点未充足) も FAIL。
 
 `run_coverage_gate(...)` は plugin-root の `validate-coverage-matrix.py` (C05 の
 deterministic_check) を独立 context で実行し、マトリクス網羅性観点の一次根拠を回収する薄い wrapper。
@@ -83,11 +84,11 @@ SEVERITIES = {"high", "medium", "low", "info"}
 
 
 def aggregate_verdict(aspect_verdicts: dict, high_count: int) -> str:
-    """3 観点 verdict + high finding 数から総合 verdict を fail-closed に導出する。
+    """全観点 verdict + high finding 数から総合 verdict を fail-closed に導出する。
 
-    - 3 観点 (ASPECTS のキー) を過不足なく網羅していなければ FAIL (監査観点の取りこぼし防止)。
+    - 全観点 (ASPECTS のキー) を過不足なく網羅していなければ FAIL (監査観点の取りこぼし防止)。
     - high severity finding が 1 件でもあれば FAIL。
-    - 3 観点すべてが厳密に PASS のときだけ PASS。FAIL/INDETERMINATE が 1 つでもあれば FAIL。
+    - 全観点が厳密に PASS のときだけ PASS。FAIL/INDETERMINATE が 1 つでもあれば FAIL。
     副作用なし = 単体テスト可能。
     """
     if set(aspect_verdicts) != set(ASPECTS):
@@ -124,7 +125,7 @@ def validate_report(report: dict) -> list[str]:
     if verdict not in OVERALL_VERDICTS:
         v.append(f"verdict={verdict!r} が {sorted(OVERALL_VERDICTS)} 外")
 
-    # --- 観点別スコア (3 観点を過不足なく) ---
+    # --- 観点別スコア (全観点を過不足なく) ---
     aspects = report.get("aspects")
     aspect_verdicts: dict[str, str] = {}
     if not isinstance(aspects, dict):
@@ -135,7 +136,7 @@ def validate_report(report: dict) -> list[str]:
         if extra:
             v.append(f"aspects: 未知の観点 {sorted(extra)}")
         if missing:
-            v.append(f"aspects: 観点欠落 {sorted(missing)} (3 観点を過不足なく)")
+            v.append(f"aspects: 観点欠落 {sorted(missing)} (全観点を過不足なく)")
         for aid, spec in ASPECTS.items():
             a = aspects.get(aid)
             if not isinstance(a, dict):
@@ -180,7 +181,7 @@ def validate_report(report: dict) -> list[str]:
         derived = aggregate_verdict(aspect_verdicts, _high_count(findings))
         if derived != verdict:
             v.append(
-                f"verdict={verdict!r} が 3 観点 + high finding 数からの fail-closed 再導出 "
+                f"verdict={verdict!r} が 全観点 + high finding 数からの fail-closed 再導出 "
                 f"{derived!r} と不一致 (総合判定が観点スコアに接地していない)"
             )
     # FAIL のとき不足事項が空なら差し戻し材料が欠落

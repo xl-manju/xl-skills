@@ -1,6 +1,6 @@
 # R3-record 責務プロンプト (7層)
 
-> 最新ドキュメント取得 (C01 `run-system-spec-doc-fetch`) の **出典記録** 責務本文の SSOT。
+> 最新ドキュメント取得 (C02 `run-system-spec-doc-fetch`) の **出典記録** 責務本文の SSOT。
 > 起動元 = 本 skill 本体のゴールシークループ (R2 の取得素材を受ける)。差分は本ファイルを優先する。
 
 ## メタ

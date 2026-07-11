@@ -197,6 +197,10 @@ _FOUNDATION_REQUIRED = (
 )
 
 
+# U1-U3 (本質的目的/背景/ゴール) は N/A 不可 (値必須)。writer 側 FOUNDATION_NA_FORBIDDEN と同一契約。
+_FOUNDATION_NA_FORBIDDEN = ("essential_purpose", "background", "goals")
+
+
 def _is_explicit_na(value) -> bool:
     return (
         isinstance(value, dict)
@@ -206,7 +210,7 @@ def _is_explicit_na(value) -> bool:
 
 
 def _foundation_value_present(key: str, value) -> bool:
-    if _is_explicit_na(value):
+    if key not in _FOUNDATION_NA_FORBIDDEN and _is_explicit_na(value):
         return True
     if key in ("essential_purpose", "background"):
         return isinstance(value, str) and bool(value.strip())
@@ -395,7 +399,8 @@ def validate_foundation(data: dict) -> list[str]:
     """上位概念 (requirements_foundation) と serves_goals トレースを検証する (要件 C9・anti-drift)。
 
     検証内容 (opt-in; --require-foundation 時のみ):
-      (a) requirements_foundation の U1-U9 が値あり、または明示 N/A+理由で確定されている。
+      (a) requirements_foundation の U1-U9 が値あり (U1-U3 は N/A 不可)、または明示 N/A+理由で
+          確定され、confirmed=true はユーザー合意の approval_ref (approval_log 実在) を伴う。
       (b) 各『確定』セルが serves_goals で 1 つ以上の実在する goal id へトレースされる。
       (c) どのゴールにも資さない確定セル (serves_goals 無し = drift 候補) を surface。
     上位概念がブレると仕様が整ってもブレるため、収集を上位概念へ機械的に結び付ける。
@@ -418,6 +423,20 @@ def validate_foundation(data: dict) -> list[str]:
             )
     if not rf.get("confirmed"):
         findings.append("requirements_foundation: confirmed=true でない")
+    else:
+        # confirmed はユーザー合意の approval_log 参照が必須 (writer の approval_ref と同一契約)
+        approval_ids = {
+            e.get("id") for e in data.get("approval_log", []) if isinstance(e, dict)
+        }
+        approval_ref = rf.get("approval_ref")
+        if not (isinstance(approval_ref, str) and approval_ref.strip()):
+            findings.append(
+                "requirements_foundation: confirmed だが approval_ref (ユーザー合意) が空"
+            )
+        elif approval_ref not in approval_ids:
+            findings.append(
+                f"requirements_foundation: approval_ref={approval_ref!r} が approval_log に不在"
+            )
     goals = rf.get("goals") or []
     if _is_explicit_na(goals):
         goals = []

@@ -364,6 +364,15 @@ PENDING_RENAME_PATHS = {
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-status.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-poll.py",
     "plugins/harness-creator/skills/run-skill-live-trial/scripts/live-trial-verdict.py",
+    # system-spec-harness 初回投入: §4.3 (kebab-case) は満たすが verb が ALLOWED_VERBS 外。
+    # compile (収集仕様→章立て仕様書へコンパイル) / apply (spec-state 遷移適用) / aggregate
+    # (観点別 verdict を総合 verdict へ集約) は許可動詞に対応語が無い。許可動詞化は
+    # SKILL.md(script_refs)/prompts/tests/agent 参照を原子的に更新する後続 Change Governance
+    # 一括改名 PR まで PENDING (plugin-dev-planner check-* / notion-gmail-send emit-observable
+    # と同種の「新規 plugin 初回投入時の verb pending」扱い)。
+    "plugins/system-spec-harness/skills/run-system-spec-compile/scripts/compile-spec-doc.py",
+    "plugins/system-spec-harness/skills/run-system-spec-elicit/scripts/apply-spec-transition.py",
+    "plugins/system-spec-harness/skills/assign-system-spec-completeness-evaluator/scripts/aggregate-completeness.py",
 }
 
 VALID_NAME = re.compile(r"^([a-z]+)-[a-z0-9-]+\.py$")

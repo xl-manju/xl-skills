@@ -12,10 +12,10 @@
 # ///
 """aggregate-completeness.py の受入テスト。
 
-- aggregate_verdict: 3 観点全 PASS→PASS / 1 観点 FAIL→FAIL / INDETERMINATE→FAIL / 観点欠落→FAIL / high→FAIL
+- aggregate_verdict: 全観点 PASS→PASS / 1 観点 FAIL→FAIL / INDETERMINATE→FAIL / 観点欠落→FAIL / high→FAIL
 - validate_report: golden PASS レポートの形状 + 総合判定整合、各種違反検出
 - run_coverage_gate: validate-coverage-matrix.py 連携 (完全マトリクス exit0 / 未収集残存 exit1)
-- schema: 評価レポートスキーマが有効 JSON で 3 観点を持つ
+- schema: 評価レポートスキーマが有効 JSON で全 6 観点を持つ
 """
 from __future__ import annotations
 

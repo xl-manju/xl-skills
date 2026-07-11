@@ -366,6 +366,9 @@ def _valid_foundation() -> dict:
         "constraints": ["社内 k8s 上で稼働"],
         "concrete_intents": [{"id": "I1", "text": "日次バックアップ", "serves": ["G1"]}],
         "confirmed": True,
+        # 確定にはユーザー合意の approval が必須。approval_note で approval_log へ idempotent 登録される。
+        "approval_ref": "appr-foundation",
+        "approval_note": "上位概念 U1-U9 をユーザーと確認し合意した",
     }
 
 
@@ -436,6 +439,47 @@ def test_set_foundation_accepts_explicit_na_with_reason():
     f["constraints"] = {"status": "not_applicable", "reason": "制約なしをユーザー確認済み"}
     mod.set_foundation(state, f)
     assert state["requirements_foundation"]["confirmed"] is True
+
+
+# F1: confirmed はユーザー合意の approval_ref (approval_log 実在) を機械証跡として要求する
+def test_set_foundation_confirm_requires_approval_ref():
+    state = mod.init_state(_taxonomy())
+    f = _valid_foundation()
+    del f["approval_ref"]
+    del f["approval_note"]
+    with pytest.raises(mod.TransitionError, match="approval_ref"):
+        mod.set_foundation(state, f)
+
+
+def test_set_foundation_confirm_rejects_dangling_approval_ref():
+    state = mod.init_state(_taxonomy())
+    f = _valid_foundation()
+    del f["approval_note"]  # 自動登録させない → approval_log に実在しない参照
+    f["approval_ref"] = "appr-nonexistent"
+    with pytest.raises(mod.TransitionError, match="approval_log に不在"):
+        mod.set_foundation(state, f)
+
+
+def test_set_foundation_registers_approval_from_note():
+    state = mod.init_state(_taxonomy())
+    assert state["approval_log"] == []
+    mod.set_foundation(state, _valid_foundation())
+    assert mod._has_entry(state["approval_log"], "appr-foundation")
+    rf = state["requirements_foundation"]
+    assert rf["approval_ref"] == "appr-foundation"
+    assert "approval_note" not in rf  # 承認本文は approval_log が持つ (foundation へは保存しない)
+
+
+# F2: U1-U3 (essential_purpose/background/goals) は N/A 不可 (値必須)。"目的が N/A" を弾く
+@pytest.mark.parametrize("field", ["essential_purpose", "background", "goals"])
+def test_set_foundation_confirm_rejects_na_for_u1_u3(field):
+    state = mod.init_state(_taxonomy())
+    f = _valid_foundation()
+    f[field] = {"status": "not_applicable", "reason": "N/A にはできないはず"}
+    if field == "goals":
+        f["concrete_intents"] = []  # goals 消滅で intent.serves が dangling にならないよう除去
+    with pytest.raises(mod.TransitionError, match=field):
+        mod.set_foundation(state, f)
 
 
 def test_bootstrap_then_foundation_then_init_preserves_foundation_and_decisions():

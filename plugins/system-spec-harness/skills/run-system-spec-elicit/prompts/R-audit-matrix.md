@@ -68,7 +68,7 @@
 ### 3.1 参照リソース
 | id | path | when_to_read |
 |---|---|---|
-| R-audit SSOT | 本ファイル (`../skills/run-system-spec-elicit/prompts/R-audit-matrix.md`) | 実行開始時・判断に迷った時 |
+| R-audit SSOT | 本ファイル (`$CLAUDE_PLUGIN_ROOT/skills/run-system-spec-elicit/prompts/R-audit-matrix.md`) | 実行開始時・判断に迷った時 |
 | spec_state | C01 出力 `spec-state.json` | 監査対象の読み込み時 |
 | validator (C12) | `$CLAUDE_PLUGIN_ROOT/scripts/validate-coverage-matrix.py` | 決定論ゲート実行時 (loop / --require-complete) |
 | taxonomy (C04) | `$CLAUDE_PLUGIN_ROOT/skills/ref-system-design-knowledge/references/` | カテゴリ軸床・カテゴリ初期集合の正本を確認する時 |

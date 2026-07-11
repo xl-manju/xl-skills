@@ -1,6 +1,6 @@
 ---
 name: assign-system-spec-completeness-evaluator
-description: 生成された仕様書ドキュメントセットの完成度を独立 context で評価したいとき、マトリクス網羅性と設計知識反映と最新ドキュメント出典の観点別に合否判定したいときに使う。
+description: 生成された仕様書ドキュメントセットの完成度を独立 context で評価したいとき、上位概念trace・意思決定・マトリクス網羅性・設計知識反映・最新ドキュメント出典・prompt品質の 6 観点で合否判定したいときに使う。
 disable-model-invocation: false
 user-invocable: false
 context: fork
@@ -46,7 +46,7 @@ agent_refs:
   - ../../agents/system-spec-hearing-auditor.md
   - ../../agents/system-spec-doc-freshness-auditor.md
 feedback_contract:
-  skip_reason: "assign kind は loop criteria 対象外。合否基準は checklist の 3 評価観点 (matrix_coverage=C07 監査 + C06 ヒアリング品質 sub-input / design_knowledge_reflection=C05 自前評価 / doc_freshness=C08 監査) の evaluator ゲート、および validate-coverage-matrix.py の決定論ゲートで担保する。"
+  skip_reason: "assign kind は loop criteria 対象外。合否基準は checklist の 6 評価観点 (foundation_trace/decision_guidance/prompt_quality=C05 自前評価 / matrix_coverage=C07 監査 + C06 ヒアリング品質 sub-input / design_knowledge_reflection=C05 自前評価 / doc_freshness=C08 監査) の evaluator ゲート、および validate-coverage-matrix.py の決定論ゲートで担保する。"
 ---
 
 # assign-system-spec-completeness-evaluator
@@ -61,7 +61,9 @@ feedback_contract:
 
 各 skill 単独では見えない全体網羅性の欠落を、生成物から独立した context で評価し客観的合否を返す。
 
-## 3 評価観点と監査 sub-agent 対応
+## 監査 sub-agent 対応 (全 6 観点中、sub-agent 関与が判定に効く 3 観点)
+
+> 本 skill は全 6 観点 (上位概念trace / 意思決定 / マトリクス網羅性 / 設計知識反映 / 最新ドキュメント出典 / prompt品質) を採点する (schema/rubric/aggregate-completeness の正本)。うち foundation_trace / decision_guidance / prompt_quality は C05 R1-score の自前評価。以下は監査 sub-agent の関与が判定に効く 3 観点の対応表。
 
 | 観点 (aspect id) | ラベル | 評価主体 (component) | 一次根拠 |
 |---|---|---|---|
@@ -78,9 +80,12 @@ feedback_contract:
   "evaluator": {"name": "assign-system-spec-completeness-evaluator", "version": "0.1.0", "context": "fork"},
   "verdict": "PASS" | "FAIL",
   "aspects": {
+    "foundation_trace":             {"verdict": "...", "auditor": "assign-system-spec-completeness-evaluator", "component": "C05", "summary": "...", ...},
+    "decision_guidance":            {"verdict": "...", "auditor": "assign-system-spec-completeness-evaluator", "component": "C05", "summary": "...", ...},
     "matrix_coverage":              {"verdict": "PASS|FAIL|INDETERMINATE", "auditor": "system-spec-matrix-auditor", "component": "C07", "summary": "...", "evidence": [...]},
     "design_knowledge_reflection":  {"verdict": "...", "auditor": "assign-system-spec-completeness-evaluator", "component": "C05", "summary": "...", ...},
-    "doc_freshness":                {"verdict": "...", "auditor": "system-spec-doc-freshness-auditor", "component": "C08", "summary": "...", ...}
+    "doc_freshness":                {"verdict": "...", "auditor": "system-spec-doc-freshness-auditor", "component": "C08", "summary": "...", ...},
+    "prompt_quality":               {"verdict": "...", "auditor": "assign-system-spec-completeness-evaluator", "component": "C05", "summary": "...", ...}
   },
   "gate_results": [ {"id": "G-matrix", "name": "validate-coverage-matrix", "exit_code": 0, ...} ],
   "findings": [ {"severity": "high|medium|low|info", "bucket": "...", "observation": "...", "suggested_fix": "..."} ],
@@ -133,7 +138,7 @@ C05 R1-score が `system-spec/*.md` 各章を直接読み、`ref-system-design-k
 
 ## Additional Resources
 
-- `references/scoring-rubric.json` — 3 観点機械判定ルールと fail-closed 集約ポリシー
+- `references/scoring-rubric.json` — 全 6 観点機械判定ルールと fail-closed 集約ポリシー
 - `references/aspect-criteria.md` — 観点別意味判定の詳細基準 + 観点↔監査 agent 対応
 - `schemas/completeness-findings.schema.json` — 評価レポート出力スキーマ
 - `scripts/aggregate-completeness.py` — レポート形状検証 + 総合 fail-closed 集約 (決定論)
