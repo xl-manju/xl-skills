@@ -93,17 +93,12 @@ jobs:
         # build 済み plugin で計画 component が 1 個でも欠けたら exit 1。未 build 計画は自動 skip。
         run: python3 plugins/harness-creator/scripts/validate-plan-coverage.py --all --repo-root .
         continue-on-error: false
-      - name: system-spec-harness behavior tests (決定論ゲート C12/C13 + hook + skill 受入 + 統合)
-        # system-spec-harness plugin の同梱テストを独立プロセスで実行 (repo-root tests/ の
-        # sys.modules 衝突を避けるため plugin tests は別 step)。plugin ルートを指定して
-        # plugins/system-spec-harness/tests (hook + 決定論ゲート + 統合) と skills/*/tests
-        # (各 skill 受入) の両方を走らせる (F4-CI: 従来は tests のみで skill 埋込テストが CI
-        # 未実行だった)。build 済みのときのみ意味を持ち、plugin 不在時は step 全体を skip する。
-        run: |
-          if [ -d plugins/system-spec-harness ]; then
-            python3 -m pytest plugins/system-spec-harness -q
-          fi
-        continue-on-error: false
+      # system-spec-harness (および全 plugin) の同梱テスト (plugins/**/test_*.py = tests/ +
+      # skills/*/tests + scripts/tests + hooks/tests) は harness-creator-kit-ci.yml の
+      # "Run plugin behavior tests (pytest, per-plugin)" step が requirements-dev.txt を
+      # install した上で per-plugin cwd で実行する。本 governance-check ジョブは lint 専用で
+      # pytest を install しないため、ここで pytest を呼ぶと "No module named pytest" で常時
+      # fail する (kit-ci と二重化)。plugin pytest は kit-ci に一元化する。
       - name: lint-script-frontmatter (harness-creator 自 scripts の PEP723 frontmatter 自己適用)
         # 他者 (新規生成 skill) に build-preflight で課す # /// script frontmatter を、メタプラグイン
         # 自身の scripts にも CI で強制し「他人には課すが自分は免除」の dogfooding 破れを封鎖する。
