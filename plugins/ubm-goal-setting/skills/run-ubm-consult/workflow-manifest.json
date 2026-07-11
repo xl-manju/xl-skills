@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "workflowId": "run-ubm-consult",
+  "skill": "run-ubm-consult",
+  "description": "Coaching-style consult: intake/種別判定 → 引き出しで文脈外在化 → 考え方/思考フレームを選択肢+適用視点で提示 (read-only graph consult, graceful fallback) → ユーザー主導の解決策言語化とゴール指向の行動計画へ収束・記録.",
+  "max_iterations": 5,
+  "phases": [
+    {
+      "id": "r1-intake-issue",
+      "title": "Intake and issue framing",
+      "dependsOn": [],
+      "parallel": false,
+      "actor": "run-ubm-consult",
+      "input": "argument [相談内容] または最初の発話",
+      "output": "consult_type (goal-setting|other) + issue_statement (ユーザーの言葉で確認済み本質課題1文)",
+      "gate": "consult_type 確定; goal-setting のときは run-ubm-goal-setting へ誘導し終了 (責務境界); この段階で具体解を出さない",
+      "resourceIds": ["prompts/R1-intake-issue.md", "references/session-record-format.md"]
+    },
+    {
+      "id": "r2-elicit",
+      "title": "Elicitation of user context",
+      "dependsOn": ["r1-intake-issue"],
+      "parallel": false,
+      "actor": "run-ubm-consult",
+      "input": "consult_type=other, issue_statement",
+      "output": "context / constraints / values / prior_attempts (ユーザーの言葉で外在化)",
+      "gate": "4軸が最低限外在化; 各ターンで引き出し質問 >=1; 解決策を出さない",
+      "resourceIds": ["prompts/R2-elicit.md", "../../agents/phase3-coordinator.md"]
+    },
+    {
+      "id": "r3-frame-consult",
+      "title": "Thinking-frame selection and presentation",
+      "dependsOn": ["r2-elicit"],
+      "parallel": false,
+      "actor": "run-ubm-consult",
+      "input": "issue_statement + R2 の4軸, references/consult-frames.md, knowledge/router.json",
+      "output": "frames[] (2件以上・選択肢+適用視点+出典 ID PR-xxx/MS-xxx/事例) + consult_evidence",
+      "gate": "フレーム2件以上を選択肢+適用視点で提示; 出典 ID 付与; 具体解の処方をしない (IN1)",
+      "consults": {
+        "script": "../../scripts/consult-harness-artifact-graph.py",
+        "query_types": ["local", "global", "relationship"],
+        "note": "R3 の考え方提示の出典裏取り経路。C06 knowledge-graph.json (必須) と C05 harness-artifact-graph.json (任意) を read-only 探索する。harness graph 不在なら --harness-artifact-graph を省き knowledge 単独 consult、knowledge graph 不在/exit2 は skip し router.json デュアルパス (knowledge/*.json Read) へフォールバック (graceful zero-hit)。fallback 契約の正本は ../../references/graph-consult-fallback-contract.md。"
+      },
+      "resourceIds": [
+        "prompts/R3-frame-consult.md",
+        "references/consult-frames.md",
+        "../../knowledge/router.json",
+        "../../scripts/consult-harness-artifact-graph.py"
+      ]
+    },
+    {
+      "id": "r4-cocreate-converge",
+      "title": "Co-creation, goal-oriented convergence and record",
+      "dependsOn": ["r3-frame-consult"],
+      "parallel": false,
+      "actor": "run-ubm-consult",
+      "input": "frames[] + R2 の4軸 + issue_statement",
+      "output": "user_solution (ユーザー自身の言葉) + action_plan (現状→ゴール→ギャップ→次の一歩) + session_record (handoff)",
+      "gate": "user_solution がユーザー発話ベース (AI 代弁でない); action_plan の次の一歩が物理的行動; session_record を eval-log 配下 handoff へ記録 (vault へ書かない); OUT1 の4要素が揃う",
+      "resourceIds": ["prompts/R4-cocreate-converge.md", "references/session-record-format.md"]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-consult",
+    "skill_md_sha256": "fa4f356e9fbc5aa639d9b6b40b4b89e5329f0bd46d06944a4c4bd20c97e7dbdc"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-content-reviewer-p09",
+  "reviewed_at": "2026-07-11T02:46:27Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "ユーザー要望の核『本質課題には具体例より考え方をアドバイス』を『スタンス不変条件』5項として SKILL.md 本文・全 prompt(R1-R4)・consult-frames カタログ(適用視点=問い)・session-record OUT1 の4層に反復配線し、非処方コーチングを構造的不変則へ昇華している。R3 は『あなたは○○すべき』でなく『こういう見方があります。あなたの場合は?』の形で 2 件以上のフレームを並べる規約を acceptance(frames minItems 2 + viewpoint + source_ids)まで落としており、横展開価値が高い。",
+      "R3 の graph consult を graceful fallback(consult-harness-artifact-graph.py exit2/グラフ不在 → router.json デュアルパス → consult-frames カタログのみ、zero-hit 正常)で三段冗長化し、C05/C06 グラフ未生成でも劣化せず動く堅牢設計。read-only(書込なし)不変則も R3 倫理ガード・Key Rules・manifest consults.note で一貫。",
+      "共創(コーチング型・非処方)の要件『解決策はユーザー側で作り上げる』を R4 で『あなたの言葉にすると?』の言語化誘導 + AI は構造化/要約/検証のみ(代弁禁止)として実装し、責務境界(目標設定そのものは run-ubm-goal-setting へ誘導)を R1 の consult_type 分岐・スタンス不変条件5・Gotchas・manifest gate に fail-safe 配置。目標設定以外の相談にもゴール指向(現状→ゴール→ギャップ→次の一歩)を締め枠として適用している。"
+    ],
+    "negative_feedback": [],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "独立 content-review(P09・proposer=builder と別 context)。ユーザー要望原文(user-request-consult-20260711.md)への忠実性を最重要軸に評価。(1)具体解の処方でなく考え方/思考フレーム提示=スタンス不変条件1 + R3 + consult-frames(GF-01..10, 適用視点付き)で実効、(2)引き出し質問でユーザー文脈外在化=R2(文脈/制約/価値観/既試行の4軸 + 各ターン引き出し質問>=1)、(3)解決策はユーザー自身の言葉で言語化(共創)=R4(user 発話ベース・AI 代弁禁止)、(4)目標設定以外の相談にもゴール指向=スタンス不変条件4 + R4 収束枠、(5)既存 run-ubm-goal-setting との責務境界(正式目標作成は誘導)=R1 handoff_to + Gotchas、いずれも実効的に反映。knowledge/graph consult(C07 consult-harness-artifact-graph.py, C06 validate-knowledge-graph.py)は実在し graceful skip 経路も明記。phase3-coordinator の CONST_001-006 は実在し R2-R4 が正しく参照。feedback_contract IN1(inner/test)/OUT1(outer/test)が frontmatter に携帯され、test_ubm_consult_contract.py(OUT1 4要素検出器の正例/負例 fixture 含む)緑。初見可読性・manifest phase(r1-r4 直列)整合とも良好。PASS。"
+}

@@ -1,0 +1,37 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-youtube-ingest",
+    "skill_md_sha256": "c319100d4cc3c8779ca74877d439c973b4f5ffb8a3184fd6c8240461a79f5332"
+  },
+  "review_kind": "elegance",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 1
+  },
+  "reviewer": "independent-content-reviewer-p09",
+  "reviewed_at": "2026-07-11T02:46:27Z",
+  "iterations": 1,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "全量性を『分母を縮めない』不変則として Key Rules・R1(2.2 分母の起点)・C03 completeness gate の三層で反復定義し、取得不能を除外して擬似 PASS を作る Goodhart を構造的に封じている(FULL_BACKFILL_PASS = ingested==discovered_total かつ temporary_failure==0 かつ unapproved_unavailable==0、waived は waiver_ref 必須)。横展開価値の高い completeness 設計。",
+      "untrusted transcript を provenance=制御領域(frontmatter)/本文=data 領域へ二分し、fallback origin(caption|asr)を保持する分離が R2・Key Rules・C01 契約で一貫。prompt injection を data として封じる規範が全 phase で drift していない。",
+      "goal-seek を固定 Step 列挙でなく Goal/Why/Checklist/Loop の4部構成で表現し、inner(IN1=check-youtube-backfill-completeness.py の exit0)/outer(OUT1=run-youtube-sync-oneshot.py 受入テスト)の検証主体を verify_by と明示的に対応させている。max_loops 到達時は PASS 扱いせず open_issues へ差し戻す停止規約も明記。"
+    ],
+    "negative_feedback": [
+      "[非ブロッキング smell] Gotchas の『C03 完全性ゲートは後続 route ... 実体不在時 --backfill の IN1 判定は C03 配備後に緑化』の記述は保守的で、現時点では scripts/check-youtube-backfill-completeness.py が実在し test_check_youtube_backfill_completeness.py も緑。inventory が C03 を builder_status:contract-only(GAP-SCRIPT-BUILDER)と宣言している契約とは整合するため誤りではないが、実体配備後の追従余地がある。IN1/OUT1 の frontmatter 携帯・verify_by(script/test)・C03/tests との整合は確認済みで adequacy は満たす。"
+    ],
+    "iteration": 1,
+    "iteration_limit": 3,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "独立 content-review(P09・proposer=builder と別 context)。3モード(--url/--backfill/--sync)・required-primary 全量保証(C03 gate + 分母非縮小)・waiver 承認参照(waiver_ref)・untrusted transcript(制御/data 二領域)・冪等 one-shot(idempotency key=video_id, cursor/lease/retry/alert, --dry-run 書込0)が SKILL.md Key Rules + R1-R4 prompt + workflow-manifest に実効反映されていることを確認。goal-seek 形(固定 Step 列挙なし)。feedback_contract IN1(inner/script)/OUT1(outer/test)が frontmatter に正しく携帯され、依存(C01 youtube-transcript-normalizer / C08 knowledge-relation-extractor / C06 validate-knowledge-graph.py)agent・script は全て実在、関連 5 テスト(youtube_sync_oneshot / check_youtube_backfill_completeness / validate_knowledge_graph 含む)緑。初見可読性・manifest phase(r1-r4)整合とも良好。PASS。"
+}
