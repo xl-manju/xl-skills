@@ -152,3 +152,37 @@ def test_cli_mode_with_preflight_mode_governs_exit_code():
     payload = json.loads(proc.stdout)
     assert "preflight" in payload  # preflight 結果も併せて出る。
     assert payload["validation"]["valid"] is False
+
+
+# --- in-process 経路 (main/run_preflight/_build_parser の coverage を honest に満たす。
+#     CLI 挙動は subprocess で検証済だが pytest-cov は別プロセスを計数しないため in-process でも呼ぶ) ---
+
+def test_inprocess_main_valid_slide(capsys):
+    assert mod.main(["--mode", "slide"]) == 0
+    assert json.loads(capsys.readouterr().out)["validation"]["valid"] is True
+
+
+def test_inprocess_main_invalid_report_type(capsys):
+    assert mod.main(["--mode", "report", "--report-type", "bogus"]) == 2
+    assert json.loads(capsys.readouterr().out)["validation"]["valid"] is False
+
+
+def test_inprocess_main_no_args_is_usage_error(capsys):
+    assert mod.main([]) == 2
+    assert json.loads(capsys.readouterr().out)["validation"]["valid"] is False
+
+
+def test_inprocess_main_preflight_alone_exit_0(capsys):
+    assert mod.main(["--preflight"]) == 0
+    assert "preflight" in json.loads(capsys.readouterr().out)
+
+
+def test_inprocess_run_preflight_shape():
+    r = mod.run_preflight()
+    assert {"ok", "detected", "warnings"}.issubset(r)
+    assert isinstance(r["warnings"], list)
+
+
+def test_inprocess_build_parser():
+    ns = mod._build_parser().parse_args(["--mode", "report", "--report-type", "internal-analysis"])
+    assert ns.mode == "report" and ns.report_type == "internal-analysis"

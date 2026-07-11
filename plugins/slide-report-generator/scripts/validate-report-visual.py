@@ -3,10 +3,11 @@
 # name: validate-report-visual
 # purpose: output_mode=report の report.html を静的解析し report 特有の視覚崩れ (section 構造欠落 / 1項目1ビジュアル逸脱 / 段落過密 / 未解決プレースホルダ / 印刷letterbox兆候) を fail-closed 検出する plugin-root glue。slide の verify-slides.js/validate-print.js に対応する report 版の決定論視覚ゲート。CLI と import (pytest) 両対応・Python 標準ライブラリのみ。
 # inputs:
-#   - CLI: <report.html> [--structure <report-structure.json>] [--strict] [--json]
+#   - CLI: <report.html> [--structure <report-structure.json>] [--require-structure] [--strict] [--json]
 # outputs:
 #   - stdout: JSON (呼び出し側が食える検証結果 findings[])
 #   - exit: 0=崩れ無し (PASS) / 1=崩れ検出 (fail-closed) / 2=usage・ファイル不在。
+#           --require-structure では --structure 欠落を usage error (2) にする。
 #           --strict では warn 兆候も 1 に昇格する。
 # contexts: [glue]
 # network: false
@@ -20,7 +21,7 @@ C7 で vendor/ は byte 不可侵のため、report.html 用の視覚崩れ検�
 scripts/ に Python 標準ライブラリのみ (html.parser + re) で新設する。slide が持つ
 verify-slides.js (16:9比率) / validate-print.js (letterbox) に対応する report 版。
 
-検査項目 (report-structure.json があれば併用・無ければ report.html 単体で):
+検査項目 (report gate は --require-structure + --structure が必須。互換用の HTML 単体診断は可):
   C1 section-structure  : h1 (report-title) 起点と report-section/h2 見出し階層の存在。
                           --structure 指定時は sections[].id/heading の欠落を fail 検出。
   C2 one-visual         : 1セクション1ビジュアル原則。過剰重複を閾値超過で warn/fail。
@@ -34,11 +35,16 @@ verify-slides.js (16:9比率) / validate-print.js (letterbox) に対応する re
                           reportType 横断要素 role・多様性<適合性(羅列の床)・render 忠実度
                           (structure が新block/throughLine/placement を宣言→html 反映) を検査。
                           render 忠実度の不一致は fail、密度/流れ系は warn (strict 昇格)。
+  C8 essence-visual(1.3.0): 論理構造を展開する実質節(分析/主張/課題/解決/所見/背景/影響/本文)が
+                          内容を一目化する本質図解(非 none visual)を持つか。表・テキストのみで関係構造を
+                          説明する『なんとなく表』(図解不在)を warn (strict 昇格)。要約/結論/次アクション等は
+                          text-first 許容で対象外 (結論への図解強制=逆退化を避ける・意味判定は reviewer)。
 
 exit code 規約:
   - 0: 崩れ無し (PASS)。--strict 時は warn も無い。
   - 1: 崩れ検出 (fail-closed)。--strict では warn 兆候も 1 に昇格。
-  - 2: usage / report.html or --structure ファイル不在 (fail-closed)。
+  - 2: usage / report.html or --structure ファイル不在 /
+       --require-structure 時の --structure 欠落 (fail-closed)。
 
 pytest からは analyze_report() / check_report() を import して使う。
 """
@@ -89,6 +95,11 @@ assert _NARRATIVE_REQUIRED_ROLES.isdisjoint(_NARRATIVE_OPTIONAL_ROLES), (
     "role narrative 分類が重複: " + str(sorted(_NARRATIVE_REQUIRED_ROLES & _NARRATIVE_OPTIONAL_ROLES))
 )
 
+# 1.3.0 本質図解 (essence-visual) を必須とする role。narrative 必須 role のうち、
+# 明確に *関係構造* を持つ分析系に限定する。汎用の body / 叙述寄りの background は
+# 図解を機械強制しない (過剰強制=『なんとなく図』の逆退化を避け、guidance/reviewer に委ねる)。
+_ESSENCE_REQUIRED_ROLES = _NARRATIVE_REQUIRED_ROLES - {"body", "background"}
+
 # reportType → 本質的に含むべき横断要素の role 群 (report-narrative-logic.md 正本の抜粋・機械検査可能な subset)。
 # 意味の充足 (要約が本当に要約か) は report-quality-reviewer に委ね、ここでは role の存在のみ決定論検査する。
 _REPORTTYPE_REQUIRED_ROLES = {
@@ -131,6 +142,7 @@ class _ReportParser(HTMLParser):
         self._in_script = False
         self._style_buf: list[str] = []
         self._placeholder_buf: list[str] = []
+        self.toc_sidebar_count = 0
         self._capture: str | None = None
         self._capture_buf: list[str] = []
 
@@ -155,6 +167,7 @@ class _ReportParser(HTMLParser):
 
     def _on_start(self, tag, attrd, self_closing):
         cls = attrd.get("class", "") or ""
+        class_tokens = set(cls.split())
 
         if tag == "style":
             self._in_style = True
@@ -162,6 +175,12 @@ class _ReportParser(HTMLParser):
         if tag == "script":
             self._in_script = True
             return
+
+        # TOC の有無は CSS セレクタでなく、実際の nav DOM だけを事実とする。
+        # buildReportCss() は TOC が無い report にも .report-toc--sidebar 規則を
+        # 常時出力するため、CSS token 判定は scrollspy 欠落の偽陽性になる。
+        if tag == "nav" and "report-toc--sidebar" in class_tokens:
+            self.toc_sidebar_count += 1
 
         if tag in _SUPPRESS_TAGS and not self_closing:
             self._suppress_depth += 1
@@ -281,7 +300,7 @@ def analyze_report(html: str) -> dict:
     """report.html を静的解析して検査用の事実 dict を返す (副作用なし)。
 
     返り値: {"h1_texts": [...], "sections": [ {..} ], "style_text": str,
-             "placeholders": [str], "print_css": str}
+             "placeholders": [str], "print_css": str, "toc_sidebar_count": int}
     """
     parser = _ReportParser()
     parser.feed(html)
@@ -297,6 +316,7 @@ def analyze_report(html: str) -> dict:
         "style_text": parser.style_text,
         "placeholders": placeholders,
         "print_css": _extract_print_css(parser.style_text),
+        "toc_sidebar_count": parser.toc_sidebar_count,
     }
 
 
@@ -350,6 +370,40 @@ def _has_content(sec: dict) -> bool:
         or sec["table_count"] > 0
         or sec["content_count"] > 0
     )
+
+
+def _check_essence_visual(structure, add) -> None:
+    """1.3.0 本質図解カバレッジ (essence-visual)。
+
+    明確な関係構造を持つ論理節 (_ESSENCE_REQUIRED_ROLES = 分析/主張/課題/解決/所見/影響)
+    は、その節の論理構造を『パッと見て』掴ませる非 none ビジュアルを 1 枚持つべき。表・テキスト
+    のみで関係構造を説明する『なんとなく表』(＝図解の不在) を塞ぐ。
+
+    - 対象 role は narrative 必須 role と同一 SSOT (argue/analyze する節)。summary/next-action/
+      conclusion/concept/example-application 等 (_NARRATIVE_OPTIONAL_ROLES) は text-first を許容し咎めない
+      (結論・要約に図解を強制すると『なんとなく図』の逆退化を招くため、機械ゲートは論理節に限定する)。
+    - 図解が本質を突くか/内容と 1:1 か等の意味判定は report-quality-reviewer に委ねる (二層分離)。
+    - severity は C6/C7 のカバレッジ系と同じ warn 通常 / --strict で fail 昇格。
+    """
+    struct = structure if isinstance(structure, dict) else None
+    if struct is None:
+        return
+    for s in struct.get("sections") or []:
+        if not isinstance(s, dict):
+            continue
+        role = s.get("role") or "body"
+        if role not in _ESSENCE_REQUIRED_ROLES:
+            continue
+        visual = s.get("visual") if isinstance(s.get("visual"), dict) else {}
+        kind = visual.get("kind")
+        if kind in (None, "none"):
+            add(
+                "essence-visual",
+                "warn",
+                f"section '{s.get('id') or '?'}'(role={role}): 本質図解が無い "
+                f"(論理構造を持つ節は内容を一目化する図解を1枚持つ・表/テキストのみは『なんとなく表』の兆候)",
+                s.get("id"),
+            )
 
 
 def _check_structuring_1_1_0(html, structure, html_sections, th, add) -> None:
@@ -554,6 +608,67 @@ def _check_structuring_1_2_0(html, structure, facts, th, add) -> None:
             f"文書全体の要点ハイライトが {total_hl}箇所 (doc 予算 {th['doc_highlight_budget']} 超・強調の希釈。真の要点に絞る)")
 
 
+def _check_uiux_shape(html, facts, add) -> None:
+    """第3次 UI/UX レイアウトの shape 検査 (render-report.js が emit する接合トークンの回帰保護)。
+
+    render 側 CSS/JS が screen/print/狭画面の挙動を出力しても、それを守る決定論ゲートが無ければ
+    トークンが消えても緑のまま退行する (窮屈/print破壊/degrade崩れ)。ここは CSS・DOM 構造の『存在』
+    検査に限り、意味適合 (読みやすいか等) は report-quality-reviewer(C24) へ委ねる (二層分離)。
+    essence-visual (図解の要否) は _check_essence_visual が担う。
+    """
+    css = facts["style_text"]
+    css_l = css.lower()
+    # 完全な report render (render-report.js buildReportCss 出力) のみ対象。
+    # buildReportCss は必ず --report-width を emit するため、これを full-render の marker とする。
+    # 最小 fixture / 部分 HTML (他ロジックの単体検査) は対象外にし誤爆を防ぐ。
+    if "--report-width" not in css_l:
+        return
+    print_css = facts["print_css"].lower()
+    html_l = html.lower()
+    # CSS 規則は TOC の非存在証明にならない。実 DOM に sidebar nav がある時だけ
+    # scrollspy 契約を要求する (TOC なし report への偽陽性を防ぐ)。
+    has_toc = facts["toc_sidebar_count"] > 0
+
+    # screen 読書レイアウトの接合トークン (消えると『空白>本文』の窮屈へ退行)
+    screen_tokens = [
+        (".report-layout", "screen 2カラム grid (.report-layout)"),
+        ("--report-measure", "本文可読幅トークン (--report-measure)"),
+        ("--report-page-max", "実効利用幅トークン (--report-page-max)"),
+    ]
+    for token, label in screen_tokens:
+        if token not in css_l:
+            add("uiux-shape", "warn", f"screen レイアウトの接合トークン欠落: {label} (render 側で消えると窮屈/退行の回帰)")
+    # sticky TOC + scrollspy (TOC を持つ report のみ要求)
+    if has_toc:
+        if "is-active" not in css_l:
+            add("uiux-shape", "warn", "scrollspy ハイライト (a.is-active) の CSS が無い")
+        if "aria-current" not in html_l:
+            add("uiux-shape", "warn", "aria-current 同期が無い (現在位置が支援技術/色非依存で辿れない)")
+        if "beforeprint" in html_l and "afterprint" not in html_l:
+            add("uiux-shape", "warn", "afterprint が無い (印刷後に scrollspy が復帰しない)")
+    # print 非退行: @media print 存在 + .report 幅規則 (190mm/A4)
+    if not print_css:
+        add("uiux-shape", "warn", "@media print ブロックが無い (print/A4 読了体験の非退行を検査できない)")
+    elif "190mm" not in print_css and "--report-width" not in print_css and ".report" not in print_css:
+        add("uiux-shape", "warn", "@media print 内に .report 幅規則 (190mm/A4) が無い")
+    # 狭画面 breakpoint (インライン TOC への graceful degrade)
+    if not re.search(r"@media[^{]*max-width", css_l):
+        add("uiux-shape", "warn", "狭画面 breakpoint (@media max-width) が無い (インライン TOC への degrade を検査できない)")
+    # card 最小幅 (狭幅で潰れない grid)
+    if "minmax(" not in css_l:
+        add("uiux-shape", "warn", "grid の minmax( による card 最小幅指定が無い (狭幅で潰れる回帰)")
+    # タイポ目標レンジ (rem→px @16px base): 本文 16-18px / title:body <=2.2 (過大見出しの窮屈を塞ぐ)
+    def _rem_px(name):
+        m = re.search(re.escape(name) + r"\s*:\s*([0-9.]+)rem", css)
+        return float(m.group(1)) * 16 if m else None
+    body_px = _rem_px("--fs-body")
+    title_px = _rem_px("--fs-title")
+    if body_px is not None and not (15.5 <= body_px <= 18.5):
+        add("uiux-shape", "warn", f"本文サイズ --fs-body≈{body_px:.1f}px が 16-18px 読書レンジ外")
+    if body_px and title_px and title_px / body_px > 2.3:
+        add("uiux-shape", "warn", f"title/body 比 {title_px / body_px:.2f} が 2.2 超 (見出し過大で窮屈)")
+
+
 def check_report(html, structure=None, strict=False, thresholds=None) -> dict:
     """report.html の視覚崩れを検査し findings[] を返す (fail-closed 判定は passed で表現)。
 
@@ -697,8 +812,14 @@ def check_report(html, structure=None, strict=False, thresholds=None) -> dict:
     # -- C6: 1.1.0 構造化ゲート (下限=羅列を塞ぐ / 上限=過剰構造化・強調過多を塞ぐ) --------
     _check_structuring_1_1_0(html, structure, sections, th, add)
 
+    # -- C8: 1.3.0 本質図解カバレッジ (論理節の図解不在=『なんとなく表』を塞ぐ) ----------
+    _check_essence_visual(structure, add)
+
     # -- C7: 1.2.0 構造化ゲート (through-line / 色覚非依存 / reportType横断 / render忠実度) --------
     _check_structuring_1_2_0(html, structure, facts, th, add)
+
+    # -- C9: 第3次 UI/UX shape (screen接合トークン/print非退行/狭画面degrade/aria-current/タイポレンジ) --
+    _check_uiux_shape(html, facts, add)
 
     n_fail = sum(1 for f in findings if f["severity"] == "fail")
     n_warn = sum(1 for f in findings if f["severity"] == "warn")
@@ -735,6 +856,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="warn 兆候も崩れ (exit 1) に昇格させる",
     )
     p.add_argument("--json", action="store_true", help="(既定で JSON 出力・互換用フラグ)")
+    p.add_argument(
+        "--require-structure",
+        action="store_true",
+        help="report gate モード: --structure 欠落を fail-open とせず exit 2 で塞ぐ",
+    )
     return p
 
 
@@ -744,6 +870,10 @@ def main(argv=None) -> int:
     report_path = Path(args.report)
     if not report_path.is_file():
         sys.stderr.write(f"error: report.html not found: {report_path}\n")
+        return 2
+
+    if args.require_structure and not args.structure:
+        sys.stderr.write("error: --require-structure 指定時は --structure が必須 (report gate の fail-open 封鎖)\n")
         return 2
 
     structure = None

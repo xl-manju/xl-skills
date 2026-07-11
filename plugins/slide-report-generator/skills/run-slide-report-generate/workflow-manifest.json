@@ -48,7 +48,7 @@
     {
       "id": "R3-generate-evaluate",
       "step": 3,
-      "title": "経路(slide LLM=html-generator / slide 決定論=slide-renderer+render-slide.cjs / report=report-composer+render-report.js(+mermaid-render.js) / 画像明示=ai-image-diagram-producer)で成果物を生成し、slide は layout-optimizer/ui-quality-reviewer + verify-slides.js/evaluate-deck.js/validate-print.js、report は report-quality-reviewer + render-report.js 再レンダ + validate-report-visual.py で補正/決定論視覚検査(視覚崩れ 0)。最後に deck-evaluator の mode-aware 30 種思考法 rubric を最大 3 周 reloop。CRITICAL(視覚崩れ)残存はループ枯渇時も hard-fail",
+      "title": "経路(slide LLM=html-generator / slide 決定論=slide-renderer+render-slide.cjs / report=report-composer+render-report.js(+mermaid-render.js) / 画像明示=ai-image-diagram-producer)で成果物を生成し、slide は layout-optimizer/ui-quality-reviewer + verify-slides.js/evaluate-deck.js/validate-print.js、report は verify-report-runtime.js で899/900/901/1024/1366/1600px+printの実描画bundleを生成し、report-quality-reviewer + validate-report-visual.py がbundle必須で補正/検査する。最後に deck-evaluator の mode-aware 30 種思考法 rubric を最大 3 周 reloop。bundle欠落またはCRITICAL残存はhard-fail",
       "gate": "C3",
       "dependsOn": [
         "R2-structure-gate"
@@ -73,6 +73,7 @@
         "vendor-verify-slides",
         "vendor-evaluate-deck",
         "vendor-validate-print",
+        "vendor-verify-report-runtime",
         "glue-validate-report-visual",
         "vendor-validate-ai-image-assets",
         "vendor-workflow-manager"
@@ -292,6 +293,14 @@
       "id": "vendor-validate-print",
       "kind": "script",
       "path": "../../vendor/scripts/validate-print.js",
+      "phaseIds": [
+        "R3-generate-evaluate"
+      ]
+    },
+    {
+      "id": "vendor-verify-report-runtime",
+      "kind": "script",
+      "path": "../../vendor/scripts/verify-report-runtime.js",
       "phaseIds": [
         "R3-generate-evaluate"
       ]

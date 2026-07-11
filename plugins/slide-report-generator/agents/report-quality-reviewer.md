@@ -1,6 +1,6 @@
 ---
 name: report-quality-reviewer
-description: report 品質(読み物破綻・段落密度・1項目1ビジュアル・reportType 骨格順守・section 構造 RQ1-RQ20)を独立 context で検証(R3.5)し崩れ検出+補正指針を返したいときに使う。
+description: report 品質を RQ30 観点と wide・narrow・print の実描画・navigation・computed metrics・本質図解で独立 context から fail-closed 検証し補正指針を返したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers
@@ -20,11 +20,12 @@ last-audited: 2026-07-05
 
 ## Purpose
 
-report 品質(読み物破綻/段落密度/1項目1ビジュアル/reportType 骨格順守/section 構造 RQ1-RQ20)を独立 context で検証(R3.5)し崩れ検出+補正指針を返したいときに使う。このファイルは Task 起動用の薄い adapter で、7 層本文の正本は `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/prompts/R3-agent-report-quality-reviewer.md` に置く。
+report 品質(RQ1-RQ30・wide/narrow/print実描画・navigation event・computed layout metrics・本質図解適合)を独立 context で検証(R3.5)し、入力bundle欠落時はPASSにせず崩れ検出+補正指針を返す。このファイルは Task 起動用の薄い adapter で、7 層本文の正本は `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/prompts/R3-agent-report-quality-reviewer.md` に置く。
 
 ## Inputs
 
 - Orchestrator から渡される task brief、対象ファイル、mode、phase context。
+- `report-structure.json` と `verify-report-runtime.js` が生成した wide/narrow/print render・computed metrics・navigation event log のbundle。いずれか欠落時は fail-closed。
 - 必要時のみ `$CLAUDE_PLUGIN_ROOT/skills/run-slide-report-generate/prompts/R3-agent-report-quality-reviewer.md` とその prompt が明示する references/scripts/schemas を読む。
 
 ## Outputs

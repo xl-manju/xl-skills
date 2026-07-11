@@ -18,7 +18,9 @@
   ],
   "deterministic_checks": [
     "validate-output-mode.py",
-    "verify-slides.js"
+    "verify-slides.js",
+    "validate-report-visual.py <report.html> --structure <report-structure.json> --json (report部分修正時・--structure欠落はexit2)",
+    "report部分修正後のwide/narrow/print+hash navigation evidence再取得"
   ],
   "external_systems": [],
   "mcp_tools": [],
@@ -27,7 +29,8 @@
   "checklist": [
     "修正対象と output_mode 特定",
     "指定箇所のみ部分修正",
-    "修正後の再評価(視覚崩れ0)"
+    "修正後の再評価(視覚崩れ0)",
+    "report部分修正では1.3.0 structureとUI/UX evidence bundleを再検証"
   ],
   "goal": "既存の slide deck / report を output_mode を保ったまま指定箇所だけ部分修正し、意匠/技術コアと非対象箇所を壊さず修正後の生成後評価で視覚崩れ0の状態",
   "mass_production_profile": "strict",
@@ -46,7 +49,7 @@
     },
     {
       "id": "R3-reevaluate",
-      "summary": "修正後に生成後評価を再実行し視覚崩れ0を確認して修正レポートを返す",
+      "summary": "修正後にmode別評価を再実行し、reportではC25 --structure必須検査とwide/narrow/print+hash navigation evidenceを更新して修正レポートを返す",
       "prompt_required": true
     }
   ]

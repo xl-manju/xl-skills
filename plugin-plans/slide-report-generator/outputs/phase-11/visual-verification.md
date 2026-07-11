@@ -36,3 +36,23 @@
 
 ## 判定
 両モードが**共有意匠 SSOT の上で mode 別コンテンツ規律を保ったまま実 HTML を生成**できることを目視で確認。C2(mode 分岐)/C3(report 4骨格・visual 三択・Mermaid)/C5(vendor Node engine 起動)の受入を視覚的に満たす。**PASS**。
+
+## 現ビルド追随検証 (2026-07-11 update)
+
+> **注記**: 上記 v1 検証の `report-full.png` (1800×6582) は v1 サンプルであり、下記の第3次UI/図解刷新を反映する **前** のレンダリングである。第3次UI 後の証跡は本セッションの before/after スクリーンショットで別途取得している。以下は検証済みの事実のみを追記する (解像度/サイズの発明なし)。
+
+### 第3次 UI/UX (C16-C18・render-report.js buildReportCss)
+- **screen/print 二層 CSS**: screen=本文可読幅+sidebar grid、print=190mm/A4 を `@media print` で温存。
+- **sticky sidebar TOC + scrollspy**: IntersectionObserver 自己完結・print 無効・狭画面 900px でインライン TOC へ graceful degrade。scrollspy に aria-current 同期 + afterprint 復帰を追加。
+- **タイポ密度是正**: `--fs-body` ≈17px [1.0625rem]・title/body 比 ≈1.93 (≤2.2)。
+
+### 図解機構刷新 (本セッション)
+- 全ブロック (callout/keypoint/narrative/throughline/stat/visual) の「左バー+背景ティント=吹き出し」を廃し、「白地フラットカード+上端3pxアクセント+余白リッチ padding」へ一括転換。
+- 本文全幅化: `--report-page-max` 1240→1360px・`.report max-width:none`・プレーン段落のみ 78ch。
+- **before/after スクリーンショット** (Chrome headless・wide 1500px / narrow 880px) で 5 指摘 (窮屈 / 吹き出し / 文字敷き詰め / 配色 / パワポ的簡潔) の解消を目視実証。
+
+### essence-visual (C8/C19) の視覚証跡
+- 本質図解は role 駆動: `validate-report-visual.py` の `_check_essence_visual` が role∈{分析/主張/課題/解決/所見/影響} の論理節に非none visual (`visual.kind!=none`) を要求。
+
+### C25 実装トークン健在の実証
+- `validate-report-visual.py` の `_check_uiux_shape` (screen 接合トークン .report-layout/--report-measure/--report-page-max・sticky TOC is-active・aria-current・before/afterprint・@media print .report 幅・狭画面 @media・grid minmax card・タイポ --fs-body 16-18px/title比≤2.2) を現行 report に実行=uiux-shape warn 0・exit0。full-render marker=`--report-width` でゲート。

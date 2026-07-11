@@ -2,7 +2,7 @@
   "target": {
     "plugin": "slide-report-generator",
     "skill": "run-slide-report-generate",
-    "skill_md_sha256": "2c8773c90b000167017c5cda040f7257892244eedda263962e2d264951cbd96d"
+    "skill_md_sha256": "68968b15cdb65991ad96aca5b712f083e9922d5237b593f95826d6a59e58c37d"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -11,31 +11,31 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 2
   },
   "reviewer": "independent-branch-subagent-rubric",
-  "reviewed_at": "2026-07-05T10:36:37+00:00",
+  "reviewed_at": "2026-07-11T09:22:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": [
-      "IN1",
-      "OUT1"
-    ],
+    "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "[単一責務] SKILL.md:150-152 / R1-orchestrate.md:28 で境界明示: 本 skill=新規生成、局所修正→run-slide-report-modify、横断整合→run-cross-deck-review。R1(mode確定)→R2(構成+仕様確定ゲート)→R3(生成+生成後評価) に責務収束。",
-      "[パッケージ完全性] validate-plugin-completeness.py PASS。prompts/ 16本 ↔ workflow-manifest.json 15 agent prompt ↔ agents/*.md thin-adapter (prompt_ref) が三者整合。schemas と manifest resources 一致。",
-      "[criteria非退化] IN1(mode/reportType 値域を送信前検証・verify_by=script) / OUT1(生成後評価30種思考法が視覚崩れ0・verify_by=test) は purpose-acceptance。validate-output-mode.py / validate-report-visual.py + deck-evaluator へ実マッピング。",
-      "[progressive disclosure/テスト可能性] resource-map.yaml が 10 reference を owner_agent+when 付きで網羅 + lint exit0。停止条件が exit code (validate-output-mode/validate-structure/evaluate-deck/validate-report-visual) で機械化。"
+      "[単一責務] SKILL.md:148-152 で境界明示: 本skill=新規生成のみ、局所修正→run-slide-report-modify、横断整合→run-cross-deck-review。output_mode分岐は意匠SSOT共有+意図のみ分岐で責務収束(R1 mode確定→R2 構成+仕様確定ゲート→R3 生成+生成後評価)。",
+      "[progressive disclosure] SKILL.mdはrouter要約・完全駆動契約はprompts/R1-orchestrate.md(7層)へ委譲(L175)。私有references10本を owner付きで段階開示・resource-map.yaml が lint-reference-attribution.py exit0 で orphan/dangling 0。",
+      "[パッケージ完全性] validate-plugin-completeness.py exit0(PASS)。prompts/16本・vendor scripts11本・plugin-root refs3本・schemas2本 全実在。pytest 131 passed。",
+      "[prompt契約] lint-contract-drift.py exit0(count0 findings=[])。allowed-tools(Read/Write/Edit/Bash node,python3/Task/Glob/Grep)・responsibility_refs・schema_refs・manifest が本文とドリフト0。",
+      "[criteria非退化] feedback_contract IN1(inner/script: validate-output-mode 値域送信前検証)/OUT1(outer/test: 生成後評価30種思考法が視覚崩れ0)は purpose-acceptance で frontmatter焼込済(L40-50)・SKILL.md:143-144と整合。汎用ゲート言い換えへ退化なし。",
+      "[テスト可能性] IN1=validate-output-mode.py実走(正常exit0/不正exit2)・OUT1=deck-evaluator+validate-report-visual.py --require-structure(構造正本必須exit2)で機械検証可能。停止条件がexit codeで機械化。"
     ],
     "negative_feedback": [
-      "[smell/low, 非ブロッキング] mermaid-render.js の列挙が manifest と SKILL.md:197 追加リソース節で非対称。機能欠落なし。"
+      "[smell/low, 非ブロッキング] frontmatter version 0.1.0/last-audited 2026-07-05 が第4次rebuild未追従(監査日付の鮮度ずれのみ)。",
+      "[smell/low, 非ブロッキング] SKILL.md:197 vendor scripts列挙が manifest resources と一部非対称(mermaid-render.js等)。機能・依存に影響なし。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "skill 設計品質 6 観点 (SRP/progressive disclosure/パッケージ完全性/prompt契約/criteria非退化/テスト可能性) を実測充足。ハードカテゴリ 0 で PASS。唯一の smell は mermaid-render 列挙記述ドリフトで機能・依存に影響しない。 (description を lint-skill-description R2/R3 適合へ調整・skill 実質不変につき sha 再pin)"
+  "notes": "skill設計品質6観点(SRP/progressive disclosure/パッケージ完全性/prompt契約/criteria非退化/テスト可能性)を実測充足(sha 68968b15…に再pin)。単一責務=境界節で委譲先明示 / progressive=router要約+prompt SSOT+resource-map(lint exit0) / 完全性=validate-plugin-completeness exit0・依存11+3+2本全実在 / prompt契約=lint-contract-drift exit0(count0) / 非退化=IN1・OUT1 purpose-acceptance焼込整合 / テスト可能性=validate-output-mode exit0・不正exit2・validate-report-visual --require-structure実在・pytest131 passed。ハード4カテゴリ0で PASS。smell2件非ブロッキング。"
 }

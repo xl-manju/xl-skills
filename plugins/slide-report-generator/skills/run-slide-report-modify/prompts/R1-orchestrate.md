@@ -82,7 +82,7 @@
 | script | 用途 | いつ |
 |---|---|---|
 | `validate-output-mode.py` | `output_mode` (slide/report) と `reportType` (report 時 4 enum) の値域を fail-closed 検証 (送信前)。`--preflight` で node/npm/vendor/node_modules/codex CLI を fail-soft 検出 | R1 (送信前・必須) / R3 (再確認) |
-| `validate-report-visual.py` | **report** 修正後の `report.html` の視覚検証 (読み物レイアウト崩れ・1項目1ビジュアル逸脱・意匠 SSOT 逸脱等)。`validate-report-visual.py <report.html>` で fail-closed 判定 (report の別 subagent が新設中の視覚ゲート) | R3 (report・必須) |
+| `verify-report-runtime.js` / `validate-report-visual.py` | **report** 修正後に6 viewport＋print＋navigation/computed metrics bundleを生成し、`validate-report-visual.py <report.html> --structure <report-structure.json> --require-structure --json` で静的shape/構造同期をfail-closed判定 | R3 (report・必須) |
 
 ### 3.4 schemas (`$CLAUDE_PLUGIN_ROOT/schemas/`)
 
@@ -143,7 +143,7 @@
 - [ ] slide は `index.html`⇔`structure.*`、report は `report.html`⇔`report-structure.*` の同期が保たれている (report は `render-report.js` の再レンダ結果が `report.html` と一致)
 - [ ] 修正後 `structure.*`／`report-structure.*` が対応 schema (`../../schemas/structure.schema.json`／`report-structure.schema.json`) に対し valid (report 履歴は sidecar・インライン禁止)
 - [ ] **slide**: `verify-slides.js ./index.html --check-ratio` が視覚崩れ 0 で PASS。意匠コア／印刷レイアウトに及ぶ修正では `evaluate-deck.js`／`validate-print.js` も PASS
-- [ ] **report**: `render-report.js` 再レンダ整合 (`report-structure.json` → `report.html` 一致) ＋ `validate-report-visual.py <report.html>` exit 0 ＋ mode-aware `deck-evaluator` PASS = **OUT1**
+- [ ] **report**: `render-report.js` 再レンダ整合 ＋ `verify-report-runtime.js ... --out <runtime-bundle.json>` exit 0 ＋ `validate-report-visual.py <report.html> --structure <report-structure.json> --require-structure --json` exit 0 ＋ mode-aware `deck-evaluator` PASS = **OUT1**
 - [ ] 修正レポート (修正箇所一覧 ＋ 変更差分 ＋ 再評価スコア) を生成した
 - [ ] 責務外 (新規生成・横断検証) に踏み込んでいない
 
@@ -153,7 +153,7 @@
 - **worker は name 起動で dispatch する**: R2 で `Task` により `slide-report-modifier` を `isolation: fork` で起動し、判定 mode・修正対象パス・修正指示・影響範囲を渡す。worker は mode 分岐で SSOT を適用 (slide=`./references/modification-rules.md` / report=`./references/report-modification-rules.md`) し指定箇所のみを局所修正、正本 ⇔ 描画物 同期と履歴を維持する (slide=`structure.md`⇔`index.html` / report=`report-structure.json`⇔`report.html`・worker が `render-report.js` で再レンダ)。下流 agent が必要な場合は worker が修正案に明記し、**本オーケストレータが dispatch** する (worker は Task を持たない)。
 - **再評価は mode 別に機械実行する**: R3 で mode に応じて機械ゲートを実行し、全ゲート exit 0 を確認。非 0 なら検出箇所を worker へ差し戻す (R2)。LLM の定性判断で PASS を決めない。
   - **slide**: `verify-slides.js --check-ratio` を実行、意匠コア／印刷影響時は `evaluate-deck.js`／`validate-print.js` も実行 (視覚崩れ 0)。
-  - **report**: `render-report.js <report-structure.json> <report.html>` で再レンダし現行 `report.html` と一致 (再レンダ整合) を確認、`validate-report-visual.py <report.html>` で読み物視覚検証、`Task` で mode-aware `deck-evaluator` を思考リセット起動し report rubric (可読性/図解適合/情報密度/セクション論理構造) で再評価。
+  - **report**: `render-report.js` 再レンダ整合後、`verify-report-runtime.js <report.html> --structure <report-structure.json> --out <runtime-bundle.json>`、続いて `validate-report-visual.py <report.html> --structure <report-structure.json> --require-structure --json` を実行し、bundleを mode-aware `deck-evaluator` へ渡す。
 - 各周回末に中間成果物アンカー (`original_goal` 不変 / `current_goal_snapshot` / `delta_from_original` / `merged_directive_for_next` / `drift_signal`) を記録し、次周回の作業立案の必須入力とする。`drift_signal` が stagnant/widening/oscillating で 2 周連続なら停止し未達項目を列挙する。
 - ループ本体は分離 context (fork) で完結させ、親へは修正レポート + exit code のみ返却する。
 
@@ -165,7 +165,7 @@
 |---|---|---|---|---|
 | **R1: 修正対象と指示の確定** | 修正対象の既存成果物 (パス)・`output_mode`・修正指示をヒアリングして確定。既存成果物を Read し、修正が及ぶ範囲 (対象要素) と**触れてはならない意匠／技術コア・非対象箇所**を明示。修正タイプを分類し影響範囲を導く | オーケストレータ | `validate-output-mode.py --mode <mode> [--report-type <enum>]` exit 0 (IN1) | exit 2 → mode/reportType 再確定 |
 | **R2: 局所修正** | `Task` で `slide-report-modifier` を name 起動 (`isolation: fork`)。判定 mode に応じ**指定箇所のみ**を部分修正。意匠 SSOT・非対象セクションは不変、局所差分のみ、修正箇所と変更差分を記録。slide は `index.html`／`styles.css`／`scripts.js`⇔`structure.*` 同期、report は `report-structure.json` を正として編集し `render-report.js` で `report.html` を再レンダ (読み物文体・1項目1ビジュアル・骨格順序維持) | `slide-report-modifier` (worker) | 同期確認 (単位数一致・見出し/メッセージ一致・タイプ/role 一致・履歴記録) | 同期不一致 → 正本 (`structure.*`／`report-structure.json`) 再更新 (最大 2 回) |
-| **R3: 再評価 (mode 分岐)** | 修正後の再評価を mode 別に再実行。**slide**=`verify-slides.js --check-ratio` (＋意匠コア/印刷影響時 `evaluate-deck.js`／`validate-print.js`) で視覚崩れ 0。**report**=`render-report.js` 再レンダ整合 (`report-structure.json`⇔`report.html`) ＋ `validate-report-visual.py <report.html>` ＋ `Task` で mode-aware `deck-evaluator` (report rubric)。修正レポートを返す | オーケストレータ (`slide-report-modifier` の修正後) | slide=`verify-slides.js`(＋`evaluate-deck.js`／`validate-print.js`) 全 exit 0 / report=`render-report.js` 一致＋`validate-report-visual.py` exit 0＋`deck-evaluator` PASS (OUT1) | 崩れ／乖離検出 → R2 差し戻し |
+| **R3: 再評価 (mode 分岐)** | 修正後をmode別再評価。**slide**=既存3ゲート、**report**=`render-report.js`整合→`verify-report-runtime.js` bundle→`validate-report-visual.py --structure --require-structure`→bundle入力の`deck-evaluator`。 | オーケストレータ | slide全exit0 / reportは再レンダ一致＋bundle/静的ゲートexit0＋deck-evaluator PASS | 崩れ／bundle欠落→R2差し戻し |
 
 ### 6.2 上位・後続との接続
 - 呼び出し元: ユーザー直接起動 (`user-invocable: true`) または上位ワークフローの Phase 4 相当。
@@ -212,6 +212,6 @@ LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキ�
 
 **R3 (mode 分岐)**: 修正後、mode 別に機械ゲートを実行せよ。
 - **slide**: `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-slides.js" ./index.html --check-ratio` で視覚崩れ 0 を確認。意匠コア・印刷レイアウトに及ぶ場合は `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/evaluate-deck.js"` ／ `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/validate-print.js"` も併用。
-- **report**: `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.json> <report.html>` で再レンダし現行 `report.html` と一致 (再レンダ整合) を確認、`python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html>` で読み物視覚検証、`Task` で mode-aware `deck-evaluator` を思考リセット起動し report rubric (可読性/図解適合/情報密度/セクション論理構造) で再評価。
+- **report**: `node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/render-report.js" <report-structure.json> <report.html>` で再レンダ整合を確認し、`node "$CLAUDE_PLUGIN_ROOT/vendor/scripts/verify-report-runtime.js" <report.html> --structure <report-structure.json> --out <runtime-bundle.json>`、`python3 "$CLAUDE_PLUGIN_ROOT/scripts/validate-report-visual.py" <report.html> --structure <report-structure.json> --require-structure --json`、bundle入力の mode-aware `deck-evaluator` の順に再評価。
 
 いずれかが非 0 (崩れ／乖離／FAIL) なら検出箇所を R2 へ差し戻し (feedback-contract 最大 3 周 / goal-seek max_loops 5)、全 exit 0 (OUT1) で完了とする。最終的に**修正レポート** (修正箇所一覧 ＋ 変更差分 ＋ 再評価スコア) を返し、`"PASS"` 文字列でなくゲートの exit code を完成根拠とせよ。前置き禁止。

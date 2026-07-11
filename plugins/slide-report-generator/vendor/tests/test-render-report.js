@@ -9,7 +9,7 @@
  *       - 各 section の heading (schema: section.heading)
  *       - theme CSS var (--bg-dark 等 Kanagawa トークン)・theme-name=kanagawa-lotus
  *       - svg visual: <svg viewBox + variant 由来のノードラベル + visual.caption
- *       - mermaid visual: <pre class="mermaid"> + CDN 初期化 + spec.definition テキスト
+ *       - mermaid visual: <pre class="mermaid"> + local bundle初期化 + spec.definition テキスト
  *       - codex-image visual: <img src=spec.asset>
  *       - none visual: fallback を誤爆しない
  *       - reportType バッジ
@@ -22,6 +22,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { runInNewContext } from 'vm';
 import { renderReport } from '../scripts/render-report.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,111 @@ function check(name, cond) {
     console.error(`  FAIL - ${name}`);
     failed++;
   }
+}
+
+/** self-contained scrollspy を外部ブラウザ無しで実行する最小 DOM harness */
+function runScrollspyHarness(renderedHtml) {
+  const scriptMatch = renderedHtml.match(/<script>\n(\(function \(\) \{[\s\S]*?__slideReportScrollspy[\s\S]*?\}\)\(\);)\n<\/script>/);
+  if (!scriptMatch) throw new Error('scrollspy script not found');
+
+  const windowListeners = new Map();
+  const rafQueue = [];
+  let rafId = 0;
+  let fontReady = null;
+  const observerInstances = [];
+
+  class FakeLink {
+    constructor(id) {
+      this.attrs = new Map([['href', `#${id}`]]);
+      this.listeners = new Map();
+      const classes = new Set();
+      this.classList = {
+        add: (name) => classes.add(name),
+        remove: (name) => classes.delete(name),
+        contains: (name) => classes.has(name),
+      };
+    }
+    getAttribute(name) { return this.attrs.get(name) || null; }
+    setAttribute(name, value) { this.attrs.set(name, value); }
+    removeAttribute(name) { this.attrs.delete(name); }
+    addEventListener(type, fn) { this.listeners.set(type, fn); }
+    removeEventListener(type, fn) { if (this.listeners.get(type) === fn) this.listeners.delete(type); }
+    click() { const fn = this.listeners.get('click'); if (fn) fn({ currentTarget: this }); }
+  }
+
+  class FakeTarget {
+    constructor(id, top) { this.id = id; this.top = top; this.scrollCount = 0; }
+    getBoundingClientRect() { return { top: this.top }; }
+    scrollIntoView() { this.scrollCount += 1; }
+  }
+
+  class FakeIntersectionObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.targets = [];
+      this.disconnected = false;
+      observerInstances.push(this);
+    }
+    observe(target) { this.targets.push(target); }
+    disconnect() { this.disconnected = true; this.targets = []; }
+    emit() { this.callback(this.targets.map((target) => ({ target, isIntersecting: true }))); }
+  }
+
+  const links = [new FakeLink('section-a'), new FakeLink('section-legacy')];
+  const targets = [new FakeTarget('section-a', 500), new FakeTarget('section-legacy', 900)];
+  const targetMap = Object.fromEntries(targets.map((target) => [target.id, target]));
+  const nav = { querySelectorAll: () => links };
+  const fakeWindow = {
+    location: { hash: '#section-legacy' },
+    innerHeight: 1000,
+    matchMedia: () => ({ matches: false }),
+    requestAnimationFrame(fn) { const id = ++rafId; rafQueue.push({ id, fn }); return id; },
+    cancelAnimationFrame(id) {
+      const index = rafQueue.findIndex((item) => item.id === id);
+      if (index >= 0) rafQueue.splice(index, 1);
+    },
+    addEventListener(type, fn) {
+      if (!windowListeners.has(type)) windowListeners.set(type, new Set());
+      windowListeners.get(type).add(fn);
+    },
+    removeEventListener(type, fn) { if (windowListeners.has(type)) windowListeners.get(type).delete(fn); },
+  };
+  const fakeDocument = {
+    querySelector: (selector) => selector === '.report-toc--sidebar' ? nav : null,
+    getElementById: (id) => targetMap[id] || null,
+    fonts: { ready: { then(fn) { fontReady = fn; } } },
+  };
+  const context = {
+    window: fakeWindow,
+    document: fakeDocument,
+    IntersectionObserver: FakeIntersectionObserver,
+    decodeURIComponent,
+    String,
+    Math,
+  };
+  fakeWindow.window = fakeWindow;
+
+  function flushRaf() {
+    while (rafQueue.length) rafQueue.shift().fn();
+  }
+  function dispatch(type) {
+    for (const fn of Array.from(windowListeners.get(type) || [])) fn({ type });
+  }
+  function activeId() {
+    const index = links.findIndex((link) => link.classList.contains('is-active'));
+    return index < 0 ? null : targets[index].id;
+  }
+  function listenerCount(type) { return (windowListeners.get(type) || new Set()).size; }
+
+  runInNewContext(scriptMatch[1], context);
+  flushRaf();
+  return {
+    links, targets, observerInstances, fakeWindow, activeId, dispatch, flushRaf, listenerCount,
+    click(id) { links[targets.findIndex((target) => target.id === id)].click(); },
+    setTop(id, top) { targetMap[id].top = top; },
+    fontReady() { if (fontReady) fontReady(); flushRaf(); },
+    rerun() { runInNewContext(scriptMatch[1], context); flushRaf(); },
+  };
 }
 
 const structure = JSON.parse(readFileSync(join(__dirname, 'sample-report-structure.json'), 'utf-8'));
@@ -79,10 +185,11 @@ check('(b) svg ノードラベルを含む', html.includes(svgFlow.visual.spec.n
 const svgCycle = bySection['section-next-action'];
 check('(b) svg cycle caption を含む', html.includes(svgCycle.visual.caption));
 
-// mermaid (spec.definition / diagramType / CDN 初期化)
+// mermaid (spec.definition / diagramType / self-contained local bundle 初期化)
 const mm = bySection['section-analysis'];
 check('(b) mermaid <pre class="mermaid"> を含む', html.includes('<pre class="mermaid">'));
-check('(b) mermaid CDN 初期化 script を含む', html.includes('mermaid.initialize'));
+check('(b) mermaid local bundle 初期化 script を含む', html.includes('mermaid.initialize') && !html.includes('cdn.jsdelivr.net'));
+check('(b) 自己完結HTMLとして外部script/link参照を含まない', !/<(?:script|link)[^>]+(?:src|href)=["']https?:/i.test(html));
 check('(b) mermaid 定義テキスト(系統判定)が埋込まれている', html.includes('系統判定'));
 check('(b) mermaid visual.caption を含む', html.includes(mm.visual.caption));
 
@@ -144,6 +251,88 @@ check('(1.1.0) blockquote', h110.includes('report-quote'));
 check('(1.1.0) 図の図表番号 図1.', h110.includes('図1. 図'));
 check('(1.1.0) 意味的配置 2カラム grid', h110.includes('report-grid--2col'));
 check('(1.1.0) 目次 TOC', h110.includes('report-toc') && h110.includes('目次'));
+check('(1.3.0 UI) screen layout の SSOT token (72ch/15rem/1240px)',
+  h110.includes('--report-measure: 72ch') &&
+  h110.includes('--report-sidebar-w: 15rem') &&
+  h110.includes('--report-page-max: 1240px'));
+check('(1.3.0 UI) sticky sidebar + 900px graceful degrade + print guard',
+  h110.includes('.report-toc--sidebar') &&
+  h110.includes('@media (max-width: 900px)') &&
+  h110.includes("matchMedia('print')"));
+check('(1.3.0 UI) printではsidebar TOCを非表示',
+  h110.includes('.report-sidebar { display: none !important; }'));
+check('(1.3.0 UI) scrollspy controller は再評価時に destroy して idempotent',
+  h110.includes("var CONTROLLER_KEY = '__slideReportScrollspy'") &&
+  h110.includes('window[CONTROLLER_KEY].destroy()') &&
+  h110.includes('var controller = { start: start, stop: stop, destroy: destroy'));
+check('(1.3.0 UI) 初期 hash / TOC click / manual scroll を単一 activate 経路へ統合',
+  h110.includes('syncFromLocation(true); /* 初期 hash') &&
+  h110.includes("addEventListener('click', onTocClick)") &&
+  h110.includes("addEventListener('scroll', scheduleScrollSync") &&
+  h110.includes("setAttribute('aria-current', 'location')"));
+check('(1.3.0 UI) hashchange / popstate / fonts.ready 後に再着地',
+  h110.includes("addEventListener('hashchange', onHistoryNavigation)") &&
+  h110.includes("addEventListener('popstate', onHistoryNavigation)") &&
+  h110.includes('document.fonts.ready.then') &&
+  h110.includes("scrollIntoView({ block: 'start' })"));
+check('(1.3.0 UI) beforeprint stop / afterprint restart+active復元',
+  h110.includes("addEventListener('beforeprint', onBeforePrint)") &&
+  h110.includes("addEventListener('afterprint', onAfterPrint)") &&
+  /function onBeforePrint\(\)\s*\{[^}]*printing = true;[^}]*stop\(\)/s.test(h110) &&
+  /function onAfterPrint\(\)\s*\{[^}]*printing = false;[^}]*start\(\)/s.test(h110) &&
+  h110.includes('restoreAfterPrint'));
+check('(1.3.0 UI) toc=false では scrollspy controller を出力しない', (() => {
+  const h = renderReport({ ...s110, meta: { ...s110.meta, toc: false } });
+  return !h.includes('__slideReportScrollspy') && !h.includes('report-toc--sidebar" aria-label="目次');
+})());
+const scrollspy = runScrollspyHarness(h110);
+check('(1.3.0 runtime) 初期 hash target を active + aria-current + 再着地',
+  scrollspy.activeId() === 'section-legacy' &&
+  scrollspy.links[1].getAttribute('aria-current') === 'location' &&
+  scrollspy.targets[1].scrollCount === 1);
+scrollspy.click('section-a');
+check('(1.3.0 runtime) TOC click は active/aria-current を即時同期',
+  scrollspy.activeId() === 'section-a' &&
+  scrollspy.links[0].getAttribute('aria-current') === 'location' &&
+  scrollspy.links[1].getAttribute('aria-current') === null);
+scrollspy.setTop('section-a', -100);
+scrollspy.setTop('section-legacy', 500);
+scrollspy.dispatch('scroll');
+scrollspy.flushRaf();
+check('(1.3.0 runtime) manual scroll は viewport marker 直前の section を選択', scrollspy.activeId() === 'section-a');
+scrollspy.fakeWindow.location.hash = '#section-legacy';
+scrollspy.dispatch('hashchange');
+scrollspy.flushRaf();
+check('(1.3.0 runtime) hashchange は target を active + 再着地',
+  scrollspy.activeId() === 'section-legacy' && scrollspy.targets[1].scrollCount === 2);
+scrollspy.fakeWindow.location.hash = '#section-a';
+scrollspy.dispatch('popstate');
+scrollspy.flushRaf();
+check('(1.3.0 runtime) popstate は履歴 target を復元',
+  scrollspy.activeId() === 'section-a' && scrollspy.targets[0].scrollCount === 1);
+scrollspy.fakeWindow.location.hash = '#section-legacy';
+scrollspy.fontReady();
+check('(1.3.0 runtime) document.fonts.ready は hash target へ再着地',
+  scrollspy.activeId() === 'section-legacy' && scrollspy.targets[1].scrollCount === 3);
+scrollspy.fakeWindow.location.hash = '';
+const observerBeforePrint = scrollspy.observerInstances.at(-1);
+scrollspy.dispatch('beforeprint');
+check('(1.3.0 runtime) beforeprint は observer/scroll監視を停止',
+  observerBeforePrint.disconnected && scrollspy.listenerCount('scroll') === 0);
+scrollspy.dispatch('afterprint');
+check('(1.3.0 runtime) afterprint は controllerを再起動して直前activeを復元',
+  scrollspy.activeId() === 'section-legacy' &&
+  scrollspy.listenerCount('scroll') === 1 &&
+  scrollspy.observerInstances.length === 2);
+const controllerBeforeRerun = scrollspy.fakeWindow.__slideReportScrollspy;
+scrollspy.rerun();
+check('(1.3.0 runtime) script 再評価は旧controllerを破棄しlistenerを一重に維持',
+  scrollspy.fakeWindow.__slideReportScrollspy !== controllerBeforeRerun &&
+  scrollspy.listenerCount('scroll') === 1 &&
+  scrollspy.listenerCount('hashchange') === 1 &&
+  scrollspy.listenerCount('popstate') === 1 &&
+  scrollspy.listenerCount('beforeprint') === 1 &&
+  scrollspy.listenerCount('afterprint') === 1);
 check('(1.1.0) section 番号 data-secnum (h2 本文は見出しのみ)', h110.includes('data-secnum="01"') && !h110.includes('report-section__num'));
 check('(1.1.0) 後方互換: paragraphs[] のみの section も描画', h110.includes('旧 paragraphs のみ'));
 check('(1.1.0) 決定論: 2回 byte 一致', h110 === renderReport(s110));

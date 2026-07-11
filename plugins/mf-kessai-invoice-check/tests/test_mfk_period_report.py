@@ -585,9 +585,11 @@ def test_amount_and_int_coercion():
     assert P._amount_of({}) is None
 
 
-def test_amount_of_allows_expected_fallback_for_supply_none():
+def test_amount_of_blocks_expected_fallback_for_supply_none():
+    # 未発行 (GAP・supply_state=none) は期待額 fallback せず金額列を空にする
+    # (ユーザー確定2026-07-10: 「金額あり=発行済み」の直感を崩さない・K3 の GAP 拡張)。
     row = {"actual_amount": None, "supply_state": "none", "現行単価": "50,000"}
-    assert P._amount_of(row) == 50000
+    assert P._amount_of(row) is None
 
 
 def test_amount_of_blocks_expected_fallback_for_inactive_supply():

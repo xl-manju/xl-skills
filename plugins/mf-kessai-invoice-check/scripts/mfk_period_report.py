@@ -82,6 +82,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from collections import defaultdict
 
 # 既存 lib を単一 SSOT として消費する (normalize/extract_names/ym_int を再利用)。
@@ -174,11 +175,17 @@ def _product(row):
 
 
 def _contract_id(row):
-    """行の契約ID (contract_id/契約ID)。同一取引先×同一商品の disambiguator。"""
+    """行の契約ID (contract_id/契約ID)。同一取引先×同一商品の disambiguator。
+
+    NFKC 正規化のみ適用する (`_base_key` が使う `mfk_reconcile.normalize` は名寄せ用に大文字小文字
+    や法人格まで畳むため契約IDには過剰・別契約IDを衝突させかねない)。MF API由来 (NFD) とシート由来
+    (NFC) で同一契約IDがUnicode合成形だけ異なるケースを同一契約と誤区別しないため (未正規化のままだと
+    curr/prev で別contract_id扱いされ、本来1行の継続契約が新規+発行漏れの2行へ分裂する)。
+    """
     if not row:
         return None
     v = _first(row, ("contract_id", "契約ID"))
-    return str(v) if v not in (None, "") else None
+    return unicodedata.normalize("NFKC", str(v)) if v not in (None, "") else None
 
 
 def _customer_id(row):
@@ -242,9 +249,9 @@ def _amount_of(row):
     現行実装は期待単価優先で evidence 欠落=金額列空白 (症状①⑥) だったのを、canonical carrier
     `actual_amount` (MF が実発行した額・C05・active 供給限定) 優先へ**反転**する。優先順位:
       ① actual_amount (C05 carrier を持つ行=MF実績由来の実発行額)。
-      ② actual_amount が明示 None かつ supply_state が inactive_* → 金額列は空 (None)。
-         取消前額 (evidence.amount) も期待額も出さない (K3: 未発行/取消を金額列に出さない)。
-         supply_state=none は発行なし/GAP なので期待額 fallback を許す。
+      ② actual_amount が明示 None かつ supply_state が active 以外 (inactive_*/none=未発行/取消/
+         供給なし) → 金額列は空 (None)。取消前額 (evidence.amount) も期待額も出さない
+         (K3: 未発行を金額列に出さない・ユーザー確定2026-07-10=「金額あり=発行済み」の直感を崩さない)。
       ③ actual_amount carrier 非保持の legacy 行 or active だが実額欠落 → 期待額 (現行単価等) へ fail-soft。
       ④ legacy evidence.amount fallback は supply_state==active or 未設定 (legacy) に限定 (取消前額を昇格させない)。
     """
@@ -255,10 +262,10 @@ def _amount_of(row):
         iv = _to_int(row.get("actual_amount"))
         if iv is not None:
             return iv
-        # actual_amount が明示 None かつ inactive = 取消/未確定。金額列に期待額や取消前額を
-        # 出さず空にする。supply_state=none は GAP/供給なしなので期待額 fallback を許す。
-        if ss in {R_ACTUALS.SUPPLY_INACTIVE_CANCELED,
-                  R_ACTUALS.SUPPLY_INACTIVE_PENDING}:
+        # actual_amount が明示 None かつ active でない (取消/pending/GAP・supply_state=none 含む) =
+        # 未発行。金額列に期待額や取消前額を出さず空にする (K3・GAP でも期待額 fallback しない=
+        # 前月GAP/今月GAP を「発行済みに見える」誤表示にしない)。
+        if ss != R_ACTUALS.SUPPLY_ACTIVE:
             return None
     for k in ("現行単価", "amount", "expected_amount", "金額", "単価"):
         iv = _to_int(row.get(k))

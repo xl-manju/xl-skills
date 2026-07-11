@@ -306,7 +306,7 @@ def collect_mf(target_ym, cfg, trace_sink=None):
             excluded_status_count += 1
             continue
         for t in mfk_api.iter_all("/transactions", {"billing_id": bid}, cfg=cfg,
-                                  trace_sink=trace_sink, site="transactions"):
+                                  trace_sink=trace_sink, site=f"transactions:{bid}"):
             # 月帰属 = 取引日。date 欠落時のみ発行日基準へ縮退 (当月取引が翌月へ帰属しうる)。
             txn_ym = _iso_to_ym(t.get("date"))
             if txn_ym is None:

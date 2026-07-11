@@ -16,6 +16,7 @@ import pytest
 
 # scripts/validate-report-visual.py はハイフン入りファイル名のため importlib で読み込む。
 _SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "validate-report-visual.py"
+_PLUGIN_ROOT = _SCRIPT.parent.parent
 
 
 def _load_module():
@@ -27,6 +28,15 @@ def _load_module():
 
 
 mod = _load_module()
+
+
+def _load_postgen_hook():
+    path = _PLUGIN_ROOT / "hooks" / "hook-postgen-eval.py"
+    spec = importlib.util.spec_from_file_location("hook_postgen_eval_mod", path)
+    assert spec and spec.loader
+    hook_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hook_mod)
+    return hook_mod
 
 
 # --- fixture 生成 (render-report.js が出す class 規約を最小再現) -------------
@@ -113,6 +123,17 @@ def test_analyze_counts_paragraphs_and_text_len():
 def test_analyze_extracts_print_css():
     facts = mod.analyze_report(_valid_html())
     assert "break-inside" in facts["print_css"]
+
+
+def test_analyze_toc_presence_comes_from_nav_dom_not_css_selector():
+    css_only = _doc(_section("section-a", "A"), style="<style>.report-toc--sidebar{position:sticky}</style>")
+    assert mod.analyze_report(css_only)["toc_sidebar_count"] == 0
+
+    with_nav = css_only.replace(
+        '<main class="report">',
+        '<main class="report"><nav class="report-toc report-toc--sidebar" aria-label="目次"></nav>',
+    )
+    assert mod.analyze_report(with_nav)["toc_sidebar_count"] == 1
 
 
 # --- 正常系 (PASS) ----------------------------------------------------------
@@ -396,6 +417,16 @@ def test_cli_with_structure_exit_0(tmp_path):
     assert json.loads(proc.stdout)["passed"] is True
 
 
+def test_cli_required_structure_with_structure_exit_0(tmp_path):
+    html = _write(tmp_path, "report.html", _valid_html())
+    struct = _write(tmp_path, "report-structure.json", json.dumps(VALID_STRUCTURE, ensure_ascii=False))
+    proc = _run_cli(
+        str(html), "--structure", str(struct), "--require-structure", "--json"
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert json.loads(proc.stdout)["passed"] is True
+
+
 def test_cli_defect_exit_1(tmp_path):
     bad = _valid_html().replace("<h2>はじめに</h2>", "<h2>{{TITLE}}</h2>")
     html = _write(tmp_path, "report.html", bad)
@@ -459,6 +490,16 @@ def test_main_with_structure_returns_0(tmp_path, capsys):
     rc = mod.main([str(html), "--structure", str(struct)])
     assert rc == 0
     capsys.readouterr()
+
+
+def test_main_required_structure_with_structure_returns_0(tmp_path, capsys):
+    html = _write(tmp_path, "report.html", _valid_html())
+    struct = _write(tmp_path, "report-structure.json", json.dumps(VALID_STRUCTURE, ensure_ascii=False))
+    rc = mod.main([
+        str(html), "--structure", str(struct), "--require-structure", "--json"
+    ])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["passed"] is True
 
 
 def test_main_defect_returns_1(tmp_path, capsys):
@@ -607,6 +648,48 @@ def test_120_analysis_role_without_narrative_warns():
     html = _doc(_sec_html("section-an", "分析", "<p>本文。</p>"))
     r = mod.check_report(html, structure=struct)
     assert any("narrative" in f["message"] for f in r["findings"])
+
+
+def test_130_essence_visual_missing_on_logical_section_warns():
+    """1.3.0: 論理節(analysis/finding 等)が非 none visual を持たない → essence-visual warn (strict で fail)。"""
+    struct = {"meta": _meta_120(), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-an", "heading": "分析", "role": "analysis",
+                            "narrative": {"essence": "e", "approach": "a"},
+                            "body": [{"type": "table", "headers": ["x"], "rows": [["y"]]}]}]}
+    html = _doc(_sec_html("section-an", "分析", "<table><tr><td>y</td></tr></table>"))
+    r = mod.check_report(html, structure=struct)
+    assert any(f["check"] == "essence-visual" for f in r["findings"]), r["findings"]
+    # strict では fail 昇格
+    assert mod.check_report(html, structure=struct, strict=True)["passed"] is False
+
+
+def test_130_essence_visual_present_passes():
+    """1.3.0: 論理節が非 none visual を持てば essence-visual は出ない。"""
+    struct = {"meta": _meta_120(), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [{"id": "section-an", "heading": "分析", "role": "analysis",
+                            "narrative": {"essence": "e", "approach": "a"},
+                            "visual": {"kind": "svg", "spec": {"variant": "comparison",
+                                       "nodes": [{"label": "A", "group": "l"}, {"label": "B", "group": "r"}]}},
+                            "body": [{"type": "paragraph", "text": "本文"}]}]}
+    html = _doc(_sec_html("section-an", "分析",
+                          '<figure class="report-visual report-visual--svg"><svg viewBox="0 0 10 10"></svg></figure><p>本文</p>'))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] == "essence-visual" for f in r["findings"]), r["findings"]
+
+
+def test_130_essence_visual_exempts_summary_and_next_action():
+    """1.3.0: 要約/次アクション等 (text-first 許容 role) は visual 無しでも essence-visual を出さない。"""
+    struct = {"meta": _meta_120(), "theme": {"name": "kanagawa-lotus", "accentColors": ["blue"]},
+              "sections": [
+                  {"id": "section-sum", "heading": "要約", "role": "summary",
+                   "body": [{"type": "key-point", "text": "結論"}]},
+                  {"id": "section-next", "heading": "次アクション", "role": "next-action",
+                   "body": [{"type": "task-list", "tasks": [{"text": "T", "done": False}]}]},
+              ]}
+    html = _doc(_sec_html("section-sum", "要約", '<div class="report-keypoint"><div class="report-keypoint__body">結論</div></div>')
+                + _sec_html("section-next", "次アクション", '<ul class="report-tasklist"><li>T</li></ul>'))
+    r = mod.check_report(html, structure=struct)
+    assert not any(f["check"] == "essence-visual" for f in r["findings"]), r["findings"]
 
 
 def test_120_throughline_missing_warns():
@@ -797,13 +880,16 @@ def test_120_clean_report_passes_strict():
              "body": [{"type": "key-point", "text": "結論"}]},
             {"id": "section-an", "heading": "分析", "role": "analysis", "transition": "次へ",
              "narrative": {"essence": "本質", "approach": "解決"},
+             "visual": {"kind": "svg", "spec": {"variant": "cycle", "nodes": [{"label": "A"}, {"label": "B"}]},
+                        "caption": "本質構造"},
              "body": [{"type": "paragraph", "text": "本文"}]},
             {"id": "section-next", "heading": "次アクション", "role": "next-action",
              "body": [{"type": "task-list", "tasks": [{"text": "T", "done": False}]}]},
         ],
     }
     inner_sum = '<div class="report-keypoint report-keypoint--accent"><div class="report-keypoint__body">結論</div></div>'
-    inner_an = '<div class="report-narrative"><span class="report-narrative__label">本質課題</span></div><p>本文</p>'
+    inner_an = ('<div class="report-narrative"><span class="report-narrative__label">本質課題</span></div>'
+                '<figure class="report-visual report-visual--svg"><svg viewBox="0 0 100 100"></svg></figure><p>本文</p>')
     inner_next = '<ul class="report-tasklist"><li><span class="report-tasklist__box">[ ]</span><span class="report-tasklist__text">T</span></li></ul>'
     body = (
         _sec_html("section-sum", "要約", inner_sum).replace("</section>", '<p class="report-transition">次へ</p></section>')
@@ -854,3 +940,88 @@ def test_120_narrative_dual_form_warns():
     html = _doc('  <div class="report-throughline">t</div>\n' + _sec_html("section-a", "A", '<div class="report-narrative"></div><p>p</p>'))
     r = mod.check_report(html, structure=struct)
     assert any(f["check"] == "structuring" and "併載" in f["message"] for f in r["findings"])
+
+
+# --- C9: 第3次 UI/UX shape (screen接合トークン/print非退行/狭画面degrade/aria-current/タイポ) 回帰保護 ---
+
+_FULL_UIUX_STYLE = (
+    "<style>\n"
+    ":root{--report-width:190mm;--report-measure:78ch;--report-page-max:1360px;"
+    "--fs-body:1.0625rem;--fs-title:2.05rem;}\n"
+    ".report-layout{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}\n"
+    ".report-toc--sidebar{position:sticky;} a.is-active{font-weight:700;}\n"
+    "@media print{.report{max-width:190mm;}}\n"
+    "@media (max-width:900px){.report-layout{display:block;}}\n"
+    "</style>"
+)
+_FULL_UIUX_HEAD = (
+    "<script>x.setAttribute('aria-current','location');"
+    "window.addEventListener('beforeprint',a);window.addEventListener('afterprint',b);</script>"
+)
+
+
+def test_uiux_shape_full_render_no_warn():
+    """接合トークン + aria-current + before/afterprint が揃った full render は uiux-shape warn ゼロ。"""
+    html = _doc(_section("section-a", "A", ["本文。"]), style=_FULL_UIUX_STYLE, head_extra=_FULL_UIUX_HEAD)
+    r = mod.check_report(html)
+    assert not any(f["check"] == "uiux-shape" for f in r["findings"]), r["findings"]
+
+
+def test_uiux_shape_missing_tokens_warn():
+    """--report-width を持つ full render で接合トークン (layout/measure/page-max 等) が欠けると uiux-shape warn。"""
+    html = _doc(_section("section-a", "A", ["本文。"]), style="<style>:root{--report-width:190mm;}</style>")
+    r = mod.check_report(html)
+    assert any(f["check"] == "uiux-shape" for f in r["findings"]), r["findings"]
+
+
+def test_uiux_shape_css_toc_selector_without_nav_does_not_require_scrollspy():
+    """CSS の TOC selector だけは TOC 実体ではなく、scrollspy 欠落に誤爆しない。"""
+    html = _doc(_section("section-a", "A", ["本文。"]), style=_FULL_UIUX_STYLE)
+    r = mod.check_report(html)
+    toc_messages = [
+        f["message"] for f in r["findings"]
+        if f["check"] == "uiux-shape"
+        and any(token in f["message"] for token in ("scrollspy", "aria-current", "afterprint"))
+    ]
+    assert toc_messages == [], r["findings"]
+
+
+def test_uiux_shape_actual_toc_nav_requires_scrollspy_contract():
+    """実 DOM に sidebar TOC nav がある場合だけ active CSS/aria-current 同期を要求する。"""
+    style = _FULL_UIUX_STYLE.replace("a.is-active{font-weight:700;}", "")
+    toc = '<nav class="report-toc report-toc--sidebar" aria-label="目次"><a href="#section-a">A</a></nav>'
+    html = _doc(toc + _section("section-a", "A", ["本文。"]), style=style)
+    r = mod.check_report(html)
+    messages = [f["message"] for f in r["findings"] if f["check"] == "uiux-shape"]
+    assert any("scrollspy" in message for message in messages), r["findings"]
+    assert any("aria-current" in message for message in messages), r["findings"]
+
+
+def test_uiux_shape_skipped_for_partial_fixture():
+    """--report-width を持たない部分 fixture では uiux-shape を発火させない (誤爆防止・full-render marker gate)。"""
+    html = _doc(_section("section-a", "A", ["本文。"]))  # default_style は --report-width を含まない
+    r = mod.check_report(html)
+    assert not any(f["check"] == "uiux-shape" for f in r["findings"]), r["findings"]
+
+
+def test_cli_require_structure_without_structure_exit_2(tmp_path):
+    """--require-structure 指定 + --structure 欠落 → fail-open を封鎖し exit2。"""
+    html = _write(tmp_path, "report.html", _valid_html())
+    proc = _run_cli(str(html), "--require-structure")
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+
+
+def test_canonical_generate_consumers_enable_required_structure_mode():
+    """C01 の実行導線は structure 正本と required mode を常にペアで渡す。"""
+    required_args = "--structure <report-structure.json> --require-structure --json"
+    skill = (_PLUGIN_ROOT / "skills" / "run-slide-report-generate" / "SKILL.md").read_text(encoding="utf-8")
+    orchestrator = (
+        _PLUGIN_ROOT / "skills" / "run-slide-report-generate" / "prompts" / "R1-orchestrate.md"
+    ).read_text(encoding="utf-8")
+    assert required_args in skill
+    assert required_args in orchestrator
+
+    hook = _load_postgen_hook()
+    context = hook.build_context("report", "/tmp/report-output")
+    assert '--structure "/tmp/report-output/report-structure.json"' in context
+    assert "--require-structure --json" in context

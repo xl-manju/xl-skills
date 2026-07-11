@@ -3,7 +3,7 @@
  *
  * 検証:
  *   - renderMermaidFragment: <pre class="mermaid"> 片・定義埋込・エスケープ
- *   - mermaidInitScript: CDN 初期化 script
+ *   - mermaidInitScript: package-lock固定ローカルbundleの自己完結初期化 script
  *   - renderMermaidSvg: valid な <svg> ルート・定義テキスト内包
  *   - renderMermaidForFile: .html は <!DOCTYPE html>、.svg は <svg
  *   - 決定論: 同一入力→同一出力
@@ -45,9 +45,10 @@ check('fragment: エスケープ後 &lt;script&gt; を含む', injected.includes
 
 // init script
 const init = mermaidInitScript();
-check('init: <script type="module"> を含む', init.includes('<script type="module">'));
+check('init: inline <script> を含む', init.includes('<script>'));
 check('init: mermaid.initialize を含む', init.includes('mermaid.initialize'));
-check('init: CDN URL を含む', init.includes('cdn.jsdelivr.net/npm/mermaid'));
+check('init: 外部 CDN URL を含まない', !init.includes('cdn.jsdelivr.net'));
+check('init: local bundle を inline 携行', init.length > 1_000_000);
 
 // svg
 const svg = renderMermaidSvg(def);
