@@ -26,7 +26,12 @@
       "input": "goal_type, UBM_VAULT_ROOT, knowledge/router.json",
       "output": "structured context summary for dialogue",
       "gate": "required context sections emitted; missing external vault is reported as graceful zero-hit",
-      "resourceIds": ["../../agents/info-collector.md", "../../knowledge/router.json", "references/data-contract.md"]
+      "consults": {
+        "script": "../../scripts/consult-harness-artifact-graph.py",
+        "query_types": ["local", "global", "relationship"],
+        "note": "info-collector の Step 3 デュアルパス検索の追加経路。C06 knowledge-graph.json と C05 harness-artifact-graph.json を read-only 探索する。グラフ未生成時は skip し既存パスへフォールバック (graceful zero-hit)。"
+      },
+      "resourceIds": ["../../agents/info-collector.md", "../../knowledge/router.json", "references/data-contract.md", "../../scripts/consult-harness-artifact-graph.py"]
     },
     {
       "id": "phase2b-review",

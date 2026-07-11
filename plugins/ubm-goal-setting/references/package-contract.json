@@ -4,18 +4,24 @@
   "entry_points": {
     "skills": [
       "run-ubm-goal-setting",
-      "run-ubm-knowledge-sync"
+      "run-ubm-knowledge-sync",
+      "run-ubm-youtube-ingest",
+      "run-ubm-consult"
     ],
     "agents": [
       "info-collector",
       "output-formatter",
       "goal-reviewer",
       "phase3-coordinator",
-      "knowledge-extractor"
+      "knowledge-extractor",
+      "knowledge-relation-extractor",
+      "youtube-transcript-normalizer"
     ],
     "commands": [
       "ubm-goal-setting",
-      "ubm-knowledge-sync"
+      "ubm-knowledge-sync",
+      "ubm-youtube-ingest",
+      "ubm-consult"
     ],
     "hooks": [
       "ubm-write-path-guard.py"

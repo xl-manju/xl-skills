@@ -2,7 +2,7 @@
   "target": {
     "plugin": "ubm-goal-setting",
     "skill": "run-ubm-knowledge-sync",
-    "skill_md_sha256": "272a27773fcd5cbf922817f56f590c91b6522cfd71787884115f18bbf3110eb2"
+    "skill_md_sha256": "49575f5be0af9fbbfea19d0a33376f952e046e9ff8311eb018c7545a80f9a8ff"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -13,26 +13,26 @@
     "dependency_break": 0,
     "smell": 3
   },
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-05T05:36:43Z",
+  "reviewer": "independent-content-review-subagent-20260711-r2",
+  "reviewed_at": "2026-07-11T09:36:55Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "completeness_exempt(SKILL.md:52-53) の委譲設計が SSOT 原則にクリーンに整合: 唯一の LLM 責務(抽出・6カテゴリ分類)を plugin 直下 SubAgent knowledge-extractor.md(7層プロンプト本文内包・実測 43,815 byte≒宣言43KB) が単独所有し、skill ローカル R-id 単位 prompts を置かない=二重定義回避。prompts/ ディレクトリ不在は grep で実確認。responsibility_refs / subagent_refs / script_refs / reference_refs の frontmatter 宣言と実ファイルも全解決。横展開可能な委譲パターン。",
-      "IN1/OUT1 が frontmatter feedback_contract(SKILL.md:57-64) ・End-to-End Flow 表(:82-83) ・ゴールシーク検証 inner/outer loop(:102-103) の3箇所で矛盾なく triangulate されている。MODIFIED 処理(:113) は knowledge-extractor の Step U-1〜U-4 を『正本』と明示委譲して二重定義を回避。連番禁止ルール(:110)・必須フィールド(:109)も references/agent へ一貫。責務→実行体の対応が Flow 表という単一正本に集約され、C1 矛盾なし・C4 依存整合が保たれている。"
+      "[今回追記=Phase5 初回 edge backfill 導線の直接評価] End-to-End Flow の Phase5-graph-sync 行(SKILL.md:88)と直後の補足段落(:90)が、実装3点と逐語で triangulate されている: (a) 『knowledge-relation-extractor が read-only で候補 JSON を返す(幻覚防止)』は agents/knowledge-relation-extractor.md の frontmatter `tools: Read`(:7)+本文 L1『抽出のみ行い書込は一切しない(read-only)』(:36)・L4.3『永続化は呼び出し側の責務』(:134)と一致。(b) 『validate-knowledge-graph.py --merge-relations が canonical key (source_id,target_id,relation_type) で冪等 merge(既存辺保持=first-write-wins)し PASS 時のみ atomic 再生成』は script の `_relation_key`(:170-172)・`merge_relations` setdefault first-write-wins(:175-196)・検証 PASS 時のみ書込(:519-539)と一致。(c) 『差分ゼロ周回では不発→既存 corpus は edges=0 の退化グラフ→RUNBOOK の初回 edge backfill 手順』は RUNBOOK.md『### 初回 edge backfill』(:101-118)の 4 手順、および script の edges=0 WARN が RUNBOOK を名指しで指す実装(:543-548)と一致。参照先(RUNBOOK.md 見出し)は実在を grep で確認。C1 矛盾なし・C4 依存整合が新規追記でも保たれている。",
+      "completeness_exempt(SKILL.md:54-55)の委譲設計が SSOT にクリーンに整合: 唯一の LLM 責務(抽出・6カテゴリ分類)を plugin 直下 SubAgent knowledge-extractor.md が単独所有し skill ローカル prompts を置かない=二重定義回避。prompts/ ディレクトリ不在を ls で実確認。responsibility_refs/subagent_refs/script_refs/schema_refs/reference_refs の frontmatter 宣言(:30-49)と実ファイル(detect-knowledge-updates.py/check-knowledge-split.py/validate-knowledge-graph.py/knowledge-extractor.md/knowledge-relation-extractor.md/knowledge-sources.md/knowledge-design-principles.md/kitahara-principles-db.md/schema.json/router.json/registry.json)を全解決確認。IN1/OUT1 が frontmatter feedback_contract(:56-66)・Flow 表(:84-85)・ゴールシーク検証 inner/outer(:107-108)の3箇所で矛盾なく triangulate。"
     ],
     "negative_feedback": [
-      "[low smell / 今回変更の直接評価] ゴールシーク配線節の第1箇条書き(SKILL.md:93) が `goal_seek.progress`/`intermediate`/`handoff` という構造的に並列な3つの永続化配線をピリオド区切りで1箇条書きへ詰め込んでいる。commit db070cb の diff で本文テキストは byte 不変=意味は完全保存を確認済みで矛盾/漏れではないが、直後の3つの兄弟箇条書き(SubAgent context / --dry-run / max_loops)が各1関心なのに対しこの1件だけ3関心の run-on となり、粒度が非対称でスキャン性が低下(『handoff はどこへ書くか』を探す読者が長い箇条書き中央まで読む必要)。並列3項目はネスト sub-list か 3行表(key|内容|出力先)で表すのが本統合の意図(凝集の明示)を最も elegant に達成する。低 severity・非ブロッキング。",
-      "[low smell / 既存指摘の再確認・成立] Gotchas(SKILL.md:119) の『knowledge/schema.json を…info-collector(読取)が対称参照する』は不正確。info-collector.md を grep すると schema.json への参照は皆無で、実際は router.json(info-collector.md:131) + knowledge/*.json(:176) データを Read する(データは schema 準拠だが schema ファイル自体は読まない)。依存の実体(info-collector が knowledge-extractor 産物を消費)は健全で dependency_break ではないが、対称参照の主語が schema ファイルである点が事実と食い違う。低 severity。",
-      "[low smell / 既存指摘の再確認・成立] End-to-End Flow 表(SKILL.md:83) が knowledge-extractor 帰属として記す『1起動あたり最大20ファイル、超過時は20件ずつ分割』のバッチ・トランザクション/resume 概念が委譲先正本 knowledge-extractor.md に明文化されていない(grep で batch/20ファイル/transaction/resume の該当記述なし。20 のヒットは見出し行数等の無関係)。実際は skill 側のオーケストレーション/バッチ resume 責務(Key Rules:115)であり、Flow 表の実行体列の帰属がやや緩い。低 severity。"
+      "[low smell / 既存指摘の再確認・成立] ゴールシーク配線節の第1箇条書き(SKILL.md:98)が `goal_seek.progress`/`intermediate`/`handoff` という構造的に並列な3つの永続化配線をピリオド区切りで1箇条書きへ詰め込んでいる。直後の3つの兄弟箇条書き(SubAgent context/--dry-run/max_loops)が各1関心なのに対しこの1件だけ3関心の run-on となり粒度が非対称でスキャン性が低下する。意味は保存され矛盾/漏れではないため低 severity・非ブロッキング。ネスト sub-list か 3行表(key|内容|出力先)で表すと凝集がより elegant に立つ。",
+      "[low smell / 既存指摘の再確認・成立] Gotchas(SKILL.md:124)の『knowledge/schema.json を…info-collector(読取)が対称参照する』は不正確。agents/info-collector.md を grep すると schema.json 参照は皆無で、実際は router.json(:44,:131)+knowledge/*.json(:176)+knowledge-graph.json(:215,:225)を Read する(データは schema 準拠だが schema ファイル自体は読まない)。依存の実体(info-collector が knowledge-extractor 産物を消費)は健全で dependency_break ではないが、対称参照の主語が schema ファイルである点が事実と食い違う。低 severity。",
+      "[low smell / 既存指摘の再確認・成立] End-to-End Flow 表(SKILL.md:85)が knowledge-extractor 帰属として記す『1起動あたり最大20ファイル、超過時は20件ずつ分割』のバッチ・トランザクション/resume 概念が委譲先正本 knowledge-extractor.md に明文化されていない(grep で batch/20ファイル/transaction/resume の該当記述なし。20 のヒットは『見出し一覧(20-50行)』等の無関係)。実際は skill 側のオーケストレーション/バッチ resume 責務(Key Rules:120)であり Flow 表の実行体列の帰属がやや緩い。低 severity。"
     ],
     "iteration": 1,
     "iteration_limit": 5,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md 変更(commit db070cb: ゴールシーク配線節の3箇条書き統合)に伴う stale verdict(旧 sha 52aea0e3… ≠ 現 sha 272a2777…)の genuine 再評価。全文精読+実ファイル/grep 検証で 4条件(C1 矛盾なし/C2 漏れなし/C3 整合性/C4 依存整合)を確認し全 PASS。今回変更は git diff 上テキスト byte 不変=意味保存を実測確認したが、並列3配線を run-on 1箇条書きへ詰めた結果、兄弟箇条書きとの粒度非対称でスキャン性がわずかに低下(低 smell)。既存2 smell(info-collector の schema.json 対称参照記述の不正確・Flow 表の 20ファイルバッチ帰属の緩さ)も現物再検証で成立を確認。計 low smell 3件はいずれも非ブロッキングで high severity 0件のため verdict=PASS。criteria_evaluated=IN1(inner)/OUT1(outer) は frontmatter feedback_contract 全件。"
+  "notes": "SKILL.md 変更(Phase5 graph-sync 節へ『初回 edge backfill 導線(RUNBOOK 参照)』の additive 追記)に伴う stale verdict(旧 sha 272a2777… ≠ 現 sha 49575f5b…)の genuine 再評価。全文精読+実ファイル/grep/script 突合で 4条件(C1 矛盾なし/C2 漏れなし/C3 整合性/C4 依存整合)を確認し全 PASS。今回追記(Phase5 行:88・補足段落:90)は agents/knowledge-relation-extractor.md(read-only tools:Read)・scripts/validate-knowledge-graph.py(--merge-relations/canonical key/first-write-wins/PASS 時のみ atomic/edges=0 WAR->RUNBOOK)・RUNBOOK.md『初回 edge backfill』見出し(実在)と逐語整合し、新規 high/矛盾/依存断裂 0。pytest(tests/test_validate_knowledge_graph.py tests/test_check_knowledge_split.py)41 passed を evidence として確認。残る low smell 3件(ゴールシーク配線 run-on 箇条書き/info-collector の schema.json 対称参照記述の不正確/Flow 表の 20ファイルバッチ帰属の緩さ)はいずれも既存指摘の現物再検証成立・非ブロッキングで high severity 0件のため verdict=PASS。criteria_evaluated=IN1(inner)/OUT1(outer) は frontmatter feedback_contract 全件。"
 }
