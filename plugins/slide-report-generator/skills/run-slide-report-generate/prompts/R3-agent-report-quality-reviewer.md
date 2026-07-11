@@ -340,7 +340,7 @@ Layer 4 出力評価基準で自己評価し、不合格項目があれば意味
 ## Prompt Templates
 
 > オーケストレータ (run-slide-report-generate / run-slide-report-modify / run-cross-deck-review) が本 worker を Task ツールで独立 context 起動する際の入力例:
-> 「report 品質(RQ1-RQ30・wide/narrow/print実描画・navigation・computed metrics・本質図解)を独立 context でfail-closed検証してください。report.html、report-structure.json、runtime-bundle.jsonを渡すので、上記7層の責務に従い結果を構造化して返してください。」
+> 「report 品質を RQ30 観点と wide・narrow・print の実描画・navigation・computed metrics・本質図解で独立 context から fail-closed 検証してください。report.html、report-structure.json、runtime-bundle.jsonを渡すので、上記7層の責務に従い結果を構造化して返してください。」
 
 （本 agent は自動実行 worker。上記は呼出テンプレートの一例であり、実際の入力は上流フェーズの成果物で置換される。まず決定論ゲート validate-report-visual.py を実行し、続いて LLM 意味検証に入る。）
 

@@ -1,6 +1,6 @@
 ---
 name: report-quality-reviewer
-description: report 品質(RQ1-RQ30・wide/narrow/print実描画・navigation・computed metrics・本質図解)を独立 context でfail-closed検証し補正指針を返したいときに使う。
+description: report 品質を RQ30 観点と wide・narrow・print の実描画・navigation・computed metrics・本質図解で独立 context から fail-closed 検証し補正指針を返したいときに使う。
 kind: agent
 version: 0.1.0
 owner: xl-skills maintainers
