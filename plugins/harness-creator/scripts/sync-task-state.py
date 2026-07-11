@@ -49,10 +49,9 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 # blocked 遷移の第一級 field 値域 (origin-failure=起点故障 / propagated=下流連鎖)。
 BLOCKED_REASONS = {"origin-failure", "propagated"}
 DEFAULT_LEASE_SECONDS = 3600
-# depends_on/consumes を「下流→上流」と読む producer edge type。この集合が consumer 側の正本
-# (SSOT・H-04): TG-C03 (inject-task-inputs) / TG-C05 (summarize-task-progress) が sibling import で
-# 再利用し、producer ready-set (depends_on 完了+consumes 成果物実在) と対称の集合を共有する。
-_DEP_EDGE_TYPES = ("depends_on", "consumes")
+# task-graph edge 方向は type ごとに異なる。depends_on は consumer task→producer
+# task、produces は producer task→artifact、consumes は artifact→consumer task。
+# consumes を depends_on と同じ endpoint として扱う edge-type 集合は持たない。
 
 
 # ── 時刻ユーティリティ (timezone-aware UTC・Z 表記) ─────────────────────────────
@@ -259,24 +258,101 @@ def repin_graph_hash(task_state: dict, new_hash: str, authorized_hashes: set[str
     return clone
 
 
-# ── 下流閉包 (depends_on/consumes 逆引き BFS) ──────────────────────────────────
+# ── 依存解決 + 下流閉包 (depends_on 直接 / consumes は produces 逆引き) ───────
+def resolve_dependency_producers(task_graph: dict) -> tuple[dict[str, set[str]], list[dict]]:
+    """consumer task -> producer task 集合と consumes 契約 violation を返す。
+
+    depends_on は ``from=consumer task, to=producer task`` を直接読む。consumes は
+    ``from=artifact, to=consumer task`` の artifact を ``produces``
+    (``from=producer task, to=artifact``) で逆引きして producer task へ解決する。
+    artifact producer 不在・producer/consumer task endpoint 不在は issues に残し、
+    呼出側が fail-closed で拒否/診断できるようにする。
+    """
+    node_ids = {
+        n.get("id") for n in task_graph.get("nodes", []) or []
+        if isinstance(n, dict) and n.get("id") is not None
+    }
+    producers_by_artifact: dict[str, set[str]] = {}
+    for edge in task_graph.get("edges", []) or []:
+        if edge.get("type") == "produces":
+            producer, artifact = edge.get("from"), edge.get("to")
+            if producer is not None and artifact is not None:
+                producers_by_artifact.setdefault(artifact, set()).add(producer)
+
+    producers_by_consumer: dict[str, set[str]] = {}
+    issues: list[dict] = []
+    for edge in task_graph.get("edges", []) or []:
+        edge_type = edge.get("type")
+        if edge_type == "depends_on":
+            consumer, producer = edge.get("from"), edge.get("to")
+            if consumer is not None and producer is not None:
+                producers_by_consumer.setdefault(consumer, set()).add(producer)
+        elif edge_type == "consumes":
+            artifact, consumer = edge.get("from"), edge.get("to")
+            if consumer not in node_ids:
+                issues.append({
+                    "kind": "missing-consumer-task", "artifact_id": artifact,
+                    "consumer_task_id": consumer,
+                })
+            artifact_producers = producers_by_artifact.get(artifact, set())
+            if not artifact_producers:
+                issues.append({
+                    "kind": "missing-artifact-producer", "artifact_id": artifact,
+                    "consumer_task_id": consumer,
+                })
+            for producer in artifact_producers:
+                producers_by_consumer.setdefault(consumer, set()).add(producer)
+                if producer not in node_ids:
+                    issues.append({
+                        "kind": "missing-producer-task", "artifact_id": artifact,
+                        "consumer_task_id": consumer, "producer_task_id": producer,
+                    })
+
+    # node-level fallback は canonical edge と同義の depends_on だけを許可する。
+    # consumes は artifact endpoint を持つため task id list としては読まない。
+    for node in task_graph.get("nodes", []) or []:
+        if not isinstance(node, dict):
+            continue
+        consumer = node.get("id")
+        for producer in node.get("depends_on", []) or []:
+            producers_by_consumer.setdefault(consumer, set()).add(producer)
+
+    issues.sort(key=lambda item: (
+        str(item.get("consumer_task_id")), str(item.get("artifact_id")),
+        str(item.get("producer_task_id")), str(item.get("kind")),
+    ))
+    return producers_by_consumer, issues
+
+
+def format_dependency_issue(issue: dict) -> str:
+    """dependency issue を CLI/例外共通の決定論的メッセージにする。"""
+    kind = issue.get("kind")
+    artifact = issue.get("artifact_id")
+    consumer = issue.get("consumer_task_id")
+    if kind == "missing-artifact-producer":
+        return f"consumes artifact {artifact!r} for consumer {consumer!r} has no producer"
+    if kind == "missing-producer-task":
+        return (
+            f"consumes artifact {artifact!r} resolves to missing producer task "
+            f"{issue.get('producer_task_id')!r} for consumer {consumer!r}"
+        )
+    return f"consumes artifact {artifact!r} references missing consumer task {consumer!r}"
+
+
 def _downstream_closure(task_graph: dict, origin_task_id: str) -> set[str]:
     """origin に (推移的に) 依存する全 node id の集合を返す (origin 自身は除外)。
 
-    producer edge `{type: depends_on|consumes, from: 下流, to: 上流}` を逆引きし、
-    node-level の depends_on/consumes list も補助的に読む (robustness)。
+    depends_on の task→task と、consumes artifact を produces で逆引きした
+    consumer task→producer task を同じ下流閉包に投影する。
+    consumes の producer/consumer endpoint violation は伝播漏れに繋がるため fail-closed。
     """
+    producers, issues = resolve_dependency_producers(task_graph)
+    if issues:
+        raise ValueError(format_dependency_issue(issues[0]))
     rev: dict[str, set[str]] = {}
-    for e in task_graph.get("edges", []):
-        if e.get("type") in _DEP_EDGE_TYPES:
-            consumer, producer = e.get("from"), e.get("to")
-            if consumer is not None and producer is not None:
-                rev.setdefault(producer, set()).add(consumer)
-    for n in task_graph.get("nodes", []):
-        nid = n.get("id")
-        for key in _DEP_EDGE_TYPES:
-            for producer in n.get(key, []) or []:
-                rev.setdefault(producer, set()).add(nid)
+    for consumer, producer_ids in producers.items():
+        for producer in producer_ids:
+            rev.setdefault(producer, set()).add(consumer)
 
     seen: set[str] = set()
     queue = [origin_task_id]

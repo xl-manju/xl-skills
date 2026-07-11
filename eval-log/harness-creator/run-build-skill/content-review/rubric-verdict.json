@@ -2,7 +2,7 @@
   "target": {
     "plugin": "harness-creator",
     "skill": "run-build-skill",
-    "skill_md_sha256": "38c6b236e756ccc40fb9f395b94b329c89b4b3e609fecc6ae0826a22d17e9db0"
+    "skill_md_sha256": "b6f0fb8fae97676ded6f3014116ba2e15a4660eb99f6dfac6dcd01fd48be4fc1"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
@@ -11,35 +11,39 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 3
   },
-  "reviewer": "independent-content-review-subagent (PR-flow stale-sha 再評価 2026-07-07)",
-  "reviewed_at": "2026-07-07T02:42:22+00:00",
+  "reviewer": "independent-content-review-subagent (PR-flow default-flip 再評価 2026-07-11・2体収束の rubric 側)",
+  "reviewed_at": "2026-07-11T06:41:52+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": [
-      "IN1",
-      "IN2",
-      "IN3",
-      "OUT1",
-      "OUT2"
-    ],
+    "criteria_evaluated": ["IN1", "IN2", "IN3", "OUT1", "OUT2"],
+    "criteria_results": {
+      "IN1": "PASS",
+      "IN2": "PASS",
+      "IN3": "PASS",
+      "OUT1": "PASS",
+      "OUT2": "PASS"
+    },
     "positive_feedback": [
-      "検証可能性が高い (IN1): 新設 task-graph 経路が二値の機械検証点を持つ。Step 4 の lint-capability-graph-knowledge.py は task-graph harness のみ ENG-C06/ENG-C07 同梱・consult token・knowledge entry source_ref を検査し、非 task-graph は not-applicable exit0 (実走確認)。engine enum の SSOT drift は lint-goal-seek.py --self-test が render-combinators.py↔build-flags.schema 間で検査し exit0『drift なし』。IN1 の lint 群 (命名/構造/frontmatter/goal-seek/completeness/ssot + validate-build-trace) に engine 変種ゲートが破綻なく増設され、全て exit0 に還元される。",
-      "簡潔性が SSOT 委譲で維持 (OUT2): task-graph 追加は本文肥大を招かず、詳細契約を references/pipeline-boundary-contract.md へ委譲し frontmatter・Key Rule 19 bullet・Step 10.6 の 3 箇所に要点のみ配置。frontmatter を除く本文は 257 行で 300 行上限内。engine を独立 CLI flag でなく with_goal_seek.engine enum へ畳む設計 (Step 10.6) が argparse 表面積の増加を避け、A2 制約 (独立 combinator flag 新設禁止) と整合する最小複雑性を保つ。"
+      "engine enum SSOT drift ゲート稼働を実走確認: lint-goal-seek.py --self-test → exit0 (OK: goal-seek 既定値 SSOT 整合 (engine/fork/max_loops drift なし))、lint-capability-graph-knowledge.py --self-test → exit0 (Step10.6 + build-plan + materializer asset parity / regex 定義一致)。",
+      "default 反転が全層一貫 (2層以上同一規則): build-flags.schema.json と goal-seek-loop.schema.json の両 engine.default を python3 -c で出力→両者 'task-graph'。with-goal-seek.patch・render-combinators.py:199・validate-build-plan.py derive も同規則。loop kind=run で engine 未指定の brief を validate-build-plan.py 実走→ plan.json が goal_seek_engine=task-graph / engine_profile=checklist-graph / full_task_spec_graph=false / with_goal_seek=true、4 template-copy deliverable を列挙 (exit0)。",
+      "lint-capability-graph-knowledge.py の 3 ケース実証: 非 task-graph → not-applicable exit0、engine:task-graph 宣言例 → OK exit0、engine script byte 改変 → byte-parity 違反 exit1 (fail-closed 実証)。materializer 実走 (render-combinators.py --materialize-task-graph-engine) → 4 engine script を生成先へ書込 exit0、cmp で 4 本すべて template 原本と byte 一致。",
+      "IN1 lint 群が engine 変種増設後も builder 上で exit0 に還元: validate-frontmatter/lint-skill-name/lint-skill-tree/lint-goal-seek/lint-ssot-duplication/lint-skill-completeness/lint-capability-graph-knowledge --self-test/lint-goal-seek --self-test を個別実走し全て exit0。IN3/route 機構: validate-route-build-reports.py --self-test → exit0、validate-build-plan.py --self-test → exit0。",
+      "反転 surface のテスト全緑: pytest plugins/harness-creator/tests/ の engine/graph/route/combinator/build_plan 関連 → 156 passed 0 failed。engine reproducibility+templates 単体でも 45 passed。簡潔性: 本文 258 行 (上限 300 内)、SSOT 委譲先 pipeline-boundary-contract.md 実在。frontmatter の template_refs/script_refs/schema_refs/responsibility_refs 計 17 参照すべてディスク実体と一致 (MISSING 0)。",
+      "OUT1 (fork した assign-skill-design-evaluator の Step5 分離ゲート)・OUT2 (Step12 content-review・30 思考法 elegance) の機構は本ブランチで未改変で genuine に稼働。builder 自身の route C05 が engine=inline を維持する旨 (L330) は dogfooding 非適用の意図的判断として自己文書化され矛盾でない。"
     ],
     "negative_feedback": [
-      "[一貫性 dimension・low・非阻害・継続 backlog] Step 0 item 4 の契約括弧が subagent-hybrid-format.md のみを agent/prompt 双方に付す一方、Step 3.5 は source_contract_ref を agent=subagent-hybrid-format.md / prompt=seven-layer-format.md と分離。dimension スコアを 3 から落とすほどではない (他の断面整合は完全・両契約とも実在) が、契約括弧の kind 別明示が望ましい。task-graph 追加とは独立の既知 smell。",
-      "検証可能性が二値で担保 (IN2/IN3): 完了チェックリスト CL-1..CL-12 は全て exit0 判定で、CL-8 の re-export shim 条項追加 (『純 re-export shim は import 経由の間接被覆+coverage record への理由記録で代替可・LLM eval record は機能テスト代替にならない』) は 80% 床の抜け穴を honest に限定するもので、二値性を損なわず被覆規約を精緻化している。IN2 (skill-build-trace の 4 フィールド空欄なし=validate-build-trace.py) / IN3 (route レポート=validate-route-build-reports.py --route/--complete) の script ゲートは delta の影響を受けず維持。",
-      "契約の完全性が実体照合で三点整合 (OUT1/OUT2): frontmatter template_refs の 4 task-graph script・script_refs の lint-capability-graph-knowledge.py が全てディスク実在。Step 0 item 4 の未実装 lint 宣言 (lint-command-md.py / lint-prompt-md.py / lint-workflow-md.py) は repo 全走査で 3 本とも不在=宣言と一致し、『整備済』とする lint-plugin-composition.py 他は skill-governance-lint 配下に実在。fork 評価 (Step 5 assign-skill-design-evaluator score>=80/high=0=OUT1) と Step 12 content-review (OUT2) のゲートは delta 非依存で維持され、builder 自身の goal_seek.engine=inline 保持により dogfooding 整合。",
-      "テスト規範を genuine に充足する余地を保持 (IN1): 同梱 scripts/ の行カバレッジ ≥80% 規範 (CL-8) に engine 系 4 script が新たに服する。lint-capability-graph-knowledge.py / lint-goal-seek.py の self-test が実走 exit0 で、engine 変種配線の consumption verifier・depends_on schema・consult token 検査が機械層で自己検証される。frontmatter を除く本文 257 行で上限内、命名・記述子 lint (lint-skill-name / lint-skill-description / validate-frontmatter) も実走 ok。"
+      "[smell/非阻害] lint-skill-description.py を repo 全走査すると別 skill run-plugin-dev-plan の description R5 (承認語尾) に関する指摘が出る場合があるが、run-build-skill 自身の description は『…整備するときに使う。』で適合。engine 反転とは無関係。",
+      "[smell/非阻害] lint-goal-seek.py を builder SKILL.md へ実行すると 2 WARN (### ゴールシーク配線 のトークン不在) だが exit0 (warning 止まり)。builder は engine=inline (route C05) で当該アンカーは combinator 再適用で注入される設計上のもの。反転由来の退行ではない。",
+      "[smell/非阻害] lint-ssot-duplication.py が DUP-PASSAGE 1 件 (examples/task-graph-engine-skill.md ↔ run-goal-seek/SKILL.md の 6 行機械検査 bash 重複)。build 時 warn・CI --strict で fail 化する smell 種別で exit0。正本一本化で解消余地あり (非阻害)。"
     ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "[stale-sha 再評価 verdict] 本ブランチで run-build-skill/SKILL.md に with-goal-seek engine:task-graph 変種が追加され旧 verdict 記録 SHA (1c0984c3…) が stale 化したため current SKILL.md を思考リセットで rubric 再評価し current SHA (38c6b236…) で再発行。criteria IN1/IN2/IN3/OUT1/OUT2 を各 PASS 判定。全参照契約を ls 実測、lint-goal-seek/--self-test/lint-capability-graph-knowledge/validate-frontmatter/lint-skill-name を実走 exit0。engine 変種は独立 CLI flag を新設せず with_goal_seek.engine enum (inline/run-goal-seek/task-graph, default inline) へ畳み、詳細を references/pipeline-boundary-contract.md へ委譲。本文 257 行 (300 上限内)。C1-C4 いずれも 0、smell=1 (Step 0 item 4 契約括弧の kind 別分離が継続 backlog) は非阻害ゆえ verdict=PASS。"
+  "notes": "[default-flip 再評価 verdict] with-goal-seek engine 変種の量産既定を inline→task-graph へ反転した current SKILL.md (sha b6f0fb8f…) を独立 SubAgent が rubric 再評価。旧 2026-07-07 verdict は反転前『default inline』評価で sha (38c6b236…)・内容とも stale。default 反転は build-flags/goal-seek-loop 両 schema・with-goal-seek.patch・render-combinators テンプレート・validate-build-plan derive の全層で同一規則 (明示値 > loop kind 既定 task-graph) に一貫し、実走で plan.json が task-graph/checklist-graph/false を決定論導出。engine 変種ゲート (lint-capability-graph-knowledge) は task-graph のみ適用・positive path exit0・byte drift で fail-closed exit1 の genuine な機械検証点。IN1/IN2/IN3 の lint・trace・route 機構はいずれも exit0 (self-test 緑)、反転 surface の pytest 156 件全緑で退行なし。OUT1/OUT2 の分離機構は未改変で genuine 稼働。本文 258 行・全参照契約が実体と三点整合。contradiction/omission/inconsistency/dependency_break=0、smell 3 件はいずれも既存/非阻害。呼出元が実装文脈で二段確認済み (lint-goal-seek --self-test exit0・両 schema default=task-graph・inline 既定残存 0)。verdict=PASS。"
 }

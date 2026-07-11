@@ -352,6 +352,13 @@ PENDING_RENAME_PATHS = {
     # できず underscore も持たない単一トークン module 名で固定する (§4.3 恒久例外・
     # feedback_contract_ssot.py / discover_repo_tests.py と同列)。
     "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/specfm.py",
+    # task-graph consumer 族 (harness-creator の project-task-status / record-task-graph-knowledge
+    # と同種) を planner 側 run-plugin-dev-plan にも同梱: project-task-status.py (TG-C09 status
+    # live 投影) は verb 'project'、check-cycle-knowledge.py (依存 closure の循環検出 knowledge
+    # ガード) は verb 'check' が ALLOWED_VERBS 外。SKILL.md(script_refs)/tests/schemas 参照の
+    # 原子的更新を伴う後続 Change Governance 一括改名 PR まで PENDING (既存 check-* 群と同種)。
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/project-task-status.py",
+    "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/scripts/check-cycle-knowledge.py",
     # run-skill-live-trial 初回投入 (anti-goodhart D2/D12): §4.3 (kebab-case) は満たすが
     # 接頭辞が <feature>-<role> 形 (live-trial-*) で verb が ALLOWED_VERBS 外。boot/send/
     # poll/status/verdict は trial セッションのライフサイクル語で許可動詞に対応語が無く、

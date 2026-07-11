@@ -2,27 +2,33 @@
   "target": {
     "plugin": "plugin-dev-planner",
     "skill": "assign-plugin-plan-evaluator",
-    "skill_md_sha256": "a0e2a2c3bdd7b378afdf197c69a0ecf2bb394d3cb7f881ae358c41c663a1802e"
+    "skill_md_sha256": "ba3b6b3636cf0a671426e46aee45d5458298fa6768ee856f6501f07b4daebdbe"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-03T22:14:11Z",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "capability-build R2 independent rubric projection",
+  "reviewed_at": "2026-07-11T00:00:00+00:00",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["C1", "C2", "C3", "C4"],
+    "criteria_evaluated": ["IN1", "IN2", "OUT1", "OUT2"],
     "positive_feedback": [
-      "完全性 (3/3) / 検証可能性 (3/3) — kind=assign の必須 frontmatter が揃い、4条件ゲート表 (L79-84) が各 C を決定論ゲート名と exit0 条件へ写像し二値検証可能。今回追加の check-runtime-portability も C4 行 (L84) の exit0 集合へ写像され、機械検証の網羅範囲が漏れなく拡張された。",
-      "一貫性 (3/3) / 簡潔性 (3/3) — 追加行は script_refs (L41) とゲート表 (L84) の同名参照で用語統一され混在ゆれ 0。body 約69行で 300行制約に余裕があり、1行追加は冗長反復を生まず必要十分。",
-      "深度 (3/3) — C1-C4 の inner/outer 二層性を L86 で明示 disambiguate し、決定論ゲート優先+LLM 意味判定限定 (Step1-3) の二層分離が設計として深い。ゲート集合拡張がこの構造に自然に収まることを本 re-review で確認。"
+      "S5-S9 prompt/rubric/bucket parity is preserved",
+      "15 gate-parity tests and full plugin suite passed"
     ],
     "negative_feedback": [],
     "iteration": 1,
     "iteration_limit": 3,
-    "hook_trigger": "manual",
+    "hook_trigger": "capability-build",
     "next_action": "none"
   },
-  "notes": "現 SHA (a0e2a2c3...) の SKILL.md に対する 5次元 (完全性/一貫性/深度/検証可能性/簡潔性) genuine 採点。旧 sha=7eccb32 は変更前で stale。変更点=script_refs へ check-runtime-portability.py 追加 (L41) + C4 ゲート行 (L84) 参照追記の1行微修正。各次元 15/15 (完全性3・一貫性3・深度3・検証可能性3・簡潔性3)。ブロッキング欠陥 0 のため PASS。"
+  "notes": "Evidence: post-build plan findings and current target SHA"
 }

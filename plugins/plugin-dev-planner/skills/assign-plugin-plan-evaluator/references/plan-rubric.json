@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "owner": "team-platform",
-  "purpose": "Map deterministic plan gates and the seven advisory semantic checks (S1-S7) to the four evaluator conditions. Advisory semantic_checks are llm-only and do not feed the mechanical verdict accounting (evaluate-plan.py counts only deterministic-gate/surface findings).",
+  "purpose": "Map deterministic plan gates and semantic checks to the four evaluator conditions. semantic_checks (S1-S9) are two-layered: S1/S2 map to conditions (C1/C2) and can flip the verdict, while S3-S9 are llm-only advisory (bucket-tagged, conditions=[]) and do not feed the mechanical verdict accounting (evaluate-plan.py counts only deterministic-gate/surface findings).",
   "conditions": {
     "C1": {
       "id": "no_contradiction",
@@ -209,6 +209,26 @@
       "source": "consumer (harness-creator L4) の dispatch/state write-back/成果物注入/discovered-task emit が producer 契約 (安定 CLI 契約・graph_hash 照合・所有/書込分離) を逸脱していないか (harness C8 対向)",
       "runner": "llm-only",
       "verdict_impact": "advisory-graded: consumer が producer 契約を逸脱し沈黙破綻 (CLI 契約破壊/graph_hash 未照合/task-state 二重 writer) を招くときのみ high"
+    },
+    {
+      "id": "S8",
+      "name": "execution-envelope",
+      "conditions": [],
+      "bucket": "execution-envelope",
+      "severity_on_fail": "medium",
+      "source": "TaskExecutionEnvelope (C17) が title 単独でない実行契約か: task_spec_ref は node が携帯し、その task spec の中身は envelope へ objective/verify として実質化される。envelope 自体は phase_policy_ref(単一 P0N)/component_route(component-build は明示 route_ref)/acceptance_criteria/write_scope/injected_inputs/injected_notes/knowledge_refs/verify を実質携帯し、下流 SubAgent builder が追加質問なしに着手できるか (render-task-execution-envelope.py <PLAN_DIR> --task-id <id> の構造完全性 exit code を機械根拠に、envelope 中身の実効性を genuine 判定)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、render-task-execution-envelope.py が exit0 でも objective/acceptance_criteria が二値判定不能なほど空虚 or (renderer が構造で弾く前段階として) title 単独/entity_ref 暗黙 route/13 phase 全文注入で builder が着手不能なときのみ high"
+    },
+    {
+      "id": "S9",
+      "name": "cycle-knowledge",
+      "conditions": [],
+      "bucket": "cycle-knowledge",
+      "severity_on_fail": "medium",
+      "source": "cross-cycle 再利用 knowledge (C19) の task spec knowledge_refs が {id/source_ref/freshness_checked_at/decision(adopted|rejected)/reason} を実質携帯し、過去 cycle の関連知見と明示 artifact だけを有界注入しているか (check-cycle-knowledge.py <PLAN_DIR> [--predecessor-graph <path>] の構造・lineage 検査 exit code を機械根拠に、全文履歴/stale 情報の無条件注入でない実効性を genuine 判定)",
+      "runner": "llm-only",
+      "verdict_impact": "advisory-graded: 4条件verdictへ直接写像しない補助レイヤー。既定 medium、source_ref/freshness_checked_at/採用理由を欠く or 過去 cycle 全文 spec/推移 notes/stale 情報を無条件注入し関連性が失われる or 過去 node を active graph へコピーするときのみ high"
     }
   ],
   "global_thresholds": {

@@ -19,13 +19,13 @@ applicability:
 purpose 由来の受入観点 (task-graph が既存 2 軸を置換せず第 3 の射影として機能すること・discovered-task が構造変更級で二段受理を経ること・task-graph が canonical であること) を二値の受入基準として index.md の「受入確認」章へ列挙する。
 
 ## 背景
-C1-C16 の各 checklist は build 後の見方 (どう確認すれば満たされたと言えるか) を持つ必要があり、本 phase はその確認方法を確定する。
+C1-C19 の各 checklist は build 後の見方を持つ必要があり、本 phase はその確認方法を確定する。
 
 ## 前提条件
 - P06 の harness_coverage 設計が確定している。
 
 ## ドメイン知識
-- 受入観点は index.md の「受入確認」章で C1-C16 の checklist id ごとに「build 時の確認方法」と「対応する criteria id (IN/OUT)」を対にして列挙する (P12 相当で index.md へ実際に記述する)。
+- 受入観点は index.md の「受入確認」章で C1-C19 ごとに確認方法とcriteria idを対にする。
 
 ## 成果物
 - 受入観点の一覧設計 (index.md 「受入確認」章の元データ)。
@@ -34,7 +34,7 @@ C1-C16 の各 checklist は build 後の見方 (どう確認すれば満たさ�
 - index.md の実ファイル記述 (P12 相当、本 plan では index.md 生成時に反映)。
 
 ## 完了チェックリスト
-- [ ] C1-C16 全てに build 時の確認方法が存在する。
+- [ ] C1-C19 全てに build 時の確認方法が存在する。
 
 ### 受入例
 （本 phase は縮小要件対象 (REDUCED_REQUIREMENT_PHASES) のため、見出し直下の本文は簡略形で足りる。）

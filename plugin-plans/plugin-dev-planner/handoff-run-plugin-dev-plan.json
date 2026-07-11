@@ -21,7 +21,7 @@
         "kind": "run",
         "brief_path": "briefs/skill-brief-C01.json"
       },
-      "brief_source": "build_args.brief_path (briefs/skill-brief-C01.json) は plan_dir に未実体化の生成物であり、build 時に render-skill-brief.py が component-inventory.json の C01 エントリから決定論射影する。plan 段では briefs/ ディレクトリは存在しない (実在しないのが正常)。",
+      "brief_source": "briefs/skill-brief-C01.json は component-inventory.json の C01 エントリから render-skill-brief.py で決定論射影済み。build preflightで同じ入力から再生成し内容parityを確認できる。",
       "build_target": "plugins/plugin-dev-planner/skills/run-plugin-dev-plan/",
       "status": "planned"
     },
@@ -38,7 +38,7 @@
         "kind": "assign",
         "brief_path": "briefs/skill-brief-C02.json"
       },
-      "brief_source": "build_args.brief_path (briefs/skill-brief-C02.json) は plan_dir に未実体化の生成物であり、build 時に render-skill-brief.py が component-inventory.json の C02 エントリから決定論射影する。plan 段では briefs/ ディレクトリは存在しない (実在しないのが正常)。",
+      "brief_source": "briefs/skill-brief-C02.json は component-inventory.json の C02 エントリから render-skill-brief.py で決定論射影済み。build preflightで同じ入力から再生成し内容parityを確認できる。",
       "build_target": "plugins/plugin-dev-planner/skills/assign-plugin-plan-evaluator/",
       "status": "planned"
     }
@@ -66,9 +66,15 @@
       "aligned_with": "plugin-plans/harness-creator/goal-spec.json#checklist.C7,C10,C11,C12"
     },
     {
+      "id": "GAP-BOOTSTRAP-TARGET-SHAPE-001",
+      "severity": "advisory",
+      "text": "本handoffのtask-graphはC17-C19を実装するためのfixed-shape bootstrap revisionであり、target shapeのexecution_kind/route_ref/task_spec_ref/TaskExecutionEnvelopeはまだ実装前である。誤routeを避けるためlegacy entity_refはP05=C01、P09=C02の各1 nodeだけに限定し、design/test/review nodeはnullにした。C01 build完了後の新規planから明示route_ref parityを必須化し、legacy joinはshape markerでのみ後方互換許可する。",
+      "aligned_with": "goal-spec.json#checklist.C17,C18,C19"
+    },
+    {
       "id": "GAP-PLANNER-ITERATIONS-OVERRUN-001",
       "severity": "advisory",
-      "text": "planner の iterations_run=6 が max_loops=5 を 1 周超過した (run-plugin-dev-plan-progress.json)。全 checklist C1-C16 が done かつ同梱決定論ゲート 12 本が exit0 で実質収束済みだが、エスカレーション規約 (超過時は open_issues に残し差し戻す) の充足として本 entry を記録する。超過理由は R4 差し戻しによる cross-plan 契約 (cycle_id parity・C10-C12 対向・schema parity) の反映追補であり構造的な収束不能ではない。次周回で新規 finding が生じた場合は max_loops を再確認する。",
+      "text": "過去runのiterations_run=6が当時のmax_loops=5を1周超過した記録。今回のupdateはC1-C19を正本とし、30思考法レビューを独立実施して最大3反復で再検証する。履歴値を現行完了判定へ流用せず、現行plan-findingsとgate evidenceだけで判定する。",
       "aligned_with": "run-plugin-dev-plan-progress.json#iterations_run,max_loops"
     }
   ]

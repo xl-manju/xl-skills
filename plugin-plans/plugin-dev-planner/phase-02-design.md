@@ -7,7 +7,7 @@ prev_phase: 1
 next_phase: 3
 status: 未実施
 gate_type: none
-entities_covered: [C01, C02]
+entities_covered: []
 applicability:
   applicable: true
   reason: ""
@@ -16,7 +16,7 @@ applicability:
 # P02 — design (設計)
 
 ## 目的
-task-graph 関連 capability (C1-C7, C10-C13, C14(a,c), C15, C16) と意味判定 capability (C8, C14(b)) を 5 種の component_kind (skill/sub-agent/slash-command/hook/script) へ写像し、単一 skill 収束の根拠込みで `component-inventory.json` (C01=run-plugin-dev-plan mode=update, C02=assign-plugin-plan-evaluator mode=update) を確定する。
+task-graph関連capability (C1-C19の決定論契約) と意味判定capability (C8/C14(b)/C17/C19) を既存2 componentへ写像する。component分割は変更せず、C01=producer contract、C02=独立meaning evaluatorの責務を差分強化する。
 
 ## 背景
 task-graph の schema/導出器/validator/ready-set 計算器/discovered-task 受理/handoff-notes 契約はいずれも run-plugin-dev-plan skill 単独の消費者であり、他 skill との共有・独立検証実体・280 行超の新規肥大のいずれの no-split threshold も満たさない。C8 のみ既存の fork evaluator (assign-plugin-plan-evaluator) の意味評価軸拡張として独立 component (C02) に計上する。
@@ -33,11 +33,14 @@ task-graph の schema/導出器/validator/ready-set 計算器/discovered-task �
 - **C14 (新旧shape非劣化ゲート) の分割配置**: 3 軸のうち (a)精度 (二値受入基準携帯率の機械計測) と (c)再現性 (byte一致+仕様書構成一致の機械計測) は決定論スクリプト `check-shape-non-regression.py` に閉じ、run-plugin-dev-plan skill 単独消費のため no-split threshold を満たさず C01 へ畳み込む。(b)品質 (新旧shape A/B比較の下流ハーネス実効性 genuine 判定) は C8 と同型の理由 (意味評価軸拡張は既存 fork evaluator の責務) で C02 へ計上する。**C10⇔C14 相互参照**: shape_marker が `task-graph-derived` を採用するのは C14 (a,c) の script ゲート PASS + C14(b) の C02 genuine 判定 PASS を前提条件とし、いずれか劣化検出時は shape 解放を block し `fixed-13-phase` へ fallback する (平均回帰禁止)。
 - **C15 (graph 可視化 renderer) の畳み込み根拠**: mermaid 依存グラフ図の決定論導出は新規スクリプト `render-task-graph-mermaid.py` に閉じ、他 skill 非共有・独立検証実体を要求せず・280 行超が計画時点で確定していないため no-split threshold のいずれも満たさず C01 へ畳み込む。genuine 判断 (人間可読性の質) を要求しない全数機械判定 (byte一致・graph 外要素非描画) のため C02 (fork evaluator) への計上根拠を持たない。
 - **C16 (実行時契約 schema SSOT) の畳み込み根拠 + 所有/書込分離**: `task-state.schema.json` (新規) と graph_hash pin 検査は決定論スクリプト `check-task-state-schema.py` に閉じ、run-plugin-dev-plan skill 単独消費のため C01 へ畳み込む。C12 (handoff-notes) と同型の所有/書込分離原則: schema 定義・pin 整合検査ロジックの所有は producer (C01) だが、実行時の task-state.json への書込 (state 遷移・lease 更新) は consumer (harness-creator 側 L4 実行系) が単独 writer として担う。**C11⇔C16 相互参照**: `graph_hash` は C11 の canonicalizer が生成する canonical bytes から導出するハッシュであり、C11 の単一 writer 原則を pin 検証 (build 開始時固定・実行中変更は hash 不一致で fail-closed) へ接続する。
+- **C17 (TaskExecutionEnvelope)**: task spec生成・nodeへのexecution_kind/route_ref/task_spec_ref付与・envelope schema/renderer/parity検査はproducer C01へ畳み込む。`entity_ref`は分類専用とし、component-buildだけが`route_ref`を解決する。consumerは既存`inject-task-inputs.py`とdispatcherでenvelopeを消費し、title単独dispatchとentity_ref暗黙routeを禁止する。C17の「追加質問なしで着手可能か」はC02がgenuine判定する。
+- **C18 (状態三層分離)**: graph/state/projectionのschema/parity規約はC01、task-state/task-events書込とprojection実行はconsumer harness-creator。新componentは増やさない。
+- **C19 (cycle知識)**: ledger lineage/knowledge_ref契約と検査はC01、知識の関連性・stale判断はC02。過去nodeをactive DAGへ混ぜないためexecution dependencyとは別のlineage relationとして扱う。
 - **plugin-level surface 採否**: manifest/composition/harness_eval/references_config_assets は現状維持 (entry_points/hooks の変更なし)。schemas は task-graph.schema.json/discovered-task.schema.json/handoff-notes.schema.json/plan-ledger.schema.json/task-state.schema.json の 5 件追加で拡張。vendor/mcp_app_connector/notion_config は不採用 (component-inventory.json の `plugin_level_surfaces` の omitted_reason 参照)。
 - **producer/consumer 境界 (対 harness-creator)**: C01 の所有範囲は task-graph の schema/導出/検証/ready-set 計算器のみ。dispatch (SubAgent 並列投入)・state write-back・produces 成果物の consumes 注入・discovered-task の emit は consumer 側 (`plugin-plans/harness-creator/` plan が component 化する L4 実行系) の所有であり、本 plan の component として計上しない。task state ファイル (確定: `eval-log/<slug>/build/task-state.json`・harness P02 の resolve_build_dir で解消済み) の単一 writer は consumer 側、C01 は初期 state (全 pending) 生成までを担う。この境界語彙は harness-creator 側 goal-spec.json の constraints/checklist C7 と 1:1 で揃え、最終的な正本追記先は `references/pipeline-boundary-contract.md` (harness-creator plan C7) である。**cycle_id 携帯契約 (C13 接続の閉路解消)**: handoff トップレベルに `cycle_id: str | None` (additive) を持たせ、consumer は build 成果物 (task-state.json/route-<id>.json) のスコープ化に必要な cycle-id を `handoff.cycle_id` から読む (`plan_dir` パス末尾を独自解析する経路は禁止・レイアウト判断の consumer 側二重実装を防ぐ)。check-build-handoff.py 拡張は `handoff.cycle_id` と goal-spec 側で R1 が固定した cycle-id との整合 (goal-spec↔handoff parity) も検査する。
 
 ## 成果物
-- `component-inventory.json` (C01/C02 の 2 component、derivation フィールドに 5 種検討の帰結を明記、feedback_contract.criteria IN1-IN13/OUT1-OUT3 を C01 に付与)。
+- `component-inventory.json` (C01/C02の2 component、feedback_contract.criteria IN1-IN16/OUT1-OUT3)。
 - envelope 設計の owner 判断: manifest は `plugin-scaffold` (既存 manifest は entry_points/hooks 変更なしで現状維持するため、envelope-draft/plugin.json は現行 plugin.json の複製 + description 追記に留める)。
 
 ## スコープ外
@@ -55,6 +58,7 @@ task-graph の schema/導出器/validator/ready-set 計算器/discovered-task �
 - [ ] C14 (新旧shape非劣化ゲート) の分割配置 ((a)(c)=check-shape-non-regression.py で C01・(b)=A/B比較 genuine 判定で C02) が個別に判定され、C10⇔C14 相互参照 (shape 採用の前提条件) が明記されている。
 - [ ] C15 (graph 可視化 renderer) が render-task-graph-mermaid.py として C01 へ畳み込まれる根拠が個別判定されている。
 - [ ] C16 (実行時契約 schema SSOT) の所有 (C01=producer) と書込 (consumer=harness-creator) の分離が明記され、C11⇔C16 相互参照 (graph_hash の生成元) が個別判定されている。
+- [ ] C17-C19がC01/C02へ責務分解され、component追加なしの根拠が明記されている。
 
 ### 受入例 (満たす例 / 満たさない例)
 - 満たす例: 新規スクリプト 7 本それぞれについて no-split threshold の 3 条件 (共有/独立検証/280行超) を個別に否定し C01 へ畳み込む根拠が具体的に記される。

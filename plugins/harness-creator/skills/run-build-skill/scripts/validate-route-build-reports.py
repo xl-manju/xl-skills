@@ -49,7 +49,7 @@ REQUIRED_KEYS = (
     "builder", "build_target", "status", "summary", "deviations",
     "evidence", "inputs_consumed", "handover",
 )
-OPTIONAL_KEYS = ("skip_reason", "covered_task_ids")
+OPTIONAL_KEYS = ("skip_reason", "covered_task_ids", "discovered", "corrections")
 
 
 def report_path(slug: str, route_id: str) -> str:
@@ -116,6 +116,19 @@ def validate_report_shape(report: object) -> list[str]:
             findings.append(f"{key}: 非空文字列の配列でない")
     if "covered_task_ids" in report and not _is_str_list(report["covered_task_ids"]):
         findings.append("covered_task_ids: 非空文字列の配列でない")
+    if "discovered" in report and not _is_str_list(report["discovered"]):
+        findings.append("discovered: 非空文字列の配列でない")
+    if "corrections" in report:
+        corr = report["corrections"]
+        if not isinstance(corr, list):
+            findings.append("corrections: 配列でない")
+        else:
+            for i, c in enumerate(corr):
+                if not (isinstance(c, dict) and all(
+                        isinstance(c.get(k), str) and c.get(k)
+                        for k in ("target", "correction", "corrected_by"))):
+                    findings.append(
+                        f"corrections[{i}]: {{target, correction, corrected_by}} の非空文字列が必須")
     if "handover" in report and not (report["handover"] is None or isinstance(report["handover"], str)):
         findings.append("handover: string か null でない")
     # cross-field
@@ -125,6 +138,35 @@ def validate_report_shape(report: object) -> list[str]:
         findings.append("skip_reason: status=skipped 以外では書かない")
     if status == "success" and _is_str_list(report.get("evidence")) and not report["evidence"]:
         findings.append("evidence: status=success は 1 件以上必須")
+    return findings
+
+
+def validate_discovered_consistency(report: object) -> list[str]:
+    """deviations 本文の discovered 言及と discovered[] の突合 (残差の監査経路実証・fail-closed)。
+
+    deviations[n] が discovered 報告へ言及しているのに discovered[] (emit 済 form パス列) が
+    空/不在なら、残差が inbox 監査経路 (emit-discovered-task → TG-C08 completion gate) に
+    実際は乗っていない偽宣言として fail する。corrections[] が当該 deviations[n] を target に
+    追記型訂正済みの場合は除外する (原文改竄せず訂正を監査可能に残す経路)。
+    """
+    if not isinstance(report, dict):
+        return []
+    findings: list[str] = []
+    deviations = report.get("deviations")
+    if not _is_str_list(deviations):
+        return findings
+    discovered = report.get("discovered")
+    has_discovered = _is_str_list(discovered) and bool(discovered)
+    corrections = report.get("corrections") if isinstance(report.get("corrections"), list) else []
+    corrected_targets = {c.get("target") for c in corrections if isinstance(c, dict)}
+    for i, dev in enumerate(deviations):
+        if "discovered" not in dev:
+            continue
+        if has_discovered or f"deviations[{i}]" in corrected_targets:
+            continue
+        findings.append(
+            f"deviations[{i}]: discovered 言及があるのに discovered[] が空/不在 "
+            "(emit 済 form パスを discovered[] へ列挙するか corrections で追記型訂正すること)")
     return findings
 
 
@@ -225,6 +267,7 @@ def validate_route(handoff: dict, reports_dir: Path, route_id: str, repo_root: P
     findings = validate_report_shape(report)
     if report.get("route_id") not in (None, route_id):
         findings.append(f"route_id: ファイル名 route-{route_id}.json と不一致 ({report.get('route_id')!r})")
+    findings.extend(validate_discovered_consistency(report))
     findings.extend(validate_against_route(report, route, slug, repo_root))
     findings.extend(validate_dependency_chain(report, route, reports_dir, slug, repo_root))
     return findings
@@ -361,6 +404,31 @@ def _self_test() -> int:
         (reports_dir / "route-C9.json").write_text(json.dumps(base_report("C9", r1)), encoding="utf-8")
         check("orphan で complete FAIL",
               any("orphan" in f for f in validate_complete(handoff, reports_dir, root)))
+        (reports_dir / "route-C9.json").unlink()
+        # (9) deviations の discovered 言及 × discovered[]/corrections 突合 (残差の監査経路実証)
+        mention = base_report("C1", r1, deviations=["残差は discovered へ構造化報告した"])
+        check("discovered 言及+空で FAIL",
+              any("discovered 言及" in f for f in validate_discovered_consistency(mention)))
+        (reports_dir / "route-C1.json").write_text(json.dumps(mention), encoding="utf-8")
+        check("discovered 言及+空は validate_route でも FAIL",
+              any("discovered 言及" in f for f in validate_route(handoff, reports_dir, "C1", root)))
+        with_form = base_report("C1", r1, deviations=["残差は discovered へ構造化報告した"],
+                                discovered=[f"eval-log/{slug}/build/discovered-tasks/x.json"])
+        check("discovered[] 実証で PASS", not validate_discovered_consistency(with_form))
+        check("discovered[] 実証は shape も PASS", not validate_report_shape(with_form))
+        corrected = base_report("C1", r1, deviations=["残差は discovered へ構造化報告した"],
+                                corrections=[{"target": "deviations[0]",
+                                              "correction": "discovered 非経由・deviations 開示のみ",
+                                              "corrected_by": "self-test"}])
+        check("corrections 訂正済で除外 PASS", not validate_discovered_consistency(corrected))
+        check("corrections は shape PASS", not validate_report_shape(corrected))
+        bad_corr = base_report("C1", r1, corrections=[{"target": "deviations[0]"}])
+        check("corrections 形状不正 FAIL",
+              any("corrections[0]" in f for f in validate_report_shape(bad_corr)))
+        bad_disc = base_report("C1", r1, discovered=[""])
+        check("discovered 形状不正 FAIL",
+              any("discovered" in f for f in validate_report_shape(bad_disc)))
+        (reports_dir / "route-C1.json").write_text(json.dumps(base_report("C1", r1)), encoding="utf-8")
 
     return _emit(not findings, "self-test", findings)
 

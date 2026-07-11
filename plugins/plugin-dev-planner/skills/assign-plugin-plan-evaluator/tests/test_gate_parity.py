@@ -210,3 +210,106 @@ def test_required_plugin_surfaces_parity_with_specfm():
         "評価器 REQUIRED_PLUGIN_SURFACES と specfm PLUGIN_LEVEL_SURFACES が drift。"
         "plugin-level surface を増減したら両定数を同時更新すること"
     )
+
+
+# --- advisory semantic_checks (S3-S9) parity ---------------------------------
+# S3 以降の意味判定は llm-only で mechanical runner (evaluate-plan.py) では縛れず、
+# 評価者プロンプト prompts/R1-evaluate.md が唯一の実行契約。rubric に bucket を足したのに
+# プロンプトへ判定手順が伝播しない drift を deterministic_gates と同じ forward-parity 哲学で封止する。
+
+
+def _prompt_r1() -> str:
+    return (SKILL_DIR / "prompts" / "R1-evaluate.md").read_text(encoding="utf-8")
+
+
+def test_semantic_check_buckets_are_mentioned_in_prompt():
+    """plan-rubric.json semantic_checks の各 bucket が prompts/R1-evaluate.md に必ず現れる。
+
+    S3-S9 は llm-only advisory ゆえ機械 runner では実行契約を持てず、prompt が唯一の判定手順。
+    rubric に bucket を追加したのに評価者プロンプトが判定手順を持たない drift を fail-closed 封止する
+    (task-graph-consumer/execution-envelope(C17)/cycle-knowledge(C19) 等を足したら prompt 追従必須)。
+    """
+    prompt = _prompt_r1()
+    rubric = _rubric()
+    missing = [
+        s["bucket"]
+        for s in rubric["semantic_checks"]
+        if s.get("bucket") and s["bucket"] not in prompt
+    ]
+    assert not missing, (
+        f"plan-rubric.json semantic_checks の bucket が R1-evaluate.md に不在: {missing}。"
+        "advisory semantic_check を足したら評価者プロンプトへ judgment 手順を追加すること"
+    )
+
+
+def test_semantic_check_buckets_are_mentioned_in_agent_md():
+    """plan-rubric.json semantic_checks の各 bucket が agents/plugin-dev-plan-evaluator.md にも現れる。
+
+    agent md は prompt R1-evaluate.md の fork 実体 (自己完結 7 層コピー)。rubric/prompt に bucket を
+    足したのに agent 層へ判定手順が伝播しない drift (LS-6 で実捕捉: S5-S9 が prompt のみで agent md
+    未伝播) を fail-closed 封止する。
+    """
+    agent_md = (SKILL_DIR.parent.parent / "agents" / "plugin-dev-plan-evaluator.md").read_text(
+        encoding="utf-8")
+    rubric = _rubric()
+    missing = [
+        s["bucket"]
+        for s in rubric["semantic_checks"]
+        if s.get("bucket") and s["bucket"] not in agent_md
+    ]
+    assert not missing, (
+        f"plan-rubric.json semantic_checks の bucket が agents/plugin-dev-plan-evaluator.md に不在: "
+        f"{missing}。advisory semantic_check を足したら agent md (fork 実体) へも判定手順を追加すること"
+    )
+
+
+def test_task_graph_projection_semantic_checks_present():
+    """task-graph 射影の 5 意味判定 (S5-S9) が rubric に揃う。
+
+    C8=task-graph-semantics / C14b=shape-ab-comparison / task-graph-consumer /
+    C17=execution-envelope / C19=cycle-knowledge。C17/C19 を additive 追加した際の回帰固定。
+    """
+    names = {s["name"] for s in _rubric()["semantic_checks"]}
+    for required in (
+        "task-graph-semantics",
+        "shape-ab-comparison",
+        "task-graph-consumer",
+        "execution-envelope",
+        "cycle-knowledge",
+    ):
+        assert required in names, f"semantic_checks に {required} が無い (task-graph 射影 5 判定の欠落)"
+
+
+def test_advisory_semantic_checks_have_uniform_shape():
+    """bucket 付き advisory semantic_check (S3-S9) が統一 shape・llm-only・conditions=[] を保つ。
+
+    S8/S9 を足した際に既存 (S3-S7) と異形にならず、機械 verdict accounting (G1-G11) へ
+    混入しない (llm-only・C1-C4 verdict 非写像) ことを固定する。
+    """
+    required_keys = {
+        "id", "name", "conditions", "bucket",
+        "severity_on_fail", "source", "runner", "verdict_impact",
+    }
+    for s in _rubric()["semantic_checks"]:
+        if not s.get("bucket"):
+            continue  # S1/S2 は conditions へ写像する別 shape
+        assert required_keys <= set(s), (
+            f"{s.get('id')} が advisory semantic_check の統一 shape を欠く: "
+            f"{sorted(required_keys - set(s))}"
+        )
+        assert s["runner"] == "llm-only", f"{s['id']} は llm-only であるべき (機械 verdict 非混入)"
+        assert s["conditions"] == [], f"{s['id']} は conditions=[] (C1-C4 verdict へ非写像) であるべき"
+
+
+def test_rubric_purpose_declares_full_semantic_check_range():
+    """plan-rubric.json purpose の宣言 (S1-SN) が実際の semantic_checks 件数と一致する。
+
+    purpose が 'S1-S7' のまま S8/S9 を足すと宣言↔実体の drift になる。宣言レンジの末尾番号を
+    semantic_checks の最大 S 番号へ追従させる (人間可読宣言のドリフト封止)。
+    """
+    rubric = _rubric()
+    max_n = max(int(s["id"][1:]) for s in rubric["semantic_checks"])
+    assert f"S1-S{max_n}" in rubric["purpose"], (
+        f"purpose が 'S1-S{max_n}' を宣言しない (semantic_checks 最大は S{max_n})。"
+        f"purpose: {rubric['purpose']!r}"
+    )

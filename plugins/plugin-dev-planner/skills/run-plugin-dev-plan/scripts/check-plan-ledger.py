@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-plan-ledger
-# purpose: plugin-plans/<slug>/plan-ledger.json の cycle_id 形式・status 値域・非空・同時 active 高々1件を fail-closed 検証する (C13)。
+# purpose: plugin-plans/<slug>/plan-ledger.json の cycle_id 形式・status 値域・非空・同時 active 高々1件 (C13) + predecessor_cycle_id lineage (実在参照/自己参照禁止/閉路禁止・C19) を fail-closed 検証する。
 # inputs:
 #   - argv: <plugin-plans>/<slug>/plan-ledger.json
 # outputs:
@@ -32,6 +32,65 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import specfm  # noqa: E402
 
 
+def _validate_lineage(entries: list) -> list[str]:
+    """predecessor_cycle_id lineage を検査する (C19)。
+
+    過去 cycle を immutable provenance として結ぶ additive field。検査:
+      (a) predecessor_cycle_id は台帳内に実在する cycle_id を指す (dangling 参照禁止)
+      (b) 自己参照禁止 (cycle_id == predecessor_cycle_id)
+      (c) predecessor 連鎖に閉路禁止 (A→B→A・過去 cycle を active DAG へ混在させず lineage だけ保持)
+    """
+    errs: list[str] = []
+    known: set[str] = set()
+    status_by_id: dict[str, str] = {}
+    predecessor_of: dict[str, str] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        cid = str(entry.get("cycle_id", "")).strip()
+        if cid:
+            known.add(cid)
+            status_by_id[cid] = str(entry.get("status", "")).strip()
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        pred = entry.get("predecessor_cycle_id")
+        if pred is None:
+            continue
+        prefix = f"entries[{idx}]"
+        pred = str(pred).strip()
+        cid = str(entry.get("cycle_id", "")).strip()
+        if not pred:
+            errs.append(f"{prefix}.predecessor_cycle_id が空文字列 (未指定なら null か省略にすること)")
+            continue
+        if pred == cid:
+            errs.append(f"{prefix}.predecessor_cycle_id={pred!r} が自己参照 (自身を先行にできない)")
+            continue
+        if pred not in known:
+            errs.append(f"{prefix}.predecessor_cycle_id={pred!r} が台帳内に実在しない (dangling lineage)")
+            continue
+        if status_by_id.get(pred) == "active":
+            errs.append(
+                f"{prefix}.predecessor_cycle_id={pred!r} が active cycle を参照 "
+                "(immutable predecessor は finished/superseded のみ)"
+            )
+        if cid:
+            predecessor_of[cid] = pred
+
+    # (c) 閉路検出: cid から predecessor を辿り自身へ戻る連鎖を弾く。
+    for start in predecessor_of:
+        seen: set[str] = set()
+        cur: str | None = start
+        while cur is not None and cur in predecessor_of:
+            nxt = predecessor_of[cur]
+            if nxt == start or nxt in seen:
+                errs.append(f"predecessor_cycle_id lineage に閉路: {start} から辿ると {nxt} へ戻る")
+                break
+            seen.add(cur)
+            cur = nxt
+    return errs
+
+
 def validate_ledger(ledger: dict) -> list[str]:
     """plan-ledger.json (dict) を検証し違反メッセージのリストを返す (空=妥当)。
 
@@ -40,6 +99,7 @@ def validate_ledger(ledger: dict) -> list[str]:
       (b) 各 entries[].status が specfm.LEDGER_STATUSES の値域内
       (c) plan_dir / summary が非空文字列
       (d) status=="active" のエントリが台帳全体で高々 1 件
+      (e) predecessor_cycle_id lineage (実在参照/自己参照禁止/閉路禁止・C19)
     """
     errs: list[str] = []
     if not isinstance(ledger, dict):
@@ -82,6 +142,7 @@ def validate_ledger(ledger: dict) -> list[str]:
             f"同時 active 重複: status=='active' は台帳全体で高々 1 件 (現 {len(active_ids)} 件: "
             f"{active_ids}) — 非決定的な自動解決はしない (fail-closed)"
         )
+    errs.extend(_validate_lineage(entries))
     return errs
 
 
