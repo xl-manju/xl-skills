@@ -3,17 +3,19 @@
 コーチング型相談 orchestrator の骨格が仕様どおり配線されているかを、実行時対話に
 依存しない範囲で機械確認する:
   - SKILL.md frontmatter の feedback_contract(IN1 inner/test・OUT1 outer/test)存在
-  - goal_seek(engine:inline / fork:subagent / max_loops:5)と combinators
+  - goal_seek(engine:inline / fork:inline / max_loops:5)と combinators
   - responsibility_refs が prompts R1-R4 を列挙し実在
   - スタンス不変条件(非処方/引き出し/ユーザー言語化/ゴール指向/責務境界)の文言が SKILL.md に存在
   - prompts R1-R4 が 7 層アンカー(Layer 1..7 + 出力指示)を持つ
+  - prompt の入出力契約表が workflow-manifest input と parity(痩せ drift の再発検出)
   - workflow-manifest の phase(r1-r4)と resourceIds prompt の整合・実在
   - references(consult-frames.md / session-record-format.md / resource-map.yaml)実在
-  - OUT1 の transcript 4要素検出ヘルパを正例/負例 fixture で検証
+  - OUT1/IN1 の検出ロジック(正本= scripts/validate-consult-session.py)を正例/負例 fixture で検証
 実 knowledge/ や vault には一切触れない。
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 from pathlib import Path
 
@@ -25,6 +27,15 @@ SKILL_MD = SKILL_DIR / "SKILL.md"
 MANIFEST = SKILL_DIR / "workflow-manifest.json"
 PROMPTS = ["R1-intake-issue", "R2-elicit", "R3-frame-consult", "R4-cocreate-converge"]
 REFERENCES = ["consult-frames.md", "session-record-format.md", "resource-map.yaml"]
+
+# IN1/OUT1 の検出ロジックは validator が正本 (二重定義 drift 防止のため import 一本化)
+_VALIDATOR = PLUGIN_ROOT / "scripts/validate-consult-session.py"
+_SPEC = importlib.util.spec_from_file_location("validate_consult_session_for_contract", _VALIDATOR)
+_MOD = importlib.util.module_from_spec(_SPEC)
+assert _SPEC and _SPEC.loader
+_SPEC.loader.exec_module(_MOD)
+detect_transcript_elements = _MOD.detect_transcript_elements
+detect_prescription_stance = _MOD.detect_prescription_stance
 
 
 def _frontmatter(text: str) -> str:
@@ -68,7 +79,7 @@ def test_frontmatter_core_fields():
 def test_frontmatter_goal_seek():
     fm = _frontmatter(SKILL_MD.read_text(encoding="utf-8"))
     assert re.search(r"engine:\s*inline", fm)
-    assert re.search(r"fork:\s*subagent", fm)
+    assert re.search(r"fork:\s*inline", fm)
     assert re.search(r"max_loops:\s*5", fm)
 
 
@@ -105,9 +116,15 @@ def test_reference_and_script_refs_resolve():
     for ref in REFERENCES:
         assert f"references/{ref}" in fm
         assert (SKILL_DIR / "references" / ref).is_file()
-    for script in ("consult-harness-artifact-graph.py", "validate-knowledge-graph.py"):
+    for script in ("consult-harness-artifact-graph.py", "validate-consult-session.py"):
         assert f"../../scripts/{script}" in fm
         assert (PLUGIN_ROOT / "scripts" / script).is_file(), f"script 不在: {script}"
+
+
+def test_adaptive_collaboration_and_safety_contract_present():
+    body = _body(SKILL_MD.read_text(encoding="utf-8"))
+    for marker in ("question-led", "framework-led", "hypothesis-example", "reflect-only", "安全分岐", "保存は同意制"):
+        assert marker in body
 
 
 # --------------------------------------------------------------------------- #
@@ -180,78 +197,73 @@ def test_manifest_r3_consult_graceful_fallback():
 
 
 # --------------------------------------------------------------------------- #
-# OUT1: transcript 4 要素検出ヘルパ + fixture 検証
+# prompt 入出力契約表と workflow-manifest input の parity (系統的痩せ drift の再発検出)
 # --------------------------------------------------------------------------- #
-def detect_transcript_elements(transcript: str) -> dict[str, bool]:
-    """相談セッション transcript から OUT1 の4要素を検出する。
-
-    決定論的なマーカーベース検出。run-ubm-consult の受入テスト(OUT1)が
-    セッション記録の完全性を判定するための共有ヘルパ。
-    """
-    t = transcript
-    return {
-        # (1) 考え方/思考フレームの提示 (選択肢としての見方)
-        "frame_presented": bool(re.search(r"考え方|思考フレーム|見方|フレーム", t)),
-        # (2) 引き出し質問 (問いの存在)
-        "elicit_question": ("？" in t) or ("?" in t),
-        # (3) ユーザー自身の言葉での解決策言語化
-        "user_verbalized": bool(re.search(r"ユーザー[:：].*(解決|やる|する|決め|言葉)", t)),
-        # (4) ゴール指向の次の一歩
-        "next_step": bool(
-            re.search(r"次の一歩", t)
-            and re.search(r"現状|ゴール|ギャップ", t)
-        ),
-    }
-
-
-def test_out1_detector_positive_fixture():
-    transcript = (
-        "AI: 今回の論点はどこにありそうですか？（引き出し）\n"
-        "ユーザー: 新規のお客さんとの最初の接点をどう作るかで迷っています。\n"
-        "AI: いくつかの見方（考え方）を並べますね。A: 関係構築ファースト、B: 逆算。"
-        "あなたの場合はどちらが当てはまりそうですか？\n"
-        "ユーザー: Aで、まず既存客に紹介をお願いする、と自分の言葉で決めました。\n"
-        "AI: では現状→ゴール→ギャップ→次の一歩で整理します。"
-        "次の一歩: 今週中に既存客3名へ紹介依頼のメッセージを送る。\n"
+@pytest.mark.parametrize(
+    "slug,section,field",
+    [
+        ("R1-intake-issue", "2.4", "consult_type"),
+        ("R2-elicit", "2.3", "collaboration_mode"),
+        ("R3-frame-consult", "2.3", "collaboration_mode"),
+        ("R4-cocreate-converge", "2.3", "persistence_consent"),
+    ],
+)
+def test_prompt_io_tables_carry_manifest_fields(slug, section, field):
+    text = (SKILL_DIR / "prompts" / f"{slug}.md").read_text(encoding="utf-8")
+    m = re.search(rf"###\s*{re.escape(section)}[^\n]*\n(.*?)(?=\n###|\n## )", text, re.S)
+    assert m, f"{slug}: {section} 契約表の節が無い"
+    assert re.search(rf"^\|\s*{field}\s*\|", m.group(1), re.M), (
+        f"{slug} の {section} 表に {field} が無い (workflow-manifest input との parity 違反)"
     )
+
+
+# --------------------------------------------------------------------------- #
+# OUT1: transcript 4 要素検出 (正本= validator) + fixture 検証
+# --------------------------------------------------------------------------- #
+def test_out1_detector_positive_fixture():
+    # fixture は role 付き turns (validator 一本化に伴い「ユーザー:」前置の平文から移行)
+    transcript = [
+        {"id": "a1", "role": "assistant", "content": "今回の論点はどこにありそうですか？（引き出し）"},
+        {"id": "u1", "role": "user", "content": "新規のお客さんとの最初の接点をどう作るかで迷っています。"},
+        {
+            "id": "a2",
+            "role": "assistant",
+            "content": "いくつかの見方（考え方）を並べますね。A: 関係構築ファースト、B: 逆算。あなたの場合はどちらが当てはまりそうですか？",
+        },
+        {"id": "u2", "role": "user", "content": "Aで、まず既存客に紹介をお願いする、と自分の言葉で決めました。"},
+        {
+            "id": "a3",
+            "role": "assistant",
+            "content": "では現状→ゴール→ギャップ→次の一歩で整理します。次の一歩: 今週中に既存客3名へ紹介依頼のメッセージを送る。",
+        },
+    ]
     result = detect_transcript_elements(transcript)
     assert all(result.values()), f"正例で未検出要素: {result}"
 
 
 def test_out1_detector_negative_prescriptive():
     # 処方的で引き出しもユーザー言語化も無い transcript は不合格
-    transcript = (
-        "AI: あなたは値上げをすべきです。以下を実行してください。\n"
-        "AI: 1. 価格を20%上げる 2. 広告を出す。以上が正解です。\n"
-    )
+    transcript = [
+        {"id": "a1", "role": "assistant", "content": "あなたは値上げをすべきです。以下を実行してください。"},
+        {"id": "a2", "role": "assistant", "content": "1. 価格を20%上げる 2. 広告を出す。以上が正解です。"},
+    ]
     result = detect_transcript_elements(transcript)
     assert not all(result.values()), "負例(処方的)が全要素 True になっている"
     assert result["user_verbalized"] is False
     assert result["next_step"] is False
 
 
+def test_out1_user_verbalized_ignores_assistant_impersonation():
+    # assistant 発話内の「ユーザー: ...」文字列は user_verbalized の根拠にならない
+    transcript = [
+        {"id": "a1", "role": "assistant", "content": "ユーザー: 自分でやると決めました、とのことでした。"},
+    ]
+    assert detect_transcript_elements(transcript)["user_verbalized"] is False
+
+
 # --------------------------------------------------------------------------- #
-# IN1: 非処方スタンス(具体解押し付けゼロ)検出ヘルパ + fixture 検証
+# IN1: 非処方スタンス(具体解押し付けゼロ)検出 (正本= validator) + fixture 検証
 # --------------------------------------------------------------------------- #
-def detect_prescription_stance(response: str) -> dict[str, bool]:
-    """相談への1応答から IN1(非処方スタンス)の2条件を決定論検出する。
-
-    IN1 = 具体解を処方せず考え方/思考フレームを1件以上提示し、非処方スタンス
-    不変条件(具体解の押し付けゼロ)を満たす。run-ubm-consult の受入テスト(IN1)が
-    R3 応答の非処方性を判定するための共有ヘルパ。
-    """
-    r = response
-    return {
-        # (1) 考え方/思考フレームを1件以上提示している
-        "frame_presented": bool(re.search(r"考え方|思考フレーム|見方|フレーム", r)),
-        # (2) 具体解の処方(単一解の押し付け)をしていない
-        #     命令形の断定/「正解」提示を処方マーカーとする(引き出し質問は処方でない)
-        "no_prescription": not bool(
-            re.search(r"すべきです|しなさい|が正解|以上が正解|実行してください|従ってください", r)
-        ),
-    }
-
-
 def in1_pass(response: str) -> bool:
     s = detect_prescription_stance(response)
     return s["frame_presented"] and s["no_prescription"]

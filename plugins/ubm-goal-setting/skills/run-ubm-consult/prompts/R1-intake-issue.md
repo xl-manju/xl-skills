@@ -29,11 +29,13 @@
 ## Layer 2: ドメイン層 (本質ロジック)
 
 ### 2.1 責務 (Single Responsibility)
-- 担当: 相談種別の判定 + 本質課題の言語化支援 + 責務境界の振り分け。
+- 担当: 相談種別・安全性の判定 + 本質課題の言語化支援 + 協働契約/保存同意 + 責務境界の振り分け。
 - 非担当: 引き出しの深掘り (R2)、フレーム提示 (R3)、収束・記録 (R4)。
 
 ### 2.2 ドメインルール
-- **相談種別の判定**: 相談を「目標設定そのもの」か「それ以外（事業/組織/商品/関係構築/自己/意思決定 等）」に分ける。目標設定そのもの（週報/月報/期報を作りたい）は本 skill の対象外とし、`run-ubm-goal-setting` を案内して終える（責務境界=スタンス不変条件5）。
+- **相談種別と安全性の判定**: `goal-setting` / `general-consult` / `safety-or-regulated` に分ける。目標設定は `run-ubm-goal-setting` へ。自傷・他害・緊急危機は通常コーチングを停止し緊急支援へ。医療・法律・金融など高 stakes は一般的な考え方の整理に限定し、個別判断は有資格者へ委ねる。
+- **協働契約**: 続行前に `question-led` / `framework-led` / `hypothesis-example` / `reflect-only` のどれがよいかを確認する。保存は既定 false とし、要約記録を残すか明示同意を取る。協働モードは平易な日本語の選択肢（「問いで進める」「考え方の説明中心」等）で提示し、enum 名は記録用にのみ使う。
+- **orphan の再開確認**: 開始時に handoff 無しの `sessions/<id>/`（中断 orphan・回収契約は session-record-format の `--gc`）を検出したら、再開するか破棄するかをユーザーへ1問で確認してよい。
 - **本質課題の言語化**: 表層の困りごと（「売上が上がらない」）を、ユーザー自身の言葉で1文の論点（「誰との関係を、どの順で育てるかが決められていない」等）へ翻訳する。翻訳案は AI が断定せずユーザーに確認させる。
 - **具体解の禁止**: R1 では解決策・処方を出さない（スタンス不変条件1）。出そうになったら論点確認の問いに置き換える。
 
@@ -45,9 +47,14 @@
 ### 2.4 出力契約
 | フィールド | 型 | 説明 |
 |---|---|---|
-| consult_type | enum: goal-setting / other | 目標設定そのものか否か |
+| outcome | enum: redirected_goal_setting / safety_redirect / consult_continue | 分岐別の完了状態 |
+| consult_type | enum: goal-setting / general-consult / safety-or-regulated | L2.2 で判定した相談種別（record と R2 への引き継ぎに使う） |
 | issue_statement | string | ユーザーの言葉で確認済みの本質課題1文 |
-| handoff_to | enum: run-ubm-goal-setting / continue | goal-setting なら誘導して終了、other なら R2 へ |
+| collaboration_mode | enum | question-led / framework-led / hypothesis-example / reflect-only |
+| persistence_consent | boolean | セッション要約の保存同意（既定 false） |
+| handoff_to | enum | run-ubm-goal-setting / emergency-or-professional-support / continue |
+| risk_class | string | safety_redirect 分岐のみ必須（危機/高 stakes の分類。record schema と対称） |
+| referral_message | string | safety_redirect 分岐のみ必須（案内した支援窓口・専門家の要約） |
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -71,16 +78,17 @@
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
 ### 5.1 担当
-- `run-ubm-consult` 本体（fork せずインライン）。
+- `run-ubm-consult` 本体（user-facing 親 context でインライン）。
 
 ### 5.2 ゴール定義
 - 目的: 後続が引き出しに入れる状態（種別確定＋本質課題1文）を作る。
 - 達成ゴール: consult_type が確定し、issue_statement がユーザー確認済みで、handoff_to が定まった状態。固定手順は書かない。
 
 ### 5.3 完了チェックリスト (停止条件)
-- [ ] consult_type が goal-setting / other に確定している
+- [ ] outcome が3分岐のいずれかに確定している
 - [ ] issue_statement がユーザーの言葉で1文に言語化され確認が取れている
-- [ ] goal-setting のときは `run-ubm-goal-setting` を案内して終了、other のときのみ R2 へ
+- [ ] consult_continue のときだけ collaboration_mode と persistence_consent が確認されている
+- [ ] redirect 分岐は会話内で完了し（既定非永続・保存同意がある場合のみ R4 と同経路で記録）、consult_continue のときのみ R2 へ
 
 ### 5.4 実行方式
 - 現状評価→問いを都度立案→確認→検証→全項目充足まで反復する。
@@ -112,4 +120,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-ユーザーの相談原文から consult_type を判定する。目標設定そのものなら `run-ubm-goal-setting` を案内して終了する。それ以外なら本質課題をユーザーの言葉で1文に言語化し「つまり○○ということですね？」で確認する。この段階で解決策・処方は出さない。5.3 の完了チェックリストを全て満たしたら R2 へ遷移する。余計な前置きは出力しない。
+ユーザーの相談原文から outcome を判定する。目標設定なら専用 skill へ、危機・高 stakes は安全分岐へ誘導して終了する。続行時は本質課題をユーザーの言葉で確認し、望む支援モードと保存同意を短く尋ねる。この段階で解決策・処方は出さない。5.3 を満たしたときだけ R2 へ遷移する。

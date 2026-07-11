@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # /// script
 # name: check-knowledge-split
-# version: 0.1.0
+# version: 0.2.0
 # purpose: knowledge/ の category JSON が 500 行閾値を超過していないか検査する決定論ゲート
-#          (schema.json/router.json/registry.json は管理ファイルにつき除外)。
+#          (schema.json/router.json/registry.json/knowledge-graph.json は管理・生成ファイルにつき除外)。
 #          旧 check-knowledge-split.sh 67 行の契約移植 (逐語移植ではない)。
 # inputs:
 #   - argv: --dir KNOWLEDGE_DIR
@@ -29,8 +29,18 @@ import sys
 from pathlib import Path
 
 THRESHOLD = 500
-# 管理ファイル: 行数閾値の対象外 (北原知見の category データではない)
-EXCLUDED = {"schema.json", "router.json", "registry.json"}
+# 管理・生成ファイル: 行数閾値の対象外 (北原知見の category データではない)。
+# knowledge-graph.json / harness-artifact-graph.json は C06/C05 が運用時に書出す索引 snapshot、
+# knowledge-relations.json は辺の永続ストア、-quarantine.json は dangling 退避先で、いずれも分割対象外
+EXCLUDED = {
+    "schema.json",
+    "router.json",
+    "registry.json",
+    "knowledge-graph.json",
+    "harness-artifact-graph.json",
+    "knowledge-relations.json",
+    "knowledge-relations-quarantine.json",
+}
 
 
 def count_lines(path: Path) -> int:

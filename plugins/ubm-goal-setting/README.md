@@ -274,7 +274,7 @@ consult は zero-hit を正常終了（exit 0）とします。`--knowledge-grap
 
 ### 相談（コーチング型・非処方）— v0.2.0
 
-`run-ubm-consult` skill は具体解を処方せず、考え方（思考フレーム）を選択肢＋適用視点で提示するコーチング型 orchestrator です（R1 受理 → R2 引き出し → R3 フレーム提示 → R4 共創収束）。5 つのスタンス不変条件（①具体解の押し付けゼロ ②各ターン引き出し質問 ≥1 ③解決策の言語化はユーザーの発話から ④収束は「現状→ゴール→ギャップ→次の一歩」形式の行動計画 ⑤目標設定そのものは `run-ubm-goal-setting` へ誘導）を全ターンで自己検証します。knowledge graph / harness artifact graph は **read-only consult**（C07 `consult-harness-artifact-graph.py`）で参照します。起動条件と graceful fallback（harness graph 不在→knowledge 単独 consult / knowledge graph 不在→`router.json` デュアルパスへ skip / 破損 exit2→WARN skip・zero-hit は正常）は [`references/graph-consult-fallback-contract.md`](./references/graph-consult-fallback-contract.md) が正本です。相談記録は eval-log 配下の handoff（vault 外）に置き、vault へは書きません（`ubm-write-path-guard` の許可 2 パスに該当しないため）。
+`run-ubm-consult` は、考え方を押し付けず一緒に組み立てる相談 orchestrator です。最初に問い中心／説明中心／例を仮説として少量／整理だけを選び、危機・高 stakes は安全分岐します。解決策は role=user の発話から確定し、行動化または内省のどちらで締めるかもユーザーが選びます。graph は C07 で read-only 参照し、保存は明示同意時だけ session-id 配下へ最小要約を残し、C11 validator が検証します。入口は `/ubm-consult` です。
 
 ### デュアルグラフ（C05 index / C06 検証 / C07 consult）— v0.2.0
 

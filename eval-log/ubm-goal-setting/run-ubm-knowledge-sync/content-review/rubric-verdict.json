@@ -2,34 +2,37 @@
   "target": {
     "plugin": "ubm-goal-setting",
     "skill": "run-ubm-knowledge-sync",
-    "skill_md_sha256": "272a27773fcd5cbf922817f56f590c91b6522cfd71787884115f18bbf3110eb2"
+    "skill_md_sha256": "49575f5be0af9fbbfea19d0a33376f952e046e9ff8311eb018c7545a80f9a8ff"
   },
   "review_kind": "rubric",
   "verdict": "PASS",
   "findings_summary": {
     "contradiction": 0,
     "omission": 0,
-    "inconsistency": 0,
+    "inconsistency": 1,
     "dependency_break": 0,
-    "smell": 2
+    "smell": 1
   },
-  "reviewer": "independent-content-review-subagent",
-  "reviewed_at": "2026-07-05T05:38:01Z",
+  "reviewer": "independent-content-review-subagent-20260711-r2",
+  "reviewed_at": "2026-07-11T09:36:55Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "完全性 3/3: frontmatter commonCore キー完備(name/description/kind/prefix/effect/owner/version/since/allowed-tools/feedback_contract/completeness_exempt, SKILL.md:1-65)。kind別サポート資産 scripts*2(detect-knowledge-updates.py/check-knowledge-split.py)/references*2/assets*1(kitahara-principles-db.md)/agent(knowledge-extractor.md)/knowledge(schema/router/registry/sync-log + 6カテゴリ実21ファイル) を実測で全て実在確認。出力契約・境界・6カテゴリ(SKILL.md:71-76)明記。唯一の LLM 責務(抽出・6カテゴリ分類)は completeness_exempt で plugin 直下 SubAgent knowledge-extractor.md へ正当委譲。必須項目100%。",
-      "深度 3/3: 表層に止まらず — 分割基準の二層化(25エントリ意味単位 + 500行機械ガード)と衝突時の解消規則(SKILL.md:111)、legacy null 7件の backfill 移行パス(SKILL.md:114・registry.json 実測で extracted_entry_ids total=67/null=7 と一致・各 _note 'legacy' で裏付け)、バッチ resume トランザクション(SKILL.md:115)、MODIFIED の extracted_entry_ids 辿り削除→全件再抽出(SKILL.md:113)、guard対象外の根拠(vault 外書込ゆえ, SKILL.md:122)。既知失敗パターン(初回全件NEW誤検知回避のため registry vendor 済・移植元 dead path 6件除去, SKILL.md:120 / L2 vault 未接続時0件レポートを正常終了扱い, SKILL.md:121)を反映。",
-      "検証可能性 3/3: 数値多数(6カテゴリ/20ファイルバッチ/25エントリ/500行/32文字md5/legacy null 7件/処理済67ファイル)、具体コマンド(detect-knowledge-updates.py --registry ... --sources ... [--all|--since] 引数付き, SKILL.md:102)。IN1 verify_by=script / OUT1 verify_by=test の二値契約で inner/outer を明示写像。数値と registry.json 実台帳(null 7/total 67)が突合一致し、検知ゲートの再現性を担保。"
+      "完全性 3/3: frontmatter commonCore(name/description/kind=run/version=0.1.0/allowed-tools/feedback_contract L56-66)充足。kind=run サポート資産が全て実測解決 — scripts detect-knowledge-updates.py・check-knowledge-split.py・plugin-root 共有 validate-knowledge-graph.py(L43-46)/agents knowledge-extractor・knowledge-relation-extractor(L34-36)/references knowledge-sources.md・knowledge-design-principles.md(L47-49)/assets kitahara-principles-db.md(L134)/knowledge schema.json・router.json・registry.json(L37-38,L135)/workflow-manifest.json(L22)をディスク照合で存在確認。completeness_exempt(L54-55)が prompts/ 不在を宣言し実際に ABSENT(ls 確認)=宣言と実体一致。feedback_contract に IN1(inner/script)/OUT1(outer/test)の2受入基準を宣言。",
+      "深度 3/3: 6カテゴリ(principles/consultation/phase-advice/action-guides/mindset/case-studies L78)分類を軸に、MODIFIED 処理の extracted_entry_ids 追跡削除→全件再抽出(L118)・legacy null 7件の初回移行 backfill(L119)・分割基準の二層化(25エントリ意味単位 vs 500行機械ガードの衝突解決 L116)・バッチ最大20ファイル1トランザクション+sync-log 完了点 resume(L120)・命名規則の連番禁止(L115)まで設計が具体。今回追記の Phase5-graph-sync(L88,L90)は read-only 候補抽出→呼び出し側 materialize→--merge-relations 冪等 merge→PASS 時のみ atomic 再生成、および差分ゼロ周回の不発と既存 corpus への初回 edge backfill(RUNBOOK 委譲)まで縮退経路を明示し、graph 同期の設計深度を底上げしている。",
+      "整合 3/3: IN1/OUT1 が frontmatter feedback_contract(L56-66)・End-to-End Flow 表(L84-85)・ゴールシーク検証 inner/outer loop(L107-108)の3箇所で矛盾なく triangulate。criteria の verify_by(IN1=script:detect-knowledge-updates.py の MD5 照合/OUT1=test:6カテゴリ分類+router/registry 同期)が本文の実行コマンド(L107)・実行体(knowledge-extractor)と一致。Phase5 追記は agents/knowledge-relation-extractor.md(read-only)・scripts/validate-knowledge-graph.py(--merge-relations/canonical key/first-write-wins/atomic)・RUNBOOK.md『初回 edge backfill』見出しと逐語整合し criteria↔本文↔実装の三層が齟齬なし。",
+      "受入テスト実行証跡: `cd plugins/ubm-goal-setting && python3 -m pytest tests/test_validate_knowledge_graph.py tests/test_check_knowledge_split.py -q` が 41 passed。Phase5 の永続化ゲート(validate-knowledge-graph.py の merge/quarantine/DAG/evidence 検証)と 500行分割ガード(check-knowledge-split.py)の決定論挙動が緑で担保されている。"
     ],
-    "negative_feedback": [],
+    "negative_feedback": [
+      "[low inconsistency/smell] Gotchas(SKILL.md:124)の『knowledge/schema.json を…run-ubm-goal-setting の info-collector(読取)が対称参照する』が事実とわずかに食い違う。agents/info-collector.md は schema.json を Read せず(grep でヒット 0)、router.json+knowledge/*.json+knowledge-graph.json を消費する(データは schema 準拠だが schema ファイル自体は読まない)。整合軸の低 severity で、依存の実体(info-collector が knowledge-extractor 産物を消費)は健全ゆえ dependency_break でも減点対象でもない。副次的に Flow 表(L85)の『20ファイルバッチ』帰属が委譲先 knowledge-extractor.md に未明文で skill 側責務(L120)寄りに緩い点も低 smell。いずれも非ブロッキング。"
+    ],
     "iteration": 1,
     "iteration_limit": 5,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "quality-rubric.md(harness-creator 5次元)で genuine 再採点: 完全性3・一貫性2・深度3・検証可能性3・簡潔性3 = 14/15(93%)。全次元 >=2、合計 >=12、high severity 0件で PASS。IN1/OUT1(frontmatter feedback_contract 全2件)を評価対象に含め、detect スクリプト引数・受入契約構造・registry 実台帳との数値突合を確認。直近変更(db070cb: ゴールシーク配線節の箇条書き3点→1点統合)は同一内容の整形のみで意味不変(本文 67→65行)、スコアに影響なし。統合後の run-on 箇条書きは scannability を僅かに下げるが content 完全保持で全次元スコアを動かさない(smell 非計上)。一貫性が2止まりの理由(用語/帰属の軽微な不正確さ・低smell 2件、矛盾ではない): (1) Gotchas(SKILL.md:119)の『info-collector が schema.json を対称参照』は不正確 — info-collector.md(:44,131,176) は router.json + knowledge/*.json を Read し schema.json 自体は読まない(共有データ層への参照であって schema.json literal ではない)。(2) SKILL.md:83,111 の『最大20ファイル/20件ずつ分割』が委譲先 knowledge-extractor.md に未明文化で Flow 表の帰属が緩い。簡潔性3: 本文65行で深い詳細(43KB agent 本文)を重複させず委譲。"
+  "notes": "新 SHA(49575f5b…)の SKILL.md を read-only 再照合し genuine 再採点。旧 verdict(SHA 272a2777…)は Phase5 初回 edge backfill 導線 additive 追記前の stale 版への評価だったため全引用を実測行へ更新。3軸採点(各0-3): 完全性3/深度3/整合3 = 9/9 = 100%(>=80% PASS)、全軸>=2、high severity 0件。整合3の減点なしだが low inconsistency 1件(Gotchas の info-collector schema.json 対称参照記述の不正確)+low smell 1件(Flow 表 20ファイルバッチ帰属の緩さ)を正直計上。サポート資産(scripts3/agents2/references2/assets1/knowledge3+schema/workflow-manifest)を実測ディスク照合で全解決し dependency_break 0。pytest 41 passed を evidence として確認。今回追記の Phase5 は agents/knowledge-relation-extractor.md(read-only)・validate-knowledge-graph.py(merge/quarantine)・RUNBOOK.md 初回 edge backfill と三層整合し high finding 皆無で verdict=PASS。"
 }

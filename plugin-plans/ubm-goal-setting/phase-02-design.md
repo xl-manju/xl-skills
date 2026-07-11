@@ -7,7 +7,7 @@ prev_phase: 1
 next_phase: 3
 status: 未実施
 gate_type: none
-entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09]
+entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11]
 applicability:
   applicable: true
   reason: ""
@@ -32,7 +32,7 @@ P01 で確定した goal-spec を、実際に build 可能な実体へ落とす�
 - requires_parent_scaffoldはC03→C02だけに適用する。C07はplugin-scaffold routeとして既存親不在問題を持たない。
 
 ## 成果物
-- `component-inventory.json` (全9 component: C01,C08 sub-agent / C02,C09 skill / C04 command / C03,C05,C06,C07 script)。
+- `component-inventory.json` (全11 component: C01,C08 sub-agent / C02,C09 skill / C04,C10 command / C03,C05,C06,C07,C11 script)。
 - `envelope-draft/plugin.json` (既存 plugin.json を土台に entry_points を新設した manifest draft)。
 
 ## スコープ外
@@ -41,17 +41,17 @@ P01 で確定した goal-spec を、実際に build 可能な実体へ落とす�
 - 実体の生成 (P05・実 `plugins/` へは書かない)。
 
 ## 完了チェックリスト
-- [ ] 全9 componentがbuild_target非空・builder/build_kind整合・DAG非循環である。
+- [ ] 全11 componentがbuild_target非空・builder/build_kind整合・DAG非循環である。
 - [ ] considered_component_kinds が 5 種全列挙され、plugin_level_surfaces (8 種) の採否が明示されている。
 - [ ] `envelope-draft/plugin.json` に既存3 skill/5 agent/2 commandと新設5 entry point (skill 2/agent 2/command 1) が設計されている。
 
 ### 受入例
-inventoryが9実体でC08→C06→C02、C06→C05→C07、C06/C07→C09の非循環DAGになる。
+inventoryが11実体でC08→C06→C02、C06→C05→C07、C07/C11→C09→C10の非循環DAGになる。
 
 ### 事前解決済み判断
 scheduler helperはC02へ畳み、hookは新設しない。C07はplugin-rootへ置く。
 
 ## 参照情報
 - `references/component-domain.md` / `references/phase-lifecycle.md` / `references/plugin-creator-contract.md`。
-- 対象 component C01-C09 (`component-inventory.json`)。
+- 対象 component C01-C11 (`component-inventory.json`)。
 - 後続 P03 (この設計を design-gate で審査する)。

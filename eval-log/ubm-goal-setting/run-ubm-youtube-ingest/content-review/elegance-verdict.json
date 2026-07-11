@@ -2,7 +2,7 @@
   "target": {
     "plugin": "ubm-goal-setting",
     "skill": "run-ubm-youtube-ingest",
-    "skill_md_sha256": "c319100d4cc3c8779ca74877d439c973b4f5ffb8a3184fd6c8240461a79f5332"
+    "skill_md_sha256": "b6f3c3354bf132eb3d66fc41603e6c3a0e5211c5ddb086b6e800eeccbae783b2"
   },
   "review_kind": "elegance",
   "verdict": "PASS",
@@ -11,27 +11,30 @@
     "omission": 0,
     "inconsistency": 0,
     "dependency_break": 0,
-    "smell": 1
+    "smell": 3
   },
-  "reviewer": "independent-content-reviewer-p09",
-  "reviewed_at": "2026-07-11T02:46:27Z",
+  "reviewer": "independent-content-review-subagent-20260711-r2",
+  "reviewed_at": "2026-07-11T09:37:08Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
     "criteria_evaluated": ["IN1", "OUT1"],
     "positive_feedback": [
-      "全量性を『分母を縮めない』不変則として Key Rules・R1(2.2 分母の起点)・C03 completeness gate の三層で反復定義し、取得不能を除外して擬似 PASS を作る Goodhart を構造的に封じている(FULL_BACKFILL_PASS = ingested==discovered_total かつ temporary_failure==0 かつ unapproved_unavailable==0、waived は waiver_ref 必須)。横展開価値の高い completeness 設計。",
-      "untrusted transcript を provenance=制御領域(frontmatter)/本文=data 領域へ二分し、fallback origin(caption|asr)を保持する分離が R2・Key Rules・C01 契約で一貫。prompt injection を data として封じる規範が全 phase で drift していない。",
-      "goal-seek を固定 Step 列挙でなく Goal/Why/Checklist/Loop の4部構成で表現し、inner(IN1=check-youtube-backfill-completeness.py の exit0)/outer(OUT1=run-youtube-sync-oneshot.py 受入テスト)の検証主体を verify_by と明示的に対応させている。max_loops 到達時は PASS 扱いせず open_issues へ差し戻す停止規約も明記。"
+      "矛盾なし: criteria 実装被覆の graph 更新 chain (R2 C01 youtube-transcript-normalizer→R3 knowledge-extractor 6カテゴリ→knowledge-relation-extractor C08 read-only 候補→validate-knowledge-graph.py --merge-relations C06 永続化+検証) が SKILL.md L91-92/L116、workflow-manifest r2-r3 phase、prompts/R3-extract-graph.md L21/L37/L116、agents/knowledge-relation-extractor.md (tools:Read/isolation:fork/『書込は行わず候補辺 JSON を返すだけ』L18/L134) の全層で一致。C08 の read-only と永続化 owner=--merge-relations の責務境界が 4 資産で矛盾なく反復されている。",
+      "漏れなし: feedback_contract の IN1(全量性 full_backfill_pass) と OUT1(冪等 sync) の双方が実資産で被覆。IN1=scripts/check-youtube-backfill-completeness.py が content_coverage/accountability_coverage を分離算出し full_backfill_pass を stdout JSON へ独立出力 (exit0 の ACCOUNTABILITY_PASS は IN1 未達扱い)。OUT1=scripts/run-youtube-sync-oneshot.py が video_id 冪等・lease 取得直後永続化・TTL 失効奪取・already_ingested skip・provenance 欠落 temporary_failure 保留を実装。全モード --dry-run 書込0・injection 封じ込め・fabrication 禁止も SKILL.md Key Rules/Gotchas で明示。",
+      "整合性: R1-R4 の 4 プロンプトが単一責務で分離 (各 2.1 に担当/非担当を明記) し、命名 (idempotency key=video_id・full_backfill_pass・pending-identification・required-primary) が SKILL/manifest/prompts/scripts で一貫。正規化ソース方言は normalized-source-schema.md を単一正本とし C01(LLM)と one-shot(決定論)の二重方言を封じている。provenance 5要素(C01)と one-shot 決定論3要素部分集合の非対称は normalized-source-schema.md L50 で明示的に橋渡し済み。",
+      "依存関係整合: 全参照がディスク実在を実測確認。responsibility_refs(prompts/R1-R4)・subagent_refs(youtube-transcript-normalizer/knowledge-extractor/knowledge-relation-extractor=agents/直下)・schema_refs(../../knowledge/schema.json)・knowledge_loop.index(../../knowledge/router.json)・script_refs(scripts/3本+../../scripts/validate-knowledge-graph.py) 全解決。manifest/R3 が主張する validate-knowledge-graph.py --merge-relations は当該 script L16/L417/L451-464 に実在。dangling ゼロ・dependency_break 0。"
     ],
     "negative_feedback": [
-      "[非ブロッキング smell] Gotchas の『C03 完全性ゲートは後続 route ... 実体不在時 --backfill の IN1 判定は C03 配備後に緑化』の記述は保守的で、現時点では scripts/check-youtube-backfill-completeness.py が実在し test_check_youtube_backfill_completeness.py も緑。inventory が C03 を builder_status:contract-only(GAP-SCRIPT-BUILDER)と宣言している契約とは整合するため誤りではないが、実体配備後の追従余地がある。IN1/OUT1 の frontmatter 携帯・verify_by(script/test)・C03/tests との整合は確認済みで adequacy は満たす。"
+      "smell(low): workflow-manifest の r4 dependsOn r3 は『skill セッションの直列順序』であり --sync では取得(r4)が先で graph(r3相当)を後続再実行する循環を含むが、dependency-graph 表現自体はこの非自明な semantics を表さない。SKILL.md L97 と manifest sync_mode_note の注記を読まないと逆順に誤読しうる。注記で解消済みだが構造は overloaded。",
+      "smell(low): commands/ubm-youtube-ingest.md L38 の『モード未指定時 --sync を既定候補として提示』と R1-source-mode.md L70 の『既定を --sync とせず1問で確定』が字面上テンションを持つ。両者ともユーザー確認を要求し自動 --sync 実行はしない点で運用挙動は一致するが、--sync が事前選択候補か否かの framing がやや揺れる。",
+      "smell(low): manifest の backfill_completeness_gate が r2-fetch-normalize phase に付与されているが、実際は post-ingest(r4 one-shot 後)の registry 状態を突合する gate。同 note で『ingest 自体は r4 が行い本 gate は post-ingest 完全性を判定』と明示されているが、gate 帰属 phase と判定対象 phase がずれる配置。"
     ],
     "iteration": 1,
-    "iteration_limit": 3,
+    "iteration_limit": 5,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "独立 content-review(P09・proposer=builder と別 context)。3モード(--url/--backfill/--sync)・required-primary 全量保証(C03 gate + 分母非縮小)・waiver 承認参照(waiver_ref)・untrusted transcript(制御/data 二領域)・冪等 one-shot(idempotency key=video_id, cursor/lease/retry/alert, --dry-run 書込0)が SKILL.md Key Rules + R1-R4 prompt + workflow-manifest に実効反映されていることを確認。goal-seek 形(固定 Step 列挙なし)。feedback_contract IN1(inner/script)/OUT1(outer/test)が frontmatter に正しく携帯され、依存(C01 youtube-transcript-normalizer / C08 knowledge-relation-extractor / C06 validate-knowledge-graph.py)agent・script は全て実在、関連 5 テスト(youtube_sync_oneshot / check_youtube_backfill_completeness / validate_knowledge_graph 含む)緑。初見可読性・manifest phase(r1-r4)整合とも良好。PASS。"
+  "notes": "現 SHA(b6f3c33…)の SKILL.md を read-only で genuine 再評価。旧 elegance-verdict は stale-sha(SHA c319100d…・SKILL.md が verdict 生成後に更新)ゆえ現 SHA で全引用を再照合。4条件(矛盾なし/漏れなし/整合性/依存関係整合)を実資産突合で満たし、high severity finding 0件。検出した 3 件は全て low-severity smell(いずれも本文注記で自己解消済みで矛盾へは至らない)。graph 更新 chain の C08 read-only + 永続化 owner=--merge-relations 分離、content/accountability 被覆の分離による分母縮小 Goodhart 封じ、lease 取得直後永続化による二重起動排他が特筆すべき設計。dependency_break 0・contradiction 0 につき verdict=PASS。"
 }

@@ -96,7 +96,35 @@ python3 plugins/ubm-goal-setting/scripts/validate-knowledge-graph.py \
   --graph-out plugins/ubm-goal-setting/knowledge/knowledge-graph.json
 ```
 
-参照整合・self-loop 禁止・`depends_on` の DAG 非循環・evidence≥1・confidence 0..1・review_status 必須を検査（exit 0=OK / 1=違反 / 2=usage）。PASS 時のみ `knowledge-graph.json` を書く。
+self-loop 禁止・`depends_on` の DAG 非循環・evidence≥1・confidence 0..1・review_status 必須を検査（exit 0=OK / 1=違反 / 2=usage）。PASS 時のみ `knowledge-graph.json` を書く。dangling（endpoint の entry 不在）だけは違反でなく縮退で、`knowledge-relations-quarantine.json` へ WARN 付きで自動退避し残辺で生成を継続する（Recovery 参照）。辺が 1 本も無い退化グラフ（edges=0）は exit 0 のまま stderr WARN で表面化する。
+
+### 初回 edge backfill（既存 corpus への辺の初回適用）
+
+C08（`knowledge-relation-extractor`）の発火点は ingest R3 / sync Phase5（いずれも差分駆動）のみのため、**既存 corpus には辺が付かず `knowledge-relations.json` 不在（edges=0 の退化グラフ）のまま**になる。初回は次の手順で backfill する:
+
+1. `knowledge-relation-extractor` を Task 起動し、既存の全 knowledge entry から根拠付き辺候補 JSON（read-only 出力）を得る。
+2. 候補を一時ファイルへ materialize する（例: `eval-log/ubm-goal-setting/relations-candidate.json`）。
+3. 候補の冪等 merge（`knowledge-relations.json` へ永続化）と `knowledge-graph.json` の再生成は同一コマンドで行う:
+
+```bash
+python3 plugins/ubm-goal-setting/scripts/validate-knowledge-graph.py \
+  --knowledge-dir plugins/ubm-goal-setting/knowledge \
+  --merge-relations <候補ファイル> \
+  --graph-out plugins/ubm-goal-setting/knowledge/knowledge-graph.json
+```
+
+4. stdout の `OK: knowledge-graph validated (... edges=N ...)` で **edges>0** を確認する（stderr に `WARN: ... edges=0` が出る間は backfill 未完了）。
+
+merge は canonical key（source_id, target_id, relation_type）で冪等（first-write-wins）のため、同じ候補での再実行は安全に不変となる。
+
+### 辺レビューの昇格（pending_review → approved）
+
+C08 由来の辺は `review_status: "pending_review"` で merge される。昇格の編集先は **`knowledge/knowledge-relations.json`（辺の永続ストア＝正本）** であり、`knowledge-graph.json`（派生・再生成で上書きされる）は直接編集しない。昇格基準:
+
+- `evidence` の逐語が出典（`source_ref` が指す entry / ソース原文）と一致していること（要約・言い換えは不可）。
+- 辺の向きが正しいこと（`depends_on` は依存する側→される側、`derived_from` は派生物→原典）。
+
+昇格後は `validate-knowledge-graph.py` で graph を再生成する。merge は first-write-wins のため、approved 済み status が後続 sync の候補で上書きされることはない。corpus 増加時は全量再抽出でなく、**新規/変更 entry を起点にした増分抽出**（該当 entry のみを extractor へ渡す）を推奨する。
 
 harness artifact graph の index 生成と read-only consult:
 
@@ -144,4 +172,5 @@ python3 plugins/ubm-goal-setting/scripts/index-harness-artifact-graph.py \
 - 目標設定出力が validate に失敗した場合、未展開 `{{...}}`、全角数字、差分の `+/-`、やらないこと3項目、種別別必須見出しを優先して直す。
 - (v0.2.0) `youtube-registry.json` 未存在時、one-shot は required-primary + pending 第2source で自動初期化する（`--dry-run` は初期化も書込まない）。破損 registry は上書きしない（exit 1）ため、破損時はバックアップから復旧して再実行する。
 - (v0.2.0) `--backfill` の完全性ゲートが exit 1 の場合、stderr の pending / temporary_failure / unapproved_unavailable / waiver 欠落 / 重複 ID / pagination 欠落 の video ID を確認し、除外で分母を縮めず取得を再試行する。承認済み除外は `waiver_ref` を付ける。
-- (v0.2.0) `validate-knowledge-graph.py` が exit 1 の場合、stderr の violation（dangling / self-loop / evidence 欠落 / confidence 範囲外 / review_status 欠落 / cycle）を確認し、C08（`knowledge-relation-extractor`）の辺 handover を修正して再生成する。`related` は無方向連想（cycle 対象外）である点に注意する。
+- (v0.2.0) `validate-knowledge-graph.py` が exit 1 の場合、stderr の violation（self-loop / evidence 欠落 / confidence 範囲外 / review_status 欠落 / cycle）を確認し、C08（`knowledge-relation-extractor`）の辺 handover を修正して再生成する。`related` は無方向連想（cycle 対象外）である点に注意する。
+- (v0.2.0) dangling 辺（endpoint の entry 不在）は exit 1 にならず、WARN 付きで `knowledge/knowledge-relations-quarantine.json` へ自動退避され `knowledge-relations.json` から除去された上で、残辺により graph 再生成が継続する（entry 削除で graph が恒久ブロックされない縮退）。**確認**: quarantine ファイルの `edges[]` を見る。**復旧**: 対象 entry を復活（または辺の endpoint id を実在 entry へ修正）し、該当辺を quarantine から `knowledge-relations.json` の `edges[]` へ戻して `validate-knowledge-graph.py` で再検証・再生成する。**破棄**: 辺自体が無効なら quarantine から該当辺を削除する（quarantine は graph 生成に影響しない退避先のため放置しても機能劣化はないが、棚卸しで空に保つ）。

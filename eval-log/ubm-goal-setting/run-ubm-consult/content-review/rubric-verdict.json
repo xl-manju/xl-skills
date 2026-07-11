@@ -1,0 +1,35 @@
+{
+  "target": {
+    "plugin": "ubm-goal-setting",
+    "skill": "run-ubm-consult",
+    "skill_md_sha256": "0ae49deda858df58ea1b8acbdcdb1a27cdcfb69c60a2397b956c6190616423ed"
+  },
+  "review_kind": "rubric",
+  "verdict": "PASS",
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 0,
+    "dependency_break": 0,
+    "smell": 0
+  },
+  "reviewer": "independent-content-review-subagent-20260711-r3",
+  "reviewed_at": "2026-07-11T10:05:35Z",
+  "iterations": 2,
+  "human_review_required": false,
+  "feedback_loop": {
+    "loop_scope": "both",
+    "criteria_evaluated": ["IN1", "OUT1"],
+    "positive_feedback": [
+      "完全性 3/3: frontmatter に name/description/kind=run/prefix=run/disable-model-invocation=true/effect=local-artifact/version/allowed-tools/combinators(with-goal-seek,with-feedback-contract)/goal_seek(engine=inline,fork=inline,max_loops=5)/feedback_contract(IN1 inner・OUT1 outer・双方 verify_by=test)を具備。サポート資産をディスク実測照合で全解決: prompts R1..R4(7層+出力指示アンカー)・references consult-frames.md/session-record-format.md/resource-map.yaml・scripts consult-harness-artifact-graph.py/validate-consult-session.py・knowledge router.json/schema.json・agents phase3-coordinator.md・references/graph-consult-fallback-contract.md。",
+      "深度 3/3: ユーザー要求4軸を実装深度で被覆。『考え方アドバイス』=R3 が consult-frames.md(GF-01..10)+router.json デュアルパスで出典 ID(PR/MS/事例)付き選択肢+適用視点を提示し処方を禁止。『引き出し共創』=R2 が文脈/制約/価値観/既試行を選択的外在化・深掘り2回上限。『ユーザー主導』=R4 が role=user 発話参照で user_solution を確定し AI 代弁を validator の source_turn_ids⊆user turn 検査で機械封鎖。『ゴール指向汎化』=相談種別を問わず現状→ゴール→ギャップ→次の一歩(action lane)/見えてきたこと→まだ決めない→再開条件(reflection lane)で締める二 lane 化。安全分岐・高stakes 制限・consent 制保存(consent=false は --ephemeral 検証で非永続)・redaction・retention/orphan --gc まで運用境界を具備。",
+      "整合 3/3: IN1(verify_by=test)→ detect_prescription_stance(FRAME/PRESCRIPTION マーカー)+ test_in1_* 正例/負例 fixture で写像・緑。OUT1(verify_by=test)→ detect_transcript_elements(考え方提示/引き出し質問/ユーザー言語化/次の一歩の4要素)+ test_out1_* fixture で写像・緑。前回検出の R4 完了ゲート矛盾(consent=false ephemeral)は validator 0.3.0 の --ephemeral と 4 文書統一で解消し、consent=false record が --ephemeral で exit0・既定 exit1 を実測で裏取り。criteria と本文の写像が全経路で一致。"
+    ],
+    "negative_feedback": [],
+    "iteration": 2,
+    "iteration_limit": 5,
+    "hook_trigger": "manual",
+    "next_action": "none"
+  },
+  "notes": "rubric 3軸(完全性3/深度3/整合3)を再判定して充足=PASS。前回 human_review_required の要因だった高矛盾(consent=false ephemeral 検証パスの仕様↔validator 不一致)は根治済みを実測で確認(--ephemeral で exit0/既定 exit1/他検査非緩和 の3点、対応テスト test_ephemeral_allows_consent_false_with_complete_record・test_ephemeral_does_not_relax_other_checks・test_ephemeral_cli_exit0_with_consent_false)。低 smell 2件(R3 2.4 reflect-only 例外・R1 2.4 safety 必須項目)も文書修正済み。50 passed(test_ubm_consult_contract.py + test_validate_consult_session.py)緑・参照資産7点実在を実測。ペアの elegance-verdict.json も verdict=PASS(残 smell は L69 例示の軽微表記のみ・非ブロック)。human_review_required=false。"
+}

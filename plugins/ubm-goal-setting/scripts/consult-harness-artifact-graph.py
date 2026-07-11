@@ -14,7 +14,8 @@
 #   - file: harness-artifact-graph.json (C05 出力・nodes/edges/graph_hash・任意)
 #           省略/未生成時は knowledge 単独 consult (sources.harness_artifact_graph.status=absent)
 # outputs:
-#   - stdout: JSON hits (nodes/edges を id/path/hash ポインタ形で・zero_hit フラグ・source graph hash)
+#   - stdout: JSON hits (nodes/edges を id/path/hash ポインタ形で・zero_hit フラグ・source graph hash・
+#             warnings[]: knowledge graph の辺 0 本は "graph-edges-empty" を記録)
 #   - stderr: usage error / broken index (スキーマ不正・dangling) 一覧
 #   - exit: 0=正常 (zero-hit 含む) / 2=usage・入力不正・壊れた index
 # contexts: [E, C]
@@ -39,6 +40,8 @@ query-type:
 
 正常性:
   - zero-hit (topic 不一致) は正常 (exit0・空 hits・zero_hit=true)
+  - knowledge graph の辺 0 本 (退化グラフ) も zero-hit 同様に正常 (exit0) だが、consumer が
+    consult_evidence へ転記できるよう出力 warnings[] に "graph-edges-empty" を記録する
   - 壊れた index (スキーマ不正・dangling edge) は zero-hit と区別し exit2 (エラー側)
   - --harness-artifact-graph 省略は正常 (exit0)。harness graph を空扱いで knowledge
     単独 consult に落とす (graceful degrade)。knowledge graph は必須のまま。
@@ -640,9 +643,16 @@ def main(argv: list | None = None) -> int:
             "edge_count": len(hg.edges),
             "graph_hash": hg.graph_hash,
         }
+    # 退化セルの可視化: 辺 0 本の knowledge graph は zero-hit 正常扱いのまま warnings で表面化する
+    # (consumer は consult_evidence.warnings へ転記する。入力のみから決まる決定論値)。
+    warnings: list = []
+    if not kg.edges:
+        warnings.append("graph-edges-empty")
+
     result = {
         "schema_version": SCHEMA_VERSION,
         "generator": GENERATOR,
+        "warnings": warnings,
         "query": {
             "topic": args.topic,
             "query_type": args.query_type,

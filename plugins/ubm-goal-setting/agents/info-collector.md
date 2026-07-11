@@ -270,16 +270,16 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/consult-harness-artifact-graph.py" \
 **並列実行**: Step 1/2/3/3.5/3.7 と同時に実行可能
 **目的**: `run-ubm-consult`（相談スキル）の帰結（次の一歩）を目標設定対話へ機械的に引き継ぎ、「相談で考え方を整理→目標設定で行動に落とす」ループを閉じる。
 
-1. `run-ubm-consult` の相談セッション記録は固定パスの handoff（vault 外・repo root 起点）に置かれる。正本パス規約は `$CLAUDE_PLUGIN_ROOT/skills/run-ubm-consult/references/session-record-format.md`。読む先は **`eval-log/ubm-goal-setting/run-ubm-consult/handoff-run-ubm-consult.json`**。
-2. `Bash: ls eval-log/ubm-goal-setting/run-ubm-consult/handoff-run-ubm-consult.json 2>/dev/null` で存在確認。**不在なら本 Step を skip**（相談を一度もしていない初回は正常。エラーにしない）。
-3. 存在すれば Read し、直近の相談から以下を抽出する（最大 N=3 セッション分。単一ファイルなら1件）:
-   - `consult_type` / `issue_statement`（相談で言語化された本質課題）
-   - `user_solution`（ユーザー自身の言葉で言語化した解決策）
-   - `action_plan.next_step`（現状→ゴール→ギャップの帰結としての次の一歩）
+1. 正本パス規約は `$CLAUDE_PLUGIN_ROOT/skills/run-ubm-consult/references/session-record-format.md`。読む入口は **`eval-log/ubm-goal-setting/run-ubm-consult/latest.json`**（session-id 別 record へのポインタ）。
+2. latest.json 不在、保存同意なし、期限切れ、`outcome != consult_completed` は正常 skip。ポインタの `path` が `sessions/<session_id>/handoff.json` 配下を外れる場合は拒否する。
+3. 有効な record から以下だけを抽出する。複数件が必要なら `index.jsonl` から同意済み・期限内の最新 N=3 を明示選択する:
+   - `issue_statement`
+   - `user_solution.text`（role=user turn provenance 検証済み）
+   - `closure.type=action` の `closure.next_step`（reflection は行動候補にしない）
 4. これらを「直近の相談からの引き継ぎ」として構造化サマリーに載せる。**あくまで文脈の引き継ぎであり、目標そのものではない**（目標設定は Phase 3 で対話生成する）。相談の次の一歩が今回の目標種別（weekly/monthly/bimonthly）に合致する場合は、行動目標の候補として Phase 3 へ渡す。
 5. read-only。本 Step は eval-log へ書き込まない（`ubm-write-path-guard` の対象外 path だが、そもそも参照専用）。
 
-**完了条件**: 相談 handoff があれば直近の issue_statement / user_solution / next_step が引き継がれている、または[相談履歴なし]で skip 済みである
+**完了条件**: 同意済み・期限内の consult_completed record があれば issue_statement / user_solution / 任意の next_step が引き継がれている、または[相談履歴なし/同意なし/対象外]で skip 済みである
 
 ##### Step 3.5: UBMルート直下ファイルの確認
 
@@ -440,7 +440,7 @@ UBMメンバーの目標設定に必要な全データを自動収集し、
 - Step 3: ナレッジの参照（knowledge/router.json → knowledge/*.json）
 - Step 3.5: UBMルート直下ファイルの確認（Glob → Read）
 - Step 3.7: ジャーナル収集（weeklyのみ。$UBM_VAULT_ROOT/02_Configs/Daily/YYYY-MM-DD.md を動的日付検出→並列Read）
-- Step 3.8: 直近の相談 handoff の参照（eval-log/ubm-goal-setting/run-ubm-consult/handoff-run-ubm-consult.json を存在確認→あれば Read・無ければ skip）
+- Step 3.8: `latest.json` から同意済み・期限内の consult_completed record を参照（不在/対象外は skip）
 各Step内の複数ファイルReadも並列で実行すること。
 全Step完了後に Step 4（構造化サマリー生成）を実行する。
 

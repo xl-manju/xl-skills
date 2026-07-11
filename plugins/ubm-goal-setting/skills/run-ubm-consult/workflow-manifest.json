@@ -13,8 +13,8 @@
       "parallel": false,
       "actor": "run-ubm-consult",
       "input": "argument [相談内容] または最初の発話",
-      "output": "consult_type (goal-setting|other) + issue_statement (ユーザーの言葉で確認済み本質課題1文)",
-      "gate": "consult_type 確定; goal-setting のときは run-ubm-goal-setting へ誘導し終了 (責務境界); この段階で具体解を出さない",
+      "output": "outcome (redirected_goal_setting|safety_redirect|consult_continue) + issue_statement + collaboration_mode + persistence_consent",
+      "gate": "goal-setting は会話内で完了 (既定非永続・保存同意がある場合のみ R4 と同経路で記録); safety/high-stakes は通常コーチングを止めて適切な支援へ分岐; 続行時は支援モードと保存同意をユーザーが選択; この段階で具体解を出さない",
       "resourceIds": ["prompts/R1-intake-issue.md", "references/session-record-format.md"]
     },
     {
@@ -23,9 +23,9 @@
       "dependsOn": ["r1-intake-issue"],
       "parallel": false,
       "actor": "run-ubm-consult",
-      "input": "consult_type=other, issue_statement",
-      "output": "context / constraints / values / prior_attempts (ユーザーの言葉で外在化)",
-      "gate": "4軸が最低限外在化; 各ターンで引き出し質問 >=1; 解決策を出さない",
+      "input": "consult_type=general-consult, issue_statement, collaboration_mode",
+      "output": "relevant_context (相談に必要な軸だけをユーザーの言葉で外在化)",
+      "gate": "選択された collaboration_mode と相談目的に必要な情報が揃う; 共同判断が残るターンでは引き出し質問 >=1; stop/summary/safety/final は質問を強制しない",
       "resourceIds": ["prompts/R2-elicit.md", "../../agents/phase3-coordinator.md"]
     },
     {
@@ -34,9 +34,9 @@
       "dependsOn": ["r2-elicit"],
       "parallel": false,
       "actor": "run-ubm-consult",
-      "input": "issue_statement + R2 の4軸, references/consult-frames.md, knowledge/router.json",
-      "output": "frames[] (2件以上・選択肢+適用視点+出典 ID PR-xxx/MS-xxx/事例) + consult_evidence",
-      "gate": "フレーム2件以上を選択肢+適用視点で提示; 出典 ID 付与; 具体解の処方をしない (IN1)",
+      "input": "issue_statement + collaboration_mode + relevant_context, references/consult-frames.md, knowledge/router.json",
+      "output": "frames[] (通常2件以上、reflect-onlyは1件以上・選択肢+適用視点+出典) + structured consult_evidence",
+      "gate": "支援モードに合うフレームを提示; hypothesis-example の例は仮説かつ採否をユーザーに委ねる; 単一解を押し付けない (IN1)",
       "consults": {
         "script": "../../scripts/consult-harness-artifact-graph.py",
         "query_types": ["local", "global", "relationship"],
@@ -55,10 +55,10 @@
       "dependsOn": ["r3-frame-consult"],
       "parallel": false,
       "actor": "run-ubm-consult",
-      "input": "frames[] + R2 の4軸 + issue_statement",
-      "output": "user_solution (ユーザー自身の言葉) + action_plan (現状→ゴール→ギャップ→次の一歩) + session_record (handoff)",
-      "gate": "user_solution がユーザー発話ベース (AI 代弁でない); action_plan の次の一歩が物理的行動; session_record を eval-log 配下 handoff へ記録 (vault へ書かない); OUT1 の4要素が揃う",
-      "resourceIds": ["prompts/R4-cocreate-converge.md", "references/session-record-format.md"]
+      "input": "frames[] + relevant_context + issue_statement + persistence_consent",
+      "output": "user_solution + chosen_closure(action|reflection) + consent-aware session_record",
+      "gate": "user_solution は role=user の発話参照; action lane は次の一歩、reflection lane は見えてきたこと/保留/再開条件; record は同意に依らず validate-consult-session.py を exit 0 で通し、保存同意時だけ session-id 別に書き込む (false は --ephemeral で検証し通過後破棄)",
+      "resourceIds": ["prompts/R4-cocreate-converge.md", "references/session-record-format.md", "../../scripts/validate-consult-session.py"]
     }
   ]
 }

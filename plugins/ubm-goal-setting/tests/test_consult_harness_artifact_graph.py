@@ -14,6 +14,7 @@ local / global / relationship の 3 query を実行し、hits を source refs/pa
   - global (カテゴリ/state クラスタ要約)                                    -> exit0
   - relationship (2 概念間 path 探索・区切り必須)                          -> exit0 / exit2
   - harness graph 省略 (knowledge 単独 consult・harness=absent)             -> exit0
+  - knowledge 辺 0 本の退化グラフ (warnings に graph-edges-empty)           -> exit0
   - usage (knowledge-graph 欠落 / query-type 不正 / depth 範囲外 / graph 不在) -> exit2
 """
 from __future__ import annotations
@@ -321,6 +322,31 @@ def test_relationship_requires_separator_exit2(tmp_path: Path):
     ctx = setup(tmp_path)
     r = consult(ctx, "alpha", "relationship", "3")
     assert r.returncode == 2, r.stdout + r.stderr
+
+
+# ---- edges=0 退化グラフの warnings ------------------------------------------
+
+def test_knowledge_edges_empty_recorded_in_warnings(tmp_path: Path):
+    # knowledge graph の辺 0 本は zero-hit 同様に正常 (exit0) のまま warnings へ表面化する。
+    kg_path = tmp_path / "knowledge-graph.json"
+    g = knowledge_graph()
+    g["edges"] = []
+    g["edge_count"] = 0
+    g["associations"] = []
+    g["association_count"] = 0
+    write_json(kg_path, g)
+    r = run("--topic", "alpha", "--knowledge-graph", str(kg_path), "--query-type", "local", "--depth", "1")
+    assert r.returncode == 0, r.stdout + r.stderr
+    out = json.loads(r.stdout)
+    assert "graph-edges-empty" in out["warnings"]
+
+
+def test_warnings_empty_when_knowledge_edges_present(tmp_path: Path):
+    # 辺が載っている graph では warnings は空 (誤検知しない)。
+    ctx = setup(tmp_path)
+    r = consult(ctx, "alpha", "local", "1")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert json.loads(r.stdout)["warnings"] == []
 
 
 # ---- 決定論 ----------------------------------------------------------------

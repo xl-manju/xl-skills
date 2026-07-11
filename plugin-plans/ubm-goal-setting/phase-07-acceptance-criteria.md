@@ -7,7 +7,7 @@ prev_phase: 6
 next_phase: 8
 status: 未実施
 gate_type: none
-entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09]
+entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11]
 applicability:
   applicable: true
   reason: ""
@@ -45,8 +45,9 @@ applicability:
 - [ ] REQ2 (検証専用・非 buildable): 既配備 run-skill-feedback の symlink が build 前後で維持され、`scripts/lint-feedback-protocol.py --strict` が R1-R7 PASS することで判定できる。
 - [ ] C08/C06/C07: raw knowledge fixtureから根拠付きnon-zero edge→DAG→known consult hitが得られる。
 - [ ] C05/C07: task-state/route report/build traceの実在成果物を1件以上dereferenceし、stale/redacted状態を判定できる。
-- [ ] C09: 相談fixtureで具体解押し付けゼロ・考え方/フレーム提示≥1、ユーザー自身の言葉での解決策言語化、ゴール指向の次の一歩への帰結、既存capability A/B非後退を判定できる。
-- [ ] 全9 componentのacceptance contractがPASS/FAIL二値で被覆される。
+- [ ] C09/C11: 単一解の押し付けなし、協働モード選択、role=user provenance、action/reflection分岐、安全分岐、保存同意を判定できる。
+- [ ] C10: command→skill 透過と package surface 一意登録を判定できる。
+- [ ] 全11 componentのacceptance contractがPASS/FAIL二値で被覆される。
 
 ### 受入例
 primary content coverage 100%、無人sync一度だけ反映、non-zero edge、real artifact hitが同時PASSする。
@@ -56,5 +57,5 @@ accountability coverageだけをFULL_BACKFILL_PASSと呼ばず、waiverはユー
 
 ## 参照情報
 - `goal-spec.json` checklist C1-C11 / index「受入確認 (build 後の見方)」章。
-- 対象 component C01-C09。
+- 対象 component C01-C11。
 - 後続 P08 (refactoring)。

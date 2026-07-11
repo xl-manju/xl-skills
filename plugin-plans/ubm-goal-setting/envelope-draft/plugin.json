@@ -26,7 +26,8 @@
     "commands": [
       "ubm-goal-setting",
       "ubm-knowledge-sync",
-      "ubm-youtube-ingest"
+      "ubm-youtube-ingest",
+      "ubm-consult"
     ]
   },
   "hooks": {

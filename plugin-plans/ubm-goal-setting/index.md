@@ -56,12 +56,12 @@ plugin_meta:
 - **スコープ (含まない)**: 実プラグイン/実コードの build (L4・後段 run-skill-create / run-build-skill / plugin-scaffold へ委譲)、PR/配布登録、YouTube 取得技術手段の確定 (open_questions)。
 
 ## ドメイン知識
-- **2 軸直交**: ライフサイクル軸 (13 phase) と成果物実体軸 (N=9 component) を二重保持しない。
-- **component_kind (5 種)**: skill×2 (C02,C09) / sub-agent×2 (C01,C08) / slash-command×1 (C04) / script×4 (C03,C05,C06,C07) / hook×0。scheduler helperは単一consumerのC02へ畳み、prompt lifecycle hookの誤用を避ける。C09 (`run-ubm-consult`) は目標設定以外も含む相談への非処方コーチング型 consult で、C06/C07 の read-only graph consult を再利用する。
+- **2 軸直交**: ライフサイクル軸 (13 phase) と成果物実体軸 (N=11 component) を二重保持しない。
+- **component_kind (5 種)**: skill×2 (C02,C09) / sub-agent×2 (C01,C08) / slash-command×2 (C04,C10) / script×5 (C03,C05,C06,C07,C11) / hook×0。C09 はC07 read-only consultとC11 validatorを再利用し、C10が明示入口を担う。
 - **phase ≠ component**: 13 はフェーズ数、N=9 はbuildable実体数。
 - **REQ 語彙**: REQ1a=URL単発取込 / REQ1b=required-primary厳格全量 / REQ1c=scheduler無人同期 / REQ2=harness surface適合 / REQ3=根拠付きknowledge依存graph / REQ4=harness実成果物graph / REQ5=目標設定以外も含む相談への非処方コーチング型consult (外ループ handback 2026-07-11・承認済で追加)。
 - **既存 capability**: capability A=`run-ubm-goal-setting` (週報/月報/期報の目標設定対話・統一ハイブリッド構造21項目)。capability B=`run-ubm-knowledge-sync` (ナレッジソース差分検知→6カテゴリ抽出→knowledge/*.json 保存)。両者の既存契約は本計画で無改変。
-- **C 番号 3 系統の対照**: 要件 C1-C12 / elegant-review C1-C4 / component C01-C09 は独立番号体系。C05はharness artifact index producer、C08はknowledge relation producer、C09は非処方コーチング型相談orchestrator。
+- **C 番号 3 系統の対照**: 要件 C1-C12 / elegant-review C1-C4 / component C01-C11 は独立番号体系。C09は相談orchestrator、C10は明示command入口、C11はrole/source付きsession validator。
 
 ## インフラ
 - **実行環境**: スクリプトは Python 標準ライブラリのみ (.sh/.js 新規禁止・scripts 内 yaml import 禁止)。lint/スクリプト起動は repo-root cwd 前提、skill 資産は self-relative 参照。
@@ -118,10 +118,10 @@ plugin_meta:
 - [ ] 要件 C6: C08が根拠付き依存辺を生成し、C06がDAGを決定論構築・検証し、C07がconsultする。
 - [ ] 要件 C7: 新規グラフ機構 (C06) と既存 router-registry パターン (router.json/registry.json) との関係 (併存・置換しない拡張) 、および plugin-dev-planner task-graph 契約からの参考要素 (nodes/depends_on/DAG非循環の概念のみ) と独自要素 (ナレッジエントリ粒度・6カテゴリ準拠) が明記されている。
 - [ ] 要件 C8: C05がtask graphだけでなくstate/report/trace/composition/EVALS/実在pathをartifact graphへ正規化し、C07が実成果物をdereferenceする。
-- [ ] 要件 C9: 新設9 component全てがcore規律とbinary acceptance contractを携帯する。
+- [ ] 要件 C9: 新設11 component全てがcore規律とbinary acceptance contractを携帯する。
 - [ ] 要件 C10: 13 phase + index + handoff が REQ1a/REQ1b/REQ1c/REQ2/REQ3/REQ4/REQ5 を漏れなく被覆し、goal-spec checklist C1-C12 の全 id が本チェックリストと「受入確認」章から引用されている。
 - [ ] 要件 C11: 既存 capability A/B の既存契約を破壊しないことが constraints に明記され (P01/P10 の非後退確認)、非後退であることが記述されている。
-- [ ] 要件 C12 (REQ5・外ループ handback 2026-07-11・承認済): 相談スキル C09 (`run-ubm-consult`) が component-inventory に含まれ、具体解の処方でなく考え方/思考フレームを提示し、引き出しでユーザー文脈を外在化し、ユーザー主導で解決策を言語化させ、目標設定以外の相談にもゴール指向 (現状→ゴール→ギャップ→次の一歩) を適用する非処方コーチング型 orchestrator として設計され、既存 capability A/B と C01-C08 を非後退で additive 拡張することが明記されている。
+- [ ] 要件 C12: C09/C10/C11 が、考え方中心の適応型協働契約、安全分岐、ユーザー発話 provenance、選択式closure、保存同意を持ち、既存 capability を非破壊 additive 拡張する。
 - [ ] 各 component が >=1 phase の `entities_covered` に出現する (orphan 0 件)。
 - [ ] 同梱決定論ゲート (core + 拡張・機械正本=`specfm.GATE_SCRIPTS`) が全 exit0 (goal-spec 要件の被覆は check-requirements-coverage が機械検査)。
 
@@ -137,7 +137,7 @@ plugin_meta:
 | harness-creator 仕様適合ギャップが解消される (REQ2・検証専用) | 既配備 run-skill-feedback (symlink) が build 前後で維持され、`lint-feedback-protocol.py --strict` が R1-R7 PASS する | P09 quality-assurance の検証専用ステップ (非 buildable) |
 | knowledge依存graphが機能する (REQ3) | C08がevidence付きnon-zero edgeを生成、C06がDAG検証、C07が既知hitを返す | C08+C06+C07 |
 | harness実成果物取得が機能する (REQ4) | C05がtask-state/route report/build trace/実在pathを突合し、C07がreal artifactを1件以上dereference | C05+C07 |
-| 目標設定以外も含む相談に非処方の考え方提示ができる (REQ5・C12) | 相談fixtureで具体解押し付けゼロ・考え方/フレーム提示≥1、引き出しでユーザー自身の言葉での解決策言語化、ゴール指向の次の一歩へ帰結・記録 | 相談 skill (C09) の IN1/OUT1 criterion |
+| 目標設定以外も含む相談でユーザーが解決策を組み立てられる (REQ5・C12) | 協働モード、安全/目標設定分岐、role=user provenance、action/reflection、保存同意を検証 | C09/C10/C11 の IN1/OUT1 + validator |
 | 既存 capability A/B が非後退である (C11) | 契約非後退 (既存 phase id/gate/出力契約・21項目・6カテゴリ・knowledge schema 既存フィールド) を回帰テストで確認し、allowlist 外ファイルは build 前後 diff 空・allowlist 内は additive (既存 entry 無変更) | P10 final-gate の非後退確認 |
 
 build 後、各 component の `feedback_contract.criteria` が criteria-test として実行され、上表の受入が PASS して初めて「purpose を満たすプラグイン改善が出来た」と確定する。`EVALS.json` の `llm_eval` はこの受入が評価系に配線されていることを宣言する。

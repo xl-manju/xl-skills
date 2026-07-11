@@ -35,20 +35,21 @@
 ### 2.2 ドメインルール
 - **フレーム源の優先順**: (1) `references/consult-frames.md`（GF-xxx カタログ・ゴール指向分解/前提検証/トレードオフ二軸/因果深掘り/逆算/やらないこと設計 等）、(2) `router.json` デュアルパスで引く既存 knowledge（原則 PR-xxx / マインドセット MS-xxx / 事例）。
 - **グラフ consult（オプション・fallback 正本＝`../../references/graph-consult-fallback-contract.md`）**: `knowledge-graph.json` があれば `consult-harness-artifact-graph.py` を `--query-type local|global|relationship` で引き、出典の裏取りに使う。`harness-artifact-graph.json` は存在時のみ `--harness-artifact-graph` に渡し、無ければ省略して **knowledge 単独 consult**（skip しない）。knowledge graph 不在は skip、破損（exit2）は WARN して skip、いずれも router.json デュアルパスへ **graceful fallback**（zero-hit は正常）。
-- **提示形式**: フレームは**2件以上の選択肢**で並べ、各々に「適用視点＝あなたの文脈（R2の4軸）ではどう当てはまるかの問い」を添える。3ステップ翻訳（①原則を引き出す→②ユーザー状況に翻訳→③行動の問いに落とす・CONST_006）で届ける。
+- **提示形式**: 通常は2件以上、reflect-only は1件以上を提示し、必要な文脈に対する適用の問いを添える。hypothesis-example の例は答えでなく検討材料と明示し、採否をユーザーに委ねる。
 - **処方の禁止**: どのフレームを選ぶかはユーザーが決める。AI は選択を代行しない（スタンス不変条件1・3）。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
 |---|---|---|---|
 | issue_statement | string | yes | R1 の本質課題 |
-| context/constraints/values/prior_attempts | object | yes | R2 の4軸 |
+| collaboration_mode | enum | yes | R1 で選択済みの支援モード（提示件数と例示の可否を左右する） |
+| relevant_context | object | yes | R2 で必要性を説明できる範囲だけ外在化した情報 |
 
 ### 2.4 出力契約
 | フィールド | 型 | 説明 |
 |---|---|---|
-| frames | object[] | {frame_id(GF-xxx), name, viewpoint(適用の問い), source_ids[](PR-xxx/MS-xxx/事例)} を2件以上 |
-| consult_evidence | string | consult script/デュアルパスの参照ポインタ（zero-hit 時はその旨） |
+| frames | object[] | {frame_id(GF-xxx), name, viewpoint(適用の問い), source_ids[](PR-xxx/MS-xxx/事例)} を2件以上（collaboration_mode=reflect-only は1件以上） |
+| consult_evidence | object | {mode(graph/router/catalog), source_refs[], zero_hit, warnings[], graph_sha} — session-record-format.md 準拠。zero-hit 時は zero_hit=true で明示 |
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -95,7 +96,7 @@
 
 ### 6.1 上位 skill との接続
 - 呼び出し元: R2-elicit の後続。
-- 後続 Step: R4-cocreate-converge — 受け渡し: frames + consult_evidence + R2 の4軸。
+- 後続 Step: R4-cocreate-converge — 受け渡し: frames + structured consult_evidence + relevant_context。
 
 ### 6.2 ハンドオフ / 並列性
 - 直列: フレーム提示後に R4 へ。inner ループ（IN1）で処方逸脱を検出したら本 phase を再実行する。

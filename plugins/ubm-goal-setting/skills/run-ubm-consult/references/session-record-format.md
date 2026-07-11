@@ -1,64 +1,73 @@
-# session-record-format.md — 相談セッション記録の形式と置き場契約
+# session-record-format.md — 相談セッション記録契約
 
-`run-ubm-consult` の出力契約（OUT1）と、相談記録の置き場を定める正本。
-実データは build では書かない（形式のみ固定）。
+`run-ubm-consult` の分岐、ユーザー主体性、保存同意、セッション分離を定める正本。逐語 transcript は保存せず、同意された最小要約だけを保存する。
 
-## 記録の4要素（OUT1）
+## 分岐別 outcome
 
-相談セッション transcript / 記録は、以下の4要素を必ず含む（`feedback_contract` OUT1 の検出対象）。
+- `redirected_goal_setting`: `issue_statement` / `handoff_to=run-ubm-goal-setting` / `referral_confirmed` で完了。R2-R4 は要求しない。
+- `safety_redirect`: `risk_class` / `handoff_to` / `referral_message` で完了。通常コーチングを続行しない。
+- `consult_completed`: `collaboration_mode`、ユーザー発話参照、提示フレーム、選択された closure を要求する。
+- R1 の `outcome=consult_continue` は途中状態であり record の outcome にはならない。R4 完了時に `consult_completed` へ写像する。
+- redirect 系 outcome（`redirected_goal_setting` / `safety_redirect`）は既定非永続（会話内で完了）。record を永続する場合は outcome に依らず `persistence_consent=true` と validator 通過が必須。
 
-1. **考え方/思考フレームの提示**: `references/consult-frames.md` の GF-xxx を **選択肢＋適用視点** で提示した記録（出典 ID: PR-xxx / MS-xxx / 事例）。処方的な単一解ではない。
-2. **引き出し質問**: 各ターンで文脈・制約・価値観・既試行を外在化した問い（スタンス不変条件2）。
-3. **ユーザー自身の言葉での解決策言語化**: 解決策の主語はユーザー。AI の代弁でない引用ベースの言語化（スタンス不変条件3）。
-4. **ゴール指向の次の一歩**: 現状→ゴール→ギャップ→次の一歩の行動計画。次の一歩は「誰に・何を・いつまで・何件」を含む物理的行動（スタンス不変条件4）。
+## 保存同意と置き場
 
-## セッション記録スキーマ（handoff）
+- 既定は `persistence_consent=false`。この場合はファイルを書かず会話内要約だけ返す。ただし record は組み立て、`validate-consult-session.py --ephemeral`（非永続前提の検証モード・consent 要求のみ免除で他検査は同一）を exit 0 で通し、通過後に破棄する（sessions/ 配下へ書き込まない）。
+- 同意時だけ `eval-log/ubm-goal-setting/run-ubm-consult/sessions/<session_id>/handoff.json` を一時ファイルから atomic rename で作る。
+- eval-log 配下のパスは repo root 起点で解決する（cwd 相対解決禁止）。
+- `latest.json` は `{session_id, path}` のポインタだけを持ち、過去 record を上書きしない。append-only `index.jsonl` へ `session_id/path/created_at/status` を追記する。
+- `session_id` は衝突しない識別子、`created_at` は ISO 8601、`retention_until` は既定30日以内。期限後は削除対象。
+- retention 掃除: `validate-consult-session.py --gc <sessions root>` が `retention_until` 超過 record と orphan を走査する。dry-run 既定・`--apply` でのみ実削除し `index.jsonl` へ `status=deleted` 行を append する。
+- handoff 無しの `sessions/<id>/` は中断 orphan として `--gc` の回収対象。R1 は開始時に orphan を検出したら再開/破棄をユーザーへ1問確認してよい。
+- `persistence_consent=true` のセッションでは user 発話の turn id＋要旨を `intermediate.jsonl` へ周回毎 append する（compaction 後の R4 transcript 再構成用）。
+- vault へは書かない。個人名、連絡先、口座・健康・法的事件などの秘匿情報は `[REDACTED]` または抽象化要約にする。
 
-`goal_seek.handoff`（`handoff-run-ubm-consult.json`）に以下の形で記録する。
+## consult_completed schema
 
 ```json
 {
-  "consult_type": "other",
-  "issue_statement": "ユーザーの言葉で確認済みの本質課題1文",
-  "elicited": {
-    "context": "現状・フェーズ・登場人物",
-    "constraints": ["時間/資源/関係/譲れない条件"],
-    "values": ["大事にしたいこと・避けたいこと"],
-    "prior_attempts": ["既試行とその結果"]
-  },
+  "schema_version": "1.0",
+  "outcome": "consult_completed",
+  "session_id": "20260711T120000Z-a1b2c3",
+  "created_at": "2026-07-11T12:00:00Z",
+  "retention_until": "2026-08-10T12:00:00Z",
+  "persistence_consent": true,
+  "collaboration_mode": "framework-led",
+  "issue_statement": "ユーザー確認済みの本質課題",
+  "elicited": {"context": "必要な範囲", "constraints": [], "values": [], "prior_attempts": []},
   "frames_presented": [
-    {"frame_id": "GF-01", "name": "ゴール指向分解", "viewpoint": "適用の問い", "source_ids": ["PR-xxx", "MS-xxx"]},
-    {"frame_id": "GF-04", "name": "因果深掘り", "viewpoint": "適用の問い", "source_ids": ["PR-032"]}
+    {"frame_id": "GF-01", "viewpoint": "適用の問い", "source_ids": ["PR-001"]}
   ],
-  "user_solution": "ユーザー自身の言葉で言語化した解決策（引用ベース）",
-  "action_plan": {
+  "user_solution": {
+    "text": "ユーザー自身が選んだ考え方",
+    "source_turn_ids": ["u-04"]
+  },
+  "closure": {
+    "type": "action",
     "current": "現状",
-    "goal": "ゴール",
-    "gap": "ギャップ",
-    "next_step": "誰に・何を・いつまで・何件を含む物理的行動"
+    "goal": "望む状態",
+    "gap": "差",
+    "next_step": "ユーザーが選んだ次の一歩"
   },
-  "stance_self_check": {
-    "no_prescription": true,
-    "elicit_question_each_turn": true,
-    "user_verbalized": true,
-    "goal_oriented_closure": true
+  "consult_evidence": {
+    "mode": "graph",
+    "source_refs": ["knowledge-graph.json#nodes[id=PR-001]"],
+    "zero_hit": false,
+    "warnings": [],
+    "graph_sha": "sha256:..."
   },
-  "consult_evidence": "consult script / router.json デュアルパスの参照ポインタ（zero-hit 時はその旨）",
+  "user_feedback": {"mode_fit": "yes", "ownership_confirmed": true, "next_time": ""},
+  "stance_self_check": {"no_prescription": true, "user_verbalized": true},
   "open_issues": []
 }
 ```
 
-`frames_presented` は2件以上（R3 の選択肢提示）。`stance_self_check` の4フラグは IN1/OUT1 の自己検証結果。
+`closure.type=reflection` の場合は `insight` / `not_deciding_yet` / `resume_when` を必須とし、action fields は要求しない。`collaboration_mode` は `question-led|framework-led|hypothesis-example|reflect-only`。具体例は `hypothesis-example` でユーザーが望んだ場合だけ、検討材料として提示する。
 
-## 置き場契約（重要）
+## role/source 契約
 
-- **正本の記録先は eval-log 配下の handoff（vault 外・固定パス）**: `eval-log/ubm-goal-setting/run-ubm-consult/handoff-run-ubm-consult.json`（repo root 起点の相対）。goal-seek の progress / intermediate も同ディレクトリ。このパスは唯一の規約であり、consumer（下記）はこの固定パスだけを読む。
-- **consumer（相談→目標設定のループ辺）**: `agents/info-collector.md` の Phase1-2-collect が本 handoff を **read-only** で参照し、直近の相談の `issue_statement` / `user_solution` / `action_plan.next_step` を目標設定対話（Phase 3）の文脈に引き継ぐ。不在なら graceful skip する（相談を一度もしていない初回でも壊れない）。相談の帰結を目標へ機械配線する唯一の辺。
-- **vault へは書かない**: `run-ubm-goal-setting` の出力規約では vault 内書込は `ubm-write-path-guard` により `05_Project/UBM/目標設定/` 配下と `02_Configs/Templates/Daily.md` のみ許可される。相談記録はどちらにも該当しないため、guard に fail-closed で阻まれる。本 skill は vault へ相談記録を書かない（意味的にも 目標設定 ≠ 相談 で衝突を避ける）。
-- **vault へ残したい場合**: ユーザー自身の操作（手動保存）に委ねる。本 skill の write scope 外とする。
-- **目標設定へ接続する場合**: 相談の帰結（次の一歩）が週報/月報/期報の目標に発展するなら、`run-ubm-goal-setting` を起動して正式な目標設定ファイルを作る（責務境界）。本 skill の handoff はその入力メモとして参照できる。
+`user_solution.source_turn_ids` は runtime transcript の `role=user` の turn id だけを参照する。AI 発話内の「ユーザー:」という文字列は provenance にならない。R4 完了前に `validate-consult-session.py --record <handoff> --transcript <role付きJSON>` を exit 0 で通す。
 
-## 決定論と非後退
+## 目標設定 consumer
 
-- 記録形式は本ファイルが唯一の正本。SKILL.md / prompts は本ファイルを参照し、二重定義しない。
-- 既存 capability A（21項目）/ B（6カテゴリ）の成果物・knowledge 実データを変更しない（additive）。
+`agents/info-collector.md` は `latest.json` を read-only で解決し、同意済み `consult_completed` だけを読む。不在、期限切れ、redirect/safety outcome は graceful skip。複数件を使う場合は `index.jsonl` から明示的に最新N件を選ぶ。

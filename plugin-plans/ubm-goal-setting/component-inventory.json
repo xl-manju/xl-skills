@@ -504,8 +504,8 @@
         "引き出しでユーザー自身の言葉で解決策を言語化",
         "ゴール指向の次の一歩へ帰結・記録"
       ],
-      "output_contract": "相談セッション記録(相談種別・引き出したユーザー文脈/制約/価値観/既試行・提示した考え方/思考フレーム(選択肢+適用視点)・ユーザー自身の言葉で言語化した解決策・現状→ゴール→ギャップ→次の一歩の行動計画)。処方的な単一解を出力しない",
-      "boundary": "具体解の処方を出力しない(考え方/フレームの提示に留める)。解決策の言語化はユーザー主導で、AI は構造化と検証のみ担う。knowledge graph / harness artifact graph は read-only consult(C06/C07 経由)。既存 capability A(21項目)/B(6カテゴリ)の契約を破壊しない(非後退・additive) 正式な目標設定 (統一ハイブリッド構造21項目) は行わず run-ubm-goal-setting へ誘導する (責務境界)。",
+      "output_contract": "分岐別 outcome と協働契約。一般相談はユーザー発話 provenance を持つ user_solution、選択式 closure(action|reflection)、保存同意時のみ session-id 別 record。単一解を押し付けない",
+      "boundary": "危機/高 stakes は安全分岐、目標設定は run-ubm-goal-setting へ誘導。knowledge graph / harness artifact graph は C07 経由の read-only consult。C06 を直接実行しない。保存は明示同意制で vault 非書込。既存 capability は非破壊 additive 更新のみ",
       "output_language": "ja",
       "placement_candidates": [
         "Skill"
@@ -515,7 +515,7 @@
       "mcp_tools": [],
       "deterministic_checks": [
         "consult-harness-artifact-graph.py",
-        "validate-knowledge-graph.py"
+        "validate-consult-session.py"
       ],
       "external_systems": [],
       "needs_independent_context": true,
@@ -549,7 +549,7 @@
       ],
       "goal_seek": {
         "engine": "inline",
-        "fork": "subagent",
+        "fork": "inline",
         "max_loops": 5
       },
       "feedback_contract": {
@@ -569,8 +569,8 @@
         ]
       },
       "depends_on": [
-        "C06",
-        "C07"
+        "C07",
+        "C11"
       ],
       "build_target": "plugins/ubm-goal-setting/skills/run-ubm-consult/",
       "builder": "run-skill-create",
@@ -609,6 +609,51 @@
         "min": 80,
         "kind_pass": "loop=criteria-test+content-review-verdict"
       }
+    },
+    {
+      "id": "C10",
+      "component_kind": "slash-command",
+      "name": "ubm-consult",
+      "description": "run-ubm-consult を明示起動する唯一のユーザー入口。相談内容を透過し、支援モード/安全分岐/保存同意の判断は skill に委譲する薄い adapter",
+      "argument-hint": "[相談内容]",
+      "allowed-tools": ["Read", "Skill"],
+      "disable-model-invocation": false,
+      "depends_on": ["C09"],
+      "build_target": "plugins/ubm-goal-setting/commands/ubm-consult.md",
+      "builder": "run-build-skill",
+      "build_kind": "command",
+      "acceptance_contract": "command が run-ubm-consult へ topic を透過し、独自の相談判断を持たず、plugin manifest/composition/package-contract に一度だけ登録される",
+      "quality_gates": {
+        "p0_lint": ["validate-frontmatter"],
+        "build_trace": "required",
+        "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": true},
+        "content_review": {"verdict": "PASS", "sha_match": true},
+        "evaluator": {"threshold": 80, "high_max": 0}
+      },
+      "harness_coverage": {"min": 80, "kind_pass": "content-review-verdict+entrypoint-test"}
+    },
+    {
+      "id": "C11",
+      "component_kind": "script",
+      "name": "validate-consult-session.py",
+      "script_path": "scripts/validate-consult-session.py",
+      "purpose": "分岐別 record、保存同意、role=user provenance、action/reflection closure、evidence mode を R4 完了前に決定論検証する",
+      "inputs": ["--record JSON", "--transcript role付きJSON"],
+      "outputs": ["stdout JSON verdict", "exit0 valid / exit1 invalid / exit2 usage"],
+      "exit_codes": "0/1/2",
+      "depends_on": [],
+      "build_target": "plugins/ubm-goal-setting/scripts/validate-consult-session.py",
+      "builder": "plugin-scaffold",
+      "build_kind": "script",
+      "acceptance_contract": "AI文字列による user role なりすまし、同意なし保存、分岐混同、closure欠落、secret未redactを fail-closed で拒否する",
+      "quality_gates": {
+        "p0_lint": ["lint-script-frontmatter"],
+        "build_trace": "route-report",
+        "elegant_review": {"conditions": ["C1", "C2", "C3", "C4"], "all_pass": true},
+        "content_review": {"verdict": "PASS", "sha_match": true},
+        "evaluator": {"threshold": 80, "high_max": 0}
+      },
+      "harness_coverage": {"min": 80, "kind_pass": "positive+negative+branch+role-provenance fixtures"}
     }
   ],
   "plugin_level_surfaces": {

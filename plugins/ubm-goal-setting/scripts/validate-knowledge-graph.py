@@ -7,8 +7,11 @@
 #          (辺候補 JSON を返すのみ) ゆえ永続化 owner が不在だったため、本 script が --merge-relations で
 #          候補を canonical key (source_id,target_id,relation_type) により knowledge-relations.json へ
 #          冪等 merge (既存辺は保持=first-write-wins)、検証 PASS 時のみ relations と graph を atomic 書込する。
-#          参照整合・self-loop 禁止・depends_on の DAG 非循環・edge evidence≥1・confidence 0..1・
+#          self-loop 禁止・depends_on の DAG 非循環・edge evidence≥1・confidence 0..1・
 #          review_status 必須を検査する。related は無方向連想として cycle 対象外・dangling は非致命 drop。
+#          endpoint 不在 (dangling) の辺は hard-fail にせず knowledge-relations-quarantine.json へ
+#          冪等退避 (WARN) し、残辺で graph 生成を継続する縮退を持つ (entry 削除で辺が恒久ブロックに
+#          ならないため)。quarantine された辺は knowledge-relations.json から除去される。
 # inputs:
 #   - argv: --knowledge-dir DIR [--graph-out FILE] [--merge-relations CANDIDATE_FILE]
 #   - file: <knowledge-dir>/knowledge-relations.json (辺の永続ストア・不在は空辺として扱う)
@@ -16,13 +19,15 @@
 #   - file: <knowledge-dir>/*.json のうち entries[] を持つ category ファイル群
 # outputs:
 #   - stdout: OK + node/edge/association 件数・relations 状態 (absent/loaded/merged)・graph-out パス
-#   - stderr: violation 一覧 (dangling/self-loop/evidence欠落/confidence範囲外/review_status欠落/cycle 等)
+#   - stderr: violation 一覧 (self-loop/evidence欠落/confidence範囲外/review_status欠落/cycle 等) と
+#             WARN (dangling 辺の quarantine 退避・edges=0 の退化グラフ)
 #   - file: graph-out (既定 <knowledge-dir>/knowledge-graph.json) ※検証 PASS 時のみ書込
-#   - file: <knowledge-dir>/knowledge-relations.json ※--merge-relations かつ検証 PASS 時のみ atomic 書込
+#   - file: <knowledge-dir>/knowledge-relations.json ※(--merge-relations または quarantine 発生) かつ検証 PASS 時のみ atomic 書込
+#   - file: <knowledge-dir>/knowledge-relations-quarantine.json ※dangling 辺検出かつ検証 PASS 時のみ冪等追記
 #   - exit: 0=OK / 1=violation / 2=usage
 # contexts: [E, C]
 # network: false
-# write-scope: graph-out と (--merge-relations 時) knowledge-relations.json のみ
+# write-scope: graph-out / knowledge-relations.json / knowledge-relations-quarantine.json のみ
 # dependencies: []
 # requires-python: ">=3.9"
 # ///
@@ -43,6 +48,11 @@ confidence/review_status を含め保持し (human review 済み status を候�
 未知 key の候補のみ append する。同じ候補を二度 merge しても knowledge-relations.json は byte-identical で
 不変。merge は atomic で、検証 PASS 時のみ relations と graph の双方を書き、FAIL 時は双方とも書かない
 (壊れた辺・循環を永続化しない)。
+
+dangling (endpoint の entry 不在) だけは violation でなく縮退: entry 削除で dangling 化した辺が
+graph 再生成を恒久ブロックしないよう、該当辺を knowledge-relations-quarantine.json へ canonical key で
+冪等退避 (first-write-wins) し WARN を出し、残辺で検証・生成を続行する。quarantine 後の残グラフに対する
+fail-closed 性 (violation 時は一切書かない・cycle 検査等) は従来通り維持する。
 """
 from __future__ import annotations
 
@@ -54,6 +64,7 @@ from pathlib import Path
 SCHEMA_VERSION = "1.0.0"
 GENERATOR = "validate-knowledge-graph.py"
 RELATIONS_FILENAME = "knowledge-relations.json"
+QUARANTINE_FILENAME = "knowledge-relations-quarantine.json"
 DEFAULT_GRAPH_FILENAME = "knowledge-graph.json"
 
 ALLOWED_RELATIONS = ("depends_on", "supports", "contradicts", "derived_from")
@@ -61,7 +72,7 @@ DAG_RELATION = "depends_on"
 EDGE_FIELDS = ("source_id", "target_id", "relation_type", "evidence", "source_ref", "confidence", "review_status")
 
 # entry ファイル走査から除外する派生/管理ファイル。加えて entries[] 述語でも弾かれるが二重に閉じる。
-DERIVED_FILENAMES = {RELATIONS_FILENAME, DEFAULT_GRAPH_FILENAME, "harness-artifact-graph.json"}
+DERIVED_FILENAMES = {RELATIONS_FILENAME, QUARANTINE_FILENAME, DEFAULT_GRAPH_FILENAME, "harness-artifact-graph.json"}
 
 
 def _canonical(obj) -> str:
@@ -183,6 +194,48 @@ def merge_relations(existing: list, candidate: list) -> tuple[list[dict], int, i
             added += 1
     ordered = [merged[key] for key in sorted(merged)]
     return ordered, added, kept
+
+
+def partition_dangling(edges: list, node_ids: set[str]) -> tuple[list, list[dict]]:
+    """endpoint 不在 (dangling) の辺を quarantine 対象として分離する。
+
+    quarantine 対象 = 構造的には辺の体裁 (非空 str の source_id/target_id・許可 relation_type・
+    非 self-loop) を満たすが、endpoint のどちらかが entry 不在の辺。entry 削除で dangling 化した
+    正常辺を hard-fail (恒久ブロック) にせず退避するための縮退であり、構造不正な辺はここで
+    分離せず validate_edges の violation (fail-closed) に残す。戻り値 (kept, quarantined)。
+    """
+    kept: list = []
+    quarantined: list[dict] = []
+    for edge in edges:
+        if (
+            isinstance(edge, dict)
+            and isinstance(edge.get("source_id"), str) and edge["source_id"]
+            and isinstance(edge.get("target_id"), str) and edge["target_id"]
+            and edge.get("relation_type") in ALLOWED_RELATIONS
+            and edge["source_id"] != edge["target_id"]
+            and (edge["source_id"] not in node_ids or edge["target_id"] not in node_ids)
+        ):
+            quarantined.append(edge)
+        else:
+            kept.append(edge)
+    quarantined.sort(key=_relation_key)
+    return kept, quarantined
+
+
+def load_quarantine(quarantine_path: Path) -> list:
+    """既存 quarantine ストアを読む。不在・解析不能は空扱い (quarantine は復旧用の退避先であり
+    本体検証を巻き込まない)。"""
+    if not quarantine_path.exists():
+        return []
+    try:
+        data = json.loads(quarantine_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and isinstance(data.get("edges"), list):
+        return data["edges"]
+    return []
 
 
 def validate_edges(edges: list, node_ids: set[str]) -> tuple[list[dict], list[str]]:
@@ -378,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
 
     graph_out = Path(args.graph_out) if args.graph_out else knowledge_dir / DEFAULT_GRAPH_FILENAME
     relations_path = knowledge_dir / RELATIONS_FILENAME
+    quarantine_path = knowledge_dir / QUARANTINE_FILENAME
 
     violations: list[str] = []
 
@@ -414,6 +468,20 @@ def main(argv: list[str] | None = None) -> int:
         raw_edges, rel_status, rel_violations = load_relations(relations_path)
         violations.extend(rel_violations)
 
+    # dangling (endpoint 不在) は violation でなく quarantine 縮退: entry 削除で辺が graph 再生成を
+    # 恒久ブロックしないよう分離し、残辺で検証・生成を続行する。永続化 (退避先追記 + relations から
+    # 除去) は fail-closed 維持のため検証 PASS 時のみ行う。
+    raw_edges, quarantined = partition_dangling(raw_edges, node_ids)
+    if merged_relations is not None:
+        merged_relations = raw_edges
+    if quarantined:
+        print(
+            f"WARN: dangling 辺 {len(quarantined)} 件を {QUARANTINE_FILENAME} へ退避する "
+            "(endpoint の entry 不在・graph から除外)", file=sys.stderr,
+        )
+        for e in quarantined:
+            print(f"  - {e['source_id']} -{e['relation_type']}-> {e['target_id']}", file=sys.stderr)
+
     canonical_edges, edge_violations = validate_edges(raw_edges, node_ids)
     violations.extend(edge_violations)
 
@@ -431,10 +499,27 @@ def main(argv: list[str] | None = None) -> int:
         print(f"nodes={len(nodes)} edges(raw)={len(raw_edges)} relations={rel_status}", file=sys.stderr)
         return 1
 
-    # 検証 PASS。merge した場合のみ辺ストアを canonical 書込する (atomic: 検証を通った辺だけ永続化)。
-    if merged_relations is not None:
+    # 検証 PASS。quarantine 発生時は退避先へ canonical key で冪等追記する (first-write-wins・
+    # 再実行で byte-identical)。fail-closed 維持のため FAIL 時はここへ到達せず何も書かない。
+    if quarantined:
+        merged_quarantine, _q_added, _q_kept = merge_relations(load_quarantine(quarantine_path), quarantined)
+        quarantine_payload = json.dumps(
+            {"schema_version": SCHEMA_VERSION, "edges": merged_quarantine},
+            ensure_ascii=False, indent=2, sort_keys=True,
+        ) + "\n"
+        try:
+            quarantine_path.parent.mkdir(parents=True, exist_ok=True)
+            quarantine_path.write_text(quarantine_payload, encoding="utf-8")
+        except OSError as exc:
+            print(f"usage error: {QUARANTINE_FILENAME} 書込失敗: {quarantine_path}: {exc}", file=sys.stderr)
+            return 2
+
+    # merge した場合、および quarantine で辺を除去した場合のみ辺ストアを canonical 書込する
+    # (atomic: 検証を通った辺だけ永続化。quarantine 辺は knowledge-relations.json から除去される)。
+    if merged_relations is not None or quarantined:
+        store_edges = merged_relations if merged_relations is not None else sorted(raw_edges, key=_relation_key)
         relations_payload = json.dumps(
-            {"schema_version": SCHEMA_VERSION, "edges": merged_relations},
+            {"schema_version": SCHEMA_VERSION, "edges": store_edges},
             ensure_ascii=False, indent=2, sort_keys=True,
         ) + "\n"
         try:
@@ -453,6 +538,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"usage error: graph-out 書込失敗: {graph_out}: {exc}", file=sys.stderr)
         return 2
 
+    # 退化セルの可視化: 辺 0 本の graph は zero-hit 正常だが consult 価値が出ないため WARN で表面化する
+    # (exit0 維持・stderr のみ。既存 corpus への初回適用は RUNBOOK の初回 edge backfill 手順)。
+    if graph["edge_count"] == 0:
+        print(
+            "WARN: knowledge graph の edges=0 (辺が1本も無い退化グラフ)。"
+            "既存 corpus への初回適用は RUNBOOK の「初回 edge backfill」手順を参照",
+            file=sys.stderr,
+        )
     if rel_status == "absent":
         print(f"note: {relations_path.name} が無いため空辺として扱った (edges=0)")
     if rel_status == "merged":

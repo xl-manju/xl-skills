@@ -103,7 +103,7 @@ dependencies:
   - { from: agents/knowledge-extractor, to: knowledge/schema.json, type: writes, note: "6カテゴリ分類を schema 準拠で書込 (共有 SSOT)" }
 
   # [2026-07-11 improvement-plan] YouTube ingest + knowledge/harness graph + consult の主要 DAG。
-  # build-order は component-inventory.json の depends_on と一致し非循環 (C01,C08→C06→C05→C07 / C01,C06→C02→C03,C04 / C06,C07→C09)。
+  # build-order は component-inventory.json の depends_on と一致し非循環 (C01,C08→C06→C05→C07 / C01,C06→C02→C03,C04 / C07→C09→C10)。
   - { from: skills/run-ubm-youtube-ingest, to: agents/youtube-transcript-normalizer, type: calls }
   - { from: skills/run-ubm-youtube-ingest, to: agents/knowledge-relation-extractor,  type: calls }
   - { from: skills/run-ubm-youtube-ingest, to: scripts/validate-knowledge-graph.py,  type: calls }
@@ -116,7 +116,7 @@ dependencies:
   - { from: scripts/consult-harness-artifact-graph.py, to: scripts/index-harness-artifact-graph.py, type: reads }
   - { from: scripts/consult-harness-artifact-graph.py, to: scripts/validate-knowledge-graph.py,     type: reads }
   - { from: skills/run-ubm-consult, to: scripts/consult-harness-artifact-graph.py, type: calls }
-  - { from: skills/run-ubm-consult, to: scripts/validate-knowledge-graph.py,       type: calls }
+  - { from: skills/run-ubm-consult, to: scripts/validate-consult-session.py,       type: calls }
   - { from: commands/ubm-consult,   to: skills/run-ubm-consult, type: calls }
 
 eval_sinks:

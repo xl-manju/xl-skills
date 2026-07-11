@@ -7,7 +7,7 @@ prev_phase: 8
 next_phase: 10
 status: 未実施
 gate_type: qa
-entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09]
+entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11]
 applicability:
   applicable: true
   reason: ""
@@ -16,7 +16,7 @@ applicability:
 # P09 — quality-assurance (品質保証)
 
 ## 目的
-全9 componentのP0/build-trace/schema/content-reviewとend-to-end automation/fullness/graph/artifact provenanceを検証するqa gate。
+全11 componentのP0/build-trace/schema/content-reviewとend-to-end automation/fullness/graph/artifact provenanceを検証するqa gate。
 
 ## 背景
 各 component が携帯する quality_gates ブロックを実際に機械実行して qa gate とする。content-review verdict は現 SHA で genuine に生成されていなければ偽装 (SHA 書換だけの見せかけ) になりうるため、独立 SubAgent で現 SHA から再生成する。これが「保証要件は機械層で担保する」原則の適用点。
@@ -34,7 +34,7 @@ applicability:
 
 ## 成果物
 - 全 component の P0 lint / build-trace / schema parity / content-review verdict の結果一式。
-- EVALS.jsonへの新設9 component分と無人sync/content coverage/non-zero edge/real artifact/redaction/相談スタンス(非処方+4要素)のend-to-end gate追加。
+- EVALS.jsonへの新設11 component分と無人sync/content coverage/non-zero edge/real artifact/redaction/相談スタンス・role provenance・command entrypointのend-to-end gate追加。
 - REQ2 検証専用ステップ (run-skill-feedback symlink 維持確認 + lint-feedback-protocol.py --strict PASS) の実行結果。
 
 ## スコープ外
@@ -46,12 +46,12 @@ applicability:
 - [ ] 全 component で P0 lint が component_kind 別に exit0。
 - [ ] build-trace coverage が全 component で PASS し、schema parity (frontmatter↔schema required) が一致。
 - [ ] content-review verdict=PASS・sha_match=true を独立 SubAgent の現 SHA 再生成で得ている。
-- [ ] EVALS、manifest、composition、package-contractが9 componentと完全parityである。
+- [ ] EVALS、manifest、composition、package-contractが11 componentと完全parityである。
 - [ ] 全script routeのexecutor dry-runとdomain acceptanceがPASSする。
 - [ ] (検証専用・非 buildable) REQ2: `plugins/ubm-goal-setting/skills/run-skill-feedback` が harness-creator SSOT への symlink のまま維持され、`scripts/lint-feedback-protocol.py --strict` が R1-R7 PASS する。
 
 ### 受入例
-manifest/composition/package/EVALS parity、9 component gates、feedback symlink維持が全PASSする。
+manifest/composition/package/EVALS parity、11 component gates、feedback symlink維持が全PASSする。
 
 ### 事前解決済み判断
 content-review SHA手書換は無効。独立contextのgenuine verdictだけを受理する。
@@ -60,4 +60,4 @@ content-review SHA手書換は無効。独立contextのgenuine verdictだけを�
 - component_kind 別 p0_lint 集合 (`specfm.P0_LINT_BY_KIND`)。
 - content-review verdict 契約 (現 SHA genuine 再生成)。
 - `scripts/lint-feedback-protocol.py` (REQ2 検証専用ステップ)。
-- 対象 component C01-C09、後続 P10。
+- 対象 component C01-C11、後続 P10。

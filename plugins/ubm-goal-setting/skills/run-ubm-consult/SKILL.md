@@ -9,6 +9,7 @@ allowed-tools:
   - Read
   - Write
   - Edit
+  - AskUserQuestion
   - Bash
   - Glob
   - Grep
@@ -30,10 +31,10 @@ combinators:
   - with-feedback-contract
 goal_seek:
   engine: inline
-  fork: subagent
-  progress: eval-log/ubm-goal-setting/run-ubm-consult/goal-seek-progress.json
-  intermediate: eval-log/ubm-goal-setting/run-ubm-consult/run-ubm-consult-intermediate.jsonl
-  handoff: eval-log/ubm-goal-setting/run-ubm-consult/handoff-run-ubm-consult.json
+  fork: inline
+  progress: eval-log/ubm-goal-setting/run-ubm-consult/sessions/{{session_id}}/progress.json
+  intermediate: eval-log/ubm-goal-setting/run-ubm-consult/sessions/{{session_id}}/intermediate.jsonl
+  handoff: eval-log/ubm-goal-setting/run-ubm-consult/sessions/{{session_id}}/handoff.json
   max_loops: 5
 responsibility_refs:
   - prompts/R1-intake-issue.md
@@ -50,7 +51,7 @@ knowledge_loop:
   consult_at: [runtime]
 script_refs:
   - ../../scripts/consult-harness-artifact-graph.py
-  - ../../scripts/validate-knowledge-graph.py
+  - ../../scripts/validate-consult-session.py
 reference_refs:
   - references/consult-frames.md
   - references/session-record-format.md
@@ -99,14 +100,14 @@ feedback_contract:
 本 skill の全ターンで不変。逸脱は open_issues に残し差し戻す。
 
 1. **具体解の押し付けゼロ** — 提案は「考え方・視点・フレーム」＋適用のための問いに留める。「あなたは○○すべき」という単一の処方解を出さない。
-2. **各ターンで引き出し質問 ≥1** — 情報を返すだけで終えず、ユーザーの文脈を外在化する問いを最低1つ添える。
+2. **共同判断が残るターンで引き出し質問 ≥1** — 情報不足や選択が残るときは問いを最低1つ添える。ユーザーが停止・要約のみ・安全分岐・最終確認を求めたターンでは質問を強制しない。
 3. **解決策の言語化はユーザーの発話から** — 解決策の主語は常にユーザー。AI は構造化・要約・検証のみを担い、ユーザーの言葉を先取りして代弁しない。
-4. **収束は「現状→ゴール→ギャップ→次の一歩」形式の行動計画** — 目標設定以外の相談でもこのゴール指向で締める。
+4. **収束方法はユーザーが選ぶ** — 行動化を望む場合は「現状→ゴール→ギャップ→次の一歩」で締める。整理・内省を望む場合は「見えてきたこと→まだ決めないこと→再開条件」で締める。
 5. **責務境界** — 週報/月報/期報の目標設定そのものを作りたい相談は `run-ubm-goal-setting へ誘導` し、本 skill では作成しない。
 
 ## ゴールシーク実行
 
-固定手順を消化するのでなく、上記ゴールと `feedback_contract` を満たすまで反復する（engine=inline / fork=subagent / max_loops=5）。
+固定手順を消化するのでなく、上記ゴールと `feedback_contract` を満たすまでユーザー向け親コンテキストで反復する（engine=inline / fork=inline / max_loops=5）。SubAgent は read-only 検索や自己検証にだけ使い、ユーザーとの対話を隔離しない。
 
 ### ゴール (Goal)
 
@@ -119,16 +120,17 @@ feedback_contract:
 ### 完了チェックリスト (Checklist)
 
 - [ ] 相談種別が判定され、本質課題がユーザーの言葉で1文に言語化されている（R1）。目標設定相談は `run-ubm-goal-setting` へ誘導した。
-- [ ] 引き出し質問でユーザーの文脈・制約・価値観・既試行が外在化されている（R2・各ターン引き出し質問 ≥1）。
+- [ ] collaboration_mode に必要な文脈だけが外在化され、停止・要約要求が尊重されている（R2）。
 - [ ] 考え方/思考フレームが**複数の選択肢＋適用視点**として出典 ID（PR-xxx / MS-xxx / 事例）付きで提示され、具体解の処方をしていない（R3・IN1）。
 - [ ] ユーザー自身の言葉で解決策が言語化され、現状→ゴール→ギャップ→次の一歩の行動計画へ帰結し記録された（R4・OUT1）。
+- [ ] persistence_consent=false でも ephemeral record を組み立て `validate-consult-session.py --ephemeral`（consent 要求のみ免除・他検査は同一）を exit 0 で通し、通過後に破棄した（sessions/ 配下へ書き込まない。一時検証ファイルは scratch に置く）。
 
 ### ゴールシークループ
 
 正本 `../run-ubm-goal-setting` と同じく `goal_seek` 配線に従う。本 skill 固有の差分:
 
-- `goal_seek.progress` に checklist 状態・iteration・`open_issues`・`status` を記録。各周回末の Anchor Step で `run-ubm-consult-intermediate.jsonl` に `original_goal`/`current_goal_snapshot`/`delta_from_original`/`merged_directive_for_next`/`drift_signal` を append-only。完了時に相談種別・提示フレーム ID・言語化解決策・行動計画を `handoff-run-ubm-consult.json` へ書く（`references/session-record-format.md` の形式）。
-- ループ本体は SubAgent context で実行し、親へ返すのはセッション記録要約・handoff・未解決 `open_issues` のみ。
+- 保存同意時だけ session-id 配下の progress/intermediate/handoff を書く。非同意時は会話内状態だけで進め、ファイルを作らない。完了 record は `references/session-record-format.md` に従い C11 で検証する。
+- ループ本体は user-facing 親 context で実行する。SubAgent を使う場合も knowledge 検索・非処方チェックだけを委譲し、質問と回答の往復は親が所有する。
 - **inner ループ (IN1)**: 各周回で「具体解を処方していないか（スタンス不変条件1）」「考え方/フレームを1件以上提示したか」を自己検証し、逸脱を検出したら R3 を再実行する。
 - **outer ループ (OUT1)**: 相談セッション transcript に考え方提示・引き出し質問・ユーザー自身の言葉での解決策言語化・ゴール指向の次の一歩の4要素が揃うまで反復し、受入テストで確認する。
 - `max_loops` 到達時は PASS 扱いせず、残チェックを `open_issues` に残して human review へ差し戻す。
@@ -136,6 +138,9 @@ feedback_contract:
 ## Key Rules
 
 - **処方でなく考え方**: R3 は「あなたは○○すべき」でなく「こういう見方（フレーム）があります。あなたの場合はどう当てはまりますか？」の形で複数フレームを並べる。北原原則/マインドセットの引用は1対話あたり1〜2件までとし、必ず①原則を引き出す→②ユーザー状況に翻訳→③行動に落とす3ステップで届ける（phase3-coordinator の CONST_004/CONST_006 に準拠）。
+- **協働契約を最初に選ぶ**: R1 で `question-led`（問い中心）/ `framework-led`（考え方の説明中心）/ `hypothesis-example`（例を答えでなく検討材料として少量提示）/ `reflect-only`（整理だけ）の希望を確認する。AI がモードを一方的に決めない。
+- **安全分岐を先に行う**: 自傷・他害・緊急危機は通常コーチングを止め、地域の緊急窓口や信頼できる人への即時連絡を優先する。医療・法律・金融など高 stakes は一般的な考え方の整理に限定し、個別判断は有資格者へ委ねる。
+- **保存は同意制**: セッション記録は既定では保存しない。ユーザーが保存に同意した場合だけ session-id 別の handoff を書き、秘匿情報を要約・redact する。
 - **引き出しファースト**: 情報提供の前後どちらでも、各ターンに引き出し質問を最低1つ置く。深掘りは1項目につき2回まで（追い詰めない）。
 - **解決策はユーザーの言葉で**: 収束時、解決策は必ずユーザーの発話を引用・構造化して確定する。AI が代わりに解を書き下さない。長文回答は「つまり○○ということですね？」と1文へ要約確認する。
 - **ゴール指向の締め**: 相談種別を問わず現状→ゴール→ギャップ→次の一歩で締める。次の一歩は「誰に・何を・いつまで・何件」を含む物理的行動にする。
@@ -144,14 +149,16 @@ feedback_contract:
 ## Gotchas
 
 - **相談記録は vault へ書かない**: `ubm-write-path-guard` は vault 内書込を `05_Project/UBM/目標設定/` と `02_Configs/Templates/Daily.md` のみ許可する。相談記録はそれらに該当しないため、正本は eval-log 配下の handoff（vault 外）に置く。vault へ相談メモを残したいときはユーザー自身の操作に委ね、本 skill は書き込まない（`references/session-record-format.md` 参照）。
+- **固定ファイルを直接上書きしない**: 保存同意時は `sessions/<session_id>/handoff.json` を原子的に作成し、`latest.json` は最新 session へのポインタとして更新する。並行相談を同じ progress/intermediate/handoff へ混在させない。
 - **グラフは運用時生成**: `knowledge/knowledge-graph.json`（C06）と `knowledge/harness-artifact-graph.json`（C05）は本 build では作らない。R3 の consult は harness graph だけ不在なら `--harness-artifact-graph` を省いて knowledge 単独 consult に落とし、knowledge graph も不在のときだけ `router.json` → `knowledge/*.json` の Read デュアルパスへ skip する（AND 前提にしない。正本＝`../../references/graph-consult-fallback-contract.md`）。
 - **目標設定との棲み分け**: 「今月の目標を作りたい」は本 skill の対象外。R1 で判定したら `run-ubm-goal-setting` を案内して終える（責務境界）。
 - **思考法の名前は出さない**: フレームは質問の形で自然に適用する（phase3-coordinator CONST_003）。カタログ ID（GF-xxx）は記録・出典管理用で、対話中に技法名を振りかざさない。
+- **goal_seek パスの `{{session_id}}` は literal 書込禁止**: session_id 確定後に inline engine が展開する。テンプレートのまま `{{session_id}}` という名前のディレクトリを作らない。
 
 ## Additional Resources
 
 - **prompts**: `prompts/R{1..4}-*.md` — 責務単位 7 層プロンプト正本（verify-completeness.py で 7 層+l5-contract 検証）。
 - **agents**: `phase3-coordinator`（対話原則「愛情ある厳しさ」引き出し型の前例。R3/R4 の翻訳3ステップと回答パターン対応を参照）。plugin 直下 `agents/`。
-- **scripts**: `../../scripts/consult-harness-artifact-graph.py`（C07・read-only グラフ consult）/ `../../scripts/validate-knowledge-graph.py`（C06・graph gate、グラフ健全性の参照）。
+- **scripts**: `../../scripts/consult-harness-artifact-graph.py`（C07・read-only グラフ consult）/ `../../scripts/validate-consult-session.py`（role/source/同意/分岐を検証する R4 completion gate）。C06 は C07 の upstream producer であり、本 skill から直接呼ばない。
 - **references**: `references/consult-frames.md`（思考フレーム カタログ正本）/ `references/session-record-format.md`（OUT1 4要素の記録形式＋置き場契約）/ `references/resource-map.yaml`（Progressive Disclosure 索引）。
 - **knowledge**: plugin 直下 `knowledge/`（`router.json` → `*.json` をデュアルパス検索。原則 PR-xxx / マインドセット MS-xxx / 事例を出典として引く）。

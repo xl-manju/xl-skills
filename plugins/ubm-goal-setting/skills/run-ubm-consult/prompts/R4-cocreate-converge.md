@@ -34,22 +34,23 @@
 
 ### 2.2 ドメインルール
 - **ユーザー言語化の誘導**: 「選んだ見方を、あなたの言葉にするとどうなりますか？」でユーザーに解決策を語らせる。AI はそれを構造化・要約・検証し、飛躍や精神論（「頑張る」「意識する」）を具体化の問いへ差し戻す。
-- **ゴール指向の収束**（スタンス不変条件4）: 目標設定以外の相談でも「現状／ゴール／ギャップ／次の一歩」の4枠で締める。次の一歩は「誰に・何を・いつまで・何件」を含む物理的行動にする。
-- **記録**: `references/session-record-format.md` の形式で、相談種別・引き出した4軸・提示フレーム（出典付き）・言語化した解決策・行動計画を handoff に残す。**処方的な単一解は書かない**（ユーザーが選び言語化した内容を記録する）。
+- **選べる収束**（スタンス不変条件4）: action lane は「現状／ゴール／ギャップ／次の一歩」。reflection lane は「見えてきたこと／まだ決めないこと／再開条件」。ユーザーが選んだ lane だけを必須にする。
+- **同意制の記録**: 保存同意が true の場合だけ `references/session-record-format.md` に従い session-id 別に要約を残す。秘匿情報は redact し、逐語 transcript は保存しない。false の場合は会話内要約だけ返しファイルを書かない。
 
 ### 2.3 入力契約
 | field | type | required | 説明 |
 |---|---|---|---|
 | frames | object[] | yes | R3 の選択肢＋出典 |
-| context/constraints/values/prior_attempts | object | yes | R2 の4軸 |
+| relevant_context | object | yes | R2 で合意した範囲の情報 |
 | issue_statement | string | yes | R1 の本質課題 |
+| persistence_consent | boolean | yes | R1 で確認済みの保存同意（false でも record は組み立て validator 通過後に破棄する） |
 
 ### 2.4 出力契約
 | フィールド | 型 | 説明 |
 |---|---|---|
 | user_solution | string | ユーザー自身の言葉で言語化した解決策（引用ベース） |
-| action_plan | object | {現状, ゴール, ギャップ, 次の一歩[誰に・何を・いつまで・何件]} |
-| session_record | object | references/session-record-format.md 準拠の記録（handoff へ） |
+| closure | object | action または reflection の discriminated union |
+| session_record | object/null | 保存同意時のみ references/session-record-format.md 準拠 |
 
 ## Layer 3: インフラ層 (外部依存)
 
@@ -60,7 +61,7 @@
 | coordinator | `$CLAUDE_PLUGIN_ROOT/agents/phase3-coordinator.md` | 精神論排除・行動具体性の合格基準を確認するとき |
 
 ### 3.2 外部ツール / API
-- なし（言語化誘導と記録のみ。記録は Write で eval-log 配下 handoff へ）。
+- 保存同意時のみ Write で session-id 配下へ記録し、`validate-consult-session.py` で検証する。
 
 ## Layer 4: 共通ポリシー層
 
@@ -83,8 +84,9 @@
 
 ### 5.3 完了チェックリスト (停止条件)
 - [ ] user_solution がユーザー自身の言葉（引用ベース）で言語化されている（AI 代弁でない）
-- [ ] action_plan が現状→ゴール→ギャップ→次の一歩で埋まり、次の一歩が物理的行動になっている
-- [ ] session_record（相談種別/4軸/提示フレーム/解決策/行動計画）が handoff に記録された
+- [ ] ユーザーが action / reflection の収束 lane を選び、その lane の必須項目が埋まっている
+- [ ] persistence_consent=false でも ephemeral record を組み立て `validate-consult-session.py --ephemeral` を exit 0 で通し、通過後に破棄した（sessions/ 配下へ書き込まない）
+- [ ] persistence_consent=true なら session-id 別 record が validator を通り保存された
 
 ### 5.4 実行方式
 - 現状評価→言語化を誘導→構造化・検証→ゴール指向で締め→記録→充足まで反復する。
@@ -116,4 +118,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-R3 で選んだ見方を「あなたの言葉にすると？」でユーザーに語らせ、その発話を引用・構造化して user_solution を確定する（AI が代弁しない）。精神論は具体化へ差し戻す。現状→ゴール→ギャップ→次の一歩の行動計画へ帰結させ、次の一歩は誰に・何を・いつまで・何件を含む物理的行動にする。`references/session-record-format.md` の形式で session_record を eval-log 配下 handoff へ記録する（vault へは書かない）。5.3 を満たしたらゴールシーク handoff で完了する。余計な前置きは出力しない。
+R3 で選んだ見方を「あなたの言葉にすると？」で語ってもらい、role=user の発話参照から user_solution を確定する。action / reflection のどちらで締めるかをユーザーに選んでもらう。record は同意に依らず組み立てて `validate-consult-session.py` を exit 0 で通す（false は `--ephemeral` で検証・consent 要求のみ免除）。保存同意 false なら通過後に破棄して会話内要約だけ返し、true なら session-id 別に保存する。停止要求を最優先し、余計な質問を足さない。
