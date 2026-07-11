@@ -10,9 +10,9 @@
   "since": "2026-07-11",
   "last_audited": "2026-07-11",
   "source": "plugins/system-spec-harness",
-  "distributable": false,
-  "bundle_targets": [],
-  "bundles": [],
+  "distributable": true,
+  "bundle_targets": ["xl-skills-full"],
+  "bundles": ["xl-skills-full"],
   "category": "productivity",
   "tags": ["spec", "hearing", "system-design"],
   "entry_points": {

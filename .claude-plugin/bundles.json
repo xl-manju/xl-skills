@@ -17,7 +17,8 @@
         "skill-governance-automation",
         "skill-governance-adapters",
         "skill-governance-migration",
-        "skill-governance-secrets"
+        "skill-governance-secrets",
+        "system-spec-harness"
       ]
     },
     {

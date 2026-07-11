@@ -37,8 +37,10 @@
       }
     ]
   },
-  "distributable": false,
-  "bundle_targets": [],
+  "distributable": true,
+  "bundle_targets": [
+    "xl-skills-full"
+  ],
   "category": "productivity",
   "tags": [
     "spec",

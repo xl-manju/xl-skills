@@ -16,11 +16,12 @@ plugin_meta:
       category: Productivity
     cachebuster_for_update: true
   distribution:
-    distributable: false
-    bundles: []
+    distributable: true
+    bundles: [xl-skills-full]
   pkg_contract:
-    applicable: false
-    reason: "marketplace 配布未承認 (distributable:false) のため pkg 番号は open_issues の配布判断確定後に割当てる"
+    applicable: true
+    audit_status: pending
+    reason: "ユーザー承認により marketplace 配布 (distributable:true) 確定。xl-skills-full bundle + marketplace へ登録。PKG-001..015 の完全な package-contract 監査は time-boxed debt (config=0 の Markdown 生成 plugin のため配布契約チェックの多くは非該当・次回監査で package-contract.json を生成)"
   governance:
     runbook: required
   ci:
