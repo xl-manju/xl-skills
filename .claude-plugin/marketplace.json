@@ -113,6 +113,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "tags": ["spec", "hearing", "system-design"]
+    },
+    {
+      "name": "extract-system-blueprint",
+      "source": "./plugins/extract-system-blueprint",
+      "description": "参考システムの公開URLを認可・低負荷budget内で調査し、静的HTTP(WebFetch/stdlib静的DOM観測)+browser-render(MCP非依存のローカルheadless Chrome via Bash)の観測fact、根拠つきinference、欠測(observation_gap)を明示区別したmd+json+Mermaidのローカル章別ブループリントを生成するplugin。外部サービス連携(MCP/Notion)なしで自己完結する。",
+      "version": "0.2.0",
+      "category": "Productivity",
+      "tags": ["extraction", "blueprint", "mermaid", "documentation"]
     }
   ]
 }

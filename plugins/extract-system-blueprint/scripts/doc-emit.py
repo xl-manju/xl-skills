@@ -28,8 +28,9 @@ emit 系 (既定モード):
   design_tokens/essence/mermaid・C09/C12 の site_inventory を統合した 1 オブジェクト) を、
   章別 Markdown 6 章 (Mermaid 埋込)・blueprint.json 正本・design-tokens.json・(screen が
   提供された場合のみ) 画面別 layout.json/番号付き注釈 layout-overlay.svg・site coverage manifest・
-  sink-status へ整形して書き出す。screenshot/computed layout は browser 不使用のため通常は
-  observation_gap で screens[] は空になる (提供時のみ layout 系を emit)。テキスト系 (layout/
+  sink-status へ整形して書き出す。screenshot/computed layout は R1 browser-render(C15) 取得時に
+  screens[] へ populate され、ブラウザ不在 (exit3) 時のみ observation_gap で screens[] は空になる
+  (提供時のみ layout 系を emit)。テキスト系 (layout/
   verbatim) の PII/機微は emit 時に redact し redaction_applied へ記録する。draft_hash /
   upsert_key を同一 shape から導出し冪等再開を可能にする。外部公開 sink は持たない。
 
@@ -937,7 +938,7 @@ def check_screens(extraction: dict, out_dir: Path) -> list[str]:
     screens = extraction.get("screens")
     if not isinstance(screens, list):
         screens = []
-    # screens[] 空は browser 不使用時の正常状態 (screenshot/computed layout は observation_gap)。
+    # screens[] 空は browser-render(C15) がブラウザ不在 (exit3) だった場合の正常状態 (screenshot/computed layout は observation_gap)。
     # 取得された screen がある場合のみ実体・redaction・palette 完全性を検査する。
     key_screens = set(extraction.get("key_screens") or [])
     seen_key = set()

@@ -1,25 +1,39 @@
 {
-  "target": {"plugin": "extract-system-blueprint", "skill": "run-blueprint-apply", "skill_md_sha256": "2c47edcc2d0beafea9f0dc56d8ed397f5ee0462940396bfb4e186a51d26fa72e"},
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-blueprint-apply",
+    "skill_md_sha256": "2888de3cfe1f143c0509a8601e2dd976710ed17ca6e287d0aa112dd8c4785f61"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 0, "dependency_break": 0, "smell": 0},
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-11T12:00:00Z",
+  "reviewed_at": "2026-07-11T11:07:27Z",
   "iterations": 1,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "OUT1"],
-    "positive_feedback": [
-      "境界明確: 抽出 (C01 の対象忠実記述) と適用 (自社への判断) の分離という単一目的に責務を限定し、blueprint 本体非書換・Notion 非公開・対象 origin 非アクセスの禁則で C01/C02 への越境を遮断。R1(受理検証+4面構造化)/R2(3分類導出)/R3(emit+自己検証) の各 prompt が担当/非担当を相互排他で宣言し 1 prompt = 1 責務を守る。",
-      "SSOT規律: apply-recommendation shape は独立 schema を持たず --check-apply を唯一の機械 SSOT とし (Key Rule 4)、goal-seek anchor 検証は plugin-root 共有 validator を正本に各 skill はパスのみ渡す。局面詳細は prompts/R1-R3 を正本とし SKILL 本文は俯瞰契約に留まり二重定義ドリフトを構造的に回避。",
-      "検証可能: IN1=verify_by:script (doc-emit.py --check-apply exit0 を合成 fixture 実行で確認済・kind=fact/幻 anchor/分類逸脱は exit1 遮断)、OUT1=verify_by:test (evidence_refs+confidence からの追跡可能性を受入テストで確認) と機械層/受入層が分業し、CL-1〜CL-6 が IN1/OUT1 の derived_from へ全被覆される。"
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1"
     ],
-    "negative_feedback": [],
+    "positive_feedback": [
+      "R1/R2/R3 が全て L1-L7 を網羅し、メタ表・reproducible 明記・出力指示の分離まで 7 層規範に準拠。単一責務 (受理検証/推奨導出/emit+self-check) が担当/非担当で明確に境界付け。",
+      "IN/OUT/完了条件/禁則を Output Contract に集約し、goal-seek は original_goal_hash 改竄検出 + eval-log を repo-root 固定 (cwd 相対禁止) で追記する再現性配線を持つ。"
+    ],
+    "negative_feedback": [
+      "[medium/inconsistency] 決定論ゲート次元: IN1(verify_by:script) が verdict 事前検証と network 0 を包含するが --check-apply の機械検査対象外で R1 LLM 層に委ねられる。担保範囲と criterion 記述範囲がずれる (blocker ではない)。"
+    ],
     "iteration": 1,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "SKILL.md・prompts/R1-R3・workflow-manifest.json・doc-emit.py check_apply 実装・validate-goal-seek-anchor.py・plugin.json・plugin-composition.yaml を実読し規範次元で採点。目的適合: 『blueprint は自社適用判断を出さない』という gap を下流 skill として埋め、忠実性と自社接地性の相互汚染防止という Why が Goal/禁則/Key Rules と一貫。境界明確: proposer≠approver (C02 PASS 済のみ受理・自己判断で推奨を出さない) と effect: local-artifact が manifest phases (R1 gate=IN1 fail-closed→R2 gate=OUT1 Task fork→R3 gate=IN1 決定論自己検証) に投影され、fatal_exit_codes が実 exit 規約 (1=violation/2=usage) と一致。検証可能: 完了条件が決定論 (exit0) + verdict 事前検証 + network 0 の機械判定可能な形で列挙。SSOT規律: frontmatter (deterministic_checks/responsibility_refs/schema_refs/manifest/goal_seek/feedback_contract) は sibling run-extract-blueprint と同一規約で、参照先は全て実体へ解決 (幻 resource 0)。責務単一: 局面カタログ 3 責務が順序固定なしのゴールシークで運用され、重い導出は Task fork で親 context を汚さない。frontmatter feedback_contract の criteria (IN1/OUT1) が本文チェックリスト・Key Rules・局面カタログへ過不足なく反映され、二重定義・境界逸脱・検証不能項目は検出されないため PASS。"
+  "notes": "単一責務・IN/OUT 契約・prompt 7 層・再現性の各規範を満たし決定論ゲートも実在配線。唯一 IN1 の verify_by:script が verdict 事前検証/network 0 まで機械検証する印象を与える medium inconsistency があるが runtime edge の許容範囲で high/medium 未解決 blocker は無いため PASS。"
 }

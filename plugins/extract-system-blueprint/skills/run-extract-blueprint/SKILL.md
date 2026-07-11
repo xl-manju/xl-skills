@@ -161,7 +161,7 @@ Task で `frontend-surface-analyzer` を先行起動し fact records を得て�
 
 - **`export ESB_RUN=1` は hook に届かない**: PreToolUse hook はハーネスが別プロセスで spawn するため Bash セッション内 export を継承しない。C08 run-scoping のアクティブ化は `.esb-authz` / `.esb-verdict` ディレクトリ検出が正 (R1 冒頭の combined call で作成)。`ESB_RUN=1` はセッション起動時 env としてのみ有効。
 - **`mkdir -p .esb-authz` 単独先行は bootstrap deadlock**: dir 発見で hook が即アクティブ化し、evidence の唯一の producer である C12 (`authz-classify.py`) の Bash 呼び自身が evidence 不在=fail-closed deny (exit2) で遮断される。bootstrap は `mkdir -p ... && authz-classify` の**単一 Bash 呼び** (R1 冒頭) で行う (呼び時点は dir 不在=非アクティブで素通り、完了時に dir+evidence が揃う)。
-- **browser を使わない**: 本 skill は WebFetch + C09 静的 HTTP snapshot のみで観測し、JS 実行後 DOM・画面遷移・screenshot・computed style は観測しない。これらは `observation_gap` (blocked) として記録する (無言欠落禁止・inference へ昇格させない)。
+- **MCP を使わない (browser 観測は progressive enhancement)**: 本 skill は外部 MCP 接続を持たず、WebFetch + C09 静的 HTTP snapshot を baseline 観測とする。JS 実行後 DOM・画面遷移・screenshot・computed style は C15 `browser-render.py` (MCP 非依存のローカル headless Chrome via Bash) で取得を試み、ブラウザ不在 (exit 3=browser-unavailable) 時のみこれらを `observation_gap` (blocked) として記録する (無言欠落禁止・inference へ昇格させない)。
 - **per-run 予算は out-dir 単位**: 別 out-dir で再実行すると request budget は新規に始まる。ただし瞬間負荷レバー (並列 1・最小間隔・Retry-After・停止条件) は out-dir 非依存で常に不変。
 - **verdict receipt は cwd 相対既定**: `${ESB_VERDICT_DIR:-.esb-verdict}` は cwd 起点なので、C02 の品質評価 verdict 発行と C01 の品質判定参照は同一 cwd で回す (cwd が変わると receipt 不在=fail-closed で品質判定が読めない)。
 

@@ -73,12 +73,15 @@ def c2_projection_parity(schema, results):
         fail(results, "C2", f"render_notion_page.py 不在: {RENDER}")
         return
     src = RENDER.read_text(encoding="utf-8")
-    m = re.search(r"def project_db_properties\(ctx\):.*?return\s*\{(.*?)\}", src, re.S)
+    # projection の真実源は _DB_PROP_SPEC (name, canonical_type, src_key) の list。
+    # project_db_properties は db_schema 適応のためこの spec をループして dict を組む
+    # (return リテラルではない) ため、spec の先頭要素 (projection されるプロパティ名) を集める。
+    m = re.search(r"_DB_PROP_SPEC\s*=\s*\[(.*?)\]", src, re.S)
     if not m:
-        fail(results, "C2", "project_db_properties の return dict を抽出できず")
+        fail(results, "C2", "_DB_PROP_SPEC の projection spec リストを抽出できず")
         return
     body = m.group(1)
-    projected = set(re.findall(r"'([^']+)':", body))
+    projected = set(re.findall(r"\(\s*'([^']+)'", body))
     schema_keys = set(schema.get("properties", {}).keys())
     # created_time (作成日) は Notion 自動付与で projection しない正規例外。
     auto = {k for k, v in schema["properties"].items() if v.get("type") == "created_time"}

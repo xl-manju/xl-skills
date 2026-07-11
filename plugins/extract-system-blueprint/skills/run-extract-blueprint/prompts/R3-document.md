@@ -67,7 +67,7 @@
 - stdout に生成パス一覧 + draft_hash + check-screens/mermaid-validate 結果。
 
 ### 4.3 セキュリティ
-- emit 時 text redact-on-emit。画像実体は取得しない (observation_gap) ため画像側 redaction は対象外で、C11 は text 系 emit の redaction_applied のみ記録する。
+- emit 時 text redact-on-emit。C11(doc-emit) 自身は画像実体を取得せず (screenshot/rendered DOM は R1 browser-render(C15) が取得・ブラウザ不在時のみ observation_gap)、画像側 redaction は対象外で C11 は text 系 emit の redaction_applied のみ記録する。
 
 ## Layer 5: エージェント層 (ゴール駆動の実行主体)
 
@@ -80,7 +80,7 @@
 - 達成ゴール: `doc-emit.py --check-screens` と `mermaid-validate.py` が exit0 で、screenshot/layout 参照整合・観測色 palette 孤児 0・5 種図種網羅が満たされ、draft_hash が固定された状態。
 
 ### 5.3 完了チェックリスト (ゴール到達の停止条件)
-- [ ] `doc-emit.py` で章別 draft (md/json) + 5 種 Mermaid + 画面別 layout.json + design-tokens.json + site coverage manifest を生成した (screenshot/annotated/overlay は observation_gap)
+- [ ] `doc-emit.py` で章別 draft (md/json) + 5 種 Mermaid + 画面別 layout.json + design-tokens.json + site coverage manifest を生成した (screenshot/annotated/overlay は browser-render(C15) 取得時に screens[] へ・ブラウザ不在時のみ observation_gap)
 - [ ] `doc-emit.py --check-screens` が exit0 (参照整合・観測色 palette 孤児 0・pending 無言欠落なし。screens が空なら check-screens はスキップ)
 - [ ] `mermaid-validate.py` が exit0 (5 種図種網羅 + 構文妥当)
 - [ ] text 系 PII/認証後情報を redact し redaction_applied を記録した
@@ -113,4 +113,4 @@
 
 LLM はここから下の指示のみを実行し、Layer 1〜7 はコンテキストとして参照する。
 
-`doc-emit.py` で fact/inference/gap 区別済み抽出結果を `system-blueprint.schema.json` 準拠の章別 md/json + 5 種 Mermaid + 画面別 layout.json + 合成 design-tokens.json + site coverage manifest へ確定する (screenshot/annotated/overlay/computed-style は browser 不使用のため取得せず observation_gap として記録)。`doc-emit.py [--check-screens]` (screens が空なら check-screens はスキップ) と `mermaid-validate.py --docs-dir` を exit0 まで通し、draft_hash を固定する。text 系 PII/認証後情報は redact する。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。出力は生成パス一覧・draft_hash・検査結果サマリのみ、前置き禁止。
+`doc-emit.py` で fact/inference/gap 区別済み抽出結果を `system-blueprint.schema.json` 準拠の章別 md/json + 5 種 Mermaid + 画面別 layout.json + 合成 design-tokens.json + site coverage manifest へ確定する (screenshot/annotated/overlay/computed-style は R1 browser-render(C15) 取得時に screens[] へ、ブラウザ不在時のみ observation_gap として記録)。`doc-emit.py [--check-screens]` (screens が空なら check-screens はスキップ) と `mermaid-validate.py --docs-dir` を exit0 まで通し、draft_hash を固定する。text 系 PII/認証後情報は redact する。Layer 5 の完了チェックリストを唯一の停止条件とし、未充足項目を特定→解消手順を都度立案→実行→自己評価→全項目充足まで反復する (固定手順なし、上限: Layer 4 最大反復回数)。出力は生成パス一覧・draft_hash・検査結果サマリのみ、前置き禁止。

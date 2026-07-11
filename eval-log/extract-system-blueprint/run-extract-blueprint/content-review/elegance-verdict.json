@@ -1,29 +1,41 @@
 {
-  "target": {"plugin": "extract-system-blueprint", "skill": "run-extract-blueprint", "skill_md_sha256": "07ec36ddbedd183d6e50682d37363b4b00c238163113b8105debbfd8fc2179ff"},
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-extract-blueprint",
+    "skill_md_sha256": "198db107a2fd0a276d39df1d5262723e56ceb753837bb451aaab726dfefbf7d8"
+  },
   "review_kind": "elegance",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 0, "inconsistency": 2, "dependency_break": 0, "smell": 0},
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "reviewer": "run-elegant-review-subagent",
-  "reviewed_at": "2026-07-11T03:30:00Z",
-  "iterations": 3,
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 4,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1",
+      "OUT2"
+    ],
     "positive_feedback": [
-      "前回 high の bootstrap deadlock は combined call 正本化で根治し、hook 実プロセス実測で確認: (a) dir 不在 cwd + combined command (`mkdir -p .esb-authz && authz-classify --url`) → exit0 (呼び時点非アクティブで素通し・同一 call 内で dir+evidence が揃う)、(b) 空 dir + C12 単独呼び → exit2 `fetch-authz(bash): AuthzEvidence 不在` (分割禁止の根拠が機械層で実効)、(b2) 空 dir + combined でも exit2 (mkdir -p が no-op でも呼び時点 active — 『dir 不在から単一呼び』という正本手順の必要十分性が正確)、(c4) evidence 有効下の C12 再実行 → exit0。tests/test_guard.py:155 (test_guard_bootstrap_liveness_combined_call) が liveness (combined=exit0) と分割 deadlock (mkdir 先行後の C12 別呼び=exit2) の両側を回帰固定し、pytest 38 passed・hook --self-test 21/21 PASS。",
-      "3 ファイル (SKILL.md:157 局面R1 / SKILL.md:190 Gotchas / commands/extract-blueprint.md:23 / references/runbook.md:60) が同一の正本文言 (単一 Bash 呼び・分割禁止・deadlock 理由=hook 即アクティブ化で evidence 唯一 producer の自己遮断・ESB_RUN=1 はセッション起動時 env 限定の補助) で伝播し drift ゼロ。旧『mkdir 単独先行』手順の残存 0 (grep 全走査: 言及は禁止 Gotcha と CHANGELOG 記録のみ)。",
-      "R1-fetch.md §3.2 の素の C12 呼び形 (mkdir なし) も矛盾しない: authz-classify の _write_json が親 dir を自作する (scripts/authz-classify.py:196-198 `path.parent.mkdir(parents=True)`) ため、fresh run では hook 判定 (dir 不在=素通し) 後の同一 call 内で dir+evidence が揃う。combined call の mkdir 明示は防御的冗長であり prompts 正本との齟齬ではない。",
-      "従来 fail-closed 挙動の不変を実測確認: dir+evidence 存在で同一 origin fetch (WebFetch/curl Bash) → exit0、未知 origin → exit2。publish-gate P1-P4・stale receipt 遮断・別名 server backstop (self-test (7)-(17)) も不変で、修正が遮断規律を緩めていない。"
+      "fact/inference/observation_gap の三値分離が schema と doc-emit の lane 検査・high-confidence 2 根拠必須で機械強制され、無言欠落や gap→inference 昇格を構造的に封じている。",
+      "proposer≠approver (C01 draft / C02 独立 verdict) と決定論ゲート SSOT 共有 (mermaid-validate.py / doc-emit.py --check-screens を生成側と評価側が同一 import で消費) が明確。",
+      "bootstrap deadlock (mkdir 単独先行) と hook env 非継承 (ESB_RUN) の罠が Gotchas に再現条件付きで具体文書化されている。"
     ],
     "negative_feedback": [
-      "[medium/inconsistency] TTL 失効後の同一 cwd resume が bootstrap catch-22: EVIDENCE_TTL_SECONDS=86400 (scripts/authz-classify.py:131) 経過後に同一 cwd で正本 combined call を再実行すると、dir 既存=hook アクティブのまま decide()=deny で C12 再発行呼び自身が遮断される (実測: 期限切れ evidence + `mkdir -p ... && authz-classify` → exit2 `fetch-authz(bash): authz=deny (evidence_expired)`)。SKILL.md Key Rules 4 / runbook §3.1 の multi-run resume (『全 URL へ到達』) は >24h 跨ぎ再開で documented 手順のまま進行不能。回復経路 (.esb-authz 除去→dir 不在から再 bootstrap。budget 会計は coverage manifest の cumulative ledger 由来のため非リセット保証と両立) は機構上健全だが undocumented。fail-closed 側 (過剰遮断) への倒れで安全性毀損は無く、同日内 resume は evidence allow 通過 (実測 c4) で成立するため medium。",
-      "[medium/inconsistency] 明示承認 related origin の evidence 発行経路が active run 中は構造的に遮断: scope 分類は same-origin + approved_related_origin を in_scope とし (scripts/authz-classify.py:541-554 / runbook §3.1)、C09 fetch-snapshot は evidence.origin==url origin を要求するため related origin ごとに C12 preflight が必要だが、run 中 (dir 既存=hook アクティブ) は当該 origin の evidence 不在により C12 呼び自身が遮断される (実測: origin A evidence 下で origin B の authz-classify 呼び → exit2 `AuthzEvidence 不在: https://app.example.net`)。related_origins は operator-policy override (approved_by_user 必須) の opt-in であり既定経路 (same-origin のみ) は非影響のため medium。改善候補: plugin 自身の authz-classify 呼びに限る bootstrap 例外、または初回 combined call での複数 origin 一括発行の documented 経路。"
+      "[resolved/contradiction] 前回 iteration で検出した『browser を使わない』残置語 (SKILL.md Gotchas / R3-document.md L70,L116 / doc-emit.py コメント) が C15 browser-render(MCP 非依存 headless Chrome) の progressive-enhancement 設計と正面衝突していた点を、当該箇所を『MCP を使わない・browser 観測は browser-render 取得時に screens へ / ブラウザ不在(exit3)時のみ observation_gap』へ全て修正して根治 (grep 全走査で残置 0)。",
+      "[low/inconsistency] browser-render exit1 (ブラウザ在だがクラッシュ/timeout) が R1-fetch の fatal_exit_codes[1,2] に該当し progressive 縮退の意図 (exit3 のみ gap) に対する runtime edge。安全側 (fail-closed) への倒れで実害は限定的。"
     ],
-    "iteration": 3,
+    "iteration": 4,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
-  },
-  "notes": "iteration 3 (最終)。SKILL.md 全 202 行を実読し hooks/pre-fetch-authz-guard.py (_esb_run_active:265-285 / _evaluate_bash:490-517 / _eval_fetch_origin:312-329)・scripts/authz-classify.py (_write_json:196-198 / EVIDENCE_TTL:131 / classify_url:541-554)・prompts/R1-fetch.md §3.2・commands/extract-blueprint.md:23・references/runbook.md:60 と突合。hook 実測 9 ケース (scratchpad hook_live_test.py・実プロセス+JSON stdin): (a)dir不在+combined=0 / (b)空dir+C12単独=2 / (b2)空dir+combined=2 / (c)evidence有+同一origin WebFetch=0 / (c2)同curl Bash=0 / (c3)未知origin=2 / (c4)C12再実行=0 / (d)期限切れ+combined=2 / (e)別origin C12発行=2。期待付き 7 件 mismatch 0。pytest 38 passed・self-test 21/21。criteria: IN1=決定論チェックの実 run 起動可能性が bootstrap 根治で回復 (前回の『authz が起動不能』caveat 解消)、OUT1=EVALS reconstruction-rehearsal + C02 配線不変、OUT2=publish-gate P1-P4 + test_guard 7 テスト不変。前回 high は解消・未解決 high 0。残 medium 2 件 (TTL-resume catch-22 / related-origin 発行遮断) は副経路の過剰遮断 edge であり 4条件の整合性を FAIL させる水準ではないと判定し PASS。評価のみで改善は行っていない。"
+  }
 }

@@ -1,28 +1,41 @@
 {
-  "target": {"plugin": "extract-system-blueprint", "skill": "run-extract-blueprint", "skill_md_sha256": "07ec36ddbedd183d6e50682d37363b4b00c238163113b8105debbfd8fc2179ff"},
+  "target": {
+    "plugin": "extract-system-blueprint",
+    "skill": "run-extract-blueprint",
+    "skill_md_sha256": "198db107a2fd0a276d39df1d5262723e56ceb753837bb451aaab726dfefbf7d8"
+  },
   "review_kind": "rubric",
   "verdict": "PASS",
-  "findings_summary": {"contradiction": 0, "omission": 1, "inconsistency": 0, "dependency_break": 0, "smell": 1},
+  "findings_summary": {
+    "contradiction": 0,
+    "omission": 0,
+    "inconsistency": 1,
+    "dependency_break": 0,
+    "smell": 0
+  },
   "reviewer": "assign-skill-design-evaluator",
-  "reviewed_at": "2026-07-11T03:32:00Z",
-  "iterations": 3,
+  "reviewed_at": "2026-07-11T11:07:27Z",
+  "iterations": 4,
   "human_review_required": false,
   "feedback_loop": {
     "loop_scope": "both",
-    "criteria_evaluated": ["IN1", "OUT1", "OUT2"],
+    "criteria_evaluated": [
+      "IN1",
+      "OUT1",
+      "OUT2"
+    ],
     "positive_feedback": [
-      "SKILL.md sha 変更 (bootstrap 正本化差分) 後の再採点でも機械 score 97 / threshold 80 を維持: 変更は局面R1 (157行) の combined call 正本化・分割禁止明示と Gotchas 追記 (190行) に限られ、frontmatter 契約 (FM-*)・境界/責務 (BD-*)・命名 (NM-*) の全 rule が引き続き緑。追記された Gotcha 第2項 (mkdir 単独先行=bootstrap deadlock) は hook 実測 (空 dir + C12 単独 → exit2) と一致する正直な事故防止契約で、Gotchas 節の設計価値をさらに高めている。",
-      "bootstrap 手順の documented 化が『保証要件は機械層で担保』の規範に沿う: 手順文言 (単一 Bash 呼び・分割禁止) と機械層 (hook の dir 検出 run-scoping) と回帰テスト (test_guard.py:155 bootstrap liveness) の三層が同一契約を指しており、文書だけの約束になっていない。",
-      "境界明確・責務単一・SSOT 規律は前回同様維持: C01 は orchestration に限定し評価 (C02)/適用 (C14)/fact 抽出 (C03-C06/C13)/決定論検査 (C09-C12) へ越境しない。局面詳細は prompts/R1-R4 正本宣言のまま、bootstrap のみ SKILL 側を正本と明示する分担も矛盾しない (R1-fetch.md §3.2 の素の呼び形は authz-classify の親 dir 自作で成立)。"
+      "単一責務分割 (R1 認可+取得 / R2 分析 fan-out / R3 文書化+自己検証) が明確で、各 prompt が 1 prompt=1 責務を保ち非担当を明記。",
+      "7 層プロンプト全層を備え IN/OUT 契約を表で明示、feedback_contract IN1/OUT1 が CL-* へ derived_from で追跡可能、決定論ゲート 4 種+hook が self-test 付きで exit0 判定でき、draft_hash と validate-goal-seek-anchor で再現性を担保。"
     ],
     "negative_feedback": [
-      "[low/PD-001] 本文 >100 行だが skill ディレクトリ直下に references/ が無い (render-findings-score.py 機械検出・前回から不変)。長文詳細は prompts/ へ委譲済みのため実害は小さいが、progressive-disclosure 規範上の形式は未充足のまま。",
-      "[low/BND-001] .claude-plugin/bundles.json への登録は依然 0 件・plugin.json bundle_targets:[] (前回から不変)。宣言 drift は解消済みで残るのはユーザー承認必須の release 行為のみ (登録完了時に本 finding は消滅)。"
+      "[resolved/contradiction] R3 の 7 層プロンプトが層内自己矛盾 (L1/L2 の browser-render 取得 vs L4.3/出力指示の browser 不使用) を抱えていた点を、L4.3/出力指示/完了チェックリストを browser-render 取得時 populate / ブラウザ不在時のみ observation_gap へ統一して解消 (prompt-creator 7 層の層間一貫性を回復)。",
+      "[low/inconsistency] R3 5.3 完了チェックリストの screenshot/annotated/overlay 記述と doc-emit 実装の条件分岐の粒度差 (実害なし)。"
     ],
-    "iteration": 3,
+    "iteration": 4,
     "iteration_limit": 3,
     "hook_trigger": "manual",
     "next_action": "none"
   },
-  "notes": "iteration 3 (最終・SKILL.md sha 変更に伴う再採点)。render-findings-score.py を実測 (rubric_hash=sha256:6e1843e5204accb8c76c96bf0d8189dafff6d51f2d182096424fcb6c6bfd3d0d, composition_hash=sha256:0e43ae0846252b53b6f275c0a8a0a3cc138193733ff4ee33a3daa0cf0d865e14, L0=ref-skill-design-rubric v1.3.0 + L2 assign-skill-design-evaluator delta): machine score 97 / threshold 80 / 機械 findings は PD-001(low) のみ。LLM 層: BND-001 は bundles.json grep 0 件・plugin.json bundle_targets:[] で前回判定 (low -3) を維持: 97-3=94 >= 80 → PASS。high/medium 未解決なし。前回 notes の採点外補足 (局面R1 の bootstrap deadlock) は combined call 正本化+実測で解消済みを確認 (elegance verdict iteration 3 参照)。elegance 側で新たに記録された medium 2 件 (TTL-resume catch-22 / related-origin 発行遮断) は整合性次元の runtime edge であり rubric (設計規範) 次元の rule に非該当のため本 score には含めない。pytest 38 passed・hook self-test 21/21 を再確認。評価のみで改善は行っていない。"
+  "notes": "機械層 (authz/fetch/mermaid/doc-emit + validate-goal-seek-anchor) は self-test・lane 検査・schema parity で堅牢に採点でき exit0 到達性が高い。前回 iteration で LLM 層に検出した browser 使用有無の層間・ファイル間不整合 (medium contradiction) を当該箇所修正で根治し、残るは low/inconsistency の runtime edge のみ。high/medium 未解決 blocker なし → PASS。"
 }
