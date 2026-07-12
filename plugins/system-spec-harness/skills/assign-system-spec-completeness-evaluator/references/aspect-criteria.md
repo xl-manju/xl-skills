@@ -36,7 +36,7 @@
 - **C16 必須情報カタログ被覆 (追加次元)**: `validate-knowledge-graph.py --profile required-info` の
   exit0 (全 in-scope domain 被覆・item 最低形状・収集順序・coverage certificate) を機械層根拠にする。
   `missing_effect=block` の item が未回答のまま確定 (confirmed) へ進んだ確定セルは C01 R5 収集ゲート
-  素通り (C14 は coverage certificate に blocking_items を列挙するのみで runtime 施行はせず、決定論 writer
+  素通り (機械層ゲート validate-knowledge-graph.py (component C14) は coverage certificate に blocking_items を列挙するのみで runtime 施行はせず、決定論 writer
   施行 = apply-spec-transition への block 検査組込は follow-up。収集すべき必須情報の欠落) として
   matrix_coverage を FAIL に寄せる。
 

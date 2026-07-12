@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "description": "ドメインごと (API/フロントエンド/バックエンド/UI-UX/DB/認証/インフラ/保守運用) にシステム構築へ不可欠な必須情報の item カタログ (goal-spec C16)。C01 (run-system-spec-elicit) が所有し、R2-interview の質問生成と R5-decision-guide の収集完了判定へ供給する。形状・domain 被覆・収集順序・coverage certificate は validate-knowledge-graph.py --profile required-info が検証する。missing_effect=block の item が未回答なら confirmed を禁止する。",
+  "description": "ドメインごと (UI-UX/フロントエンド/バックエンド/API/DB/認証/セキュリティ/インフラ/保守運用) にシステム構築へ不可欠な必須情報の item カタログ (goal-spec C16)。C01 (run-system-spec-elicit) が所有し、R5-decision-guide の収集完了判定 (coverage_certificate) へ供給する (R2-interview の質問生成への統合は follow-up)。形状・domain 被覆・収集順序・coverage certificate は validate-knowledge-graph.py --profile required-info が検証する。missing_effect=block の item が未回答なら confirmed を禁止する。",
   "validated_by": "validate-knowledge-graph.py --profile required-info",
   "in_scope_domains": ["ui-ux", "frontend", "backend", "api", "database", "auth", "security", "infrastructure", "maintenance-ops"],
   "na_domains": [],
