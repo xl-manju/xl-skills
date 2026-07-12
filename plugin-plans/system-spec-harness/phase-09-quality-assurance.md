@@ -7,7 +7,7 @@ prev_phase: 8
 next_phase: 10
 status: 未実施
 gate_type: qa
-entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13]
+entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13, C14]
 applicability:
   applicable: true
   reason: ""
@@ -54,4 +54,4 @@ applicability:
 ## 参照情報
 - component_kind 別 p0_lint 集合 (`specfm.P0_LINT_BY_KIND`)。
 - content-review verdict 契約 (現 SHA genuine 再生成)。
-- 対象 component C01-C13、後続 P10 (final-review)。
+- 対象 component C01-C14、後続 P10 (final-review)。

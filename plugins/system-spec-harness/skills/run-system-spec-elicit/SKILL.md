@@ -37,8 +37,10 @@ reference_refs:
   - references/resource-map.yaml
   - references/elicit-question-bank.md
   - references/spec-state-contract.md
+  - references/required-info-catalog.json
 script_refs:
   - scripts/apply-spec-transition.py
+  - ../../scripts/validate-knowledge-graph.py
 responsibilities:
   - id: R0-foundation
     name: elicit-foundation

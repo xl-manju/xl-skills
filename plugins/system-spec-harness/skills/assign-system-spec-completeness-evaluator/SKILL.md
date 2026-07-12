@@ -73,6 +73,19 @@ feedback_contract:
 
 > `system-spec/*.md` を読まない C06 (hearing-auditor) を設計知識反映へ束縛するのは虚偽対応のため撤去した。C06 はヒアリング品質を担い matrix_coverage の sub-input へ再配置し、設計知識反映は C05 が system-spec/*.md と resource-map から自前評価する。監査 sub-agent (C07/C08 と matrix sub-input の C06) は Task tool でそれぞれ独立 context (fork) に起動する (R2-delegate)。監査ロジックは各 agent の SSOT prompt に委ね、本 skill は結果を集約するだけで書き換えない。
 
+## 知識グラフ / doctrine の追加評価次元 (C13-C16)
+
+> 上位 6 観点の top-level 構造 (aggregate-completeness.py の 6 aspect fail-closed 集約) は不変。C13-C16 の知識グラフ / doctrine 要件は新 aspect を増やさず、既存 aspect の追加評価次元として折り込む (各 `validate-knowledge-graph.py --profile ...` の exit0 を機械層、生成物への反映を意味層で採点)。
+
+| 追加次元 | 折込先 aspect | 機械層ゲート | 意味層で拾う失敗 |
+|---|---|---|---|
+| **C13** 知識カタログが typed 辺グラフ | design_knowledge_reflection | `validate-knowledge-graph.py --profile knowledge` exit0 (循環/dangling/孤立/root到達不能 0) | knowledge-catalog の depends_on/refines/conflicts_with 型則違反・孤立 node の設計知識への未接地 |
+| **C14** elicit/compile が同一 topo_order で知識消費 | design_knowledge_reflection | 上記 `--profile knowledge --order` の topo_order を C01 R5 / C03 R2 が同一順で消費 | 上位概念→下位概念の位相順を破って下位技術を先に確定した章 |
+| **C15** doctrine anchor 1正本 + 全 category 写像全射 | design_knowledge_reflection | `validate-knowledge-graph.py --profile doctrine` exit0 (7 concern の concern_id 一意 + 各 authority 非空・全 category→concern 写像全射。authority は 4 種で concern 間共有可・authority 一意性は非検査) | 生成章に concern authority (Apple HIG/Clean Arch/OWASP/SRE) の上流指針が具体反映されず汎用ポインタ止まり |
+| **C16** 必須情報カタログの被覆 + block ゲート | matrix_coverage | `validate-knowledge-graph.py --profile required-info` exit0 (全 in-scope domain 被覆・item 最低形状・収集順序・coverage certificate) | `missing_effect=block` の item 未回答のまま confirmed に進んだ確定セル (C01 R5 収集ゲート素通り。C14 は blocking_items 列挙のみで runtime 施行せず・決定論 writer 施行は follow-up) |
+
+> C15 の意味層は「存在確認だけで PASS にしない」= design_knowledge_reflection の Goodhart 防止と同一原則で、doctrine anchor が確定セル要件へ具体適用されているかを照合する。C16 は matrix_coverage の網羅性判定に「必須情報が block ゲートを通って確定に接地しているか」を加える。
+
 ## 評価レポート形状 (schema)
 
 ```

@@ -16,10 +16,10 @@ applicability:
 # P13 — release (完了/PR・リリース)
 
 ## 目的
-プラグイン開発ドメインへの写像として、UBM 固有の IPC/Cloudflare 等は全 DROP し、PR/リリースは本 planner の責務外として soft note に留める (評価ゲート化しない) 完了フェーズ。marketplace 配布可否 (distributable) はユーザー承認待ちの open_issue として明示する。
+プラグイン開発ドメインへの写像として、UBM 固有の IPC/Cloudflare 等は全 DROP し、PR/リリースは本 planner の責務外として soft note に留める (評価ゲート化しない) 完了フェーズ。marketplace 配布可否は distributable:true として GAP-DISTRIBUTION-DECISION の resolution で確定済であり、その解決記録を引き継いで配布フローへ進める状態にする。
 
 ## 背景
-PR/リリース/マーケットプレイス登録は本 planner の責務外 (責務は計画の生成のみ)。UBM 固有の IPC/Cloudflare/D1/Workers 等ドメイン外項目は DROP し、リリースは soft note に留めてゲート化しない。ユーザー承認後に別途 build/配布が実行される前提を明示する完了フェーズ。goal-spec の open_questions に記載された「marketplace 配布可否の判断がユーザー承認待ち」もここで明示的に引き継ぐ。
+PR/リリース/マーケットプレイス登録は本 planner の責務外 (責務は計画の生成のみ)。UBM 固有の IPC/Cloudflare/D1/Workers 等ドメイン外項目は DROP し、リリースは soft note に留めてゲート化しない。PR/配布が別途実行される前提を明示する完了フェーズ。goal-spec の open_questions にあった「marketplace 配布可否」はユーザー承認により distributable:true で確定済 (GAP-DISTRIBUTION-DECISION resolved・commit 00cf8f7) であり、その解決記録もここで明示的に引き継ぐ。
 
 ## 前提条件
 - P01-P12 が完了している。
@@ -31,7 +31,7 @@ PR/リリース/マーケットプレイス登録は本 planner の責務外 (�
 
 ## 成果物
 - リリース準備完了の記録 (PR/配布は soft note・評価ゲート化しない)。
-- distributable (配布可否) の判断待ち事項を open_issues として引き継いだ記録。
+- distributable:true 確定 (GAP-DISTRIBUTION-DECISION resolved・commit 00cf8f7) の解決記録を open_issues から引き継いだ記録。
 
 ## スコープ外
 - PR 作成・marketplace 登録・バージョン bump の実行 (ユーザー承認後の別作業・planner の責務外)。
@@ -41,10 +41,10 @@ PR/リリース/マーケットプレイス登録は本 planner の責務外 (�
 - [ ] P01-P12 の完了チェックリストが全て満たされている。
 - [ ] リリースに向けた残タスクが soft note として整理されている (PR 自体はゲート化しない)。
 - [ ] ドメイン外項目 (IPC/Cloudflare 等) が写像対象外として DROP 記録されている。
-- [ ] distributable の判断待ちが open_issues に明示され、ユーザー承認後に配布フローへ進める状態になっている。
+- [ ] distributable:true の確定が open_issues の GAP-DISTRIBUTION-DECISION (status: resolved) として記録され、その解決記録が引き継がれて配布フローへ進める状態になっている。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: distributable 判断待ちが open_issues (GAP-DISTRIBUTION-DECISION・利用単位の判断を含む) として引き継がれ、PR/配布は soft note に留まっている。
+- 満たす例: distributable:true の確定が open_issues (GAP-DISTRIBUTION-DECISION resolved・利用単位の判断を含む) の解決記録として引き継がれ、PR/配布は soft note に留まっている。
 - 満たさない例: リリース準備の完了条件に PR merge や marketplace 登録を含めてゲート化する。
 
 ### 事前解決済み判断

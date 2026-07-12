@@ -7,7 +7,7 @@ prev_phase: 5
 next_phase: 7
 status: 未実施
 gate_type: none
-entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13]
+entities_covered: [C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12, C13, C14]
 applicability:
   applicable: true
   reason: ""
@@ -43,7 +43,7 @@ harness coverage は品質の最低ラインを機械保証する仕組み。計
 - [ ] 現状値を計画に焼かず、閾値と観点のみを契約として保持している。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: C12 (script) は行カバレッジ ≥80%、C01 (run skill) は criteria 検証+content-review、C04 (ref) は source-traceability+ref-review と、kind 別の観点で kind_pass が緑になっている。
+- 満たす例: C12/C14 (script) は行カバレッジ ≥80%、C01 (run skill) は criteria 検証+content-review、C04 (ref) は source-traceability+ref-review と、kind 別の観点で kind_pass が緑になっている。
 - 満たさない例: 実測カバレッジ値 (例: 83%) を plan 本文へ書き戻す / 全 kind に script 用の行カバレッジ観点を一律適用する。
 
 ### 事前解決済み判断
@@ -51,5 +51,5 @@ harness coverage は品質の最低ラインを機械保証する仕組み。計
 
 ## 参照情報
 - harness-coverage-spec (kind 別パス)。
-- 対象 component C01-C13。
+- 対象 component C01-C14。
 - 後続 P07 (acceptance-criteria)。
