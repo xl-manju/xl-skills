@@ -32,7 +32,7 @@ UBM 固有の GUI スクリーンショット検証は本ドメイン (CLI/プ�
 
 ## 成果物
 - evidence 5 要素 (P0 lint ログ / schema parity / build-trace coverage / content-review verdict / harness coverage JSON) を集約した Markdown 検証記録。
-- goal-spec C1-C12 / P07 AC evidence matrix (AC id / fixture / 再実行command / artifact / PASS|FAIL verdict) を同じ記録に含める。
+- goal-spec C1-C16 / P07 AC evidence matrix (AC id / fixture / 再実行command / artifact / PASS|FAIL verdict) を同じ記録に含める。
 
 ## スコープ外
 - 新規の検証実施 (P06-P10 の結果を集約するのみ・ここで再テストしない)。
@@ -40,11 +40,11 @@ UBM 固有の GUI スクリーンショット検証は本ドメイン (CLI/プ�
 
 ## 完了チェックリスト
 - [ ] evidence 5 要素が全て Markdown に記録されている。
-- [ ] goal-spec C1-C12 と P07 の各ACが evidence matrix に1:1で現れ、ヒアリングresume、foundation/decision state、open-world knowledge depth、prompt C1-C4、公式文書鮮度、C05自動連鎖、Write/Edit+Bash負例を再現できる。
+- [ ] goal-spec C1-C16 と P07 の各ACが evidence matrix に1:1で現れ、ヒアリングresume、foundation/decision state、open-world knowledge depth、prompt C1-C4、公式文書鮮度、C05自動連鎖、Write/Edit+Bash負例、知識グラフDAG/dangling検証、知識位相順消費、doctrine anchor反映、必須情報カタログ収集順序を再現できる。
 - [ ] 第三者が記録から受入充足 (カテゴリ×プラットフォーム網羅を含む) を再現・確認できる状態になっている。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: evidence matrix に C1-C12/P07 AC が全件並び、foundation/decision/deep-knowledge/prompt-validator、6周超ヒアリング、citation負例、C10→C05連鎖、書換負例のcommandとartifactが併記される。
+- 満たす例: evidence matrix に C1-C16/P07 AC が全件並び、foundation/decision/deep-knowledge/prompt-validator、6周超ヒアリング、citation負例、C10→C05連鎖、書換負例、知識グラフDAG/dangling検証(validate-knowledge-graph.py)、位相順消費、doctrine anchor反映、必須情報カタログ収集順序のcommandとartifactが併記される。
 - 満たさない例: 実行ログの貼付のみで再現入力 (fixture) への参照が無く、第三者が同じ検証を再実行できない。
 
 ### 事前解決済み判断

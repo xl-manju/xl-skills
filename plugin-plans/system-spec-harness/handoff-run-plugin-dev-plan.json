@@ -1,12 +1,20 @@
 {
   "plan_dir": "plugin-plans/system-spec-harness",
   "target_plugin_slug": "system-spec-harness",
-  "mode": "create",
+  "mode": "update",
+  "update_delta": {
+    "iteration": 3,
+    "new_components": ["C14"],
+    "respec_components": ["C01", "C02", "C03", "C04", "C05", "C11", "C12", "C14"],
+    "rebuild_required": true,
+    "new_assets": ["doctrine-anchor-registry.json", "required-info-catalog.json", "validate-knowledge-graph.py"],
+    "source": "improvement-handoff-20260712-knowledge-graph-doctrine.json + 30-method review iteration 3"
+  },
   "task_graph_ref": {
     "path": "task-graph.json",
     "schema_version": "1.0"
   },
-  "routes_status_note": "routes[].status は plan 時点の宣言 (planned) であり、実行状態の正本ではない。build 実行状態の正本は eval-log の route build report / task-state (build-summary done=418) を参照する (goal-spec.checklist.done=false と同型の宣言/実状態の分離)。",
+  "routes_status_note": "routes[].status は plan 時点の宣言 (planned) であり、実行状態の正本ではない。build 実行状態の正本は eval-log の最新 route build report / task-state を参照する (数値は本 note に焼かない。前回 build 時点の snapshot は旧 graph 基準で現 graph とはノード数が異なる。goal-spec.checklist.done=false と同型の宣言/実状態の分離)。",
   "routes": [
     {
       "id": "C12",
@@ -43,11 +51,28 @@
       "status": "planned"
     },
     {
+      "id": "C14",
+      "component_kind": "script",
+      "name": "validate-knowledge-graph.py",
+      "spec": "phase-05-implementation.md",
+      "depends_on": [],
+      "placement_scope": "plugin-root",
+      "builder": "plugin-scaffold",
+      "builder_status": "contract-only",
+      "gap_ref": "GAP-SCRIPT-BUILDER",
+      "build_kind": "script",
+      "build_args": {
+        "script_path": "scripts/validate-knowledge-graph.py"
+      },
+      "build_target": "plugins/system-spec-harness/scripts/validate-knowledge-graph.py",
+      "status": "planned"
+    },
+    {
       "id": "C04",
       "component_kind": "skill",
       "name": "ref-system-design-knowledge",
       "spec": "phase-05-implementation.md",
-      "depends_on": [],
+      "depends_on": ["C14"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -63,7 +88,7 @@
       "component_kind": "skill",
       "name": "run-system-spec-elicit",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C04", "C12"],
+      "depends_on": ["C04", "C12", "C14"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -72,21 +97,6 @@
         "brief_path": "briefs/skill-brief-C01.json"
       },
       "build_target": "plugins/system-spec-harness/skills/run-system-spec-elicit/",
-      "status": "planned"
-    },
-    {
-      "id": "C11",
-      "component_kind": "hook",
-      "name": "guard-confirmed-chapter-overwrite",
-      "spec": "phase-05-implementation.md",
-      "depends_on": ["C01"],
-      "builder": "run-build-skill",
-      "build_kind": "hook",
-      "build_args": {
-        "kind": "hook",
-        "name": "guard-confirmed-chapter-overwrite"
-      },
-      "build_target": "plugins/system-spec-harness/hooks/guard-confirmed-chapter-overwrite.py",
       "status": "planned"
     },
     {
@@ -110,7 +120,7 @@
       "component_kind": "skill",
       "name": "run-system-spec-compile",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C01", "C02", "C04", "C12", "C13"],
+      "depends_on": ["C01", "C02", "C04", "C12", "C13", "C14"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -119,6 +129,21 @@
         "brief_path": "briefs/skill-brief-C03.json"
       },
       "build_target": "plugins/system-spec-harness/skills/run-system-spec-compile/",
+      "status": "planned"
+    },
+    {
+      "id": "C11",
+      "component_kind": "hook",
+      "name": "guard-confirmed-chapter-overwrite",
+      "spec": "phase-05-implementation.md",
+      "depends_on": ["C01", "C03"],
+      "builder": "run-build-skill",
+      "build_kind": "hook",
+      "build_args": {
+        "kind": "hook",
+        "name": "guard-confirmed-chapter-overwrite"
+      },
+      "build_target": "plugins/system-spec-harness/hooks/guard-confirmed-chapter-overwrite.py",
       "status": "planned"
     },
     {
@@ -171,7 +196,7 @@
       "component_kind": "skill",
       "name": "assign-system-spec-completeness-evaluator",
       "spec": "phase-05-implementation.md",
-      "depends_on": ["C01", "C02", "C03", "C06", "C07", "C08", "C12"],
+      "depends_on": ["C01", "C02", "C03", "C04", "C06", "C07", "C08", "C12", "C13", "C14"],
       "builder": "run-skill-create",
       "build_kind": "skill",
       "build_args": {
@@ -223,9 +248,9 @@
     },
     "marketplace": {
       "owner": "plugin-scaffold",
-      "status": "manual-user-gated",
+      "status": "planned",
       "build_target": ".claude-plugin/marketplace.json",
-      "approval_reason": "marketplace 配布可否 (distributable) は goal-spec.open_questions のユーザー承認待ち。承認確定後に配布登録フローを実行する"
+      "approval_reason": "ユーザー承認により distributable:true 確定済 (GAP-DISTRIBUTION-DECISION resolved・commit 00cf8f7)。.claude-plugin/marketplace.json と xl-skills-full bundle へ登録済みで approval は完了済 (status は check-build-handoff.py の ENVELOPE_STATUSES enum 内語彙 planned で resolved-user-approved 相当を表現する)"
     },
     "plugin_composition": {
       "owner": "run-build-skill",
@@ -270,8 +295,8 @@
       "id": "GAP-SCRIPT-BUILDER",
       "severity": "medium",
       "blocking": false,
-      "preflight": "P05開始前に harness-creator/scripts/build-script-route.py の実在と C12/C13 route消費可否を確認する",
-      "text": "plugin-scaffold / parent-skill-build は run-build-skill の 7 capability kind ではなく planner 上の contract-only builder 語彙。script route (C12/C13) は harness-creator の build-script-route.py が消費し、gap_ref は routing 語彙の明示参照として維持する"
+      "preflight": "P05開始前に harness-creator/scripts/build-script-route.py の実在と C12/C13/C14 route消費可否を確認する",
+      "text": "plugin-scaffold / parent-skill-build は run-build-skill の 7 capability kind ではなく planner 上の contract-only builder 語彙。script route (C12/C13/C14) は harness-creator の build-script-route.py が消費し、gap_ref は routing 語彙の明示参照として維持する"
     },
     {
       "id": "GAP-PLUGIN-SURFACE-BUILDER",
@@ -301,8 +326,14 @@
     },
     {
       "id": "GAP-TASKGRAPH-P02-PROJECTION",
-      "severity": "low",
-      "text": "task-graph P02 ノードの write_scope 誤投影は上流 derive-task-graph.py の phase-level 項目射影規約由来 (golden も同型)。上流 generator の射影改善待ちで本 plan 側の対応は不要 (task-graph.json は手編集禁止・derive 再生成のみ)"
+      "severity": "high",
+      "blocking": true,
+      "status": "acknowledged-deferred",
+      "scope": "planner-wide (run-plugin-dev-plan の derive-task-graph.py 出力形状・本 plan の system-spec-harness 内容とは直交)",
+      "decision": "ユーザー承認 (2026-07-12): 改善要望 (知識依存グラフ C13/C14・doctrine anchor C15・必須情報カタログ C16) の反映は C1-C3 全 PASS + 決定論ゲート12本 exit0 で漏れなく完了と確認済み。本 issue は planner (run-plugin-dev-plan) 共通の task-graph 射影構造欠陥であり本 plan 内容と独立のため、planner 出力形状の構造変更は別案件として据え置き、本 plan は open_issue 明記のうえ確定する。system-spec-harness の plan 内容は完成扱い",
+      "build_impact": "task-graph mode で L4 build する際に phase-wide/他 component 固有 AC が無関係 component の write_scope へ複製され作業割当ノイズになる。回避策=fixed-13-phase の phase item を owner で解釈するか、planner 構造変更 (下記 preflight) を先に実施する",
+      "preflight": "構造変更を実施する場合: phase itemへscope=phase|componentとowner_entitiesを導入しderive-task-graph.pyを更新、task-graphを再生成してC4を再評価する",
+      "text": "phase checklist×entities_covered直積射影によりphase-wide/他component固有taskが無関係write_scopeへ接地する。task-graph.json手編集では直らずplanner出力形状の構造変更が必要。30思考法3独立Agentが同一根本原因をhighで検出"
     }
   ]
 }

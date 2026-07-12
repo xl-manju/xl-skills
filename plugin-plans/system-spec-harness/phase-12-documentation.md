@@ -19,7 +19,7 @@ applicability:
 プラグインの使い方と設計判断を文書化する。中学生にも分かる Part1 概念説明と運用者向け Part2 技術詳細を含む 6 タスク雛形で、反映先を feedback_contract_ssot / lessons-learned / bundles.json に固定し、distribution/install の可用状態と手順を明記する。
 
 ## 背景
-プラグインは再利用されるため、使い方 (install/概念/技術) と設計判断 (skill-intake 非再利用/出力形式/最新ドキュメント取得手段/command 採否) を残す必要がある。Part1は中学生にも分かる概念説明、Part2は運用者向け技術詳細とし、反映先 (README/lessons-learned/bundles.json/feedback_contract_ssot) を SSOT に固定することで、文書が散逸せず後続改善が追える。現状 `distributable:false` のため正式marketplace導入を利用可能と誤記しない。
+プラグインは再利用されるため、使い方 (install/概念/技術) と設計判断 (skill-intake 非再利用/出力形式/最新ドキュメント取得手段/command 採否) を残す必要がある。Part1は中学生にも分かる概念説明、Part2は運用者向け技術詳細とし、反映先 (README/lessons-learned/bundles.json/feedback_contract_ssot) を SSOT に固定することで、文書が散逸せず後続改善が追える。distributable:true は GAP-DISTRIBUTION-DECISION の resolution として確定済 (commit 00cf8f7・marketplace + xl-skills-full bundle 登録済) のため、marketplace 導入は AVAILABLE として記載する。
 
 ## 前提条件
 - P11 の evidence が記録済み。
@@ -47,11 +47,11 @@ applicability:
 - [ ] lessons-learned / bundles.json / feedback_contract_ssot へ反映されている。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: README にlocal/dev導入とfeedback受け皿の初回設定があり、marketplaceは`NOT_AVAILABLE (distributable:false・承認待ち)`と明記され、Part1は前提知識なし、Part2は運用者が再現可能な技術詳細になっている。
+- 満たす例: README にlocal/dev導入とfeedback受け皿の初回設定があり、marketplace 導入手順が distributable:true 確定 (GAP-DISTRIBUTION-DECISION resolved) を反映して AVAILABLE として記載され、Part1は前提知識なし、Part2は運用者が再現可能な技術詳細になっている。
 - 満たさない例: Part1 (概念) が専門用語の羅列で中学生に読めない / 設計判断が README へ複製され phase-02 の正本とドリフトする。
 
 ### 事前解決済み判断
-- 分岐点: 設計判断 4 件の文書化先 → 判断: 正本は phase-02 ドメイン知識とし README からは参照する (二重記述しない)。
+- 分岐点: phase-02 の設計判断一式の文書化先 → 判断: 正本は phase-02 ドメイン知識とし README からは参照する (二重記述しない)。
 
 ## 参照情報
 - install/distribution 手順、feedback_contract_ssot、bundles.json。

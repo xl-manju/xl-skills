@@ -16,13 +16,13 @@ applicability:
 # P03 — design-review (設計レビューゲート)
 
 ## 目的
-P02 の設計 (inventory と envelope draft、および 4 件の設計判断) を design-gate として elegant-review C1-C4 で審査し、proposer≠approver の原則で独立レビュアが通過判定を下す。設計段階の欠陥を実装前に止める gate フェーズ。
+P02 の設計 (inventory と envelope draft、および phase-02 の設計判断一式 (正本=phase-02 ドメイン知識節)) を design-gate として elegant-review C1-C4 で審査し、proposer≠approver の原則で独立レビュアが通過判定を下す。設計段階の欠陥を実装前に止める gate フェーズ。
 
 ## 背景
 設計段階の欠陥を実装後に発見すると手戻りが大きい。特にカテゴリ×プラットフォームのマトリクス機構 (C7) は「カテゴリの一例列挙で満足し本質要件のマトリクス機構を作り込まない」という退化が起きやすいため、提案者と承認者を分離 (proposer≠approver) して実装前に検出する。審査は独立 context で行い、指摘は P02 へ差し戻す。
 
 ## 前提条件
-- P02 の `component-inventory.json` と `envelope-draft/plugin.json`、4 件の設計判断が生成済み。
+- P02 の `component-inventory.json` と `envelope-draft/plugin.json`、phase-02 の設計判断一式 (正本=phase-02 ドメイン知識節) が生成済み。
 - elegant-review 4 条件 (矛盾なし/漏れなし/整合性/依存整合) の評価枠組みを参照できる。
 - レビュアは提案者と別 context で評価する (構造的に proposer≠approver)。
 

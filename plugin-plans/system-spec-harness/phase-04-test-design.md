@@ -7,7 +7,7 @@ prev_phase: 3
 next_phase: 5
 status: 未実施
 gate_type: tdd-red
-entities_covered: [C01, C02, C03]
+entities_covered: [C01, C02, C03, C04, C11, C14]
 applicability:
   applicable: true
   reason: ""
@@ -46,11 +46,14 @@ TDD の Red を先に立てることで、実装が「何を満たせば完了�
 - [ ] `needs_guidance` fixtureが2〜3案、無料/低コスト案、最新確認時刻/公式出典、goal fit/TCO/security/operations/lock-in、AI推奨理由/注意点を持ち、ユーザー確認前のconfirmedを拒否する。
 - [ ] C04 depth testがpointer-only referenceをFAILし、seed外knowledge candidateのdiscover/qualify/deepen lifecycleを再現する。
 - [ ] 全promptがprompt-creator validatorをPASSし、legacy `Layer5: 手順層` を負例でFAILにする。
-- [ ] C11 は Write/Edit/Bash のhook負例を持ち、protected path/spec-stateを参照するBashと曖昧な動的書換をfail-closedで拒否する。C01/C03の単一writer/transition gateの負例も別に持つ。
+- [ ] C11 はconfirmed章Write/Edit、protected path/spec-state参照Bash、曖昧な動的Bash書換の負例を持つ。判定不能Write/Editは通し、正本writerはC01のみ、C03/C11はread-onlyであることを別fixtureで固定する。
+- [ ] C14 knowledge profileは逆向きdepends_on、cycle/dangling、非対称conflict、root非到達、孤立node、tie-breakを検証する。required-info profileは空catalog/domain欠落/必須field欠落/未回答block/trace欠落を、doctrine profileは重複concern/未写像category/未承認例外をFAILにする。
+- [ ] C01 criteria はknowledge precedence、required-info collection order/coverage certificate、C01→C02→C01 evidence handshake、pending_evidence確定禁止の負例を含む。
+- [ ] C03 criteria はcategory→concern→anchor反映、pending例外/証拠/required-info block時のconfirmed拒否、precedence順配置の負例を含む。
 - [ ] 実装前は criteria が未達 (Red) であることが確認できる。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: C01 の outer criterion が「6周超fixtureで5周目に未完了状態とnext_questionを保存し、resume後にcanonical platform id全セルが確定または対象外理由付きで埋まる」と goal 語彙で書かれ、verify_by=test を持つ。C02 は非公式host・target_id欠落・旧versionをそれぞれFAILにする。
+- 満たす例: C01 の outer criterion が「6周超fixtureで5周目に未完了状態とnext_questionを保存し、resume後にcanonical platform id全セルが確定または対象外理由付きで埋まる」と goal 語彙で書かれ、verify_by=test を持つ。C02 は非公式host・target_id欠落・旧versionをそれぞれFAILにする。C14 は循環注入/dangling 注入 fixture を FAIL にし、C03 は doctrine_anchor 欠落章・非位相順配置の負例を Red に持つ。
 - 満たさない例: criterion が「lint が exit0」「C1-C4 が PASS」だけの汎用ゲート言い換えに退化し、purpose 語彙 (マトリクス/出典/章立て) を一度も参照しない。
 
 ### 事前解決済み判断

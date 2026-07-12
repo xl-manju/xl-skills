@@ -36,7 +36,7 @@ DB・認証からUI-UX・セキュリティ・インフラ・バックエンド�
 - その他の plan 全体用語 (component_kind 等) は index `## ドメイン知識` を参照。
 
 ## 成果物
-- `goal-spec.json` (purpose/background/goal/checklist(C1-C12)/constraints/handoff_targets/open_questions)。
+- `goal-spec.json` (purpose/background/goal/checklist(C1-C16)/constraints/handoff_targets/open_questions)。
 - target_plugin_slug=`system-spec-harness` と plan_dir=`plugin-plans/system-spec-harness` の確定値。
 
 ## スコープ外
@@ -45,13 +45,14 @@ DB・認証からUI-UX・セキュリティ・インフラ・バックエンド�
 - 実装・build (P05 と後段 builder の責務)。
 
 ## 完了チェックリスト
-- [ ] `goal-spec.json` が purpose を非空で保持し、受入観点 (C1-C12) が purpose 語彙から導出されている。
+- [ ] `goal-spec.json` が purpose を非空で保持し、受入観点 (C1-C16) が purpose 語彙から導出されている。
 - [ ] target_plugin_slug が ASCII kebab (`system-spec-harness`) で確定し以降のフェーズがそれを参照できる。
 - [ ] `check-plugin-goal-spec.py` が exit0 (R1 goal-spec + plugin 固有アンカー充足)。
 - [ ] goal-spec C9-C12 が上位概念、AI意思決定支援、open-world深い知識、prompt-creator準拠をそれぞれ独立criterionとして宣言する。
+- [ ] goal-spec C13-C16 がdepends_on precedence DAGと型則、位相順消費、1 concern 1 doctrine authority+category全射、required-info最低形状/domain被覆/block停止/coverage certificateを独立criterionとして宣言する。
 
 ### 受入例 (満たす例 / 満たさない例)
-- 満たす例: goal-spec.json の checklist が C1-C12 を持ち、C7のマトリクス、C9の上位概念、C10の意思決定支援、C11のdeep/open-world knowledge、C12のprompt品質が独立criterionとして明記されている。
+- 満たす例: goal-spec.json の checklist が C1-C16 を持ち、C7のマトリクス、C9の上位概念、C10の意思決定支援、C11のdeep/open-world knowledge、C12のprompt品質、C13/C14の知識グラフDAG/位相順、C15のdoctrine anchor、C16の必須情報カタログ収集順序が独立criterionとして明記されている。
 - 満たさない例: purpose が構想文の要約に留まり、対象プラットフォームの内訳が constraints に現れない / カテゴリ列挙が固定要件として書かれマトリクス機構 (C7) が欠落している。
 
 ### 事前解決済み判断
