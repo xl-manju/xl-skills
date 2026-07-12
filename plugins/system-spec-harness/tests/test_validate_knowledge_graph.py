@@ -231,6 +231,23 @@ def test_required_info_missing_field():
     assert any("question" in f for f in findings)
 
 
+def test_required_info_non_str_field_fails():
+    # 文字列必須フィールドに非str値 (int) を入れたら最低形状違反 (regression guard:
+    # 以前は str 値のときだけ空検査し非str値が素通りしていた型検査漏れを塞ぐ)。
+    d = _valid_required_info()
+    d["items"][0]["concern"] = 123
+    findings, _ = kg.validate_required_info(d)
+    assert any("concern" in f and "非文字列" in f for f in findings)
+
+
+def test_required_info_non_str_item_id_fails():
+    # 非str の item_id は seen/sorted/heap で型混在 TypeError を招くため早期拒否する。
+    d = _valid_required_info()
+    d["items"][0]["item_id"] = 42
+    findings, _ = kg.validate_required_info(d)
+    assert any("item_id" in f and "非文字列" in f for f in findings)
+
+
 def test_required_info_empty_serves_goals():
     d = _valid_required_info()
     d["items"][0]["serves_goals"] = []

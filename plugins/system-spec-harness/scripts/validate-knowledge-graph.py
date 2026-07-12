@@ -247,8 +247,9 @@ def validate_required_info(data: dict) -> tuple[list[str], dict]:
             findings.append(f"items[{i}]: オブジェクトでない")
             continue
         iid = it.get("item_id")
-        if not iid:
-            findings.append(f"items[{i}]: item_id 欠落")
+        if not isinstance(iid, str) or not iid.strip():
+            # 非文字列 id は seen/sorted/heap で型混在 TypeError を招くため早期に拒否。
+            findings.append(f"items[{i}]: item_id が空/欠落/非文字列")
             continue
         if iid in seen:
             findings.append(f"item_id={iid!r} が重複")
@@ -269,8 +270,10 @@ def validate_required_info(data: dict) -> tuple[list[str], dict]:
             elif field == "evidence_required":
                 if missing or not isinstance(val, bool):
                     findings.append(f"items[{iid}]: evidence_required は boolean 必須 (false も正当値)")
-            elif missing or (isinstance(val, str) and not val.strip()):
-                findings.append(f"items[{iid}]: 必須フィールド {field} が空/欠落")
+            elif missing or not isinstance(val, str) or not val.strip():
+                # 文字列必須フィールドは型も対称に検査する (非str値=最低形状違反。
+                # depends_on/serves_goals/evidence_required の型検査と非対称にしない)。
+                findings.append(f"items[{iid}]: 必須フィールド {field} が空/欠落/非文字列")
         depends_on[iid] = list(it.get("depends_on", []) or [])
         me = it.get("missing_effect")
         if me and me not in MISSING_EFFECTS:
