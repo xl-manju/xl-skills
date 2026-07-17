@@ -44,10 +44,11 @@
     },
     {
       "path": "doc/harness-coverage-spec.md",
-      "sha256": "dc64271a230e0a50d918f2687de6ef459374f7d887a6339ed1b437ec05487e0b",
-      "verified_at": "2026-07-02",
+      "sha256": "2b5ad824d75a6a69db7065224bfd7ba7038847c66950b6763f3f6319845f4511",
+      "verified_at": "2026-07-17",
       "matrix_rows": [
         "C1",
+        "C2",
         "G6"
       ]
     },
