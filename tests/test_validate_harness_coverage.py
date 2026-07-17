@@ -102,11 +102,13 @@ def test_main_gate_returns_one_when_unmet(tmp_path, monkeypatch):
 # 純関数 (build_floor_from_report / compare_to_floor / merge_floor_up) を
 # fixture 無しの軽量 report dict で叩く。main() の 3 経路は _setup の実 fixture で。
 
-def _rep(scripts_llm=62.7, scripts_mech=85.6):
+def _rep(scripts_llm=62.7, scripts_mech=85.6, scripts_count=100, agents_count=10):
     return {"threshold": 80.0, "sections": [
-        {"type": "scripts", "mechanical": {"coverage_pct": scripts_mech},
+        {"type": "scripts", "count": scripts_count,
+         "mechanical": {"coverage_pct": scripts_mech},
          "llm_eval": {"coverage_pct": scripts_llm}},
-        {"type": "agents", "mechanical": {"coverage_pct": 68.0},
+        {"type": "agents", "count": agents_count,
+         "mechanical": {"coverage_pct": 68.0},
          "llm_eval": {"coverage_pct": 56.0}},
     ]}
 
@@ -116,6 +118,7 @@ def test_build_floor_extracts_each_axis():
     floor = m.build_floor_from_report(_rep())
     assert floor["floors"]["scripts"]["llm_eval"] == 62.7
     assert floor["floors"]["agents"]["mechanical"] == 68.0
+    assert floor["counts"] == {"scripts": 100, "agents": 10}
     assert floor["threshold"] == 80.0
 
 
@@ -168,6 +171,81 @@ def test_merge_floor_up_holds_on_regression():
     assert any("scripts/llm_eval" in w for w in warns)
 
 
+def test_merge_floor_up_preserves_count_when_artifacts_were_removed():
+    m = _load()
+    floor = m.build_floor_from_report(_rep(scripts_count=100))
+    held, warns = m.merge_floor_up(floor, _rep(scripts_count=90))
+    assert held["counts"]["scripts"] == 100
+    assert any("scripts/count" in w for w in warns)
+
+
+def test_rebase_floor_on_removal_accepts_lower_ratio_for_smaller_population():
+    m = _load()
+    floor = m.build_floor_from_report(_rep(scripts_llm=62.7, scripts_count=100))
+    rebased, notes = m.rebase_floor_on_removal(
+        floor,
+        _rep(scripts_llm=55.0, scripts_count=90),
+        "remove obsolete plugin",
+    )
+    assert rebased["counts"]["scripts"] == 90
+    assert rebased["floors"]["scripts"]["llm_eval"] == 55.0
+    assert rebased["last_rebase"] == {
+        "mode": "artifact-removal",
+        "reason": "remove obsolete plugin",
+        "removed_counts": {"scripts": 10},
+    }
+    assert any("scripts: artifact count 100 -> 90" in n for n in notes)
+
+
+def test_rebase_floor_on_removal_rejects_regression_without_count_change():
+    m = _load()
+    floor = m.build_floor_from_report(_rep(scripts_llm=62.7, scripts_count=100))
+    try:
+        m.rebase_floor_on_removal(
+            floor,
+            _rep(scripts_llm=55.0, scripts_count=100),
+            "not actually a removal",
+        )
+    except ValueError as exc:
+        assert "count 不変" in str(exc)
+    else:
+        raise AssertionError("count 不変の coverage 回帰を rebase してはならない")
+
+
+def test_rebase_floor_on_removal_rejects_added_artifacts():
+    m = _load()
+    floor = m.build_floor_from_report(_rep(scripts_count=100))
+    try:
+        m.rebase_floor_on_removal(
+            floor,
+            _rep(scripts_count=101),
+            "mixed add and remove",
+        )
+    except ValueError as exc:
+        assert "artifact count が増加" in str(exc)
+    else:
+        raise AssertionError("artifact 追加を削除専用 rebase で許可してはならない")
+
+
+def test_rebase_floor_on_removal_requires_reason_and_count_snapshot():
+    m = _load()
+    floor = m.build_floor_from_report(_rep())
+    try:
+        m.rebase_floor_on_removal(floor, _rep(scripts_count=90), "")
+    except ValueError as exc:
+        assert "--rebase-reason" in str(exc)
+    else:
+        raise AssertionError("reason なしの rebase を許可してはならない")
+
+    floor.pop("counts")
+    try:
+        m.rebase_floor_on_removal(floor, _rep(scripts_count=90), "remove plugin")
+    except ValueError as exc:
+        assert "counts がない" in str(exc)
+    else:
+        raise AssertionError("count snapshot なしの rebase を許可してはならない")
+
+
 def test_main_self_test_returns_zero(monkeypatch):
     m = _load()
     monkeypatch.setattr("sys.argv", ["x", "--self-test"])
@@ -182,6 +260,29 @@ def test_main_update_floor_then_ratchet_ok(tmp_path, monkeypatch):
     assert m.main() == 0
     assert floor.is_file()
     # 同じ現値で ratchet → 回帰なし exit0
+    monkeypatch.setattr("sys.argv", ["x", "--ratchet", "--json", hj, "--floor", str(floor)])
+    assert m.main() == 0
+
+
+def test_main_rebase_floor_on_removal_then_ratchet_ok(tmp_path, monkeypatch):
+    m = _setup(tmp_path, code_pct=95.0, llm_avg=95.0, skill_pass=True)
+    report = m.build_report(80.0)
+    floor_data = m.build_floor_from_report(report)
+    floor_data["counts"]["agents"] += 1
+    floor_data["floors"]["agents"]["mechanical"] = 50.0
+    floor_data["floors"]["agents"]["llm_eval"] = 50.0
+    floor = tmp_path / "floor.json"
+    floor.write_text(json.dumps(floor_data), encoding="utf-8")
+    hj = str(tmp_path / "h.json")
+
+    monkeypatch.setattr("sys.argv", [
+        "x", "--rebase-floor-on-removal", "--rebase-reason", "remove obsolete plugin",
+        "--json", hj, "--floor", str(floor),
+    ])
+    assert m.main() == 0
+    rebased = json.loads(floor.read_text(encoding="utf-8"))
+    assert rebased["last_rebase"]["removed_counts"] == {"agents": 1}
+
     monkeypatch.setattr("sys.argv", ["x", "--ratchet", "--json", hj, "--floor", str(floor)])
     assert m.main() == 0
 

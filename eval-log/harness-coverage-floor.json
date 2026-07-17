@@ -1,21 +1,29 @@
 {
   "threshold": 80.0,
+  "counts": {
+    "scripts": 315,
+    "skills": 71,
+    "agents": 35,
+    "commands": 21,
+    "hooks": 1,
+    "docs": 46
+  },
   "floors": {
     "scripts": {
       "mechanical": 85.6,
-      "llm_eval": 66.7
+      "llm_eval": 65.4
     },
     "skills": {
       "mechanical": 100.0,
-      "llm_eval": 82.3
+      "llm_eval": 83.1
     },
     "agents": {
-      "mechanical": 68.0,
-      "llm_eval": 56.0
+      "mechanical": 62.9,
+      "llm_eval": 40.0
     },
     "commands": {
-      "mechanical": 94.1,
-      "llm_eval": 47.1
+      "mechanical": 95.2,
+      "llm_eval": 42.9
     },
     "hooks": {
       "mechanical": 100.0,
@@ -26,5 +34,15 @@
       "llm_eval": 80.4
     }
   },
-  "note": "各軸カバレッジの下限 floor。現値がこれを下回ると --ratchet が exit1。改善時は --update-floor で floor を引き上げる (ratchet up・回帰は焼かない)。"
+  "note": "各軸カバレッジの下限 floor。現値がこれを下回ると --ratchet が exit1。改善時は --update-floor で floor を引き上げる (ratchet up・回帰は焼かない)。artifact の物理削除時だけ --rebase-floor-on-removal で count 縮小を検証して再基準化する。",
+  "last_rebase": {
+    "mode": "artifact-removal",
+    "reason": "remove obsolete slide-report-generator and ubm-goal-setting plugins",
+    "removed_counts": {
+      "scripts": 16,
+      "skills": 7,
+      "agents": 24,
+      "commands": 6
+    }
+  }
 }
