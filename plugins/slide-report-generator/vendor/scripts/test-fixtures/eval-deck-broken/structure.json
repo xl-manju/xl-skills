@@ -1,7 +1,0 @@
-{
-  "meta": { "title": "壊れたテストデッキ", "total_slides": 2 },
-  "slides": [
-    { "slideType": "title", "title": "テスト" },
-    { "slideType": "message", "title": "2枚目" }
-  ]
-}

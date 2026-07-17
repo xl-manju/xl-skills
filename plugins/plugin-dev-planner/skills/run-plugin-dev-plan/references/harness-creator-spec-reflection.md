@@ -41,8 +41,8 @@ source-tier: internal
 
 | ID | 仕様 | 絶対パス | 何を強制 | 焼き先 |
 |---|---|---|---|---|
-| C1 | harness-coverage-spec | `doc/harness-coverage-spec.md` | 6 種別(scripts/skills/agents/commands/hooks/docs)×二軸(mechanical/llm_eval)=12 軸各≥80%・kind 別パス(ref→source-traceability+ref-review / assign→evaluator verdict / loop→criteria 検証 test+content-review verdict)・水増し厳禁 | P6 |
-| C2 | validate-harness-coverage.py | `scripts/validate-harness-coverage.py` | 12 セル全 met 時のみ spec_met=true・`--gate` exit1・新規 loop-kind は `make coverage-gate` で <80% exit1(ratchet) | P6 完了条件 |
+| C1 | harness-coverage-spec | `doc/harness-coverage-spec.md` | 6 種別(scripts/skills/agents/commands/hooks/docs)×二軸(mechanical/llm_eval)=12 軸各≥80%・kind 別パス(ref→source-traceability+ref-review / assign→evaluator verdict / loop→criteria 検証 test+content-review verdict)・水増し厳禁・通常更新で floor を下げず、artifact 物理削除時だけ count 縮小検証+理由記録を伴う再基準化を許可 | P6 |
+| C2 | validate-harness-coverage.py | `scripts/validate-harness-coverage.py` | 12 セル全 met 時のみ spec_met=true・`--gate` exit1・新規 loop-kind は `make coverage-gate` で <80% exit1・`--ratchet` は floor 回帰を blocking・`--update-floor` は引上げのみ・`--rebase-floor-on-removal` は count 増加/count 不変の低下/理由欠落を fail-closed 拒否 | P6 完了条件 |
 | C3 | pytest 計測規約 | `sitecustomize.py` / `tests/test_scripts_smoke.py`(`.coveragerc`=**未確認**: harness-spec 記載だが repo root に未配置) | subprocess 行カバレッジ=pytest-cov+(parallel coverage 設定)+sitecustomize+COVERAGE_PROCESS_START・smoke import・非コード artifact は `eval-log/coverage/<type>/<key>.json`(実産物のみ)・network/secret は monkeypatch | P6 |
 | C4 | run-build-skill 完了チェックリスト | `plugins/harness-creator/skills/run-build-skill/SKILL.md` | 同梱 scripts は tests/ に機能テスト+行カバレッジ≥80%・R1 に coverage 携帯必須・TDD(Red→Green)=未達チェックリスト項目→goal-seek で埋める→lint/test/verdict exit0/PASS | P4/P6 |
 

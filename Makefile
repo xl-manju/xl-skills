@@ -141,7 +141,7 @@ harness-coverage:
 	python3 scripts/validate-harness-coverage.py --threshold $(COV_THRESHOLD)
 
 ## harness-ratchet: ハーネス仕様カバレッジが floor(現状値=eval-log/harness-coverage-floor.json) を下回ったら fail-closed (回帰ガード)
-##   80% 絶対 gate (harness-coverage) は WARN のまま漸進を許すが、現状より悪化 (verdict/test 未添付の新規 artifact 追加) は blocking で止める。改善時は --update-floor で floor を引き上げる。
+##   80% 絶対 gate (harness-coverage) は WARN のまま漸進を許すが、現状より悪化 (verdict/test 未添付の新規 artifact 追加) は blocking で止める。改善時は --update-floor、artifact 物理削除時は --rebase-floor-on-removal + --rebase-reason。
 harness-ratchet:
 	python3 scripts/validate-harness-coverage.py --ratchet
 

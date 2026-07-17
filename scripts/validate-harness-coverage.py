@@ -3,7 +3,7 @@
 # name: validate-harness-coverage
 # purpose: ハーネス仕様「全 artifact 種別 × 二軸(機械的/LLM性能評価) で テストカバレッジ >=80%」の整備状況を横断集計する。
 # inputs:
-#   - argv: [--threshold 80] [--json <path>] [--gate]
+#   - argv: [--threshold 80] [--json <path>] [--gate|--ratchet|--update-floor|--rebase-floor-on-removal]
 #   - reads: eval-log/code-coverage.json, eval-log/llm-coverage.json, eval-log/*/*/content-review/*-verdict.json
 # outputs:
 #   - stdout: 種別×二軸のダッシュボード + 総合 PASS/FAIL
@@ -302,23 +302,30 @@ def build_report(threshold: float) -> dict:
 # 留まっていた (spec と enforcement の二枚舌)。--ratchet は「現値が floor を下回ったら
 # fail」に変換し、80% への漸進を妨げず回帰 (verdict/test 未添付の新規 artifact 追加に
 # よる率低下) だけを blocking で止める。floor は改善時に --update-floor で引き上げる
-# (ratchet up・回帰は焼かない)。
+# (ratchet up・回帰は焼かない)。artifact の物理削除で母集団が縮小した場合だけ、
+# count snapshot を照合する --rebase-floor-on-removal で明示的に再基準化する。
 FLOOR_JSON = EVAL_LOG / "harness-coverage-floor.json"
 RATCHET_TOLERANCE = 0.1  # 丸め誤差のみ吸収。1 artifact 追加 (≈0.4pt) の率低下は検出する。
 
 
 def build_floor_from_report(report: dict) -> dict:
     floors = {}
+    counts = {}
     for sec in report["sections"]:
         floors[sec["type"]] = {
             "mechanical": sec["mechanical"].get("coverage_pct"),
             "llm_eval": sec["llm_eval"].get("coverage_pct"),
         }
+        count = sec.get("count")
+        if isinstance(count, int) and count >= 0:
+            counts[sec["type"]] = count
     return {
         "threshold": report.get("threshold"),
+        "counts": counts,
         "floors": floors,
         "note": "各軸カバレッジの下限 floor。現値がこれを下回ると --ratchet が exit1。"
-                "改善時は --update-floor で floor を引き上げる (ratchet up・回帰は焼かない)。",
+                "改善時は --update-floor で floor を引き上げる (ratchet up・回帰は焼かない)。"
+                "artifact の物理削除時だけ --rebase-floor-on-removal で count 縮小を検証して再基準化する。",
     }
 
 
@@ -347,6 +354,7 @@ def merge_floor_up(old_floor: dict, report: dict) -> tuple[dict, list[str]]:
     new = build_floor_from_report(report)
     warns: list[str] = []
     old_floors = old_floor.get("floors", {})
+    old_counts = old_floor.get("counts", {})
     for t, axes in new["floors"].items():
         for axis, cur in list(axes.items()):
             old_v = old_floors.get(t, {}).get(axis)
@@ -356,13 +364,74 @@ def merge_floor_up(old_floor: dict, report: dict) -> tuple[dict, list[str]]:
                     f"{t}/{axis}: 現値 {cur}% < 既存 floor {old_v}% のため据え置き "
                     "(回帰は --ratchet が検出)"
                 )
+        old_count = old_counts.get(t)
+        cur_count = new["counts"].get(t)
+        if isinstance(old_count, int) and isinstance(cur_count, int) and cur_count < old_count:
+            new["counts"][t] = old_count
+            warns.append(
+                f"{t}/count: 現値 {cur_count} < 既存 count {old_count} のため据え置き "
+                "(物理削除は --rebase-floor-on-removal で明示する)"
+            )
     return new, warns
+
+
+def rebase_floor_on_removal(old_floor: dict, report: dict, reason: str) -> tuple[dict, list[str]]:
+    """artifact count が縮小した種別だけ、削除後の現値へ floor を再基準化する。
+
+    count が不変の種別で floor が低下した場合や、artifact が増えた場合は fail-closed。
+    これにより通常の ``--update-floor`` は下げない契約を保ちつつ、物理削除で高被覆
+    artifact が母集団から消えたときの比率変化だけを review 可能な明示操作にする。
+    """
+    if not reason.strip():
+        raise ValueError("--rebase-reason に削除理由を指定すること")
+    old_counts = old_floor.get("counts")
+    if not isinstance(old_counts, dict) or not old_counts:
+        raise ValueError("既存 floor ledger に counts がないため削除を検証できない")
+
+    new = build_floor_from_report(report)
+    old_floors = old_floor.get("floors", {})
+    removed: dict[str, int] = {}
+    notes: list[str] = []
+    for t, axes in new["floors"].items():
+        old_count = old_counts.get(t)
+        cur_count = new["counts"].get(t)
+        if not isinstance(old_count, int) or not isinstance(cur_count, int):
+            raise ValueError(f"{t}: count snapshot が欠落している")
+        if cur_count > old_count:
+            raise ValueError(
+                f"{t}: artifact count が増加している ({old_count} -> {cur_count})。"
+                "削除専用 rebase では扱えない"
+            )
+        if cur_count < old_count:
+            removed[t] = old_count - cur_count
+            notes.append(f"{t}: artifact count {old_count} -> {cur_count} (-{old_count - cur_count})")
+            continue
+
+        for axis, cur in list(axes.items()):
+            old_v = old_floors.get(t, {}).get(axis)
+            if old_v is None or cur is None:
+                continue
+            if cur < old_v - RATCHET_TOLERANCE:
+                raise ValueError(
+                    f"{t}/{axis}: count 不変なのに {old_v}% -> {cur}% へ低下。"
+                    "削除に由来しない回帰の疑い"
+                )
+            new["floors"][t][axis] = max(old_v, cur)
+
+    if not removed:
+        raise ValueError("artifact count が縮小した種別がないため rebase を拒否")
+    new["last_rebase"] = {
+        "mode": "artifact-removal",
+        "reason": reason.strip(),
+        "removed_counts": removed,
+    }
+    return new, notes
 
 
 def _self_test() -> int:
     rep = {"threshold": 80.0, "sections": [
-        {"type": "scripts", "mechanical": {"coverage_pct": 85.6}, "llm_eval": {"coverage_pct": 62.7}},
-        {"type": "agents", "mechanical": {"coverage_pct": 68.0}, "llm_eval": {"coverage_pct": 56.0}},
+        {"type": "scripts", "count": 100, "mechanical": {"coverage_pct": 85.6}, "llm_eval": {"coverage_pct": 62.7}},
+        {"type": "agents", "count": 10, "mechanical": {"coverage_pct": 68.0}, "llm_eval": {"coverage_pct": 56.0}},
     ]}
     floor = build_floor_from_report(rep)
     assert floor["floors"]["scripts"]["llm_eval"] == 62.7
@@ -383,7 +452,19 @@ def _self_test() -> int:
     held, warns = merge_floor_up(floor, down)
     assert held["floors"]["scripts"]["llm_eval"] == 62.7  # 据え置き (回帰は焼かない)
     assert any("scripts/llm_eval" in w for w in warns)
-    print("OK: validate-harness-coverage ratchet self-test (6 checks)")
+    removed = json.loads(json.dumps(rep))
+    removed["sections"][0]["count"] = 90
+    removed["sections"][0]["llm_eval"]["coverage_pct"] = 55.0
+    rebased, _ = rebase_floor_on_removal(floor, removed, "obsolete plugin removal")
+    assert rebased["floors"]["scripts"]["llm_eval"] == 55.0
+    assert rebased["last_rebase"]["removed_counts"] == {"scripts": 10}
+    try:
+        rebase_floor_on_removal(floor, down, "no count change")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("count 不変の coverage 低下を rebase してはならない")
+    print("OK: validate-harness-coverage ratchet self-test (8 checks)")
     return 0
 
 
@@ -391,13 +472,18 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--threshold", type=float, default=80.0)
     ap.add_argument("--json", default=str(EVAL_LOG / "harness-coverage.json"))
-    ap.add_argument("--gate", action="store_true", help="仕様未達(spec_met=false)で exit1")
-    ap.add_argument("--ratchet", action="store_true",
-                    help="floor ledger を下回る軸があれば exit1 (回帰ガード)")
-    ap.add_argument("--update-floor", action="store_true",
-                    help="floor を現値へ ratchet up (下げない)")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--gate", action="store_true", help="仕様未達(spec_met=false)で exit1")
+    mode.add_argument("--ratchet", action="store_true",
+                      help="floor ledger を下回る軸があれば exit1 (回帰ガード)")
+    mode.add_argument("--update-floor", action="store_true",
+                      help="floor を現値へ ratchet up (下げない)")
+    mode.add_argument("--rebase-floor-on-removal", action="store_true",
+                      help="artifact count 縮小時だけ floor を削除後の現値へ明示的に再基準化")
+    ap.add_argument("--rebase-reason", default="",
+                    help="--rebase-floor-on-removal の監査理由 (必須)")
     ap.add_argument("--floor", default=str(FLOOR_JSON))
-    ap.add_argument("--self-test", action="store_true")
+    mode.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
     if args.self_test:
@@ -432,6 +518,24 @@ def main() -> int:
         print(f"[harness-coverage] floor を {floor_path} に更新 (ratchet up)")
         return 0
 
+    if args.rebase_floor_on_removal:
+        floor_path = Path(args.floor)
+        old_floor = _load_json(floor_path)
+        if old_floor is None:
+            print(f"[harness-coverage] floor ledger 不在 ({floor_path})。削除 rebase は実行できない。",
+                  file=sys.stderr)
+            return 2
+        try:
+            new_floor, notes = rebase_floor_on_removal(old_floor, rep, args.rebase_reason)
+        except ValueError as exc:
+            print(f"[harness-coverage] REMOVAL REBASE REFUSED: {exc}", file=sys.stderr)
+            return 2
+        floor_path.write_text(json.dumps(new_floor, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        for note in notes:
+            print(f"  [artifact削除] {note}")
+        print(f"[harness-coverage] floor を {floor_path} に再基準化 (artifact removal)")
+        return 0
+
     if args.ratchet:
         floor_path = Path(args.floor)
         old_floor = _load_json(floor_path)
@@ -446,7 +550,8 @@ def main() -> int:
             for v in violations:
                 print(f"  - {v}", file=sys.stderr)
             print("  → 新規 artifact に test/verdict を添付するか、"
-                  "意図した floor 変更なら --update-floor で更新する。", file=sys.stderr)
+                  "改善なら --update-floor、物理削除なら --rebase-floor-on-removal と "
+                  "--rebase-reason で明示する。", file=sys.stderr)
             return 1
         print("[harness-coverage] RATCHET OK: 全軸が floor 以上 (回帰なし)")
         return 0

@@ -66,6 +66,11 @@ ref は behavioral criteria を持たないため criteria/content-review から
 2. **新規 gate(fail-closed)**: `make coverage-gate`(= `validate-llm-coverage.py --gate-new --since LLM_COV_SINCE`)が
    `LLM_COV_SINCE` 以降に since された新規 loop-kind skill を <80% で exit1。新規生成物から必達。
 3. **既存 ratchet**: 既存 artifact は backfill で段階的に 80% へ底上げ。`spec_met=true` で完了。
+4. **artifact 物理削除時の再基準化**: 高被覆 artifact の削除は、残存 artifact の test/verdict を
+   失わせなくても母集団比率を下げ得る。通常の `--update-floor` は floor を下げず、削除時だけ
+   `validate-harness-coverage.py --rebase-floor-on-removal --rebase-reason "<削除理由>"` を使う。
+   floor ledger の artifact count snapshot と現状を照合し、count 増加・count 不変での coverage 低下・
+   理由なしを fail-closed で拒否する。再基準化結果には削除数と理由を記録し、PR review 可能にする。
 
 ## 5. 自動化 (量産先への伝播)
 
