@@ -1,6 +1,94 @@
 # Spec Diff History
 
 このファイルは `.github/workflows/update-yaml-spec.yml` が週次自動更新する。最新が上。
+## 2026-11-23T06:29:02Z
+
+実仕様ページに変更を検知。
+
+```diff
+--- 
++++ 
+@@ -360,15 +360,17 @@
+ Cowork or cloud sessions
+ Project
+ .claude/skills/<skill-name>/SKILL.md
+-Sessions in this repository, but not
+-cloud threads in a project
++Sessions in this repository. For a project’s cloud threads, check
++which threads load it
+ . Commit it so your team gets it too
+ Nested
+ <subdir>/.claude/skills/<skill-name>/SKILL.md
+ Sessions started in or below
+ <subdir>
+-, but not cloud threads in a project. Outside those threads, a session started above it loads the skill once Claude works on files there. See
++. A session started above it can load the skill once Claude works on files there. See
+ monorepos and subdirectories
++. For a project’s cloud threads, check
++which threads load it
+ Additional directory
+ .claude/skills/<skill-name>/SKILL.md
+ in a directory you pass with
+@@ -623,9 +625,9 @@
+ cloud scheduled tasks
+ , don’t read
+ ~/.claude/skills/
+-on your machine. Both interactive and scheduled Cowork sessions load the skills enabled for your claude.ai account, synced at session start. Manage them from
+-Customize
+-in the Desktop app sidebar or from the skills settings on claude.ai.
++on your machine. Both interactive and scheduled Cowork sessions load the skills enabled for your claude.ai account, synced at session start. Manage those skills at
++claude.ai/customize/skills/yours
++.
+ If a skill exists only in
+ ~/.claude/skills/
+ on your machine, Claude Code reports that the skill was not found when a
+@@ -633,16 +635,14 @@
+ invokes it. This happens because each run starts as a fresh cloud session. To make a personal skill available in these sessions:
+ For Cowork sessions, cloud sessions, and cloud threads in a
+ project
+-, enable the skill for your claude.ai account. In a project’s cloud thread, skills committed to a repository’s
+-.claude/skills/
+-aren’t available.
++, enable the skill for your claude.ai account.
+ Some sessions in a self-hosted environment
+ don’t load your account’s skills.
+-For cloud sessions other than project threads, you can instead commit the skill to the repository’s
++For cloud sessions, you can instead commit the skill to the repository’s
+ .claude/skills/
+-. Plugins declared in the repository’s
+-.claude/settings.json
+-and plugins enabled only in your user settings
++. For a project, check
++which threads load it
++. Plugins enabled only in your user settings
+ don’t load in cloud sessions
+ .
+ Desktop scheduled tasks
+@@ -874,11 +874,9 @@
+ inside an
+ --add-dir
+ directory, Claude Code picks up the change within the current session, without a restart.
+-If you create a top-level skills directory that didn’t exist when the session started, run
++If a new skill doesn’t appear, run
+ /reload-skills
+-to pick up the skills you put there. Claude Code isn’t watching that directory yet, so run
+-/reload-skills
+-again after each later change there.
++.
+ Live change detection covers
+ SKILL.md
+ text. For a skill folder that is also a
+@@ -1223,7 +1221,11 @@
+ .
+ paths
+ No
+-Glob patterns that limit when this skill is activated. Accepts a comma-separated string or a YAML list. When set, Claude loads the skill automatically only when working with files matching the patterns. Patterns are relative to Claude’s current working directory, and files outside that directory don’t match. Uses the same glob format as
++Glob patterns for the files that activate this skill. Accepts a comma-separated string or a YAML list. Patterns are relative to Claude’s current working directory. In the main conversation, they stay relative to the
++primary working directory
++after a
+... (1963 more lines)
+```
+
 ## 2026-11-16T05:27:34Z
 
 実仕様ページに変更を検知。
